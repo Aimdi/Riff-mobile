@@ -1,3 +1,14 @@
+# 1.1.0 — Discovery redesign
+* Local private taste model (affinity, familiarity, co-occurrence, impressions, skip learning)
+* Shared recommendation pipeline for radio, similar songs, and generated mixes
+* Smart radio with exploration control (Settings → Riff → Discovery)
+* Similar songs sheet + More like this play next + player Similar row
+* Daily Mixes, Fresh Finds, Release Radar, Rediscover (resume-time generation)
+* Personal Home sections after enough listening signal (cold start unchanged)
+* Follow artists (library) for Release Radar; Android Auto mix folders
+* Stats: exploration ratio, rising artists, kept-from-Fresh-Finds
+* Unit tests under test/discovery/
+
 # 1.12.2
 * Added wakelock support to keep screen awake while playing music (can be toggled from settings)
 * Enabled downloading in external storage for Android devices

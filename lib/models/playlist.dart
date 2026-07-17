@@ -28,7 +28,8 @@ class Playlist {
       required this.thumbnailUrl,
       this.songCount,
       this.isPipedPlaylist = false,
-      this.isCloudPlaylist = true});
+      this.isCloudPlaylist = true,
+      this.kind});
   final String playlistId;
   String title;
   final bool isPipedPlaylist;
@@ -36,6 +37,8 @@ class Playlist {
   String thumbnailUrl;
   final String? songCount;
   final bool isCloudPlaylist;
+  /// System mix kind: daily_mix / fresh_finds / release_radar / rediscover.
+  final String? kind;
   static const thumbPlaceholderUrl =
       "https://raw.githubusercontent.com/anandnet/Harmony-Music/refs/heads/main/playlist_placeholder.png";
 
@@ -48,7 +51,8 @@ class Playlist {
       description: json["description"] ?? "Playlist",
       songCount: json['itemCount'],
       isPipedPlaylist: json["isPipedPlaylist"] ?? false,
-      isCloudPlaylist: json["isCloudPlaylist"] ?? true);
+      isCloudPlaylist: json["isCloudPlaylist"] ?? true,
+      kind: json["kind"]);
 
   Map<String, dynamic> toJson() => {
         "title": title,
@@ -59,10 +63,11 @@ class Playlist {
         ],
         "itemCount": songCount,
         "isPipedPlaylist": isPipedPlaylist,
-        "isCloudPlaylist": isCloudPlaylist
+        "isCloudPlaylist": isCloudPlaylist,
+        if (kind != null) "kind": kind,
       };
 
-  Playlist copyWith({String? title, String? thumbnailUrl}) {
+  Playlist copyWith({String? title, String? thumbnailUrl, String? kind}) {
     return Playlist(
         title: title ?? this.title,
         playlistId: playlistId,
@@ -70,7 +75,8 @@ class Playlist {
         description: description,
         songCount: songCount,
         isPipedPlaylist: isPipedPlaylist,
-        isCloudPlaylist: isCloudPlaylist);
+        isCloudPlaylist: isCloudPlaylist,
+        kind: kind ?? this.kind);
   }
 
   // Converts this object to a MediaItem object.

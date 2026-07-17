@@ -891,10 +891,88 @@ class MediaLibrary {
         return getPlaylists();
       case AudioService.recentRootId:
         return getLibSongs("LIBRP");
+      case dailyMixesRootId:
+        return getDiscoveryMixes(kind: 'daily_mix');
+      case freshFindsRootId:
+        return getDiscoveryMixes(kind: 'fresh_finds', asSongs: true);
       default:
+        // Individual mix playlists
+        if (id.startsWith('riff_mix_')) {
+          return getDiscoveryMixTracks(id.substring('riff_mix_'.length));
+        }
         return getLibSongs(id);
     }
   }
+
+  Future<List<MediaItem>> getDiscoveryMixes(
+      {required String kind, bool asSongs = false}) async {
+    try {
+      if (!Hive.isBoxOpen('riff_mixes')) {
+        await Hive.openBox('riff_mixes');
+      }
+      final box = Hive.box('riff_mixes');
+      final mixes = box.values.whereType<Map>().where((m) => m['kind'] == kind);
+      if (asSongs) {
+        for (final m in mixes) {
+          final tracks = m['tracks'] as List? ?? [];
+          return tracks.map((t) {
+            final song = MediaItemBuilder.fromJson(t);
+            return MediaItem(
+              id: song.id,
+              title: song.title,
+              artist: song.artist,
+              artUri: song.artUri,
+              extras: {
+                ...?song.extras,
+                'discoverySource': 'android_auto',
+              },
+              playable: true,
+            );
+          }).toList();
+        }
+        return [];
+      }
+      return mixes
+          .map((m) => MediaItem(
+                id: 'riff_mix_${m['id']}',
+                title: m['title'] as String? ?? 'Mix',
+                playable: false,
+              ))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<List<MediaItem>> getDiscoveryMixTracks(String mixId) async {
+    try {
+      if (!Hive.isBoxOpen('riff_mixes')) {
+        await Hive.openBox('riff_mixes');
+      }
+      final m = Hive.box('riff_mixes').get(mixId);
+      if (m is! Map) return [];
+      final tracks = m['tracks'] as List? ?? [];
+      return tracks.map((t) {
+        final song = MediaItemBuilder.fromJson(t);
+        return MediaItem(
+          id: song.id,
+          title: song.title,
+          artist: song.artist,
+          artUri: song.artUri,
+          extras: {
+            ...?song.extras,
+            'discoverySource': 'android_auto',
+          },
+          playable: true,
+        );
+      }).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static const dailyMixesRootId = 'riff_daily_mixes';
+  static const freshFindsRootId = 'riff_fresh_finds';
 
   List<MediaItem> getRoot() {
     return [
@@ -916,6 +994,16 @@ class MediaLibrary {
       MediaItem(
         id: playlistsRootId,
         title: "playlists".tr,
+        playable: false,
+      ),
+      MediaItem(
+        id: dailyMixesRootId,
+        title: "dailyMixes".tr,
+        playable: false,
+      ),
+      MediaItem(
+        id: freshFindsRootId,
+        title: "freshFinds".tr,
         playable: false,
       ),
     ];

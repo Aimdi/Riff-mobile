@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/services/discovery/discovery_service.dart';
+import '/services/discovery/discovery_types.dart';
 import '/services/stats_service.dart';
 
 /// Riff Stats page: plays, hours, top songs/artists and daily activity,
@@ -21,6 +23,40 @@ class StatsScreen extends StatelessWidget {
     final maxDayPlays = days.fold<int>(
         1, (m, d) => (d["plays"] as int) > m ? d["plays"] as int : m);
 
+    // Discovery insights
+    double explorationRatio = 0;
+    List<Map<String, dynamic>> rising = [];
+    int keptFresh = 0;
+    if (Get.isRegistered<DiscoveryService>()) {
+      final disc = Get.find<DiscoveryService>();
+      final events = disc.repo.recentEvents(limit: 500);
+      final plays = events
+          .where((e) =>
+              e.event == DiscoveryEventKind.playStarted ||
+              e.event == DiscoveryEventKind.playEnded)
+          .toList();
+      if (plays.isNotEmpty) {
+        final firstTime = plays.where((e) {
+          // Approximate: discover/radio/fresh sources count as exploration
+          return e.source == DiscoverySource.discover ||
+              e.source == DiscoverySource.dailyMix ||
+              e.source == DiscoverySource.similar ||
+              e.source == DiscoverySource.radio;
+        }).length;
+        explorationRatio = firstTime / plays.length;
+      }
+      final snap = disc.debugSnapshot();
+      rising = List<Map<String, dynamic>>.from(
+          (snap['artists'] as List? ?? []).take(5));
+      keptFresh = events
+          .where((e) =>
+              e.surface == DiscoverySurface.freshFinds &&
+              (e.event == DiscoveryEventKind.thumbsUp ||
+                  e.event == DiscoveryEventKind.favorite ||
+                  e.event == DiscoveryEventKind.playlistAdd))
+          .length;
+    }
+
     return Scaffold(
       backgroundColor: Theme.of(context).canvasColor,
       body: Padding(
@@ -37,6 +73,28 @@ class StatsScreen extends StatelessWidget {
                     "hours".tr),
               ],
             ),
+            if (Get.isRegistered<DiscoveryService>()) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  _statCard(context, "${(explorationRatio * 100).toStringAsFixed(0)}%",
+                      "explorationRatio".tr),
+                  const SizedBox(width: 10),
+                  _statCard(context, "$keptFresh", "keptFromFreshFinds".tr),
+                ],
+              ),
+              if (rising.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Text("topRisingArtists".tr,
+                    style: Theme.of(context).textTheme.titleMedium),
+                ...rising.map((a) => ListTile(
+                      visualDensity: const VisualDensity(vertical: -3),
+                      contentPadding: EdgeInsets.zero,
+                      title: Text("${a['key']}"),
+                      trailing: Text("${a['score']}"),
+                    )),
+              ],
+            ],
             const SizedBox(height: 25),
             Text("last7Days".tr,
                 style: Theme.of(context).textTheme.titleMedium),

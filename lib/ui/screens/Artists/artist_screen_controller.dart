@@ -8,6 +8,7 @@ import '/ui/widgets/sort_widget.dart';
 import '../../../models/artist.dart';
 import '../../../utils/helper.dart';
 import '../Library/library_controller.dart';
+import '/services/discovery/discovery_service.dart';
 import '/services/music_service.dart';
 import '/ui/screens/Home/home_screen_controller.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
@@ -95,6 +96,17 @@ class ArtistScreenController extends GetxController
           ? box.put(artist_.browseId, artist_.toJson())
           : box.delete(artist_.browseId);
       isAddedToLibrary.value = add;
+      // Discovery: LibraryArtists acts as follow for Release Radar.
+      if (Get.isRegistered<DiscoveryService>()) {
+        final disc = Get.find<DiscoveryService>();
+        if (add) {
+          await disc.repo.followArtist(artist_.browseId,
+              name: artist_.name, thumbnailUrl: artist_.thumbnailUrl);
+        } else {
+          await disc.repo.unfollowArtist(artist_.browseId);
+        }
+        await disc.onFollow(artist_.name, follow: add);
+      }
       //Update frontend
       Get.find<LibraryArtistsController>().refreshLib();
       return true;

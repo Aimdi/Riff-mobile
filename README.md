@@ -28,6 +28,10 @@ development with features ported from Riff desktop.
   out of radio and up-next suggestions (manage in Settings → Riff)
 - 📻 **ListenBrainz scrobbling** — optional; add your user token in
   Settings → Riff
+- 🧭 **Local discovery engine** — private on-device taste model (affinity,
+  skip learning, co-occurrence), smart radio, Similar songs / More like this,
+  Daily Mixes, Fresh Finds, Release Radar, Rediscover; personal Home sections
+  after ~20 listens (Settings → Riff → Discovery)
 - 📦 **Android-only focus** — desktop/iOS targets removed; CI builds APKs on
   every push and attaches them to releases on tags
 

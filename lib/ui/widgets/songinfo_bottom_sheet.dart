@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/ban_service.dart';
+import '../../services/discovery/discovery_service.dart';
 import '../../services/downloader.dart';
 import '../screens/Playlist/playlist_screen_controller.dart';
 import '../screens/Settings/settings_screen_controller.dart';
@@ -20,6 +21,7 @@ import '/ui/widgets/snackbar.dart';
 import '../../models/media_Item_builder.dart';
 import '../../models/playlist.dart';
 import '../navigator.dart';
+import 'discovery/similar_songs_sheet.dart';
 import 'song_download_btn.dart';
 import 'image_widget.dart';
 import 'song_info_dialog.dart';
@@ -108,6 +110,36 @@ class SongInfoBottomSheet extends StatelessWidget {
                 playerController.startRadio(song);
               },
             ),
+            ListTile(
+              visualDensity: const VisualDensity(vertical: -1),
+              leading: const Icon(Icons.graphic_eq),
+              title: Text("similarSongs".tr),
+              onTap: () {
+                Navigator.of(context).pop();
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  shape: const RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(10.0)),
+                  ),
+                  builder: (context) => SimilarSongsSheet(seed: song),
+                );
+              },
+            ),
+            ListTile(
+              visualDensity: const VisualDensity(vertical: -1),
+              leading: const Icon(Icons.playlist_add_outlined),
+              title: Text("moreLikeThisPlayNext".tr),
+              onTap: () {
+                Navigator.of(context).pop();
+                playerController.moreLikeThisPlayNext(song);
+                ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                    context, "moreLikeThisAdded".tr,
+                    size: SanckBarSize.MEDIUM));
+              },
+            ),
             (calledFromPlayer || calledFromQueue)
                 ? const SizedBox.shrink()
                 : ListTile(
@@ -129,6 +161,9 @@ class SongInfoBottomSheet extends StatelessWidget {
               onTap: () {
                 Navigator.of(context).pop();
                 BanService.ban(song);
+                if (Get.isRegistered<DiscoveryService>()) {
+                  Get.find<DiscoveryService>().onNeverPlay(song);
+                }
                 ScaffoldMessenger.of(context).showSnackBar(snackbar(
                     context, "${"songBannedMsg".tr} ${song.title}",
                     size: SanckBarSize.BIG));
@@ -143,7 +178,12 @@ class SongInfoBottomSheet extends StatelessWidget {
                 showDialog(
                   context: context,
                   builder: (context) => AddToPlaylist([song]),
-                ).whenComplete(() => Get.delete<AddToPlaylistController>());
+                ).whenComplete(() {
+                  if (Get.isRegistered<DiscoveryService>()) {
+                    Get.find<DiscoveryService>().onPlaylistAdd(song);
+                  }
+                  Get.delete<AddToPlaylistController>();
+                });
               },
             ),
             (calledFromPlayer || calledFromQueue)
@@ -397,10 +437,14 @@ class SongInfoController extends GetxController
       }
     }
     final box = await Hive.openBox("LIBFAV");
-    isCurrentSongFav.isFalse
+    final adding = isCurrentSongFav.isFalse;
+    adding
         ? box.put(song.id, MediaItemBuilder.toJson(song))
         : box.delete(song.id);
     isCurrentSongFav.value = !isCurrentSongFav.value;
+    if (Get.isRegistered<DiscoveryService>()) {
+      Get.find<DiscoveryService>().onFavorite(song, add: adding);
+    }
     if (Get.find<SettingsScreenController>()
             .autoDownloadFavoriteSongEnabled
             .isTrue &&

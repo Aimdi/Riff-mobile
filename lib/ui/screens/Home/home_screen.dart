@@ -13,8 +13,10 @@ import '/ui/player/player_controller.dart';
 import '/ui/widgets/create_playlist_dialog.dart';
 import '../../navigator.dart';
 import '../../widgets/content_list_widget.dart';
+import '../../widgets/discovery/home_discovery_section.dart';
 import '../../widgets/quickpickswidget.dart';
 import '../../widgets/shimmer_widgets/home_shimmer.dart';
+import '../../../services/discovery/discovery_service.dart';
 import 'home_screen_controller.dart';
 import '../Settings/settings_screen.dart';
 
@@ -195,9 +197,30 @@ class Body extends StatelessWidget {
                     : Obx(() {
                         // dispose all detachached scroll controllers
                         homeScreenController.disposeDetachedScrollControllers();
+                        final personal = Get.isRegistered<DiscoveryService>()
+                            ? Get.find<DiscoveryService>().personalSections
+                            : <dynamic>[].obs;
                         final items = homeScreenController
                                 .isContentFetched.value
                             ? [
+                                // Personal discovery (hidden on cold start)
+                                if (personal.isNotEmpty) ...[
+                                  const HomeShortcutGrid(),
+                                  if (Get.isRegistered<DiscoveryService>() &&
+                                      Get.find<DiscoveryService>()
+                                          .mixesUpdatedPill
+                                          .value)
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                          left: 5, top: 4),
+                                      child: Chip(
+                                        label: Text("mixesUpdated".tr),
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                    ),
+                                  ...personal.map(
+                                      (s) => HomeDiscoverySection(section: s)),
+                                ],
                                 Obx(() {
                                   final scrollController = ScrollController();
                                   homeScreenController.contentScrollControllers

@@ -5,6 +5,7 @@ import 'package:ionicons/ionicons.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
 import '/ui/player/components/animated_play_button.dart';
+import '../../widgets/discovery/player_similar_row.dart';
 import '../player_controller.dart';
 
 class PlayerControlWidget extends StatelessWidget {
@@ -146,6 +147,7 @@ class PlayerControlWidget extends StatelessWidget {
               }),
             ],
           ),
+          const PlayerSimilarRow(),
         ]);
   }
 

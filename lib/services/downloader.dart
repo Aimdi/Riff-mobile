@@ -18,6 +18,7 @@ import '../ui/screens/Settings/settings_screen_controller.dart';
 import '/utils/helper.dart';
 import '/models/media_Item_builder.dart';
 import '../ui/screens/Library/library_controller.dart';
+import 'discovery/discovery_service.dart';
 import 'music_service.dart';
 //import '../models/thumbnail.dart' as th;
 
@@ -73,8 +74,16 @@ class Downloader extends GetxService {
     if (!(await checkPermissionNDir())) return;
     if (songList != null) {
       songQueue.addAll(songList);
+      if (Get.isRegistered<DiscoveryService>()) {
+        for (final s in songList) {
+          Get.find<DiscoveryService>().onDownload(s);
+        }
+      }
     } else {
       songQueue.add(song!);
+      if (Get.isRegistered<DiscoveryService>()) {
+        Get.find<DiscoveryService>().onDownload(song);
+      }
     }
     if (isJobRunning.isFalse) {
       await triggerDownloadingJob();

@@ -13,6 +13,7 @@ import '../Library/library_controller.dart';
 import '../../widgets/snackbar.dart';
 import '/ui/widgets/link_piped.dart';
 import '/services/ban_service.dart';
+import '/services/discovery/discovery_service.dart';
 import '/services/listenbrainz_service.dart';
 import '/services/music_service.dart';
 import '../../navigator.dart';
@@ -689,6 +690,27 @@ class SettingsScreen extends StatelessWidget {
                         context: context,
                         builder: (context) => const ListenBrainzDialog()),
                   ),
+                  ListTile(
+                    contentPadding:
+                        const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("discoverySettings".tr),
+                    subtitle: Text("discoverySettingsDes".tr,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => showDialog(
+                        context: context,
+                        builder: (context) => const DiscoverySettingsDialog()),
+                  ),
+                  ListTile(
+                    contentPadding:
+                        const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("tasteModelDebug".tr),
+                    subtitle: Text("tasteModelDebugDes".tr,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    onTap: () => showDialog(
+                        context: context,
+                        builder: (context) => const TasteModelDebugDialog()),
+                  ),
                 ],
               ),
               CustomExpansionTile(
@@ -1061,6 +1083,192 @@ class _ListenBrainzDialogState extends State<ListenBrainzDialog> {
                   ),
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Discovery preferences (Settings → Riff → Discovery).
+class DiscoverySettingsDialog extends StatefulWidget {
+  const DiscoverySettingsDialog({super.key});
+
+  @override
+  State<DiscoverySettingsDialog> createState() =>
+      _DiscoverySettingsDialogState();
+}
+
+class _DiscoverySettingsDialogState extends State<DiscoverySettingsDialog> {
+  late double exploration;
+  late bool wifiOnly;
+  late int mixCount;
+  late bool unheardOnly;
+  late bool lbRecs;
+
+  @override
+  void initState() {
+    super.initState();
+    if (Get.isRegistered<DiscoveryService>()) {
+      final d = Get.find<DiscoveryService>();
+      exploration = d.exploration;
+      wifiOnly = d.wifiOnlyGeneration;
+      mixCount = d.mixCount;
+      unheardOnly = d.unheardOnlyDefault;
+      lbRecs = d.listenBrainzRecs;
+    } else {
+      exploration = 0.5;
+      wifiOnly = true;
+      mixCount = 4;
+      unheardOnly = false;
+      lbRecs = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CommonDialog(
+      child: Container(
+        height: 460,
+        padding:
+            const EdgeInsets.only(top: 20, bottom: 10, left: 20, right: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("discoverySettings".tr,
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 12),
+            Text(
+                "${"exploration".tr}: ${exploration < 0.33 ? "familiar".tr : exploration > 0.66 ? "adventurous".tr : "balanced".tr}"),
+            Slider(
+              value: exploration,
+              onChanged: (v) => setState(() => exploration = v),
+              min: 0,
+              max: 1,
+              divisions: 10,
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text("mixCount".tr),
+                DropdownButton<int>(
+                  value: mixCount,
+                  items: [3, 4, 5]
+                      .map((e) => DropdownMenuItem(value: e, child: Text("$e")))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) setState(() => mixCount = v);
+                  },
+                ),
+              ],
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text("wifiOnlyGeneration".tr),
+              value: wifiOnly,
+              onChanged: (v) => setState(() => wifiOnly = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text("unheardOnly".tr),
+              value: unheardOnly,
+              onChanged: (v) => setState(() => unheardOnly = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text("listenBrainzRecs".tr),
+              value: lbRecs,
+              onChanged: (v) => setState(() => lbRecs = v),
+            ),
+            const Spacer(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: () async {
+                    if (Get.isRegistered<DiscoveryService>()) {
+                      await Get.find<DiscoveryService>().resetTasteModel();
+                    }
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                          context, "tasteModelReset".tr,
+                          size: SanckBarSize.MEDIUM));
+                    }
+                  },
+                  child: Text("resetTasteModel".tr),
+                ),
+                TextButton(
+                  onPressed: () {
+                    if (Get.isRegistered<DiscoveryService>()) {
+                      final d = Get.find<DiscoveryService>();
+                      d.exploration = exploration;
+                      d.wifiOnlyGeneration = wifiOnly;
+                      d.mixCount = mixCount;
+                      d.unheardOnlyDefault = unheardOnly;
+                      d.listenBrainzRecs = lbRecs;
+                    }
+                    Navigator.of(context).pop();
+                  },
+                  child: Text("confirm".tr),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Temporary debug page for affinity / skip-rate inspection.
+class TasteModelDebugDialog extends StatelessWidget {
+  const TasteModelDebugDialog({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final snap = Get.isRegistered<DiscoveryService>()
+        ? Get.find<DiscoveryService>().debugSnapshot()
+        : <String, dynamic>{};
+    final artists = (snap['artists'] as List?) ?? [];
+    return CommonDialog(
+      child: Container(
+        height: 480,
+        padding:
+            const EdgeInsets.only(top: 20, bottom: 10, left: 16, right: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("tasteModelDebug".tr,
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(
+              "events: ${snap['eventCount'] ?? 0} · tracks: ${snap['trackStatsCount'] ?? 0} · edges: ${snap['coocEdges'] ?? 0}",
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const Divider(),
+            Expanded(
+              child: artists.isEmpty
+                  ? Center(child: Text("statsEmpty".tr))
+                  : ListView.builder(
+                      itemCount: artists.length,
+                      itemBuilder: (context, i) {
+                        final a = artists[i] as Map;
+                        return ListTile(
+                          dense: true,
+                          title: Text("${a['key']}"),
+                          subtitle: Text(
+                              "score ${a['score']} · skip ${(a['skipRate'] as num) * 100}%"),
+                        );
+                      },
+                    ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text("cancel".tr),
+              ),
             ),
           ],
         ),
