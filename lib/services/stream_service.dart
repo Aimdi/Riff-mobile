@@ -13,10 +13,50 @@ class StreamProvider {
       {required this.playable, this.audioFormats, this.statusMSG = ""});
 
   // Clients that return direct (non-ciphered) stream urls and do not
-  // require a PO token. androidVr is tried first (single request, most
-  // reliable for music); the sdk-less android + ios pair is the fallback.
+  // require a PO token. Payloads for the first two are transplanted from
+  // Metrolist's Jan-2026 client fleet (ANDROID_VR 1.65.10 and the
+  // unreleased VISIONOS client), which is what keeps its playback alive;
+  // the library's own sdk-less android + ios pair is the last resort.
+  static final YoutubeApiClient _androidVrFresh = YoutubeApiClient({
+    'context': {
+      'client': {
+        'clientName': 'ANDROID_VR',
+        'clientVersion': '1.65.10',
+        'deviceMake': 'Oculus',
+        'deviceModel': 'Quest 3',
+        'osName': 'Android',
+        'osVersion': '12L',
+        'androidSdkVersion': 32,
+        'userAgent':
+            'com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip',
+        'hl': 'en',
+        'timeZone': 'UTC',
+        'utcOffsetMinutes': 0,
+      },
+    },
+  }, 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false');
+
+  static final YoutubeApiClient _visionOs = YoutubeApiClient({
+    'context': {
+      'client': {
+        'clientName': 'VISIONOS',
+        'clientVersion': '0.1',
+        'deviceMake': 'Apple',
+        'deviceModel': 'RealityDevice14,1',
+        'osName': 'visionOS',
+        'osVersion': '1.3.21O771',
+        'userAgent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15',
+        'hl': 'en',
+        'timeZone': 'UTC',
+        'utcOffsetMinutes': 0,
+      },
+    },
+  }, 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false');
+
   static final List<List<YoutubeApiClient>> _clientAttempts = [
-    [YoutubeApiClient.androidVr],
+    [_androidVrFresh],
+    [_visionOs],
     [YoutubeApiClient.androidSdkless, YoutubeApiClient.ios],
   ];
 
@@ -46,11 +86,35 @@ class StreamProvider {
               size: e['size'] ?? 0))
           .toList();
       if (formats.isEmpty) return null;
-      return StreamProvider(
+      final provider = StreamProvider(
           playable: true, statusMSG: "OK", audioFormats: formats);
+      // Validate before handing to the player (Metrolist does the same):
+      // a resolved url can still 403 for this network; fall through to
+      // the next resolver instead of letting playback silently fail.
+      final checkUrl = provider.highestQualityAudio?.url;
+      if (checkUrl != null && !await _urlIsPlayable(checkUrl)) {
+        printERROR("NewPipe url failed validation ($videoId)");
+        return null;
+      }
+      return provider;
     } catch (e) {
       printERROR("NewPipe resolver failed ($videoId): $e");
       return null;
+    }
+  }
+
+  static Future<bool> _urlIsPlayable(String url) async {
+    try {
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 8);
+      final req = await client.headUrl(Uri.parse(url));
+      final res = await req.close();
+      await res.drain<void>();
+      client.close();
+      return res.statusCode >= 200 && res.statusCode < 300;
+    } catch (_) {
+      // Network hiccup on the check should not discard the stream.
+      return true;
     }
   }
 

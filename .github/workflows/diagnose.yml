@@ -32,4 +32,7 @@ jobs:
         run: |
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
           cd android
+          # Flutter projects ship no gradlew; generate the wrapper
+          # (respects gradle-wrapper.properties -> Gradle 8.9)
+          gradle wrapper
           ./gradlew :app:testReleaseUnitTest --tests "com.anandnet.harmonymusic.NewPipeResolverTest"
