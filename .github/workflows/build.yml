@@ -2,11 +2,19 @@ name: Build Android APK
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Also create a GitHub release with this tag (e.g. v1.0.0)'
+        required: false
+        default: ''
   push:
     branches: ['**']
     tags: ['v*']
   pull_request:
     branches: [main]
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -44,9 +52,10 @@ jobs:
           name: riff-apks
           path: build/app/outputs/flutter-apk/*.apk
 
-      - name: Create release on tag
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Create release
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.inputs.release_tag || github.ref_name }}
           files: build/app/outputs/flutter-apk/*.apk
           generate_release_notes: true
