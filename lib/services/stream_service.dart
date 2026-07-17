@@ -8,11 +8,34 @@ class StreamProvider {
   StreamProvider(
       {required this.playable, this.audioFormats, this.statusMSG = ""});
 
+  // Clients that return direct (non-ciphered) stream urls and do not
+  // require a PO token. androidVr is tried first (single request, most
+  // reliable for music); the sdk-less android + ios pair is the fallback.
+  static final List<List<YoutubeApiClient>> _clientAttempts = [
+    [YoutubeApiClient.androidVr],
+    [YoutubeApiClient.androidSdkless, YoutubeApiClient.ios],
+  ];
+
   static Future<StreamProvider> fetch(String videoId) async {
     final yt = YoutubeExplode();
-    
+
     try {
-      final res = await yt.videos.streamsClient.getManifest(videoId);
+      StreamManifest? res;
+      Object? lastError;
+      for (final clients in _clientAttempts) {
+        try {
+          res = await yt.videos.streamsClient.getManifest(videoId,
+              ytClients: clients, requireWatchPage: false);
+          if (res.audioOnly.isNotEmpty) break;
+        } catch (e) {
+          lastError = e;
+        }
+      }
+      if (res == null || res.audioOnly.isEmpty) {
+        if (lastError != null) throw lastError;
+        throw VideoUnavailableException(
+            'Video "$videoId" has no audio streams');
+      }
       final audio = res.audioOnly;
       return StreamProvider(
           playable: true,
@@ -23,8 +46,8 @@ class StreamProvider {
                   audioCodec:
                       e.audioCodec.contains('mp') ? Codec.mp4a : Codec.opus,
                   bitrate: e.bitrate.bitsPerSecond,
-                  duration: e.duration ?? 0,
-                  loudnessDb: e.loudnessDb,
+                  duration: 0,
+                  loudnessDb: 0.0,
                   url: e.url.toString(),
                   size: e.size.totalBytes))
               .toList());
@@ -37,7 +60,7 @@ class StreamProvider {
       } else if (e is VideoUnplayableException) {
         return StreamProvider(
           playable: false,
-          statusMSG: e.reason ?? "Song is unplayable",
+          statusMSG: e.message,
         );
       } else if (e is VideoRequiresPurchaseException) {
         return StreamProvider(
@@ -60,6 +83,8 @@ class StreamProvider {
           statusMSG: "Unknown error occurred",
         );
       }
+    } finally {
+      yt.close();
     }
   }
 

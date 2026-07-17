@@ -80,10 +80,14 @@ dependencies:
   url_launcher: ^6.2.1
   widget_marquee: ^0.0.8
   window_manager: ^0.4.2
-  youtube_explode_dart:
-    git:
-      url: https://github.com/anandnet/youtube_explode_dart.git
-      ref: 1d9ec9baa806705b1d859260eeb389ec28c6b024
+  # Upstream 3.x - the old pinned fork (2.3.7) stopped working after
+  # YouTube retired the player clients/cipher scheme it relied on.
+  youtube_explode_dart: ^3.1.0
+# flutter_test (Flutter 3.24) pins path 1.9.0 while youtube_explode_dart 3.x
+# needs ^1.9.1; 1.9.1 is a compatible patch release.
+dependency_overrides:
+  path: 1.9.1
+
 dev_dependencies:
 
   # The "flutter_lints" package below contains a set of recommended lints to
