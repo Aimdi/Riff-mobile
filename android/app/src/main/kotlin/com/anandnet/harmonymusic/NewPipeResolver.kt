@@ -73,6 +73,11 @@ object NewPipeResolver {
         ensureInit()
         val info = StreamInfo.getInfo(
             ServiceList.YouTube, "https://www.youtube.com/watch?v=$videoId")
+        if (info.audioStreams.isEmpty()) {
+            // Surface why (non-fatal extraction errors are collected here).
+            println("NewPipeResolver: no audio streams for $videoId; " +
+                "errors=${info.errors}")
+        }
         val durationMs = info.duration * 1000
         return info.audioStreams
             .filter { it.isUrl && !it.content.isNullOrEmpty() }

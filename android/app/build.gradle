@@ -82,7 +82,8 @@ dependencies {
     implementation 'androidx.core:core-splashscreen:1.0.0-beta02'
     // Stream resolution engine (same approach as RiPlay): NewPipeExtractor
     // handles YouTube's JS player, signature deciphering and throttling.
-    implementation 'com.github.TeamNewPipe:NewPipeExtractor:v0.26.0'
+    // v0.26.3 works around YouTube's SABR enforcement with another player client
+    implementation 'com.github.TeamNewPipe:NewPipeExtractor:v0.26.3'
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
     testImplementation 'junit:junit:4.13.2'
 }
