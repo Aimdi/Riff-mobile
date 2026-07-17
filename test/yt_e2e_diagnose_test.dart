@@ -27,6 +27,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
+    // The test binding stubs HttpClient to always return 400; reset the
+    // override so these diagnostics hit the real network.
+    HttpOverrides.global = null;
     Hive.init(Directory.systemTemp.createTempSync('riffhive').path);
     await Hive.openBox('AppPrefs');
     await Hive.openBox('BannedSongs');

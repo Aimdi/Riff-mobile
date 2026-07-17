@@ -151,11 +151,20 @@ class HomeScreenController extends GetxController {
       }
 
       if (quickPicks.value.songList.isEmpty) {
-        final index = homeContentListMap
+        // YT Music renames/reorders home sections over time; fall back to
+        // the first song section instead of crashing on a missing title.
+        int index = homeContentListMap
             .indexWhere((element) => element['title'] == "Quick picks");
-        final con = homeContentListMap.removeAt(index);
-        quickPicks.value = QuickPicks(List<MediaItem>.from(con["contents"]),
-            title: "Quick picks");
+        if (index == -1) {
+          index = homeContentListMap.indexWhere((element) =>
+              (element["contents"] as List).isNotEmpty &&
+              element["contents"][0] is MediaItem);
+        }
+        if (index != -1) {
+          final con = homeContentListMap.removeAt(index);
+          quickPicks.value = QuickPicks(List<MediaItem>.from(con["contents"]),
+              title: con["title"] ?? "Quick picks");
+        }
       }
 
       middleContent.value = _setContentList(middleContentTemp);
