@@ -30,9 +30,8 @@ jobs:
 
       - name: NewPipe resolver JVM test (real network)
         run: |
-          echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
+          # Materializes android/gradlew + local.properties without building
+          # (system gradle is v9 and cannot load Flutter 3.24's plugin)
+          flutter build apk --config-only
           cd android
-          # Flutter projects ship no gradlew; generate the wrapper
-          # (respects gradle-wrapper.properties -> Gradle 8.9)
-          gradle wrapper
           ./gradlew :app:testReleaseUnitTest --tests "com.anandnet.harmonymusic.NewPipeResolverTest"
