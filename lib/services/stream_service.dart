@@ -1,5 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+
+import '/utils/helper.dart';
 
 class StreamProvider {
   final bool playable;
@@ -16,7 +20,44 @@ class StreamProvider {
     [YoutubeApiClient.androidSdkless, YoutubeApiClient.ios],
   ];
 
+  static const _newPipeChannel = MethodChannel('riff/newpipe');
+
+  /// Primary resolver on Android: NewPipeExtractor via the platform
+  /// channel (the engine RiPlay uses). Returns null when unavailable or
+  /// failed so the caller can fall back to youtube_explode_dart.
+  static Future<StreamProvider?> _fetchViaNewPipe(String videoId) async {
+    if (!Platform.isAndroid) return null;
+    try {
+      final res = await _newPipeChannel
+          .invokeMethod<String>('getAudioStreams', {'videoId': videoId});
+      if (res == null) return null;
+      final list = jsonDecode(res) as List;
+      final formats = list
+          .where((e) => (e['url'] ?? '').toString().isNotEmpty)
+          .map((e) => Audio(
+              itag: e['itag'] ?? 0,
+              audioCodec: (e['mimeType'] ?? '').toString().contains('mp4')
+                  ? Codec.mp4a
+                  : Codec.opus,
+              bitrate: e['bitrate'] ?? 0,
+              duration: e['durationMs'] ?? 0,
+              loudnessDb: 0.0,
+              url: e['url'],
+              size: e['size'] ?? 0))
+          .toList();
+      if (formats.isEmpty) return null;
+      return StreamProvider(
+          playable: true, statusMSG: "OK", audioFormats: formats);
+    } catch (e) {
+      printERROR("NewPipe resolver failed ($videoId): $e");
+      return null;
+    }
+  }
+
   static Future<StreamProvider> fetch(String videoId) async {
+    final viaNewPipe = await _fetchViaNewPipe(videoId);
+    if (viaNewPipe != null) return viaNewPipe;
+
     final yt = YoutubeExplode();
 
     try {

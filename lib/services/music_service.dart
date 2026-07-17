@@ -27,7 +27,7 @@ class MusicServices extends getx.GetxService {
     'content-type': 'application/json',
     'content-encoding': 'gzip',
     'origin': domain,
-    'cookie': 'CONSENT=YES+1',
+    'cookie': 'CONSENT=YES+1; SOCS=CAI',
   };
 
   final Map<String, dynamic> _context = {

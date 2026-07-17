@@ -21,3 +21,15 @@ jobs:
 
       - name: Run diagnostics
         run: flutter test test/yt_e2e_diagnose_test.dart -r expanded
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: NewPipe resolver JVM test (real network)
+        run: |
+          echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
+          cd android
+          ./gradlew :app:testReleaseUnitTest --tests "com.anandnet.harmonymusic.NewPipeResolverTest"
