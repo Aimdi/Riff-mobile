@@ -1,5 +1,5 @@
-/// Shared types / enums for the discovery engine.
-/// Pure Dart — no Flutter imports.
+// Shared types / enums for the discovery engine.
+// Pure Dart — no Flutter imports.
 
 /// How a track entered the queue / was started.
 enum DiscoverySource {

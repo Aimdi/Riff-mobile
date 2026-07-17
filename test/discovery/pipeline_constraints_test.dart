@@ -7,9 +7,9 @@ import 'package:harmonymusic/services/discovery/discovery_types.dart';
 void main() {
   test('3 skips measurably lower radio frequency for an artist', () {
     // Simulate scores for 10 candidates: 5 from skipped artist, 5 others
-    final affinitySkipped = AffinityWeights.fullListen +
+    const affinitySkipped = AffinityWeights.fullListen +
         3 * AffinityWeights.quickSkip; // ~1 + 3*(-2) = -5
-    final affinityOther = AffinityWeights.fullListen * 3; // ~3
+    const affinityOther = AffinityWeights.fullListen * 3; // ~3
 
     final candidates = <ScoredCandidate>[];
     for (var i = 0; i < 5; i++) {

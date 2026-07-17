@@ -1,5 +1,5 @@
-/// Pure scoring math for the discovery taste model.
-/// No Flutter / Hive / GetX imports — unit-testable in isolation.
+// Pure scoring math for the discovery taste model.
+// No Flutter / Hive / GetX imports — unit-testable in isolation.
 
 import 'dart:math' as math;
 
