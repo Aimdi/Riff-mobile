@@ -1,0 +1,23 @@
+name: YT API diagnostics
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    name: E2E test against real YouTube Music API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: '3.24.2'
+          cache: true
+
+      - name: Install packages
+        run: flutter pub get
+
+      - name: Run diagnostics
+        run: flutter test test/yt_e2e_diagnose_test.dart -r expanded

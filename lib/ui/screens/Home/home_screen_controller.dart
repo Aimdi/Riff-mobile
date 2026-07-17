@@ -172,6 +172,12 @@ class HomeScreenController extends GetxController {
       printERROR("Home Content not loaded due to ${r.message}");
       await Future.delayed(const Duration(seconds: 1));
       networkError.value = !silent;
+    } catch (e, stack) {
+      // A parsing failure (YT Music response shape change) must surface
+      // the retry UI instead of leaving the loading shimmer forever.
+      printERROR("Home Content failed to parse: $e\n$stack");
+      await Future.delayed(const Duration(seconds: 1));
+      networkError.value = !silent;
     }
   }
 
