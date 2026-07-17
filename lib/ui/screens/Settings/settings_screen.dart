@@ -12,7 +12,10 @@ import '../../widgets/restore_dialog.dart';
 import '../Library/library_controller.dart';
 import '../../widgets/snackbar.dart';
 import '/ui/widgets/link_piped.dart';
+import '/services/ban_service.dart';
+import '/services/listenbrainz_service.dart';
 import '/services/music_service.dart';
+import '../../navigator.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/utils/theme_controller.dart';
 import 'components/custom_expansion_tile.dart';
@@ -655,6 +658,40 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ]),
               CustomExpansionTile(
+                icon: Icons.graphic_eq,
+                title: "riffFeatures".tr,
+                children: [
+                  ListTile(
+                    contentPadding:
+                        const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("stats".tr),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Get.toNamed(ScreenNavigationSetup.statsScreen,
+                        id: ScreenNavigationSetup.id),
+                  ),
+                  ListTile(
+                    contentPadding:
+                        const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("bannedSongs".tr),
+                    subtitle: Text("neverPlayThisDes".tr,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    onTap: () => showDialog(
+                        context: context,
+                        builder: (context) => const BannedSongsDialog()),
+                  ),
+                  ListTile(
+                    contentPadding:
+                        const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("listenBrainz".tr),
+                    subtitle: Text("listenBrainzDes".tr,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    onTap: () => showDialog(
+                        context: context,
+                        builder: (context) => const ListenBrainzDialog()),
+                  ),
+                ],
+              ),
+              CustomExpansionTile(
                 icon: Icons.info,
                 title: "appInfo".tr,
                 children: [
@@ -885,4 +922,149 @@ Widget radioWidget(
                 : controller.onContentChange),
         title: Text(label),
       ));
+}
+
+/// Manage the "Never Play This" list: shows banned songs with an
+/// unban action for each.
+class BannedSongsDialog extends StatefulWidget {
+  const BannedSongsDialog({super.key});
+
+  @override
+  State<BannedSongsDialog> createState() => _BannedSongsDialogState();
+}
+
+class _BannedSongsDialogState extends State<BannedSongsDialog> {
+  @override
+  Widget build(BuildContext context) {
+    final banned = BanService.all;
+    return Dialog(
+      child: Container(
+        constraints: const BoxConstraints(maxHeight: 500),
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text("bannedSongs".tr,
+                  style: Theme.of(context).textTheme.titleMedium),
+            ),
+            if (banned.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(15),
+                child: Text("noBannedSongs".tr,
+                    style: Theme.of(context).textTheme.bodyMedium),
+              ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: banned
+                    .map((song) => ListTile(
+                          visualDensity: const VisualDensity(vertical: -3),
+                          title: Text(song["title"], maxLines: 1),
+                          subtitle: Text(song["artist"], maxLines: 1),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () {
+                              BanService.unban(song["id"]);
+                              setState(() {});
+                            },
+                          ),
+                        ))
+                    .toList(),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 20, top: 5),
+                child: InkWell(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text("cancel".tr),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// ListenBrainz token entry; an empty token disables scrobbling.
+class ListenBrainzDialog extends StatefulWidget {
+  const ListenBrainzDialog({super.key});
+
+  @override
+  State<ListenBrainzDialog> createState() => _ListenBrainzDialogState();
+}
+
+class _ListenBrainzDialogState extends State<ListenBrainzDialog> {
+  late final TextEditingController textController;
+
+  @override
+  void initState() {
+    super.initState();
+    textController = TextEditingController(text: ListenBrainzService.token);
+  }
+
+  @override
+  void dispose() {
+    textController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("listenBrainz".tr,
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 5),
+            Text("listenBrainzDes".tr,
+                style: Theme.of(context).textTheme.bodyMedium),
+            const SizedBox(height: 15),
+            TextField(
+              controller: textController,
+              decoration: const InputDecoration(
+                hintText: "ListenBrainz user token",
+              ),
+            ),
+            const SizedBox(height: 15),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                InkWell(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text("cancel".tr),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                InkWell(
+                  onTap: () {
+                    ListenBrainzService.setToken(textController.text);
+                    Navigator.of(context).pop();
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text("confirm".tr),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

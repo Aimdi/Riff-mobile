@@ -7,6 +7,7 @@ import 'package:get/get.dart' as getx;
 import 'package:hive/hive.dart';
 
 import '/models/album.dart';
+import '/services/ban_service.dart';
 import '/services/utils.dart';
 import '../utils/helper.dart';
 import 'constant.dart';
@@ -304,7 +305,9 @@ class MusicServices extends getx.GetxService {
     }
 
     return {
-      'tracks': tracks,
+      // "Never Play This": banned songs never enter radio / up-next,
+      // but an explicitly requested seed song is kept.
+      'tracks': BanService.filterTracks(tracks, keepVideoId: videoId),
       'playlistId': playlist,
       'lyrics': lyricsBrowseId,
       'related': relatedBrowseId,

@@ -10,6 +10,8 @@ import '../../models/playling_from.dart';
 import '../../services/downloader.dart';
 import '../screens/Playlist/playlist_screen_controller.dart';
 import '../widgets/snackbar.dart';
+import '/services/listenbrainz_service.dart';
+import '/services/stats_service.dart';
 import '/services/synced_lyrics_service.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -264,6 +266,8 @@ class PlayerController extends GetxController
             .indexWhere((element) => element.id == currentSong.value!.id);
         await _checkFav();
         await _addToRP(currentSong.value!);
+        StatsService.recordPlay(currentSong.value!);
+        ListenBrainzService.submitListen(currentSong.value!);
         if (isRadioModeOn && (currentSong.value!.id == currentQueue.last.id)) {
           await _addRadioContinuation(radioInitiatorItem!);
         }

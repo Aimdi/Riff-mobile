@@ -6,6 +6,7 @@ import 'package:ionicons/ionicons.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../services/ban_service.dart';
 import '../../services/downloader.dart';
 import '../screens/Playlist/playlist_screen_controller.dart';
 import '../screens/Settings/settings_screen_controller.dart';
@@ -121,6 +122,18 @@ class SongInfoBottomSheet extends StatelessWidget {
                           size: SanckBarSize.BIG));
                     },
                   ),
+            ListTile(
+              visualDensity: const VisualDensity(vertical: -1),
+              leading: const Icon(Icons.block),
+              title: Text("neverPlayThis".tr),
+              onTap: () {
+                Navigator.of(context).pop();
+                BanService.ban(song);
+                ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                    context, "${"songBannedMsg".tr} ${song.title}",
+                    size: SanckBarSize.BIG));
+              },
+            ),
             ListTile(
               visualDensity: const VisualDensity(vertical: -1),
               leading: const Icon(Icons.playlist_add),
