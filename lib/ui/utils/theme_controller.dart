@@ -8,8 +8,19 @@ import 'package:palette_generator/palette_generator.dart';
 import '/utils/helper.dart';
 
 class ThemeController extends GetxController {
+  /// Riff accent palette (used by the Pitch Black theme). Green is the
+  /// signature Riff accent; the rest mirror the desktop theme gallery.
+  static const Map<String, Color> riffAccents = {
+    'Green': Color(0xFF1DB954),
+    'Blue': Color(0xFF4A9EFF),
+    'Violet': Color(0xFF9B59F5),
+    'Crimson': Color(0xFFE0405A),
+    'Amber': Color(0xFFFFB300),
+  };
+
   final primaryColor = Colors.deepPurple[400].obs;
   final textColor = Colors.white24.obs;
+  final accentColor = const Color(0xFF1DB954).obs;
   final themedata = Rxn<ThemeData>();
 
   /// The method channel for setting the title bar color on Windows.
@@ -24,8 +35,11 @@ class ThemeController extends GetxController {
     primaryColor.value =
         Color(Hive.box('appPrefs').get("themePrimaryColor") ?? 4278199603);
 
+    accentColor.value = Color(
+        Hive.box('appPrefs').get("riffAccentColor") ?? 0xFF1DB954);
+
     changeThemeModeType(
-        ThemeType.values[Hive.box('appPrefs').get("themeModeType") ?? 0]);
+        ThemeType.values[Hive.box('appPrefs').get("themeModeType") ?? 2]);
 
     _listenSystemBrightness();
 
@@ -58,6 +72,14 @@ class ThemeController extends GetxController {
           value);
     }
     setWindowsTitleBarColor(themedata.value!.scaffoldBackgroundColor);
+  }
+
+  /// Changes the Pitch Black accent color and rebuilds the theme.
+  void changeAccentColor(Color color) {
+    accentColor.value = color;
+    Hive.box('appPrefs').put("riffAccentColor", color.value);
+    changeThemeModeType(
+        ThemeType.values[Hive.box('appPrefs').get("themeModeType") ?? 2]);
   }
 
   void setTheme(ImageProvider imageProvider, String songId) async {
@@ -179,6 +201,7 @@ class ThemeController extends GetxController {
             systemStatusBarContrastEnforced: false,
             systemNavigationBarContrastEnforced: true),
       );
+      final accent = accentColor.value;
       final baseTheme = ThemeData(
           useMaterial3: false,
           brightness: Brightness.dark,
@@ -187,9 +210,10 @@ class ThemeController extends GetxController {
           primaryColorDark: Colors.black,
           primaryColorLight: Colors.grey[850],
           colorScheme: ColorScheme.fromSwatch(
-              accentColor: Colors.grey[700], brightness: Brightness.dark),
+              accentColor: accent, brightness: Brightness.dark),
+          indicatorColor: accent,
           progressIndicatorTheme: ProgressIndicatorThemeData(
-              color: Colors.grey[700], linearTrackColor: Colors.white),
+              color: accent, linearTrackColor: Colors.white),
           textTheme: const TextTheme(
               titleLarge: TextStyle(
                 fontSize: 23,
@@ -206,37 +230,35 @@ class ThemeController extends GetxController {
               labelSmall: TextStyle(
                   fontSize: 15, letterSpacing: 0, fontWeight: FontWeight.bold),
               bodyMedium: TextStyle(color: Colors.grey)),
-          navigationRailTheme: const NavigationRailThemeData(
+          navigationRailTheme: NavigationRailThemeData(
               backgroundColor: Colors.black,
               selectedIconTheme: IconThemeData(
-                color: Colors.white,
+                color: accent,
               ),
-              unselectedIconTheme: IconThemeData(color: Colors.white38),
+              unselectedIconTheme: const IconThemeData(color: Colors.white38),
               selectedLabelTextStyle: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15),
-              unselectedLabelTextStyle: TextStyle(
+                  color: accent, fontWeight: FontWeight.bold, fontSize: 15),
+              unselectedLabelTextStyle: const TextStyle(
                   color: Colors.white38, fontWeight: FontWeight.bold)),
           bottomSheetTheme: const BottomSheetThemeData(
               backgroundColor: Colors.black, modalBarrierColor: Colors.black),
-          sliderTheme: const SliderThemeData(
+          sliderTheme: SliderThemeData(
             //base bar color
             inactiveTrackColor: Colors.white30,
             //buffered progress
-            activeTrackColor: Colors.white,
+            activeTrackColor: accent,
             //progress bar color
             valueIndicatorColor: Colors.black38,
             thumbColor: Colors.white,
           ),
           textSelectionTheme: TextSelectionThemeData(
-              cursorColor: Colors.grey[700],
-              selectionColor: Colors.grey[700],
-              selectionHandleColor: Colors.grey[700]),
-          inputDecorationTheme: const InputDecorationTheme(
-              focusColor: Colors.white,
+              cursorColor: accent,
+              selectionColor: accent.withOpacity(0.4),
+              selectionHandleColor: accent),
+          inputDecorationTheme: InputDecorationTheme(
+              focusColor: accent,
               focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: Colors.white))));
+                  borderSide: BorderSide(color: accent))));
       return baseTheme.copyWith(
           textTheme: GoogleFonts.interTextTheme(baseTheme.textTheme));
     } else {

@@ -43,7 +43,7 @@ class MyApp extends StatelessWidget {
     if (!GetPlatform.isDesktop) Get.put(AppLinksController());
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     return GetMaterialApp(
-        title: 'Harmony Music',
+        title: 'Riff',
         home: const Home(),
         debugShowCheckedModeBanner: false,
         translations: Languages(),
@@ -119,7 +119,7 @@ void _setAppInitPrefs() {
   final appPrefs = Hive.box("AppPrefs");
   if (appPrefs.isEmpty) {
     appPrefs.putAll({
-      'themeModeType': 0,
+      'themeModeType': 2,
       "cacheSongs": false,
       "skipSilenceEnabled": false,
       'streamingQuality': 1,

@@ -57,7 +57,7 @@ class SettingsScreen extends StatelessWidget {
                             onTap: () {
                               launchUrl(
                                 Uri.parse(
-                                  'https://github.com/anandnet/Harmony-Music/releases/latest',
+                                  'https://github.com/Aimdi/Riff-mobile/releases/latest',
                                 ),
                                 mode: LaunchMode.externalApplication,
                               );
@@ -662,14 +662,14 @@ class SettingsScreen extends StatelessWidget {
                     contentPadding: const EdgeInsets.only(left: 5, right: 10),
                     title: Text("github".tr),
                     subtitle: Text(
-                      "${"githubDes".tr}${((Get.find<PlayerController>().playerPanelMinHeight.value) == 0 || !isBottomNavActive) ? "" : "\n\n${settingsController.currentVersion} ${"by".tr} anandnet"}",
+                      "${"githubDes".tr}${((Get.find<PlayerController>().playerPanelMinHeight.value) == 0 || !isBottomNavActive) ? "" : "\n\n${settingsController.currentVersion}"}",
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     isThreeLine: true,
                     onTap: () {
                       launchUrl(
                         Uri.parse(
-                          'https://github.com/anandnet/Harmony-Music',
+                          'https://github.com/Aimdi/Riff-mobile',
                         ),
                         mode: LaunchMode.externalApplication,
                       );
@@ -680,7 +680,7 @@ class SettingsScreen extends StatelessWidget {
                     child: Column(
                       children: [
                         Text(
-                          "Harmony Music",
+                          "Riff",
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         Text(settingsController.currentVersion,
@@ -695,7 +695,7 @@ class SettingsScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 20.0),
             child: Text(
-              "${settingsController.currentVersion} ${"by".tr} anandnet",
+              "${settingsController.currentVersion} — based on Harmony Music ${"by".tr} anandnet",
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
@@ -744,6 +744,45 @@ class ThemeSelectorDialog extends StatelessWidget {
               label: "light".tr,
               controller: settingsController,
               value: ThemeType.light),
+          Padding(
+            padding: const EdgeInsets.only(left: 20, top: 10, bottom: 5),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text("Accent",
+                  style: Theme.of(context).textTheme.titleMedium),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 20, bottom: 5),
+            child: Obx(() {
+              final themeController = Get.find<ThemeController>();
+              final current = themeController.accentColor.value;
+              return Row(
+                children: ThemeController.riffAccents.entries
+                    .map((entry) => Padding(
+                          padding: const EdgeInsets.only(right: 12),
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: () =>
+                                themeController.changeAccentColor(entry.value),
+                            child: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: entry.value,
+                                shape: BoxShape.circle,
+                              ),
+                              child: current.value == entry.value.value
+                                  ? const Icon(Icons.check,
+                                      size: 18, color: Colors.black)
+                                  : null,
+                            ),
+                          ),
+                        ))
+                    .toList(),
+              );
+            }),
+          ),
           Align(
               alignment: Alignment.centerRight,
               child: InkWell(
