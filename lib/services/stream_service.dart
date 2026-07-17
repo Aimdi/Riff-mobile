@@ -17,7 +17,7 @@ class StreamProvider {
   // Metrolist's Jan-2026 client fleet (ANDROID_VR 1.65.10 and the
   // unreleased VISIONOS client), which is what keeps its playback alive;
   // the library's own sdk-less android + ios pair is the last resort.
-  static final YoutubeApiClient _androidVrFresh = YoutubeApiClient({
+  static const YoutubeApiClient _androidVrFresh = YoutubeApiClient({
     'context': {
       'client': {
         'clientName': 'ANDROID_VR',
@@ -36,7 +36,7 @@ class StreamProvider {
     },
   }, 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false');
 
-  static final YoutubeApiClient _visionOs = YoutubeApiClient({
+  static const YoutubeApiClient _visionOs = YoutubeApiClient({
     'context': {
       'client': {
         'clientName': 'VISIONOS',
