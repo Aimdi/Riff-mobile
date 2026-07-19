@@ -818,7 +818,8 @@ dynamic parseSearchResult(Map<String, dynamic> data,
     searchResult['videoType'] = videoType ?? 'MUSIC_VIDEO_TYPE_PODCAST_EPISODE';
     try {
       final flex1 = getFlexColumnItem(data, 1);
-      final runs = flex1?['text']?['runs'] as List? ?? [];
+      // getFlexColumnItem returns a non-null Map; only nested fields are nullable.
+      final runs = flex1['text']?['runs'] as List? ?? [];
       // podcast name often in runs
       String? podcastName;
       for (final run in runs) {
@@ -1034,7 +1035,8 @@ MediaItem? parseEpisodeItem(Map<String, dynamic> data) {
           0,
           'text',
         ]);
-    final description = nav(data, description);
+    // Don't name this local "description" — shadows the top-level path const.
+    final descriptionText = nav(data, description);
     final date = nav(data, subtitle);
 
     // Prefer podcast name as artist
@@ -1045,7 +1047,7 @@ MediaItem? parseEpisodeItem(Map<String, dynamic> data) {
     } else {
       try {
         final flex1 = getFlexColumnItem(data, 1);
-        final runs = flex1?['text']?['runs'] as List?;
+        final runs = flex1['text']?['runs'] as List?;
         if (runs != null && runs.isNotEmpty) {
           artistName = runs.map((r) => r['text']).join('');
         }
@@ -1062,7 +1064,7 @@ MediaItem? parseEpisodeItem(Map<String, dynamic> data) {
         {'name': artistName, 'id': null}
       ],
       'date': date,
-      'description': description,
+      'description': descriptionText,
       'videoType': 'MUSIC_VIDEO_TYPE_PODCAST_EPISODE',
     });
   } catch (_) {

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/services/audiobookshelf_service.dart';
-import '/ui/player/player_controller.dart';
 import 'audiobook_detail_screen.dart';
 
 /// Lissen-inspired Audiobookshelf browser inside Riff.

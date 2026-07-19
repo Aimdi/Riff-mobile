@@ -157,7 +157,7 @@ class SpotifyImportService extends GetxService {
   }
 
   Map<String, dynamic>? _extractNextData(String html) {
-    final marker = 'id="__NEXT_DATA__"';
+    const marker = 'id="__NEXT_DATA__"';
     final i = html.indexOf(marker);
     if (i < 0) return null;
     final start = html.indexOf('>', i);
