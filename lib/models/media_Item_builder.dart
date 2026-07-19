@@ -29,6 +29,12 @@ class MediaItemBuilder {
       preferSquare: true,
     );
 
+    // Flag podcast episodes so the player can show the podcast transport
+    // (Shownotes, speed, ±skip) instead of the music one.
+    final isPodcast = json['isPodcast'] == true ||
+        (json['videoType']?.toString() ?? '').contains('PODCAST') ||
+        (json['videoId']?.toString() ?? '').startsWith('podcast_');
+
     return MediaItem(
         id: json["videoId"],
         title: json["title"],
@@ -45,7 +51,9 @@ class MediaItemBuilder {
           'artists': json['artists'],
           'date': json['date'],
           'trackDetails': json['trackDetails'],
-          'year': json['year']
+          'year': json['year'],
+          'isPodcast': isPodcast,
+          'description': json['description'],
         });
   }
 

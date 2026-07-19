@@ -745,6 +745,26 @@ class PlayerController extends GetxController
     _audioHandler.seek(position);
   }
 
+  /// True when the currently playing item is a podcast episode (from the
+  /// Podcasts section) — drives the podcast player transport.
+  bool get isCurrentSongPodcast {
+    final s = currentSong.value;
+    if (s == null) return false;
+    return (s.extras?['isPodcast'] == true) ||
+        s.id.startsWith('podcast_');
+  }
+
+  /// Seek by a relative offset (podcast ±skip), clamped to [0, total].
+  void seekBy(Duration offset) {
+    final status = progressBarStatus.value;
+    var target = status.current + offset;
+    if (target < Duration.zero) target = Duration.zero;
+    if (status.total > Duration.zero && target > status.total) {
+      target = status.total;
+    }
+    seek(target);
+  }
+
   void seekByIndex(int index) {
     _audioHandler.customAction("playByIndex", {"index": index});
   }

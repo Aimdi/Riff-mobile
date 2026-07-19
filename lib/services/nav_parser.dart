@@ -438,7 +438,16 @@ List<dynamic> parseWatchPlaylist(List<dynamic> results) {
     }
     final track = parseWatchTrack(data);
     if (counterpart != null) {
-      track['counterpart'] = parseWatchTrack(counterpart);
+      final cp = parseWatchTrack(counterpart);
+      track['counterpart'] = cp;
+      // A music video's own thumbnail is a 16:9 i.ytimg frame; its ATV audio
+      // counterpart carries the real square cover (lh3). Prefer the square
+      // cover for display (like RiPlay's song rows) without changing which
+      // videoId actually plays.
+      final cpThumbs = cp['thumbnails'];
+      if (cpThumbs is List && cpThumbs.isNotEmpty) {
+        track['thumbnails'] = cpThumbs;
+      }
     }
     tracks.add(MediaItemBuilder.fromJson(track));
   }

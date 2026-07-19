@@ -5,6 +5,7 @@ import 'package:ionicons/ionicons.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
 import '/ui/player/components/animated_play_button.dart';
+import '../../screens/Settings/settings_screen_controller.dart';
 import '../../widgets/discovery/player_similar_row.dart';
 import '../player_controller.dart';
 
@@ -93,6 +94,29 @@ class PlayerControlWidget extends StatelessWidget {
           const SizedBox(
             height: 20,
           ),
+          // Shownotes (podcast only) — sits above the seek bar like AntennaPod.
+          Obx(() => playerController.isCurrentSongPodcast
+              ? Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: OutlinedButton.icon(
+                    onPressed: () => _openShownotes(playerController, context),
+                    icon: const Icon(Icons.info_outline, size: 20),
+                    label: Text("shownotes".tr),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor:
+                          Theme.of(context).textTheme.titleMedium!.color,
+                      side: BorderSide(
+                          color: Theme.of(context)
+                              .textTheme
+                              .titleLarge!
+                              .color!
+                              .withOpacity(0.4)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink()),
           GetX<PlayerController>(builder: (controller) {
             return ProgressBar(
               thumbRadius: 7,
@@ -112,43 +136,135 @@ class PlayerControlWidget extends StatelessWidget {
               onSeek: controller.seek,
             );
           }),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            crossAxisAlignment: CrossAxisAlignment.center,
+          Obx(() => playerController.isCurrentSongPodcast
+              ? _podcastControls(playerController, context)
+              : _musicControls(playerController, context)),
+          // Similar songs are music-only; hide for podcast episodes.
+          Obx(() => playerController.isCurrentSongPodcast
+              ? const SizedBox.shrink()
+              : const PlayerSimilarRow()),
+        ]);
+  }
+
+  Widget _musicControls(
+      PlayerController playerController, BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        IconButton(
+            onPressed: playerController.toggleShuffleMode,
+            icon: Obx(() => Icon(
+                  Ionicons.shuffle,
+                  color: playerController.isShuffleModeEnabled.value
+                      ? Theme.of(context).textTheme.titleLarge!.color
+                      : Theme.of(context)
+                          .textTheme
+                          .titleLarge!
+                          .color!
+                          .withOpacity(0.2),
+                ))),
+        _previousButton(playerController, context),
+        const CircleAvatar(
+            radius: 35, child: AnimatedPlayButton(key: Key("playButton"))),
+        _nextButton(playerController, context),
+        Obx(() {
+          return IconButton(
+              onPressed: playerController.toggleLoopMode,
+              icon: Icon(
+                Icons.all_inclusive,
+                color: playerController.isLoopModeEnabled.value
+                    ? Theme.of(context).textTheme.titleLarge!.color
+                    : Theme.of(context)
+                        .textTheme
+                        .titleLarge!
+                        .color!
+                        .withOpacity(0.2),
+              ));
+        }),
+      ],
+    );
+  }
+
+  /// AntennaPod-style transport: speed · −10s · play/pause · +30s · next.
+  Widget _podcastControls(
+      PlayerController playerController, BuildContext context) {
+    final color = Theme.of(context).textTheme.titleMedium!.color;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // Playback speed — tap to cycle common podcast speeds.
+        _SpeedButton(color: color),
+        // Skip back 10s
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              iconSize: 32,
+              onPressed: () =>
+                  playerController.seekBy(const Duration(seconds: -10)),
+              icon: Icon(Icons.replay_10, color: color),
+            ),
+            Text("10", style: Theme.of(context).textTheme.labelSmall),
+          ],
+        ),
+        const CircleAvatar(
+            radius: 35,
+            child: AnimatedPlayButton(key: Key("podcastPlayButton"))),
+        // Skip forward 30s
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              iconSize: 32,
+              onPressed: () =>
+                  playerController.seekBy(const Duration(seconds: 30)),
+              icon: Icon(Icons.forward_30, color: color),
+            ),
+            Text("30", style: Theme.of(context).textTheme.labelSmall),
+          ],
+        ),
+        _nextButton(playerController, context),
+      ],
+    );
+  }
+
+  void _openShownotes(PlayerController playerController, BuildContext context) {
+    final song = playerController.currentSong.value;
+    final notes = (song?.extras?['description'] ?? '').toString().trim();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        maxChildSize: 0.9,
+        builder: (ctx, scrollCtrl) => SingleChildScrollView(
+          controller: scrollCtrl,
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconButton(
-                  onPressed: playerController.toggleShuffleMode,
-                  icon: Obx(() => Icon(
-                        Ionicons.shuffle,
-                        color: playerController.isShuffleModeEnabled.value
-                            ? Theme.of(context).textTheme.titleLarge!.color
-                            : Theme.of(context)
-                                .textTheme
-                                .titleLarge!
-                                .color!
-                                .withOpacity(0.2),
-                      ))),
-              _previousButton(playerController, context),
-              const CircleAvatar(radius: 35, child: AnimatedPlayButton(key: Key("playButton"),)),
-              _nextButton(playerController, context),
-              Obx(() {
-                return IconButton(
-                    onPressed: playerController.toggleLoopMode,
-                    icon: Icon(
-                      Icons.all_inclusive,
-                      color: playerController.isLoopModeEnabled.value
-                          ? Theme.of(context).textTheme.titleLarge!.color
-                          : Theme.of(context)
-                              .textTheme
-                              .titleLarge!
-                              .color!
-                              .withOpacity(0.2),
-                    ));
-              }),
+              Text(song?.title ?? '',
+                  style: Theme.of(ctx).textTheme.titleLarge),
+              const SizedBox(height: 4),
+              Text(song?.artist ?? '',
+                  style: Theme.of(ctx).textTheme.titleSmall),
+              const Divider(height: 24),
+              Text(
+                notes.isEmpty ? "noShownotes".tr : notes,
+                style: Theme.of(ctx).textTheme.bodyMedium,
+              ),
             ],
           ),
-          const PlayerSimilarRow(),
-        ]);
+        ),
+      ),
+    );
   }
 
 
@@ -161,6 +277,46 @@ class PlayerControlWidget extends StatelessWidget {
       ),
       iconSize: 30,
       onPressed: playerController.prev,
+    );
+  }
+}
+
+/// Podcast playback-speed control: shows the current speed, tap cycles through
+/// common podcast speeds. Persists via SettingsScreenController like the
+/// speed/pitch dialog.
+class _SpeedButton extends StatelessWidget {
+  const _SpeedButton({required this.color});
+  final Color? color;
+
+  static const _speeds = [0.8, 1.0, 1.2, 1.5, 1.75, 2.0];
+
+  void _cycle() {
+    final settings = Get.find<SettingsScreenController>();
+    final cur = settings.playbackSpeed.value;
+    final idx = _speeds.indexWhere((s) => (s - cur).abs() < 0.01);
+    final next = _speeds[(idx + 1) % _speeds.length];
+    settings.setBox.put("playbackSpeed", next);
+    settings.playbackSpeed.value = next;
+    Get.find<PlayerController>()
+        .setSpeedAndPitch(speed: next, pitch: settings.playbackPitch.value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = Get.find<SettingsScreenController>();
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          iconSize: 30,
+          onPressed: _cycle,
+          icon: Icon(Icons.speed, color: color),
+        ),
+        Obx(() => Text(
+              settings.playbackSpeed.value.toStringAsFixed(2),
+              style: Theme.of(context).textTheme.labelSmall,
+            )),
+      ],
     );
   }
 }

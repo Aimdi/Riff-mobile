@@ -193,6 +193,7 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
         extras: {
           'url': e['url'],
           'isPodcast': true,
+          'description': e['description'],
           'date': DateTime.now().millisecondsSinceEpoch,
         },
       );
