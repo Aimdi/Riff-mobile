@@ -19,11 +19,15 @@ class MediaItemBuilder {
     }
 
     // Prefer the largest thumbnail YTM returned, then upscale to player quality.
-    // thumbnails[0] is almost always the 60px stub and looked soft on the player.
+    // Podcast episodes: prefer square show art over 16:9 video frames.
+    final isPodcastEpisode =
+        (json['videoType']?.toString() ?? '').contains('PODCAST') ||
+            (json['resultType']?.toString() == 'episode');
     final art = Thumbnail.bestUrl(
       json["thumbnails"],
       target: 'extraHigh',
       fallback: _fallbackThumbUrl(json),
+      preferSquare: isPodcastEpisode,
     );
 
     return MediaItem(
@@ -65,7 +69,9 @@ class MediaItemBuilder {
 
     // Podcast-style durations: "25 min", "1 hr 12 min"
     final lower = time.toLowerCase();
-    if (lower.contains('min') || lower.contains('hr') || lower.contains('sec')) {
+    if (lower.contains('min') ||
+        lower.contains('hr') ||
+        lower.contains('sec')) {
       int sec = 0;
       final hr = RegExp(r'(\d+)\s*hr').firstMatch(lower);
       final min = RegExp(r'(\d+)\s*min').firstMatch(lower);

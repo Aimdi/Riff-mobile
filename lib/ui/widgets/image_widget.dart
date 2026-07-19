@@ -29,12 +29,6 @@ class ImageWidget extends StatelessWidget {
   final Artist? artist;
   final double size;
 
-  bool get _isPodcast =>
-      playlist != null &&
-      (playlist!.kind == 'podcast' ||
-          playlist!.playlistId.startsWith('MPSP') ||
-          (playlist!.description?.toLowerCase().contains('podcast') ?? false));
-
   String get _rawUrl {
     if (song != null) return song!.artUri?.toString() ?? "";
     if (playlist != null) return playlist!.thumbnailUrl;
@@ -51,30 +45,16 @@ class ImageWidget extends StatelessWidget {
     return t.medium;
   }
 
+  /// Asset used when the network image fails.
+  String get _fallbackAsset {
+    if (song != null) return "assets/icons/song.png";
+    if (artist != null) return "assets/icons/artist.png";
+    // Playlists and podcasts share the album placeholder (square cover art).
+    return "assets/icons/album.png";
+  }
+
   Widget _placeholder(BuildContext context) {
     final isCircle = artist != null;
-    IconData icon;
-    if (song != null) {
-      icon = Icons.music_note;
-    } else if (artist != null) {
-      icon = Icons.person;
-    } else if (_isPodcast) {
-      icon = Icons.folder;
-    } else if (playlist != null) {
-      icon = Icons.queue_music;
-    } else {
-      icon = Icons.album;
-    }
-
-    // Prefer asset when available, else Material icon (folder for podcasts).
-    final assetName = song != null
-        ? "song"
-        : artist != null
-            ? "artist"
-            : album != null
-                ? "album"
-                : null;
-
     return Container(
       height: size,
       width: size,
@@ -84,28 +64,24 @@ class ImageWidget extends StatelessWidget {
         shape: isCircle ? BoxShape.circle : BoxShape.rectangle,
         borderRadius: isCircle ? null : BorderRadius.circular(8),
       ),
-      child: assetName != null && !_isPodcast
-          ? Image.asset(
-              "assets/icons/$assetName.png",
-              color: Colors.white.withOpacity(0.9),
-              colorBlendMode: BlendMode.srcATop,
-            )
-          : Icon(icon, color: Colors.white, size: size * 0.45),
+      child: Image.asset(
+        _fallbackAsset,
+        color: Colors.white.withOpacity(0.9),
+        colorBlendMode: BlendMode.srcATop,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final raw = _rawUrl;
-    // Re-upscale at display time so cached/history items that stored a low-res
-    // URL (often the 60px YTM stub) still render sharply.
     final imageUrl = _scaled(raw);
 
-    /// only valid for offline songs
     final bool offlineAvailable =
         song != null && (song?.extras?["url"] ?? "").contains("file");
 
-    // Decode at device pixels so large art isn't soft on high-DPI screens.
+    // Only constrain the longer edge so landscape video frames stay cropped
+    // (BoxFit.cover) instead of stretched into a square.
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final decodeSide = (size * dpr).round().clamp(64, 1600);
 
@@ -132,22 +108,22 @@ class ImageWidget extends StatelessWidget {
               : CachedNetworkImage(
                   height: size,
                   width: size,
-                  memCacheHeight: decodeSide,
+                  // One dimension only — setting both forces a square decode and
+                  // elongates 16:9 YouTube frames.
                   memCacheWidth: decodeSide,
                   filterQuality: FilterQuality.high,
                   imageUrl: imageUrl,
                   fit: BoxFit.cover,
+                  alignment: Alignment.center,
                   errorWidget: (context, url, error) {
-                    // Retry once with the raw (unscaled) URL — quality rewrites
-                    // can break signed CDN params.
                     if (raw.isNotEmpty && raw != imageUrl) {
                       return CachedNetworkImage(
                         height: size,
                         width: size,
-                        memCacheHeight: decodeSide,
                         memCacheWidth: decodeSide,
                         imageUrl: raw,
                         fit: BoxFit.cover,
+                        alignment: Alignment.center,
                         errorWidget: (_, __, ___) => _placeholder(context),
                         progressIndicatorBuilder: (_, __, ___) =>
                             _shimmer(context),

@@ -144,7 +144,11 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     } else if (content['kind'] == 'podcast' || id.startsWith('MPSP')) {
       // Keep episode list metadata in sync for podcasts
       final thumbs = content['thumbnails'];
-      final newThumb = Thumbnail.bestUrl(thumbs, target: 'extraHigh');
+      final newThumb = Thumbnail.bestUrl(
+        thumbs,
+        target: 'extraHigh',
+        preferSquare: true,
+      );
       playlist.value = playlist.value.copyWith(
         title: content['title']?.toString() ?? playlist.value.title,
         thumbnailUrl: newThumb.isNotEmpty ? newThumb : null,

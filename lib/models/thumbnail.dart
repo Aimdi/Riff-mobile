@@ -54,12 +54,18 @@ class Thumbnail {
   /// then upscale it to [target] quality.
   ///
   /// [target] is one of: `low`, `medium`, `high`, `extraHigh` (default extraHigh).
+  ///
+  /// When [preferSquare] is true (podcasts / album covers), landscape video
+  /// frames (`i.ytimg.com/vi/...`) lose to square playlist/studio covers
+  /// (`pl_c`, `studio_square`, googleusercontent).
   static String bestUrl(
     dynamic thumbnails, {
     String target = 'extraHigh',
     String fallback = '',
+    bool preferSquare = false,
   }) {
-    final best = _pickLargest(thumbnails) ?? fallback;
+    final best =
+        _pickLargest(thumbnails, preferSquare: preferSquare) ?? fallback;
     if (best.isEmpty) return fallback;
     final t = Thumbnail(best);
     switch (target) {
@@ -74,11 +80,37 @@ class Thumbnail {
     }
   }
 
-  static String? _pickLargest(dynamic thumbnails) {
+  /// True for podcast/playlist square covers (not video frame screenshots).
+  static bool isSquareCoverUrl(String url) {
+    final u = url.toLowerCase();
+    if (u.contains('/pl_c/') ||
+        u.contains('/pl_h/') ||
+        u.contains('studio_square') ||
+        u.contains('playlist_thumbnail')) {
+      return true;
+    }
+    // Google user-content album/podcast art is square.
+    if (u.contains('googleusercontent.com') || u.contains('ggpht.com')) {
+      return true;
+    }
+    // Apple podcast artwork.
+    if (u.contains('mzstatic.com')) return true;
+    return false;
+  }
+
+  /// Video frame screenshots (16:9) from YouTube — not show cover art.
+  static bool isVideoFrameUrl(String url) {
+    final u = url.toLowerCase();
+    return (u.contains('i.ytimg.com/vi/') ||
+            u.contains('img.youtube.com/vi/')) &&
+        !isSquareCoverUrl(url);
+  }
+
+  static String? _pickLargest(dynamic thumbnails, {bool preferSquare = false}) {
     if (thumbnails is! List || thumbnails.isEmpty) return null;
 
     String? bestUrl;
-    int bestArea = -1;
+    double bestScore = -1;
 
     for (final t in thumbnails) {
       if (t is! Map) continue;
@@ -86,28 +118,57 @@ class Thumbnail {
       if (u.isEmpty) continue;
       final w = int.tryParse('${t['width'] ?? 0}') ?? 0;
       final h = int.tryParse('${t['height'] ?? 0}') ?? 0;
-      final area = w * h;
-      // Prefer explicit larger dimensions; if none have size, fall through to last.
-      if (area > bestArea) {
-        bestArea = area;
+      final area = (w > 0 && h > 0) ? (w * h).toDouble() : 0.0;
+
+      // Score: prefer square cover hosts; penalize landscape video frames when
+      // preferSquare is set. Fall back to area (or list order).
+      double score = area > 0 ? area : 1.0;
+      if (preferSquare) {
+        if (isSquareCoverUrl(u)) {
+          score += 1e12; // always beat video frames
+        } else if (isVideoFrameUrl(u)) {
+          score *= 0.01; // only use if nothing else
+        }
+        // Prefer near-square dimensions when present.
+        if (w > 0 && h > 0) {
+          final ratio = w > h ? w / h : h / w;
+          if (ratio <= 1.15) score += 1e6;
+        }
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
         bestUrl = u;
       }
     }
 
-    // No width/height on any entry → YTM order is ascending; take last.
-    if (bestArea <= 0) {
-      for (var i = thumbnails.length - 1; i >= 0; i--) {
-        final t = thumbnails[i];
-        if (t is Map) {
-          final u = (t['url'] ?? t['urlString'] ?? '').toString();
-          if (u.isNotEmpty) return u;
-        } else if (t is String && t.isNotEmpty) {
-          return t;
+    if (bestUrl != null) return bestUrl;
+
+    // No width/height / maps — YTM order is ascending; take last usable.
+    for (var i = thumbnails.length - 1; i >= 0; i--) {
+      final t = thumbnails[i];
+      if (t is Map) {
+        final u = (t['url'] ?? t['urlString'] ?? '').toString();
+        if (u.isNotEmpty) {
+          if (preferSquare && isVideoFrameUrl(u)) continue;
+          return u;
         }
+      } else if (t is String && t.isNotEmpty) {
+        if (preferSquare && isVideoFrameUrl(t)) continue;
+        return t;
       }
-      return null;
     }
-    return bestUrl;
+    // Last resort even if video frame.
+    for (var i = thumbnails.length - 1; i >= 0; i--) {
+      final t = thumbnails[i];
+      if (t is Map) {
+        final u = (t['url'] ?? t['urlString'] ?? '').toString();
+        if (u.isNotEmpty) return u;
+      } else if (t is String && t.isNotEmpty) {
+        return t;
+      }
+    }
+    return null;
   }
 
   static String? _upgradeAppleArtwork(String raw, int size) {

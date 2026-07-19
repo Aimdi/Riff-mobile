@@ -4,6 +4,7 @@
 import 'package:audio_service/audio_service.dart';
 
 import '/models/media_Item_builder.dart';
+import '/models/thumbnail.dart';
 import '/services/utils.dart';
 import '../models/album.dart';
 import '../models/artist.dart';
@@ -1030,10 +1031,13 @@ MediaItem? parseEpisodeItem(Map<String, dynamic> data,
     if (videoId == null) return null;
 
     final title = nav(data, title_text) ?? getItemText(data, 0) ?? 'Episode';
-    final thumbs = nav(data, thumbnails) ??
+    // Episode cards often ship a 16:9 video frame (i.ytimg.com/vi/...). Prefer
+    // the podcast's square cover when we have it so list tiles show real art,
+    // not a stretched video screenshot.
+    final episodeThumbs = nav(data, thumbnails) ??
         nav(data, thumbnail_renderer) ??
-        nav(data, thumbnail) ??
-        fallbackThumbs ??
+        nav(data, thumbnail);
+    final thumbs = _preferSquareThumbs(episodeThumbs, fallbackThumbs) ??
         [
           {'url': Playlist.thumbPlaceholderUrl}
         ];
@@ -1097,6 +1101,39 @@ MediaItem? parseEpisodeItem(Map<String, dynamic> data,
   } catch (_) {
     return null;
   }
+}
+
+/// Prefer square podcast/playlist covers over landscape video frames.
+dynamic _preferSquareThumbs(dynamic episodeThumbs, dynamic fallbackThumbs) {
+  String? bestEp;
+  if (episodeThumbs != null) {
+    bestEp = Thumbnail.bestUrl(episodeThumbs, preferSquare: true);
+  }
+  String? bestCover;
+  if (fallbackThumbs != null) {
+    bestCover = Thumbnail.bestUrl(fallbackThumbs, preferSquare: true);
+  }
+
+  // If episode art is a video frame and we have a cover, use the cover.
+  if (bestEp != null &&
+      Thumbnail.isVideoFrameUrl(bestEp) &&
+      bestCover != null &&
+      bestCover.isNotEmpty) {
+    return [
+      {'url': bestCover}
+    ];
+  }
+  if (bestEp != null && bestEp.isNotEmpty) {
+    return [
+      {'url': bestEp}
+    ];
+  }
+  if (bestCover != null && bestCover.isNotEmpty) {
+    return [
+      {'url': bestCover}
+    ];
+  }
+  return episodeThumbs ?? fallbackThumbs;
 }
 
 /// Parse an explore-shelf episode card (list or two-row).

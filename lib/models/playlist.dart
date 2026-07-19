@@ -37,6 +37,7 @@ class Playlist {
   String thumbnailUrl;
   final String? songCount;
   final bool isCloudPlaylist;
+
   /// System mix kind: daily_mix / fresh_finds / release_radar / rediscover.
   final String? kind;
   static const thumbPlaceholderUrl =
@@ -44,8 +45,15 @@ class Playlist {
 
   factory Playlist.fromJson(Map<dynamic, dynamic> json) {
     final thumbs = json["thumbnails"];
+    final kind = json["kind"]?.toString();
+    final id = (json["playlistId"] ?? json["browseId"] ?? '').toString();
     String thumbUrl = thumbPlaceholderUrl;
-    final best = Thumbnail.bestUrl(thumbs, target: 'extraHigh');
+    // Prefer square studio/playlist covers over landscape video screenshots.
+    final best = Thumbnail.bestUrl(
+      thumbs,
+      target: 'extraHigh',
+      preferSquare: true,
+    );
     if (best.isNotEmpty) {
       thumbUrl = best;
     } else if (json["thumbnailUrl"] != null) {
@@ -53,13 +61,13 @@ class Playlist {
     }
     return Playlist(
         title: json["title"] ?? '',
-        playlistId: json["playlistId"] ?? json["browseId"] ?? '',
+        playlistId: id,
         thumbnailUrl: thumbUrl,
         description: json["description"] ?? "Playlist",
         songCount: json['itemCount']?.toString(),
         isPipedPlaylist: json["isPipedPlaylist"] ?? false,
         isCloudPlaylist: json["isCloudPlaylist"] ?? true,
-        kind: json["kind"]);
+        kind: kind);
   }
 
   Map<String, dynamic> toJson() => {
