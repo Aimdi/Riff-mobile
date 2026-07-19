@@ -34,6 +34,7 @@ void main() {
     Hive.init(Directory.systemTemp.createTempSync('riffhive').path);
     await Hive.openBox('AppPrefs');
     await Hive.openBox('BannedSongs');
+    await Hive.openBox('BannedArtists');
   });
 
   test('home feed loads and parses', () async {

@@ -10,7 +10,11 @@ class BanService {
   BanService._();
 
   static Box get _box => Hive.box("BannedSongs");
-  static Box get _artistBox => Hive.box("BannedArtists");
+
+  // Tolerate the box not being open (e.g. code paths that run before
+  // initHive, or isolates that never opened it): treat as "empty".
+  static Box? get _artistBox =>
+      Hive.isBoxOpen("BannedArtists") ? Hive.box("BannedArtists") : null;
 
   static bool isBanned(String songId) => _box.containsKey(songId);
 
@@ -27,26 +31,31 @@ class BanService {
   static String _artistKey(String artist) => artist.trim().toLowerCase();
 
   static bool isArtistBanned(String? artist) {
-    if (artist == null || artist.isEmpty || _artistBox.isEmpty) return false;
+    final box = _artistBox;
+    if (artist == null || artist.isEmpty || box == null || box.isEmpty) {
+      return false;
+    }
     // Match any individual artist within a "feat."/multi-artist string.
     for (final part in artist.split(RegExp(r'[,&]'))) {
-      if (_artistBox.containsKey(_artistKey(part))) return true;
+      if (box.containsKey(_artistKey(part))) return true;
     }
     return false;
   }
 
-  static Future<void> banArtist(String artist) =>
-      _artistBox.put(_artistKey(artist), {"name": artist.trim()});
+  static Future<void> banArtist(String artist) async =>
+      _artistBox?.put(_artistKey(artist), {"name": artist.trim()});
 
-  static Future<void> unbanArtist(String key) => _artistBox.delete(key);
+  static Future<void> unbanArtist(String key) async =>
+      _artistBox?.delete(key);
 
   /// [{key, name}] of all banned artists.
-  static List<Map<String, dynamic>> get allArtists => _artistBox.keys
-      .map((k) => {
-            "key": k as String,
-            "name": _artistBox.get(k)["name"] ?? k,
-          })
-      .toList();
+  static List<Map<String, dynamic>> get allArtists =>
+      (_artistBox?.keys ?? [])
+          .map((k) => {
+                "key": k as String,
+                "name": _artistBox!.get(k)["name"] ?? k,
+              })
+          .toList();
 
   /// [{id, title, artist}] of all banned songs.
   static List<Map<String, dynamic>> get all => _box.keys
@@ -63,7 +72,7 @@ class BanService {
   /// watch playlist.
   static List<dynamic> filterTracks(List<dynamic> tracks,
       {String? keepVideoId}) {
-    if (_box.isEmpty && _artistBox.isEmpty) return tracks;
+    if (_box.isEmpty && (_artistBox?.isEmpty ?? true)) return tracks;
     return tracks.where((t) {
       if (t['videoId'] == keepVideoId) return true;
       if (_box.containsKey(t['videoId'])) return false;
