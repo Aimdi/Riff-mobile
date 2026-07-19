@@ -2045,6 +2045,7 @@ Map<String, Map<String, String>> get keys => {
   "keepScreenOnWhilePlaying": "Keep screen on while playing",
   "keepScreenOnWhilePlayingDes": "If enabled, the device screen will stay awake while music is playing",
   "stats": "Stats",
+    "discoverEmptyDes": "No account needed — Riff is private by design. Play a few songs and your Discover mixes will build themselves from your local listening history.",
   "plays": "Plays",
   "hours": "Hours listened",
   "last7Days": "Last 7 days",

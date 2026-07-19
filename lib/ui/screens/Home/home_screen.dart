@@ -222,12 +222,49 @@ class Body extends StatelessWidget {
                                       (s) => HomeDiscoverySection(section: s)),
                                 ],
                                 Obx(() {
+                                  final quickPicks =
+                                      homeScreenController.quickPicks.value;
+                                  // A fresh install has no personalized song
+                                  // shelf yet (Riff is login-less by design):
+                                  // don't reserve an empty 340px block.
+                                  if (quickPicks.songList.isEmpty) {
+                                    if (personal.isNotEmpty) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return Padding(
+                                      padding: const EdgeInsets.only(
+                                          top: 5, bottom: 15, right: 10),
+                                      child: Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(18),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context).cardColor,
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text("discover".tr,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .titleMedium),
+                                            const SizedBox(height: 6),
+                                            Text("discoverEmptyDes".tr,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodyMedium),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  }
                                   final scrollController = ScrollController();
                                   homeScreenController.contentScrollControllers
                                       .add(scrollController);
                                   return QuickPicksWidget(
-                                      content:
-                                          homeScreenController.quickPicks.value,
+                                      content: quickPicks,
                                       scrollController: scrollController);
                                 }),
                                 ...getWidgetList(
