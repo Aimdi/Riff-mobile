@@ -728,6 +728,17 @@ class SettingsScreen extends StatelessWidget {
                   ListTile(
                     contentPadding:
                         const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("podcasts".tr),
+                    subtitle: Text("podcastsDes".tr,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Get.toNamed(
+                        ScreenNavigationSetup.podcastsScreen,
+                        id: ScreenNavigationSetup.id),
+                  ),
+                  ListTile(
+                    contentPadding:
+                        const EdgeInsets.only(left: 5, right: 10),
                     title: Text("bannedSongs".tr),
                     subtitle: Text("neverPlayThisDes".tr,
                         style: Theme.of(context).textTheme.bodyMedium),

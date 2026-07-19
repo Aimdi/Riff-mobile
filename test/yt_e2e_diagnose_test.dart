@@ -16,6 +16,7 @@ import 'package:hive/hive.dart';
 
 import 'package:harmonymusic/services/kugou_lyrics_service.dart';
 import 'package:harmonymusic/services/music_service.dart';
+import 'package:harmonymusic/services/podcast_service.dart';
 import 'package:harmonymusic/services/stream_service.dart';
 
 Future<MusicServices> _makeService() async {
@@ -35,6 +36,7 @@ void main() {
     await Hive.openBox('AppPrefs');
     await Hive.openBox('BannedSongs');
     await Hive.openBox('BannedArtists');
+    await Hive.openBox('PodcastSubs');
   });
 
   test('home feed loads and parses', () async {
@@ -97,5 +99,21 @@ void main() {
         "synced=${lrc.contains("[")}"}');
     // Non-fatal: KuGou may rate-limit datacenter IPs; the print is the
     // signal that the provider wiring works.
+  }, timeout: const Timeout(Duration(minutes: 3)));
+
+  test('podcast search + feed parsing (AntennaPod-style)', () async {
+    final results = await PodcastService.search("this american life");
+    // ignore: avoid_print
+    print('PODCAST SEARCH: ${results.length} shows; first='
+        '${results.isNotEmpty ? results.first["title"] : "none"}');
+    expect(results, isNotEmpty);
+    final eps = await PodcastService.episodes(
+        results.first["feedUrl"], results.first["title"], "");
+    // ignore: avoid_print
+    print('PODCAST EPISODES: ${eps.length}; first='
+        '${eps.isNotEmpty ? eps.first["title"] : "none"}; '
+        'hasUrl=${eps.isNotEmpty && (eps.first["url"] as String).startsWith("http")}');
+    expect(eps, isNotEmpty);
+    expect((eps.first["url"] as String).startsWith("http"), isTrue);
   }, timeout: const Timeout(Duration(minutes: 3)));
 }

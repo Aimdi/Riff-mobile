@@ -813,6 +813,34 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   Future<HMStreamingData> checkNGetUrl(String songId,
       {bool generateNewUrl = false, bool offlineReplacementUrl = false}) async {
     printINFO("Requested id : $songId");
+    // Podcast episodes carry their own direct audio URL (RSS enclosure) —
+    // no YouTube stream resolution needed.
+    if (songId.startsWith("podcast_")) {
+      MediaItem? item;
+      for (final e in queue.value) {
+        if (e.id == songId) {
+          item = e;
+          break;
+        }
+      }
+      final url = item?.extras?['url'] as String?;
+      if (url != null && url.isNotEmpty) {
+        final audio = Audio(
+            audioCodec: Codec.mp4a,
+            bitrate: 0,
+            loudnessDb: 0,
+            duration: 0,
+            size: 0,
+            url: url,
+            itag: 0);
+        return HMStreamingData(
+            playable: true,
+            statusMSG: "OK",
+            lowQualityAudio: audio,
+            highQualityAudio: audio);
+      }
+      return HMStreamingData(playable: false, statusMSG: "networkError");
+    }
     final songDownloadsBox = Hive.box("SongDownloads");
     if (!offlineReplacementUrl &&
         (await Hive.openBox("SongsCache")).containsKey(songId)) {

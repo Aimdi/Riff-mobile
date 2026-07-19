@@ -31,7 +31,12 @@ engine, and a playback stack built to survive YouTube's changes.
 - 🗒️ **Full queue control** — play next, enqueue, reorder, shuffle, repeat
 - ❤️ **Favorites, history and local playlists**
 - ⬇️ **Offline downloads**; downloaded songs play from disk
-- 🎤 **Synced lyrics** (LRCLIB) with live highlighting
+- 🎙️ **Podcasts** (AntennaPod-style) — search Apple's public directory,
+  subscribe to any RSS feed, stream episodes; subscriptions stay on your
+  device, nothing is reported anywhere (Settings → Riff → Podcasts)
+- 🎛️ **Audio effects** — bass boost, volume boost (amplifies quiet tracks),
+  reverb presets, stereo width, plus speed & pitch (Settings → Riff)
+- 🎤 **Synced lyrics** (LRCLIB, with KuGou fallback) and live highlighting
 - 📊 **Stats page** — plays, hours listened, daily activity, top songs and
   artists, exploration insights — all computed on-device (Settings → Riff)
 - 🚷 **"Never Play This"** — ban a song from the song menu; banned songs

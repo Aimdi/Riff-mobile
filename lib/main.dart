@@ -124,6 +124,7 @@ initHive() async {
   await Hive.openBox("BannedSongs");
   await Hive.openBox("BannedArtists");
   await Hive.openBox("BannedCollections");
+  await Hive.openBox("PodcastSubs");
   await Hive.openBox("SongStats");
   await Hive.openBox("DailyStats");
 }
