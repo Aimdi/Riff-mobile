@@ -208,24 +208,140 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
       appBar: AppBar(title: Text(widget.podcast['title'] ?? '', maxLines: 1)),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _episodes.isEmpty
-              ? Center(child: Text("noEpisodes".tr))
-              : ListView.builder(
-                  itemCount: _episodes.length,
-                  itemBuilder: (_, i) {
-                    final e = _episodes[i];
-                    return ListTile(
-                      leading: const Icon(Icons.play_circle_outline, size: 34),
-                      title: Text(e['title'], maxLines: 2),
-                      subtitle: Text(
-                        e['date'] ?? '',
-                        maxLines: 1,
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Fixed header — cover art + title + author stay pinned while
+                // the episode list scrolls (AntennaPod layout).
+                _header(context),
+                const Divider(height: 1),
+                Expanded(
+                  child: _episodes.isEmpty
+                      ? Center(child: Text("noEpisodes".tr))
+                      : ListView.separated(
+                          padding: const EdgeInsets.only(bottom: 200),
+                          itemCount: _episodes.length,
+                          separatorBuilder: (_, __) =>
+                              const Divider(height: 1, indent: 16, endIndent: 16),
+                          itemBuilder: (_, i) => _episodeRow(context, i),
+                        ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _header(BuildContext context) {
+    final art =
+        (widget.podcast['artwork'] ?? '').toString();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: CachedNetworkImage(
+              imageUrl: art,
+              width: 92,
+              height: 92,
+              fit: BoxFit.cover,
+              errorWidget: (_, __, ___) =>
+                  const Icon(Icons.podcasts, size: 60),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.podcast['title'] ?? '',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.podcast['author'] ?? '',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _episodeRow(BuildContext context, int i) {
+    final e = _episodes[i];
+    final date = (e['date'] ?? '').toString();
+    final size = PodcastService.formatSize(e['sizeBytes'] ?? 0);
+    final duration = PodcastService.formatDuration(e['durationSec'] ?? 0);
+    final meta = [date, size].where((s) => s.isNotEmpty).join('  ·  ');
+    final art =
+        (e['artwork'] ?? widget.podcast['artwork'] ?? '').toString();
+    return InkWell(
+      onTap: () => _playFrom(i),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: CachedNetworkImage(
+                imageUrl: art,
+                width: 56,
+                height: 56,
+                fit: BoxFit.cover,
+                errorWidget: (_, __, ___) =>
+                    const Icon(Icons.podcasts, size: 40),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (meta.isNotEmpty)
+                    Text(
+                      meta,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  Text(
+                    e['title'] ?? '',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  if (duration.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        duration,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
-                      onTap: () => _playFrom(i),
-                    );
-                  },
-                ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.play_circle_outline, size: 30),
+          ],
+        ),
+      ),
     );
   }
 }

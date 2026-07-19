@@ -170,6 +170,8 @@ class PodcastService {
         if (url == null || url.isEmpty) continue;
         final title = item.getElement('title')?.innerText.trim() ?? "Episode";
         final guid = item.getElement('guid')?.innerText.trim() ?? url;
+        final sizeBytes =
+            int.tryParse(enclosure?.getAttribute('length') ?? '') ?? 0;
         final epArtRaw = item
                 .findElements('itunes:image')
                 .firstOrNull
@@ -197,7 +199,8 @@ class PodcastService {
               item.getElement('description')?.innerText ?? ""),
           'url': url,
           'artwork': Thumbnail(epArtRaw).extraHigh,
-          'date': item.getElement('pubDate')?.innerText.trim() ?? "",
+          'date': _formatDate(item.getElement('pubDate')?.innerText.trim()),
+          'sizeBytes': sizeBytes,
           'durationSec':
               _parseDuration(item.getElement('itunes:duration')?.innerText),
           'podcast': podcastTitle,
@@ -222,6 +225,35 @@ class PodcastService {
 
   static String _stripHtml(String s) =>
       s.replaceAll(RegExp(r'<[^>]*>'), '').trim();
+
+  /// RSS pubDate → "19 Jul 2026" (drops weekday and time for a compact row).
+  static String _formatDate(String? raw) {
+    if (raw == null || raw.isEmpty) return "";
+    try {
+      // RFC-822: "Sat, 19 Jul 2026 08:00:00 +0000"
+      final parts = raw.replaceFirst(RegExp(r'^\w+,\s*'), '').split(' ');
+      if (parts.length >= 3) return "${parts[0]} ${parts[1]} ${parts[2]}";
+    } catch (_) {}
+    return raw;
+  }
+
+  /// enclosure length (bytes) → "42.3 MB" / "512 KB".
+  static String formatSize(int bytes) {
+    if (bytes <= 0) return "";
+    final mb = bytes / (1024 * 1024);
+    if (mb >= 1) return "${mb.toStringAsFixed(1)} MB";
+    return "${(bytes / 1024).toStringAsFixed(0)} KB";
+  }
+
+  /// seconds → "1:02:33" / "42:10".
+  static String formatDuration(int sec) {
+    if (sec <= 0) return "";
+    final h = sec ~/ 3600;
+    final m = (sec % 3600) ~/ 60;
+    final s = sec % 60;
+    String two(int n) => n.toString().padLeft(2, '0');
+    return h > 0 ? "$h:${two(m)}:${two(s)}" : "$m:${two(s)}";
+  }
 }
 
 extension _FirstOrNull<E> on Iterable<E> {
