@@ -9,6 +9,7 @@ import 'package:hive/hive.dart';
 import '/models/album.dart';
 import '/services/ban_service.dart';
 import '/services/utils.dart';
+import '/services/yt_auth_service.dart';
 import '../utils/helper.dart';
 import 'constant.dart';
 import 'continuations.dart';
@@ -116,7 +117,9 @@ class MusicServices extends getx.GetxService {
       final response =
           await dio.post("$baseUrl$action$fixedParms$additionalParams",
               options: Options(
-                headers: _headers,
+                // Auth headers personalize the feed when a YouTube
+                // account is connected; empty map when anonymous.
+                headers: {..._headers, ...YtAuthService.authHeaders()},
               ),
               data: data);
 

@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "comment": "Remotely updatable player-client fleet (RiPlay-style). Edit this file in the repo to fix playback without shipping a new APK. Each entry in 'attempts' is a group of clients tried together; groups are tried in order before the app's built-in fallbacks.",
+  "attempts": [
+    [
+      {
+        "name": "ANDROID_VR_1_65_10",
+        "apiUrl": "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
+        "payload": {
+          "context": {
+            "client": {
+              "clientName": "ANDROID_VR",
+              "clientVersion": "1.65.10",
+              "deviceMake": "Oculus",
+              "deviceModel": "Quest 3",
+              "osName": "Android",
+              "osVersion": "12L",
+              "androidSdkVersion": 32,
+              "userAgent": "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip",
+              "hl": "en",
+              "timeZone": "UTC",
+              "utcOffsetMinutes": 0
+            }
+          }
+        }
+      }
+    ],
+    [
+      {
+        "name": "VISIONOS",
+        "apiUrl": "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
+        "payload": {
+          "context": {
+            "client": {
+              "clientName": "VISIONOS",
+              "clientVersion": "0.1",
+              "deviceMake": "Apple",
+              "deviceModel": "RealityDevice14,1",
+              "osName": "visionOS",
+              "osVersion": "1.3.21O771",
+              "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+              "hl": "en",
+              "timeZone": "UTC",
+              "utcOffsetMinutes": 0
+            }
+          }
+        }
+      }
+    ]
+  ]
+}

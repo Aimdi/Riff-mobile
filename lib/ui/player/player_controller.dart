@@ -685,6 +685,11 @@ class PlayerController extends GetxController
     _audioHandler.customAction("toggleSkipSilence", {"enable": enable});
   }
 
+  void setSpeedAndPitch({required double speed, required double pitch}) {
+    _audioHandler
+        .customAction("setSpeedAndPitch", {"speed": speed, "pitch": pitch});
+  }
+
   void toggleLoudnessNormalization(bool enable) {
     _audioHandler
         .customAction("toggleLoudnessNormalization", {"enable": enable});

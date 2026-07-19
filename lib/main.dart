@@ -14,6 +14,7 @@ import '/services/downloader.dart';
 import '/services/piped_service.dart';
 import 'utils/app_link_controller.dart';
 import '/services/audio_handler.dart';
+import '/services/client_config_service.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/music_service.dart';
 import '/ui/home.dart';
@@ -29,6 +30,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initHive();
   _setAppInitPrefs();
+  // Load cached remote client config synchronously; refresh in background.
+  unawaited(ClientConfigService.init());
   startApplicationServices();
   Get.put<AudioHandler>(await initAudioService(), permanent: true);
   // Discovery depends on MusicServices — init after services are registered.

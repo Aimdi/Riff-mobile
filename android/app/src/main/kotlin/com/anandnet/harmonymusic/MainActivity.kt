@@ -40,6 +40,19 @@ class MainActivity : AudioServiceActivity() {
                         }
                     }
                 }
+                "getCookies" -> {
+                    val url = call.argument<String>("url")
+                    if (url.isNullOrEmpty()) {
+                        result.error("ARG", "url missing", null)
+                        return@setMethodCallHandler
+                    }
+                    result.success(
+                        android.webkit.CookieManager.getInstance().getCookie(url))
+                }
+                "clearCookies" -> {
+                    android.webkit.CookieManager.getInstance()
+                        .removeAllCookies { ok -> result.success(ok) }
+                }
                 else -> result.notImplemented()
             }
         }

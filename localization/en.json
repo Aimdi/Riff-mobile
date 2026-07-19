@@ -319,5 +319,15 @@
   "explorationRatio": "Exploration ratio",
   "topRisingArtists": "Top rising artists",
   "keptFromFreshFinds": "Kept from Fresh Finds",
-  "discoverEmptyDes": "No account needed — Riff is private by design. Play a few songs and your Discover mixes will build themselves from your local listening history."
+  "discoverEmptyDes": "No account needed — Riff is private by design. Play a few songs and your Discover mixes will build themselves from your local listening history.",
+  "ytAccount": "Connect YouTube account",
+  "ytAccountDes": "Optional — personalizes your feed (Listen again, your mixes, library). Everything works without it.",
+  "ytConnectedDes": "Connected — tap to disconnect",
+  "connectYtAccount": "Connect YouTube account",
+  "ytConnectedMsg": "YouTube account connected — your feed is now personalized",
+  "speedAndPitch": "Speed & pitch",
+  "speedAndPitchDes": "Adjust playback speed and pitch",
+  "speed": "Speed",
+  "pitch": "Pitch",
+  "done": "Done"
 }

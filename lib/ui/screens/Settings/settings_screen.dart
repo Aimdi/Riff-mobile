@@ -16,6 +16,9 @@ import '/services/ban_service.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/listenbrainz_service.dart';
 import '/services/music_service.dart';
+import '/services/yt_auth_service.dart';
+import 'yt_login_screen.dart';
+import '../Home/home_screen_controller.dart';
 import '../../navigator.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/utils/theme_controller.dart';
@@ -662,6 +665,48 @@ class SettingsScreen extends StatelessWidget {
                 icon: Icons.graphic_eq,
                 title: "riffFeatures".tr,
                 children: [
+                  Obx(() {
+                    final connected = settingsController.ytConnected.value;
+                    return ListTile(
+                      contentPadding:
+                          const EdgeInsets.only(left: 5, right: 10),
+                      title: Text("ytAccount".tr),
+                      subtitle: Text(
+                          connected ? "ytConnectedDes".tr : "ytAccountDes".tr,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      trailing: Icon(connected ? Icons.link_off : Icons.login),
+                      onTap: () async {
+                        if (connected) {
+                          await YtAuthService.disconnect();
+                          settingsController.ytConnected.value = false;
+                          Get.find<HomeScreenController>()
+                              .loadContentFromNetwork();
+                        } else {
+                          final ok =
+                              await Get.to(() => const YtLoginScreen());
+                          if (ok == true) {
+                            settingsController.ytConnected.value = true;
+                            Get.find<HomeScreenController>()
+                                .loadContentFromNetwork();
+                            ScaffoldMessenger.of(Get.context!).showSnackBar(
+                                snackbar(Get.context!, "ytConnectedMsg".tr,
+                                    size: SanckBarSize.BIG,
+                                    duration: const Duration(seconds: 3)));
+                          }
+                        }
+                      },
+                    );
+                  }),
+                  ListTile(
+                    contentPadding:
+                        const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("speedAndPitch".tr),
+                    subtitle: Text("speedAndPitchDes".tr,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    onTap: () => showDialog(
+                        context: context,
+                        builder: (context) => const SpeedPitchDialog()),
+                  ),
                   ListTile(
                     contentPadding:
                         const EdgeInsets.only(left: 5, right: 10),
@@ -1269,6 +1314,94 @@ class TasteModelDebugDialog extends StatelessWidget {
                 onPressed: () => Navigator.of(context).pop(),
                 child: Text("cancel".tr),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Playback speed and pitch controls (RiPlay-style). Persisted and
+/// applied live to the running player.
+class SpeedPitchDialog extends StatefulWidget {
+  const SpeedPitchDialog({super.key});
+
+  @override
+  State<SpeedPitchDialog> createState() => _SpeedPitchDialogState();
+}
+
+class _SpeedPitchDialogState extends State<SpeedPitchDialog> {
+  final settings = Get.find<SettingsScreenController>();
+  late double speed = settings.playbackSpeed.value;
+  late double pitch = settings.playbackPitch.value;
+
+  void _apply() {
+    settings.setBox.put("playbackSpeed", speed);
+    settings.setBox.put("playbackPitch", pitch);
+    settings.playbackSpeed.value = speed;
+    settings.playbackPitch.value = pitch;
+    Get.find<PlayerController>()
+        .setSpeedAndPitch(speed: speed, pitch: pitch);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("speedAndPitch".tr,
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 15),
+            Text("${"speed".tr}: ${speed.toStringAsFixed(2)}x"),
+            Slider(
+              min: 0.5,
+              max: 2.0,
+              divisions: 30,
+              value: speed,
+              label: "${speed.toStringAsFixed(2)}x",
+              onChanged: (v) => setState(() => speed = v),
+              onChangeEnd: (_) => _apply(),
+            ),
+            Text("${"pitch".tr}: ${pitch.toStringAsFixed(2)}"),
+            Slider(
+              min: 0.5,
+              max: 1.5,
+              divisions: 20,
+              value: pitch,
+              label: pitch.toStringAsFixed(2),
+              onChanged: (v) => setState(() => pitch = v),
+              onChangeEnd: (_) => _apply(),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      speed = 1.0;
+                      pitch = 1.0;
+                    });
+                    _apply();
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text("resetToDefault".tr),
+                  ),
+                ),
+                InkWell(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text("done".tr),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

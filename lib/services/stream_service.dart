@@ -54,11 +54,39 @@ class StreamProvider {
     },
   }, 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false');
 
-  static final List<List<YoutubeApiClient>> _clientAttempts = [
+  static final List<List<YoutubeApiClient>> _builtInAttempts = [
     [_androidVrFresh],
     [_visionOs],
     [YoutubeApiClient.androidSdkless, YoutubeApiClient.ios],
   ];
+
+  /// Builds the client attempt list from the remote config json (see
+  /// stream_clients.json in the repo); falls back to the built-ins on
+  /// any parse problem. The library's sdk-less android + ios pair is
+  /// always appended as the last resort.
+  static List<List<YoutubeApiClient>> _attemptsFromConfig(
+      String? configJson) {
+    if (configJson == null) return _builtInAttempts;
+    try {
+      final config = jsonDecode(configJson) as Map<String, dynamic>;
+      final attempts = (config['attempts'] as List)
+          .map((group) => (group as List)
+              .map((c) => YoutubeApiClient(
+                  Map<String, dynamic>.from(c['payload']),
+                  c['apiUrl'] as String))
+              .toList())
+          .where((g) => g.isNotEmpty)
+          .toList();
+      if (attempts.isEmpty) return _builtInAttempts;
+      return [
+        ...attempts,
+        [YoutubeApiClient.androidSdkless, YoutubeApiClient.ios],
+      ];
+    } catch (e) {
+      printERROR("Bad stream client config, using built-ins: $e");
+      return _builtInAttempts;
+    }
+  }
 
   static const _newPipeChannel = MethodChannel('riff/newpipe');
 
@@ -118,7 +146,8 @@ class StreamProvider {
     }
   }
 
-  static Future<StreamProvider> fetch(String videoId) async {
+  static Future<StreamProvider> fetch(String videoId,
+      {String? clientConfigJson}) async {
     final viaNewPipe = await _fetchViaNewPipe(videoId);
     if (viaNewPipe != null) return viaNewPipe;
 
@@ -127,7 +156,7 @@ class StreamProvider {
     try {
       StreamManifest? res;
       Object? lastError;
-      for (final clients in _clientAttempts) {
+      for (final clients in _attemptsFromConfig(clientConfigJson)) {
         try {
           res = await yt.videos.streamsClient.getManifest(videoId,
               ytClients: clients, requireWatchPage: false);

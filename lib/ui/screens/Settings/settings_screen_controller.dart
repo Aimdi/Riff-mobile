@@ -14,6 +14,7 @@ import '../Library/library_controller.dart';
 import '../../widgets/snackbar.dart';
 import '../../../utils/helper.dart';
 import '/services/music_service.dart';
+import '/services/yt_auth_service.dart';
 import '/ui/player/player_controller.dart';
 import '../Home/home_screen_controller.dart';
 import '/ui/utils/theme_controller.dart';
@@ -26,6 +27,9 @@ class SettingsScreenController extends GetxController {
   final themeModetype = ThemeType.dynamic.obs;
   final skipSilenceEnabled = false.obs;
   final loudnessNormalizationEnabled = false.obs;
+  final ytConnected = false.obs;
+  final playbackSpeed = 1.0.obs;
+  final playbackPitch = 1.0.obs;
   final noOfHomeScreenContent = 3.obs;
   final streamingQuality = AudioQuality.High.obs;
   final playerUi = 0.obs;
@@ -47,7 +51,7 @@ class SettingsScreenController extends GetxController {
   final keepScreenAwake = false.obs;
   final restorePlaybackSession = false.obs;
   final cacheHomeScreenData = true.obs;
-  final currentVersion = "V1.1.1";
+  final currentVersion = "V1.2.0";
 
   @override
   void onInit() {
@@ -96,6 +100,9 @@ class SettingsScreenController extends GetxController {
     loudnessNormalizationEnabled.value = isDesktop
         ? false
         : (setBox.get("loudnessNormalizationEnabled") ?? false);
+    ytConnected.value = YtAuthService.isConnected;
+    playbackSpeed.value = (setBox.get("playbackSpeed") ?? 1.0).toDouble();
+    playbackPitch.value = (setBox.get("playbackPitch") ?? 1.0).toDouble();
     autoOpenPlayer.value = (setBox.get("autoOpenPlayer") ?? true);
     restorePlaybackSession.value =
         setBox.get("restrorePlaybackSession") ?? false;

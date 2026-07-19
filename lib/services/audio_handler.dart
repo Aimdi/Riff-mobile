@@ -22,6 +22,7 @@ import '/models/hm_streaming_data.dart';
 import '/ui/player/player_controller.dart';
 import '../ui/screens/Home/home_screen_controller.dart';
 import '/services/background_task.dart';
+import '/services/client_config_service.dart';
 import '/services/permission_service.dart';
 import '../utils/helper.dart';
 import '/models/media_Item_builder.dart';
@@ -89,6 +90,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     final appPrefsBox = Hive.box("appPrefs");
     _player
         .setSkipSilenceEnabled(appPrefsBox.get("skipSilenceEnabled") ?? false);
+    _player.setSpeed((appPrefsBox.get("playbackSpeed") ?? 1.0).toDouble());
+    _player.setPitch((appPrefsBox.get("playbackPitch") ?? 1.0).toDouble());
     loopModeEnabled = appPrefsBox.get("isLoopModeEnabled") ?? false;
     shuffleModeEnabled = appPrefsBox.get("isShuffleModeEnabled") ?? false;
     queueLoopModeEnabled =
@@ -450,6 +453,11 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         super.stop();
         break;
 
+      case 'setSpeedAndPitch':
+        await _player.setSpeed((extras!['speed'] as num).toDouble());
+        await _player.setPitch((extras['pitch'] as num).toDouble());
+        break;
+
       case 'playByIndex':
         final songIndex = extras!['index'];
         currentIndex = songIndex;
@@ -699,6 +707,12 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   }
 
   void _normalizeVolume(double currentLoudnessDb) {
+    // 0.0 means "loudness unknown" (older cache entries / failed fetch):
+    // normalizing against it would just lower the volume to ~56%.
+    if (currentLoudnessDb == 0.0) {
+      _player.setVolume(1.0);
+      return;
+    }
     double loudnessDifference = -5 - currentLoudnessDb;
 
     // Converted loudness difference to a volume multiplier
@@ -853,8 +867,12 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
       if (streamInfo == null) {
         final token = RootIsolateToken.instance;
-        final streamInfoJson =
-            await Isolate.run(() => getStreamInfo(songId, token));
+        // Remote client config is handed over by value: the spawned
+        // isolate shares no statics or Hive with the main isolate.
+        final clientConfigJson = ClientConfigService.currentJson;
+        final streamInfoJson = await Isolate.run(() => getStreamInfo(
+            songId, token,
+            clientConfigJson: clientConfigJson));
         streamInfo = HMStreamingData.fromJson(streamInfoJson);
         if (streamInfo.playable) songsUrlCacheBox.put(songId, streamInfoJson);
       }
