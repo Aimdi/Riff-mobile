@@ -4,6 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
+import '../../models/thumbnail.dart';
 import '../ban_service.dart';
 import '../music_service.dart';
 import 'candidate_sources.dart';
@@ -232,10 +233,8 @@ class DiscoveryService extends GetxService {
           'thumbnails': [
             {
               'url': mix.tracks.isNotEmpty
-                  ? ((mix.tracks.first['thumbnails'] is List &&
-                          (mix.tracks.first['thumbnails'] as List).isNotEmpty)
-                      ? (mix.tracks.first['thumbnails'][0]['url'] ?? '')
-                      : '')
+                  ? Thumbnail.bestUrl(mix.tracks.first['thumbnails'],
+                      target: 'extraHigh')
                   : ''
             }
           ],

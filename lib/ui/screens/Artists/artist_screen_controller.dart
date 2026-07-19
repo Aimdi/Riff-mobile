@@ -6,6 +6,7 @@ import 'package:hive/hive.dart';
 import '../../widgets/add_to_playlist.dart';
 import '/ui/widgets/sort_widget.dart';
 import '../../../models/artist.dart';
+import '../../../models/thumbnail.dart';
 import '../../../utils/helper.dart';
 import '../Library/library_controller.dart';
 import '/services/discovery/discovery_service.dart';
@@ -83,8 +84,7 @@ class ArtistScreenController extends GetxController
     artist_ = Artist(
         browseId: id,
         name: data['name'],
-        thumbnailUrl:
-            data['thumbnails'] != null ? data['thumbnails'][0]['url'] : "",
+        thumbnailUrl: Thumbnail.bestUrl(data['thumbnails'], target: 'high'),
         subscribers: "${data['subscribers']} subscribers",
         radioId: data["radioId"]);
   }

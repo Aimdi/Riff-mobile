@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:hive/hive.dart';
 import 'package:xml/xml.dart';
 
+import '/models/thumbnail.dart';
 import '/utils/helper.dart';
 
 /// Podcast support modelled on AntennaPod: discovery via Apple's public
@@ -51,13 +52,20 @@ class PodcastService {
       if (results == null) return [];
       return results
           .where((r) => (r['feedUrl'] ?? '').toString().isNotEmpty)
-          .map((r) => {
-                'title': r['collectionName'] ?? r['trackName'] ?? '',
-                'author': r['artistName'] ?? '',
-                'artwork': r['artworkUrl600'] ?? r['artworkUrl100'] ?? '',
-                'feedUrl': r['feedUrl'],
-              })
-          .toList();
+          .map((r) {
+            // Prefer 600px, then upscale mzstatic path to 3000×3000 for sharp player art.
+            final raw = (r['artworkUrl600'] ??
+                    r['artworkUrl100'] ??
+                    r['artworkUrl60'] ??
+                    '')
+                .toString();
+            return {
+              'title': r['collectionName'] ?? r['trackName'] ?? '',
+              'author': r['artistName'] ?? '',
+              'artwork': Thumbnail(raw).extraHigh,
+              'feedUrl': r['feedUrl'],
+            };
+          }).toList();
     } catch (e) {
       printERROR("Podcast search failed: $e");
       return [];
@@ -72,12 +80,20 @@ class PodcastService {
       final entries = _asMap(res.data)?['feed']?['entry'] as List?;
       if (entries == null) return [];
       return entries
-          .map((e) => {
-                'title': e['im:name']?['label'] ?? '',
-                'author': e['im:artist']?['label'] ?? '',
-                'artwork': (e['im:image'] as List?)?.last?['label'] ?? '',
-                'collectionId': e['id']?['attributes']?['im:id'],
-              })
+          .map((e) {
+            // Apple top-charts feed includes several im:image sizes; take the last
+            // (largest) then upscale via Thumbnail for player-quality art.
+            final images = e['im:image'] as List?;
+            final raw = (images != null && images.isNotEmpty)
+                ? (images.last['label'] ?? '').toString()
+                : '';
+            return {
+              'title': e['im:name']?['label'] ?? '',
+              'author': e['im:artist']?['label'] ?? '',
+              'artwork': Thumbnail(raw).extraHigh,
+              'collectionId': e['id']?['attributes']?['im:id'],
+            };
+          })
           .where((e) => e['collectionId'] != null)
           .toList();
     } catch (e) {
@@ -129,12 +145,22 @@ class PodcastService {
       final res = await _dio.get(feedUrl,
           options: Options(responseType: ResponseType.plain));
       final doc = XmlDocument.parse(res.data as String);
-      final channelArt = doc
+      final channelArtRaw = doc
               .findAllElements('itunes:image')
               .map((e) => e.getAttribute('href'))
               .firstWhere((e) => e != null && e.isNotEmpty,
                   orElse: () => fallbackArt) ??
           fallbackArt;
+      // Also try <image><url> (RSS 2.0 channel image).
+      final rssImage = doc
+          .findAllElements('image')
+          .map((e) => e.getElement('url')?.innerText.trim())
+          .firstWhere((e) => e != null && e.isNotEmpty, orElse: () => null);
+      final channelArt = Thumbnail(
+              (rssImage != null && rssImage.isNotEmpty)
+                  ? rssImage
+                  : channelArtRaw)
+          .extraHigh;
 
       final items = doc.findAllElements('item');
       final episodes = <Map<String, dynamic>>[];
@@ -144,17 +170,33 @@ class PodcastService {
         if (url == null || url.isEmpty) continue;
         final title = item.getElement('title')?.innerText.trim() ?? "Episode";
         final guid = item.getElement('guid')?.innerText.trim() ?? url;
+        final epArtRaw = item
+                .findElements('itunes:image')
+                .firstOrNull
+                ?.getAttribute('href') ??
+            item
+                .findElements('media:thumbnail')
+                .firstOrNull
+                ?.getAttribute('url') ??
+            item
+                .findElements('media:content')
+                .map((e) => e.getAttribute('url'))
+                .firstWhere(
+                    (u) =>
+                        u != null &&
+                        (u.endsWith('.jpg') ||
+                            u.endsWith('.png') ||
+                            u.endsWith('.webp') ||
+                            u.contains('image')),
+                    orElse: () => null) ??
+            channelArtRaw;
         episodes.add({
           'id': 'podcast_${guid.hashCode}',
           'title': title,
           'description': _stripHtml(
               item.getElement('description')?.innerText ?? ""),
           'url': url,
-          'artwork': item
-                  .findElements('itunes:image')
-                  .firstOrNull
-                  ?.getAttribute('href') ??
-              channelArt,
+          'artwork': Thumbnail(epArtRaw).extraHigh,
           'date': item.getElement('pubDate')?.innerText.trim() ?? "",
           'durationSec':
               _parseDuration(item.getElement('itunes:duration')?.innerText),

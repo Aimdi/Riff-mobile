@@ -45,16 +45,16 @@ class Playlist {
   factory Playlist.fromJson(Map<dynamic, dynamic> json) {
     final thumbs = json["thumbnails"];
     String thumbUrl = thumbPlaceholderUrl;
-    if (thumbs is List && thumbs.isNotEmpty && thumbs[0] is Map) {
-      final u = thumbs[0]["url"]?.toString() ?? '';
-      if (u.isNotEmpty) thumbUrl = u;
+    final best = Thumbnail.bestUrl(thumbs, target: 'extraHigh');
+    if (best.isNotEmpty) {
+      thumbUrl = best;
     } else if (json["thumbnailUrl"] != null) {
-      thumbUrl = json["thumbnailUrl"].toString();
+      thumbUrl = Thumbnail(json["thumbnailUrl"].toString()).extraHigh;
     }
     return Playlist(
         title: json["title"] ?? '',
         playlistId: json["playlistId"] ?? json["browseId"] ?? '',
-        thumbnailUrl: Thumbnail(thumbUrl).extraHigh,
+        thumbnailUrl: thumbUrl,
         description: json["description"] ?? "Playlist",
         songCount: json['itemCount']?.toString(),
         isPipedPlaylist: json["isPipedPlaylist"] ?? false,

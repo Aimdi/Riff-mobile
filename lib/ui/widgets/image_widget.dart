@@ -8,6 +8,7 @@ import 'package:shimmer/shimmer.dart';
 
 import '../screens/Settings/settings_screen_controller.dart';
 import '/models/artist.dart';
+import '/models/thumbnail.dart';
 import '../../models/album.dart';
 import '../../models/playlist.dart';
 
@@ -31,7 +32,7 @@ class ImageWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     String imageUrl = song != null
-        ? song!.artUri.toString()
+        ? song!.artUri?.toString() ?? ""
         : playlist != null
             ? playlist!.thumbnailUrl
             : album != null
@@ -39,19 +40,27 @@ class ImageWidget extends StatelessWidget {
                 : artist != null
                     ? artist!.thumbnailUrl
                     : "";
-    // String cacheKey = song != null
-    //     ? "${song!.id}_song"
-    //     : playlist != null
-    //         ? "${playlist!.playlistId}_playlist"
-    //         : album != null
-    //             ? "${album!.browseId}_album"
-    //             : artist != null
-    //                 ? "${artist!.browseId}_artist"
-    //                 : "";
+
+    // Re-upscale at display time so cached/history items that stored a low-res
+    // URL (often the 60px YTM stub) still render sharply.
+    if (imageUrl.isNotEmpty) {
+      final t = Thumbnail(imageUrl);
+      if (isPlayerArtImage || size >= 280) {
+        imageUrl = t.extraHigh;
+      } else if (size >= 100) {
+        imageUrl = t.high;
+      } else {
+        imageUrl = t.medium;
+      }
+    }
 
     /// only valid for offline songs
     final bool offlineAvailable =
         song != null && (song?.extras?["url"] ?? "").contains("file");
+
+    // Decode at device pixels so large art isn't soft on high-DPI screens.
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final decodeSide = (size * dpr).round().clamp(64, 1600);
 
     return Container(
       height: size,
@@ -68,13 +77,14 @@ class ImageWidget extends StatelessWidget {
               height: size,
               width: size,
               fit: BoxFit.cover,
+              filterQuality: FilterQuality.high,
             )
           : CachedNetworkImage(
               height: size,
               width: size,
-              memCacheHeight: (song != null && !isPlayerArtImage) ? 140 : null,
-              //memCacheWidth: (song != null && !isPlayerArtImage)? 140 : null,
-              //cacheKey: cacheKey,
+              memCacheHeight: decodeSide,
+              memCacheWidth: decodeSide,
+              filterQuality: FilterQuality.high,
               imageUrl: imageUrl,
               fit: BoxFit.cover,
               errorWidget: (context, url, error) {

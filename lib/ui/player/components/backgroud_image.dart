@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../models/thumbnail.dart';
 import '../../screens/Settings/settings_screen_controller.dart';
 import '../../utils/theme_controller.dart';
 import '../player_controller.dart';
@@ -55,28 +56,45 @@ class BackgroudImage extends StatelessWidget {
                   })
 
                 /// else return image from network
-                : CachedNetworkImage(
-                    memCacheHeight: cacheHeight,
-                    imageBuilder: (context, imageProvider) {
-                      Get.find<SettingsScreenController>()
-                                  .themeModetype
-                                  .value ==
-                              ThemeType.dynamic
-                          ? Future.delayed(
-                              const Duration(milliseconds: 50),
-                              () => Get.find<ThemeController>().setTheme(
-                                  imageProvider,
-                                  playerController.currentSong.value!.id))
-                          : null;
-                      return Image(
-                        image: imageProvider,
-                        fit: BoxFit.cover,
-                      );
-                    },
-                    imageUrl:
-                        playerController.currentSong.value!.artUri.toString(),
-                    cacheKey: "${playerController.currentSong.value!.id}_song",
-                  )
+                : Builder(builder: (context) {
+                    final dpr = MediaQuery.devicePixelRatioOf(context);
+                    final decodeH = cacheHeight ??
+                        (MediaQuery.sizeOf(context).shortestSide * dpr)
+                            .round()
+                            .clamp(400, 1600);
+                    final rawArt = playerController.currentSong.value!.artUri
+                            ?.toString() ??
+                        '';
+                    // Always re-upscale so older low-res artUris still look sharp.
+                    final artUrl = rawArt.isEmpty
+                        ? rawArt
+                        : Thumbnail(rawArt).extraHigh;
+                    return CachedNetworkImage(
+                      memCacheHeight: decodeH,
+                      filterQuality: FilterQuality.high,
+                      imageBuilder: (context, imageProvider) {
+                        Get.find<SettingsScreenController>()
+                                    .themeModetype
+                                    .value ==
+                                ThemeType.dynamic
+                            ? Future.delayed(
+                                const Duration(milliseconds: 50),
+                                () => Get.find<ThemeController>().setTheme(
+                                    imageProvider,
+                                    playerController.currentSong.value!.id))
+                            : null;
+                        return Image(
+                          image: imageProvider,
+                          fit: BoxFit.cover,
+                          filterQuality: FilterQuality.high,
+                        );
+                      },
+                      imageUrl: artUrl,
+                      // Bump cache key so prior low-res downloads aren't reused.
+                      cacheKey:
+                          "${playerController.currentSong.value!.id}_song_hq",
+                    );
+                  })
             : Container(),
       ),
     );

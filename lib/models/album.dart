@@ -46,7 +46,7 @@ class Album {
       year: json['year'],
       audioPlaylistId: json['audioPlaylistId'],
       description: json['description'] ?? json["type"] ?? "Album",
-      thumbnailUrl: Thumbnail(json["thumbnails"][0]["url"]).medium);
+      thumbnailUrl: Thumbnail.bestUrl(json["thumbnails"], target: 'high'));
 
   Map<String, dynamic> toJson() => {
         "title": title,

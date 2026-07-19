@@ -18,6 +18,7 @@ import '/models/album.dart';
 import '/models/artist.dart';
 import '/models/media_Item_builder.dart';
 import '/models/playlist.dart';
+import '/models/thumbnail.dart';
 
 class LibrarySongsController extends GetxController {
   late RxList<MediaItem> librarySongsList = RxList();
@@ -515,9 +516,10 @@ class LibraryPlaylistsController extends GetxController
         title: "${playlistInfo['title']} (${"imported".tr})",
         playlistId: newPlaylistId,
         thumbnailUrl: playlistInfo['thumbnailUrl'] ??
-            (playlistInfo['thumbnails'] != null &&
-                    playlistInfo['thumbnails'].isNotEmpty
-                ? playlistInfo['thumbnails'][0]['url']
+            (playlistInfo['thumbnails'] != null
+                ? Thumbnail.bestUrl(playlistInfo['thumbnails'],
+                    target: 'extraHigh',
+                    fallback: Playlist.thumbPlaceholderUrl)
                 : Playlist.thumbPlaceholderUrl),
         description: playlistInfo['description'] ?? "importedPlaylist".tr,
         isCloudPlaylist: false,

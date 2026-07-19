@@ -18,6 +18,14 @@ class MediaItemBuilder {
       }
     }
 
+    // Prefer the largest thumbnail YTM returned, then upscale to player quality.
+    // thumbnails[0] is almost always the 60px stub and looked soft on the player.
+    final art = Thumbnail.bestUrl(
+      json["thumbnails"],
+      target: 'extraHigh',
+      fallback: _fallbackThumbUrl(json),
+    );
+
     return MediaItem(
         id: json["videoId"],
         title: json["title"],
@@ -26,8 +34,7 @@ class MediaItemBuilder {
             : toDuration(json['length']),
         album: album != null ? album['name'] : null,
         artist: artistName,
-        // Use extraHigh so full-player / notification art stays sharp
-        artUri: Uri.parse(Thumbnail(json["thumbnails"][0]['url']).extraHigh),
+        artUri: art.isNotEmpty ? Uri.parse(art) : null,
         extras: {
           'url': json['url'] ?? url,
           'length': json['length'],
@@ -37,6 +44,18 @@ class MediaItemBuilder {
           'trackDetails': json['trackDetails'],
           'year': json['year']
         });
+  }
+
+  static String _fallbackThumbUrl(dynamic json) {
+    final thumbs = json["thumbnails"];
+    if (thumbs is List && thumbs.isNotEmpty) {
+      final first = thumbs[0];
+      if (first is Map && first['url'] != null) return first['url'].toString();
+      if (first is String) return first;
+    }
+    if (json['thumbnailUrl'] != null) return json['thumbnailUrl'].toString();
+    if (json['thumbnail'] != null) return json['thumbnail'].toString();
+    return '';
   }
 
   static Duration? toDuration(String? time) {

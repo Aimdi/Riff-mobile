@@ -142,14 +142,11 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
       _animationController.forward();
     } else if (content['kind'] == 'podcast' || id.startsWith('MPSP')) {
       // Keep episode list metadata in sync for podcasts
-      String? newThumb;
       final thumbs = content['thumbnails'];
-      if (thumbs is List && thumbs.isNotEmpty && thumbs[0] is Map) {
-        newThumb = thumbs[0]['url']?.toString();
-      }
+      final newThumb = Thumbnail.bestUrl(thumbs, target: 'extraHigh');
       playlist.value = playlist.value.copyWith(
         title: content['title']?.toString() ?? playlist.value.title,
-        thumbnailUrl: newThumb,
+        thumbnailUrl: newThumb.isNotEmpty ? newThumb : null,
         kind: 'podcast',
       );
     }

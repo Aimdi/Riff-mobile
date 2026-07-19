@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/models/thumbnail.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
 
@@ -188,7 +189,10 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
             ? Duration(seconds: e['durationSec'])
             : null,
         artUri: Uri.tryParse(
-            (e['artwork'] ?? widget.podcast['artwork'] ?? '').toString()),
+          Thumbnail(
+            (e['artwork'] ?? widget.podcast['artwork'] ?? '').toString(),
+          ).extraHigh,
+        ),
         extras: {
           'url': e['url'],
           'isPodcast': true,
