@@ -8,6 +8,7 @@ import '../Library/library_combined.dart';
 import '../../widgets/side_nav_bar.dart';
 import '../Library/library.dart';
 import '../Podcasts/podcasts_library.dart';
+import '../Audiobooks/audiobooks_screen.dart';
 import '../Search/search_screen.dart';
 import '../Settings/settings_screen_controller.dart';
 import '/ui/player/player_controller.dart';
@@ -35,7 +36,7 @@ class HomeScreen extends StatelessWidget {
         floatingActionButton: Obx(
           () => ((homeScreenController.tabIndex.value == 0 &&
                           !GetPlatform.isDesktop) ||
-                      homeScreenController.tabIndex.value == 3) &&
+                      homeScreenController.tabIndex.value == 4) &&
                   settingsScreenController.isBottomNavBarEnabled.isFalse
               ? Obx(
                   () => Padding(
@@ -56,7 +57,7 @@ class HomeScreen extends StatelessWidget {
                                     BorderRadius.all(Radius.circular(14))),
                             elevation: 0,
                             onPressed: () async {
-                              if (homeScreenController.tabIndex.value == 3) {
+                              if (homeScreenController.tabIndex.value == 4) {
                                 showDialog(
                                     context: context,
                                     builder: (context) =>
@@ -68,7 +69,7 @@ class HomeScreen extends StatelessWidget {
                               // file:///data/user/0/com.example.harmonymusic/cache/libCachedImageData/
                               //file:///data/user/0/com.example.harmonymusic/cache/just_audio_cache/
                             },
-                            child: Icon(homeScreenController.tabIndex.value == 3
+                            child: Icon(homeScreenController.tabIndex.value == 4
                                 ? Icons.add
                                 : Icons.search)),
                       ),
@@ -313,12 +314,14 @@ class Body extends StatelessWidget {
     } else if (homeScreenController.tabIndex.value == 3) {
       return settingsScreenController.isBottomNavBarEnabled.isTrue
           ? const SettingsScreen(isBottomNavActive: true)
-          : const PlaylistNAlbumLibraryWidget(isAlbumContent: false);
+          : const AudiobooksScreen();
     } else if (homeScreenController.tabIndex.value == 4) {
-      return const PlaylistNAlbumLibraryWidget();
+      return const PlaylistNAlbumLibraryWidget(isAlbumContent: false);
     } else if (homeScreenController.tabIndex.value == 5) {
-      return const LibraryArtistWidget();
+      return const PlaylistNAlbumLibraryWidget();
     } else if (homeScreenController.tabIndex.value == 6) {
+      return const LibraryArtistWidget();
+    } else if (homeScreenController.tabIndex.value == 7) {
       return const SettingsScreen();
     } else {
       return Center(

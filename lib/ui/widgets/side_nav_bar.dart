@@ -39,6 +39,8 @@ class SideNavBar extends StatelessWidget {
                           "songs".tr, isMobileOrTabScreen, Icons.art_track),
                       railDestination(
                           "podcasts".tr, isMobileOrTabScreen, Icons.podcasts),
+                      railDestination(
+                          "audiobooks".tr, isMobileOrTabScreen, Icons.menu_book),
                       railDestination("playlists".tr, isMobileOrTabScreen,
                           Icons.featured_play_list),
                       railDestination(
@@ -84,6 +86,11 @@ class SideNavBar extends StatelessWidget {
                     iconSelected: Icons.podcasts,
                     iconUnselected: Icons.podcasts,
                     text: 'podcasts'.tr,
+                  ),
+                  SideBarItem(
+                    iconSelected: Icons.menu_book,
+                    iconUnselected: Icons.menu_book,
+                    text: 'audiobooks'.tr,
                   ),
                   SideBarItem(
                     iconSelected: Icons.library_music,
