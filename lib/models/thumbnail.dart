@@ -243,8 +243,11 @@ class Thumbnail {
     final sizeEq = RegExp(r'=(?:w\d+-h\d+|s\d+)[^/]*$');
     if (sizeEq.hasMatch(raw)) {
       final base = raw.replaceFirst(sizeEq, '');
-      // Square crop with high quality. l90 is YTM's usual quality flag.
-      return '$base=w$size-h$size-l90-rj';
+      // Smart-cropped square at the source: -p is Google's subject-aware crop
+      // (matches RiMusic/RiPlay), l90 is YTM's quality flag, rj forces JPEG.
+      // This returns a true NxN square instead of a fit-inside letterbox that
+      // Flutter would then have to re-crop.
+      return '$base=w$size-h$size-p-l90-rj';
     }
 
     // Bare googleusercontent without size — append.
@@ -254,15 +257,15 @@ class Thumbnail {
         final idx = raw.lastIndexOf('=');
         final tail = raw.substring(idx + 1);
         if (RegExp(r'^[ws]\d+').hasMatch(tail) || tail.contains('-rj')) {
-          return '${raw.substring(0, idx)}=w$size-h$size-l90-rj';
+          return '${raw.substring(0, idx)}=w$size-h$size-p-l90-rj';
         }
       }
-      return '$raw=w$size-h$size-l90-rj';
+      return '$raw=w$size-h$size-p-l90-rj';
     }
 
     // Legacy -rj / =s branches
     if (raw.contains('-rj') && raw.contains('=')) {
-      return '${raw.split('=').first}=w$size-h$size-l90-rj';
+      return '${raw.split('=').first}=w$size-h$size-p-l90-rj';
     }
     if (raw.contains('=s')) {
       return '${raw.split('=s').first}=s$size';

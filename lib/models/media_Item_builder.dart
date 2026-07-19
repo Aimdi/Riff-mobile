@@ -19,15 +19,14 @@ class MediaItemBuilder {
     }
 
     // Prefer the largest thumbnail YTM returned, then upscale to player quality.
-    // Podcast episodes: prefer square show art over 16:9 video frames.
-    final isPodcastEpisode =
-        (json['videoType']?.toString() ?? '').contains('PODCAST') ||
-            (json['resultType']?.toString() == 'episode');
+    // Always prefer square cover art (lh3/ggpht) over 16:9 i.ytimg video frames
+    // when the feed offers both — matches RiPlay's crisp square song rows. A
+    // pure music video with only a 16:9 frame still falls back to that frame.
     final art = Thumbnail.bestUrl(
       json["thumbnails"],
       target: 'extraHigh',
       fallback: _fallbackThumbUrl(json),
-      preferSquare: isPodcastEpisode,
+      preferSquare: true,
     );
 
     return MediaItem(
