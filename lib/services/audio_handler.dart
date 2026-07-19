@@ -119,12 +119,22 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     }
   }
 
+  static const _fxChannel = MethodChannel('riff/newpipe');
+
   void _listenSessionIdStream() {
     _player.androidAudioSessionIdStream.listen((int? id) {
       if (id != null) {
         EqualizerService.initAudioEffect(id);
+        // Re-bind bass boost to the new session (new ExoPlayer instance).
+        final strength = Hive.box("appPrefs").get("bassBoost") ?? 0;
+        if (strength > 0) _applyBassBoost(id, strength);
       }
     });
+  }
+
+  void _applyBassBoost(int sessionId, int strength) {
+    _fxChannel.invokeMethod(
+        'setBassBoost', {'sessionId': sessionId, 'strength': strength});
   }
 
   void _notifyAudioHandlerAboutPlaybackEvents() {
@@ -456,6 +466,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       case 'setSpeedAndPitch':
         await _player.setSpeed((extras!['speed'] as num).toDouble());
         await _player.setPitch((extras['pitch'] as num).toDouble());
+        break;
+
+      case 'setBassBoost':
+        final sessionId = _player.androidAudioSessionId;
+        if (sessionId != null) {
+          _applyBassBoost(sessionId, extras!['strength'] as int);
+        }
         break;
 
       case 'playByIndex':

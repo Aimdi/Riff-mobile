@@ -15,6 +15,10 @@ class BanService {
   // initHive, or isolates that never opened it): treat as "empty".
   static Box? get _artistBox =>
       Hive.isBoxOpen("BannedArtists") ? Hive.box("BannedArtists") : null;
+  static Box? get _collectionBox =>
+      Hive.isBoxOpen("BannedCollections")
+          ? Hive.box("BannedCollections")
+          : null;
 
   static bool isBanned(String songId) => _box.containsKey(songId);
 
@@ -56,6 +60,46 @@ class BanService {
                 "name": _artistBox!.get(k)["name"] ?? k,
               })
           .toList();
+
+  // --- Album / playlist ban ---
+
+  static bool isCollectionBanned(String? id) =>
+      id != null && (_collectionBox?.containsKey(id) ?? false);
+
+  static Future<void> banCollection(String id, String title, String type) async =>
+      _collectionBox?.put(id, {"title": title, "type": type});
+
+  static Future<void> unbanCollection(String id) async =>
+      _collectionBox?.delete(id);
+
+  /// [{id, title, type}] of all banned albums/playlists.
+  static List<Map<String, dynamic>> get allCollections =>
+      (_collectionBox?.keys ?? [])
+          .map((k) => {
+                "id": k as String,
+                "title": _collectionBox!.get(k)["title"] ?? "",
+                "type": _collectionBox!.get(k)["type"] ?? "",
+              })
+          .toList();
+
+  /// Filters banned albums/playlists out of a list of Album/Playlist
+  /// model objects (Album exposes `browseId`, Playlist `playlistId`).
+  static List<T> filterCollections<T>(List<T> items) {
+    final box = _collectionBox;
+    if (box == null || box.isEmpty) return items;
+    return items.where((i) {
+      String? id;
+      try {
+        id = (i as dynamic).browseId;
+      } catch (_) {}
+      if (id == null) {
+        try {
+          id = (i as dynamic).playlistId;
+        } catch (_) {}
+      }
+      return id == null || !box.containsKey(id);
+    }).toList();
+  }
 
   /// [{id, title, artist}] of all banned songs.
   static List<Map<String, dynamic>> get all => _box.keys

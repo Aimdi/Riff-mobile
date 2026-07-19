@@ -30,6 +30,7 @@ class SettingsScreenController extends GetxController {
   final ytConnected = false.obs;
   final playbackSpeed = 1.0.obs;
   final playbackPitch = 1.0.obs;
+  final bassBoost = 0.obs;
   final noOfHomeScreenContent = 3.obs;
   final streamingQuality = AudioQuality.High.obs;
   final playerUi = 0.obs;
@@ -51,7 +52,7 @@ class SettingsScreenController extends GetxController {
   final keepScreenAwake = false.obs;
   final restorePlaybackSession = false.obs;
   final cacheHomeScreenData = true.obs;
-  final currentVersion = "V1.3.0";
+  final currentVersion = "V1.4.0";
 
   @override
   void onInit() {
@@ -103,6 +104,7 @@ class SettingsScreenController extends GetxController {
     ytConnected.value = YtAuthService.isConnected;
     playbackSpeed.value = (setBox.get("playbackSpeed") ?? 1.0).toDouble();
     playbackPitch.value = (setBox.get("playbackPitch") ?? 1.0).toDouble();
+    bassBoost.value = setBox.get("bassBoost") ?? 0;
     autoOpenPlayer.value = (setBox.get("autoOpenPlayer") ?? true);
     restorePlaybackSession.value =
         setBox.get("restrorePlaybackSession") ?? false;

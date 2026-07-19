@@ -9,6 +9,7 @@ import '../../../utils/update_check_flag_file.dart';
 import '../../../utils/helper.dart';
 import '/models/album.dart';
 import '/models/playlist.dart';
+import '/services/ban_service.dart';
 import '/models/quick_picks.dart';
 import '/services/music_service.dart';
 import '../Settings/settings_screen_controller.dart';
@@ -198,14 +199,16 @@ class HomeScreenController extends GetxController {
       if((content["contents"]).isEmpty) continue;
       if ((content["contents"][0]).runtimeType == Playlist) {
         final tmp = PlaylistContent(
-            playlistList: (content["contents"]).whereType<Playlist>().toList(),
+            playlistList: BanService.filterCollections(
+                (content["contents"]).whereType<Playlist>().toList()),
             title: content["title"]);
         if (tmp.playlistList.length >= 2) {
           contentTemp.add(tmp);
         }
       } else if ((content["contents"][0]).runtimeType == Album) {
         final tmp = AlbumContent(
-            albumList: (content["contents"]).whereType<Album>().toList(),
+            albumList: BanService.filterCollections(
+                (content["contents"]).whereType<Album>().toList()),
             title: content["title"]);
         if (tmp.albumList.length >= 2) {
           contentTemp.add(tmp);

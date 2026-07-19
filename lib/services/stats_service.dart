@@ -40,6 +40,29 @@ class StatsService {
   static int get totalSeconds => _songs.values
       .fold<int>(0, (sum, v) => sum + ((v["seconds"] ?? 0) as int));
 
+  static int get uniqueArtists {
+    final set = <String>{};
+    for (final v in _songs.values) {
+      final a = (v["artist"] ?? "") as String;
+      if (a.isNotEmpty) set.add(a);
+    }
+    return set.length;
+  }
+
+  /// Gamified listener level from total plays (RiPlay-style).
+  /// Levels widen as they climb so early progress feels rewarding.
+  static int get listenerLevel {
+    final p = totalPlays;
+    if (p <= 0) return 0;
+    // Level n needs 10 * n^1.6 plays cumulatively.
+    var level = 0;
+    while (10 * ((level + 1) * (level + 1)) <= p * 2) {
+      level++;
+      if (level > 999) break;
+    }
+    return level;
+  }
+
   /// Top songs by play count: [{id, title, artist, plays}].
   static List<Map<String, dynamic>> topSongs([int n = 10]) {
     final list = _songs.keys

@@ -6,9 +6,11 @@ import '/models/album.dart';
 import '../../models/artist.dart';
 import '../../models/playling_from.dart';
 import '../../models/playlist.dart';
+import '/services/ban_service.dart';
 import '../navigator.dart';
 import '../player/player_controller.dart';
 import 'image_widget.dart';
+import 'snackbar.dart';
 import 'song_list_tile.dart';
 import 'songinfo_bottom_sheet.dart';
 
@@ -223,6 +225,34 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
               id: ScreenNavigationSetup.id,
               arguments: [playlist, playlist.playlistId]);
         }
+      },
+      onLongPress: () {
+        final isAlbum = album != null;
+        final id = isAlbum ? album.browseId : playlist.playlistId;
+        final name = isAlbum ? album.title : playlist.title;
+        if (id == null) return;
+        showModalBottomSheet(
+          context: context,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
+          ),
+          builder: (ctx) => Wrap(children: [
+            ListTile(
+              leading: const Icon(Icons.block),
+              title: Text(isAlbum
+                  ? "neverPlayAlbum".tr
+                  : "neverPlayPlaylist".tr),
+              onTap: () {
+                BanService.banCollection(
+                    id, name, isAlbum ? "album" : "playlist");
+                Navigator.of(ctx).pop();
+                ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                    context, "${"collectionBannedMsg".tr} $name",
+                    size: SanckBarSize.BIG));
+              },
+            ),
+          ]),
+        );
       },
       child: SizedBox(
         height: 120,

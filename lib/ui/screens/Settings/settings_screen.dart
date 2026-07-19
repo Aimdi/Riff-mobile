@@ -718,6 +718,16 @@ class SettingsScreen extends StatelessWidget {
                   ListTile(
                     contentPadding:
                         const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("riffRewind".tr),
+                    subtitle: Text("riffRewindDes".tr,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Get.toNamed(ScreenNavigationSetup.rewindScreen,
+                        id: ScreenNavigationSetup.id),
+                  ),
+                  ListTile(
+                    contentPadding:
+                        const EdgeInsets.only(left: 5, right: 10),
                     title: Text("bannedSongs".tr),
                     subtitle: Text("neverPlayThisDes".tr,
                         style: Theme.of(context).textTheme.bodyMedium),
@@ -1005,6 +1015,7 @@ class _BannedSongsDialogState extends State<BannedSongsDialog> {
   Widget build(BuildContext context) {
     final banned = BanService.all;
     final bannedArtists = BanService.allArtists;
+    final bannedCollections = BanService.allCollections;
     return Dialog(
       child: Container(
         constraints: const BoxConstraints(maxHeight: 500),
@@ -1017,7 +1028,9 @@ class _BannedSongsDialogState extends State<BannedSongsDialog> {
               child: Text("bannedSongs".tr,
                   style: Theme.of(context).textTheme.titleMedium),
             ),
-            if (banned.isEmpty && bannedArtists.isEmpty)
+            if (banned.isEmpty &&
+                bannedArtists.isEmpty &&
+                bannedCollections.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(15),
                 child: Text("noBannedSongs".tr,
@@ -1027,6 +1040,24 @@ class _BannedSongsDialogState extends State<BannedSongsDialog> {
               child: ListView(
                 shrinkWrap: true,
                 children: [
+                  ...bannedCollections.map((c) => ListTile(
+                        visualDensity: const VisualDensity(vertical: -3),
+                        leading: Icon(
+                            c["type"] == "album"
+                                ? Icons.album
+                                : Icons.playlist_play,
+                            size: 20),
+                        title: Text(c["title"], maxLines: 1),
+                        subtitle: Text("bannedCollectionTag".tr,
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () {
+                            BanService.unbanCollection(c["id"]);
+                            setState(() {});
+                          },
+                        ),
+                      )),
                   ...bannedArtists.map((artist) => ListTile(
                         visualDensity: const VisualDensity(vertical: -3),
                         leading: const Icon(Icons.person_off, size: 20),
@@ -1350,6 +1381,7 @@ class _SpeedPitchDialogState extends State<SpeedPitchDialog> {
   final settings = Get.find<SettingsScreenController>();
   late double speed = settings.playbackSpeed.value;
   late double pitch = settings.playbackPitch.value;
+  late double bass = settings.bassBoost.value.toDouble();
 
   void _apply() {
     settings.setBox.put("playbackSpeed", speed);
@@ -1358,6 +1390,12 @@ class _SpeedPitchDialogState extends State<SpeedPitchDialog> {
     settings.playbackPitch.value = pitch;
     Get.find<PlayerController>()
         .setSpeedAndPitch(speed: speed, pitch: pitch);
+  }
+
+  void _applyBass() {
+    settings.setBox.put("bassBoost", bass.round());
+    settings.bassBoost.value = bass.round();
+    Get.find<PlayerController>().setBassBoost(bass.round());
   }
 
   @override
@@ -1392,6 +1430,16 @@ class _SpeedPitchDialogState extends State<SpeedPitchDialog> {
               onChanged: (v) => setState(() => pitch = v),
               onChangeEnd: (_) => _apply(),
             ),
+            Text("${"bassBoost".tr}: ${(bass / 10).round()}%"),
+            Slider(
+              min: 0,
+              max: 1000,
+              divisions: 20,
+              value: bass,
+              label: "${(bass / 10).round()}%",
+              onChanged: (v) => setState(() => bass = v),
+              onChangeEnd: (_) => _applyBass(),
+            ),
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1401,8 +1449,10 @@ class _SpeedPitchDialogState extends State<SpeedPitchDialog> {
                     setState(() {
                       speed = 1.0;
                       pitch = 1.0;
+                      bass = 0;
                     });
                     _apply();
+                    _applyBass();
                   },
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
