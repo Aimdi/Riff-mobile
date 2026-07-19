@@ -24,6 +24,7 @@ import '../screens/Home/home_screen_controller.dart';
 import '../widgets/sliding_up_panel.dart';
 import '/models/durationstate.dart';
 import '/services/music_service.dart';
+import '/services/sponsorblock_service.dart';
 
 class PlayerController extends GetxController
     with GetSingleTickerProviderStateMixin {
@@ -84,6 +85,13 @@ class PlayerController extends GetxController
 
   var _newSongFlag = true;
   final isCurrentSongBuffered = false.obs;
+
+  /// SponsorBlock segments for the current video id.
+  List<SponsorBlockSegment> _sponsorSegments = const [];
+  String? _sponsorVideoId;
+  String? _lastSkippedSegmentUuid;
+  bool _sponsorSeekInFlight = false;
+  final sponsorBlockActiveCategory = RxnString();
 
   late StreamSubscription<bool> keyboardSubscription;
 
@@ -231,6 +239,64 @@ class PlayerController extends GetxController
       if (Get.isRegistered<DiscoveryService>()) {
         Get.find<DiscoveryService>().onPositionTick(position.inMilliseconds);
       }
+      _maybeSkipSponsorBlock(position);
+    });
+  }
+
+  Future<void> _loadSponsorBlockFor(String videoId) async {
+    _sponsorVideoId = videoId;
+    _sponsorSegments = const [];
+    _lastSkippedSegmentUuid = null;
+    sponsorBlockActiveCategory.value = null;
+    if (!Get.isRegistered<SponsorBlockService>()) return;
+    final sb = Get.find<SponsorBlockService>();
+    if (!sb.enabled) return;
+    final segs = await sb.getSegments(videoId);
+    // Only apply if still the same song.
+    if (_sponsorVideoId == videoId) {
+      _sponsorSegments = segs;
+    }
+  }
+
+  /// Public entry used when the user toggles SponsorBlock in settings.
+  void reloadSponsorBlock() {
+    final id = currentSong.value?.id;
+    if (id != null) unawaited(_loadSponsorBlockFor(id));
+  }
+
+  void _maybeSkipSponsorBlock(Duration position) {
+    if (_sponsorSegments.isEmpty || _sponsorSeekInFlight) return;
+    if (!Get.isRegistered<SponsorBlockService>()) return;
+    final sb = Get.find<SponsorBlockService>();
+    if (!sb.enabled) return;
+
+    final sec = position.inMilliseconds / 1000.0;
+    final active = sb.activeSegment(_sponsorSegments, sec);
+    if (active == null) {
+      if (sponsorBlockActiveCategory.value != null) {
+        sponsorBlockActiveCategory.value = null;
+      }
+      return;
+    }
+    if (active.uuid == _lastSkippedSegmentUuid) return;
+
+    final target = sb.seekTargetIfInSegment(_sponsorSegments, sec);
+    if (target == null) return;
+
+    // Don't skip past the end of the track — just leave it to natural end.
+    final total = progressBarStatus.value.total;
+    if (total > Duration.zero && target >= total - const Duration(milliseconds: 400)) {
+      return;
+    }
+
+    _lastSkippedSegmentUuid = active.uuid;
+    _sponsorSeekInFlight = true;
+    sponsorBlockActiveCategory.value = active.category;
+    printINFO(
+        'SponsorBlock skip ${active.category} ${active.start.toStringAsFixed(1)}s → ${active.end.toStringAsFixed(1)}s');
+    seek(target);
+    Future.delayed(const Duration(milliseconds: 350), () {
+      _sponsorSeekInFlight = false;
     });
   }
 
@@ -272,6 +338,8 @@ class PlayerController extends GetxController
         currentSong.value = mediaItem;
         currentSongIndex.value = currentQueue
             .indexWhere((element) => element.id == currentSong.value!.id);
+        // Fire-and-forget SponsorBlock load for this video id.
+        unawaited(_loadSponsorBlockFor(mediaItem.id));
         await _checkFav();
         await _addToRP(currentSong.value!);
         StatsService.recordPlay(currentSong.value!);

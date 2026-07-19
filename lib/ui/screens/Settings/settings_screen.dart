@@ -402,6 +402,18 @@ class SettingsScreen extends StatelessWidget {
                                   settingsController.skipSilenceEnabled.value,
                               onChanged: settingsController.toggleSkipSilence),
                         )),
+                  ListTile(
+                      contentPadding:
+                          const EdgeInsets.only(left: 5, right: 10),
+                      title: Text("sponsorBlock".tr),
+                      subtitle: Text("sponsorBlockDes".tr,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      trailing: Obx(
+                        () => CustSwitch(
+                            value:
+                                settingsController.sponsorBlockEnabled.value,
+                            onChanged: settingsController.toggleSponsorBlock),
+                      )),
                   if (isDesktop)
                     ListTile(
                         contentPadding:

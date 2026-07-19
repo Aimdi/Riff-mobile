@@ -14,6 +14,7 @@ import '../Library/library_controller.dart';
 import '../../widgets/snackbar.dart';
 import '../../../utils/helper.dart';
 import '/services/music_service.dart';
+import '/services/sponsorblock_service.dart';
 import '/services/yt_auth_service.dart';
 import '/ui/player/player_controller.dart';
 import '../Home/home_screen_controller.dart';
@@ -26,6 +27,7 @@ class SettingsScreenController extends GetxController {
   final setBox = Hive.box("AppPrefs");
   final themeModetype = ThemeType.dynamic.obs;
   final skipSilenceEnabled = false.obs;
+  final sponsorBlockEnabled = true.obs;
   final loudnessNormalizationEnabled = false.obs;
   final ytConnected = false.obs;
   final playbackSpeed = 1.0.obs;
@@ -101,6 +103,7 @@ class SettingsScreenController extends GetxController {
     themeModetype.value = ThemeType.values[setBox.get('themeModeType') ?? 2];
     skipSilenceEnabled.value =
         isDesktop ? false : setBox.get("skipSilenceEnabled");
+    sponsorBlockEnabled.value = setBox.get("sponsorBlockEnabled") ?? true;
     loudnessNormalizationEnabled.value = isDesktop
         ? false
         : (setBox.get("loudnessNormalizationEnabled") ?? false);
@@ -277,6 +280,21 @@ class SettingsScreenController extends GetxController {
     Get.find<PlayerController>().toggleSkipSilence(val);
     setBox.put('skipSilenceEnabled', val);
     skipSilenceEnabled.value = val;
+  }
+
+  void toggleSponsorBlock(bool val) {
+    setBox.put('sponsorBlockEnabled', val);
+    sponsorBlockEnabled.value = val;
+    if (Get.isRegistered<SponsorBlockService>()) {
+      Get.find<SponsorBlockService>().enabled = val;
+      Get.find<SponsorBlockService>().clearCache();
+    }
+    // Reload segments for current track when re-enabled.
+    final player = Get.find<PlayerController>();
+    final song = player.currentSong.value;
+    if (val && song != null) {
+      player.reloadSponsorBlock();
+    }
   }
 
   void toggleLoudnessNormalization(bool val) {

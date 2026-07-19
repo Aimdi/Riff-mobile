@@ -6,6 +6,7 @@ import 'package:harmonymusic/ui/screens/Library/library_controller.dart';
 
 import 'additional_operation_dialog.dart';
 import 'modified_text_field.dart';
+import 'spotify_import_dialog.dart';
 
 enum OperationMode { arrange, delete, addToPlaylist, none }
 
@@ -126,6 +127,28 @@ class SortWidget extends StatelessWidget {
                       .importPlaylistFromJson(context);
                   Navigator.pop(context);
                   Navigator.pop(context);
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: const Icon(Icons.library_music),
+                label: Text("spotifyImport".tr),
+                onPressed: () {
+                  Navigator.pop(context);
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (_) => const SpotifyImportDialog(),
+                  );
                 },
               ),
             ),

@@ -12,6 +12,8 @@ import '/ui/screens/Search/search_screen_controller.dart';
 import '/utils/get_localization.dart';
 import '/services/downloader.dart';
 import '/services/piped_service.dart';
+import '/services/sponsorblock_service.dart';
+import '/services/spotify_import_service.dart';
 import 'utils/app_link_controller.dart';
 import '/services/audio_handler.dart';
 import '/services/client_config_service.dart';
@@ -93,6 +95,8 @@ class MyApp extends StatelessWidget {
 Future<void> startApplicationServices() async {
   Get.lazyPut(() => PipedServices(), fenix: true);
   Get.lazyPut(() => MusicServices(), fenix: true);
+  Get.lazyPut(() => SponsorBlockService(), fenix: true);
+  Get.lazyPut(() => SpotifyImportService(), fenix: true);
   Get.lazyPut(() => ThemeController(), fenix: true);
   Get.lazyPut(() => PlayerController(), fenix: true);
   Get.lazyPut(() => HomeScreenController(), fenix: true);
@@ -138,6 +142,7 @@ void _setAppInitPrefs() {
       'themeModeType': 2,
       "cacheSongs": false,
       "skipSilenceEnabled": false,
+      "sponsorBlockEnabled": true,
       'streamingQuality': 1,
       'themePrimaryColor': 4278199603,
       'discoverContentType': "QP",
