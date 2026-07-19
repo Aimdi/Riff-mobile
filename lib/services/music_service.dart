@@ -8,6 +8,7 @@ import 'package:hive/hive.dart';
 
 import '/models/album.dart';
 import '/models/playlist.dart';
+import '/models/thumbnail.dart';
 import '/services/ban_service.dart';
 import '/services/utils.dart';
 import '/services/yt_auth_service.dart';
@@ -768,6 +769,36 @@ class MusicServices extends getx.GetxService {
       return [true, list['tracks']];
     }
     return [false, null];
+  }
+
+  /// Finds the square cover for a music-video track. YouTube only serves a
+  /// 16:9 frame for a video, but the same song's audio-track (ATV) version has
+  /// a square cover; a song-filtered search surfaces it. Returns the first
+  /// non-video-frame (square) art URL, or null. Used by [CoverResolver].
+  Future<String?> squareCoverForVideo(String videoId,
+      {String? title, String? artist}) async {
+    final query = [title, artist]
+        .where((e) => e != null && e.trim().isNotEmpty)
+        .join(' ')
+        .trim();
+    if (query.isEmpty) return null;
+    try {
+      final res = await search(query, filter: 'songs', limit: 3);
+      for (final value in res.values) {
+        if (value is! List) continue;
+        for (final item in value) {
+          if (item is MediaItem) {
+            final art = item.artUri?.toString() ?? '';
+            if (art.isNotEmpty && !Thumbnail.isVideoFrameUrl(art)) {
+              return art;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      printERROR("squareCoverForVideo failed: $e");
+    }
+    return null;
   }
 
   Future<Map<String, dynamic>> search(String query,

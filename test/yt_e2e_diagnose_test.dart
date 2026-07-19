@@ -117,6 +117,18 @@ void main() {
     expect((eps.first["url"] as String).startsWith("http"), isTrue);
   }, timeout: const Timeout(Duration(minutes: 3)));
 
+  test('square cover for a music video (ATV audio-track lookup)', () async {
+    final ms = await _makeService();
+    // A track that famously exists as a music video; the audio-track version
+    // has square cover art on lh3.googleusercontent.com.
+    final url = await ms.squareCoverForVideo('dummy',
+        title: 'Blinding Lights', artist: 'The Weeknd');
+    // ignore: avoid_print
+    print('SQUARE COVER: $url');
+    expect(url, isNotNull);
+    expect(url!.contains('i.ytimg.com/vi/'), isFalse);
+  }, timeout: const Timeout(Duration(minutes: 3)));
+
   test('similar podcasts (Apple genre charts)', () async {
     final similar = await PodcastService.similar("this american life");
     // ignore: avoid_print

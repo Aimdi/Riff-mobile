@@ -9,6 +9,7 @@ import 'package:shimmer/shimmer.dart';
 import '../screens/Settings/settings_screen_controller.dart';
 import '/models/artist.dart';
 import '/models/thumbnail.dart';
+import '/services/cover_resolver.dart';
 import '../../models/album.dart';
 import '../../models/playlist.dart';
 
@@ -105,7 +106,20 @@ class ImageWidget extends StatelessWidget {
             )
           : (imageUrl.isEmpty)
               ? _placeholder(context)
-              : CachedNetworkImage(
+              // A song whose only art is a 16:9 video frame: show the frame,
+              // then swap to the resolved square audio-track cover (cached).
+              : (song != null &&
+                      Thumbnail.isVideoFrameUrl(raw) &&
+                      !song!.id.startsWith('podcast_') &&
+                      song!.extras?['isPodcast'] != true)
+                  ? _SongCoverImage(
+                      song: song!,
+                      size: size,
+                      decodeSide: decodeSide,
+                      placeholder: _placeholder(context),
+                      shimmer: _shimmer(context),
+                    )
+                  : CachedNetworkImage(
                   height: size,
                   width: size,
                   // One dimension only — setting both forces a square decode and
@@ -149,6 +163,71 @@ class ImageWidget extends StatelessWidget {
           color: Colors.white54,
         ),
       ),
+    );
+  }
+}
+
+/// Shows a song's 16:9 video frame immediately, then swaps to the square
+/// audio-track cover once [CoverResolver] finds it (instant when cached).
+class _SongCoverImage extends StatefulWidget {
+  const _SongCoverImage({
+    required this.song,
+    required this.size,
+    required this.decodeSide,
+    required this.placeholder,
+    required this.shimmer,
+  });
+  final MediaItem song;
+  final double size;
+  final int decodeSide;
+  final Widget placeholder;
+  final Widget shimmer;
+
+  @override
+  State<_SongCoverImage> createState() => _SongCoverImageState();
+}
+
+class _SongCoverImageState extends State<_SongCoverImage> {
+  late String _url;
+
+  String _scaled(String raw) {
+    final t = Thumbnail(raw);
+    if (widget.size >= 280) return t.extraHigh;
+    if (widget.size >= 100) return t.high;
+    return t.medium;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _url = _scaled(widget.song.artUri?.toString() ?? '');
+    final vid = widget.song.id;
+    final cached = CoverResolver.cached(vid);
+    if (cached != null && cached.isNotEmpty) {
+      _url = _scaled(cached);
+    } else if (cached == null) {
+      CoverResolver.resolve(vid,
+              title: widget.song.title, artist: widget.song.artist)
+          .then((square) {
+        if (square != null && square.isNotEmpty && mounted) {
+          setState(() => _url = _scaled(square));
+        }
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CachedNetworkImage(
+      height: widget.size,
+      width: widget.size,
+      memCacheWidth: widget.decodeSide,
+      filterQuality: FilterQuality.high,
+      imageUrl: _url,
+      fit: BoxFit.cover,
+      alignment: Alignment.center,
+      errorWidget: (_, __, ___) => widget.placeholder,
+      progressIndicatorBuilder: (_, __, ___) => widget.shimmer,
     );
   }
 }

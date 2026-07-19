@@ -135,6 +135,7 @@ initHive() async {
   await Hive.openBox("PodcastSubs");
   await Hive.openBox("SongStats");
   await Hive.openBox("DailyStats");
+  await Hive.openBox("SquareCovers");
 }
 
 void _setAppInitPrefs() {
