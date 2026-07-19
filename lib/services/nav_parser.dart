@@ -689,13 +689,29 @@ String? getSearchResultType(
   if (resultTypeLocal == null) {
     return null;
   }
-  List<String> resultTypes = ['artist', 'playlist', 'song', 'video', 'station'];
+  List<String> resultTypes = [
+    'artist',
+    'playlist',
+    'song',
+    'video',
+    'station',
+    'podcast',
+    'episode',
+  ];
   resultTypeLocal = resultTypeLocal.toLowerCase();
   if (!resultTypesLocal.contains(resultTypeLocal)) {
+    // default to album for unknown labels (Single, EP, …) unless podcast-ish
+    if (resultTypeLocal.contains('podcast')) return 'podcast';
+    if (resultTypeLocal.contains('episode')) return 'episode';
     return 'album';
   } else {
     int index = resultTypesLocal.indexOf(resultTypeLocal);
-    return resultTypes[index];
+    if (index >= 0 && index < resultTypes.length) {
+      return resultTypes[index];
+    }
+    // Prefer matching by name when local labels map 1:1
+    if (resultTypes.contains(resultTypeLocal)) return resultTypeLocal;
+    return 'album';
   }
 }
 
@@ -703,8 +719,16 @@ List<dynamic> parseSearchResults(List<dynamic> results,
     List<String> searchResultTypes, String? resultType, String category) {
   return results
       .map((result) {
-        return parseSearchResult(result['musicResponsiveListItemRenderer'],
-            searchResultTypes, resultType, category);
+        // Podcast search often returns two-row cards
+        if (result['musicTwoRowItemRenderer'] != null &&
+            (resultType == 'podcast' ||
+                category.toLowerCase().contains('podcast'))) {
+          return parsePodcastTwoRow(result['musicTwoRowItemRenderer']);
+        }
+        final data = result['musicResponsiveListItemRenderer'];
+        if (data == null) return null;
+        return parseSearchResult(
+            data, searchResultTypes, resultType, category);
       })
       .whereType<dynamic>()
       .toList();
@@ -713,15 +737,31 @@ List<dynamic> parseSearchResults(List<dynamic> results,
 dynamic parseSearchResult(Map<String, dynamic> data,
     List<String> searchResultTypes, String? resultType, String? category) {
   if ((resultType != null && resultType.contains("playlist")) ||
-      category!.contains("playlists")) {
+      (category != null && category.contains("playlists"))) {
     resultType = 'playlist';
+  }
+  if ((resultType != null && resultType.contains('podcast')) ||
+      (category != null && category.toLowerCase().contains('podcasts'))) {
+    resultType = 'podcast';
+  }
+  if ((resultType != null && resultType.contains('episode')) ||
+      (category != null && category.toLowerCase().contains('episode'))) {
+    resultType = 'episode';
   }
   int defaultOffset = (resultType == null) ? 2 : 0;
   Map<String, dynamic> searchResult = {'category': category};
   String? videoType = nav(data,
       [...play_button, 'playNavigationEndpoint', ...navigation_video_type]);
-  if (videoType != null) {
+  if (videoType == 'MUSIC_VIDEO_TYPE_PODCAST_EPISODE') {
+    resultType = 'episode';
+  } else if (videoType != null && resultType != 'episode') {
     resultType = (videoType == 'MUSIC_VIDEO_TYPE_ATV') ? 'song' : 'video';
+  }
+
+  // Infer podcast from browse id prefix when type unknown
+  final browseGuess = nav(data, navigation_browse_id)?.toString();
+  if (resultType == null && browseGuess != null && browseGuess.startsWith('MPSP')) {
+    resultType = 'podcast';
   }
 
   resultType = ((resultType == null)
@@ -748,6 +788,61 @@ dynamic parseSearchResult(Map<String, dynamic> data,
           ['musicResponsiveListItemFlexColumnRenderer']['text']['runs'];
       searchResult['description'] = list.map((run) => run['text']).join('');
     } catch (e) {}
+  } else if (resultType == 'podcast') {
+    searchResult['description'] = 'Podcast';
+    searchResult['kind'] = 'podcast';
+    final browseId = nav(data, navigation_browse_id)?.toString() ??
+        getItemText(data, 0); // fallback unused
+    searchResult['browseId'] = browseId;
+    searchResult['playlistId'] = browseId;
+    // Channel / author in second column when present
+    try {
+      final flex1 = getFlexColumnItem(data, 1);
+      if (flex1 != null) {
+        final runs = flex1['text']?['runs'] as List? ?? [];
+        if (runs.isNotEmpty) {
+          searchResult['description'] =
+              runs.map((r) => r['text']).join('');
+        }
+      }
+    } catch (_) {}
+  } else if (resultType == 'episode') {
+    searchResult['videoId'] = nav(data, [
+          ...play_button,
+          'playNavigationEndpoint',
+          'watchEndpoint',
+          'videoId',
+        ]) ??
+        nav(data, ['playlistItemData', 'videoId']) ??
+        nav(data, ['onTap', 'watchEndpoint', 'videoId']);
+    searchResult['videoType'] = videoType ?? 'MUSIC_VIDEO_TYPE_PODCAST_EPISODE';
+    try {
+      final flex1 = getFlexColumnItem(data, 1);
+      final runs = flex1?['text']?['runs'] as List? ?? [];
+      // podcast name often in runs
+      String? podcastName;
+      for (final run in runs) {
+        final bid = nav(run, navigation_browse_id)?.toString();
+        if (bid != null && bid.startsWith('MPSP')) {
+          podcastName = run['text'];
+          searchResult['playlistId'] = bid;
+          break;
+        }
+      }
+      if (podcastName == null && runs.isNotEmpty) {
+        podcastName = runs.length > 2 ? runs[2]['text'] : runs[0]['text'];
+      }
+      searchResult['artists'] = [
+        {'name': podcastName ?? 'Podcast', 'id': searchResult['playlistId']}
+      ];
+      if (runs.isNotEmpty) {
+        searchResult['date'] = runs[0]['text'];
+      }
+    } catch (_) {
+      searchResult['artists'] = [
+        {'name': 'Podcast', 'id': null}
+      ];
+    }
   } else if (resultType.contains('playlist')) {
     List<dynamic> flexItem = getFlexColumnItem(data, 1)['text']['runs'];
     bool hasAuthor = (flexItem.length == defaultOffset + 3);
@@ -814,9 +909,10 @@ dynamic parseSearchResult(Map<String, dynamic> data,
     searchResult.addAll(songInfo);
   }
 
-  if ((['artist', 'album', 'playlist']).contains(resultType)) {
-    searchResult['browseId'] = nav(data, navigation_browse_id);
-    if (searchResult['browseId'] == null) {
+  if ((['artist', 'album', 'playlist', 'podcast']).contains(resultType)) {
+    searchResult['browseId'] ??= nav(data, navigation_browse_id);
+    searchResult['playlistId'] ??= searchResult['browseId'];
+    if (searchResult['browseId'] == null && resultType != 'podcast') {
       return {};
     }
   }
@@ -827,11 +923,25 @@ dynamic parseSearchResult(Map<String, dynamic> data,
 
   searchResult['thumbnails'] = nav(data, thumbnails);
 
-  if (resultType == 'song' || resultType == 'video') {
+  if (resultType == 'song' || resultType == 'video' || resultType == 'episode') {
     if (searchResult['videoId'] != null) {
       return MediaItemBuilder.fromJson(searchResult);
     }
     return;
+  } else if (resultType == 'podcast') {
+    if (searchResult['playlistId'] == null &&
+        searchResult['browseId'] == null) {
+      return;
+    }
+    searchResult['playlistId'] ??= searchResult['browseId'];
+    searchResult['thumbnails'] ??= [
+      {'url': Playlist.thumbPlaceholderUrl}
+    ];
+    return Playlist.fromJson({
+      ...searchResult,
+      'kind': 'podcast',
+      'description': searchResult['description'] ?? 'Podcast',
+    });
   } else if (resultType.contains('playlist')) {
     return Playlist.fromJson(searchResult);
   } else if (resultType == 'album') {
@@ -841,6 +951,178 @@ dynamic parseSearchResult(Map<String, dynamic> data,
   }
 
   return searchResult;
+}
+
+/// Two-row podcast card from search / channel pages.
+Playlist? parsePodcastTwoRow(Map<String, dynamic> data) {
+  try {
+    final browseId = nav(data, n_title + navigation_browse_id)?.toString() ??
+        nav(data, navigation_browse_id)?.toString();
+    if (browseId == null) return null;
+    final title = nav(data, title_text) ?? '';
+    final thumbs = nav(data, thumbnail_renderer) ??
+        nav(data, thumbnails) ??
+        [
+          {'url': Playlist.thumbPlaceholderUrl}
+        ];
+    String description = 'Podcast';
+    final subtitleRuns = nav(data, ['subtitle', 'runs']) as List?;
+    if (subtitleRuns != null && subtitleRuns.isNotEmpty) {
+      description = subtitleRuns.map((r) => r['text']).join('');
+    }
+    return Playlist.fromJson({
+      'title': title,
+      'playlistId': browseId,
+      'browseId': browseId,
+      'thumbnails': thumbs,
+      'description': description,
+      'kind': 'podcast',
+      'isCloudPlaylist': true,
+    });
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Episodes under a podcast musicShelf.
+List<MediaItem> parsePodcastEpisodes(List contents) {
+  final episodes = <MediaItem>[];
+  for (final item in contents) {
+    final data = item['musicResponsiveListItemRenderer'];
+    if (data == null) continue;
+    final parsed = parseEpisodeItem(data);
+    if (parsed != null) episodes.add(parsed);
+  }
+  return episodes;
+}
+
+MediaItem? parseEpisodeItem(Map<String, dynamic> data) {
+  try {
+    final videoId = nav(data, [
+          'onTap',
+          'watchEndpoint',
+          'videoId',
+        ]) ??
+        nav(data, [
+          ...play_button,
+          'playNavigationEndpoint',
+          'watchEndpoint',
+          'videoId',
+        ]) ??
+        nav(data, ['playlistItemData', 'videoId']);
+    if (videoId == null) return null;
+
+    final title = nav(data, title_text) ?? getItemText(data, 0) ?? 'Episode';
+    final thumbs = nav(data, thumbnails) ??
+        nav(data, thumbnail_renderer) ??
+        [
+          {'url': Playlist.thumbPlaceholderUrl}
+        ];
+    final durationText = nav(data, [
+          'playbackProgress',
+          'musicPlaybackProgressRenderer',
+          'durationText',
+          'runs',
+          1,
+          'text',
+        ]) ??
+        nav(data, [
+          'playbackProgress',
+          'musicPlaybackProgressRenderer',
+          'durationText',
+          'runs',
+          0,
+          'text',
+        ]);
+    final description = nav(data, description);
+    final date = nav(data, subtitle);
+
+    // Prefer podcast name as artist
+    String artistName = 'Podcast';
+    final secondTitle = nav(data, ['secondTitle', 'runs', 0, 'text']);
+    if (secondTitle != null) {
+      artistName = secondTitle;
+    } else {
+      try {
+        final flex1 = getFlexColumnItem(data, 1);
+        final runs = flex1?['text']?['runs'] as List?;
+        if (runs != null && runs.isNotEmpty) {
+          artistName = runs.map((r) => r['text']).join('');
+        }
+      } catch (_) {}
+    }
+
+    return MediaItemBuilder.fromJson({
+      'videoId': videoId,
+      'title': title,
+      'thumbnails': thumbs,
+      'length': durationText,
+      'duration': _parseLooseDurationSeconds(durationText),
+      'artists': [
+        {'name': artistName, 'id': null}
+      ],
+      'date': date,
+      'description': description,
+      'videoType': 'MUSIC_VIDEO_TYPE_PODCAST_EPISODE',
+    });
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Parse an explore-shelf episode card (list or two-row).
+MediaItem? parseExploreEpisode(dynamic item) {
+  if (item is! Map) return null;
+  if (item['musicResponsiveListItemRenderer'] != null) {
+    return parseEpisodeItem(
+        Map<String, dynamic>.from(item['musicResponsiveListItemRenderer']));
+  }
+  if (item['musicTwoRowItemRenderer'] != null) {
+    final data = Map<String, dynamic>.from(item['musicTwoRowItemRenderer']);
+    final videoId = nav(data, navigation_video_id) ??
+        nav(data, [
+          ...play_button,
+          'playNavigationEndpoint',
+          'watchEndpoint',
+          'videoId',
+        ]);
+    if (videoId == null) return null;
+    return MediaItemBuilder.fromJson({
+      'videoId': videoId,
+      'title': nav(data, title_text) ?? 'Episode',
+      'thumbnails': nav(data, thumbnail_renderer) ??
+          [
+            {'url': Playlist.thumbPlaceholderUrl}
+          ],
+      'artists': [
+        {
+          'name': nav(data, subtitle) ?? 'Podcast',
+          'id': null,
+        }
+      ],
+      'videoType': 'MUSIC_VIDEO_TYPE_PODCAST_EPISODE',
+    });
+  }
+  return null;
+}
+
+/// Accepts "3:45", "25 min", "1 hr 12 min", etc.
+int? _parseLooseDurationSeconds(String? text) {
+  if (text == null || text.isEmpty) return null;
+  if (text.contains(':')) {
+    return parseDuration(text);
+  }
+  final lower = text.toLowerCase();
+  int seconds = 0;
+  final hr = RegExp(r'(\d+)\s*hr').firstMatch(lower);
+  final min = RegExp(r'(\d+)\s*min').firstMatch(lower);
+  final sec = RegExp(r'(\d+)\s*sec').firstMatch(lower);
+  if (hr != null) seconds += int.parse(hr.group(1)!) * 3600;
+  if (min != null) seconds += int.parse(min.group(1)!) * 60;
+  if (sec != null) seconds += int.parse(sec.group(1)!);
+  if (seconds > 0) return seconds;
+  final plain = int.tryParse(lower.trim());
+  return plain;
 }
 
 //parse album Header

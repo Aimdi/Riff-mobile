@@ -39,7 +39,8 @@ class StandardPlayer extends StatelessWidget {
         /// Album art image in background covering the whole screen
         BackgroudImage(
           key: Key("${playerController.currentSong.value?.id}_background"),
-          cacheHeight: 200,
+          // Higher decode size so blurred backdrop isn't muddy
+          cacheHeight: 600,
         ),
 
         /// Stack child

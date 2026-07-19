@@ -26,7 +26,8 @@ class MediaItemBuilder {
             : toDuration(json['length']),
         album: album != null ? album['name'] : null,
         artist: artistName,
-        artUri: Uri.parse(Thumbnail(json["thumbnails"][0]['url']).high),
+        // Use extraHigh so full-player / notification art stays sharp
+        artUri: Uri.parse(Thumbnail(json["thumbnails"][0]['url']).extraHigh),
         extras: {
           'url': json['url'] ?? url,
           'length': json['length'],
@@ -43,6 +44,19 @@ class MediaItemBuilder {
       return null;
     }
 
+    // Podcast-style durations: "25 min", "1 hr 12 min"
+    final lower = time.toLowerCase();
+    if (lower.contains('min') || lower.contains('hr') || lower.contains('sec')) {
+      int sec = 0;
+      final hr = RegExp(r'(\d+)\s*hr').firstMatch(lower);
+      final min = RegExp(r'(\d+)\s*min').firstMatch(lower);
+      final s = RegExp(r'(\d+)\s*sec').firstMatch(lower);
+      if (hr != null) sec += int.parse(hr.group(1)!) * 3600;
+      if (min != null) sec += int.parse(min.group(1)!) * 60;
+      if (s != null) sec += int.parse(s.group(1)!);
+      if (sec > 0) return Duration(seconds: sec);
+    }
+
     int sec = 0;
     final splitted = time.split(":");
     if (splitted.length == 3) {
@@ -52,7 +66,7 @@ class MediaItemBuilder {
     } else if (splitted.length == 2) {
       sec += int.parse(splitted[0]) * 60 + int.parse(splitted[1]);
     } else if (splitted.length == 1) {
-      sec += int.parse(splitted[0]);
+      sec += int.tryParse(splitted[0]) ?? 0;
     }
     return Duration(seconds: sec);
   }

@@ -137,7 +137,8 @@ List<dynamic> findObjectsByKey(List<dynamic> objectList, String key,
 }
 
 String? getSearchParams(String? filter, String? scope, bool ignoreSpelling) {
-  String filteredParam1 = 'EgWKAQI';
+  // Matches ytmusicapi: base "EgWKAQ" + two-char type codes (II, IQ, JQ, …)
+  const filteredParam1 = 'EgWKAQ';
   String? params;
   String? param1;
   String? param2;
@@ -201,11 +202,14 @@ String? getSearchParams(String? filter, String? scope, bool ignoreSpelling) {
 
 String? _getParam2(String filter) {
   final filterParams = {
-    'songs': 'I',
-    'videos': 'Q',
-    'albums': 'Y',
-    'artists': 'g',
-    'playlists': 'o'
+    'songs': 'II',
+    'videos': 'IQ',
+    'albums': 'IY',
+    'artists': 'Ig',
+    'playlists': 'Io',
+    'profiles': 'JY',
+    'podcasts': 'JQ',
+    'episodes': 'JI',
   };
   return filterParams[filter];
 }

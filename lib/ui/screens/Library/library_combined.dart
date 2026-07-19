@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/widgets/piped_sync_widget.dart';
 import '../../widgets/create_playlist_dialog.dart';
+import '../Podcasts/podcasts_library.dart';
 import 'library.dart';
 
 class CombinedLibrary extends StatelessWidget {
@@ -56,6 +57,7 @@ class CombinedLibrary extends StatelessWidget {
           controller: tabCon.tabController,
           tabs: [
             Tab(text: "songs".tr),
+            Tab(text: "podcasts".tr),
             Tab(text: "playlists".tr),
             Tab(text: "albums".tr),
             Tab(text: "artists".tr),
@@ -73,6 +75,7 @@ class CombinedLibrary extends StatelessWidget {
           SongsLibraryWidget(
             isBottomNavActive: true,
           ),
+          PodcastsLibraryWidget(isBottomNavActive: true),
           PlaylistNAlbumLibraryWidget(
               isAlbumContent: false, isBottomNavActive: true),
           PlaylistNAlbumLibraryWidget(isBottomNavActive: true),
@@ -90,7 +93,7 @@ class CombinedLibraryController extends GetxController
   @override
   void onInit() {
     super.onInit();
-    tabController = TabController(vsync: this, length: 4);
+    tabController = TabController(vsync: this, length: 5);
   }
 
   @override

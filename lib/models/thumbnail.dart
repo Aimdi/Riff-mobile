@@ -11,9 +11,10 @@ class Thumbnail {
               ? url.replaceFirst("sddefault", "maxresdefault")
               : url;
   String get url => _url;
-  String get high => sizewith(400); //450
+  String get high => sizewith(544); // was 400 — list tiles / medium art
   String get medium => sizewith(250); //350
   String get low => sizewith(150);
+  /// Full-screen player, notification, and primary artwork.
   String get extraHigh =>
-      GetPlatform.isDesktop ? sizewith(1000) : sizewith(600); //150
+      GetPlatform.isDesktop ? sizewith(1200) : sizewith(800);
 }

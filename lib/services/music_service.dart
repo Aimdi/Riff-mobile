@@ -7,6 +7,7 @@ import 'package:get/get.dart' as getx;
 import 'package:hive/hive.dart';
 
 import '/models/album.dart';
+import '/models/playlist.dart';
 import '/services/ban_service.dart';
 import '/services/utils.dart';
 import '/services/yt_auth_service.dart';
@@ -362,6 +363,11 @@ class MusicServices extends getx.GetxService {
       int limit = 3000,
       bool related = false,
       int suggestionsLimit = 0}) async {
+    // Podcast browse IDs start with MPSP — use dedicated podcast parser.
+    if (playlistId != null &&
+        (playlistId.startsWith('MPSP') || playlistId.startsWith('MPED'))) {
+      return getPodcast(playlistId, limit: limit);
+    }
     String browseId = playlistId != null
         ? (playlistId.startsWith("VL") ? playlistId : "VL$playlistId")
         : albumId!;
@@ -522,6 +528,203 @@ class MusicServices extends getx.GetxService {
     return album;
   }
 
+  /// Fetch a podcast and its episodes (YouTube Music podcasts).
+  /// [playlistId] may be `PLxxx`, `MPSPPLxxx`, or a full browse id.
+  Future<Map<String, dynamic>> getPodcast(String playlistId,
+      {int limit = 100}) async {
+    final browseId =
+        playlistId.startsWith('MPSP') ? playlistId : 'MPSP$playlistId';
+    final data = Map.from(_context);
+    data['browseId'] = browseId;
+    final Map<String, dynamic> response =
+        (await _sendRequest('browse', data)).data;
+
+    final twoColumns = nav(response, [
+      'contents',
+      'twoColumnBrowseResultsRenderer',
+    ]);
+    final header = twoColumns == null
+        ? null
+        : (nav(twoColumns, [
+              ...tab_content,
+              ...section_list_item,
+              'musicResponsiveHeaderRenderer',
+            ]) ??
+            nav(twoColumns, [
+              ...tab_content,
+              ...section_list_item,
+              'musicDetailHeaderRenderer',
+            ]));
+
+    final results = twoColumns == null
+        ? null
+        : (nav(twoColumns, [
+              'secondaryContents',
+              ...section_list_item,
+              'musicShelfRenderer',
+            ]) ??
+            nav(twoColumns, [
+              'secondaryContents',
+              ...section_list_item,
+              'musicPlaylistShelfRenderer',
+            ]));
+
+    final podcast = <String, dynamic>{
+      'playlistId': browseId,
+      'title': nav(header, title_text) ?? '',
+      'description': nav(header, [
+            'description',
+            'musicDescriptionShelfRenderer',
+            ...description,
+          ]) ??
+          nav(header, description) ??
+          'Podcast',
+      'thumbnails': nav(header, [
+            'thumbnail',
+            'musicThumbnailRenderer',
+            'thumbnail',
+            'thumbnails',
+          ]) ??
+          nav(header, thumnail_cropped) ??
+          [
+            {'url': Playlist.thumbPlaceholderUrl}
+          ],
+      'isCloudPlaylist': true,
+      'kind': 'podcast',
+    };
+
+    final strapline = nav(header, ['straplineTextOne', 'runs', 0]);
+    if (strapline != null) {
+      podcast['author'] = {
+        'name': strapline['text'],
+        'id': nav(strapline, navigation_browse_id),
+      };
+    }
+
+    List tracks = [];
+    if (results != null && results['contents'] != null) {
+      tracks = parsePodcastEpisodes(results['contents']);
+      if (results.containsKey('continuations')) {
+        requestFunc(additionalParams) async =>
+            (await _sendRequest('browse', data,
+                    additionalParams: additionalParams))
+                .data;
+        parseFunc(contents) => parsePodcastEpisodes(contents);
+        final remaining = limit - tracks.length;
+        if (remaining > 0) {
+          try {
+            final cont = await getContinuations(
+              results,
+              'musicShelfContinuation',
+              remaining,
+              requestFunc,
+              parseFunc,
+            );
+            tracks = [...tracks, ...cont];
+          } catch (_) {
+            // Continuations optional for podcasts
+          }
+        }
+      }
+    }
+    podcast['tracks'] = tracks;
+    podcast['trackCount'] = tracks.length;
+    return podcast;
+  }
+
+  /// Discovery feed for the Podcasts tab: popular episodes + featured podcasts.
+  Future<Map<String, dynamic>> getPodcastDiscovery() async {
+    final result = <String, dynamic>{
+      'topEpisodes': <MediaItem>[],
+      'featuredPodcasts': <Playlist>[],
+    };
+
+    // Explore → popular / top podcast episodes
+    try {
+      final data = Map.from(_context);
+      data['browseId'] = 'FEmusic_explore';
+      final response = (await _sendRequest('browse', data)).data;
+      final sections = nav(response, single_column_tab + section_list) ?? [];
+      for (final section in sections) {
+        final carousel = section['musicCarouselShelfRenderer'];
+        if (carousel == null) continue;
+        final contents = carousel['contents'] as List? ?? [];
+        if (contents.isEmpty) continue;
+
+        // Prefer shelf that contains podcast episodes
+        final first = contents.first;
+        final renderer = first['musicResponsiveListItemRenderer'] ??
+            first['musicTwoRowItemRenderer'];
+        if (renderer == null) continue;
+
+        final videoType = nav(renderer, [
+              ...play_button,
+              'playNavigationEndpoint',
+              ...navigation_video_type,
+            ]) ??
+            nav(first, [
+              'musicResponsiveListItemRenderer',
+              'onTap',
+              ...navigation_video_type,
+            ]);
+
+        final isEpisodeShelf = videoType == 'MUSIC_VIDEO_TYPE_PODCAST_EPISODE' ||
+            (nav(renderer, [
+                      ...play_button,
+                      'playNavigationEndpoint',
+                      'watchEndpoint',
+                      'videoId',
+                    ]) !=
+                    null &&
+                nav(renderer, navigation_browse_id)
+                        ?.toString()
+                        .startsWith('MP') ==
+                    true);
+
+        // Also match by title keywords when video type missing
+        final shelfTitle =
+            (nav(carousel, carousel_title + ['text']) ?? '').toString();
+        final titleLooksLikeEpisodes = shelfTitle.toLowerCase().contains('episode') ||
+            shelfTitle.toLowerCase().contains('podcast');
+
+        if (!isEpisodeShelf && !titleLooksLikeEpisodes) continue;
+
+        final episodes = <MediaItem>[];
+        for (final item in contents) {
+          final parsed = parseExploreEpisode(item);
+          if (parsed != null) episodes.add(parsed);
+        }
+        if (episodes.isNotEmpty) {
+          result['topEpisodes'] = episodes;
+          break;
+        }
+      }
+    } catch (e) {
+      printERROR('getPodcastDiscovery explore failed: $e');
+    }
+
+    // Featured podcasts via search
+    try {
+      final searchRes = await search('podcast', filter: 'podcasts', limit: 20);
+      final list = <Playlist>[];
+      for (final entry in searchRes.entries) {
+        if (entry.key == 'params' || entry.key == 'searchEndpoint') continue;
+        final val = entry.value;
+        if (val is! List) continue;
+        for (final item in val) {
+          if (item is Playlist) {
+            list.add(item.copyWith(kind: 'podcast'));
+          }
+        }
+      }
+      result['featuredPodcasts'] = list;
+    } catch (e) {
+      printERROR('getPodcastDiscovery search failed: $e');
+    }
+
+    return result;
+  }
+
   Future<List<String>> getSearchSuggestion(String queryStr) async {
     final data = Map.from(_context);
     data['input'] = queryStr;
@@ -575,7 +778,9 @@ class MusicServices extends getx.GetxService {
       'community_playlists',
       'featured_playlists',
       'songs',
-      'videos'
+      'videos',
+      'podcasts',
+      'episodes',
     ];
 
     if (filter != null && !filters.contains(filter)) {
@@ -675,8 +880,19 @@ class MusicServices extends getx.GetxService {
         dynamic itemResults = res['musicShelfRenderer']['contents'];
         String? typeFilter = filter;
         category = "mixed"; // Just a default value
-        final mixedItems = parseSearchResults(itemResults,
-            ['artist', 'playlist', 'song', 'video', 'station'], type, category);
+        final resultTypes = [
+          'artist',
+          'playlist',
+          'song',
+          'video',
+          'station',
+          'podcast',
+          'episode',
+        ];
+        // Derive singular type from filter before parsing (podcasts → podcast)
+        type = typeFilter?.substring(0, typeFilter.length - 1).toLowerCase();
+        final mixedItems =
+            parseSearchResults(itemResults, resultTypes, type, category);
         if (filter == null) {
           for (var item in mixedItems) {
             final itemType = item.runtimeType == MediaItem
@@ -693,11 +909,10 @@ class MusicServices extends getx.GetxService {
           category = nav(res, ['musicShelfRenderer', ...title_text]);
           searchResults[category] = parseSearchResults(
               res['musicShelfRenderer']['contents'],
-              ['artist', 'playlist', 'song', 'video', 'station'],
+              resultTypes,
               type,
               category);
         }
-        type = typeFilter?.substring(0, typeFilter.length - 1).toLowerCase();
       } else {
         continue;
       }
@@ -707,8 +922,19 @@ class MusicServices extends getx.GetxService {
             (await _sendRequest("search", data,
                     additionalParams: additionalParams))
                 .data;
-        parseFunc(contents) => parseSearchResults(contents,
-            ['artist', 'playlist', 'song', 'video', 'station'], type, category);
+        parseFunc(contents) => parseSearchResults(
+            contents,
+            [
+              'artist',
+              'playlist',
+              'song',
+              'video',
+              'station',
+              'podcast',
+              'episode',
+            ],
+            type,
+            category);
 
         if (searchResults.containsKey(category)) {
           final x = await getContinuations(

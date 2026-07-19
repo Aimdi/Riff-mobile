@@ -178,11 +178,13 @@ class SettingsScreenController extends GetxController {
     final homeScrCon = Get.find<HomeScreenController>();
     final playerCon = Get.find<PlayerController>();
     if (val) {
+      // Bottom nav: Settings is index 3
       homeScrCon.onSideBarTabSelected(3);
       isBottomNavBarEnabled.value = true;
     } else {
       isBottomNavBarEnabled.value = false;
-      homeScrCon.onSideBarTabSelected(5);
+      // Side nav: Settings is last (Home, Songs, Podcasts, Playlists, Albums, Artists, Settings)
+      homeScrCon.onSideBarTabSelected(6);
     }
     if (!Get.find<PlayerController>().initFlagForPlayer) {
       playerCon.playerPanelMinHeight.value =

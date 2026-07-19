@@ -23,6 +23,7 @@ import 'ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/utils/theme_controller.dart';
 import 'ui/screens/Home/home_screen_controller.dart';
 import 'ui/screens/Library/library_controller.dart';
+import 'ui/screens/Podcasts/podcasts_library_controller.dart';
 import 'utils/system_tray.dart';
 import 'utils/update_check_flag_file.dart';
 
@@ -99,6 +100,7 @@ Future<void> startApplicationServices() async {
   Get.lazyPut(() => LibraryPlaylistsController(), fenix: true);
   Get.lazyPut(() => LibraryAlbumsController(), fenix: true);
   Get.lazyPut(() => LibraryArtistsController(), fenix: true);
+  Get.lazyPut(() => LibraryPodcastsController(), fenix: true);
   Get.lazyPut(() => SettingsScreenController(), fenix: true);
   Get.lazyPut(() => Downloader(), fenix: true);
   if (GetPlatform.isDesktop) {

@@ -20,6 +20,7 @@ import '../../../services/music_service.dart';
 import '../../../services/piped_service.dart';
 import '../Home/home_screen_controller.dart';
 import '../Library/library_controller.dart';
+import '../Podcasts/podcasts_library_controller.dart';
 
 ///PlaylistScreenController handles playlist screen
 ///
@@ -139,8 +140,20 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
       content['playlistId'] = id;
       playlist.value = Playlist.fromJson(content);
       _animationController.forward();
+    } else if (content['kind'] == 'podcast' || id.startsWith('MPSP')) {
+      // Keep episode list metadata in sync for podcasts
+      String? newThumb;
+      final thumbs = content['thumbnails'];
+      if (thumbs is List && thumbs.isNotEmpty && thumbs[0] is Map) {
+        newThumb = thumbs[0]['url']?.toString();
+      }
+      playlist.value = playlist.value.copyWith(
+        title: content['title']?.toString() ?? playlist.value.title,
+        thumbnailUrl: newThumb,
+        kind: 'podcast',
+      );
     }
-    songList.value = List<MediaItem>.from(content['tracks']);
+    songList.value = List<MediaItem>.from(content['tracks'] ?? const []);
     checkDownloadStatus();
   }
 
@@ -152,8 +165,25 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     });
   }
 
+  bool _isPodcastContent(dynamic content) {
+    if (content is Playlist) {
+      return content.kind == 'podcast' ||
+          content.playlistId.startsWith('MPSP') ||
+          (content.description?.toLowerCase().contains('podcast') ?? false);
+    }
+    return false;
+  }
+
   @override
   Future<bool> checkIfAddedToLibrary(String id) async {
+    if (id.startsWith('MPSP') || playlist.value.kind == 'podcast') {
+      final box = await Hive.openBox('LibraryPodcasts');
+      isAddedToLibrary.value = box.containsKey(id);
+      if (isAddedToLibrary.value) {
+        playlist.value = Playlist.fromJson(box.get(id));
+      }
+      return isAddedToLibrary.value;
+    }
     final box = await Hive.openBox("LibraryPlaylists");
     isAddedToLibrary.value = box.containsKey(id);
     if (isAddedToLibrary.value) playlist.value = Playlist.fromJson(box.get(id));
@@ -164,6 +194,23 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
   @override
   Future<bool> addNremoveFromLibrary(dynamic content, {bool add = true}) async {
     try {
+      if (_isPodcastContent(content)) {
+        final box = await Hive.openBox('LibraryPodcasts');
+        final id = content.playlistId as String;
+        if (add) {
+          final json = content is Playlist
+              ? {...content.toJson(), 'kind': 'podcast'}
+              : content.toJson();
+          await box.put(id, json);
+        } else {
+          await box.delete(id);
+        }
+        isAddedToLibrary.value = add;
+        if (Get.isRegistered<LibraryPodcastsController>()) {
+          await Get.find<LibraryPodcastsController>().refreshLib();
+        }
+        return true;
+      }
       if (content.isPipedPlaylist && !add) {
         //remove piped playlist from lib
         final res =
