@@ -1382,6 +1382,19 @@ class _SpeedPitchDialogState extends State<SpeedPitchDialog> {
   late double speed = settings.playbackSpeed.value;
   late double pitch = settings.playbackPitch.value;
   late double bass = settings.bassBoost.value.toDouble();
+  late double volumeBoost = settings.volumeBoostMb.value.toDouble();
+  late int reverb = settings.reverbPreset.value;
+  late double virtualizer = settings.virtualizer.value.toDouble();
+
+  static const _reverbNames = [
+    "reverbOff",
+    "reverbSmallRoom",
+    "reverbMediumRoom",
+    "reverbLargeRoom",
+    "reverbMediumHall",
+    "reverbLargeHall",
+    "reverbPlate",
+  ];
 
   void _apply() {
     settings.setBox.put("playbackSpeed", speed);
@@ -1392,10 +1405,16 @@ class _SpeedPitchDialogState extends State<SpeedPitchDialog> {
         .setSpeedAndPitch(speed: speed, pitch: pitch);
   }
 
-  void _applyBass() {
+  void _applyFx() {
     settings.setBox.put("bassBoost", bass.round());
+    settings.setBox.put("volumeBoostMb", volumeBoost.round());
+    settings.setBox.put("reverbPreset", reverb);
+    settings.setBox.put("virtualizer", virtualizer.round());
     settings.bassBoost.value = bass.round();
-    Get.find<PlayerController>().setBassBoost(bass.round());
+    settings.volumeBoostMb.value = volumeBoost.round();
+    settings.reverbPreset.value = reverb;
+    settings.virtualizer.value = virtualizer.round();
+    Get.find<PlayerController>().applyAudioFx();
   }
 
   @override
@@ -1403,72 +1422,118 @@ class _SpeedPitchDialogState extends State<SpeedPitchDialog> {
     return Dialog(
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("speedAndPitch".tr,
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 15),
-            Text("${"speed".tr}: ${speed.toStringAsFixed(2)}x"),
-            Slider(
-              min: 0.5,
-              max: 2.0,
-              divisions: 30,
-              value: speed,
-              label: "${speed.toStringAsFixed(2)}x",
-              onChanged: (v) => setState(() => speed = v),
-              onChangeEnd: (_) => _apply(),
-            ),
-            Text("${"pitch".tr}: ${pitch.toStringAsFixed(2)}"),
-            Slider(
-              min: 0.5,
-              max: 1.5,
-              divisions: 20,
-              value: pitch,
-              label: pitch.toStringAsFixed(2),
-              onChanged: (v) => setState(() => pitch = v),
-              onChangeEnd: (_) => _apply(),
-            ),
-            Text("${"bassBoost".tr}: ${(bass / 10).round()}%"),
-            Slider(
-              min: 0,
-              max: 1000,
-              divisions: 20,
-              value: bass,
-              label: "${(bass / 10).round()}%",
-              onChanged: (v) => setState(() => bass = v),
-              onChangeEnd: (_) => _applyBass(),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                InkWell(
-                  onTap: () {
-                    setState(() {
-                      speed = 1.0;
-                      pitch = 1.0;
-                      bass = 0;
-                    });
-                    _apply();
-                    _applyBass();
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text("resetToDefault".tr),
-                  ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("speedAndPitch".tr,
+                  style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 15),
+              Text("${"speed".tr}: ${speed.toStringAsFixed(2)}x"),
+              Slider(
+                min: 0.5,
+                max: 2.0,
+                divisions: 30,
+                value: speed,
+                label: "${speed.toStringAsFixed(2)}x",
+                onChanged: (v) => setState(() => speed = v),
+                onChangeEnd: (_) => _apply(),
+              ),
+              Text("${"pitch".tr}: ${pitch.toStringAsFixed(2)}"),
+              Slider(
+                min: 0.5,
+                max: 1.5,
+                divisions: 20,
+                value: pitch,
+                label: pitch.toStringAsFixed(2),
+                onChanged: (v) => setState(() => pitch = v),
+                onChangeEnd: (_) => _apply(),
+              ),
+              Text("${"bassBoost".tr}: ${(bass / 10).round()}%"),
+              Slider(
+                min: 0,
+                max: 1000,
+                divisions: 20,
+                value: bass,
+                label: "${(bass / 10).round()}%",
+                onChanged: (v) => setState(() => bass = v),
+                onChangeEnd: (_) => _applyFx(),
+              ),
+              Text("${"volumeBoost".tr}: +${(volumeBoost / 100).toStringAsFixed(1)} dB"),
+              Slider(
+                min: 0,
+                max: 2000,
+                divisions: 20,
+                value: volumeBoost,
+                label: "+${(volumeBoost / 100).toStringAsFixed(1)} dB",
+                onChanged: (v) => setState(() => volumeBoost = v),
+                onChangeEnd: (_) => _applyFx(),
+              ),
+              Text("${"stereoWidth".tr}: ${(virtualizer / 10).round()}%"),
+              Slider(
+                min: 0,
+                max: 1000,
+                divisions: 20,
+                value: virtualizer,
+                label: "${(virtualizer / 10).round()}%",
+                onChanged: (v) => setState(() => virtualizer = v),
+                onChangeEnd: (_) => _applyFx(),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    Text("${"reverb".tr}:  "),
+                    DropdownButton<int>(
+                      value: reverb,
+                      dropdownColor: Theme.of(context).cardColor,
+                      underline: const SizedBox.shrink(),
+                      items: List.generate(
+                          _reverbNames.length,
+                          (i) => DropdownMenuItem(
+                              value: i, child: Text(_reverbNames[i].tr))),
+                      onChanged: (v) {
+                        setState(() => reverb = v ?? 0);
+                        _applyFx();
+                      },
+                    ),
+                  ],
                 ),
-                InkWell(
-                  onTap: () => Navigator.of(context).pop(),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text("done".tr),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        speed = 1.0;
+                        pitch = 1.0;
+                        bass = 0;
+                        volumeBoost = 0;
+                        reverb = 0;
+                        virtualizer = 0;
+                      });
+                      _apply();
+                      _applyFx();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text("resetToDefault".tr),
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                  InkWell(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text("done".tr),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

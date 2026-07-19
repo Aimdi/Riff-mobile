@@ -15,4 +15,15 @@ class BassBoostAvailabilityTest {
         assertTrue(
             cls.methods.any { it.name == "setStrength" })
     }
+
+    @Test
+    fun audioEffectSuiteIsPresent() {
+        // The full effect chain we bind to must exist in the compile SDK.
+        assertTrue(Class.forName("android.media.audiofx.LoudnessEnhancer")
+            .methods.any { it.name == "setTargetGain" })
+        assertTrue(Class.forName("android.media.audiofx.PresetReverb")
+            .methods.any { it.name == "setPreset" })
+        assertTrue(Class.forName("android.media.audiofx.Virtualizer")
+            .methods.any { it.name == "setStrength" })
+    }
 }

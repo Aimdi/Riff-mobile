@@ -125,16 +125,25 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     _player.androidAudioSessionIdStream.listen((int? id) {
       if (id != null) {
         EqualizerService.initAudioEffect(id);
-        // Re-bind bass boost to the new session (new ExoPlayer instance).
-        final strength = Hive.box("appPrefs").get("bassBoost") ?? 0;
-        if (strength > 0) _applyBassBoost(id, strength);
+        // Re-bind the whole effect chain to the new session.
+        _applyAudioFx(id);
       }
     });
   }
 
-  void _applyBassBoost(int sessionId, int strength) {
-    _fxChannel.invokeMethod(
-        'setBassBoost', {'sessionId': sessionId, 'strength': strength});
+  /// Pushes the full effect chain (bass, volume boost, reverb, virtualizer)
+  /// to the native session from persisted settings.
+  void _applyAudioFx([int? sessionId]) {
+    final id = sessionId ?? _player.androidAudioSessionId;
+    if (id == null) return;
+    final box = Hive.box("appPrefs");
+    _fxChannel.invokeMethod('setAudioFx', {
+      'sessionId': id,
+      'bass': box.get("bassBoost") ?? 0,
+      'loudnessMb': box.get("volumeBoostMb") ?? 0,
+      'reverb': box.get("reverbPreset") ?? 0,
+      'virtualizer': box.get("virtualizer") ?? 0,
+    });
   }
 
   void _notifyAudioHandlerAboutPlaybackEvents() {
@@ -468,11 +477,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         await _player.setPitch((extras['pitch'] as num).toDouble());
         break;
 
-      case 'setBassBoost':
-        final sessionId = _player.androidAudioSessionId;
-        if (sessionId != null) {
-          _applyBassBoost(sessionId, extras!['strength'] as int);
-        }
+      case 'setAudioFx':
+        _applyAudioFx();
         break;
 
       case 'playByIndex':

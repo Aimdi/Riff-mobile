@@ -31,6 +31,9 @@ class SettingsScreenController extends GetxController {
   final playbackSpeed = 1.0.obs;
   final playbackPitch = 1.0.obs;
   final bassBoost = 0.obs;
+  final volumeBoostMb = 0.obs;
+  final reverbPreset = 0.obs;
+  final virtualizer = 0.obs;
   final noOfHomeScreenContent = 3.obs;
   final streamingQuality = AudioQuality.High.obs;
   final playerUi = 0.obs;
@@ -52,7 +55,7 @@ class SettingsScreenController extends GetxController {
   final keepScreenAwake = false.obs;
   final restorePlaybackSession = false.obs;
   final cacheHomeScreenData = true.obs;
-  final currentVersion = "V1.4.0";
+  final currentVersion = "V1.5.0";
 
   @override
   void onInit() {
@@ -105,6 +108,9 @@ class SettingsScreenController extends GetxController {
     playbackSpeed.value = (setBox.get("playbackSpeed") ?? 1.0).toDouble();
     playbackPitch.value = (setBox.get("playbackPitch") ?? 1.0).toDouble();
     bassBoost.value = setBox.get("bassBoost") ?? 0;
+    volumeBoostMb.value = setBox.get("volumeBoostMb") ?? 0;
+    reverbPreset.value = setBox.get("reverbPreset") ?? 0;
+    virtualizer.value = setBox.get("virtualizer") ?? 0;
     autoOpenPlayer.value = (setBox.get("autoOpenPlayer") ?? true);
     restorePlaybackSession.value =
         setBox.get("restrorePlaybackSession") ?? false;

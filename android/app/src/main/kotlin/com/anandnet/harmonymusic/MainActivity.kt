@@ -13,28 +13,68 @@ class MainActivity : AudioServiceActivity() {
 
     private val resolverExecutor = Executors.newSingleThreadExecutor()
 
-    // Native bass boost bound to the player's audio session. Held so the
-    // effect survives across setBassBoost calls; recreated if the session
-    // id changes (new ExoPlayer instance).
+    // Native audio-effect chain bound to the player's audio session
+    // (RiPlay-style). All effects are held so they survive across calls and
+    // are recreated if the session id changes (new ExoPlayer instance).
     private var bassBoost: android.media.audiofx.BassBoost? = null
-    private var bassSessionId: Int = 0
-    private var bassStrength: Int = 0
+    private var loudnessEnhancer: android.media.audiofx.LoudnessEnhancer? = null
+    private var reverb: android.media.audiofx.PresetReverb? = null
+    private var virtualizer: android.media.audiofx.Virtualizer? = null
+    private var fxSessionId: Int = 0
+
+    private fun ensureSession(sessionId: Int) {
+        if (fxSessionId == sessionId && bassBoost != null) return
+        releaseFx()
+        fxSessionId = sessionId
+        try { bassBoost = android.media.audiofx.BassBoost(0, sessionId) } catch (_: Throwable) {}
+        try { loudnessEnhancer = android.media.audiofx.LoudnessEnhancer(sessionId) } catch (_: Throwable) {}
+        try { reverb = android.media.audiofx.PresetReverb(0, sessionId) } catch (_: Throwable) {}
+        try { virtualizer = android.media.audiofx.Virtualizer(0, sessionId) } catch (_: Throwable) {}
+    }
+
+    private fun releaseFx() {
+        try { bassBoost?.release() } catch (_: Throwable) {}
+        try { loudnessEnhancer?.release() } catch (_: Throwable) {}
+        try { reverb?.release() } catch (_: Throwable) {}
+        try { virtualizer?.release() } catch (_: Throwable) {}
+        bassBoost = null; loudnessEnhancer = null; reverb = null; virtualizer = null
+    }
 
     private fun applyBassBoost(sessionId: Int, strength: Int) {
         try {
-            if (bassBoost == null || bassSessionId != sessionId) {
-                bassBoost?.release()
-                bassBoost = android.media.audiofx.BassBoost(0, sessionId)
-                bassSessionId = sessionId
-            }
-            bassStrength = strength.coerceIn(0, 1000)
-            bassBoost?.enabled = bassStrength > 0
-            if (bassStrength > 0) {
-                bassBoost?.setStrength(bassStrength.toShort())
-            }
-        } catch (e: Throwable) {
-            // Some devices/effects reject a session; fail quietly.
-        }
+            ensureSession(sessionId)
+            val s = strength.coerceIn(0, 1000)
+            bassBoost?.enabled = s > 0
+            if (s > 0) bassBoost?.setStrength(s.toShort())
+        } catch (_: Throwable) {}
+    }
+
+    // gainMb: target gain in millibels (0 = off; negative attenuates, positive
+    // amplifies — proper two-way loudness normalization + volume boost).
+    private fun applyLoudness(sessionId: Int, gainMb: Int) {
+        try {
+            ensureSession(sessionId)
+            loudnessEnhancer?.enabled = gainMb != 0
+            if (gainMb != 0) loudnessEnhancer?.setTargetGain(gainMb.coerceIn(-2000, 2000))
+        } catch (_: Throwable) {}
+    }
+
+    // preset: 0 none, 1 smallroom .. 6 plate (android PresetReverb presets).
+    private fun applyReverb(sessionId: Int, preset: Int) {
+        try {
+            ensureSession(sessionId)
+            reverb?.enabled = preset > 0
+            reverb?.preset = preset.coerceIn(0, 6).toShort()
+        } catch (_: Throwable) {}
+    }
+
+    private fun applyVirtualizer(sessionId: Int, strength: Int) {
+        try {
+            ensureSession(sessionId)
+            val s = strength.coerceIn(0, 1000)
+            virtualizer?.enabled = s > 0
+            if (s > 0) virtualizer?.setStrength(s.toShort())
+        } catch (_: Throwable) {}
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -77,14 +117,16 @@ class MainActivity : AudioServiceActivity() {
                     android.webkit.CookieManager.getInstance()
                         .removeAllCookies { ok -> result.success(ok) }
                 }
-                "setBassBoost" -> {
+                "setAudioFx" -> {
                     val sessionId = call.argument<Int>("sessionId") ?: 0
-                    val strength = call.argument<Int>("strength") ?: 0
                     if (sessionId == 0) {
                         result.error("ARG", "sessionId missing", null)
                         return@setMethodCallHandler
                     }
-                    applyBassBoost(sessionId, strength)
+                    applyBassBoost(sessionId, call.argument<Int>("bass") ?: 0)
+                    applyLoudness(sessionId, call.argument<Int>("loudnessMb") ?: 0)
+                    applyReverb(sessionId, call.argument<Int>("reverb") ?: 0)
+                    applyVirtualizer(sessionId, call.argument<Int>("virtualizer") ?: 0)
                     result.success(true)
                 }
                 else -> result.notImplemented()

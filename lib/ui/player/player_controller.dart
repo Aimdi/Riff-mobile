@@ -690,8 +690,9 @@ class PlayerController extends GetxController
         .customAction("setSpeedAndPitch", {"speed": speed, "pitch": pitch});
   }
 
-  void setBassBoost(int strength) {
-    _audioHandler.customAction("setBassBoost", {"strength": strength});
+  /// Re-applies the full audio-effect chain from persisted settings.
+  void applyAudioFx() {
+    _audioHandler.customAction("setAudioFx");
   }
 
   void toggleLoudnessNormalization(bool enable) {
