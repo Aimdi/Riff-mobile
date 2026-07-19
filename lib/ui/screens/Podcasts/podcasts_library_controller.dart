@@ -15,6 +15,12 @@ class LibraryPodcastsController extends GetxController {
   final discoveryError = false.obs;
   final isContentFetched = false.obs;
 
+  // Discover / directory search (YouTube Music podcasts)
+  final searchQuery = ''.obs;
+  final searchResults = <Playlist>[].obs;
+  final isSearching = false.obs;
+  final hasSearched = false.obs;
+
   List<Playlist> tempListContainer = [];
 
   @override
@@ -41,23 +47,61 @@ class LibraryPodcastsController extends GetxController {
 
   Future<void> loadDiscovery({bool force = false}) async {
     if (isDiscoveryLoading.isTrue) return;
-    if (!force &&
-        (topEpisodes.isNotEmpty || featuredPodcasts.isNotEmpty)) {
+    if (!force && (topEpisodes.isNotEmpty || featuredPodcasts.isNotEmpty)) {
       return;
     }
     isDiscoveryLoading.value = true;
     discoveryError.value = false;
     try {
       final data = await Get.find<MusicServices>().getPodcastDiscovery();
-      topEpisodes.assignAll(
-          List<MediaItem>.from(data['topEpisodes'] ?? const []));
-      featuredPodcasts.assignAll(
-          List<Playlist>.from(data['featuredPodcasts'] ?? const []));
+      topEpisodes
+          .assignAll(List<MediaItem>.from(data['topEpisodes'] ?? const []));
+      featuredPodcasts
+          .assignAll(List<Playlist>.from(data['featuredPodcasts'] ?? const []));
     } catch (_) {
       discoveryError.value = true;
     } finally {
       isDiscoveryLoading.value = false;
     }
+  }
+
+  /// Search the YouTube Music podcast directory.
+  Future<void> searchPodcasts(String query) async {
+    final term = query.trim();
+    searchQuery.value = term;
+    if (term.isEmpty) {
+      clearSearch();
+      return;
+    }
+    isSearching.value = true;
+    hasSearched.value = true;
+    try {
+      final res = await Get.find<MusicServices>()
+          .search(term, filter: 'podcasts', limit: 30);
+      final list = <Playlist>[];
+      for (final entry in res.entries) {
+        if (entry.key == 'params' || entry.key == 'searchEndpoint') continue;
+        final val = entry.value;
+        if (val is! List) continue;
+        for (final item in val) {
+          if (item is Playlist) {
+            list.add(item.copyWith(kind: 'podcast'));
+          }
+        }
+      }
+      searchResults.assignAll(list);
+    } catch (_) {
+      searchResults.clear();
+    } finally {
+      isSearching.value = false;
+    }
+  }
+
+  void clearSearch() {
+    searchQuery.value = '';
+    searchResults.clear();
+    hasSearched.value = false;
+    isSearching.value = false;
   }
 
   Future<void> addToLibrary(Playlist podcast) async {
@@ -86,10 +130,12 @@ class LibraryPodcastsController extends GetxController {
     final list = libraryPodcasts.toList();
     switch (sortType) {
       case SortType.Name:
-        list.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+        list.sort(
+            (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
         break;
       default:
-        list.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+        list.sort(
+            (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
     }
     if (!isAscending) {
       libraryPodcasts.value = list.reversed.toList();

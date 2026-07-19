@@ -9,9 +9,22 @@ import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/sort_widget.dart';
 import 'podcasts_library_controller.dart';
 
-class PodcastsLibraryWidget extends StatelessWidget {
+class PodcastsLibraryWidget extends StatefulWidget {
   const PodcastsLibraryWidget({super.key, this.isBottomNavActive = false});
   final bool isBottomNavActive;
+
+  @override
+  State<PodcastsLibraryWidget> createState() => _PodcastsLibraryWidgetState();
+}
+
+class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
+  final _searchCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,15 +34,15 @@ class PodcastsLibraryWidget extends StatelessWidget {
     const double itemWidth = 130;
 
     return Padding(
-      padding: isBottomNavActive
+      padding: widget.isBottomNavActive
           ? const EdgeInsets.only(left: 15)
           : EdgeInsets.only(top: topPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(left: 5.0),
-            child: isBottomNavActive
+            padding: const EdgeInsets.only(left: 5.0, right: 12),
+            child: widget.isBottomNavActive
                 ? const SizedBox(height: 10)
                 : Align(
                     alignment: Alignment.centerLeft,
@@ -39,179 +52,278 @@ class PodcastsLibraryWidget extends StatelessWidget {
                     ),
                   ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(5, 8, 12, 4),
+            child: TextField(
+              controller: _searchCtrl,
+              textInputAction: TextInputAction.search,
+              onSubmitted: controller.searchPodcasts,
+              decoration: InputDecoration(
+                hintText: 'searchPodcasts'.tr,
+                prefixIcon: const Icon(Icons.search),
+                isDense: true,
+                border: const OutlineInputBorder(),
+                suffixIcon: Obx(() {
+                  final hasQuery = controller.searchQuery.isNotEmpty ||
+                      controller.hasSearched.isTrue;
+                  if (!hasQuery) {
+                    return IconButton(
+                      icon: const Icon(Icons.arrow_forward),
+                      onPressed: () =>
+                          controller.searchPodcasts(_searchCtrl.text),
+                    );
+                  }
+                  return IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () {
+                      _searchCtrl.clear();
+                      controller.clearSearch();
+                    },
+                  );
+                }),
+              ),
+            ),
+          ),
           Expanded(
-            child: RefreshIndicator(
-              onRefresh: () => controller.loadDiscovery(force: true),
-              child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics()),
-                slivers: [
-                  // ── Discovery ──────────────────────────────────────
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 5, top: 8, right: 8),
-                      child: Row(
-                        children: [
-                          Text(
-                            'discoverPodcasts'.tr,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const Spacer(),
-                          Obx(() {
-                            if (controller.isDiscoveryLoading.isTrue) {
-                              return const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              );
-                            }
-                            return IconButton(
-                              tooltip: 'retry'.tr,
-                              icon: const Icon(Icons.refresh, size: 20),
-                              onPressed: () =>
-                                  controller.loadDiscovery(force: true),
-                            );
-                          }),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Obx(() {
-                    if (controller.discoveryError.isTrue &&
-                        controller.topEpisodes.isEmpty &&
-                        controller.featuredPodcasts.isEmpty) {
-                      return SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Center(
-                            child: Column(
-                              children: [
-                                Text('networkError1'.tr,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleSmall),
-                                const SizedBox(height: 8),
-                                TextButton(
-                                  onPressed: () =>
-                                      controller.loadDiscovery(force: true),
-                                  child: Text('retry'.tr),
-                                ),
-                              ],
+            child: Obx(() {
+              // ── Search results mode ─────────────────────────────
+              if (controller.hasSearched.isTrue) {
+                return _buildSearchBody(controller, itemWidth, itemHeight);
+              }
+
+              // ── Discovery + library mode ────────────────────────
+              return RefreshIndicator(
+                onRefresh: () => controller.loadDiscovery(force: true),
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics()),
+                  slivers: [
+                    // ── Discovery ──────────────────────────────────────
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding:
+                            const EdgeInsets.only(left: 5, top: 8, right: 8),
+                        child: Row(
+                          children: [
+                            Text(
+                              'discoverPodcasts'.tr,
+                              style: Theme.of(context).textTheme.titleMedium,
                             ),
-                          ),
+                            const Spacer(),
+                            Obx(() {
+                              if (controller.isDiscoveryLoading.isTrue) {
+                                return const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                );
+                              }
+                              return IconButton(
+                                tooltip: 'retry'.tr,
+                                icon: const Icon(Icons.refresh, size: 20),
+                                onPressed: () =>
+                                    controller.loadDiscovery(force: true),
+                              );
+                            }),
+                          ],
                         ),
-                      );
-                    }
-                    return const SliverToBoxAdapter(child: SizedBox.shrink());
-                  }),
-                  // Top episodes row
-                  Obx(() {
-                    if (controller.topEpisodes.isEmpty) {
-                      return const SliverToBoxAdapter(
-                          child: SizedBox.shrink());
-                    }
-                    return SliverToBoxAdapter(
-                      child: _EpisodeDiscoveryRow(
-                        title: 'topEpisodes'.tr,
-                        episodes: controller.topEpisodes.toList(),
-                      ),
-                    );
-                  }),
-                  // Featured podcasts row
-                  Obx(() {
-                    if (controller.featuredPodcasts.isEmpty) {
-                      return const SliverToBoxAdapter(
-                          child: SizedBox.shrink());
-                    }
-                    return SliverToBoxAdapter(
-                      child: _PodcastCarousel(
-                        title: 'featuredPodcasts'.tr,
-                        podcasts: controller.featuredPodcasts.toList(),
-                      ),
-                    );
-                  }),
-                  // ── Library ────────────────────────────────────────
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 5, top: 16),
-                      child: Text(
-                        'libPodcasts'.tr,
-                        style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Obx(
-                      () => SortWidget(
-                        tag: 'LibPodcastSort',
-                        screenController: controller,
-                        isAdditionalOperationRequired: false,
-                        isSearchFeatureRequired: true,
-                        itemCountTitle:
-                            '${controller.libraryPodcasts.length} ${'items'.tr}',
-                        requiredSortTypes: buildSortTypeSet(),
-                        onSort: controller.onSort,
-                        onSearch: controller.onSearch,
-                        onSearchClose: controller.onSearchClose,
-                        onSearchStart: controller.onSearchStart,
-                      ),
-                    ),
-                  ),
-                  Obx(() {
-                    final items = controller.libraryPodcasts;
-                    if (items.isEmpty) {
-                      return SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: Center(
+                    Obx(() {
+                      if (controller.discoveryError.isTrue &&
+                          controller.topEpisodes.isEmpty &&
+                          controller.featuredPodcasts.isEmpty) {
+                        return SliverToBoxAdapter(
                           child: Padding(
                             padding: const EdgeInsets.all(24),
-                            child: Text(
-                              'noPodcastsBookmarked'.tr,
-                              style: Theme.of(context).textTheme.titleMedium,
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-                    return SliverLayoutBuilder(
-                      builder: (context, constraints) {
-                        final availableWidth = constraints.crossAxisExtent;
-                        final width = availableWidth > 300 && availableWidth < 394
-                            ? 310.0
-                            : availableWidth;
-                        final columns =
-                            (width / itemWidth).floor().clamp(2, 6);
-                        return SliverPadding(
-                          padding: const EdgeInsets.only(
-                              bottom: 200, top: 10, left: 0, right: 0),
-                          sliver: SliverGrid(
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: columns,
-                              childAspectRatio: itemWidth / itemHeight,
-                            ),
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) => Center(
-                                child: ContentListItem(
-                                  content: items[index],
-                                  isLibraryItem: true,
-                                ),
+                            child: Center(
+                              child: Column(
+                                children: [
+                                  Text('networkError1'.tr,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall),
+                                  const SizedBox(height: 8),
+                                  TextButton(
+                                    onPressed: () =>
+                                        controller.loadDiscovery(force: true),
+                                    child: Text('retry'.tr),
+                                  ),
+                                ],
                               ),
-                              childCount: items.length,
                             ),
                           ),
                         );
-                      },
-                    );
-                  }),
-                ],
-              ),
-            ),
+                      }
+                      return const SliverToBoxAdapter(child: SizedBox.shrink());
+                    }),
+                    // Top episodes row
+                    Obx(() {
+                      if (controller.topEpisodes.isEmpty) {
+                        return const SliverToBoxAdapter(
+                            child: SizedBox.shrink());
+                      }
+                      return SliverToBoxAdapter(
+                        child: _EpisodeDiscoveryRow(
+                          title: 'topEpisodes'.tr,
+                          episodes: controller.topEpisodes.toList(),
+                        ),
+                      );
+                    }),
+                    // Featured podcasts row
+                    Obx(() {
+                      if (controller.featuredPodcasts.isEmpty) {
+                        return const SliverToBoxAdapter(
+                            child: SizedBox.shrink());
+                      }
+                      return SliverToBoxAdapter(
+                        child: _PodcastCarousel(
+                          title: 'featuredPodcasts'.tr,
+                          podcasts: controller.featuredPodcasts.toList(),
+                        ),
+                      );
+                    }),
+                    // ── Library ────────────────────────────────────────
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 5, top: 16),
+                        child: Text(
+                          'libPodcasts'.tr,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Obx(
+                        () => SortWidget(
+                          tag: 'LibPodcastSort',
+                          screenController: controller,
+                          isAdditionalOperationRequired: false,
+                          isSearchFeatureRequired: true,
+                          itemCountTitle:
+                              '${controller.libraryPodcasts.length} ${'items'.tr}',
+                          requiredSortTypes: buildSortTypeSet(),
+                          onSort: controller.onSort,
+                          onSearch: controller.onSearch,
+                          onSearchClose: controller.onSearchClose,
+                          onSearchStart: controller.onSearchStart,
+                        ),
+                      ),
+                    ),
+                    Obx(() {
+                      final items = controller.libraryPodcasts;
+                      if (items.isEmpty) {
+                        return SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Text(
+                                'noPodcastsBookmarked'.tr,
+                                style: Theme.of(context).textTheme.titleMedium,
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                      return SliverLayoutBuilder(
+                        builder: (context, constraints) {
+                          final availableWidth = constraints.crossAxisExtent;
+                          final width =
+                              availableWidth > 300 && availableWidth < 394
+                                  ? 310.0
+                                  : availableWidth;
+                          final columns =
+                              (width / itemWidth).floor().clamp(2, 6);
+                          return SliverPadding(
+                            padding: const EdgeInsets.only(
+                                bottom: 200, top: 10, left: 0, right: 0),
+                            sliver: SliverGrid(
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: columns,
+                                childAspectRatio: itemWidth / itemHeight,
+                              ),
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) => Center(
+                                  child: ContentListItem(
+                                    content: items[index],
+                                    isLibraryItem: true,
+                                  ),
+                                ),
+                                childCount: items.length,
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    }),
+                  ],
+                ),
+              );
+            }),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildSearchBody(LibraryPodcastsController controller,
+      double itemWidth, double itemHeight) {
+    return Obx(() {
+      if (controller.isSearching.isTrue) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      final items = controller.searchResults;
+      if (items.isEmpty) {
+        return Center(
+          child: Text(
+            'noResults'.tr,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        );
+      }
+      return CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 5, top: 8, bottom: 4),
+              child: Text(
+                '${items.length} ${'items'.tr}',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ),
+          ),
+          SliverLayoutBuilder(
+            builder: (context, constraints) {
+              final availableWidth = constraints.crossAxisExtent;
+              final width = availableWidth > 300 && availableWidth < 394
+                  ? 310.0
+                  : availableWidth;
+              final columns = (width / itemWidth).floor().clamp(2, 6);
+              return SliverPadding(
+                padding: const EdgeInsets.only(bottom: 200, top: 10),
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    childAspectRatio: itemWidth / itemHeight,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => Center(
+                      child: ContentListItem(content: items[index]),
+                    ),
+                    childCount: items.length,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      );
+    });
   }
 }
 

@@ -51,8 +51,7 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("podcasts".tr,
-                style: Theme.of(context).textTheme.titleLarge),
+            Text("podcasts".tr, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
             TextField(
               controller: _searchCtrl,
@@ -106,8 +105,8 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
       {required bool subscribeMode}) {
     if (items.isEmpty) {
       return Center(
-        child: Text("noResults".tr,
-            style: Theme.of(context).textTheme.bodyMedium),
+        child:
+            Text("noResults".tr, style: Theme.of(context).textTheme.bodyMedium),
       );
     }
     return ListView.builder(
@@ -169,10 +168,8 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
   }
 
   Future<void> _load() async {
-    final eps = await PodcastService.episodes(
-        widget.podcast['feedUrl'],
-        widget.podcast['title'] ?? '',
-        widget.podcast['artwork'] ?? '');
+    final eps = await PodcastService.episodes(widget.podcast['feedUrl'],
+        widget.podcast['title'] ?? '', widget.podcast['artwork'] ?? '');
     if (mounted) {
       setState(() {
         _episodes = eps;

@@ -390,17 +390,21 @@ List<dynamic>? parseSongArtists(Map<String, dynamic> data, int index) {
 }
 
 Map<String, dynamic> getFlexColumnItem(Map<String, dynamic> item, int index) {
-  if ((item['flexColumns']).length <= index ||
-      !item['flexColumns'][index]['musicResponsiveListItemFlexColumnRenderer']
-          .containsKey('text') ||
-      !item['flexColumns'][index]['musicResponsiveListItemFlexColumnRenderer']
-              ['text']
-          .containsKey('runs')) {
+  final flexColumns = item['flexColumns'];
+  // multi-row podcast episodes and some other cards have no flexColumns
+  if (flexColumns is! List || flexColumns.length <= index) {
+    return {};
+  }
+  final renderer =
+      flexColumns[index]['musicResponsiveListItemFlexColumnRenderer'];
+  if (renderer is! Map ||
+      !renderer.containsKey('text') ||
+      renderer['text'] is! Map ||
+      !renderer['text'].containsKey('runs')) {
     return {};
   }
 
-  return item['flexColumns'][index]
-      ['musicResponsiveListItemFlexColumnRenderer'];
+  return Map<String, dynamic>.from(renderer);
 }
 
 Map<String, dynamic> parseWatchPlaylistHome(Map<dynamic, dynamic> data) {
@@ -500,11 +504,10 @@ List<dynamic> parsePlaylistItems(List<dynamic> results,
         'browseId'
       ]);
       videoId = creditId?.split("MPTC")[1];
-      
     }
 
-    if(isAlbum){
-      // Contains track number and total tracks 
+    if (isAlbum) {
+      // Contains track number and total tracks
       trackDetails = data?["index"] != null
           ? "${nav(data, ['index', 'runs', 0, 'text'])}/${results.length}"
           : null;
@@ -727,8 +730,7 @@ List<dynamic> parseSearchResults(List<dynamic> results,
         }
         final data = result['musicResponsiveListItemRenderer'];
         if (data == null) return null;
-        return parseSearchResult(
-            data, searchResultTypes, resultType, category);
+        return parseSearchResult(data, searchResultTypes, resultType, category);
       })
       .whereType<dynamic>()
       .toList();
@@ -760,7 +762,9 @@ dynamic parseSearchResult(Map<String, dynamic> data,
 
   // Infer podcast from browse id prefix when type unknown
   final browseGuess = nav(data, navigation_browse_id)?.toString();
-  if (resultType == null && browseGuess != null && browseGuess.startsWith('MPSP')) {
+  if (resultType == null &&
+      browseGuess != null &&
+      browseGuess.startsWith('MPSP')) {
     resultType = 'podcast';
   }
 
@@ -802,8 +806,7 @@ dynamic parseSearchResult(Map<String, dynamic> data,
       if (flex1.isNotEmpty) {
         final runs = flex1['text']?['runs'] as List? ?? [];
         if (runs.isNotEmpty) {
-          searchResult['description'] =
-              runs.map((r) => r['text']).join('');
+          searchResult['description'] = runs.map((r) => r['text']).join('');
         }
       }
     } catch (_) {}
@@ -925,7 +928,9 @@ dynamic parseSearchResult(Map<String, dynamic> data,
 
   searchResult['thumbnails'] = nav(data, thumbnails);
 
-  if (resultType == 'song' || resultType == 'video' || resultType == 'episode') {
+  if (resultType == 'song' ||
+      resultType == 'video' ||
+      resultType == 'episode') {
     if (searchResult['videoId'] != null) {
       return MediaItemBuilder.fromJson(searchResult);
     }
@@ -987,12 +992,18 @@ Playlist? parsePodcastTwoRow(Map<String, dynamic> data) {
 }
 
 /// Episodes under a podcast musicShelf.
+///
+/// YouTube Music currently returns podcast episodes as
+/// `musicMultiRowListItemRenderer` (detailed cards). Older responses (and
+/// some channel/explore shelves) still use `musicResponsiveListItemRenderer`.
 List<MediaItem> parsePodcastEpisodes(List contents) {
   final episodes = <MediaItem>[];
   for (final item in contents) {
-    final data = item['musicResponsiveListItemRenderer'];
-    if (data == null) continue;
-    final parsed = parseEpisodeItem(data);
+    if (item is! Map) continue;
+    final data = item['musicMultiRowListItemRenderer'] ??
+        item['musicResponsiveListItemRenderer'];
+    if (data == null || data is! Map) continue;
+    final parsed = parseEpisodeItem(Map<String, dynamic>.from(data));
     if (parsed != null) episodes.add(parsed);
   }
   return episodes;
@@ -1034,6 +1045,15 @@ MediaItem? parseEpisodeItem(Map<String, dynamic> data) {
           'durationText',
           'runs',
           0,
+          'text',
+        ]) ??
+        // multi-row also uses playbackProgressText as a twin of durationText
+        nav(data, [
+          'playbackProgress',
+          'musicPlaybackProgressRenderer',
+          'playbackProgressText',
+          'runs',
+          1,
           'text',
         ]);
     // Don't name this local "description" — shadows the top-level path const.
@@ -1276,15 +1296,22 @@ dynamic parseContentList(results, Function parseFunc) {
 }
 
 Map<String, dynamic> parseChartsItemBrowseId(dynamic result) {
-  final title = nav(result,["musicTwoRowItemRenderer","title","runs",0,"text"]);
-  final browseId = nav(result,
-      ["musicTwoRowItemRenderer","title","runs",0,"navigationEndpoint","browseEndpoint","browseId"]);
+  final title =
+      nav(result, ["musicTwoRowItemRenderer", "title", "runs", 0, "text"]);
+  final browseId = nav(result, [
+    "musicTwoRowItemRenderer",
+    "title",
+    "runs",
+    0,
+    "navigationEndpoint",
+    "browseEndpoint",
+    "browseId"
+  ]);
   if (title.contains('Trending')) {
     return {'title': "Trending", 'browseId': browseId};
   } else if (title.contains('Daily Top')) {
     return {'title': "Top Music Videos", 'browseId': browseId};
-  }
-  else{
+  } else {
     return {'title': title, 'browseId': browseId};
   }
 }
