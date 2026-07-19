@@ -7,6 +7,7 @@ import 'package:widget_marquee/widget_marquee.dart';
 
 import '/models/playling_from.dart';
 import '/models/thumbnail.dart';
+import '/services/podcast_service.dart';
 import '/ui/widgets/playlist_album_scroll_behaviour.dart';
 import '../../../services/downloader.dart';
 import '../../navigator.dart';
@@ -741,23 +742,35 @@ class PlaylistScreen extends StatelessWidget {
                                 );
                               }
 
+                              final pl = playlistController.playlist.value;
+                              final isPodcastList = pl.kind == 'podcast' ||
+                                  pl.playlistId.startsWith('MPSP');
+                              final song =
+                                  playlistController.songList[index - 3];
+                              void playThis() {
+                                playerController.playPlayListSong(
+                                    List<MediaItem>.from(
+                                        playlistController.songList),
+                                    index - 3,
+                                    playfrom: PlaylingFrom(
+                                        name: pl.title,
+                                        type: PlaylingFromType.PLAYLIST));
+                              }
+                              // Podcast episodes get an AntennaPod-style row
+                              // (date · 2-line title · duration), not the
+                              // scrolling music tile.
+                              if (isPodcastList) {
+                                return _PodcastEpisodeTile(
+                                    song: song, onTap: playThis);
+                              }
                               return Padding(
                                 padding:
                                     const EdgeInsets.only(left: 20.0, right: 5),
                                 child: SongListTile(
-                                  onTap: () {
-                                    playerController.playPlayListSong(
-                                        List<MediaItem>.from(
-                                            playlistController.songList),
-                                        index - 3,
-                                        playfrom: PlaylingFrom(
-                                            name: playlistController
-                                                .playlist.value.title,
-                                            type: PlaylingFromType.PLAYLIST));
-                                  },
-                                  song: playlistController.songList[index - 3],
+                                  onTap: playThis,
+                                  song: song,
                                   isPlaylistOrAlbum: true,
-                                  playlist: playlistController.playlist.value,
+                                  playlist: pl,
                                 ),
                               );
                             },
@@ -786,5 +799,86 @@ class PlaylistScreen extends StatelessWidget {
       barrierColor: Colors.transparent.withAlpha(100),
       builder: (context) => SongInfoBottomSheet(song),
     ).whenComplete(() => Get.delete<SongInfoController>());
+  }
+}
+
+/// AntennaPod-style episode row: 56×56 art, a publish-date meta line, a 2-line
+/// (non-scrolling) bold title and the duration. Used for podcast episodes in
+/// place of the music SongListTile. YouTube episodes carry no file size, so the
+/// meta line is just the date.
+class _PodcastEpisodeTile extends StatelessWidget {
+  const _PodcastEpisodeTile({required this.song, required this.onTap});
+  final MediaItem song;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final date = (song.extras?['date'] ?? '').toString().trim();
+    final durationSec = song.duration?.inSeconds ?? 0;
+    final durationText = durationSec > 0
+        ? PodcastService.formatDuration(durationSec)
+        : (song.extras?['length'] ?? '').toString().trim();
+    final art = Thumbnail(song.artUri?.toString() ?? '').medium;
+    return InkWell(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 10, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: CachedNetworkImage(
+                    imageUrl: art,
+                    width: 56,
+                    height: 56,
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) =>
+                        const Icon(Icons.podcasts, size: 40),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (date.isNotEmpty)
+                        Text(
+                          date,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      Text(
+                        song.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleSmall
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      if (durationText.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            durationText,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.play_circle_outline, size: 30),
+              ],
+            ),
+          ),
+          const Divider(height: 1, indent: 20, endIndent: 12),
+        ],
+      ),
+    );
   }
 }
