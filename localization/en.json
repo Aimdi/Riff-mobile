@@ -329,5 +329,8 @@
   "speedAndPitchDes": "Adjust playback speed and pitch",
   "speed": "Speed",
   "pitch": "Pitch",
-  "done": "Done"
+  "done": "Done",
+  "neverPlayArtist": "Never play this artist",
+  "artistBannedMsg": "Artist won't be suggested again:",
+  "bannedArtistTag": "Banned artist"
 }

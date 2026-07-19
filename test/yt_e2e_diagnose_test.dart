@@ -14,6 +14,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 
+import 'package:harmonymusic/services/kugou_lyrics_service.dart';
 import 'package:harmonymusic/services/music_service.dart';
 import 'package:harmonymusic/services/stream_service.dart';
 
@@ -85,5 +86,15 @@ void main() {
     // Do not hard-fail on !playable: datacenter IPs may be blocked from
     // googlevideo endpoints while phones are fine. The printout is the
     // diagnostic signal.
+  }, timeout: const Timeout(Duration(minutes: 3)));
+
+  test('KuGou lyrics fallback resolves', () async {
+    final lrc = await KuGouLyricsService.getSyncedLyrics(
+        "Rick Astley", "Never Gonna Give You Up", 213);
+    // ignore: avoid_print
+    print('KUGOU LYRICS: ${lrc == null ? "none" : "${lrc.length} chars, "
+        "synced=${lrc.contains("[")}"}');
+    // Non-fatal: KuGou may rate-limit datacenter IPs; the print is the
+    // signal that the provider wiring works.
   }, timeout: const Timeout(Duration(minutes: 3)));
 }

@@ -1004,6 +1004,7 @@ class _BannedSongsDialogState extends State<BannedSongsDialog> {
   @override
   Widget build(BuildContext context) {
     final banned = BanService.all;
+    final bannedArtists = BanService.allArtists;
     return Dialog(
       child: Container(
         constraints: const BoxConstraints(maxHeight: 500),
@@ -1016,7 +1017,7 @@ class _BannedSongsDialogState extends State<BannedSongsDialog> {
               child: Text("bannedSongs".tr,
                   style: Theme.of(context).textTheme.titleMedium),
             ),
-            if (banned.isEmpty)
+            if (banned.isEmpty && bannedArtists.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(15),
                 child: Text("noBannedSongs".tr,
@@ -1025,20 +1026,34 @@ class _BannedSongsDialogState extends State<BannedSongsDialog> {
             Flexible(
               child: ListView(
                 shrinkWrap: true,
-                children: banned
-                    .map((song) => ListTile(
-                          visualDensity: const VisualDensity(vertical: -3),
-                          title: Text(song["title"], maxLines: 1),
-                          subtitle: Text(song["artist"], maxLines: 1),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () {
-                              BanService.unban(song["id"]);
-                              setState(() {});
-                            },
-                          ),
-                        ))
-                    .toList(),
+                children: [
+                  ...bannedArtists.map((artist) => ListTile(
+                        visualDensity: const VisualDensity(vertical: -3),
+                        leading: const Icon(Icons.person_off, size: 20),
+                        title: Text(artist["name"], maxLines: 1),
+                        subtitle: Text("bannedArtistTag".tr,
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () {
+                            BanService.unbanArtist(artist["key"]);
+                            setState(() {});
+                          },
+                        ),
+                      )),
+                  ...banned.map((song) => ListTile(
+                        visualDensity: const VisualDensity(vertical: -3),
+                        title: Text(song["title"], maxLines: 1),
+                        subtitle: Text(song["artist"], maxLines: 1),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () {
+                            BanService.unban(song["id"]);
+                            setState(() {});
+                          },
+                        ),
+                      )),
+                ],
               ),
             ),
             Align(

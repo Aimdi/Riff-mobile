@@ -169,6 +169,19 @@ class SongInfoBottomSheet extends StatelessWidget {
                     size: SanckBarSize.BIG));
               },
             ),
+            if (song.artist != null && song.artist!.isNotEmpty)
+              ListTile(
+                visualDensity: const VisualDensity(vertical: -1),
+                leading: const Icon(Icons.person_off),
+                title: Text("neverPlayArtist".tr),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  BanService.banArtist(song.artist!);
+                  ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                      context, "${"artistBannedMsg".tr} ${song.artist}",
+                      size: SanckBarSize.BIG));
+                },
+              ),
             ListTile(
               visualDensity: const VisualDensity(vertical: -1),
               leading: const Icon(Icons.playlist_add),
