@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:hive/hive.dart';
@@ -114,6 +115,113 @@ class PodcastService {
           : null;
     } catch (_) {
       return null;
+    }
+  }
+
+  // --- Similar podcasts ("popular with listeners of X") ---
+
+  static final Map<String, List<Map<String, dynamic>>> _similarCache = {};
+
+  /// Best-effort Apple storefront (country code) from the device locale, so a
+  /// German/Spanish/etc. user gets that store's genre charts, not the US one.
+  static String _storefront() {
+    try {
+      final m = RegExp(r'[_-]([A-Za-z]{2})').firstMatch(Platform.localeName);
+      if (m != null) return m.group(1)!.toLowerCase();
+    } catch (_) {}
+    return 'us';
+  }
+
+  /// Podcasts in the same Apple genre as [title] — a no-key "popular with
+  /// listeners of X" signal (no login, nothing reported). Pipeline: find the
+  /// seed podcast on Apple to read its genre, pull that genre's top charts,
+  /// drop the seed itself and anything already followed, then batch-resolve
+  /// feed URLs so each result opens straight into its episode list.
+  /// Returns [{title, author, artwork, feedUrl}].
+  static Future<List<Map<String, dynamic>>> similar(String title,
+      {int limit = 15}) async {
+    final key = title.trim().toLowerCase();
+    if (key.isEmpty) return [];
+    final cached = _similarCache[key];
+    if (cached != null) return cached;
+    try {
+      final cc = _storefront();
+      // 1. Find the seed podcast on Apple to read its genre + id.
+      final look = await _dio.get('https://itunes.apple.com/search',
+          queryParameters: {
+            'media': 'podcast',
+            'term': title,
+            'country': cc,
+            'limit': 3,
+          });
+      final matches = _asMap(look.data)?['results'] as List?;
+      if (matches == null || matches.isEmpty) return [];
+      final src = matches.first as Map;
+      final srcId = '${src['collectionId'] ?? src['trackId'] ?? ''}';
+      final genreIds = (src['genreIds'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const <String>[];
+      // genreIds always carries "26" (root "Podcasts"); the real category is
+      // the first non-root id.
+      final genreId = genreIds.firstWhere((g) => g != '26',
+          orElse: () => genreIds.isNotEmpty ? genreIds.first : '');
+      if (genreId.isEmpty) return [];
+
+      // 2. Top podcasts in that genre (popularity within the same category).
+      final rss = await _dio.get(
+          'https://itunes.apple.com/$cc/rss/toppodcasts/genre=$genreId/limit=50/json');
+      final entries = _asMap(rss.data)?['feed']?['entry'] as List?;
+      if (entries == null) return [];
+
+      final followed = subscriptions.map((s) => '${s['feedUrl']}').toSet();
+      final candidates = <Map<String, dynamic>>[];
+      for (final e in entries) {
+        if (e is! Map) continue;
+        final id = '${e['id']?['attributes']?['im:id'] ?? ''}';
+        if (id.isEmpty || id == srcId) continue;
+        final images = e['im:image'] as List?;
+        final raw = (images != null && images.isNotEmpty)
+            ? '${images.last['label'] ?? ''}'
+            : '';
+        candidates.add({
+          'collectionId': id,
+          'title': '${e['im:name']?['label'] ?? ''}',
+          'author': '${e['im:artist']?['label'] ?? ''}',
+          'artwork': Thumbnail(raw).extraHigh,
+        });
+        if (candidates.length >= limit) break;
+      }
+      if (candidates.isEmpty) return [];
+
+      // 3. Batch-resolve feed URLs (one lookup) — needed to open episodes.
+      final ids = candidates.map((c) => c['collectionId']).join(',');
+      final lk = await _dio.get('https://itunes.apple.com/lookup',
+          queryParameters: {'id': ids});
+      final results = _asMap(lk.data)?['results'] as List? ?? const [];
+      final feedById = <String, String>{};
+      for (final r in results) {
+        if (r is Map && r['feedUrl'] != null) {
+          feedById['${r['collectionId']}'] = '${r['feedUrl']}';
+        }
+      }
+
+      final out = <Map<String, dynamic>>[];
+      for (final c in candidates) {
+        final feed = feedById['${c['collectionId']}'];
+        if (feed == null || feed.isEmpty || followed.contains(feed)) continue;
+        out.add({
+          'title': c['title'],
+          'author': c['author'],
+          'artwork': c['artwork'],
+          'feedUrl': feed,
+        });
+      }
+      _similarCache[key] = out;
+      return out;
+    } catch (e) {
+      printERROR("Similar podcasts failed: $e");
+      return [];
     }
   }
 

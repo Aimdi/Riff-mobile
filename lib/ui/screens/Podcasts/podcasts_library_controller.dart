@@ -1,9 +1,12 @@
+import 'dart:math';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
 import '/models/playlist.dart';
 import '/services/music_service.dart';
+import '/services/podcast_service.dart';
 import '/ui/widgets/sort_widget.dart';
 
 class LibraryPodcastsController extends GetxController {
@@ -14,6 +17,12 @@ class LibraryPodcastsController extends GetxController {
   final isDiscoveryLoading = false.obs;
   final discoveryError = false.obs;
   final isContentFetched = false.obs;
+
+  // "Popular with listeners of X" — similar podcasts to a random one you
+  // follow, sourced from Apple's genre charts (see PodcastService.similar).
+  final similarPodcasts = <Map<String, dynamic>>[].obs;
+  final similarSeedTitle = ''.obs;
+  final isSimilarLoading = false.obs;
 
   // Discover / directory search (YouTube Music podcasts)
   final searchQuery = ''.obs;
@@ -26,8 +35,32 @@ class LibraryPodcastsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    refreshLib();
+    refreshLib().then((_) => loadSimilar());
     loadDiscovery();
+  }
+
+  /// Load "similar podcasts" for a random subscription. Cheap & cached, so it
+  /// runs on open and after the first subscription is added.
+  Future<void> loadSimilar({bool force = false}) async {
+    if (isSimilarLoading.isTrue) return;
+    if (!force && similarPodcasts.isNotEmpty) return;
+    final libs = libraryPodcasts.toList();
+    if (libs.isEmpty) {
+      similarPodcasts.clear();
+      similarSeedTitle.value = '';
+      return;
+    }
+    isSimilarLoading.value = true;
+    try {
+      final seed = libs[Random().nextInt(libs.length)];
+      similarSeedTitle.value = seed.title;
+      final res = await PodcastService.similar(seed.title);
+      similarPodcasts.assignAll(res);
+    } catch (_) {
+      similarPodcasts.clear();
+    } finally {
+      isSimilarLoading.value = false;
+    }
   }
 
   Future<void> refreshLib() async {
@@ -114,12 +147,18 @@ class LibraryPodcastsController extends GetxController {
       'description': podcast.description ?? 'Podcast',
     });
     await refreshLib();
+    // Seed the "similar" row once we have something to base it on.
+    if (similarPodcasts.isEmpty) loadSimilar();
   }
 
   Future<void> removeFromLibrary(String playlistId) async {
     final box = await Hive.openBox('LibraryPodcasts');
     await box.delete(playlistId);
     await refreshLib();
+    if (libraryPodcasts.isEmpty) {
+      similarPodcasts.clear();
+      similarSeedTitle.value = '';
+    }
   }
 
   bool isInLibrary(String playlistId) {

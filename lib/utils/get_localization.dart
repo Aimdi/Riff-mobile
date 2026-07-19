@@ -1803,6 +1803,8 @@ Map<String, Map<String, String>> get keys => {
   "discoverPodcasts": "Discover",
   "topEpisodes": "Top episodes",
   "featuredPodcasts": "Featured podcasts",
+  "similarPodcasts": "Similar podcasts",
+  "popularWithListenersOf": "Popular with listeners of",
   "noPodcastsBookmarked": "No bookmarked podcasts yet. Discover some above!",
   "communityplaylists": "Community Playlists",
   "featuredplaylists": "Featured Playlists",

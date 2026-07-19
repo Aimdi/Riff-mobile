@@ -1,13 +1,16 @@
 import 'package:audio_service/audio_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/models/playlist.dart';
+import '/models/thumbnail.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/content_list_widget_item.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/sort_widget.dart';
 import 'podcasts_library_controller.dart';
+import 'podcasts_screen.dart';
 
 class PodcastsLibraryWidget extends StatefulWidget {
   const PodcastsLibraryWidget({super.key, this.isBottomNavActive = false});
@@ -181,6 +184,23 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                         child: _PodcastCarousel(
                           title: 'featuredPodcasts'.tr,
                           podcasts: controller.featuredPodcasts.toList(),
+                        ),
+                      );
+                    }),
+                    // Similar podcasts row ("Popular with listeners of X")
+                    Obx(() {
+                      if (controller.similarPodcasts.isEmpty) {
+                        return const SliverToBoxAdapter(
+                            child: SizedBox.shrink());
+                      }
+                      final seed = controller.similarSeedTitle.value;
+                      final title = seed.isEmpty
+                          ? 'similarPodcasts'.tr
+                          : '${'popularWithListenersOf'.tr} $seed';
+                      return SliverToBoxAdapter(
+                        child: _SimilarPodcastsRow(
+                          title: title,
+                          podcasts: controller.similarPodcasts.toList(),
                         ),
                       );
                     }),
@@ -412,6 +432,96 @@ class _EpisodeDiscoveryRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// "Popular with listeners of X" — a horizontal row of Apple-genre-similar
+/// podcasts (plain maps: {title, author, artwork, feedUrl}). Tapping a card
+/// opens its episode list (PodcastEpisodesScreen), which streams straight from
+/// the RSS enclosure.
+class _SimilarPodcastsRow extends StatelessWidget {
+  const _SimilarPodcastsRow({required this.title, required this.podcasts});
+  final String title;
+  final List<Map<String, dynamic>> podcasts;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 5, top: 12, bottom: 6, right: 8),
+          child: Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+        ),
+        SizedBox(
+          height: 200,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 5),
+            physics: const BouncingScrollPhysics(),
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemCount: podcasts.length,
+            itemBuilder: (_, i) => _ItunesPodcastCard(podcast: podcasts[i]),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Single square podcast card matching the tab's other cards (130×180).
+class _ItunesPodcastCard extends StatelessWidget {
+  const _ItunesPodcastCard({required this.podcast});
+  final Map<String, dynamic> podcast;
+
+  @override
+  Widget build(BuildContext context) {
+    final art = Thumbnail((podcast['artwork'] ?? '').toString()).high;
+    return SizedBox(
+      width: 130,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => Get.to(() => PodcastEpisodesScreen(podcast: podcast)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(5),
+              child: CachedNetworkImage(
+                imageUrl: art,
+                width: 120,
+                height: 120,
+                fit: BoxFit.cover,
+                errorWidget: (_, __, ___) => Container(
+                  width: 120,
+                  height: 120,
+                  color: Theme.of(context).colorScheme.secondary.withOpacity(.3),
+                  child: const Icon(Icons.podcasts, size: 48),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              (podcast['title'] ?? '').toString(),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            Text(
+              (podcast['author'] ?? '').toString(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

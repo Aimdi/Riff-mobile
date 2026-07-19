@@ -116,4 +116,17 @@ void main() {
     expect(eps, isNotEmpty);
     expect((eps.first["url"] as String).startsWith("http"), isTrue);
   }, timeout: const Timeout(Duration(minutes: 3)));
+
+  test('similar podcasts (Apple genre charts)', () async {
+    final similar = await PodcastService.similar("this american life");
+    // ignore: avoid_print
+    print('SIMILAR PODCASTS: ${similar.length}; first='
+        '${similar.isNotEmpty ? similar.first["title"] : "none"}');
+    expect(similar, isNotEmpty);
+    // Every card must carry a feed URL so it can open its episode list.
+    expect(
+        similar.every((p) =>
+            (p["feedUrl"] as String?)?.startsWith("http") ?? false),
+        isTrue);
+  }, timeout: const Timeout(Duration(minutes: 3)));
 }
