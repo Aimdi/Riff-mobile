@@ -380,13 +380,13 @@ MediaItem parseSongFlat(Map<String, dynamic> data) {
 }
 
 List<dynamic>? parseSongArtists(Map<String, dynamic> data, int index) {
-  dynamic flexItem = getFlexColumnItem(data, index);
-  if (flexItem == null || flexItem.length == 0) {
+  final flexItem = getFlexColumnItem(data, index);
+  // Never null — empty map means missing column.
+  if (flexItem.isEmpty) {
     return null;
-  } else {
-    var runs = flexItem['text']['runs'];
-    return parseSongArtistsRuns(runs);
   }
+  final runs = flexItem['text']['runs'];
+  return parseSongArtistsRuns(runs);
 }
 
 Map<String, dynamic> getFlexColumnItem(Map<String, dynamic> item, int index) {
@@ -798,7 +798,8 @@ dynamic parseSearchResult(Map<String, dynamic> data,
     // Channel / author in second column when present
     try {
       final flex1 = getFlexColumnItem(data, 1);
-      if (flex1 != null) {
+      // getFlexColumnItem never returns null (uses {} when missing).
+      if (flex1.isNotEmpty) {
         final runs = flex1['text']?['runs'] as List? ?? [];
         if (runs.isNotEmpty) {
           searchResult['description'] =
