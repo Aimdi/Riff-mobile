@@ -1807,6 +1807,8 @@ Map<String, Map<String, String>> get keys => {
   "popularWithListenersOf": "Popular with listeners of",
   "shownotes": "Shownotes",
   "noShownotes": "No shownotes available for this episode.",
+  "podcastInbox": "Inbox",
+  "noInboxEpisodes": "No episodes yet — subscribe to podcasts to fill your inbox.",
   "noPodcastsBookmarked": "No bookmarked podcasts yet. Discover some above!",
   "communityplaylists": "Community Playlists",
   "featuredplaylists": "Featured Playlists",

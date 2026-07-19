@@ -9,6 +9,7 @@ import '/ui/player/player_controller.dart';
 import '/ui/widgets/content_list_widget_item.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/sort_widget.dart';
+import 'podcast_inbox_screen.dart';
 import 'podcasts_library_controller.dart';
 import 'podcasts_screen.dart';
 
@@ -111,6 +112,14 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                             Text(
                               'discoverPodcasts'.tr,
                               style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(width: 4),
+                            // Inbox: latest episodes across all subscriptions.
+                            IconButton(
+                              tooltip: 'podcastInbox'.tr,
+                              icon: const Icon(Icons.inbox_outlined, size: 22),
+                              onPressed: () =>
+                                  Get.to(() => const PodcastInboxScreen()),
                             ),
                             const Spacer(),
                             Obx(() {
