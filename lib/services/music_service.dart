@@ -455,10 +455,15 @@ class MusicServices extends getx.GetxService {
           (await _sendRequest("browse", {...data, ...cont})).data;
 
       if (songCount > 0) {
-        playlist['tracks'] = parsePlaylistItems(results['contents']);
+        // Pass playlist cover as fallback when YTM omits per-track thumbnails
+        // (otherwise song rows show the generic icon instead of art).
+        final coverThumbs = playlist['thumbnails'];
+        playlist['tracks'] =
+            parsePlaylistItems(results['contents'], thumbnailsM: coverThumbs);
         limit = songCount;
 
-        List<dynamic> parseFunc(contents) => parsePlaylistItems(contents);
+        List<dynamic> parseFunc(contents) =>
+            parsePlaylistItems(contents, thumbnailsM: coverThumbs);
 
         playlist['tracks'] = [
           ...(playlist['tracks']),
@@ -603,13 +608,16 @@ class MusicServices extends getx.GetxService {
 
     List tracks = [];
     if (results != null && results['contents'] != null) {
-      tracks = parsePodcastEpisodes(results['contents']);
+      final coverThumbs = podcast['thumbnails'];
+      tracks = parsePodcastEpisodes(results['contents'],
+          fallbackThumbs: coverThumbs);
       if (results.containsKey('continuations')) {
         requestFunc(additionalParams) async =>
             (await _sendRequest('browse', data,
                     additionalParams: additionalParams))
                 .data;
-        parseFunc(contents) => parsePodcastEpisodes(contents);
+        parseFunc(contents) =>
+            parsePodcastEpisodes(contents, fallbackThumbs: coverThumbs);
         final remaining = limit - tracks.length;
         if (remaining > 0) {
           try {
@@ -668,24 +676,26 @@ class MusicServices extends getx.GetxService {
               ...navigation_video_type,
             ]);
 
-        final isEpisodeShelf = videoType == 'MUSIC_VIDEO_TYPE_PODCAST_EPISODE' ||
-            (nav(renderer, [
-                      ...play_button,
-                      'playNavigationEndpoint',
-                      'watchEndpoint',
-                      'videoId',
-                    ]) !=
-                    null &&
-                nav(renderer, navigation_browse_id)
-                        ?.toString()
-                        .startsWith('MP') ==
-                    true);
+        final isEpisodeShelf =
+            videoType == 'MUSIC_VIDEO_TYPE_PODCAST_EPISODE' ||
+                (nav(renderer, [
+                          ...play_button,
+                          'playNavigationEndpoint',
+                          'watchEndpoint',
+                          'videoId',
+                        ]) !=
+                        null &&
+                    nav(renderer, navigation_browse_id)
+                            ?.toString()
+                            .startsWith('MP') ==
+                        true);
 
         // Also match by title keywords when video type missing
         final shelfTitle =
             (nav(carousel, carousel_title + ['text']) ?? '').toString();
-        final titleLooksLikeEpisodes = shelfTitle.toLowerCase().contains('episode') ||
-            shelfTitle.toLowerCase().contains('podcast');
+        final titleLooksLikeEpisodes =
+            shelfTitle.toLowerCase().contains('episode') ||
+                shelfTitle.toLowerCase().contains('podcast');
 
         if (!isEpisodeShelf && !titleLooksLikeEpisodes) continue;
 

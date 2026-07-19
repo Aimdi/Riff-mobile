@@ -996,20 +996,24 @@ Playlist? parsePodcastTwoRow(Map<String, dynamic> data) {
 /// YouTube Music currently returns podcast episodes as
 /// `musicMultiRowListItemRenderer` (detailed cards). Older responses (and
 /// some channel/explore shelves) still use `musicResponsiveListItemRenderer`.
-List<MediaItem> parsePodcastEpisodes(List contents) {
+///
+/// [fallbackThumbs] is the podcast cover used when an episode has no art.
+List<MediaItem> parsePodcastEpisodes(List contents, {dynamic fallbackThumbs}) {
   final episodes = <MediaItem>[];
   for (final item in contents) {
     if (item is! Map) continue;
     final data = item['musicMultiRowListItemRenderer'] ??
         item['musicResponsiveListItemRenderer'];
     if (data == null || data is! Map) continue;
-    final parsed = parseEpisodeItem(Map<String, dynamic>.from(data));
+    final parsed = parseEpisodeItem(Map<String, dynamic>.from(data),
+        fallbackThumbs: fallbackThumbs);
     if (parsed != null) episodes.add(parsed);
   }
   return episodes;
 }
 
-MediaItem? parseEpisodeItem(Map<String, dynamic> data) {
+MediaItem? parseEpisodeItem(Map<String, dynamic> data,
+    {dynamic fallbackThumbs}) {
   try {
     final videoId = nav(data, [
           'onTap',
@@ -1028,6 +1032,8 @@ MediaItem? parseEpisodeItem(Map<String, dynamic> data) {
     final title = nav(data, title_text) ?? getItemText(data, 0) ?? 'Episode';
     final thumbs = nav(data, thumbnails) ??
         nav(data, thumbnail_renderer) ??
+        nav(data, thumbnail) ??
+        fallbackThumbs ??
         [
           {'url': Playlist.thumbPlaceholderUrl}
         ];

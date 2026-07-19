@@ -61,8 +61,9 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     _scaleAnimation =
         Tween<double>(begin: 0, end: 1.0).animate(animationController);
 
+    // Tall enough for the cover thumbnail + title row (64px art).
     _heightAnimation =
-        Tween<double>(begin: 10.0, end: 75.0).animate(CurvedAnimation(parent: animationController, curve: Curves.easeOutBack));
+        Tween<double>(begin: 10.0, end: 80.0).animate(CurvedAnimation(parent: animationController, curve: Curves.easeOutBack));
 
     final args = Get.arguments as List;
     final Playlist? playlist = args[0];

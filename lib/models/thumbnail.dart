@@ -112,7 +112,8 @@ class Thumbnail {
 
   static String? _upgradeAppleArtwork(String raw, int size) {
     // Prefer at least 1400 for player-sized art; Apple serves up to ~3000.
-    final side = size >= 600 ? (size >= 1200 ? 3000 : 1400) : size.clamp(100, 600);
+    final side =
+        size >= 600 ? (size >= 1200 ? 3000 : 1400) : size.clamp(100, 600);
 
     // Path form: .../100x100bb.jpg, .../600x600bb.webp, etc.
     final dimRe = RegExp(r'/\d+x\d+([a-z]*)(\.[a-zA-Z]+)?(?:\?.*)?$');
@@ -133,21 +134,41 @@ class Thumbnail {
     if (!(raw.contains('i.ytimg.com') || raw.contains('img.youtube.com'))) {
       return null;
     }
-    // Prefer maxres for large targets; hq720 is a reliable fallback many videos have.
-    if (size >= 600) {
-      var out = raw
-          .replaceFirst('maxresdefault', 'maxresdefault') // no-op keep
-          .replaceFirst('hq720', 'maxresdefault')
-          .replaceFirst('sddefault', 'maxresdefault')
-          .replaceFirst('hqdefault', 'maxresdefault')
-          .replaceFirst('mqdefault', 'maxresdefault')
-          .replaceFirst('/default.jpg', '/maxresdefault.jpg')
-          .replaceFirst('/default.webp', '/maxresdefault.webp');
-      // Frame thumbs: hq1/hq2/hq3
-      out = out.replaceFirst(RegExp(r'/hq\d\.'), '/maxresdefault.');
+    // Playlist / podcast square covers use signed sqp params — never rewrite.
+    if (raw.contains('/pl_c/') ||
+        raw.contains('/pl_h/') ||
+        raw.contains('studio_square') ||
+        raw.contains('playlist_thumbnail')) {
+      return raw;
+    }
+
+    // Strip signed query params before changing quality: sqp/rs are bound to the
+    // original filename and often 404 after a quality swap.
+    final bare = raw.split('?').first;
+
+    // Prefer hq720 over maxresdefault — maxres is frequently missing for music
+    // videos and then CachedNetworkImage shows the generic icon fallback.
+    if (size >= 400) {
+      var out = bare;
+      if (out.contains('maxresdefault') || out.contains('hq720')) {
+        // already large enough
+      } else {
+        out = out
+            .replaceFirst('sddefault', 'hq720')
+            .replaceFirst('hqdefault', 'hq720')
+            .replaceFirst('mqdefault', 'hq720')
+            .replaceFirst('/default.jpg', '/hq720.jpg')
+            .replaceFirst('/default.webp', '/hq720.webp');
+        // Frame thumbs: hq1/hq2/hq3 → hqdefault (hq720 frames don't exist)
+        out = out.replaceFirst(RegExp(r'/hq\d\.'), '/hqdefault.');
+      }
+      // Normalize maxres → hq720 for reliability when we stored maxres earlier
+      if (size < 900) {
+        out = out.replaceFirst('maxresdefault', 'hq720');
+      }
       return out;
     }
-    return raw
+    return bare
         .replaceFirst('default.jpg', 'hqdefault.jpg')
         .replaceFirst('mqdefault', 'hqdefault');
   }

@@ -10,6 +10,7 @@ import 'package:widget_marquee/widget_marquee.dart';
 
 import '../../../services/downloader.dart';
 import '../../player/player_controller.dart';
+import '../../widgets/image_widget.dart';
 import '../../widgets/loader.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/song_list_tile.dart';
@@ -95,20 +96,21 @@ class AlbumScreen extends StatelessWidget {
                                       : BoxFit.fitWidth,
                                   width: landscape ? null : size.width,
                                   height: landscape ? size.height : null,
-                                  // placeholder: (context, n) => Align(
-                                  //   alignment:landscape?Alignment.centerLeft: Alignment.topCenter,
-                                  //   child: SizedBox(
-                                  //     width: landscape ? size.height : size.width,
-                                  //     height: landscape ? size.height : size.width,
-                                  //     child: Center(
-                                  //       child: Icon(Icons.album,
-                                  //           size: 150,
-                                  //           color: Theme.of(context)
-                                  //               .textTheme.titleSmall!.color
-                                  //         ),
-                                  //     ),
-                                  //   ),
-                                  // ),
+                                  errorWidget: (_, __, ___) =>
+                                      CachedNetworkImage(
+                                    imageUrl: albumController
+                                        .album.value.thumbnailUrl,
+                                    fit: landscape
+                                        ? BoxFit.fitHeight
+                                        : BoxFit.fitWidth,
+                                    width: landscape ? null : size.width,
+                                    height: landscape ? size.height : null,
+                                    errorWidget: (_, __, ___) => Container(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .secondary,
+                                    ),
+                                  ),
                                 )));
                       }))
                   : SizedBox(
@@ -190,7 +192,7 @@ class AlbumScreen extends StatelessWidget {
                                         children: [
                                           // Bookmark button
                                           Obx(() => IconButton(
-                                            tooltip: albumController
+                                              tooltip: albumController
                                                       .isAddedToLibrary.isFalse
                                                   ? "addToLibrary".tr
                                                   : "removeFromLibrary".tr,
@@ -227,7 +229,7 @@ class AlbumScreen extends StatelessWidget {
                                                   : Icons.bookmark_added))),
                                           // Play button
                                           IconButton(
-                                            tooltip: "play".tr,
+                                              tooltip: "play".tr,
                                               onPressed: () {
                                                 playerController
                                                     .playPlayListSong(
@@ -254,7 +256,7 @@ class AlbumScreen extends StatelessWidget {
                                               )),
                                           // Enqueue button
                                           IconButton(
-                                            tooltip: "enqueueAlbumSongs".tr,
+                                              tooltip: "enqueueAlbumSongs".tr,
                                               onPressed: () {
                                                 Get.find<PlayerController>()
                                                     .enqueueSongList(
@@ -363,7 +365,7 @@ class AlbumScreen extends StatelessWidget {
                                           //           Icons.cloud_sync)),
 
                                           IconButton(
-                                            tooltip: "shareAlbum".tr,
+                                              tooltip: "shareAlbum".tr,
                                               visualDensity:
                                                   const VisualDensity(
                                                       vertical: -3),
@@ -476,11 +478,10 @@ class AlbumScreen extends StatelessWidget {
 
   Widget buildTitleSubTitle(
       BuildContext context, AlbumScreenController albumController) {
-    final title = albumController.album.value.title;
-    final description = albumController.album.value.description;
-    final artists =
-        albumController.album.value.artists?.map((e) => e['name']).join(", ") ??
-            "";
+    final album = albumController.album.value;
+    final title = album.title;
+    final description = album.description;
+    final artists = album.artists?.map((e) => e['name']).join(", ") ?? "";
     return AnimatedBuilder(
       animation: albumController.animationController,
       builder: (context, child) {
@@ -491,39 +492,52 @@ class AlbumScreen extends StatelessWidget {
         );
       },
       child: Padding(
-        padding: const EdgeInsets.only(left: 25.0, bottom: 10, right: 30),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.only(left: 20.0, bottom: 10, right: 20),
+        child: Row(
           children: [
-            Marquee(
-              delay: const Duration(milliseconds: 300),
-              duration: const Duration(seconds: 5),
-              id: title.hashCode.toString(),
-              child: Text(
-                title.length > 50 ? title.substring(0, 50) : title,
-                maxLines: 1,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge!
-                    .copyWith(fontSize: 30),
-              ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: ImageWidget(size: 72, album: album),
             ),
-            Text(
-              description ?? "",
-              maxLines: 1,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: Marquee(
-                delay: const Duration(milliseconds: 300),
-                duration: const Duration(seconds: 5),
-                id: artists.hashCode.toString(),
-                child: Text(
-                  artists,
-                  maxLines: 1,
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Marquee(
+                    delay: const Duration(milliseconds: 300),
+                    duration: const Duration(seconds: 5),
+                    id: title.hashCode.toString(),
+                    child: Text(
+                      title.length > 50 ? title.substring(0, 50) : title,
+                      maxLines: 1,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge!
+                          .copyWith(fontSize: 22),
+                    ),
+                  ),
+                  if ((description ?? '').isNotEmpty)
+                    Text(
+                      description!,
+                      maxLines: 1,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Marquee(
+                      delay: const Duration(milliseconds: 300),
+                      duration: const Duration(seconds: 5),
+                      id: artists.hashCode.toString(),
+                      child: Text(
+                        artists,
+                        maxLines: 1,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

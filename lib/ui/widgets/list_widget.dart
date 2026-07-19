@@ -156,7 +156,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
               for (dynamic items in (albums[index].artists).sublist(1)) {
                 artistName = "${artistName + items['name']},";
               }
-            // ignore: empty_catches
+              // ignore: empty_catches
             } catch (e) {}
             artistName = artistName.length > 16
                 ? artistName.substring(0, 16)
@@ -239,9 +239,8 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           builder: (ctx) => Wrap(children: [
             ListTile(
               leading: const Icon(Icons.block),
-              title: Text(isAlbum
-                  ? "neverPlayAlbum".tr
-                  : "neverPlayPlaylist".tr),
+              title:
+                  Text(isAlbum ? "neverPlayAlbum".tr : "neverPlayPlaylist".tr),
               onTap: () {
                 BanService.banCollection(
                     id, name, isAlbum ? "album" : "playlist");
@@ -260,11 +259,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           padding: const EdgeInsets.only(top: 10.0, bottom: 10),
           child: Row(
             children: [
-              ImageWidget(
-                size: 100,
-                album: album,
-                playlist: playlist,
-              ),
+              _leadingArt(context, album: album, playlist: playlist),
               const SizedBox(
                 width: 20,
               ),
@@ -297,6 +292,69 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           ),
         ),
       ),
+    );
+  }
+
+  /// Cover art for album/playlist rows. Podcasts use a folder frame so they
+  /// read as show containers rather than plain playlists.
+  Widget _leadingArt(BuildContext context, {dynamic album, dynamic playlist}) {
+    final isPodcast = playlist is Playlist &&
+        (playlist.kind == 'podcast' ||
+            playlist.playlistId.startsWith('MPSP') ||
+            (playlist.description?.toLowerCase().contains('podcast') ?? false));
+    if (isPodcast) {
+      final secondary = Theme.of(context).colorScheme.secondary;
+      return SizedBox(
+        width: 100,
+        height: 100,
+        child: Stack(
+          children: [
+            Positioned(
+              left: 4,
+              top: 0,
+              child: Container(
+                width: 42,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: secondary.withOpacity(0.85),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(5),
+                    topRight: Radius.circular(5),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 10,
+              bottom: 0,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: secondary.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: secondary.withOpacity(0.55)),
+                ),
+                padding: const EdgeInsets.all(5),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: ImageWidget(size: 80, playlist: playlist),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 4,
+              bottom: 4,
+              child: Icon(Icons.folder, size: 16, color: secondary),
+            ),
+          ],
+        ),
+      );
+    }
+    return ImageWidget(
+      size: 100,
+      album: album,
+      playlist: playlist,
     );
   }
 }
