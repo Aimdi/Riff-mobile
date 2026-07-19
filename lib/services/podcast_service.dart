@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:hive/hive.dart';
 import 'package:xml/xml.dart';
@@ -21,6 +23,19 @@ class PodcastService {
 
   static Box get _subs => Hive.box("PodcastSubs");
 
+  /// The iTunes Search API replies with Content-Type text/javascript, so
+  /// Dio hands back a String rather than a parsed Map. Decode defensively.
+  static Map<String, dynamic>? _asMap(dynamic data) {
+    if (data is Map) return Map<String, dynamic>.from(data);
+    if (data is String && data.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(data);
+        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      } catch (_) {}
+    }
+    return null;
+  }
+
   // --- Discovery (Apple / iTunes Search API) ---
 
   /// Returns [{title, author, artwork, feedUrl}].
@@ -32,7 +47,7 @@ class PodcastService {
             'term': term,
             'limit': 40,
           });
-      final results = (res.data is Map ? res.data['results'] : null) as List?;
+      final results = _asMap(res.data)?['results'] as List?;
       if (results == null) return [];
       return results
           .where((r) => (r['feedUrl'] ?? '').toString().isNotEmpty)
@@ -54,7 +69,7 @@ class PodcastService {
     try {
       final res = await _dio.get(
           'https://itunes.apple.com/us/rss/toppodcasts/limit=25/json');
-      final entries = res.data?['feed']?['entry'] as List?;
+      final entries = _asMap(res.data)?['feed']?['entry'] as List?;
       if (entries == null) return [];
       return entries
           .map((e) => {
@@ -77,7 +92,7 @@ class PodcastService {
     try {
       final res = await _dio.get('https://itunes.apple.com/lookup',
           queryParameters: {'id': collectionId});
-      final results = res.data is Map ? res.data['results'] as List? : null;
+      final results = _asMap(res.data)?['results'] as List?;
       return results != null && results.isNotEmpty
           ? results.first['feedUrl']
           : null;
