@@ -156,11 +156,11 @@ class PodcastService {
           .findAllElements('image')
           .map((e) => e.getElement('url')?.innerText.trim())
           .firstWhere((e) => e != null && e.isNotEmpty, orElse: () => null);
-      final channelArt = Thumbnail(
-              (rssImage != null && rssImage.isNotEmpty)
-                  ? rssImage
-                  : channelArtRaw)
-          .extraHigh;
+      // Best channel-level art for episodes with no image of their own:
+      // prefer the RSS 2.0 <image> then itunes:image, upscaled.
+      final channelFallback = (rssImage != null && rssImage.isNotEmpty)
+          ? rssImage
+          : channelArtRaw;
 
       final items = doc.findAllElements('item');
       final episodes = <Map<String, dynamic>>[];
@@ -189,7 +189,7 @@ class PodcastService {
                             u.endsWith('.webp') ||
                             u.contains('image')),
                     orElse: () => null) ??
-            channelArtRaw;
+            channelFallback;
         episodes.add({
           'id': 'podcast_${guid.hashCode}',
           'title': title,
