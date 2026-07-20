@@ -85,7 +85,7 @@ class _SideNavBarState extends State<SideNavBar> {
                                       index: 6, label: "artists".tr, sub: true),
                                 ],
                               )
-                            : const SizedBox(width: double.infinity),
+                            : const SizedBox.shrink(),
                       ),
                     ),
                     _railItem(homeScreenController, sel,
