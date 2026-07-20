@@ -48,24 +48,46 @@ class _SideNavBarState extends State<SideNavBar> {
                             setState(() => _songsExpanded = !_songsExpanded),
                         child: Padding(
                           padding: const EdgeInsets.all(4),
-                          child: Icon(
-                            _songsExpanded
-                                ? Icons.keyboard_arrow_up
-                                : Icons.keyboard_arrow_down,
-                            size: 20,
-                            color: Theme.of(context).textTheme.titleLarge!.color,
+                          child: AnimatedRotation(
+                            turns: _songsExpanded ? -0.5 : 0.0,
+                            duration: const Duration(milliseconds: 260),
+                            curve: Curves.easeInOutCubic,
+                            child: Icon(
+                              Icons.keyboard_arrow_down,
+                              size: 20,
+                              color:
+                                  Theme.of(context).textTheme.titleLarge!.color,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                    if (_songsExpanded) ...[
-                      _railItem(homeScreenController, sel,
-                          index: 4, label: "playlists".tr, sub: true),
-                      _railItem(homeScreenController, sel,
-                          index: 5, label: "albums".tr, sub: true),
-                      _railItem(homeScreenController, sel,
-                          index: 6, label: "artists".tr, sub: true),
-                    ],
+                    // Smoothly expand/collapse the sub-section (size + fade).
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 260),
+                      curve: Curves.easeInOutCubic,
+                      alignment: Alignment.topCenter,
+                      child: AnimatedOpacity(
+                        opacity: _songsExpanded ? 1.0 : 0.0,
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeInOut,
+                        child: _songsExpanded
+                            ? Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _railItem(homeScreenController, sel,
+                                      index: 4,
+                                      label: "playlists".tr,
+                                      sub: true),
+                                  _railItem(homeScreenController, sel,
+                                      index: 5, label: "albums".tr, sub: true),
+                                  _railItem(homeScreenController, sel,
+                                      index: 6, label: "artists".tr, sub: true),
+                                ],
+                              )
+                            : const SizedBox(width: double.infinity),
+                      ),
+                    ),
                     _railItem(homeScreenController, sel,
                         index: 2, label: "podcasts".tr),
                     _railItem(homeScreenController, sel,
