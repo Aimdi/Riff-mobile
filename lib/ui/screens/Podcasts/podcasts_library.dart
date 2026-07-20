@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 
 import '/models/playlist.dart';
 import '/models/thumbnail.dart';
+import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/content_list_widget_item.dart';
 import '/ui/widgets/image_widget.dart';
@@ -130,6 +131,11 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                     activeIcon: Icons.subscriptions,
                     label: 'subscriptions'.tr,
                     section: 3),
+                _navChip(
+                    icon: Icons.explore_outlined,
+                    activeIcon: Icons.explore,
+                    label: 'discover'.tr,
+                    section: 4),
               ],
             ),
           ),
@@ -149,6 +155,9 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               }
               if (_section == 3) {
                 return const PodcastSubsScreen(embedded: true);
+              }
+              if (_section == 4) {
+                return const _PodcastDiscoveryView();
               }
 
               // ── Discovery + library mode ────────────────────────
@@ -575,6 +584,90 @@ class _EpisodeDiscoveryRow extends StatelessWidget {
 /// podcasts (plain maps: {title, author, artwork, feedUrl}). Tapping a card
 /// opens its episode list (PodcastEpisodesScreen), which streams straight from
 /// the RSS enclosure.
+/// Spotify-style podcast Discovery: for each show you follow, a "Listeners of
+/// X also enjoy" scrollwheel of similar podcasts (Apple genre charts). Rows are
+/// built per subscription and appear as their recommendations load.
+class _PodcastDiscoveryView extends StatefulWidget {
+  const _PodcastDiscoveryView();
+
+  @override
+  State<_PodcastDiscoveryView> createState() => _PodcastDiscoveryViewState();
+}
+
+class _PodcastDiscoveryViewState extends State<_PodcastDiscoveryView> {
+  // seed title -> similar podcasts
+  final _rows = <String, List<Map<String, dynamic>>>{};
+  List<String> _seeds = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final subs =
+        Get.find<LibraryPodcastsController>().libraryPodcasts.toList();
+    // A handful of subscriptions is enough for a rich page.
+    final seeds = subs.take(8).map((p) => p.title).toList();
+    _seeds = seeds;
+    if (seeds.isEmpty) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+    await Future.wait(seeds.map((title) async {
+      try {
+        final res = await PodcastService.similar(title);
+        if (res.isNotEmpty) _rows[title] = res;
+      } catch (_) {}
+    }));
+    if (mounted) setState(() => _loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_seeds.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'discoverPodcastsEmpty'.tr,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+      );
+    }
+    final titlesWithRows = _seeds.where(_rows.containsKey).toList();
+    if (_loading && titlesWithRows.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (titlesWithRows.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'noResults'.tr,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 4, bottom: 200),
+      itemCount: titlesWithRows.length,
+      itemBuilder: (context, i) {
+        final seed = titlesWithRows[i];
+        return _SimilarPodcastsRow(
+          title: '${'popularWithListenersOf'.tr} $seed',
+          podcasts: _rows[seed]!,
+        );
+      },
+    );
+  }
+}
+
 class _SimilarPodcastsRow extends StatelessWidget {
   const _SimilarPodcastsRow({required this.title, required this.podcasts});
   final String title;
