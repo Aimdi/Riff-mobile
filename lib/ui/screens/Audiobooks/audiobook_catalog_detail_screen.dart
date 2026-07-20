@@ -19,6 +19,7 @@ class AudiobookCatalogDetailScreen extends StatefulWidget {
 class _AudiobookCatalogDetailScreenState
     extends State<AudiobookCatalogDetailScreen> {
   AudiobookDetails? _details;
+  List<AudiobookItem> _similar = [];
   bool _loading = true;
 
   @override
@@ -28,10 +29,17 @@ class _AudiobookCatalogDetailScreenState
   }
 
   Future<void> _load() async {
-    final d = await AudiobookCatalogService.details(widget.book.id);
+    final book = widget.book;
+    final d = await AudiobookCatalogService.details(book.id);
+    final sim = await AudiobookCatalogService.similar(
+      author: book.author,
+      genre: (d?.genre.isNotEmpty ?? false) ? d!.genre : book.genre,
+      excludeId: book.id,
+    );
     if (mounted) {
       setState(() {
         _details = d;
+        _similar = sim;
         _loading = false;
       });
     }
@@ -118,8 +126,75 @@ class _AudiobookCatalogDetailScreenState
             Text(description, style: theme.textTheme.bodyMedium)
           else
             Text('noDescription'.tr, style: theme.textTheme.bodySmall),
+          if (_similar.isNotEmpty) _similarRow(theme),
         ],
       ),
+    );
+  }
+
+  /// Horizontal strip of similar titles at the bottom; tap to open another book.
+  Widget _similarRow(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        Text('similarTitles'.tr, style: theme.textTheme.titleMedium),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 200,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: _similar.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, i) {
+              final b = _similar[i];
+              return SizedBox(
+                width: 120,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => Get.to(
+                    () => AudiobookCatalogDetailScreen(book: b),
+                    preventDuplicates: false,
+                    transition: Transition.rightToLeft,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: CachedNetworkImage(
+                          imageUrl: b.cover,
+                          width: 120,
+                          height: 120,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) =>
+                              const Icon(Icons.menu_book, size: 48),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        b.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      if (b.author.isNotEmpty)
+                        Text(
+                          b.author,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 

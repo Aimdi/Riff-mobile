@@ -294,9 +294,14 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                               ),
                               delegate: SliverChildBuilderDelegate(
                                 (context, index) => Center(
-                                  child: ContentListItem(
-                                    content: items[index],
-                                    isLibraryItem: true,
+                                  child: GestureDetector(
+                                    // Long-press to file this show into a folder.
+                                    onLongPress: () => showPodcastFolderSheet(
+                                        context, items[index]),
+                                    child: ContentListItem(
+                                      content: items[index],
+                                      isLibraryItem: true,
+                                    ),
                                   ),
                                 ),
                                 childCount: items.length,

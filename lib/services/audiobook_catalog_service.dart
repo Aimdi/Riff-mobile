@@ -148,6 +148,31 @@ class AudiobookCatalogService {
     }
   }
 
+  /// Similar audiobooks for the detail page: more by the same author first,
+  /// topped up with same-genre titles. Excludes the book itself.
+  static Future<List<AudiobookItem>> similar({
+    required String author,
+    required String genre,
+    required String excludeId,
+    int limit = 15,
+  }) async {
+    final out = <AudiobookItem>[];
+    final seen = <String>{excludeId};
+    void addAll(List<AudiobookItem> items) {
+      for (final b in items) {
+        if (b.id.isEmpty || seen.contains(b.id)) continue;
+        seen.add(b.id);
+        out.add(b);
+      }
+    }
+
+    if (author.trim().isNotEmpty) addAll(await search(author));
+    if (out.length < 3 && genre.trim().isNotEmpty) {
+      addAll(await search(genre));
+    }
+    return out.take(limit).toList();
+  }
+
   /// Fuller details for one book (description, release date, publisher, genre,
   /// rating) via an iTunes lookup — the top-charts feed omits most of these.
   static Future<AudiobookDetails?> details(String collectionId) async {

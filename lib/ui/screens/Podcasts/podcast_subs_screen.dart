@@ -7,9 +7,101 @@ import 'podcast_folder_controller.dart';
 import 'podcast_folder_screen.dart';
 import 'podcasts_library_controller.dart';
 
+/// Long-press a podcast show anywhere it's listed to file it into folders.
+/// Reused by the Subscriptions screen and the main Podcasts library grid.
+void showPodcastFolderSheet(BuildContext context, Playlist podcast) {
+  final fc = Get.find<PodcastFolderController>();
+  showModalBottomSheet(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Obx(() => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        "${'addToFolder'.tr} · ${podcast.title}",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(ctx).textTheme.titleMedium,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (fc.folders.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 4),
+                  child: Text('noFoldersYet'.tr,
+                      style: Theme.of(ctx).textTheme.bodySmall),
+                ),
+              ...fc.folders.map((f) => CheckboxListTile(
+                    value: fc.contains(f.id, podcast.playlistId),
+                    onChanged: (_) => fc.toggle(f.id, podcast.playlistId),
+                    title: Text(f.name),
+                    secondary: const Icon(Icons.folder_rounded),
+                  )),
+              ListTile(
+                leading: const Icon(Icons.create_new_folder_outlined),
+                title: Text("newFolder".tr),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  showNewPodcastFolderDialog(context,
+                      assignPodcastId: podcast.playlistId);
+                },
+              ),
+            ],
+          )),
+    ),
+  );
+}
+
+void showNewPodcastFolderDialog(BuildContext context,
+    {String? assignPodcastId}) {
+  final fc = Get.find<PodcastFolderController>();
+  final ctrl = TextEditingController();
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text("newFolder".tr),
+      content: TextField(
+        controller: ctrl,
+        autofocus: true,
+        decoration: InputDecoration(
+          labelText: "folderName".tr,
+          border: const OutlineInputBorder(),
+          isDense: true,
+        ),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.of(ctx).pop(), child: Text("cancel".tr)),
+        TextButton(
+          onPressed: () {
+            final name = ctrl.text.trim();
+            if (name.isNotEmpty) {
+              final f = fc.createFolder(name);
+              if (assignPodcastId != null) fc.toggle(f.id, assignPodcastId);
+            }
+            Navigator.of(ctx).pop();
+          },
+          child: Text("create".tr),
+        ),
+      ],
+    ),
+  );
+}
+
 /// Subscriptions ("Abonnements"): a grid of every podcast you follow, with
 /// Spotify-style folders. Folder tiles come first; long-press a show to file
-/// it into a folder, long-press a folder to rename/delete it.
+/// it into a folder, long-press a folder to delete it.
 class PodcastSubsScreen extends StatelessWidget {
   const PodcastSubsScreen({super.key});
 
@@ -24,7 +116,7 @@ class PodcastSubsScreen extends StatelessWidget {
           IconButton(
             tooltip: "newFolder".tr,
             icon: const Icon(Icons.create_new_folder_outlined),
-            onPressed: () => _newFolder(context, folders),
+            onPressed: () => showNewPodcastFolderDialog(context),
           ),
         ],
       ),
@@ -57,7 +149,6 @@ class PodcastSubsScreen extends StatelessWidget {
             ),
             itemCount: total,
             itemBuilder: (context, index) {
-              // Folder tiles first, then the podcast shows.
               if (index < folderList.length) {
                 return Center(
                     child: _folderTile(context, folders, folderList[index]));
@@ -65,8 +156,7 @@ class PodcastSubsScreen extends StatelessWidget {
               final podcast = subs[index - folderList.length];
               return Center(
                 child: GestureDetector(
-                  onLongPress: () =>
-                      _assignSheet(context, folders, podcast),
+                  onLongPress: () => showPodcastFolderSheet(context, podcast),
                   child: ContentListItem(
                     content: podcast,
                     isLibraryItem: true,
@@ -91,20 +181,21 @@ class PodcastSubsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withOpacity(0.08),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                Icons.folder_rounded,
-                size: 56,
-                color: Theme.of(context).textTheme.bodySmall?.color,
+            AspectRatio(
+              aspectRatio: 1,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .surfaceContainerHighest
+                      .withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.folder_rounded,
+                  size: 54,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
             ),
             const SizedBox(height: 6),
@@ -122,92 +213,6 @@ class PodcastSubsScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _newFolder(BuildContext context, PodcastFolderController fc,
-      {String? assignPodcastId}) {
-    final ctrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text("newFolder".tr),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: "folderName".tr,
-            border: const OutlineInputBorder(),
-            isDense: true,
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text("cancel".tr)),
-          TextButton(
-            onPressed: () {
-              final name = ctrl.text.trim();
-              if (name.isNotEmpty) {
-                final f = fc.createFolder(name);
-                if (assignPodcastId != null) {
-                  fc.toggle(f.id, assignPodcastId);
-                }
-              }
-              Navigator.of(ctx).pop();
-            },
-            child: Text("create".tr),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Long-press a show: pick which folders it belongs to.
-  void _assignSheet(
-      BuildContext context, PodcastFolderController fc, Playlist podcast) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Obx(() => Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          "${'addToFolder'.tr} · ${podcast.title}",
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(ctx).textTheme.titleMedium,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                ...fc.folders.map((f) => CheckboxListTile(
-                      value: fc.contains(f.id, podcast.playlistId),
-                      onChanged: (_) => fc.toggle(f.id, podcast.playlistId),
-                      title: Text(f.name),
-                      secondary: const Icon(Icons.folder_rounded),
-                    )),
-                ListTile(
-                  leading: const Icon(Icons.create_new_folder_outlined),
-                  title: Text("newFolder".tr),
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    _newFolder(context, fc,
-                        assignPodcastId: podcast.playlistId);
-                  },
-                ),
-              ],
-            )),
       ),
     );
   }
