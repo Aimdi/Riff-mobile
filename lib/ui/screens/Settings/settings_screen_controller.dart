@@ -28,6 +28,7 @@ class SettingsScreenController extends GetxController {
   final themeModetype = ThemeType.dynamic.obs;
   final skipSilenceEnabled = false.obs;
   final sponsorBlockEnabled = true.obs;
+  final podcastAutoSkipAdsEnabled = true.obs;
   final loudnessNormalizationEnabled = false.obs;
   final ytConnected = false.obs;
   final playbackSpeed = 1.0.obs;
@@ -59,7 +60,7 @@ class SettingsScreenController extends GetxController {
   final keepScreenAwake = false.obs;
   final restorePlaybackSession = false.obs;
   final cacheHomeScreenData = true.obs;
-  final currentVersion = "V1.7.24";
+  final currentVersion = "V1.7.25";
 
   @override
   void onInit() {
@@ -106,6 +107,8 @@ class SettingsScreenController extends GetxController {
     skipSilenceEnabled.value =
         isDesktop ? false : setBox.get("skipSilenceEnabled");
     sponsorBlockEnabled.value = setBox.get("sponsorBlockEnabled") ?? true;
+    podcastAutoSkipAdsEnabled.value =
+        setBox.get("podcastAutoSkipAds") ?? true;
     loudnessNormalizationEnabled.value = isDesktop
         ? false
         : (setBox.get("loudnessNormalizationEnabled") ?? false);
@@ -283,6 +286,11 @@ class SettingsScreenController extends GetxController {
     Get.find<PlayerController>().toggleSkipSilence(val);
     setBox.put('skipSilenceEnabled', val);
     skipSilenceEnabled.value = val;
+  }
+
+  void togglePodcastAutoSkipAds(bool val) {
+    setBox.put('podcastAutoSkipAds', val);
+    podcastAutoSkipAdsEnabled.value = val;
   }
 
   void toggleSponsorBlock(bool val) {

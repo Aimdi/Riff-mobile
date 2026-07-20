@@ -280,6 +280,35 @@ class PlayerControlWidget extends StatelessWidget {
   Widget _podcastControls(
       PlayerController playerController, BuildContext context) {
     final color = Theme.of(context).textTheme.titleMedium!.color;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // "Skip ad" pill — shown while playback is inside a detected ad chapter.
+        Obx(() => AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: playerController.inAdChapter.isFalse
+                  ? const SizedBox(height: 0, width: double.infinity)
+                  : Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: ActionChip(
+                        avatar: Icon(Icons.fast_forward,
+                            size: 18, color: Theme.of(context).colorScheme.onSecondary),
+                        label: Text('skipAd'.tr,
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSecondary,
+                                fontWeight: FontWeight.w600)),
+                        backgroundColor: Theme.of(context).colorScheme.secondary,
+                        onPressed: playerController.skipAd,
+                      ),
+                    ),
+            )),
+        _podcastButtonsRow(playerController, context, color),
+      ],
+    );
+  }
+
+  Widget _podcastButtonsRow(PlayerController playerController,
+      BuildContext context, Color? color) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       crossAxisAlignment: CrossAxisAlignment.center,

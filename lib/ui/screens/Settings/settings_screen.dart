@@ -414,6 +414,19 @@ class SettingsScreen extends StatelessWidget {
                                 settingsController.sponsorBlockEnabled.value,
                             onChanged: settingsController.toggleSponsorBlock),
                       )),
+                  ListTile(
+                      contentPadding:
+                          const EdgeInsets.only(left: 5, right: 10),
+                      title: Text("skipPodcastAds".tr),
+                      subtitle: Text("skipPodcastAdsDes".tr,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      trailing: Obx(
+                        () => CustSwitch(
+                            value: settingsController
+                                .podcastAutoSkipAdsEnabled.value,
+                            onChanged:
+                                settingsController.togglePodcastAutoSkipAds),
+                      )),
                   if (isDesktop)
                     ListTile(
                         contentPadding:

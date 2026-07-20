@@ -25,6 +25,7 @@ import '../widgets/sliding_up_panel.dart';
 import '/models/durationstate.dart';
 import '/services/music_service.dart';
 import '/services/sponsorblock_service.dart';
+import '/services/podcast_service.dart';
 
 class PlayerController extends GetxController
     with GetSingleTickerProviderStateMixin {
@@ -92,6 +93,19 @@ class PlayerController extends GetxController
   String? _lastSkippedSegmentUuid;
   bool _sponsorSeekInFlight = false;
   final sponsorBlockActiveCategory = RxnString();
+
+  /// Podcasting 2.0 chapters for the current podcast episode (ad auto-skip).
+  List<PodcastChapter> _chapters = const [];
+  String? _chaptersForSongId;
+  bool _chapterSeekInFlight = false;
+  // True while playback is inside an ad chapter (drives the "Skip ad" chip).
+  final inAdChapter = false.obs;
+  bool get hasChapters => _chapters.isNotEmpty;
+
+  bool get podcastAutoSkipAds =>
+      Hive.box('AppPrefs').get('podcastAutoSkipAds', defaultValue: true);
+  set podcastAutoSkipAds(bool v) =>
+      Hive.box('AppPrefs').put('podcastAutoSkipAds', v);
 
   late StreamSubscription<bool> keyboardSubscription;
 
@@ -240,7 +254,84 @@ class PlayerController extends GetxController
         Get.find<DiscoveryService>().onPositionTick(position.inMilliseconds);
       }
       _maybeSkipSponsorBlock(position);
+      _maybeSkipAdChapter(position);
     });
+  }
+
+  Future<void> _loadChaptersFor(MediaItem item) async {
+    _chaptersForSongId = item.id;
+    _chapters = const [];
+    inAdChapter.value = false;
+    final url = item.extras?['chaptersUrl'] as String?;
+    if (url == null || url.isEmpty) return;
+    final chs = await PodcastService.chapters(url);
+    if (_chaptersForSongId == item.id) _chapters = chs;
+  }
+
+  /// The chapter covering [sec], if any (chapters are start-only + sorted).
+  PodcastChapter? _chapterAt(double sec) {
+    PodcastChapter? current;
+    for (final c in _chapters) {
+      if (c.startSec <= sec) {
+        current = c;
+      } else {
+        break;
+      }
+    }
+    return current;
+  }
+
+  /// Seek target just past the current chapter: its endSec, else the next
+  /// chapter's start, else null (last chapter).
+  Duration? _endOfChapter(PodcastChapter c) {
+    if (c.endSec != null) {
+      return Duration(milliseconds: (c.endSec! * 1000).round());
+    }
+    final idx = _chapters.indexOf(c);
+    if (idx >= 0 && idx + 1 < _chapters.length) {
+      return Duration(
+          milliseconds: (_chapters[idx + 1].startSec * 1000).round());
+    }
+    return null;
+  }
+
+  void _maybeSkipAdChapter(Duration position) {
+    if (_chapters.isEmpty) {
+      if (inAdChapter.isTrue) inAdChapter.value = false;
+      return;
+    }
+    final sec = position.inMilliseconds / 1000.0;
+    final current = _chapterAt(sec);
+    final isAd = current?.isAd ?? false;
+    if (inAdChapter.value != isAd) inAdChapter.value = isAd;
+    if (!isAd || !podcastAutoSkipAds || _chapterSeekInFlight) return;
+    final target = _endOfChapter(current!);
+    if (target == null) return;
+    final total = progressBarStatus.value.total;
+    if (total > Duration.zero &&
+        target >= total - const Duration(milliseconds: 400)) {
+      return;
+    }
+    _chapterSeekInFlight = true;
+    printINFO('Ad chapter skip "${current.title}" → ${target.inSeconds}s');
+    seek(target);
+    Future.delayed(const Duration(milliseconds: 350),
+        () => _chapterSeekInFlight = false);
+  }
+
+  /// Manual "Skip ad": jump past the current ad chapter if in one, else jump
+  /// forward 30s (universal fallback for feeds without chapters).
+  void skipAd() {
+    final sec = progressBarStatus.value.current.inMilliseconds / 1000.0;
+    final current = _chapterAt(sec);
+    if (current != null && current.isAd) {
+      final target = _endOfChapter(current);
+      if (target != null) {
+        seek(target);
+        return;
+      }
+    }
+    seekBy(const Duration(seconds: 30));
   }
 
   Future<void> _loadSponsorBlockFor(String videoId) async {
@@ -340,6 +431,8 @@ class PlayerController extends GetxController
             .indexWhere((element) => element.id == currentSong.value!.id);
         // Fire-and-forget SponsorBlock load for this video id.
         unawaited(_loadSponsorBlockFor(mediaItem.id));
+        // Podcast chapters (ad auto-skip) for this episode.
+        unawaited(_loadChaptersFor(mediaItem));
         await _checkFav();
         await _addToRP(currentSong.value!);
         StatsService.recordPlay(currentSong.value!);

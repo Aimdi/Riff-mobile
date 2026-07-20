@@ -138,6 +138,38 @@ class PodcastService {
   /// drop the seed itself and anything already followed, then batch-resolve
   /// feed URLs so each result opens straight into its episode list.
   /// Returns [{title, author, artwork, feedUrl}].
+  static final _chaptersCache = <String, List<PodcastChapter>>{};
+
+  /// Fetch Podcasting 2.0 chapters (JSON) for an episode. Used for ad auto-skip
+  /// and the chapter jump button. Returns [] when unavailable.
+  static Future<List<PodcastChapter>> chapters(String url) async {
+    if (url.isEmpty) return [];
+    final cached = _chaptersCache[url];
+    if (cached != null) return cached;
+    try {
+      final res = await _dio.get(url);
+      final list = _asMap(res.data)?['chapters'];
+      if (list is! List) return [];
+      final out = <PodcastChapter>[];
+      for (final c in list) {
+        if (c is! Map) continue;
+        final st = c['startTime'];
+        if (st is! num) continue;
+        out.add(PodcastChapter(
+          startSec: st.toDouble(),
+          endSec: c['endTime'] is num ? (c['endTime'] as num).toDouble() : null,
+          title: '${c['title'] ?? ''}',
+        ));
+      }
+      out.sort((a, b) => a.startSec.compareTo(b.startSec));
+      _chaptersCache[url] = out;
+      return out;
+    } catch (e) {
+      printERROR('Chapters fetch failed: $e');
+      return [];
+    }
+  }
+
   /// Apple Podcasts' top-level categories (genre ids) for the browse grid.
   static const podcastGenres = <Map<String, String>>[
     {'id': '1489', 'name': 'News'},
@@ -385,6 +417,11 @@ class PodcastService {
                             u.contains('image')),
                     orElse: () => null) ??
             channelFallback;
+        // Podcasting 2.0 chapters (used for ad auto-skip when present).
+        final chaptersUrl = item
+            .findElements('podcast:chapters')
+            .firstOrNull
+            ?.getAttribute('url');
         episodes.add({
           'id': 'podcast_${guid.hashCode}',
           'title': title,
@@ -397,6 +434,8 @@ class PodcastService {
           'durationSec':
               _parseDuration(item.getElement('itunes:duration')?.innerText),
           'podcast': podcastTitle,
+          if (chaptersUrl != null && chaptersUrl.isNotEmpty)
+            'chaptersUrl': chaptersUrl,
         });
       }
       return episodes;
@@ -453,5 +492,28 @@ extension _FirstOrNull<E> on Iterable<E> {
   E? get firstOrNull {
     final it = iterator;
     return it.moveNext() ? it.current : null;
+  }
+}
+
+/// One Podcasting 2.0 chapter.
+class PodcastChapter {
+  PodcastChapter({required this.startSec, required this.title, this.endSec});
+  final double startSec;
+  final double? endSec;
+  final String title;
+
+  /// Whether this chapter looks like an ad / sponsor read (by title).
+  bool get isAd {
+    final t = title.toLowerCase();
+    const needles = [
+      'sponsor',
+      'advert',
+      'promo',
+      'werbung', // de
+      'anuncio', // es
+    ];
+    if (needles.any(t.contains)) return true;
+    // Standalone "ad" / "ads" token.
+    return RegExp(r'(^|\s)ads?(\s|:|$)').hasMatch(t);
   }
 }
