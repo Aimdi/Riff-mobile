@@ -1828,6 +1828,8 @@ Map<String, Map<String, String>> get keys => {
   "myServer": "My server",
   "searchAudiobooks": "Search audiobooks",
   "listenOnAudible": "Listen on Audible",
+  "viewOnAppleBooks": "View on Apple Books",
+  "noDescription": "No description available.",
   "audiobookBrowseOnly": "Preview and listen on Audible — audiobooks can't be played inside Riff.",
   "identifySong": "Identify song",
   "listening": "Listening…",

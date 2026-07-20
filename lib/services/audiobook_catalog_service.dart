@@ -9,12 +9,14 @@ import '/utils/helper.dart';
 /// A commercial audiobook entry (metadata only — not playable in-app).
 class AudiobookItem {
   AudiobookItem({
+    required this.id,
     required this.title,
     required this.author,
     required this.cover,
     required this.genre,
     required this.description,
   });
+  final String id; // Apple collectionId (for the details lookup)
   final String title;
   final String author;
   final String cover;
@@ -27,6 +29,24 @@ class AudiobookItem {
         [title, author].where((s) => s.isNotEmpty).join(' '));
     return 'https://www.audible.com/search?keywords=$q';
   }
+}
+
+/// Fuller metadata fetched on demand for a book's detail page.
+class AudiobookDetails {
+  AudiobookDetails({
+    required this.description,
+    required this.releaseDate,
+    required this.publisher,
+    required this.genre,
+    required this.rating,
+    required this.appleUrl,
+  });
+  final String description;
+  final String releaseDate;
+  final String publisher;
+  final String genre;
+  final String rating;
+  final String appleUrl;
 }
 
 /// "Audible-style" discovery of popular audiobooks. Uses Apple's public
@@ -76,6 +96,7 @@ class AudiobookCatalogService {
                 ? '${images.last['label'] ?? ''}'
                 : '';
             return AudiobookItem(
+              id: '${e['id']?['attributes']?['im:id'] ?? ''}',
               title: '${e['im:name']?['label'] ?? ''}',
               author: '${e['im:artist']?['label'] ?? ''}',
               cover: Thumbnail(raw).extraHigh,
@@ -111,6 +132,7 @@ class AudiobookCatalogService {
           .map((r) {
             final raw = '${r['artworkUrl600'] ?? r['artworkUrl100'] ?? ''}';
             return AudiobookItem(
+              id: '${r['collectionId'] ?? r['trackId'] ?? ''}',
               title: '${r['collectionName'] ?? r['trackName'] ?? ''}',
               author: '${r['artistName'] ?? ''}',
               cover: Thumbnail(raw).extraHigh,
@@ -124,6 +146,38 @@ class AudiobookCatalogService {
       printERROR('Audiobook search failed: $e');
       return [];
     }
+  }
+
+  /// Fuller details for one book (description, release date, publisher, genre,
+  /// rating) via an iTunes lookup — the top-charts feed omits most of these.
+  static Future<AudiobookDetails?> details(String collectionId) async {
+    if (collectionId.isEmpty) return null;
+    try {
+      final res = await _dio.get('https://itunes.apple.com/lookup',
+          queryParameters: {'id': collectionId, 'country': _storefront()});
+      final results = _asMap(res.data)?['results'] as List?;
+      if (results == null || results.isEmpty) return null;
+      final r = results.first as Map;
+      final rating = r['contentAdvisoryRating'] != null
+          ? '${r['contentAdvisoryRating']}'
+          : '';
+      return AudiobookDetails(
+        description: _stripHtml('${r['description'] ?? ''}'),
+        releaseDate: _year('${r['releaseDate'] ?? ''}'),
+        publisher: '${r['copyright'] ?? ''}',
+        genre: '${r['primaryGenreName'] ?? ''}',
+        rating: rating,
+        appleUrl: '${r['collectionViewUrl'] ?? ''}',
+      );
+    } catch (e) {
+      printERROR('Audiobook details failed: $e');
+      return null;
+    }
+  }
+
+  static String _year(String iso) {
+    if (iso.length >= 4) return iso.substring(0, 4);
+    return '';
   }
 
   static String _stripHtml(String s) =>

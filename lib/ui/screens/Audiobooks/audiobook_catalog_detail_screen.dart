@@ -6,13 +6,48 @@ import 'package:url_launcher/url_launcher.dart';
 import '/services/audiobook_catalog_service.dart';
 
 /// Details for a commercial audiobook. Browse-only: it can't play in Riff
-/// (Audible/DRM), so the action opens Audible to listen or buy.
-class AudiobookCatalogDetailScreen extends StatelessWidget {
+/// (Audible/DRM), so the actions open Audible / Apple Books to listen or buy.
+class AudiobookCatalogDetailScreen extends StatefulWidget {
   const AudiobookCatalogDetailScreen({super.key, required this.book});
   final AudiobookItem book;
 
   @override
+  State<AudiobookCatalogDetailScreen> createState() =>
+      _AudiobookCatalogDetailScreenState();
+}
+
+class _AudiobookCatalogDetailScreenState
+    extends State<AudiobookCatalogDetailScreen> {
+  AudiobookDetails? _details;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final d = await AudiobookCatalogService.details(widget.book.id);
+    if (mounted) {
+      setState(() {
+        _details = d;
+        _loading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final book = widget.book;
+    final theme = Theme.of(context);
+    // Prefer the richer looked-up values, fall back to what the grid had.
+    final genre =
+        (_details?.genre.isNotEmpty ?? false) ? _details!.genre : book.genre;
+    final description = (_details?.description.isNotEmpty ?? false)
+        ? _details!.description
+        : book.description;
+
     return Scaffold(
       appBar: AppBar(title: Text(book.title, maxLines: 1)),
       body: ListView(
@@ -34,25 +69,19 @@ class AudiobookCatalogDetailScreen extends StatelessWidget {
           const SizedBox(height: 16),
           Text(book.title,
               textAlign: TextAlign.center,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
+              style: theme.textTheme.titleLarge
                   ?.copyWith(fontWeight: FontWeight.w600)),
           if (book.author.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(book.author,
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyLarge),
+                  style: theme.textTheme.bodyLarge),
             ),
-          if (book.genre.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(book.genre,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall),
-            ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
+          // Fact chips: genre · year · rating · publisher
+          _facts(theme, genre),
+          const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: () => launchUrl(
               Uri.parse(book.audibleUrl),
@@ -61,17 +90,58 @@ class AudiobookCatalogDetailScreen extends StatelessWidget {
             icon: const Icon(Icons.headphones),
             label: Text('listenOnAudible'.tr),
           ),
+          if ((_details?.appleUrl.isNotEmpty ?? false))
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: OutlinedButton.icon(
+                onPressed: () => launchUrl(
+                  Uri.parse(_details!.appleUrl),
+                  mode: LaunchMode.externalApplication,
+                ),
+                icon: const Icon(Icons.menu_book),
+                label: Text('viewOnAppleBooks'.tr),
+              ),
+            ),
           const SizedBox(height: 8),
           Text('audiobookBrowseOnly'.tr,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall),
-          if (book.description.isNotEmpty) ...[
-            const Divider(height: 32),
-            Text(book.description,
-                style: Theme.of(context).textTheme.bodyMedium),
-          ],
+              style: theme.textTheme.bodySmall),
+          const Divider(height: 32),
+          if (_loading)
+            const Center(child: Padding(
+              padding: EdgeInsets.all(12),
+              child: SizedBox(
+                  width: 22, height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2)),
+            ))
+          else if (description.isNotEmpty)
+            Text(description, style: theme.textTheme.bodyMedium)
+          else
+            Text('noDescription'.tr, style: theme.textTheme.bodySmall),
         ],
       ),
+    );
+  }
+
+  Widget _facts(ThemeData theme, String genre) {
+    final chips = <String>[
+      if (genre.isNotEmpty) genre,
+      if (_details?.releaseDate.isNotEmpty ?? false) _details!.releaseDate,
+      if (_details?.rating.isNotEmpty ?? false) _details!.rating,
+      if (_details?.publisher.isNotEmpty ?? false) _details!.publisher,
+    ];
+    if (chips.isEmpty) return const SizedBox.shrink();
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 8,
+      runSpacing: 6,
+      children: chips
+          .map((c) => Chip(
+                label: Text(c, style: theme.textTheme.bodySmall),
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ))
+          .toList(),
     );
   }
 }
