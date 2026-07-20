@@ -15,7 +15,6 @@ import '/ui/player/player_controller.dart';
 import '/ui/widgets/create_playlist_dialog.dart';
 import '../../navigator.dart';
 import '../../widgets/content_list_widget.dart';
-import '../../widgets/recognition_button.dart';
 import '../../widgets/discovery/home_discovery_section.dart';
 import '../../widgets/quickpickswidget.dart';
 import '../../widgets/shimmer_widgets/home_shimmer.dart';
@@ -47,15 +46,7 @@ class HomeScreen extends StatelessWidget {
                             ? playerController.playerPanelMinHeight.value -
                                 Get.mediaQuery.padding.bottom
                             : playerController.playerPanelMinHeight.value),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Audire/Shazam-style "identify song" button (Home only).
-                        if (homeScreenController.tabIndex.value == 0) ...[
-                          const RecognitionButton(),
-                          const SizedBox(height: 12),
-                        ],
-                        SizedBox(
+                    child: SizedBox(
                       height: 60,
                       width: 60,
                       child: FittedBox(
@@ -82,8 +73,6 @@ class HomeScreen extends StatelessWidget {
                                 ? Icons.add
                                 : Icons.search)),
                       ),
-                    ),
-                      ],
                     ),
                   ),
                 )

@@ -28,6 +28,7 @@ import 'ui/screens/Home/home_screen_controller.dart';
 import 'ui/screens/Library/library_controller.dart';
 import 'ui/screens/Podcasts/podcasts_library_controller.dart';
 import 'ui/screens/Podcasts/podcast_queue_controller.dart';
+import 'ui/screens/Podcasts/podcast_folder_controller.dart';
 import 'utils/system_tray.dart';
 import 'utils/update_check_flag_file.dart';
 
@@ -109,6 +110,7 @@ Future<void> startApplicationServices() async {
   Get.lazyPut(() => LibraryArtistsController(), fenix: true);
   Get.lazyPut(() => LibraryPodcastsController(), fenix: true);
   Get.lazyPut(() => PodcastQueueController(), fenix: true);
+  Get.lazyPut(() => PodcastFolderController(), fenix: true);
   Get.lazyPut(() => SettingsScreenController(), fenix: true);
   Get.lazyPut(() => Downloader(), fenix: true);
   if (GetPlatform.isDesktop) {
@@ -139,6 +141,7 @@ initHive() async {
   await Hive.openBox("DailyStats");
   await Hive.openBox("SquareCovers");
   await Hive.openBox("PodcastQueue");
+  await Hive.openBox("PodcastFolders");
 }
 
 void _setAppInitPrefs() {

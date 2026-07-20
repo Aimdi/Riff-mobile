@@ -16,7 +16,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.7.3+23
+version: 1.7.4+24
 
 environment:
   sdk: ">=3.1.5 <4.0.0"
@@ -61,10 +61,6 @@ dependencies:
   path: ^1.8.3
   path_provider: ^2.1.1
   permission_handler: ^11.0.1
-  # Pin below 5.1: record_android >=1.5 needs the newer Flutter Gradle plugin
-  # DSL (flutter.compileSdkVersion) this project's imperative build.gradle
-  # doesn't expose, which breaks the release build.
-  record: ">=5.0.4 <5.1.0"
   share_plus: ^10.1.4
   package_info_plus: ^8.0.0
   wakelock_plus: ^1.3.3
@@ -94,10 +90,6 @@ dependencies:
 # needs ^1.9.1; 1.9.1 is a compatible patch release.
 dependency_overrides:
   path: 1.9.1
-  # record_android >=1.5 requires a newer Flutter than the pinned 3.24.2
-  # (it reads flutter.compileSdkVersion in its own gradle). Force an older
-  # record_android that hardcodes compileSdk so the release build works.
-  record_android: 1.2.0
 
 dev_dependencies:
 
