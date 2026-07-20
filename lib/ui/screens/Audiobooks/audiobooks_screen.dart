@@ -3,12 +3,22 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/services/audiobookshelf_service.dart';
+import '/services/librivox_service.dart';
 import 'audiobook_detail_screen.dart';
+import 'librivox_detail_screen.dart';
 
-/// Lissen-inspired Audiobookshelf browser inside Riff.
-class AudiobooksScreen extends StatelessWidget {
+/// Audiobooks: a free LibriVox "Discover" browser plus the Audiobookshelf
+/// (Lissen-inspired) server view for those who self-host.
+class AudiobooksScreen extends StatefulWidget {
   const AudiobooksScreen({super.key, this.isBottomNavActive = false});
   final bool isBottomNavActive;
+
+  @override
+  State<AudiobooksScreen> createState() => _AudiobooksScreenState();
+}
+
+class _AudiobooksScreenState extends State<AudiobooksScreen> {
+  int _mode = 0; // 0 = Discover (LibriVox), 1 = My server (Audiobookshelf)
 
   @override
   Widget build(BuildContext context) {
@@ -16,25 +26,167 @@ class AudiobooksScreen extends StatelessWidget {
     final topPadding = context.isLandscape ? 50.0 : 90.0;
 
     return Padding(
-      padding: isBottomNavActive
+      padding: widget.isBottomNavActive
           ? const EdgeInsets.only(left: 15)
           : EdgeInsets.only(top: topPadding, left: 5, right: 5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!isBottomNavActive)
+          if (!widget.isBottomNavActive)
             Text('audiobooks'.tr, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.only(right: 8, bottom: 4),
+            child: SegmentedButton<int>(
+              segments: [
+                ButtonSegment(value: 0, label: Text('discover'.tr)),
+                ButtonSegment(value: 1, label: Text('myServer'.tr)),
+              ],
+              selected: {_mode},
+              showSelectedIcon: false,
+              onSelectionChanged: (s) => setState(() => _mode = s.first),
+            ),
+          ),
+          const SizedBox(height: 8),
           Expanded(
-            child: Obx(() {
-              if (!abs.isConnected.value) {
-                return const _AbsLoginForm();
-              }
-              return const _AbsLibraryView();
-            }),
+            child: _mode == 0
+                ? const _LibriVoxDiscover()
+                : Obx(() => abs.isConnected.value
+                    ? const _AbsLibraryView()
+                    : const _AbsLoginForm()),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Free public-domain audiobook browser (LibriVox).
+class _LibriVoxDiscover extends StatefulWidget {
+  const _LibriVoxDiscover();
+
+  @override
+  State<_LibriVoxDiscover> createState() => _LibriVoxDiscoverState();
+}
+
+class _LibriVoxDiscoverState extends State<_LibriVoxDiscover> {
+  final _search = TextEditingController();
+  List<LvAudiobook> _books = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load(() => LibriVoxService.browse());
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load(Future<List<LvAudiobook>> Function() fetch) async {
+    setState(() => _loading = true);
+    final res = await fetch();
+    if (mounted) {
+      setState(() {
+        _books = res;
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8, right: 8),
+          child: TextField(
+            controller: _search,
+            textInputAction: TextInputAction.search,
+            onSubmitted: (q) => q.trim().isEmpty
+                ? _load(() => LibriVoxService.browse())
+                : _load(() => LibriVoxService.search(q)),
+            decoration: InputDecoration(
+              hintText: 'searchAudiobooks'.tr,
+              prefixIcon: const Icon(Icons.search, size: 20),
+              isDense: true,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.clear, size: 18),
+                onPressed: () {
+                  _search.clear();
+                  _load(() => LibriVoxService.browse());
+                },
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _books.isEmpty
+                  ? Center(child: Text('noResults'.tr))
+                  : GridView.builder(
+                      padding: const EdgeInsets.only(bottom: 200, right: 8),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.72,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                      ),
+                      itemCount: _books.length,
+                      itemBuilder: (context, i) {
+                        final book = _books[i];
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () => Get.to(
+                            () => LibriVoxDetailScreen(book: book),
+                            transition: Transition.rightToLeft,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: CachedNetworkImage(
+                                    imageUrl: book.cover,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    errorWidget: (_, __, ___) => Container(
+                                      color: theme.primaryColorLight,
+                                      child: const Icon(Icons.menu_book,
+                                          size: 48),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                book.title,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.titleSmall,
+                              ),
+                              if (book.author.isNotEmpty)
+                                Text(
+                                  book.author,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+        ),
+      ],
     );
   }
 }
