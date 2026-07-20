@@ -27,6 +27,11 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
   final _searchCtrl = TextEditingController();
   final _searchFocus = FocusNode();
 
+  // Inline section shown in the content area (replaces the discovery+library
+  // view instead of pushing a new screen): 0 = Home, 1 = Inbox, 2 = Queue,
+  // 3 = Subscriptions.
+  int _section = 0;
+
   @override
   void initState() {
     super.initState();
@@ -104,11 +109,46 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               ),
             ),
           ),
+          // Inline nav: Inbox / Queue / Subscriptions swap the content below
+          // instead of opening a separate screen.
+          Padding(
+            padding: const EdgeInsets.only(left: 3, right: 10, bottom: 2),
+            child: Row(
+              children: [
+                _navChip(
+                    icon: Icons.inbox_outlined,
+                    activeIcon: Icons.inbox,
+                    label: 'podcastInbox'.tr,
+                    section: 1),
+                _navChip(
+                    icon: Icons.playlist_play,
+                    activeIcon: Icons.playlist_play,
+                    label: 'queue'.tr,
+                    section: 2),
+                _navChip(
+                    icon: Icons.subscriptions_outlined,
+                    activeIcon: Icons.subscriptions,
+                    label: 'subscriptions'.tr,
+                    section: 3),
+              ],
+            ),
+          ),
           Expanded(
             child: Obx(() {
               // ── Search results mode ─────────────────────────────
               if (controller.hasSearched.isTrue) {
                 return _buildSearchBody(controller, itemWidth, itemHeight);
+              }
+
+              // ── Inline Inbox / Queue / Subscriptions ────────────
+              if (_section == 1) {
+                return const PodcastInboxScreen(embedded: true);
+              }
+              if (_section == 2) {
+                return const PodcastQueueScreen(embedded: true);
+              }
+              if (_section == 3) {
+                return const PodcastSubsScreen(embedded: true);
               }
 
               // ── Discovery + library mode ────────────────────────
@@ -128,29 +168,6 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                             Text(
                               'discoverPodcasts'.tr,
                               style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(width: 4),
-                            // Inbox: latest episodes across all subscriptions.
-                            IconButton(
-                              tooltip: 'podcastInbox'.tr,
-                              icon: const Icon(Icons.inbox_outlined, size: 22),
-                              onPressed: () =>
-                                  Get.to(() => const PodcastInboxScreen()),
-                            ),
-                            // Queue: episodes you've lined up to play.
-                            IconButton(
-                              tooltip: 'queue'.tr,
-                              icon: const Icon(Icons.playlist_play, size: 24),
-                              onPressed: () =>
-                                  Get.to(() => const PodcastQueueScreen()),
-                            ),
-                            // Subscriptions: all podcasts you follow.
-                            IconButton(
-                              tooltip: 'subscriptions'.tr,
-                              icon: const Icon(Icons.subscriptions_outlined,
-                                  size: 22),
-                              onPressed: () =>
-                                  Get.to(() => const PodcastSubsScreen()),
                             ),
                             const Spacer(),
                             Obx(() {
@@ -331,6 +348,55 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
             }),
           ),
         ],
+      ),
+    );
+  }
+
+  /// A toggle chip for the inline Inbox/Queue/Subscriptions nav. Tapping the
+  /// active one returns to the Home (discovery + library) view.
+  Widget _navChip({
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+    required int section,
+  }) {
+    final active = _section == section;
+    final accent = Theme.of(context).colorScheme.secondary;
+    final normal = Theme.of(context).textTheme.bodyMedium?.color;
+    final color = active ? accent : normal;
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () {
+          // Leaving search mode if it was active.
+          if (Get.find<LibraryPodcastsController>().hasSearched.isTrue) {
+            _searchCtrl.clear();
+            Get.find<LibraryPodcastsController>().clearSearch();
+          }
+          setState(() => _section = active ? 0 : section);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          decoration: BoxDecoration(
+            color: active ? accent.withOpacity(0.14) : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(active ? activeIcon : icon, size: 22, color: color),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: color,
+                    fontWeight: active ? FontWeight.w600 : FontWeight.w400),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

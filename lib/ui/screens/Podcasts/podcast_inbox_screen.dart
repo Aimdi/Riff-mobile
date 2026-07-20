@@ -15,7 +15,11 @@ import 'podcasts_library_controller.dart';
 /// newest-first (round-robin) so recent episodes from each show surface at the
 /// top. Tap an episode to play it.
 class PodcastInboxScreen extends StatefulWidget {
-  const PodcastInboxScreen({super.key});
+  const PodcastInboxScreen({super.key, this.embedded = false});
+
+  /// When true, render just the content (no Scaffold/AppBar) so it can be shown
+  /// inline inside the Podcasts library screen.
+  final bool embedded;
 
   @override
   State<PodcastInboxScreen> createState() => _PodcastInboxScreenState();
@@ -80,35 +84,41 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final body = _body(context);
+    if (widget.embedded) return body;
     return Scaffold(
       appBar: AppBar(title: Text("podcastInbox".tr)),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _episodes.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      "noInboxEpisodes".tr,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: () async {
-                    setState(() => _loading = true);
-                    await _load();
-                  },
-                  child: ListView.separated(
-                    padding: const EdgeInsets.only(bottom: 200),
-                    itemCount: _episodes.length,
-                    separatorBuilder: (_, __) =>
-                        const Divider(height: 1, indent: 16, endIndent: 12),
-                    itemBuilder: (_, i) => _row(context, i),
+      body: body,
+    );
+  }
+
+  Widget _body(BuildContext context) {
+    return _loading
+        ? const Center(child: CircularProgressIndicator())
+        : _episodes.isEmpty
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    "noInboxEpisodes".tr,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-    );
+              )
+            : RefreshIndicator(
+                onRefresh: () async {
+                  setState(() => _loading = true);
+                  await _load();
+                },
+                child: ListView.separated(
+                  padding: const EdgeInsets.only(bottom: 200),
+                  itemCount: _episodes.length,
+                  separatorBuilder: (_, __) =>
+                      const Divider(height: 1, indent: 16, endIndent: 12),
+                  itemBuilder: (_, i) => _row(context, i),
+                ),
+              );
   }
 
   Widget _row(BuildContext context, int i) {

@@ -44,7 +44,10 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode) {
 /// played in order. Reorder by dragging the handle, swipe/remove to drop one,
 /// tap to play from that point.
 class PodcastQueueScreen extends StatelessWidget {
-  const PodcastQueueScreen({super.key});
+  const PodcastQueueScreen({super.key, this.embedded = false});
+
+  /// When true, render just the content (no Scaffold/AppBar) for inline use.
+  final bool embedded;
 
   static String _fmtTotal(Duration d) {
     final h = d.inHours;
@@ -56,6 +59,58 @@ class PodcastQueueScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<PodcastQueueController>();
+    final body = Obx(() {
+      final items = controller.queue;
+      if (items.isEmpty) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              "queueEmpty".tr,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+        );
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    "${items.length} ${'episodes'.tr}  ·  "
+                    "${'remainingTime'.tr} ${_fmtTotal(controller.totalTime)}",
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+                // Non-embedded gets the clear action in the AppBar instead.
+                if (embedded)
+                  IconButton(
+                    tooltip: "clear".tr,
+                    icon: const Icon(Icons.clear_all, size: 22),
+                    onPressed: controller.clear,
+                  ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: ReorderableListView.builder(
+              padding: const EdgeInsets.only(bottom: 200),
+              itemCount: items.length,
+              onReorder: controller.reorder,
+              itemBuilder: (context, i) =>
+                  _row(context, controller, items[i], i),
+            ),
+          ),
+        ],
+      );
+    });
+    if (embedded) return body;
     return Scaffold(
       appBar: AppBar(
         title: Text("queue".tr),
@@ -69,44 +124,7 @@ class PodcastQueueScreen extends StatelessWidget {
                 )),
         ],
       ),
-      body: Obx(() {
-        final items = controller.queue;
-        if (items.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(
-                "queueEmpty".tr,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-          );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: Text(
-                "${items.length} ${'episodes'.tr}  ·  "
-                "${'remainingTime'.tr} ${_fmtTotal(controller.totalTime)}",
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: ReorderableListView.builder(
-                padding: const EdgeInsets.only(bottom: 200),
-                itemCount: items.length,
-                onReorder: controller.reorder,
-                itemBuilder: (context, i) =>
-                    _row(context, controller, items[i], i),
-              ),
-            ),
-          ],
-        );
-      }),
+      body: body,
     );
   }
 

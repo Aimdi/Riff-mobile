@@ -103,24 +103,16 @@ void showNewPodcastFolderDialog(BuildContext context,
 /// Spotify-style folders. Folder tiles come first; long-press a show to file
 /// it into a folder, long-press a folder to delete it.
 class PodcastSubsScreen extends StatelessWidget {
-  const PodcastSubsScreen({super.key});
+  const PodcastSubsScreen({super.key, this.embedded = false});
+
+  /// When true, render just the content (no Scaffold/AppBar) for inline use.
+  final bool embedded;
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<LibraryPodcastsController>();
     final folders = Get.find<PodcastFolderController>();
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("subscriptions".tr),
-        actions: [
-          IconButton(
-            tooltip: "newFolder".tr,
-            icon: const Icon(Icons.create_new_folder_outlined),
-            onPressed: () => showNewPodcastFolderDialog(context),
-          ),
-        ],
-      ),
-      body: Obx(() {
+    final content = Obx(() {
         final subs = controller.libraryPodcasts.toList();
         final folderList = folders.folders.toList();
         if (subs.isEmpty && folderList.isEmpty) {
@@ -166,7 +158,35 @@ class PodcastSubsScreen extends StatelessWidget {
             },
           );
         });
-      }),
+    });
+    if (embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => showNewPodcastFolderDialog(context),
+              icon: const Icon(Icons.create_new_folder_outlined, size: 20),
+              label: Text("newFolder".tr),
+            ),
+          ),
+          Expanded(child: content),
+        ],
+      );
+    }
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("subscriptions".tr),
+        actions: [
+          IconButton(
+            tooltip: "newFolder".tr,
+            icon: const Icon(Icons.create_new_folder_outlined),
+            onPressed: () => showNewPodcastFolderDialog(context),
+          ),
+        ],
+      ),
+      body: content,
     );
   }
 
