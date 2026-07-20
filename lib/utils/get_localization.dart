@@ -1826,6 +1826,7 @@ Map<String, Map<String, String>> get keys => {
   "deleteFolder": "Delete folder",
   "folderEmpty": "This folder is empty. Long-press a podcast to add it here.",
   "noFoldersYet": "No folders yet — create one below.",
+  "suggestions": "Suggestions",
   "myServer": "My server",
   "searchAudiobooks": "Search audiobooks",
   "listenOnAudible": "Listen on Audible",

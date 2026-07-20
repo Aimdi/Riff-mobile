@@ -25,10 +25,23 @@ class PodcastsLibraryWidget extends StatefulWidget {
 
 class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
   final _searchCtrl = TextEditingController();
+  final _searchFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    // Tapping the search field surfaces the suggestions grid right away.
+    _searchFocus.addListener(() {
+      if (_searchFocus.hasFocus) {
+        Get.find<LibraryPodcastsController>().enterSearchMode();
+      }
+    });
+  }
 
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -62,6 +75,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
             padding: const EdgeInsets.fromLTRB(5, 8, 12, 4),
             child: TextField(
               controller: _searchCtrl,
+              focusNode: _searchFocus,
               textInputAction: TextInputAction.search,
               onSubmitted: controller.searchPodcasts,
               decoration: InputDecoration(
@@ -328,6 +342,19 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
         return const Center(child: CircularProgressIndicator());
       }
       final items = controller.searchResults;
+      final query = controller.searchQuery.value.trim();
+      // No query yet → show a suggestions grid (AntennaPod-style).
+      if (items.isEmpty && query.isEmpty) {
+        final suggestions = controller.featuredPodcasts;
+        if (suggestions.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        return _podcastGrid(
+          controller, itemWidth, itemHeight,
+          header: 'suggestions'.tr,
+          list: suggestions.toList(),
+        );
+      }
       if (items.isEmpty) {
         return Center(
           child: Text(
@@ -336,19 +363,30 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
           ),
         );
       }
-      return CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.only(left: 5, top: 8, bottom: 4),
-              child: Text(
-                '${items.length} ${'items'.tr}',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
+      return _podcastGrid(
+        controller, itemWidth, itemHeight,
+        header: '${items.length} ${'items'.tr}',
+        list: items.toList(),
+      );
+    });
+  }
+
+  Widget _podcastGrid(LibraryPodcastsController controller, double itemWidth,
+      double itemHeight,
+      {required String header, required List<Playlist> list}) {
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.only(left: 5, top: 8, bottom: 4),
+            child: Text(
+              header,
+              style: Theme.of(context).textTheme.titleSmall,
             ),
           ),
-          SliverLayoutBuilder(
+        ),
+        SliverLayoutBuilder(
             builder: (context, constraints) {
               final availableWidth = constraints.crossAxisExtent;
               final width = availableWidth > 300 && availableWidth < 394
@@ -364,9 +402,9 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                   ),
                   delegate: SliverChildBuilderDelegate(
                     (context, index) => Center(
-                      child: ContentListItem(content: items[index]),
+                      child: ContentListItem(content: list[index]),
                     ),
-                    childCount: items.length,
+                    childCount: list.length,
                   ),
                 ),
               );
@@ -374,7 +412,6 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
           ),
         ],
       );
-    });
   }
 }
 

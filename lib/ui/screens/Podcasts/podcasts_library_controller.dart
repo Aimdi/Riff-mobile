@@ -130,6 +130,13 @@ class LibraryPodcastsController extends GetxController {
     }
   }
 
+  /// Entering the search field shows the "browse" state (a suggestions grid)
+  /// even before a query is typed — AntennaPod's add-podcast behaviour.
+  void enterSearchMode() {
+    hasSearched.value = true;
+    if (featuredPodcasts.isEmpty) loadDiscovery();
+  }
+
   void clearSearch() {
     searchQuery.value = '';
     searchResults.clear();
