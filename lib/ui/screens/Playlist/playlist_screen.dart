@@ -8,6 +8,7 @@ import 'package:widget_marquee/widget_marquee.dart';
 import '/models/playling_from.dart';
 import '/models/thumbnail.dart';
 import '/services/podcast_service.dart';
+import '../Podcasts/podcast_queue_screen.dart';
 import '/ui/widgets/playlist_album_scroll_behaviour.dart';
 import '../../../services/downloader.dart';
 import '../../navigator.dart';
@@ -821,53 +822,64 @@ class _PodcastEpisodeTile extends StatelessWidget {
     final art = Thumbnail(song.artUri?.toString() ?? '').medium;
     return InkWell(
       onTap: onTap,
+      onLongPress: () => showAddToQueueSheet(context, song),
       child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 10, 12),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              // Outer row centers the play icon vertically; the art+text block
+              // inside stays top-aligned.
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: CachedNetworkImage(
-                    imageUrl: art,
-                    width: 56,
-                    height: 56,
-                    fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) =>
-                        const Icon(Icons.podcasts, size: 40),
-                  ),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
-                  child: Column(
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (date.isNotEmpty)
-                        Text(
-                          date,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall,
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: CachedNetworkImage(
+                          imageUrl: art,
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) =>
+                              const Icon(Icons.podcasts, size: 40),
                         ),
-                      Text(
-                        song.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
-                      if (durationText.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            durationText,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (date.isNotEmpty)
+                              Text(
+                                date,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            Text(
+                              song.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w600),
+                            ),
+                            if (durationText.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  durationText,
+                                  style:
+                                      Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ),
+                          ],
                         ),
+                      ),
                     ],
                   ),
                 ),

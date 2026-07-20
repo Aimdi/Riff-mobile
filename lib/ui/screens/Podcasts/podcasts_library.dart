@@ -10,6 +10,8 @@ import '/ui/widgets/content_list_widget_item.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/sort_widget.dart';
 import 'podcast_inbox_screen.dart';
+import 'podcast_queue_screen.dart';
+import 'podcast_subs_screen.dart';
 import 'podcasts_library_controller.dart';
 import 'podcasts_screen.dart';
 
@@ -120,6 +122,21 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                               icon: const Icon(Icons.inbox_outlined, size: 22),
                               onPressed: () =>
                                   Get.to(() => const PodcastInboxScreen()),
+                            ),
+                            // Queue: episodes you've lined up to play.
+                            IconButton(
+                              tooltip: 'queue'.tr,
+                              icon: const Icon(Icons.playlist_play, size: 24),
+                              onPressed: () =>
+                                  Get.to(() => const PodcastQueueScreen()),
+                            ),
+                            // Subscriptions: all podcasts you follow.
+                            IconButton(
+                              tooltip: 'subscriptions'.tr,
+                              icon: const Icon(Icons.subscriptions_outlined,
+                                  size: 22),
+                              onPressed: () =>
+                                  Get.to(() => const PodcastSubsScreen()),
                             ),
                             const Spacer(),
                             Obx(() {
