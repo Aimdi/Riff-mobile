@@ -1,0 +1,366 @@
+import 'package:audio_service/audio_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+import '/models/playling_from.dart';
+import '/models/thumbnail.dart';
+import '/ui/player/player_controller.dart';
+import '/ui/widgets/content_list_widget_item.dart';
+import '/ui/widgets/songinfo_bottom_sheet.dart';
+import '../../navigator.dart';
+import '../../widgets/snackbar.dart';
+import 'artist_screen_controller.dart';
+
+/// Spotify-style single-scroll artist page: a large hero header with the
+/// artist name + listeners, a Follow / Shuffle / Play action row, a numbered
+/// "Popular" tracks list, album & single carousels, and an About section.
+class SpotifyArtistView extends StatefulWidget {
+  const SpotifyArtistView({super.key, required this.controller});
+  final ArtistScreenController controller;
+
+  @override
+  State<SpotifyArtistView> createState() => _SpotifyArtistViewState();
+}
+
+class _SpotifyArtistViewState extends State<SpotifyArtistView> {
+  bool _popularExpanded = false;
+
+  ArtistScreenController get c => widget.controller;
+
+  List _content(dynamic section) {
+    if (section is Map && section['content'] is List) {
+      return section['content'] as List;
+    }
+    return const [];
+  }
+
+  List<MediaItem> _songs() =>
+      _content(c.artistData['Songs']).whereType<MediaItem>().toList();
+
+  void _playSongs(List<MediaItem> songs, int index, {bool shuffle = false}) {
+    if (songs.isEmpty) return;
+    final player = Get.find<PlayerController>();
+    final list = List<MediaItem>.from(songs);
+    if (shuffle) {
+      list.shuffle();
+      index = 0;
+    }
+    player.playPlayListSong(
+      list,
+      index,
+      playfrom: PlaylingFrom(
+          name: c.artist_.name, type: PlaylingFromType.PLAYLIST),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      if (c.isArtistContentFetced.isFalse) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      final theme = Theme.of(context);
+      final songs = _songs();
+      final albums = _content(c.artistData['Albums']);
+      final singles = _content(c.artistData['Singles']);
+      final description = c.artistData['description'];
+      final popularCount =
+          _popularExpanded ? songs.length : (songs.length > 5 ? 5 : songs.length);
+
+      return CustomScrollView(
+        slivers: [
+          _heroHeader(context, theme),
+          SliverToBoxAdapter(child: _actionRow(context, theme, songs)),
+          if (songs.isNotEmpty)
+            SliverToBoxAdapter(
+              child: _sectionHeader(theme, 'popular'.tr),
+            ),
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, i) => _songRow(context, theme, songs, i),
+              childCount: popularCount,
+            ),
+          ),
+          if (songs.length > 5)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 16, top: 4, bottom: 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton(
+                    onPressed: () =>
+                        setState(() => _popularExpanded = !_popularExpanded),
+                    child: Text(_popularExpanded ? 'showLess'.tr : 'seeMore'.tr),
+                  ),
+                ),
+              ),
+            ),
+          if (albums.isNotEmpty)
+            SliverToBoxAdapter(
+              child: _releaseCarousel(theme, 'albums'.tr, albums),
+            ),
+          if (singles.isNotEmpty)
+            SliverToBoxAdapter(
+              child: _releaseCarousel(theme, 'singles'.tr, singles),
+            ),
+          if (description != null && '$description'.trim().isNotEmpty)
+            SliverToBoxAdapter(child: _about(theme, '$description')),
+          const SliverToBoxAdapter(child: SizedBox(height: 120)),
+        ],
+      );
+    });
+  }
+
+  Widget _heroHeader(BuildContext context, ThemeData theme) {
+    final img = Thumbnail(c.artist_.thumbnailUrl).extraHigh;
+    return SliverAppBar(
+      expandedHeight: 320,
+      pinned: true,
+      stretch: true,
+      backgroundColor: theme.scaffoldBackgroundColor,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () =>
+            Get.nestedKey(ScreenNavigationSetup.id)!.currentState!.pop(),
+      ),
+      actions: [
+        Obx(() => IconButton(
+              tooltip: c.isAddedToLibrary.isFalse
+                  ? 'follow'.tr
+                  : 'following'.tr,
+              icon: Icon(c.isAddedToLibrary.isFalse
+                  ? Icons.bookmark_add_outlined
+                  : Icons.bookmark_added),
+              onPressed: _toggleFollow,
+            )),
+      ],
+      flexibleSpace: FlexibleSpaceBar(
+        titlePadding: const EdgeInsets.only(left: 16, bottom: 14, right: 16),
+        title: Text(
+          c.artist_.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+              fontWeight: FontWeight.w800, fontSize: 20, color: Colors.white),
+        ),
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            CachedNetworkImage(
+              imageUrl: img,
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
+              errorWidget: (_, __, ___) => Container(
+                color: theme.colorScheme.surfaceContainerHighest,
+                child: const Icon(Icons.person, size: 90),
+              ),
+            ),
+            // Fade the bottom into the page background so the title is legible.
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.15),
+                    theme.scaffoldBackgroundColor.withOpacity(0.95),
+                    theme.scaffoldBackgroundColor,
+                  ],
+                  stops: const [0.0, 0.55, 0.9, 1.0],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _actionRow(BuildContext context, ThemeData theme, List<MediaItem> songs) {
+    final subs = c.artist_.subscribers;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (subs != null && subs.trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(subs,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.textTheme.bodySmall?.color
+                          ?.withOpacity(0.8))),
+            ),
+          Row(
+            children: [
+              Obx(() => OutlinedButton(
+                    onPressed: _toggleFollow,
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
+                    ),
+                    child: Text(c.isAddedToLibrary.isFalse
+                        ? 'follow'.tr
+                        : 'following'.tr),
+                  )),
+              const Spacer(),
+              IconButton(
+                tooltip: 'shuffle'.tr,
+                icon: const Icon(Icons.shuffle),
+                onPressed: songs.isEmpty
+                    ? null
+                    : () => _playSongs(songs, 0, shuffle: true),
+              ),
+              const SizedBox(width: 4),
+              // Big accent Play button (Spotify's green circle).
+              Material(
+                color: theme.colorScheme.secondary,
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: songs.isEmpty ? null : () => _playSongs(songs, 0),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Icon(Icons.play_arrow,
+                        size: 30, color: theme.colorScheme.onSecondary),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionHeader(ThemeData theme, String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 6),
+      child: Text(title,
+          style: theme.textTheme.titleLarge
+              ?.copyWith(fontWeight: FontWeight.w700)),
+    );
+  }
+
+  Widget _songRow(
+      BuildContext context, ThemeData theme, List<MediaItem> songs, int i) {
+    final song = songs[i];
+    final art = Thumbnail(song.artUri?.toString() ?? '').medium;
+    final subtitle = (song.extras?['album']?['name'] ?? song.artist ?? '')
+        .toString()
+        .trim();
+    return InkWell(
+      onTap: () => _playSongs(songs, i),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 22,
+              child: Text('${i + 1}',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: theme.textTheme.bodySmall?.color)),
+            ),
+            const SizedBox(width: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: CachedNetworkImage(
+                imageUrl: art,
+                width: 48,
+                height: 48,
+                fit: BoxFit.cover,
+                errorWidget: (_, __, ___) =>
+                    const Icon(Icons.music_note, size: 30),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(song.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall),
+                  if (subtitle.isNotEmpty)
+                    Text(subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.more_vert),
+              onPressed: () => _openSongMenu(context, song),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _releaseCarousel(ThemeData theme, String title, List items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader(theme, title),
+        SizedBox(
+          height: 210,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 11),
+            physics: const BouncingScrollPhysics(),
+            itemCount: items.length,
+            itemBuilder: (context, i) => ContentListItem(content: items[i]),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _about(ThemeData theme, String description) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader(theme, 'about'.tr),
+          Text(description, style: theme.textTheme.bodyMedium),
+        ],
+      ),
+    );
+  }
+
+  void _toggleFollow() {
+    final add = c.isAddedToLibrary.isFalse;
+    c.addNremoveFromLibrary(add: add).then((ok) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(snackbar(
+          context,
+          ok
+              ? add
+                  ? 'artistBookmarkAddAlert'.tr
+                  : 'artistBookmarkRemoveAlert'.tr
+              : 'operationFailed'.tr,
+          size: SanckBarSize.MEDIUM));
+    });
+  }
+
+  void _openSongMenu(BuildContext context, MediaItem song) {
+    showModalBottomSheet(
+      constraints: const BoxConstraints(maxWidth: 500),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
+      ),
+      isScrollControlled: true,
+      context: context,
+      barrierColor: Colors.transparent.withAlpha(100),
+      builder: (context) => SongInfoBottomSheet(song),
+    ).whenComplete(() => Get.delete<SongInfoController>());
+  }
+}

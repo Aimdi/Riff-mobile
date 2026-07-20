@@ -3,15 +3,14 @@ import 'package:get/get.dart';
 
 import '/ui/screens/Artists/artist_screen_v2.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
-import '../../widgets/animated_screen_transition.dart';
 import '../../widgets/loader.dart';
 import '../../widgets/separate_tab_item_widget.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/image_widget.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../navigator.dart';
 import '../../widgets/snackbar.dart';
 import 'artist_screen_controller.dart';
+import 'spotify_artist_view.dart';
 
 class ArtistScreen extends StatelessWidget {
   const ArtistScreen({super.key});
@@ -58,74 +57,7 @@ class ArtistScreen extends StatelessWidget {
               Get.find<SettingsScreenController>().isBottomNavBarEnabled.value
           ? ArtistScreenBN(
               artistScreenController: artistScreenController, tag: tag)
-          : Row(
-              children: [
-                Align(
-                  alignment: Alignment.topCenter,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.only(bottom: 80),
-                    child: IntrinsicHeight(
-                      child: Obx(
-                        () => NavigationRail(
-                          onDestinationSelected:
-                              artistScreenController.onDestinationSelected,
-                          minWidth: 60,
-                          destinations: [
-                            "about".tr,
-                            "songs".tr,
-                            "videos".tr,
-                            "albums".tr,
-                            "singles".tr
-                          ].map((e) => railDestination(e)).toList(),
-                          leading: Column(
-                            children: [
-                              SizedBox(
-                                height: context.isLandscape ? 20.0 : 45.0,
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.arrow_back_ios_new,
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium!
-                                      .color,
-                                ),
-                                onPressed: () {
-                                  Get.nestedKey(ScreenNavigationSetup.id)!
-                                      .currentState!
-                                      .pop();
-                                },
-                              ),
-                              const SizedBox(
-                                height: 10,
-                              ),
-                            ],
-                          ),
-                          labelType: NavigationRailLabelType.all,
-                          selectedIndex: artistScreenController
-                              .navigationRailCurrentIndex.value,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Obx(
-                    () => AnimatedScreenTransition(
-                      enabled: Get.find<SettingsScreenController>()
-                          .isTransitionAnimationDisabled
-                          .isFalse,
-                      resverse: artistScreenController.isTabTransitionReversed,
-                      child: Center(
-                        key: ValueKey<int>(artistScreenController
-                            .navigationRailCurrentIndex.value),
-                        child: Body(tag: tag),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          : SpotifyArtistView(controller: artistScreenController),
     );
   }
 
