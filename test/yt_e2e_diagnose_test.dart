@@ -14,8 +14,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 
+import 'package:harmonymusic/services/audiobook_catalog_service.dart';
 import 'package:harmonymusic/services/kugou_lyrics_service.dart';
-import 'package:harmonymusic/services/librivox_service.dart';
 import 'package:harmonymusic/services/music_service.dart';
 import 'package:harmonymusic/services/podcast_service.dart';
 import 'package:harmonymusic/services/stream_service.dart';
@@ -130,17 +130,14 @@ void main() {
     expect(url!.contains('i.ytimg.com/vi/'), isFalse);
   }, timeout: const Timeout(Duration(minutes: 3)));
 
-  test('audiobook discovery (LibriVox)', () async {
-    final books = await LibriVoxService.browse(limit: 10);
+  test('audiobook catalog (Apple top-audiobooks)', () async {
+    final books = await AudiobookCatalogService.browse(limit: 15);
     // ignore: avoid_print
-    print('LIBRIVOX: ${books.length} books; first='
-        '${books.isNotEmpty ? books.first.title : "none"}; '
-        'chapters=${books.isNotEmpty ? books.first.chapters.length : 0}');
+    print('AUDIOBOOK CATALOG: ${books.length}; first='
+        '${books.isNotEmpty ? books.first.title : "none"}');
     expect(books, isNotEmpty);
-    final first = books.first;
-    expect(first.chapters, isNotEmpty);
-    // Chapters must be directly-playable http(s) URLs.
-    expect(first.chapters.first.url.startsWith("http"), isTrue);
+    expect(books.first.title.isNotEmpty, isTrue);
+    expect(books.first.audibleUrl.startsWith("https://www.audible.com"), isTrue);
   }, timeout: const Timeout(Duration(minutes: 3)));
 
   test('similar podcasts (Apple genre charts)', () async {

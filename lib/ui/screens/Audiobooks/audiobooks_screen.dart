@@ -2,10 +2,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/services/audiobook_catalog_service.dart';
 import '/services/audiobookshelf_service.dart';
-import '/services/librivox_service.dart';
+import 'audiobook_catalog_detail_screen.dart';
 import 'audiobook_detail_screen.dart';
-import 'librivox_detail_screen.dart';
 
 /// Audiobooks: a free LibriVox "Discover" browser plus the Audiobookshelf
 /// (Lissen-inspired) server view for those who self-host.
@@ -50,7 +50,7 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
           const SizedBox(height: 8),
           Expanded(
             child: _mode == 0
-                ? const _LibriVoxDiscover()
+                ? const _CatalogDiscover()
                 : Obx(() => abs.isConnected.value
                     ? const _AbsLibraryView()
                     : const _AbsLoginForm()),
@@ -61,23 +61,23 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
   }
 }
 
-/// Free public-domain audiobook browser (LibriVox).
-class _LibriVoxDiscover extends StatefulWidget {
-  const _LibriVoxDiscover();
+/// Popular commercial audiobook browser (Apple catalog → Audible). Browse-only.
+class _CatalogDiscover extends StatefulWidget {
+  const _CatalogDiscover();
 
   @override
-  State<_LibriVoxDiscover> createState() => _LibriVoxDiscoverState();
+  State<_CatalogDiscover> createState() => _CatalogDiscoverState();
 }
 
-class _LibriVoxDiscoverState extends State<_LibriVoxDiscover> {
+class _CatalogDiscoverState extends State<_CatalogDiscover> {
   final _search = TextEditingController();
-  List<LvAudiobook> _books = [];
+  List<AudiobookItem> _books = [];
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _load(() => LibriVoxService.browse());
+    _load(() => AudiobookCatalogService.browse());
   }
 
   @override
@@ -86,7 +86,7 @@ class _LibriVoxDiscoverState extends State<_LibriVoxDiscover> {
     super.dispose();
   }
 
-  Future<void> _load(Future<List<LvAudiobook>> Function() fetch) async {
+  Future<void> _load(Future<List<AudiobookItem>> Function() fetch) async {
     setState(() => _loading = true);
     final res = await fetch();
     if (mounted) {
@@ -108,8 +108,8 @@ class _LibriVoxDiscoverState extends State<_LibriVoxDiscover> {
             controller: _search,
             textInputAction: TextInputAction.search,
             onSubmitted: (q) => q.trim().isEmpty
-                ? _load(() => LibriVoxService.browse())
-                : _load(() => LibriVoxService.search(q)),
+                ? _load(() => AudiobookCatalogService.browse())
+                : _load(() => AudiobookCatalogService.search(q)),
             decoration: InputDecoration(
               hintText: 'searchAudiobooks'.tr,
               prefixIcon: const Icon(Icons.search, size: 20),
@@ -119,7 +119,7 @@ class _LibriVoxDiscoverState extends State<_LibriVoxDiscover> {
                 icon: const Icon(Icons.clear, size: 18),
                 onPressed: () {
                   _search.clear();
-                  _load(() => LibriVoxService.browse());
+                  _load(() => AudiobookCatalogService.browse());
                 },
               ),
             ),
@@ -145,7 +145,7 @@ class _LibriVoxDiscoverState extends State<_LibriVoxDiscover> {
                         return InkWell(
                           borderRadius: BorderRadius.circular(10),
                           onTap: () => Get.to(
-                            () => LibriVoxDetailScreen(book: book),
+                            () => AudiobookCatalogDetailScreen(book: book),
                             transition: Transition.rightToLeft,
                           ),
                           child: Column(

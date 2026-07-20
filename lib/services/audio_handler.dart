@@ -815,9 +815,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     printINFO("Requested id : $songId");
     // Podcast episodes and Audiobookshelf tracks carry a direct stream URL —
     // no YouTube stream resolution needed (same pattern Lissen uses for ABS).
-    if (songId.startsWith("podcast_") ||
-        songId.startsWith("abs_") ||
-        songId.startsWith("librivox_")) {
+    if (songId.startsWith("podcast_") || songId.startsWith("abs_")) {
       MediaItem? item;
       for (final e in queue.value) {
         if (e.id == songId) {
