@@ -1,4 +1,3 @@
-import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:ionicons/ionicons.dart';
@@ -163,27 +162,9 @@ class PlayerControlWidget extends StatelessWidget {
                   ),
                 )
               : const SizedBox.shrink()),
-          GetX<PlayerController>(builder: (controller) {
-            return ProgressBar(
-              thumbRadius: 7,
-              barHeight: 4.5,
-              baseBarColor: Theme.of(context).sliderTheme.inactiveTrackColor,
-              bufferedBarColor:
-                  Theme.of(context).sliderTheme.valueIndicatorColor,
-              progressBarColor: Theme.of(context).sliderTheme.activeTrackColor,
-              thumbColor: Theme.of(context).sliderTheme.thumbColor,
-              timeLabelTextStyle: Theme.of(context)
-                  .textTheme
-                  .titleMedium!
-                  .copyWith(fontSize: 14),
-              progress: controller.progressBarStatus.value.current,
-              total: controller.progressBarStatus.value.total,
-              buffered: controller.progressBarStatus.value.buffered,
-              onSeek: controller.seek,
-            );
-          }),
-          // SoundCloud-style waveform under the seek bar: fills with the accent
-          // colour as the track progresses, and can be tapped/dragged to seek.
+          // The seek control IS the SoundCloud-style waveform (no separate
+          // slider line): it fills with the accent colour as the track plays,
+          // shows the elapsed/total time beneath, and is tap/drag seekable.
           GetX<PlayerController>(builder: (controller) {
             final status = controller.progressBarStatus.value;
             final totalMs = status.total.inMilliseconds;
@@ -192,41 +173,57 @@ class PlayerControlWidget extends StatelessWidget {
                 : 0.0;
             final song = controller.currentSong.value;
             final seed = (song?.id ?? song?.title ?? '').hashCode;
+            final timeStyle = Theme.of(context)
+                .textTheme
+                .titleMedium!
+                .copyWith(fontSize: 14);
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-              child: LayoutBuilder(builder: (context, constraints) {
-                final width = constraints.maxWidth;
-                void seekTo(double dx) {
-                  if (totalMs <= 0 || width <= 0) return;
-                  final f = (dx / width).clamp(0.0, 1.0);
-                  controller.seek(status.total * f);
-                }
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Column(
+                children: [
+                  LayoutBuilder(builder: (context, constraints) {
+                    final width = constraints.maxWidth;
+                    void seekTo(double dx) {
+                      if (totalMs <= 0 || width <= 0) return;
+                      final f = (dx / width).clamp(0.0, 1.0);
+                      controller.seek(status.total * f);
+                    }
 
-                return GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTapDown: (d) => seekTo(d.localPosition.dx),
-                  onHorizontalDragUpdate: (d) => seekTo(d.localPosition.dx),
-                  child: SizedBox(
-                    height: 26,
-                    width: double.infinity,
-                    child: CustomPaint(
-                      painter: _WaveformPainter(
-                        progress: frac,
-                        seed: seed,
-                        playedColor: Theme.of(context)
-                                .sliderTheme
-                                .activeTrackColor ??
-                            Theme.of(context).colorScheme.secondary,
-                        unplayedColor: (Theme.of(context)
+                    return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTapDown: (d) => seekTo(d.localPosition.dx),
+                      onHorizontalDragUpdate: (d) => seekTo(d.localPosition.dx),
+                      child: SizedBox(
+                        height: 34,
+                        width: double.infinity,
+                        child: CustomPaint(
+                          painter: _WaveformPainter(
+                            progress: frac,
+                            seed: seed,
+                            playedColor: Theme.of(context)
                                     .sliderTheme
-                                    .inactiveTrackColor ??
-                                Colors.grey)
-                            .withOpacity(0.55),
+                                    .activeTrackColor ??
+                                Theme.of(context).colorScheme.secondary,
+                            unplayedColor: (Theme.of(context)
+                                        .sliderTheme
+                                        .inactiveTrackColor ??
+                                    Colors.grey)
+                                .withOpacity(0.55),
+                          ),
+                        ),
                       ),
-                    ),
+                    );
+                  }),
+                  const SizedBox(height: 2),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(_fmtDuration(status.current), style: timeStyle),
+                      Text(_fmtDuration(status.total), style: timeStyle),
+                    ],
                   ),
-                );
-              }),
+                ],
+              ),
             );
           }),
           Obx(() => playerController.isCurrentSongPodcast
@@ -431,6 +428,16 @@ Widget _nextButton(PlayerController playerController, BuildContext context) {
         iconSize: 30,
         onPressed: isLastSong ? null : playerController.next);
   });
+}
+
+/// Format a playback position as m:ss (or h:mm:ss for long tracks).
+String _fmtDuration(Duration d) {
+  final h = d.inHours;
+  final m = d.inMinutes % 60;
+  final s = d.inSeconds % 60;
+  final ss = s.toString().padLeft(2, '0');
+  if (h > 0) return '$h:${m.toString().padLeft(2, '0')}:$ss';
+  return '$m:$ss';
 }
 
 /// A thin SoundCloud-style waveform. Bar heights are deterministic per song
