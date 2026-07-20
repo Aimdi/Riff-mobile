@@ -5,12 +5,48 @@ import 'package:ionicons/ionicons.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
 import '/ui/player/components/animated_play_button.dart';
+import '../../navigator.dart';
 import '../../screens/Settings/settings_screen_controller.dart';
 import '../../widgets/discovery/player_similar_row.dart';
 import '../player_controller.dart';
 
 class PlayerControlWidget extends StatelessWidget {
   const PlayerControlWidget({super.key});
+
+  /// Open the album/single of the currently-playing song (no-op when the track
+  /// carries no album, e.g. a podcast episode).
+  void _openAlbum(PlayerController playerController) {
+    final song = playerController.currentSong.value;
+    final album = song?.extras?['album'];
+    if (album is Map && album['id'] != null) {
+      playerController.playerPanelController.close();
+      Get.toNamed(ScreenNavigationSetup.albumScreen,
+          id: ScreenNavigationSetup.id, arguments: (null, album['id']));
+    }
+  }
+
+  /// Open the artist page for the currently-playing song. Uses the first
+  /// artist that has a browse id (no-op when none is available).
+  void _openArtist(PlayerController playerController) {
+    final song = playerController.currentSong.value;
+    final artists = song?.extras?['artists'];
+    String? artistId;
+    if (artists is List) {
+      for (final a in artists) {
+        if (a is Map && a['id'] != null) {
+          artistId = '${a['id']}';
+          break;
+        }
+      }
+    }
+    if (artistId != null) {
+      playerController.playerPanelController.close();
+      Get.toNamed(ScreenNavigationSetup.artistScreen,
+          id: ScreenNavigationSetup.id,
+          preventDuplicates: true,
+          arguments: [true, artistId]);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,32 +81,42 @@ class PlayerControlWidget extends StatelessWidget {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Marquee(
-                          delay: const Duration(milliseconds: 300),
-                          duration: const Duration(seconds: 10),
-                          id: "${playerController.currentSong.value}_title",
-                          child: Text(
-                            playerController.currentSong.value != null
-                                ? playerController.currentSong.value!.title
-                                : "NA",
-                            textAlign: TextAlign.start,
-                            style: Theme.of(context).textTheme.labelMedium!,
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          // Tap the title -> open its album/single (if any).
+                          onTap: () => _openAlbum(playerController),
+                          child: Marquee(
+                            delay: const Duration(milliseconds: 300),
+                            duration: const Duration(seconds: 10),
+                            id: "${playerController.currentSong.value}_title",
+                            child: Text(
+                              playerController.currentSong.value != null
+                                  ? playerController.currentSong.value!.title
+                                  : "NA",
+                              textAlign: TextAlign.start,
+                              style: Theme.of(context).textTheme.labelMedium!,
+                            ),
                           ),
                         ),
                         const SizedBox(
                           height: 5,
                         ),
-                        Marquee(
-                          delay: const Duration(milliseconds: 300),
-                          duration: const Duration(seconds: 10),
-                          id: "${playerController.currentSong.value}_subtitle",
-                          child: Text(
-                            playerController.currentSong.value != null
-                                ? playerController.currentSong.value!.artist!
-                                : "NA",
-                            textAlign: TextAlign.start,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.labelSmall,
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          // Tap the artist -> open the artist page.
+                          onTap: () => _openArtist(playerController),
+                          child: Marquee(
+                            delay: const Duration(milliseconds: 300),
+                            duration: const Duration(seconds: 10),
+                            id: "${playerController.currentSong.value}_subtitle",
+                            child: Text(
+                              playerController.currentSong.value != null
+                                  ? playerController.currentSong.value!.artist!
+                                  : "NA",
+                              textAlign: TextAlign.start,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
                           ),
                         )
                       ],
