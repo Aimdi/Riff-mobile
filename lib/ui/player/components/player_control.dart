@@ -182,6 +182,53 @@ class PlayerControlWidget extends StatelessWidget {
               onSeek: controller.seek,
             );
           }),
+          // SoundCloud-style waveform under the seek bar: fills with the accent
+          // colour as the track progresses, and can be tapped/dragged to seek.
+          GetX<PlayerController>(builder: (controller) {
+            final status = controller.progressBarStatus.value;
+            final totalMs = status.total.inMilliseconds;
+            final frac = totalMs > 0
+                ? (status.current.inMilliseconds / totalMs).clamp(0.0, 1.0)
+                : 0.0;
+            final song = controller.currentSong.value;
+            final seed = (song?.id ?? song?.title ?? '').hashCode;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+              child: LayoutBuilder(builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                void seekTo(double dx) {
+                  if (totalMs <= 0 || width <= 0) return;
+                  final f = (dx / width).clamp(0.0, 1.0);
+                  controller.seek(status.total * f);
+                }
+
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapDown: (d) => seekTo(d.localPosition.dx),
+                  onHorizontalDragUpdate: (d) => seekTo(d.localPosition.dx),
+                  child: SizedBox(
+                    height: 26,
+                    width: double.infinity,
+                    child: CustomPaint(
+                      painter: _WaveformPainter(
+                        progress: frac,
+                        seed: seed,
+                        playedColor: Theme.of(context)
+                                .sliderTheme
+                                .activeTrackColor ??
+                            Theme.of(context).colorScheme.secondary,
+                        unplayedColor: (Theme.of(context)
+                                    .sliderTheme
+                                    .inactiveTrackColor ??
+                                Colors.grey)
+                            .withOpacity(0.55),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            );
+          }),
           Obx(() => playerController.isCurrentSongPodcast
               ? _podcastControls(playerController, context)
               : _musicControls(playerController, context)),
@@ -384,4 +431,52 @@ Widget _nextButton(PlayerController playerController, BuildContext context) {
         iconSize: 30,
         onPressed: isLastSong ? null : playerController.next);
   });
+}
+
+/// A thin SoundCloud-style waveform. Bar heights are deterministic per song
+/// (hashed from a seed) so they stay stable across rebuilds; the played portion
+/// is drawn in [playedColor], the rest in [unplayedColor].
+class _WaveformPainter extends CustomPainter {
+  _WaveformPainter({
+    required this.progress,
+    required this.seed,
+    required this.playedColor,
+    required this.unplayedColor,
+  });
+
+  final double progress; // 0..1
+  final int seed;
+  final Color playedColor;
+  final Color unplayedColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const barWidth = 2.0;
+    const gap = 2.0;
+    const step = barWidth + gap;
+    final count = (size.width / step).floor();
+    if (count <= 0) return;
+    final midY = size.height / 2;
+    final playedBars = (count * progress).round();
+    final paint = Paint()
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = barWidth;
+    for (int i = 0; i < count; i++) {
+      // Deterministic pseudo-random amplitude in [0.30, 1.0].
+      final n = (seed ^ (i * 2654435761)) & 0x7fffffff;
+      final amp = 0.30 + (n % 1000) / 1000.0 * 0.70;
+      final barH = size.height * amp;
+      final x = i * step + barWidth / 2;
+      paint.color = i < playedBars ? playedColor : unplayedColor;
+      canvas.drawLine(
+          Offset(x, midY - barH / 2), Offset(x, midY + barH / 2), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _WaveformPainter old) =>
+      old.progress != progress ||
+      old.seed != seed ||
+      old.playedColor != playedColor ||
+      old.unplayedColor != unplayedColor;
 }
