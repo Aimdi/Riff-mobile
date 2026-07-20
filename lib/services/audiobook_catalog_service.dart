@@ -75,6 +75,14 @@ class AudiobookRating {
   final int count;
 }
 
+/// Extra metadata from Google Books: a star rating (if any) and subject/genre
+/// tags — used to enrich the detail page beyond what iTunes returns.
+class AudiobookExtras {
+  AudiobookExtras({this.rating, this.categories = const []});
+  final AudiobookRating? rating;
+  final List<String> categories;
+}
+
 /// "Audible-style" discovery of popular audiobooks. Uses Apple's public
 /// audiobook catalog (iTunes, no key) for real bestseller metadata — cover,
 /// author, description — then links out to Audible to listen/buy. Audible
@@ -226,16 +234,16 @@ class AudiobookCatalogService {
     }
   }
 
-  /// Best-effort star rating for a book, matched by title (+ author) against
-  /// Google Books, which exposes `averageRating`/`ratingsCount` for free.
-  /// Returns null when no rated match is found.
-  static Future<AudiobookRating?> rating({
+  /// Best-effort rating + subject tags for a book, matched by title (+ author)
+  /// against Google Books (free `averageRating`/`ratingsCount`/`categories`).
+  static Future<AudiobookExtras> extras({
     required String title,
     required String author,
   }) async {
-    if (title.trim().isEmpty) return null;
+    if (title.trim().isEmpty) return AudiobookExtras();
     try {
-      final q = [title.trim(), author.trim()].where((s) => s.isNotEmpty).join(' ');
+      final q =
+          [title.trim(), author.trim()].where((s) => s.isNotEmpty).join(' ');
       final res = await _dio.get(
         'https://www.googleapis.com/books/v1/volumes',
         queryParameters: {
@@ -245,20 +253,35 @@ class AudiobookCatalogService {
         },
       );
       final items = _asMap(res.data)?['items'] as List?;
-      if (items == null) return null;
+      if (items == null) return AudiobookExtras();
+      AudiobookRating? rating;
+      final cats = <String>{};
       for (final it in items.whereType<Map>()) {
         final vi = it['volumeInfo'];
-        if (vi is Map && vi['averageRating'] != null) {
+        if (vi is! Map) continue;
+        if (rating == null && vi['averageRating'] != null) {
           final avg = (vi['averageRating'] as num).toDouble();
-          if (avg <= 0) continue;
-          final cnt = (vi['ratingsCount'] as num?)?.toInt() ?? 0;
-          return AudiobookRating(average: avg, count: cnt);
+          if (avg > 0) {
+            rating = AudiobookRating(
+                average: avg,
+                count: (vi['ratingsCount'] as num?)?.toInt() ?? 0);
+          }
+        }
+        final c = vi['categories'];
+        if (c is List) {
+          for (final entry in c) {
+            // "Fiction / Thrillers / Psychological" → 3 tags.
+            for (final part in '$entry'.split('/')) {
+              final t = part.trim();
+              if (t.isNotEmpty && t.toLowerCase() != 'general') cats.add(t);
+            }
+          }
         }
       }
-      return null;
+      return AudiobookExtras(rating: rating, categories: cats.take(6).toList());
     } catch (e) {
-      printERROR('Audiobook rating failed: $e');
-      return null;
+      printERROR('Audiobook extras failed: $e');
+      return AudiobookExtras();
     }
   }
 

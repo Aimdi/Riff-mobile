@@ -22,6 +22,7 @@ class _AudiobookCatalogDetailScreenState
   AudiobookDetails? _details;
   List<AudiobookItem> _similar = [];
   AudiobookRating? _rating;
+  List<String> _categories = [];
   bool _loading = true;
 
   @override
@@ -32,21 +33,22 @@ class _AudiobookCatalogDetailScreenState
 
   Future<void> _load() async {
     final book = widget.book;
-    // Rating (Google Books) is independent — fetch it alongside the details.
-    final ratingFuture =
-        AudiobookCatalogService.rating(title: book.title, author: book.author);
+    // Rating + tags (Google Books) — fetch alongside the iTunes details.
+    final extrasFuture =
+        AudiobookCatalogService.extras(title: book.title, author: book.author);
     final d = await AudiobookCatalogService.details(book.id);
     final sim = await AudiobookCatalogService.similar(
       author: book.author,
       genre: (d?.genre.isNotEmpty ?? false) ? d!.genre : book.genre,
       excludeId: book.id,
     );
-    final rating = await ratingFuture;
+    final extras = await extrasFuture;
     if (mounted) {
       setState(() {
         _details = d;
         _similar = sim;
-        _rating = rating;
+        _rating = extras.rating;
+        _categories = extras.categories;
         _loading = false;
       });
     }
@@ -103,9 +105,35 @@ class _AudiobookCatalogDetailScreenState
           if (book.author.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text(book.author,
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyLarge),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(6),
+                onTap: () => Get.to(
+                  () => AudiobookBrowseScreen(
+                      title: book.author, query: book.author),
+                  transition: Transition.rightToLeft,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          book.author,
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: theme.colorScheme.secondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      Icon(Icons.chevron_right,
+                          size: 18, color: theme.colorScheme.secondary),
+                    ],
+                  ),
+                ),
+              ),
             ),
           if (_rating != null) ...[
             const SizedBox(height: 8),
@@ -258,30 +286,45 @@ class _AudiobookCatalogDetailScreenState
   }
 
   Widget _facts(ThemeData theme, String genre) {
-    // The genre chip is tappable (browse that genre); the rest are static.
+    // Tappable "browse" chips (genre, extra subject tags, year) + static chips
+    // (content rating, publisher).
+    final year =
+        (_details?.releaseDate.isNotEmpty ?? false) ? _details!.releaseDate : '';
+    // Genre + Google Books subjects, de-duplicated (case-insensitive).
+    final tags = <String>[];
+    final seen = <String>{};
+    for (final t in [if (genre.isNotEmpty) genre, ..._categories]) {
+      final key = t.toLowerCase();
+      if (seen.add(key)) tags.add(t);
+    }
     final plain = <String>[
-      if (_details?.releaseDate.isNotEmpty ?? false) _details!.releaseDate,
       if (_details?.rating.isNotEmpty ?? false) _details!.rating,
       if (_details?.publisher.isNotEmpty ?? false) _details!.publisher,
     ];
-    if (genre.isEmpty && plain.isEmpty) return const SizedBox.shrink();
+    if (tags.isEmpty && year.isEmpty && plain.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    Widget browseChip(String label, IconData icon, String query) => ActionChip(
+          avatar: Icon(icon, size: 15, color: theme.colorScheme.secondary),
+          label: Text(label, style: theme.textTheme.bodySmall),
+          visualDensity: VisualDensity.compact,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          onPressed: () => Get.to(
+            () => AudiobookBrowseScreen(title: label, query: query),
+            transition: Transition.rightToLeft,
+          ),
+        );
     return Wrap(
       alignment: WrapAlignment.center,
       spacing: 8,
       runSpacing: 6,
       children: [
-        if (genre.isNotEmpty)
-          ActionChip(
-            avatar: Icon(Icons.local_offer_outlined,
-                size: 15, color: theme.colorScheme.secondary),
-            label: Text(genre, style: theme.textTheme.bodySmall),
-            visualDensity: VisualDensity.compact,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            onPressed: () => Get.to(
-              () => AudiobookGenreScreen(genre: genre),
-              transition: Transition.rightToLeft,
-            ),
-          ),
+        for (final t in tags)
+          browseChip(t, Icons.local_offer_outlined, t),
+        // Year → browse titles from that year in this genre (best-effort).
+        if (year.isNotEmpty)
+          browseChip(year, Icons.event_outlined,
+              genre.isNotEmpty ? '$genre $year' : year),
         ...plain.map((c) => Chip(
               label: Text(c, style: theme.textTheme.bodySmall),
               visualDensity: VisualDensity.compact,
@@ -292,16 +335,19 @@ class _AudiobookCatalogDetailScreenState
   }
 }
 
-/// Browse the catalog for a genre (tapped from a book's genre chip).
-class AudiobookGenreScreen extends StatefulWidget {
-  const AudiobookGenreScreen({super.key, required this.genre});
-  final String genre;
+/// Browse the catalog for a query (a genre, subject tag, author or year),
+/// tapped from a book's detail page.
+class AudiobookBrowseScreen extends StatefulWidget {
+  const AudiobookBrowseScreen(
+      {super.key, required this.title, required this.query});
+  final String title;
+  final String query;
 
   @override
-  State<AudiobookGenreScreen> createState() => _AudiobookGenreScreenState();
+  State<AudiobookBrowseScreen> createState() => _AudiobookBrowseScreenState();
 }
 
-class _AudiobookGenreScreenState extends State<AudiobookGenreScreen> {
+class _AudiobookBrowseScreenState extends State<AudiobookBrowseScreen> {
   List<AudiobookItem> _books = [];
   bool _loading = true;
 
@@ -312,7 +358,7 @@ class _AudiobookGenreScreenState extends State<AudiobookGenreScreen> {
   }
 
   Future<void> _load() async {
-    final res = await AudiobookCatalogService.search(widget.genre);
+    final res = await AudiobookCatalogService.search(widget.query);
     if (mounted) {
       setState(() {
         _books = res;
@@ -325,7 +371,7 @@ class _AudiobookGenreScreenState extends State<AudiobookGenreScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(widget.genre, maxLines: 1)),
+      appBar: AppBar(title: Text(widget.title, maxLines: 1)),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _books.isEmpty
