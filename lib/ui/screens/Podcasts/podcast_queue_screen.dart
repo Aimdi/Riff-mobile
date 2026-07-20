@@ -4,16 +4,24 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/models/thumbnail.dart';
+import '/services/podcast_download_service.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/snackbar.dart';
 import 'podcast_queue_controller.dart';
 
 /// Long-press action sheet for a podcast episode: add it to (or remove it
-/// from) the Queue.
+/// from) the Queue, and download it for offline playback (or delete it).
 void showAddToQueueSheet(BuildContext context, MediaItem episode) {
   final c = Get.find<PodcastQueueController>();
   final queued = c.isQueued(episode.id);
+  final downloaded = PodcastDownloadService.isDownloaded(episode.id);
+  // Download is only possible for episodes with a direct enclosure URL
+  // (iTunes/RSS episodes), not YouTube-streamed ones.
+  final canDownload =
+      (episode.extras?['url'] as String?)?.isNotEmpty ?? false;
+  void snack(String msg) => ScaffoldMessenger.of(context)
+      .showSnackBar(snackbar(context, msg, size: SanckBarSize.MEDIUM));
   showModalBottomSheet(
     context: context,
     shape: const RoundedRectangleBorder(
@@ -29,11 +37,26 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode) {
             onTap: () {
               queued ? c.removeById(episode.id) : c.add(episode);
               Navigator.of(ctx).pop();
-              ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                  context, queued ? "removedFromQueue".tr : "addedToQueue".tr,
-                  size: SanckBarSize.MEDIUM));
+              snack(queued ? "removedFromQueue".tr : "addedToQueue".tr);
             },
           ),
+          if (canDownload || downloaded)
+            ListTile(
+              leading: Icon(
+                  downloaded ? Icons.delete_outline : Icons.download_outlined),
+              title: Text(downloaded ? "removeDownload".tr : "download".tr),
+              onTap: () async {
+                Navigator.of(ctx).pop();
+                if (downloaded) {
+                  await PodcastDownloadService.delete(episode.id);
+                  snack("downloadRemoved".tr);
+                  return;
+                }
+                snack("downloadStarted".tr);
+                final ok = await PodcastDownloadService.download(episode);
+                snack(ok ? "downloadComplete".tr : "downloadFailed".tr);
+              },
+            ),
         ],
       ),
     ),

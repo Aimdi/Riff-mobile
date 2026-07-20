@@ -823,7 +823,14 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           break;
         }
       }
-      final url = item?.extras?['url'] as String?;
+      var url = item?.extras?['url'] as String?;
+      // Prefer a downloaded local copy for podcast episodes (offline playback).
+      if (songId.startsWith("podcast_") && Hive.isBoxOpen("PodcastDownloads")) {
+        final local = Hive.box("PodcastDownloads").get(songId);
+        if (local is String && local.isNotEmpty && File(local).existsSync()) {
+          url = "file://$local";
+        }
+      }
       if (url != null && url.isNotEmpty) {
         final audio = Audio(
             audioCodec: Codec.mp4a,

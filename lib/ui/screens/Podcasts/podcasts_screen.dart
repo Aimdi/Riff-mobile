@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import '/models/thumbnail.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
+import 'podcast_queue_screen.dart';
 
 /// AntennaPod-style podcast section: discover via Apple's directory,
 /// subscribe locally (nothing reported anywhere), play episodes straight
@@ -290,6 +291,7 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
         (e['artwork'] ?? widget.podcast['artwork'] ?? '').toString();
     return InkWell(
       onTap: () => _playFrom(i),
+      onLongPress: () => showAddToQueueSheet(context, _toMediaItem(e)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
