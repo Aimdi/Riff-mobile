@@ -67,6 +67,14 @@ class AudiobookDetails {
   final String appleUrl;
 }
 
+/// A star rating for a book, sourced from Google Books (iTunes doesn't expose
+/// audiobook ratings). [average] is 0–5; [count] is the number of ratings.
+class AudiobookRating {
+  AudiobookRating({required this.average, required this.count});
+  final double average;
+  final int count;
+}
+
 /// "Audible-style" discovery of popular audiobooks. Uses Apple's public
 /// audiobook catalog (iTunes, no key) for real bestseller metadata — cover,
 /// author, description — then links out to Audible to listen/buy. Audible
@@ -214,6 +222,42 @@ class AudiobookCatalogService {
       );
     } catch (e) {
       printERROR('Audiobook details failed: $e');
+      return null;
+    }
+  }
+
+  /// Best-effort star rating for a book, matched by title (+ author) against
+  /// Google Books, which exposes `averageRating`/`ratingsCount` for free.
+  /// Returns null when no rated match is found.
+  static Future<AudiobookRating?> rating({
+    required String title,
+    required String author,
+  }) async {
+    if (title.trim().isEmpty) return null;
+    try {
+      final q = [title.trim(), author.trim()].where((s) => s.isNotEmpty).join(' ');
+      final res = await _dio.get(
+        'https://www.googleapis.com/books/v1/volumes',
+        queryParameters: {
+          'q': q,
+          'maxResults': 5,
+          'country': _storefront().toUpperCase(),
+        },
+      );
+      final items = _asMap(res.data)?['items'] as List?;
+      if (items == null) return null;
+      for (final it in items.whereType<Map>()) {
+        final vi = it['volumeInfo'];
+        if (vi is Map && vi['averageRating'] != null) {
+          final avg = (vi['averageRating'] as num).toDouble();
+          if (avg <= 0) continue;
+          final cnt = (vi['ratingsCount'] as num?)?.toInt() ?? 0;
+          return AudiobookRating(average: avg, count: cnt);
+        }
+      }
+      return null;
+    } catch (e) {
+      printERROR('Audiobook rating failed: $e');
       return null;
     }
   }

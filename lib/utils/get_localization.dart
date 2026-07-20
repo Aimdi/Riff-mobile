@@ -1836,6 +1836,7 @@ Map<String, Map<String, String>> get keys => {
   "audiobookBrowseOnly": "Preview and listen on Audible — audiobooks can't be played inside Riff.",
   "saved": "Saved",
   "noSavedAudiobooks": "No saved audiobooks yet. Tap the bookmark on a book to save it here.",
+  "ratings": "ratings",
   "identifySong": "Identify song",
   "listening": "Listening…",
   "couldNotIdentify": "Couldn't identify the song. Try again.",

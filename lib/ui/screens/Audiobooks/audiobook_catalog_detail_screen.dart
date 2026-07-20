@@ -21,6 +21,7 @@ class _AudiobookCatalogDetailScreenState
     extends State<AudiobookCatalogDetailScreen> {
   AudiobookDetails? _details;
   List<AudiobookItem> _similar = [];
+  AudiobookRating? _rating;
   bool _loading = true;
 
   @override
@@ -31,16 +32,21 @@ class _AudiobookCatalogDetailScreenState
 
   Future<void> _load() async {
     final book = widget.book;
+    // Rating (Google Books) is independent — fetch it alongside the details.
+    final ratingFuture =
+        AudiobookCatalogService.rating(title: book.title, author: book.author);
     final d = await AudiobookCatalogService.details(book.id);
     final sim = await AudiobookCatalogService.similar(
       author: book.author,
       genre: (d?.genre.isNotEmpty ?? false) ? d!.genre : book.genre,
       excludeId: book.id,
     );
+    final rating = await ratingFuture;
     if (mounted) {
       setState(() {
         _details = d;
         _similar = sim;
+        _rating = rating;
         _loading = false;
       });
     }
@@ -101,6 +107,10 @@ class _AudiobookCatalogDetailScreenState
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyLarge),
             ),
+          if (_rating != null) ...[
+            const SizedBox(height: 8),
+            _starRow(theme, _rating!),
+          ],
           const SizedBox(height: 12),
           // Fact chips: genre · year · rating · publisher
           _facts(theme, genre),
@@ -209,6 +219,40 @@ class _AudiobookCatalogDetailScreenState
             },
           ),
         ),
+      ],
+    );
+  }
+
+  /// Centered 5-star row (full/half/empty) + numeric average and rating count.
+  Widget _starRow(ThemeData theme, AudiobookRating r) {
+    const amber = Color(0xFFFFB300);
+    final full = r.average.floor();
+    final hasHalf = (r.average - full) >= 0.25 && (r.average - full) < 0.75;
+    final roundedUp = (r.average - full) >= 0.75;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (int i = 0; i < 5; i++)
+          Icon(
+            i < full || (i == full && roundedUp)
+                ? Icons.star_rounded
+                : (i == full && hasHalf)
+                    ? Icons.star_half_rounded
+                    : Icons.star_border_rounded,
+            size: 20,
+            color: amber,
+          ),
+        const SizedBox(width: 6),
+        Text(
+          r.average.toStringAsFixed(1),
+          style: theme.textTheme.bodyMedium
+              ?.copyWith(fontWeight: FontWeight.w600),
+        ),
+        if (r.count > 0)
+          Text(
+            '  ·  ${r.count} ${'ratings'.tr}',
+            style: theme.textTheme.bodySmall,
+          ),
       ],
     );
   }
