@@ -138,6 +138,91 @@ class PodcastService {
   /// drop the seed itself and anything already followed, then batch-resolve
   /// feed URLs so each result opens straight into its episode list.
   /// Returns [{title, author, artwork, feedUrl}].
+  /// Apple Podcasts' top-level categories (genre ids) for the browse grid.
+  static const podcastGenres = <Map<String, String>>[
+    {'id': '1489', 'name': 'News'},
+    {'id': '1303', 'name': 'Comedy'},
+    {'id': '1488', 'name': 'True Crime'},
+    {'id': '1324', 'name': 'Society & Culture'},
+    {'id': '1321', 'name': 'Business'},
+    {'id': '1318', 'name': 'Technology'},
+    {'id': '1512', 'name': 'History'},
+    {'id': '1487', 'name': 'Health & Fitness'},
+    {'id': '1533', 'name': 'Science'},
+    {'id': '1304', 'name': 'Education'},
+    {'id': '1310', 'name': 'Music'},
+    {'id': '1545', 'name': 'Sports'},
+    {'id': '1483', 'name': 'Fiction'},
+    {'id': '1314', 'name': 'Religion & Spirituality'},
+    {'id': '1502', 'name': 'Leisure'},
+    {'id': '1309', 'name': 'TV & Film'},
+    {'id': '1301', 'name': 'Arts'},
+    {'id': '1305', 'name': 'Kids & Family'},
+    {'id': '1511', 'name': 'Government'},
+  ];
+
+  static final _genreCache = <String, List<Map<String, dynamic>>>{};
+
+  /// Top podcasts in an Apple genre (browse a category). Returns cards with a
+  /// resolved feedUrl so they open straight in the episode list.
+  static Future<List<Map<String, dynamic>>> topByGenre(String genreId,
+      {int limit = 40}) async {
+    if (genreId.isEmpty) return [];
+    final cached = _genreCache[genreId];
+    if (cached != null) return cached;
+    try {
+      final cc = _storefront();
+      final rss = await _dio.get(
+          'https://itunes.apple.com/$cc/rss/toppodcasts/genre=$genreId/limit=$limit/json');
+      final entries = _asMap(rss.data)?['feed']?['entry'] as List?;
+      if (entries == null) return [];
+      final candidates = <Map<String, dynamic>>[];
+      for (final e in entries) {
+        if (e is! Map) continue;
+        final id = '${e['id']?['attributes']?['im:id'] ?? ''}';
+        if (id.isEmpty) continue;
+        final images = e['im:image'] as List?;
+        final raw = (images != null && images.isNotEmpty)
+            ? '${images.last['label'] ?? ''}'
+            : '';
+        candidates.add({
+          'collectionId': id,
+          'title': '${e['im:name']?['label'] ?? ''}',
+          'author': '${e['im:artist']?['label'] ?? ''}',
+          'artwork': Thumbnail(raw).extraHigh,
+        });
+      }
+      if (candidates.isEmpty) return [];
+      // Batch-resolve feed URLs (needed to open episodes).
+      final ids = candidates.map((c) => c['collectionId']).join(',');
+      final lk = await _dio.get('https://itunes.apple.com/lookup',
+          queryParameters: {'id': ids});
+      final results = _asMap(lk.data)?['results'] as List? ?? const [];
+      final feedById = <String, String>{};
+      for (final r in results) {
+        if (r is Map && r['feedUrl'] != null) {
+          feedById['${r['collectionId']}'] = '${r['feedUrl']}';
+        }
+      }
+      final out = <Map<String, dynamic>>[];
+      for (final c in candidates) {
+        final feed = feedById['${c['collectionId']}'];
+        if (feed == null || feed.isEmpty) continue;
+        out.add({
+          'title': c['title'],
+          'author': c['author'],
+          'artwork': c['artwork'],
+          'feedUrl': feed,
+        });
+      }
+      _genreCache[genreId] = out;
+      return out;
+    } catch (e) {
+      printERROR('Top podcasts by genre failed: $e');
+      return [];
+    }
+  }
+
   static Future<List<Map<String, dynamic>>> similar(String title,
       {int limit = 15}) async {
     final key = title.trim().toLowerCase();

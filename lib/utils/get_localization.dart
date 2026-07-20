@@ -1844,6 +1844,7 @@ Map<String, Map<String, String>> get keys => {
   "following": "Following",
   "shuffle": "Shuffle",
   "discoverPodcastsEmpty": "Subscribe to a few podcasts and we'll show you what their listeners also enjoy.",
+  "browseAll": "Browse all",
   "identifySong": "Identify song",
   "listening": "Listening…",
   "couldNotIdentify": "Couldn't identify the song. Try again.",

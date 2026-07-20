@@ -10,6 +10,7 @@ import '/ui/player/player_controller.dart';
 import '/ui/widgets/content_list_widget_item.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/sort_widget.dart';
+import 'podcast_category_screen.dart';
 import 'podcast_inbox_screen.dart';
 import 'podcast_queue_screen.dart';
 import 'podcast_subs_screen.dart';
@@ -418,17 +419,9 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
       }
       final items = controller.searchResults;
       final query = controller.searchQuery.value.trim();
-      // No query yet → show a suggestions grid (AntennaPod-style).
+      // No query yet → Spotify-style "Browse all" category tiles + suggestions.
       if (items.isEmpty && query.isEmpty) {
-        final suggestions = controller.featuredPodcasts;
-        if (suggestions.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        return _podcastGrid(
-          controller, itemWidth, itemHeight,
-          header: 'suggestions'.tr,
-          list: suggestions.toList(),
-        );
+        return _browseView(controller, itemWidth, itemHeight);
       }
       if (items.isEmpty) {
         return Center(
@@ -444,6 +437,124 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
         list: items.toList(),
       );
     });
+  }
+
+  // Distinct tile colours for the browse categories (Spotify-style).
+  static const _categoryColors = <Color>[
+    Color(0xFF1E3264),
+    Color(0xFF8D67AB),
+    Color(0xFFE13300),
+    Color(0xFF148A08),
+    Color(0xFFD84000),
+    Color(0xFF0D73EC),
+    Color(0xFFBA5D07),
+    Color(0xFF477D95),
+    Color(0xFF503750),
+    Color(0xFF777777),
+    Color(0xFF8C1932),
+    Color(0xFF1E3264),
+    Color(0xFF608108),
+    Color(0xFFA56752),
+    Color(0xFFE8115B),
+    Color(0xFF27856A),
+  ];
+
+  /// Search-focus landing: a grid of Apple-Podcasts category tiles plus the
+  /// featured suggestions below.
+  Widget _browseView(LibraryPodcastsController controller, double itemWidth,
+      double itemHeight) {
+    const genres = PodcastService.podcastGenres;
+    final suggestions = controller.featuredPodcasts.toList();
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.only(left: 5, top: 8, bottom: 8),
+            child: Text('browseAll'.tr,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700)),
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.only(right: 8, bottom: 12),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 1.9,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, i) => _categoryTile(genres[i]['id']!, genres[i]['name']!, i),
+              childCount: genres.length,
+            ),
+          ),
+        ),
+        if (suggestions.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 5, top: 4, bottom: 4),
+              child: Text('suggestions'.tr,
+                  style: Theme.of(context).textTheme.titleSmall),
+            ),
+          ),
+          SliverLayoutBuilder(builder: (context, constraints) {
+            final availableWidth = constraints.crossAxisExtent;
+            final width = availableWidth > 300 && availableWidth < 394
+                ? 310.0
+                : availableWidth;
+            final columns = (width / itemWidth).floor().clamp(2, 6);
+            return SliverPadding(
+              padding: const EdgeInsets.only(bottom: 200, top: 6),
+              sliver: SliverGrid(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  childAspectRatio: itemWidth / itemHeight,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => Center(
+                    child: ContentListItem(
+                        content: suggestions[index], showSimilarOnOpen: true),
+                  ),
+                  childCount: suggestions.length,
+                ),
+              ),
+            );
+          }),
+        ],
+      ],
+    );
+  }
+
+  Widget _categoryTile(String genreId, String name, int i) {
+    final color = _categoryColors[i % _categoryColors.length];
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => Get.to(
+          () => PodcastCategoryScreen(genreId: genreId, name: name)),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: Text(
+            name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 15),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _podcastGrid(LibraryPodcastsController controller, double itemWidth,
