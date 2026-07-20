@@ -32,6 +32,8 @@ class SettingsScreenController extends GetxController {
   final ytConnected = false.obs;
   final playbackSpeed = 1.0.obs;
   final playbackPitch = 1.0.obs;
+  // audD API token for Shazam-style song recognition (empty = not configured).
+  final auddApiToken = ''.obs;
   final bassBoost = 0.obs;
   final volumeBoostMb = 0.obs;
   final reverbPreset = 0.obs;
@@ -57,7 +59,7 @@ class SettingsScreenController extends GetxController {
   final keepScreenAwake = false.obs;
   final restorePlaybackSession = false.obs;
   final cacheHomeScreenData = true.obs;
-  final currentVersion = "V1.7.1";
+  final currentVersion = "V1.7.2";
 
   @override
   void onInit() {
@@ -110,6 +112,7 @@ class SettingsScreenController extends GetxController {
     ytConnected.value = YtAuthService.isConnected;
     playbackSpeed.value = (setBox.get("playbackSpeed") ?? 1.0).toDouble();
     playbackPitch.value = (setBox.get("playbackPitch") ?? 1.0).toDouble();
+    auddApiToken.value = setBox.get("auddApiToken") ?? '';
     bassBoost.value = setBox.get("bassBoost") ?? 0;
     volumeBoostMb.value = setBox.get("volumeBoostMb") ?? 0;
     reverbPreset.value = setBox.get("reverbPreset") ?? 0;

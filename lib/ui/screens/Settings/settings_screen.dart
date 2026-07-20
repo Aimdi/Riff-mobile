@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../widgets/common_dialog_widget.dart';
 import '../../widgets/cust_switch.dart';
+import '../../widgets/recognition_button.dart';
 import '../../widgets/export_file_dialog.dart';
 import '../../widgets/backup_dialog.dart';
 import '../../widgets/restore_dialog.dart';
@@ -718,6 +719,14 @@ class SettingsScreen extends StatelessWidget {
                     onTap: () => showDialog(
                         context: context,
                         builder: (context) => const SpeedPitchDialog()),
+                  ),
+                  ListTile(
+                    contentPadding:
+                        const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("identifySong".tr),
+                    subtitle: Text("auddTokenHint".tr,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    onTap: () => showAuddTokenDialog(context),
                   ),
                   ListTile(
                     contentPadding:
