@@ -29,6 +29,24 @@ class AudiobookItem {
         [title, author].where((s) => s.isNotEmpty).join(' '));
     return 'https://www.audible.com/search?keywords=$q';
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'author': author,
+        'cover': cover,
+        'genre': genre,
+        'description': description,
+      };
+
+  factory AudiobookItem.fromJson(Map json) => AudiobookItem(
+        id: '${json['id'] ?? ''}',
+        title: '${json['title'] ?? ''}',
+        author: '${json['author'] ?? ''}',
+        cover: '${json['cover'] ?? ''}',
+        genre: '${json['genre'] ?? ''}',
+        description: '${json['description'] ?? ''}',
+      );
 }
 
 /// Fuller metadata fetched on demand for a book's detail page.

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '/services/audiobook_catalog_service.dart';
+import 'audiobook_library_controller.dart';
 
 /// Details for a commercial audiobook. Browse-only: it can't play in Riff
 /// (Audible/DRM), so the actions open Audible / Apple Books to listen or buy.
@@ -56,8 +57,22 @@ class _AudiobookCatalogDetailScreenState
         ? _details!.description
         : book.description;
 
+    final lib = Get.find<AudiobookLibraryController>();
     return Scaffold(
-      appBar: AppBar(title: Text(book.title, maxLines: 1)),
+      appBar: AppBar(
+        title: Text(book.title, maxLines: 1),
+        actions: [
+          Obx(() {
+            final isSaved = lib.saved.any((b) => b.id == book.id);
+            return IconButton(
+              tooltip: isSaved ? 'saved'.tr : 'save'.tr,
+              icon: Icon(
+                  isSaved ? Icons.bookmark : Icons.bookmark_border_rounded),
+              onPressed: () => lib.toggle(book),
+            );
+          }),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
         children: [
@@ -199,24 +214,129 @@ class _AudiobookCatalogDetailScreenState
   }
 
   Widget _facts(ThemeData theme, String genre) {
-    final chips = <String>[
-      if (genre.isNotEmpty) genre,
+    // The genre chip is tappable (browse that genre); the rest are static.
+    final plain = <String>[
       if (_details?.releaseDate.isNotEmpty ?? false) _details!.releaseDate,
       if (_details?.rating.isNotEmpty ?? false) _details!.rating,
       if (_details?.publisher.isNotEmpty ?? false) _details!.publisher,
     ];
-    if (chips.isEmpty) return const SizedBox.shrink();
+    if (genre.isEmpty && plain.isEmpty) return const SizedBox.shrink();
     return Wrap(
       alignment: WrapAlignment.center,
       spacing: 8,
       runSpacing: 6,
-      children: chips
-          .map((c) => Chip(
-                label: Text(c, style: theme.textTheme.bodySmall),
-                visualDensity: VisualDensity.compact,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ))
-          .toList(),
+      children: [
+        if (genre.isNotEmpty)
+          ActionChip(
+            avatar: Icon(Icons.local_offer_outlined,
+                size: 15, color: theme.colorScheme.secondary),
+            label: Text(genre, style: theme.textTheme.bodySmall),
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            onPressed: () => Get.to(
+              () => AudiobookGenreScreen(genre: genre),
+              transition: Transition.rightToLeft,
+            ),
+          ),
+        ...plain.map((c) => Chip(
+              label: Text(c, style: theme.textTheme.bodySmall),
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            )),
+      ],
+    );
+  }
+}
+
+/// Browse the catalog for a genre (tapped from a book's genre chip).
+class AudiobookGenreScreen extends StatefulWidget {
+  const AudiobookGenreScreen({super.key, required this.genre});
+  final String genre;
+
+  @override
+  State<AudiobookGenreScreen> createState() => _AudiobookGenreScreenState();
+}
+
+class _AudiobookGenreScreenState extends State<AudiobookGenreScreen> {
+  List<AudiobookItem> _books = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final res = await AudiobookCatalogService.search(widget.genre);
+    if (mounted) {
+      setState(() {
+        _books = res;
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.genre, maxLines: 1)),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _books.isEmpty
+              ? Center(child: Text('noResults'.tr))
+              : GridView.builder(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 40),
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.72,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                  ),
+                  itemCount: _books.length,
+                  itemBuilder: (context, i) {
+                    final book = _books[i];
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () => Get.to(
+                        () => AudiobookCatalogDetailScreen(book: book),
+                        preventDuplicates: false,
+                        transition: Transition.rightToLeft,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: CachedNetworkImage(
+                                imageUrl: book.cover,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorWidget: (_, __, ___) => Container(
+                                  color: theme.primaryColorLight,
+                                  child: const Icon(Icons.menu_book, size: 48),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(book.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleSmall),
+                          if (book.author.isNotEmpty)
+                            Text(book.author,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall),
+                        ],
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }

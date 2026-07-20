@@ -6,6 +6,7 @@ import '/services/audiobook_catalog_service.dart';
 import '/services/audiobookshelf_service.dart';
 import 'audiobook_catalog_detail_screen.dart';
 import 'audiobook_detail_screen.dart';
+import 'audiobook_library_controller.dart';
 
 /// Audiobooks: a free LibriVox "Discover" browser plus the Audiobookshelf
 /// (Lissen-inspired) server view for those who self-host.
@@ -18,7 +19,7 @@ class AudiobooksScreen extends StatefulWidget {
 }
 
 class _AudiobooksScreenState extends State<AudiobooksScreen> {
-  int _mode = 0; // 0 = Discover (LibriVox), 1 = My server (Audiobookshelf)
+  int _mode = 0; // 0 = Discover, 1 = Saved (local), 2 = My server (Audiobookshelf)
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +41,8 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
             child: SegmentedButton<int>(
               segments: [
                 ButtonSegment(value: 0, label: Text('discover'.tr)),
-                ButtonSegment(value: 1, label: Text('myServer'.tr)),
+                ButtonSegment(value: 1, label: Text('saved'.tr)),
+                ButtonSegment(value: 2, label: Text('myServer'.tr)),
               ],
               selected: {_mode},
               showSelectedIcon: false,
@@ -51,9 +53,11 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
           Expanded(
             child: _mode == 0
                 ? const _CatalogDiscover()
-                : Obx(() => abs.isConnected.value
-                    ? const _AbsLibraryView()
-                    : const _AbsLoginForm()),
+                : _mode == 1
+                    ? const _SavedView()
+                    : Obx(() => abs.isConnected.value
+                        ? const _AbsLibraryView()
+                        : const _AbsLoginForm()),
           ),
         ],
       ),
@@ -188,6 +192,81 @@ class _CatalogDiscoverState extends State<_CatalogDiscover> {
         ),
       ],
     );
+  }
+}
+
+/// Locally-saved (bookmarked) catalog audiobooks.
+class _SavedView extends StatelessWidget {
+  const _SavedView();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final lib = Get.find<AudiobookLibraryController>();
+    return Obx(() {
+      final books = lib.saved;
+      if (books.isEmpty) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              'noSavedAudiobooks'.tr,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium,
+            ),
+          ),
+        );
+      }
+      return GridView.builder(
+        padding: const EdgeInsets.only(bottom: 200, right: 8),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.72,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+        ),
+        itemCount: books.length,
+        itemBuilder: (context, i) {
+          final book = books[i];
+          return InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () => Get.to(
+              () => AudiobookCatalogDetailScreen(book: book),
+              transition: Transition.rightToLeft,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: CachedNetworkImage(
+                      imageUrl: book.cover,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => Container(
+                        color: theme.primaryColorLight,
+                        child: const Icon(Icons.menu_book, size: 48),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(book.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleSmall),
+                if (book.author.isNotEmpty)
+                  Text(book.author,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall),
+              ],
+            ),
+          );
+        },
+      );
+    });
   }
 }
 
