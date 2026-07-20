@@ -9,6 +9,7 @@ import '/models/playling_from.dart';
 import '/models/thumbnail.dart';
 import '/services/podcast_service.dart';
 import '../Podcasts/podcast_queue_screen.dart';
+import '../Podcasts/podcasts_screen.dart';
 import '/ui/widgets/playlist_album_scroll_behaviour.dart';
 import '../../../services/downloader.dart';
 import '../../navigator.dart';
@@ -264,7 +265,16 @@ class PlaylistScreen extends StatelessWidget {
                             itemCount: playlistController.songList.isEmpty ||
                                     playlistController.isContentFetched.isFalse
                                 ? 4
-                                : playlistController.songList.length + 3,
+                                : playlistController.songList.length +
+                                    3 +
+                                    // +1 footer row of similar podcasts.
+                                    ((playlistController.playlist.value.kind ==
+                                                'podcast' ||
+                                            playlistController.playlist.value
+                                                .playlistId
+                                                .startsWith('MPSP'))
+                                        ? 1
+                                        : 0),
                             itemBuilder: (_, index) {
                               if (index == 0) {
                                 return Padding(
@@ -746,6 +756,12 @@ class PlaylistScreen extends StatelessWidget {
                               final pl = playlistController.playlist.value;
                               final isPodcastList = pl.kind == 'podcast' ||
                                   pl.playlistId.startsWith('MPSP');
+                              // Footer: similar-podcasts row (podcasts only).
+                              if (isPodcastList &&
+                                  index ==
+                                      playlistController.songList.length + 3) {
+                                return _PodcastSimilarFooter(title: pl.title);
+                              }
                               final song =
                                   playlistController.songList[index - 3];
                               void playThis() {
@@ -889,6 +905,132 @@ class _PodcastEpisodeTile extends StatelessWidget {
             ),
           ),
           const Divider(height: 1, indent: 20, endIndent: 12),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Similar podcasts" horizontal strip shown under the episode list on a
+/// podcast show page. Sourced from Apple's genre charts (PodcastService.similar)
+/// keyed off the current show's title. Tapping a card opens that podcast's
+/// episode list. Renders nothing while loading or when no matches are found.
+class _PodcastSimilarFooter extends StatefulWidget {
+  const _PodcastSimilarFooter({required this.title});
+  final String title;
+
+  @override
+  State<_PodcastSimilarFooter> createState() => _PodcastSimilarFooterState();
+}
+
+class _PodcastSimilarFooterState extends State<_PodcastSimilarFooter> {
+  List<Map<String, dynamic>> _similar = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final res = await PodcastService.similar(widget.title);
+      if (!mounted) return;
+      setState(() {
+        _similar = res;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading || _similar.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+            child: Text(
+              "similarPodcasts".tr,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+          SizedBox(
+            height: 178,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              itemCount: _similar.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 14),
+              itemBuilder: (context, i) {
+                final p = _similar[i];
+                final art = Thumbnail((p['artwork'] ?? '').toString()).high;
+                return InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () =>
+                      Get.to(() => PodcastEpisodesScreen(podcast: p)),
+                  child: SizedBox(
+                    width: 124,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: CachedNetworkImage(
+                            imageUrl: art,
+                            width: 124,
+                            height: 124,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => Container(
+                              width: 124,
+                              height: 124,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
+                              child: const Icon(Icons.podcasts, size: 34),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          (p['title'] ?? '').toString(),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500, height: 1.15),
+                        ),
+                        if ((p['author'] ?? '').toString().trim().isNotEmpty)
+                          Text(
+                            (p['author'] ?? '').toString(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.color
+                                        ?.withOpacity(0.6)),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
         ],
       ),
     );
