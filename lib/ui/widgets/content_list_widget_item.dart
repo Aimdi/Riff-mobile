@@ -6,11 +6,18 @@ import 'image_widget.dart';
 
 class ContentListItem extends StatelessWidget {
   const ContentListItem(
-      {super.key, required this.content, this.isLibraryItem = false});
+      {super.key,
+      required this.content,
+      this.isLibraryItem = false,
+      this.showSimilarOnOpen = false});
 
   ///content will be of Type class Album or Playlist
   final dynamic content;
   final bool isLibraryItem;
+
+  /// When true (podcast search results), the opened playlist shows a pinned
+  /// "Similar podcasts" section at the bottom.
+  final bool showSimilarOnOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +34,7 @@ class ContentListItem extends StatelessWidget {
         }
         Get.toNamed(ScreenNavigationSetup.playlistScreen,
             id: ScreenNavigationSetup.id,
-            arguments: [content, content.playlistId]);
+            arguments: [content, content.playlistId, showSimilarOnOpen]);
       },
       child: Container(
         width: 130,

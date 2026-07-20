@@ -35,6 +35,11 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
   ).obs;
   final isDefaultPlaylist = false.obs;
 
+  // True only when this playlist was opened from the podcast *search* screen.
+  // Drives the pinned "Similar podcasts" section at the bottom (passed as the
+  // optional 3rd navigation argument).
+  final showSimilarPodcasts = false.obs;
+
   // Add this RxBool to track export progress
   final isExporting = false.obs;
   final exportProgress = 0.0.obs;
@@ -68,6 +73,8 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     final args = Get.arguments as List;
     final Playlist? playlist = args[0];
     final playlistId = args[1];
+    // Optional 3rd arg: opened from podcast search -> show pinned similar row.
+    showSimilarPodcasts.value = args.length > 2 && args[2] == true;
     fetchPlaylistDetails(playlist, playlistId);
     Future.delayed(const Duration(milliseconds: 200),
         () => Get.find<HomeScreenController>().whenHomeScreenOnTop());

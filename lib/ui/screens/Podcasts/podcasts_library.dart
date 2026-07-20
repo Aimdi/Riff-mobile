@@ -402,7 +402,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                   ),
                   delegate: SliverChildBuilderDelegate(
                     (context, index) => Center(
-                      child: ContentListItem(content: list[index]),
+                      child: ContentListItem(
+                          content: list[index], showSimilarOnOpen: true),
                     ),
                     childCount: list.length,
                   ),

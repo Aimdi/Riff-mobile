@@ -265,16 +265,7 @@ class PlaylistScreen extends StatelessWidget {
                             itemCount: playlistController.songList.isEmpty ||
                                     playlistController.isContentFetched.isFalse
                                 ? 4
-                                : playlistController.songList.length +
-                                    3 +
-                                    // +1 footer row of similar podcasts.
-                                    ((playlistController.playlist.value.kind ==
-                                                'podcast' ||
-                                            playlistController.playlist.value
-                                                .playlistId
-                                                .startsWith('MPSP'))
-                                        ? 1
-                                        : 0),
+                                : playlistController.songList.length + 3,
                             itemBuilder: (_, index) {
                               if (index == 0) {
                                 return Padding(
@@ -756,12 +747,6 @@ class PlaylistScreen extends StatelessWidget {
                               final pl = playlistController.playlist.value;
                               final isPodcastList = pl.kind == 'podcast' ||
                                   pl.playlistId.startsWith('MPSP');
-                              // Footer: similar-podcasts row (podcasts only).
-                              if (isPodcastList &&
-                                  index ==
-                                      playlistController.songList.length + 3) {
-                                return _PodcastSimilarFooter(title: pl.title);
-                              }
                               final song =
                                   playlistController.songList[index - 3];
                               void playThis() {
@@ -797,6 +782,19 @@ class PlaylistScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                // Pinned "Similar podcasts" panel — reserved at the bottom of
+                // the screen (does not scroll away). Only for podcasts opened
+                // from search.
+                Obx(() {
+                  final pl = playlistController.playlist.value;
+                  final isPodcastList = pl.kind == 'podcast' ||
+                      pl.playlistId.startsWith('MPSP');
+                  if (!playlistController.showSimilarPodcasts.value ||
+                      !isPodcastList) {
+                    return const SizedBox.shrink();
+                  }
+                  return _PodcastSimilarFooter(title: pl.title);
+                }),
               ],
             ),
           ],
@@ -949,87 +947,90 @@ class _PodcastSimilarFooterState extends State<_PodcastSimilarFooter> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading || _similar.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 24),
+    final theme = Theme.of(context);
+    // Once we know there are no matches, don't reserve space.
+    if (!_loading && _similar.isEmpty) return const SizedBox.shrink();
+    // Lift the panel above the minimized player bar so nothing is hidden.
+    final playerMin =
+        Get.find<PlayerController>().playerPanelMinHeight.value;
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        border: Border(
+          top: BorderSide(color: theme.dividerColor.withOpacity(0.4)),
+        ),
+      ),
+      padding: EdgeInsets.only(top: 10, bottom: playerMin + 8),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
             child: Text(
               "similarPodcasts".tr,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
+              style: theme.textTheme.titleMedium
                   ?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
           SizedBox(
-            height: 178,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              itemCount: _similar.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 14),
-              itemBuilder: (context, i) {
-                final p = _similar[i];
-                final art = Thumbnail((p['artwork'] ?? '').toString()).high;
-                return InkWell(
-                  borderRadius: BorderRadius.circular(8),
-                  onTap: () =>
-                      Get.to(() => PodcastEpisodesScreen(podcast: p)),
-                  child: SizedBox(
-                    width: 124,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: CachedNetworkImage(
-                            imageUrl: art,
-                            width: 124,
-                            height: 124,
-                            fit: BoxFit.cover,
-                            errorWidget: (_, __, ___) => Container(
-                              width: 124,
-                              height: 124,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest,
-                              child: const Icon(Icons.podcasts, size: 34),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          (p['title'] ?? '').toString(),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w500, height: 1.15),
-                        ),
-                        if ((p['author'] ?? '').toString().trim().isNotEmpty)
-                          Text(
-                            (p['author'] ?? '').toString(),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                    color: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.color
-                                        ?.withOpacity(0.6)),
-                          ),
-                      ],
+            height: 150,
+            child: _loading
+                ? const Center(
+                    child: SizedBox(
+                      width: 26,
+                      height: 26,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     ),
+                  )
+                : ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: _similar.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 14),
+                    itemBuilder: (context, i) {
+                      final p = _similar[i];
+                      final art =
+                          Thumbnail((p['artwork'] ?? '').toString()).high;
+                      return InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: () =>
+                            Get.to(() => PodcastEpisodesScreen(podcast: p)),
+                        child: SizedBox(
+                          width: 104,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: CachedNetworkImage(
+                                  imageUrl: art,
+                                  width: 104,
+                                  height: 104,
+                                  fit: BoxFit.cover,
+                                  errorWidget: (_, __, ___) => Container(
+                                    width: 104,
+                                    height: 104,
+                                    color: theme
+                                        .colorScheme.surfaceContainerHighest,
+                                    child: const Icon(Icons.podcasts, size: 30),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                (p['title'] ?? '').toString(),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w500, height: 1.1),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
         ],
       ),
