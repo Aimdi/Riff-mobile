@@ -152,6 +152,11 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                     activeIcon: Icons.subscriptions,
                     label: 'subscriptions'.tr,
                     section: 3),
+                _navChip(
+                    icon: Icons.explore_outlined,
+                    activeIcon: Icons.explore,
+                    label: 'discover'.tr,
+                    section: 4),
               ],
             ),
           ),
@@ -172,6 +177,10 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               }
               if (_section == 3) {
                 return const PodcastSubsScreen(embedded: true);
+              }
+              if (_section == 4) {
+                // Discover tab: same discovery + categories browse view.
+                return _browseView(controller, itemWidth, itemHeight);
               }
 
               // ── Fallback (unused: default section is Inbox) ─────
@@ -395,6 +404,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
             _searchCtrl.clear();
             Get.find<LibraryPodcastsController>().clearSearch();
           }
+          // Discover tab: load the "listeners also enjoy" rows.
+          if (section == 4) _loadDiscoveryRows();
           setState(() => _section = section);
         },
         child: Container(
