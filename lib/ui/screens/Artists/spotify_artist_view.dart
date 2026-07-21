@@ -64,6 +64,7 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
       final albums = _content(c.artistData['Albums']);
       final singles = _content(c.artistData['Singles']);
       final featured = _content(c.artistData['Featured']);
+      final related = _content(c.artistData['Related']);
       final description = c.artistData['description'];
       final popularCount =
           _popularExpanded ? songs.length : (songs.length > 5 ? 5 : songs.length);
@@ -108,6 +109,10 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
             SliverToBoxAdapter(
               child: _playlistCarousel(
                   theme, '${'featuring'.tr} ${c.artist_.name}', featured),
+            ),
+          if (related.isNotEmpty)
+            SliverToBoxAdapter(
+              child: _artistCarousel(theme, 'fansAlsoLike'.tr, related),
             ),
           if (description != null && '$description'.trim().isNotEmpty)
             SliverToBoxAdapter(child: _about(theme, '$description')),
@@ -455,6 +460,77 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.textTheme.bodySmall?.color?.withOpacity(0.6))),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// "Fans also like" — related artists as circular avatars (Spotify-style).
+  Widget _artistCarousel(ThemeData theme, String title, List items) {
+    final artists = items
+        .where((e) => e != null && e.runtimeType.toString() == 'Artist')
+        .toList();
+    if (artists.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader(theme, title),
+        SizedBox(
+          height: 168,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            physics: const BouncingScrollPhysics(),
+            itemCount: artists.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (context, i) => _artistCard(theme, artists[i]),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _artistCard(ThemeData theme, dynamic artist) {
+    final art = Thumbnail((artist.thumbnailUrl ?? '').toString()).high;
+    return InkWell(
+      borderRadius: BorderRadius.circular(62),
+      onTap: () => Get.toNamed(
+        ScreenNavigationSetup.artistScreen,
+        id: ScreenNavigationSetup.id,
+        preventDuplicates: false,
+        arguments: [true, artist.browseId],
+      ),
+      child: SizedBox(
+        width: 124,
+        child: Column(
+          children: [
+            ClipOval(
+              child: CachedNetworkImage(
+                imageUrl: art,
+                width: 116,
+                height: 116,
+                fit: BoxFit.cover,
+                errorWidget: (_, __, ___) => Container(
+                  width: 116,
+                  height: 116,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: theme.colorScheme.surfaceContainerHighest,
+                  ),
+                  child: const Icon(Icons.person, size: 44),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              (artist.name ?? '').toString(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w500),
+            ),
           ],
         ),
       ),

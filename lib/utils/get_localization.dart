@@ -1844,6 +1844,7 @@ Map<String, Map<String, String>> get keys => {
   "following": "Following",
   "shuffle": "Shuffle",
   "featuring": "Featuring",
+  "fansAlsoLike": "Fans also like",
   "repeat": "Repeat",
   "repeatAll": "Repeat all",
   "repeatOne": "Repeat one",

@@ -1328,10 +1328,22 @@ Map<String, dynamic> parseArtistContents(List results) {
             .map((pl) => parsePlaylist(pl['musicTwoRowItemRenderer']))
             .whereType<Playlist>()
             .toList();
+      } else if (title.toLowerCase().contains('fans') ||
+          title.toLowerCase().contains('like')) {
+        // "Fans might also like" — related artists.
+        content = contentList
+            .map((a) => parseRelatedArtist(a['musicTwoRowItemRenderer']))
+            .whereType<Artist>()
+            .toList();
       }
 
-      // Normalise the "Featured on" shelf to a stable key.
-      final key = title.toLowerCase().contains('featur') ? 'Featured' : title;
+      // Normalise the "Featured on" / "Fans also like" shelves to stable keys.
+      final lower = title.toLowerCase();
+      final key = lower.contains('featur')
+          ? 'Featured'
+          : (lower.contains('fans') || lower.contains('like'))
+              ? 'Related'
+              : title;
       if (browseEndpoint != null) {
         navigationEndpointsNContent[key] = {
           'browseId': browseEndpoint['browseId'],
