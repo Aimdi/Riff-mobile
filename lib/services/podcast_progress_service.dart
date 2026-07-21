@@ -1,0 +1,94 @@
+import 'package:audio_service/audio_service.dart';
+import 'package:hive/hive.dart';
+
+/// Tracks per-episode playback position for podcasts so episodes can be resumed
+/// ("Continue" section) and show a progress bar. Stored in the `PodcastProgress`
+/// Hive box keyed by episode id. Finished episodes are removed automatically.
+class PodcastProgressService {
+  PodcastProgressService._();
+
+  static Box get _box => Hive.box('PodcastProgress');
+
+  static bool _isPodcast(String id) => id.startsWith('podcast_');
+
+  /// Persist the current position of a playing podcast episode. Clears the
+  /// record once the episode is (nearly) finished; ignores the first 15s.
+  static void save(MediaItem? episode, Duration position, Duration? total,
+      {int nowMs = 0}) {
+    if (episode == null || !_isPodcast(episode.id)) return;
+    if (!Hive.isBoxOpen('PodcastProgress')) return;
+    final posMs = position.inMilliseconds;
+    final totMs = (total?.inMilliseconds ?? 0) > 0
+        ? total!.inMilliseconds
+        : (episode.duration?.inMilliseconds ?? 0);
+    if (totMs <= 0) return;
+    // Finished (last 20s or ≥98%) → drop it.
+    if (posMs >= totMs - 20000 || posMs >= totMs * 0.98) {
+      _box.delete(episode.id);
+      return;
+    }
+    if (posMs < 15000) return; // barely started
+    _box.put(episode.id, {
+      'id': episode.id,
+      'title': episode.title,
+      'artist': episode.artist,
+      'artUri': episode.artUri?.toString(),
+      'url': episode.extras?['url'],
+      'description': episode.extras?['description'],
+      'chaptersUrl': episode.extras?['chaptersUrl'],
+      'positionMs': posMs,
+      'durationMs': totMs,
+      'updatedAt': nowMs,
+    });
+  }
+
+  static int? positionMs(String id) {
+    if (!Hive.isBoxOpen('PodcastProgress')) return null;
+    final r = _box.get(id);
+    if (r is Map && r['positionMs'] is int) return r['positionMs'] as int;
+    return null;
+  }
+
+  /// 0..1 played fraction, or null if unknown.
+  static double? progress(String id) {
+    final r = _box.get(id);
+    if (r is Map && r['positionMs'] is int && r['durationMs'] is int) {
+      final d = r['durationMs'] as int;
+      if (d > 0) return ((r['positionMs'] as int) / d).clamp(0.0, 1.0);
+    }
+    return null;
+  }
+
+  static void clear(String id) {
+    if (Hive.isBoxOpen('PodcastProgress')) _box.delete(id);
+  }
+
+  /// In-progress episodes, newest first, as stored maps.
+  static List<Map<String, dynamic>> inProgress() {
+    if (!Hive.isBoxOpen('PodcastProgress')) return [];
+    final list = _box.values
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    list.sort((a, b) =>
+        ((b['updatedAt'] ?? 0) as int).compareTo((a['updatedAt'] ?? 0) as int));
+    return list;
+  }
+
+  /// Rebuild a playable MediaItem from a stored progress record.
+  static MediaItem toMediaItem(Map<String, dynamic> r) => MediaItem(
+        id: '${r['id']}',
+        title: '${r['title'] ?? ''}',
+        artist: r['artist']?.toString(),
+        duration: (r['durationMs'] is int)
+            ? Duration(milliseconds: r['durationMs'] as int)
+            : null,
+        artUri: r['artUri'] != null ? Uri.tryParse('${r['artUri']}') : null,
+        extras: {
+          'url': r['url'],
+          'isPodcast': true,
+          if (r['description'] != null) 'description': r['description'],
+          if (r['chaptersUrl'] != null) 'chaptersUrl': r['chaptersUrl'],
+        },
+      );
+}

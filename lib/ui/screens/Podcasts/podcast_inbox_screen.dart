@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 
 import '/models/thumbnail.dart';
 import '/services/music_service.dart';
+import '/services/podcast_progress_service.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
 import 'podcast_queue_screen.dart';
@@ -93,32 +94,142 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
   }
 
   Widget _body(BuildContext context) {
-    return _loading
-        ? const Center(child: CircularProgressIndicator())
-        : _episodes.isEmpty
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    "noInboxEpisodes".tr,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleMedium,
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    final continueItems = PodcastProgressService.inProgress();
+    if (_episodes.isEmpty && continueItems.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            "noInboxEpisodes".tr,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: () async {
+        setState(() => _loading = true);
+        await _load();
+      },
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 200),
+        children: [
+          if (continueItems.isNotEmpty) ...[
+            _sectionHeader(context, "continueListening".tr),
+            ...continueItems
+                .take(8)
+                .map((r) => _continueRow(context, r)),
+            const SizedBox(height: 8),
+          ],
+          if (_episodes.isNotEmpty) ...[
+            if (continueItems.isNotEmpty)
+              _sectionHeader(context, "latestEpisodes".tr),
+            for (int i = 0; i < _episodes.length; i++) ...[
+              _row(context, i),
+              if (i != _episodes.length - 1)
+                const Divider(height: 1, indent: 16, endIndent: 12),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionHeader(BuildContext context, String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+      child: Text(title,
+          style: Theme.of(context)
+              .textTheme
+              .titleLarge
+              ?.copyWith(fontWeight: FontWeight.w700)),
+    );
+  }
+
+  /// "Continue" row (mockup style): rounded art with a green play button, title,
+  /// show name and a green progress bar. Tapping resumes from the saved spot.
+  Widget _continueRow(BuildContext context, Map<String, dynamic> r) {
+    final theme = Theme.of(context);
+    final item = PodcastProgressService.toMediaItem(r);
+    final art = Thumbnail(item.artUri?.toString() ?? '').medium;
+    final prog = PodcastProgressService.progress(item.id) ?? 0.0;
+    return InkWell(
+      onTap: () =>
+          Get.find<PlayerController>().playPlayListSong([item], 0),
+      onLongPress: () => showAddToQueueSheet(context, item),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: CachedNetworkImage(
+                        imageUrl: art,
+                        width: 64,
+                        height: 64,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) =>
+                            const Icon(Icons.podcasts, size: 44),
+                      ),
+                    ),
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.secondary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.play_arrow,
+                          size: 22, color: theme.colorScheme.onSecondary),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(item.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w700)),
+                      if ((item.artist ?? '').trim().isNotEmpty)
+                        Text(item.artist!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall),
+                    ],
                   ),
                 ),
-              )
-            : RefreshIndicator(
-                onRefresh: () async {
-                  setState(() => _loading = true);
-                  await _load();
-                },
-                child: ListView.separated(
-                  padding: const EdgeInsets.only(bottom: 200),
-                  itemCount: _episodes.length,
-                  separatorBuilder: (_, __) =>
-                      const Divider(height: 1, indent: 16, endIndent: 12),
-                  itemBuilder: (_, i) => _row(context, i),
-                ),
-              );
+              ],
+            ),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: prog,
+                minHeight: 4,
+                backgroundColor:
+                    theme.colorScheme.onSurface.withOpacity(0.15),
+                valueColor:
+                    AlwaysStoppedAnimation(theme.colorScheme.secondary),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _row(BuildContext context, int i) {

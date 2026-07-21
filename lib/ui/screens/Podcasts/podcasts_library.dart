@@ -155,6 +155,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               ],
             ),
           ),
+          const Divider(height: 1, thickness: 0.5),
           Expanded(
             child: Obx(() {
               // ── Search results mode ─────────────────────────────

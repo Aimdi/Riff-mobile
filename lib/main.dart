@@ -146,6 +146,7 @@ initHive() async {
   await Hive.openBox("PodcastFolders");
   await Hive.openBox("SavedAudiobooks");
   await Hive.openBox("PodcastDownloads");
+  await Hive.openBox("PodcastProgress");
 }
 
 void _setAppInitPrefs() {

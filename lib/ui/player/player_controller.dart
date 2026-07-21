@@ -26,6 +26,7 @@ import '/models/durationstate.dart';
 import '/services/music_service.dart';
 import '/services/sponsorblock_service.dart';
 import '/services/podcast_service.dart';
+import '/services/podcast_progress_service.dart';
 
 class PlayerController extends GetxController
     with GetSingleTickerProviderStateMixin {
@@ -106,6 +107,12 @@ class PlayerController extends GetxController
       Hive.box('AppPrefs').get('podcastAutoSkipAds', defaultValue: true);
   set podcastAutoSkipAds(bool v) =>
       Hive.box('AppPrefs').put('podcastAutoSkipAds', v);
+
+  // Podcast resume: persist position periodically and auto-seek to the saved
+  // position when a partially-played episode starts.
+  int _lastProgressSaveMs = 0;
+  String? _pendingResumeId;
+  int _pendingResumeMs = 0;
 
   late StreamSubscription<bool> keyboardSubscription;
 
@@ -255,7 +262,34 @@ class PlayerController extends GetxController
       }
       _maybeSkipSponsorBlock(position);
       _maybeSkipAdChapter(position);
+      _handlePodcastProgress(position);
     });
+  }
+
+  void _handlePodcastProgress(Duration position) {
+    final song = currentSong.value;
+    if (song == null || !song.id.startsWith('podcast_')) return;
+    final total = progressBarStatus.value.total;
+
+    // Auto-resume once: a partially-played episode that just started near 0.
+    if (_pendingResumeId == song.id &&
+        _pendingResumeMs > 5000 &&
+        position.inMilliseconds < 4000) {
+      final target = Duration(milliseconds: _pendingResumeMs);
+      _pendingResumeId = null;
+      if (total <= Duration.zero ||
+          target < total - const Duration(seconds: 10)) {
+        seek(target);
+        return;
+      }
+    }
+
+    // Persist position at most every 5s.
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (nowMs - _lastProgressSaveMs >= 5000) {
+      _lastProgressSaveMs = nowMs;
+      PodcastProgressService.save(song, position, total, nowMs: nowMs);
+    }
   }
 
   Future<void> _loadChaptersFor(MediaItem item) async {
@@ -426,7 +460,21 @@ class PlayerController extends GetxController
         isCurrentSongBuffered.value = false;
         // Capture position before switching so DiscoveryService can score the skip.
         final posMs = progressBarStatus.value.current.inMilliseconds;
+        // Persist the outgoing podcast episode's position before switching.
+        PodcastProgressService.save(
+            currentSong.value,
+            Duration(milliseconds: posMs),
+            progressBarStatus.value.total,
+            nowMs: DateTime.now().millisecondsSinceEpoch);
         currentSong.value = mediaItem;
+        // Arm auto-resume for the incoming podcast episode.
+        if (mediaItem.id.startsWith('podcast_')) {
+          _pendingResumeId = mediaItem.id;
+          _pendingResumeMs =
+              PodcastProgressService.positionMs(mediaItem.id) ?? 0;
+        } else {
+          _pendingResumeId = null;
+        }
         currentSongIndex.value = currentQueue
             .indexWhere((element) => element.id == currentSong.value!.id);
         // Fire-and-forget SponsorBlock load for this video id.
