@@ -6,7 +6,6 @@ import 'package:get/get.dart';
 import '/models/playling_from.dart';
 import '/models/thumbnail.dart';
 import '/ui/player/player_controller.dart';
-import '/ui/widgets/content_list_widget_item.dart';
 import '/ui/widgets/songinfo_bottom_sheet.dart';
 import '../../navigator.dart';
 import '../../widgets/snackbar.dart';
@@ -305,21 +304,79 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
   }
 
   Widget _releaseCarousel(ThemeData theme, String title, List items) {
+    // Only Album-typed, non-null entries (artist shelves can contain nulls).
+    final albums = items
+        .where((e) => e != null && e.runtimeType.toString() == 'Album')
+        .toList();
+    if (albums.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader(theme, title),
         SizedBox(
-          height: 210,
-          child: ListView.builder(
+          height: 196,
+          child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 11),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             physics: const BouncingScrollPhysics(),
-            itemCount: items.length,
-            itemBuilder: (context, i) => ContentListItem(content: items[i]),
+            itemCount: albums.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (context, i) => _releaseCard(theme, albums[i]),
           ),
         ),
       ],
+    );
+  }
+
+  /// A safe album card (avoids ContentListItem's unguarded artists[0] access,
+  /// which throws for an artist's own-page album shelf where YTM omits it).
+  Widget _releaseCard(ThemeData theme, dynamic album) {
+    final art = Thumbnail((album.thumbnailUrl ?? '').toString()).high;
+    final year = (album.year ?? '').toString();
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => Get.toNamed(
+        ScreenNavigationSetup.albumScreen,
+        id: ScreenNavigationSetup.id,
+        arguments: (album, album.browseId),
+      ),
+      child: SizedBox(
+        width: 124,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: CachedNetworkImage(
+                imageUrl: art,
+                width: 124,
+                height: 124,
+                fit: BoxFit.cover,
+                errorWidget: (_, __, ___) => Container(
+                  width: 124,
+                  height: 124,
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  child: const Icon(Icons.album, size: 40),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              (album.title ?? '').toString(),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(fontWeight: FontWeight.w500, height: 1.1),
+            ),
+            if (year.isNotEmpty)
+              Text(year,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.textTheme.bodySmall?.color?.withOpacity(0.6))),
+          ],
+        ),
+      ),
     );
   }
 
