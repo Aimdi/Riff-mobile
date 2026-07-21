@@ -63,6 +63,7 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
       final songs = _songs();
       final albums = _content(c.artistData['Albums']);
       final singles = _content(c.artistData['Singles']);
+      final featured = _content(c.artistData['Featured']);
       final description = c.artistData['description'];
       final popularCount =
           _popularExpanded ? songs.length : (songs.length > 5 ? 5 : songs.length);
@@ -102,6 +103,11 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
           if (singles.isNotEmpty)
             SliverToBoxAdapter(
               child: _releaseCarousel(theme, 'singles'.tr, singles),
+            ),
+          if (featured.isNotEmpty)
+            SliverToBoxAdapter(
+              child: _playlistCarousel(
+                  theme, '${'featuring'.tr} ${c.artist_.name}', featured),
             ),
           if (description != null && '$description'.trim().isNotEmpty)
             SliverToBoxAdapter(child: _about(theme, '$description')),
@@ -374,6 +380,81 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall
                       ?.copyWith(color: theme.textTheme.bodySmall?.color?.withOpacity(0.6))),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// "Featuring X" — playlists the artist appears on (Spotify-style).
+  Widget _playlistCarousel(ThemeData theme, String title, List items) {
+    final playlists = items
+        .where((e) => e != null && e.runtimeType.toString() == 'Playlist')
+        .toList();
+    if (playlists.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader(theme, title),
+        SizedBox(
+          height: 210,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            physics: const BouncingScrollPhysics(),
+            itemCount: playlists.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (context, i) => _playlistCard(theme, playlists[i]),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _playlistCard(ThemeData theme, dynamic playlist) {
+    final art = Thumbnail((playlist.thumbnailUrl ?? '').toString()).high;
+    final desc = (playlist.description ?? '').toString();
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => Get.toNamed(
+        ScreenNavigationSetup.playlistScreen,
+        id: ScreenNavigationSetup.id,
+        arguments: [playlist, playlist.playlistId, false],
+      ),
+      child: SizedBox(
+        width: 124,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: CachedNetworkImage(
+                imageUrl: art,
+                width: 124,
+                height: 124,
+                fit: BoxFit.cover,
+                errorWidget: (_, __, ___) => Container(
+                  width: 124,
+                  height: 124,
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  child: const Icon(Icons.queue_music, size: 40),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              (playlist.title ?? '').toString(),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(fontWeight: FontWeight.w500, height: 1.1),
+            ),
+            if (desc.isNotEmpty)
+              Text(desc,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.textTheme.bodySmall?.color?.withOpacity(0.6))),
           ],
         ),
       ),

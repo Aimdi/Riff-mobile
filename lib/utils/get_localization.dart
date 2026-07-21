@@ -1843,6 +1843,7 @@ Map<String, Map<String, String>> get keys => {
   "follow": "Follow",
   "following": "Following",
   "shuffle": "Shuffle",
+  "featuring": "Featuring",
   "discoverPodcastsEmpty": "Subscribe to a few podcasts and we'll show you what their listeners also enjoy.",
   "browseAll": "Browse all",
   "skipAd": "Skip ad",

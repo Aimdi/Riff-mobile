@@ -1322,16 +1322,24 @@ Map<String, dynamic> parseArtistContents(List results) {
         content = contentList
             .map((single) => parseSingle(single['musicTwoRowItemRenderer']))
             .toList();
+      } else if (title.toLowerCase().contains('featur')) {
+        // "Featured on" — playlists that include this artist.
+        content = contentList
+            .map((pl) => parsePlaylist(pl['musicTwoRowItemRenderer']))
+            .whereType<Playlist>()
+            .toList();
       }
 
+      // Normalise the "Featured on" shelf to a stable key.
+      final key = title.toLowerCase().contains('featur') ? 'Featured' : title;
       if (browseEndpoint != null) {
-        navigationEndpointsNContent[title] = {
+        navigationEndpointsNContent[key] = {
           'browseId': browseEndpoint['browseId'],
           'params': browseEndpoint['params'],
           'content': content
         };
       } else {
-        navigationEndpointsNContent[title] = {'content': content};
+        navigationEndpointsNContent[key] = {'content': content};
       }
     }
   }
