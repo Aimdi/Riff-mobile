@@ -268,7 +268,7 @@ class PlayerController extends GetxController
 
   void _handlePodcastProgress(Duration position) {
     final song = currentSong.value;
-    if (song == null || !song.id.startsWith('podcast_')) return;
+    if (song == null || !PodcastProgressService.isPodcastItem(song)) return;
     final total = progressBarStatus.value.total;
 
     // Auto-resume once: a partially-played episode that just started near 0.
@@ -467,8 +467,8 @@ class PlayerController extends GetxController
             progressBarStatus.value.total,
             nowMs: DateTime.now().millisecondsSinceEpoch);
         currentSong.value = mediaItem;
-        // Arm auto-resume for the incoming podcast episode.
-        if (mediaItem.id.startsWith('podcast_')) {
+        // Arm auto-resume for the incoming podcast episode (either backend).
+        if (PodcastProgressService.isPodcastItem(mediaItem)) {
           _pendingResumeId = mediaItem.id;
           _pendingResumeMs =
               PodcastProgressService.positionMs(mediaItem.id) ?? 0;

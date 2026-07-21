@@ -9,13 +9,16 @@ class PodcastProgressService {
 
   static Box get _box => Hive.box('PodcastProgress');
 
-  static bool _isPodcast(String id) => id.startsWith('podcast_');
+  /// A podcast episode from either backend: iTunes/RSS (`podcast_` id) or
+  /// YouTube Music (videoId id but flagged via extras['isPodcast']).
+  static bool isPodcastItem(MediaItem item) =>
+      item.id.startsWith('podcast_') || item.extras?['isPodcast'] == true;
 
   /// Persist the current position of a playing podcast episode. Clears the
   /// record once the episode is (nearly) finished; ignores the first 15s.
   static void save(MediaItem? episode, Duration position, Duration? total,
       {int nowMs = 0}) {
-    if (episode == null || !_isPodcast(episode.id)) return;
+    if (episode == null || !isPodcastItem(episode)) return;
     if (!Hive.isBoxOpen('PodcastProgress')) return;
     final posMs = position.inMilliseconds;
     final totMs = (total?.inMilliseconds ?? 0) > 0
