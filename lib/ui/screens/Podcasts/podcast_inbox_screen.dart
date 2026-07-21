@@ -37,20 +37,40 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
   }
 
   Future<void> _load() async {
-    final subs = Get.find<LibraryPodcastsController>().libraryPodcasts.toList();
-    if (subs.isEmpty) {
+    // Two subscription sources: YouTube-Music library shows and iTunes/RSS
+    // subscriptions (from Discover / categories). Merge both into the inbox.
+    final ytSubs =
+        Get.find<LibraryPodcastsController>().libraryPodcasts.toList();
+    final rssSubs = PodcastService.subscriptions;
+    if (ytSubs.isEmpty && rssSubs.isEmpty) {
       if (mounted) setState(() => _loading = false);
       return;
     }
     final ms = Get.find<MusicServices>();
-    final lists = await Future.wait(subs.take(25).map((p) async {
+    final ytFutures = ytSubs.take(25).map((p) async {
       try {
         final data = await ms.getPodcast(p.playlistId, limit: 15);
         return List<MediaItem>.from(data['tracks'] ?? const []);
       } catch (_) {
         return <MediaItem>[];
       }
-    }));
+    });
+    final rssFutures = rssSubs.take(25).map((s) async {
+      try {
+        final eps = await PodcastService.episodes(
+          '${s['feedUrl']}',
+          '${s['title'] ?? ''}',
+          '${s['artwork'] ?? ''}',
+        );
+        return eps
+            .take(12)
+            .map((e) => _rssToMediaItem(e, '${s['title'] ?? ''}'))
+            .toList();
+      } catch (_) {
+        return <MediaItem>[];
+      }
+    });
+    final lists = await Future.wait([...ytFutures, ...rssFutures]);
     final merged = _roundRobin(lists.where((l) => l.isNotEmpty).toList());
     if (mounted) {
       setState(() {
@@ -59,6 +79,25 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
       });
     }
   }
+
+  MediaItem _rssToMediaItem(Map<String, dynamic> e, String podcastTitle) =>
+      MediaItem(
+        id: '${e['id']}',
+        title: '${e['title'] ?? ''}',
+        artist: podcastTitle,
+        duration: (e['durationSec'] != null && (e['durationSec'] as int) > 0)
+            ? Duration(seconds: e['durationSec'] as int)
+            : null,
+        artUri: Uri.tryParse(
+            Thumbnail((e['artwork'] ?? '').toString()).extraHigh),
+        extras: {
+          'url': e['url'],
+          'isPodcast': true,
+          'description': e['description'],
+          'date': e['date'],
+          if (e['chaptersUrl'] != null) 'chaptersUrl': e['chaptersUrl'],
+        },
+      );
 
   /// Interleave per-podcast episode lists (each already newest-first) so the
   /// most recent episode of every show comes first, then the second, etc.
