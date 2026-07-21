@@ -259,17 +259,19 @@ class PlayerControlWidget extends StatelessWidget {
             radius: 35, child: AnimatedPlayButton(key: Key("playButton"))),
         _nextButton(playerController, context),
         Obx(() {
+          final state = playerController.repeatState;
+          final baseColor = Theme.of(context).textTheme.titleLarge!.color!;
           return IconButton(
-              onPressed: playerController.toggleLoopMode,
+              tooltip: state == 2
+                  ? "repeatOne".tr
+                  : state == 1
+                      ? "repeatAll".tr
+                      : "repeat".tr,
+              onPressed: playerController.cycleRepeatMode,
               icon: Icon(
-                Icons.all_inclusive,
-                color: playerController.isLoopModeEnabled.value
-                    ? Theme.of(context).textTheme.titleLarge!.color
-                    : Theme.of(context)
-                        .textTheme
-                        .titleLarge!
-                        .color!
-                        .withOpacity(0.2),
+                // repeat_one shows the "1" badge (Spotify-style).
+                state == 2 ? Icons.repeat_one : Icons.repeat,
+                color: state == 0 ? baseColor.withOpacity(0.2) : baseColor,
               ));
         }),
       ],

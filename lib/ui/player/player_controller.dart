@@ -890,6 +890,28 @@ class PlayerController extends GetxController
         .put("isLoopModeEnabled", isLoopModeEnabled.value);
   }
 
+  /// Spotify-style repeat state: 0 = off, 1 = repeat all (queue), 2 = repeat
+  /// one. Repeat-one dominates the queue loop in the handler.
+  int get repeatState =>
+      isLoopModeEnabled.value ? 2 : (isQueueLoopModeEnabled.value ? 1 : 0);
+
+  /// Cycle the repeat button: off → repeat all → repeat one → off.
+  Future<void> cycleRepeatMode() async {
+    switch (repeatState) {
+      case 0: // off → all
+        await toggleQueueLoopMode(showMessage: false);
+        break;
+      case 1: // all → one
+        if (isLoopModeEnabled.isFalse) await toggleLoopMode();
+        break;
+      default: // one → off
+        if (isLoopModeEnabled.isTrue) await toggleLoopMode();
+        if (isQueueLoopModeEnabled.isTrue) {
+          await toggleQueueLoopMode(showMessage: false);
+        }
+    }
+  }
+
   Future<void> toggleQueueLoopMode({bool showMessage = true}) async {
     if (isShuffleModeEnabled.isTrue && isQueueLoopModeEnabled.isTrue) {
       if (!showMessage) return;
