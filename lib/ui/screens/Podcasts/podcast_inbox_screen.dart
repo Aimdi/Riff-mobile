@@ -8,6 +8,7 @@ import '/services/music_service.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
+import '../../navigator.dart';
 import 'podcast_queue_screen.dart';
 import 'podcasts_library_controller.dart';
 
@@ -137,18 +138,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     final continueItems = PodcastProgressService.inProgress();
-    if (_episodes.isEmpty && continueItems.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            "noInboxEpisodes".tr,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-        ),
-      );
-    }
+    final empty = _episodes.isEmpty && continueItems.isEmpty;
     return RefreshIndicator(
       onRefresh: () async {
         setState(() => _loading = true);
@@ -173,7 +163,119 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
                 const Divider(height: 1, indent: 16, endIndent: 12),
             ],
           ],
+          // Discover section — always present so the inbox is never blank.
+          _discoverSection(context),
+          if (empty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              child: Text(
+                "noInboxEpisodes".tr,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.color
+                        ?.withOpacity(0.7)),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+
+  /// Horizontal "Discover" strip of featured podcasts, so the inbox always has
+  /// something to browse (matches the concept mockup).
+  Widget _discoverSection(BuildContext context) {
+    final theme = Theme.of(context);
+    final controller = Get.find<LibraryPodcastsController>();
+    return Obx(() {
+      final featured = controller.featuredPodcasts.toList();
+      if (featured.isEmpty) return const SizedBox.shrink();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                Text('discover'.tr,
+                    style: theme.textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+                const Spacer(),
+                InkWell(
+                  onTap: controller.enterSearchMode,
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Row(
+                      children: [
+                        Text('more'.tr,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.secondary,
+                                fontWeight: FontWeight.w600)),
+                        Icon(Icons.arrow_forward,
+                            size: 16, color: theme.colorScheme.secondary),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 188,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              physics: const BouncingScrollPhysics(),
+              itemCount: featured.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 14),
+              itemBuilder: (context, i) => _featuredTile(context, featured[i]),
+            ),
+          ),
+        ],
+      );
+    });
+  }
+
+  Widget _featuredTile(BuildContext context, dynamic p) {
+    final theme = Theme.of(context);
+    final art = Thumbnail((p.thumbnailUrl ?? '').toString()).high;
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: () => Get.toNamed(
+        ScreenNavigationSetup.playlistScreen,
+        id: ScreenNavigationSetup.id,
+        arguments: [p, p.playlistId, true],
+      ),
+      child: SizedBox(
+        width: 128,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: CachedNetworkImage(
+                imageUrl: art,
+                width: 128,
+                height: 128,
+                fit: BoxFit.cover,
+                errorWidget: (_, __, ___) => Container(
+                  width: 128,
+                  height: 128,
+                  color: theme.colorScheme.secondary.withOpacity(0.3),
+                  child: const Icon(Icons.podcasts, size: 44),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text((p.title ?? '').toString(),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.w600, height: 1.1)),
+          ],
+        ),
       ),
     );
   }

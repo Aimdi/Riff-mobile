@@ -1847,6 +1847,7 @@ Map<String, Map<String, String>> get keys => {
   "fansAlsoLike": "Fans also like",
   "continueListening": "Continue",
   "latestEpisodes": "Latest episodes",
+  "more": "More",
   "repeat": "Repeat",
   "repeatAll": "Repeat all",
   "repeatOne": "Repeat one",
