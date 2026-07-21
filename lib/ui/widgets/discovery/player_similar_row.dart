@@ -61,10 +61,12 @@ class _PlayerSimilarRowState extends State<PlayerSimilarRow> {
                       final s = _songs[i];
                       return InkWell(
                         onTap: () {
-                          final tagged = DiscoveryService.withSource(
+                          // Play the tapped song now, with the rest of the
+                          // similar list queued after it.
+                          final list = List<MediaItem>.from(_songs);
+                          list[i] = DiscoveryService.withSource(
                               s, DiscoverySource.similar);
-                          player.playNext(tagged);
-                          ScaffoldMessenger.maybeOf(context);
+                          player.playPlayListSong(list, i);
                         },
                         borderRadius: BorderRadius.circular(8),
                         child: Padding(
