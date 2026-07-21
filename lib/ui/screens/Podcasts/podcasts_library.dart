@@ -29,20 +29,40 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
   final _searchCtrl = TextEditingController();
   final _searchFocus = FocusNode();
 
-  // Inline section shown in the content area (replaces the discovery+library
-  // view instead of pushing a new screen): 0 = Home, 1 = Inbox, 2 = Queue,
-  // 3 = Subscriptions.
-  int _section = 0;
+  // Inline section shown in the content area: 1 = Inbox (default), 2 = Queue,
+  // 3 = Subscriptions. Discovery now lives inside the search view.
+  int _section = 1;
+
+  // "Listeners of X also enjoy" discovery rows, loaded lazily when the search
+  // field is focused (shown first in the search view, above the categories).
+  final _discoveryRows = <String, List<Map<String, dynamic>>>{};
+  List<String> _discoverySeeds = [];
+  bool _discoveryLoaded = false;
 
   @override
   void initState() {
     super.initState();
-    // Tapping the search field surfaces the suggestions grid right away.
+    // Tapping the search field surfaces discovery + categories right away.
     _searchFocus.addListener(() {
       if (_searchFocus.hasFocus) {
         Get.find<LibraryPodcastsController>().enterSearchMode();
+        _loadDiscoveryRows();
       }
     });
+  }
+
+  Future<void> _loadDiscoveryRows() async {
+    if (_discoveryLoaded) return;
+    _discoveryLoaded = true;
+    final subs = Get.find<LibraryPodcastsController>().libraryPodcasts.toList();
+    _discoverySeeds = subs.take(8).map((p) => p.title).toList();
+    await Future.wait(_discoverySeeds.map((title) async {
+      try {
+        final res = await PodcastService.similar(title);
+        if (res.isNotEmpty) _discoveryRows[title] = res;
+      } catch (_) {}
+    }));
+    if (mounted) setState(() {});
   }
 
   @override
@@ -132,11 +152,6 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                     activeIcon: Icons.subscriptions,
                     label: 'subscriptions'.tr,
                     section: 3),
-                _navChip(
-                    icon: Icons.explore_outlined,
-                    activeIcon: Icons.explore,
-                    label: 'discover'.tr,
-                    section: 4),
               ],
             ),
           ),
@@ -157,11 +172,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               if (_section == 3) {
                 return const PodcastSubsScreen(embedded: true);
               }
-              if (_section == 4) {
-                return const _PodcastDiscoveryView();
-              }
 
-              // ── Discovery + library mode ────────────────────────
+              // ── Fallback (unused: default section is Inbox) ─────
               return RefreshIndicator(
                 onRefresh: () => controller.loadDiscovery(force: true),
                 child: CustomScrollView(
@@ -362,8 +374,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
     );
   }
 
-  /// A toggle chip for the inline Inbox/Queue/Subscriptions nav. Tapping the
-  /// active one returns to the Home (discovery + library) view.
+  /// A chip for the inline Inbox / Queue / Subscriptions nav.
   Widget _navChip({
     required IconData icon,
     required IconData activeIcon,
@@ -383,7 +394,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
             _searchCtrl.clear();
             Get.find<LibraryPodcastsController>().clearSearch();
           }
-          setState(() => _section = active ? 0 : section);
+          setState(() => _section = section);
         },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -459,18 +470,35 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
     Color(0xFF27856A),
   ];
 
-  /// Search-focus landing: a grid of Apple-Podcasts category tiles plus the
-  /// featured suggestions below.
+  /// Search-focus landing: first the "listeners of X also enjoy" discovery
+  /// scrollwheels, then Apple-Podcasts category tiles, then featured
+  /// suggestions.
   Widget _browseView(LibraryPodcastsController controller, double itemWidth,
       double itemHeight) {
     const genres = PodcastService.podcastGenres;
     final suggestions = controller.featuredPodcasts.toList();
+    final discoverySeeds =
+        _discoverySeeds.where(_discoveryRows.containsKey).toList();
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
       slivers: [
+        // ── Discovery: listeners of X also enjoy ────────────────
+        if (discoverySeeds.isNotEmpty)
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, i) {
+                final seed = discoverySeeds[i];
+                return _SimilarPodcastsRow(
+                  title: '${'popularWithListenersOf'.tr} $seed',
+                  podcasts: _discoveryRows[seed]!,
+                );
+              },
+              childCount: discoverySeeds.length,
+            ),
+          ),
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.only(left: 5, top: 8, bottom: 8),
+            padding: const EdgeInsets.only(left: 5, top: 12, bottom: 8),
             child: Text('browseAll'.tr,
                 style: Theme.of(context)
                     .textTheme
@@ -695,90 +723,6 @@ class _EpisodeDiscoveryRow extends StatelessWidget {
 /// podcasts (plain maps: {title, author, artwork, feedUrl}). Tapping a card
 /// opens its episode list (PodcastEpisodesScreen), which streams straight from
 /// the RSS enclosure.
-/// Spotify-style podcast Discovery: for each show you follow, a "Listeners of
-/// X also enjoy" scrollwheel of similar podcasts (Apple genre charts). Rows are
-/// built per subscription and appear as their recommendations load.
-class _PodcastDiscoveryView extends StatefulWidget {
-  const _PodcastDiscoveryView();
-
-  @override
-  State<_PodcastDiscoveryView> createState() => _PodcastDiscoveryViewState();
-}
-
-class _PodcastDiscoveryViewState extends State<_PodcastDiscoveryView> {
-  // seed title -> similar podcasts
-  final _rows = <String, List<Map<String, dynamic>>>{};
-  List<String> _seeds = [];
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final subs =
-        Get.find<LibraryPodcastsController>().libraryPodcasts.toList();
-    // A handful of subscriptions is enough for a rich page.
-    final seeds = subs.take(8).map((p) => p.title).toList();
-    _seeds = seeds;
-    if (seeds.isEmpty) {
-      if (mounted) setState(() => _loading = false);
-      return;
-    }
-    await Future.wait(seeds.map((title) async {
-      try {
-        final res = await PodcastService.similar(title);
-        if (res.isNotEmpty) _rows[title] = res;
-      } catch (_) {}
-    }));
-    if (mounted) setState(() => _loading = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_seeds.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            'discoverPodcastsEmpty'.tr,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-        ),
-      );
-    }
-    final titlesWithRows = _seeds.where(_rows.containsKey).toList();
-    if (_loading && titlesWithRows.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (titlesWithRows.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            'noResults'.tr,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-        ),
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.only(top: 4, bottom: 200),
-      itemCount: titlesWithRows.length,
-      itemBuilder: (context, i) {
-        final seed = titlesWithRows[i];
-        return _SimilarPodcastsRow(
-          title: '${'popularWithListenersOf'.tr} $seed',
-          podcasts: _rows[seed]!,
-        );
-      },
-    );
-  }
-}
-
 class _SimilarPodcastsRow extends StatelessWidget {
   const _SimilarPodcastsRow({required this.title, required this.podcasts});
   final String title;
