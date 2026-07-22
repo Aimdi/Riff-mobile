@@ -102,15 +102,18 @@ class DiscoveryRepository {
 
   /// Apply [delta] to artist affinity, decaying existing score first.
   Future<void> bumpAffinity(String artistKey, double delta,
-      {DateTime? now}) async {
+      {DateTime? now, String? displayName}) async {
     if (artistKey.isEmpty) return;
     final n = now ?? DateTime.now();
     final prev = _affinity.get(artistKey);
     double score = 0;
     int lastTs = n.millisecondsSinceEpoch;
+    String? storedName =
+        displayName?.trim().isNotEmpty == true ? displayName!.trim() : null;
     if (prev is Map) {
       score = (prev['score'] as num?)?.toDouble() ?? 0;
       lastTs = prev['lastUpdatedTs'] as int? ?? lastTs;
+      storedName ??= (prev['displayName'] as String?)?.trim();
       final elapsed =
           Duration(milliseconds: n.millisecondsSinceEpoch - lastTs);
       score = decayed(score, elapsed, affinityHalfLife);
@@ -123,7 +126,17 @@ class DiscoveryRepository {
           (delta < 0 ? 1 : 0),
       'listens': (prev is Map ? (prev['listens'] as int? ?? 0) : 0) +
           (delta > 0 ? 1 : 0),
+      if (storedName != null && storedName.isNotEmpty) 'displayName': storedName,
     });
+  }
+
+  /// Human-readable artist name for a normalized affinity key, if stored.
+  String? displayNameForArtistKey(String artistKey) {
+    final prev = _affinity.get(artistKey);
+    if (prev is! Map) return null;
+    final name = (prev['displayName'] as String?)?.trim();
+    if (name == null || name.isEmpty) return null;
+    return name;
   }
 
   /// Affinity at [now] with lazy decay.

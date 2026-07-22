@@ -34,6 +34,12 @@ void main() {
       expect(normalizeArtistKey('A, B'), 'a b');
     });
 
+    test('preserves Latin Extended letters', () {
+      expect(normalizeArtistKey('Željko Joksimović'), 'željko joksimović');
+      expect(normalizeArtistKey('Björk'), 'björk');
+      expect(normalizeArtistKey('Mø'), 'mø');
+    });
+
     test('lowercase and collapse space', () {
       expect(normalizeArtistKey('  The  Weeknd  '), 'the weeknd');
     });

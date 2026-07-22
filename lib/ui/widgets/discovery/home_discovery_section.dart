@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../models/media_Item_builder.dart';
+import '../../../models/playlist.dart';
 import '../../../services/discovery/discovery_service.dart';
 import '../../../services/discovery/discovery_types.dart';
+import '../../navigator.dart';
 import '../../player/player_controller.dart';
 import '../image_widget.dart';
 import '../snackbar.dart';
@@ -26,34 +28,43 @@ class HomeDiscoverySection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 5, top: 15, bottom: 5, right: 10),
+          padding: const EdgeInsets.only(left: 5, top: 18, bottom: 8, right: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 section.title,
-                style: Theme.of(context).textTheme.titleLarge,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 20,
+                    ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               if (section.reason.isNotEmpty)
-                Text(
-                  section.reason,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.color
-                            ?.withOpacity(0.7),
-                      ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    section.reason,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.color
+                              ?.withOpacity(0.65),
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
             ],
           ),
         ),
         SizedBox(
-          height: 180,
+          height: 168,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(left: 2, right: 8),
             itemCount: tracks.length,
             itemBuilder: (context, i) {
               final song = tracks[i];
@@ -70,6 +81,7 @@ class HomeDiscoverySection extends StatelessWidget {
             },
           ),
         ),
+        const SizedBox(height: 6),
       ],
     );
   }
@@ -190,9 +202,61 @@ class _DiscoveryCard extends StatelessWidget {
   }
 }
 
-/// Shortcut grid (2×3) for Home top: Liked, Daily Mix 1, Fresh Finds, etc.
+/// Compact Home shortcuts: Favorites, Daily Mix, Fresh Finds, etc.
+/// Soft surface tiles (not solid accent blocks) with working navigation.
 class HomeShortcutGrid extends StatelessWidget {
   const HomeShortcutGrid({super.key});
+
+  void _openLibraryPlaylist(String id, String title) {
+    final pl = Playlist(
+      title: title,
+      playlistId: id,
+      thumbnailUrl: Playlist.thumbPlaceholderUrl,
+      isCloudPlaylist: false,
+    );
+    Get.toNamed(
+      ScreenNavigationSetup.playlistScreen,
+      id: ScreenNavigationSetup.id,
+      arguments: [pl, id],
+    );
+  }
+
+  Future<void> _playTracks(
+    BuildContext context,
+    Future<List<MediaItem>> Function() load,
+    DiscoverySource source,
+  ) async {
+    ScaffoldMessenger.of(context).showSnackBar(snackbar(
+      context,
+      'loading'.tr,
+      size: SanckBarSize.SMALL,
+    ));
+    try {
+      final tracks = await load();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      if (tracks.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(snackbar(
+          context,
+          'mixEmpty'.tr,
+          size: SanckBarSize.MEDIUM,
+        ));
+        return;
+      }
+      final tagged = Get.isRegistered<DiscoveryService>()
+          ? DiscoveryService.tagAll(tracks, source)
+          : tracks;
+      await Get.find<PlayerController>().playPlayListSong(tagged, 0);
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(snackbar(
+        context,
+        'networkError'.tr,
+        size: SanckBarSize.MEDIUM,
+      ));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -200,105 +264,149 @@ class HomeShortcutGrid extends StatelessWidget {
         ? Get.find<DiscoveryService>()
         : null;
     final mixes = disc?.dailyMixes ?? <GeneratedMix>[].obs;
+    final theme = Theme.of(context);
+    final onSurface = theme.textTheme.titleMedium?.color ?? Colors.white;
 
     return Obx(() {
       final daily = mixes.isNotEmpty ? mixes.first : null;
+      MediaItem? dailyArt;
+      if (daily != null && daily.tracks.isNotEmpty) {
+        try {
+          dailyArt = MediaItemBuilder.fromJson(daily.tracks.first);
+        } catch (_) {}
+      }
+
       final items = <_ShortcutItem>[
         _ShortcutItem(
-          title: "favorites".tr,
-          icon: Icons.favorite,
-          onTap: () {
-            Get.find<PlayerController>().homeScaffoldkey.currentState;
-            // Navigate via library favorites playlist
-            // Users already know Favorites in Library; play recent favs if any.
-          },
+          title: 'favorites'.tr,
+          icon: Icons.favorite_outline,
+          onTap: () => _openLibraryPlaylist('LIBFAV', 'favorites'.tr),
         ),
         _ShortcutItem(
-          title: daily?.title ?? "dailyMix".tr,
-          icon: Icons.album,
+          title: daily?.title ?? 'dailyMix'.tr,
+          icon: Icons.album_outlined,
+          art: dailyArt,
           onTap: () {
-            if (daily == null || daily.tracks.isEmpty) return;
-            final tracks =
-                daily.tracks.map((m) => MediaItemBuilder.fromJson(m)).toList();
+            if (daily == null || daily.tracks.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                context,
+                'mixEmpty'.tr,
+                size: SanckBarSize.MEDIUM,
+              ));
+              return;
+            }
+            final tracks = daily.tracks
+                .map((m) => MediaItemBuilder.fromJson(m))
+                .toList();
             final tagged = DiscoveryService.tagAll(
                 tracks, DiscoverySource.dailyMix);
             Get.find<PlayerController>().playPlayListSong(tagged, 0);
           },
         ),
         _ShortcutItem(
-          title: "freshFinds".tr,
-          icon: Icons.explore,
-          onTap: () async {
+          title: 'freshFinds'.tr,
+          icon: Icons.explore_outlined,
+          onTap: () {
             if (disc == null) return;
-            final tracks = await disc.engine.freshFinds();
-            if (tracks.isEmpty) return;
-            Get.find<PlayerController>().playPlayListSong(tracks, 0);
+            _playTracks(
+              context,
+              () => disc.engine.freshFinds(),
+              DiscoverySource.discover,
+            );
           },
         ),
         _ShortcutItem(
-          title: "rediscover".tr,
+          title: 'rediscover'.tr,
           icon: Icons.history_toggle_off,
-          onTap: () async {
+          onTap: () {
             if (disc == null) return;
-            final tracks = await disc.engine.rediscover();
-            if (tracks.isEmpty) return;
-            Get.find<PlayerController>().playPlayListSong(tracks, 0);
+            _playTracks(
+              context,
+              () => disc.engine.rediscover(),
+              DiscoverySource.discover,
+            );
           },
         ),
         _ShortcutItem(
-          title: "recentlyPlayed".tr,
+          title: 'recentlyPlayed'.tr,
           icon: Icons.history,
-          onTap: () {},
+          onTap: () => _openLibraryPlaylist('LIBRP', 'recentlyPlayed'.tr),
         ),
         _ShortcutItem(
-          title: "releaseRadar".tr,
+          title: 'releaseRadar'.tr,
           icon: Icons.new_releases_outlined,
-          onTap: () async {
+          onTap: () {
             if (disc == null) return;
-            final tracks = await disc.engine.releaseRadar();
-            if (tracks.isEmpty) return;
-            Get.find<PlayerController>().playPlayListSong(tracks, 0);
+            _playTracks(
+              context,
+              () => disc.engine.releaseRadar(),
+              DiscoverySource.discover,
+            );
           },
         ),
       ];
 
       return Padding(
-        padding: const EdgeInsets.only(top: 8, bottom: 4),
-        child: GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: 3.2,
-          mainAxisSpacing: 8,
-          crossAxisSpacing: 8,
-          children: items
-              .map((e) => Material(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .secondary
-                        .withOpacity(0.25),
-                    borderRadius: BorderRadius.circular(8),
+        padding: const EdgeInsets.only(top: 10, bottom: 6),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Two columns, quiet tiles — matches Home content density.
+            final tileW = (constraints.maxWidth - 8) / 2;
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: items.map((e) {
+                return SizedBox(
+                  width: tileW,
+                  height: 52,
+                  child: Material(
+                    color: onSurface.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(6),
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                       onTap: e.onTap,
                       child: Row(
                         children: [
-                          const SizedBox(width: 12),
-                          Icon(e.icon, size: 22),
+                          ClipRRect(
+                            borderRadius: const BorderRadius.horizontal(
+                              left: Radius.circular(6),
+                            ),
+                            child: SizedBox(
+                              width: 52,
+                              height: 52,
+                              child: e.art != null
+                                  ? ImageWidget(song: e.art!, size: 52)
+                                  : ColoredBox(
+                                      color: onSurface.withOpacity(0.08),
+                                      child: Icon(
+                                        e.icon,
+                                        size: 22,
+                                        color: onSurface.withOpacity(0.85),
+                                      ),
+                                    ),
+                            ),
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               e.title,
-                              maxLines: 1,
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleSmall,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
                             ),
                           ),
+                          const SizedBox(width: 8),
                         ],
                       ),
                     ),
-                  ))
-              .toList(),
+                  ),
+                );
+              }).toList(),
+            );
+          },
         ),
       );
     });
@@ -306,8 +414,15 @@ class HomeShortcutGrid extends StatelessWidget {
 }
 
 class _ShortcutItem {
-  _ShortcutItem({required this.title, required this.icon, required this.onTap});
+  _ShortcutItem({
+    required this.title,
+    required this.icon,
+    required this.onTap,
+    this.art,
+  });
   final String title;
   final IconData icon;
   final VoidCallback onTap;
+  final MediaItem? art;
 }
+

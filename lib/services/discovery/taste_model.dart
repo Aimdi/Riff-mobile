@@ -101,7 +101,8 @@ class TasteModel {
       artist: artist,
       surface: surface,
     ));
-    await repo.bumpAffinity(artistKey, affinityDelta, now: now);
+    await repo.bumpAffinity(artistKey, affinityDelta,
+        now: now, displayName: artist);
   }
 
   Future<void> logFavorite(String videoId, String? artist, String? title,
@@ -118,8 +119,9 @@ class TasteModel {
       title: title,
       artist: artist,
     ));
-    await repo.bumpAffinity(
-        artistKey, add ? AffinityWeights.favorite : -AffinityWeights.favorite);
+    await repo.bumpAffinity(artistKey,
+        add ? AffinityWeights.favorite : -AffinityWeights.favorite,
+        displayName: artist);
   }
 
   Future<void> logPlaylistAdd(
@@ -134,7 +136,8 @@ class TasteModel {
       title: title,
       artist: artist,
     ));
-    await repo.bumpAffinity(artistKey, AffinityWeights.playlistAdd);
+    await repo.bumpAffinity(artistKey, AffinityWeights.playlistAdd,
+        displayName: artist);
   }
 
   Future<void> logDownload(
@@ -149,7 +152,8 @@ class TasteModel {
       title: title,
       artist: artist,
     ));
-    await repo.bumpAffinity(artistKey, AffinityWeights.download);
+    await repo.bumpAffinity(artistKey, AffinityWeights.download,
+        displayName: artist);
   }
 
   Future<void> logFollow(String artistName, {bool follow = true}) async {
@@ -164,7 +168,8 @@ class TasteModel {
       artist: artistName,
     ));
     await repo.bumpAffinity(
-        artistKey, follow ? AffinityWeights.follow : -AffinityWeights.follow);
+        artistKey, follow ? AffinityWeights.follow : -AffinityWeights.follow,
+        displayName: artistName);
   }
 
   Future<void> logNeverPlay(
@@ -180,7 +185,8 @@ class TasteModel {
       artist: artist,
     ));
     // Mild artist-level penalty
-    await repo.bumpAffinity(artistKey, AffinityWeights.neverPlay);
+    await repo.bumpAffinity(artistKey, AffinityWeights.neverPlay,
+        displayName: artist);
   }
 
   Future<void> logThumbs({
@@ -202,7 +208,8 @@ class TasteModel {
       surface: surface,
     ));
     await repo.bumpAffinity(
-        artistKey, up ? AffinityWeights.thumbsUp : AffinityWeights.thumbsDown);
+        artistKey, up ? AffinityWeights.thumbsUp : AffinityWeights.thumbsDown,
+        displayName: artist);
   }
 
   Future<void> logDismiss({
@@ -222,7 +229,8 @@ class TasteModel {
       artist: artist,
       surface: surface,
     ));
-    await repo.bumpAffinity(artistKey, AffinityWeights.dismiss);
+    await repo.bumpAffinity(artistKey, AffinityWeights.dismiss,
+        displayName: artist);
   }
 
   Future<void> logImpression(String videoId, String surface) =>
