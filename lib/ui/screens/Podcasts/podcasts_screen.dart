@@ -197,6 +197,9 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
           'description': e['description'],
           'date': DateTime.now().millisecondsSinceEpoch,
           if (e['chaptersUrl'] != null) 'chaptersUrl': e['chaptersUrl'],
+          if (e['transcriptUrl'] != null) 'transcriptUrl': e['transcriptUrl'],
+          if (e['transcriptUrl'] != null)
+            'transcriptType': e['transcriptType'],
         },
       );
 

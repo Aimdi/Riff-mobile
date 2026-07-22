@@ -4,6 +4,7 @@ import 'package:ionicons/ionicons.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
 import '/ui/player/components/animated_play_button.dart';
+import '/ui/player/components/podcast_transcript_sheet.dart';
 import '../../navigator.dart';
 import '../../screens/Settings/settings_screen_controller.dart';
 import '../../widgets/discovery/player_similar_row.dart';
@@ -139,29 +140,56 @@ class PlayerControlWidget extends StatelessWidget {
           const SizedBox(
             height: 20,
           ),
-          // Shownotes (podcast only) — sits above the seek bar like AntennaPod.
-          Obx(() => playerController.isCurrentSongPodcast
-              ? Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: OutlinedButton.icon(
+          // Shownotes + Transcript (podcast only) — above the seek bar like
+          // AntennaPod. Transcript appears when the feed publishes a
+          // Podcasting 2.0 <podcast:transcript> for the episode.
+          Obx(() {
+            if (!playerController.isCurrentSongPodcast) {
+              return const SizedBox.shrink();
+            }
+            final song = playerController.currentSong.value;
+            final transcriptUrl =
+                (song?.extras?['transcriptUrl'] ?? '').toString();
+            final style = OutlinedButton.styleFrom(
+              foregroundColor: Theme.of(context).textTheme.titleMedium!.color,
+              side: BorderSide(
+                  color: Theme.of(context)
+                      .textTheme
+                      .titleLarge!
+                      .color!
+                      .withOpacity(0.4)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            );
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  OutlinedButton.icon(
                     onPressed: () => _openShownotes(playerController, context),
                     icon: const Icon(Icons.info_outline, size: 20),
                     label: Text("shownotes".tr),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor:
-                          Theme.of(context).textTheme.titleMedium!.color,
-                      side: BorderSide(
-                          color: Theme.of(context)
-                              .textTheme
-                              .titleLarge!
-                              .color!
-                              .withOpacity(0.4)),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
+                    style: style,
                   ),
-                )
-              : const SizedBox.shrink()),
+                  if (transcriptUrl.isNotEmpty) ...[
+                    const SizedBox(width: 10),
+                    OutlinedButton.icon(
+                      onPressed: () => PodcastTranscriptSheet.open(
+                        context,
+                        url: transcriptUrl,
+                        type:
+                            '${song?.extras?['transcriptType'] ?? ''}',
+                      ),
+                      icon: const Icon(Icons.subtitles_outlined, size: 20),
+                      label: Text("transcript".tr),
+                      style: style,
+                    ),
+                  ],
+                ],
+              ),
+            );
+          }),
           // The seek control IS the SoundCloud-style waveform (no separate
           // slider line): it fills with the accent colour as the track plays,
           // shows the elapsed/total time beneath, and is tap/drag seekable.

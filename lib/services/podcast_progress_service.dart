@@ -39,6 +39,8 @@ class PodcastProgressService {
       'url': episode.extras?['url'],
       'description': episode.extras?['description'],
       'chaptersUrl': episode.extras?['chaptersUrl'],
+      'transcriptUrl': episode.extras?['transcriptUrl'],
+      'transcriptType': episode.extras?['transcriptType'],
       'positionMs': posMs,
       'durationMs': totMs,
       'updatedAt': nowMs,
@@ -92,6 +94,9 @@ class PodcastProgressService {
           'isPodcast': true,
           if (r['description'] != null) 'description': r['description'],
           if (r['chaptersUrl'] != null) 'chaptersUrl': r['chaptersUrl'],
+          if (r['transcriptUrl'] != null) 'transcriptUrl': r['transcriptUrl'],
+          if (r['transcriptUrl'] != null)
+            'transcriptType': r['transcriptType'],
         },
       );
 }
