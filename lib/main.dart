@@ -18,6 +18,7 @@ import '/services/audiobookshelf_service.dart';
 import '/services/cloud_music_service.dart';
 import '/services/plugin_service.dart';
 import '/services/soul_sync_service.dart';
+import '/services/slskd_service.dart';
 import 'utils/app_link_controller.dart';
 import '/services/audio_handler.dart';
 import '/services/client_config_service.dart';
@@ -108,6 +109,7 @@ Future<void> startApplicationServices() async {
   Get.lazyPut(() => CloudMusicService(), fenix: true);
   Get.lazyPut(() => PluginService(), fenix: true);
   Get.lazyPut(() => SoulSyncService(), fenix: true);
+  Get.lazyPut(() => SlskdService(), fenix: true);
   Get.lazyPut(() => ThemeController(), fenix: true);
   Get.lazyPut(() => PlayerController(), fenix: true);
   Get.lazyPut(() => HomeScreenController(), fenix: true);
