@@ -14,6 +14,7 @@ import 'screens/Stats/stats_screen.dart';
 import 'screens/Stats/rewind_screen.dart';
 import 'screens/Podcasts/podcasts_screen.dart';
 import 'screens/Plugins/plugins_screen.dart';
+import 'screens/Plugins/torrent_search_screen.dart';
 
 class ScreenNavigationSetup {
   ScreenNavigationSetup._();
@@ -29,6 +30,7 @@ class ScreenNavigationSetup {
   static const rewindScreen = '/rewindScreen';
   static const podcastsScreen = '/podcastsScreen';
   static const pluginsScreen = '/pluginsScreen';
+  static const torrentSearchScreen = '/torrentSearchScreen';
 }
 
 class ScreenNavigation extends StatelessWidget {
@@ -78,6 +80,10 @@ class ScreenNavigation extends StatelessWidget {
             case ScreenNavigationSetup.pluginsScreen:
               return GetPageRoute(
                   page: () => const PluginsScreen(), settings: settings);
+
+            case ScreenNavigationSetup.torrentSearchScreen:
+              return GetPageRoute(
+                  page: () => const TorrentSearchScreen(), settings: settings);
 
             case ScreenNavigationSetup.searchScreen:
               return GetPageRoute(
