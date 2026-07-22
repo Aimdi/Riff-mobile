@@ -71,15 +71,6 @@ class _AudiobookCatalogDetailScreenState
         title: Text(book.title, maxLines: 1),
         actions: [
           Obx(() {
-            final wished = lib.wishlist.any((b) => b.id == book.id);
-            return IconButton(
-              tooltip: 'wishlist'.tr,
-              icon: Icon(wished ? Icons.favorite : Icons.favorite_border,
-                  color: wished ? Theme.of(context).colorScheme.secondary : null),
-              onPressed: () => lib.toggleWishlist(book),
-            );
-          }),
-          Obx(() {
             final isSaved = lib.saved.any((b) => b.id == book.id);
             return IconButton(
               tooltip: isSaved ? 'saved'.tr : 'save'.tr,
