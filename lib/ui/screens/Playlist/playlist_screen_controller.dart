@@ -18,6 +18,8 @@ import '../../../models/media_Item_builder.dart';
 import '../../../models/playlist.dart';
 import '../../../services/music_service.dart';
 import '../../../services/piped_service.dart';
+import '../../../services/playlist_mix_service.dart';
+import '../../../services/track_analysis_service.dart';
 import '../Home/home_screen_controller.dart';
 import '../Library/library_controller.dart';
 import '../Podcasts/podcasts_library_controller.dart';
@@ -43,6 +45,14 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
   // Add this RxBool to track export progress
   final isExporting = false.obs;
   final exportProgress = 0.0.obs;
+
+  /// Spotify-like Mix mode: BPM / Camelot + Auto transitions.
+  final isMixMode = false.obs;
+  final isAnalyzingMix = false.obs;
+  final mixAnalyzeProgress = 0.0.obs;
+  final mixAnalyses = <String, TrackAnalysis>{}.obs;
+  /// Gap index → transition style name (reactive for UI chips).
+  final mixTransitions = <int, MixTransitionStyle>{}.obs;
 
   String generatedYtmPlaylistUrl = '';
 
@@ -76,8 +86,151 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     // Optional 3rd arg: opened from podcast search -> show pinned similar row.
     showSimilarPodcasts.value = args.length > 2 && args[2] == true;
     fetchPlaylistDetails(playlist, playlistId);
+    _restoreMixState(playlistId);
     Future.delayed(const Duration(milliseconds: 200),
         () => Get.find<HomeScreenController>().whenHomeScreenOnTop());
+  }
+
+  void _restoreMixState(String playlistId) {
+    if (!Get.isRegistered<PlaylistMixService>()) return;
+    final mix = Get.find<PlaylistMixService>();
+    final enabled = mix.isMixEnabled(playlistId);
+    isMixMode.value = enabled;
+    if (enabled) {
+      _loadTransitionMap();
+      // Kick off analysis after songs load (non-blocking).
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (!isClosed && isMixMode.isTrue) analyzePlaylistForMix();
+      });
+    }
+  }
+
+  void _loadTransitionMap() {
+    if (!Get.isRegistered<PlaylistMixService>()) return;
+    final mix = Get.find<PlaylistMixService>();
+    final id = playlist.value.playlistId;
+    final map = <int, MixTransitionStyle>{};
+    for (var i = 0; i < songList.length - 1; i++) {
+      map[i] = mix.transitionAt(id, i);
+    }
+    mixTransitions.assignAll(map);
+  }
+
+  MixTransitionStyle transitionForGap(int gapIndex) {
+    return mixTransitions[gapIndex] ??
+        (Get.isRegistered<PlaylistMixService>()
+            ? Get.find<PlaylistMixService>()
+                .transitionAt(playlist.value.playlistId, gapIndex)
+            : MixTransitionStyle.auto);
+  }
+
+  Future<void> setTransitionForGap(
+      int gapIndex, MixTransitionStyle style) async {
+    mixTransitions[gapIndex] = style;
+    mixTransitions.refresh();
+    if (Get.isRegistered<PlaylistMixService>()) {
+      await Get.find<PlaylistMixService>()
+          .setTransitionAt(playlist.value.playlistId, gapIndex, style);
+    }
+  }
+
+  Future<void> toggleMixMode() async {
+    final pl = playlist.value;
+    if (pl.kind == 'podcast' || pl.playlistId.startsWith('MPSP')) {
+      return;
+    }
+    final next = !isMixMode.value;
+    isMixMode.value = next;
+    if (Get.isRegistered<PlaylistMixService>()) {
+      await Get.find<PlaylistMixService>()
+          .setMixEnabled(pl.playlistId, next);
+    }
+    if (next) {
+      _loadTransitionMap();
+      await analyzePlaylistForMix();
+    }
+  }
+
+  Future<void> analyzePlaylistForMix() async {
+    if (!Get.isRegistered<TrackAnalysisService>()) return;
+    if (songList.isEmpty || isAnalyzingMix.isTrue) return;
+    isAnalyzingMix.value = true;
+    mixAnalyzeProgress.value = 0;
+    try {
+      final svc = Get.find<TrackAnalysisService>();
+      // Seed from cache first for snappy UI.
+      for (final s in songList) {
+        final cached = svc.cached(s.title, s.artist ?? '');
+        if (cached != null) mixAnalyses[s.id] = cached;
+      }
+      mixAnalyses.refresh();
+
+      final tracks = songList
+          .map((s) => (
+                id: s.id,
+                title: s.title,
+                artist: s.artist ?? '',
+              ))
+          .toList();
+      final result = await svc.analyzeMany(tracks, onProgress: (done, total) {
+        if (total > 0) mixAnalyzeProgress.value = done / total;
+      });
+      mixAnalyses.addAll(result);
+      mixAnalyses.refresh();
+      _loadTransitionMap();
+    } finally {
+      isAnalyzingMix.value = false;
+    }
+  }
+
+  /// Reorder tracks for smoother Mix flow (BPM + Camelot greedy path).
+  Future<void> smartOrderForMix() async {
+    if (songList.length < 2) return;
+    final analyses = Map<String, TrackAnalysis>.from(mixAnalyses);
+    final remaining = songList.toList();
+    final ordered = <MediaItem>[];
+
+    // Start with a mid-tempo track when possible.
+    remaining.sort((a, b) {
+      final ba = analyses[a.id]?.bpm ?? 120;
+      final bb = analyses[b.id]?.bpm ?? 120;
+      return (ba - 120).abs().compareTo((bb - 120).abs());
+    });
+    ordered.add(remaining.removeAt(0));
+
+    while (remaining.isNotEmpty) {
+      final prev = ordered.last;
+      final prevA = analyses[prev.id];
+      var bestIdx = 0;
+      var bestScore = 1 << 30;
+      for (var i = 0; i < remaining.length; i++) {
+        final cand = remaining[i];
+        final ca = analyses[cand.id];
+        var score = 50;
+        if (prevA != null && ca != null) {
+          final keyDist =
+              TrackAnalysisService.camelotDistance(prevA.camelot, ca.camelot);
+          final bpmDist = (prevA.bpm - ca.bpm).abs();
+          score = keyDist * 10 + (bpmDist / 2).round();
+        } else if (prevA != null || ca != null) {
+          score = 80;
+        }
+        if (score < bestScore) {
+          bestScore = score;
+          bestIdx = i;
+        }
+      }
+      ordered.add(remaining.removeAt(bestIdx));
+    }
+
+    songList.value = ordered;
+    if (!playlist.value.isCloudPlaylist &&
+        playlist.value.playlistId != 'LIBRP' &&
+        playlist.value.playlistId != 'SongDownloads' &&
+        playlist.value.playlistId != 'SongsCache') {
+      await updateSongsIntoDb();
+    }
+    _loadTransitionMap();
   }
 
   ///Fetches playlist details from the service

@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
 import '../../models/playlist.dart';
+import '../../services/track_analysis_service.dart';
 import '../player/player_controller.dart';
 import '../screens/Settings/settings_screen_controller.dart';
 import 'add_to_playlist.dart';
@@ -21,7 +22,9 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
       this.playlist,
       this.isPlaylistOrAlbum = false,
       this.thumbReplacementWithIndex = false,
-      this.index});
+      this.index,
+      this.mixAnalysis,
+      this.showMixMeta = false});
   final Playlist? playlist;
   final MediaItem song;
   final VoidCallback? onTap;
@@ -30,6 +33,10 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
   /// Valid for Album songs
   final bool thumbReplacementWithIndex;
   final int? index;
+
+  /// When Mix mode is on, optional BPM / Camelot from TrackAnalysisService.
+  final TrackAnalysis? mixAnalysis;
+  final bool showMixMeta;
 
   @override
   Widget build(BuildContext context) {
@@ -161,10 +168,16 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
               style: Theme.of(context).textTheme.titleSmall,
             ),
             trailing: SizedBox(
-              width: Get.size.width > 800 ? 80 : 40,
+              width: showMixMeta
+                  ? (Get.size.width > 800 ? 168 : 132)
+                  : (Get.size.width > 800 ? 80 : 40),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  if (showMixMeta) ...[
+                    _MixMetaColumn(analysis: mixAnalysis),
+                    const SizedBox(width: 6),
+                  ],
                   Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -209,5 +222,60 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
             ),
           ),
         ));
+  }
+}
+
+class _MixMetaColumn extends StatelessWidget {
+  const _MixMetaColumn({this.analysis});
+  final TrackAnalysis? analysis;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bpm = analysis == null || analysis!.bpm <= 0
+        ? '—'
+        : '${analysis!.bpm} bpm';
+    final camelot = analysis?.camelot.isNotEmpty == true
+        ? analysis!.camelot
+        : '—';
+    final keyColor = _camelotColor(camelot, theme);
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          bpm,
+          style: theme.textTheme.labelSmall?.copyWith(
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+        const SizedBox(height: 2),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+          decoration: BoxDecoration(
+            color: keyColor.withOpacity(0.22),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            camelot,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: keyColor,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Color _camelotColor(String camelot, ThemeData theme) {
+    final m = RegExp(r'^(\d{1,2})([AB])$', caseSensitive: false)
+        .firstMatch(camelot);
+    if (m == null) return theme.colorScheme.onSurface.withOpacity(0.5);
+    final n = int.parse(m.group(1)!);
+    final isA = m.group(2)!.toUpperCase() == 'A';
+    // Distinct hues around the Camelot wheel.
+    final hue = ((n - 1) * 30.0 + (isA ? 0 : 15)) % 360;
+    return HSLColor.fromAHSL(1, hue, 0.55, 0.55).toColor();
   }
 }

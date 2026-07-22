@@ -8,6 +8,7 @@ import 'package:widget_marquee/widget_marquee.dart';
 import '/models/playling_from.dart';
 import '/models/thumbnail.dart';
 import '/services/podcast_service.dart';
+import '/services/playlist_mix_service.dart';
 import '../Podcasts/podcast_queue_screen.dart';
 import '../Podcasts/podcasts_screen.dart';
 import '/ui/widgets/playlist_album_scroll_behaviour.dart';
@@ -17,6 +18,7 @@ import '../../player/player_controller.dart';
 import '../../widgets/create_playlist_dialog.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/loader.dart';
+import '../../widgets/mix_transition_chip.dart';
 import '../../widgets/playlist_export_dialog.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/song_list_tile.dart';
@@ -328,18 +330,11 @@ class PlaylistScreen extends StatelessWidget {
                                           IconButton(
                                               tooltip: "play".tr,
                                               onPressed: () {
-                                                playerController.playPlayListSong(
-                                                    List<MediaItem>.from(
-                                                        playlistController
-                                                            .songList),
-                                                    0,
-                                                    playfrom: PlaylingFrom(
-                                                        name: playlistController
-                                                            .playlist
-                                                            .value
-                                                            .title,
-                                                        type: PlaylingFromType
-                                                            .PLAYLIST));
+                                                _playPlaylistFrom(
+                                                  playerController,
+                                                  playlistController,
+                                                  0,
+                                                );
                                               },
                                               icon: Icon(
                                                 Icons.play_circle,
@@ -388,6 +383,11 @@ class PlaylistScreen extends StatelessWidget {
                                                             .songList);
                                                 songsToplay.shuffle();
                                                 songsToplay.shuffle();
+                                                if (Get.isRegistered<
+                                                    PlaylistMixService>()) {
+                                                  Get.find<PlaylistMixService>()
+                                                      .deactivatePlayback();
+                                                }
                                                 playerController.playPlayListSong(
                                                     songsToplay, 0,
                                                     playfrom: PlaylingFrom(
@@ -405,6 +405,115 @@ class PlaylistScreen extends StatelessWidget {
                                                     .titleMedium!
                                                     .color,
                                               )),
+                                          // Mix mode toggle (Spotify-like)
+                                          Obx(() {
+                                            final pl =
+                                                playlistController.playlist.value;
+                                            final isPodcast =
+                                                pl.kind == 'podcast' ||
+                                                    pl.playlistId
+                                                        .startsWith('MPSP');
+                                            if (isPodcast) {
+                                              return const SizedBox.shrink();
+                                            }
+                                            final on =
+                                                playlistController.isMixMode.isTrue;
+                                            final accent =
+                                                Theme.of(context).colorScheme.primary;
+                                            return Padding(
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 4),
+                                              child: FilterChip(
+                                                selected: on,
+                                                showCheckmark: false,
+                                                avatar: Icon(
+                                                  Icons.tune,
+                                                  size: 16,
+                                                  color: on
+                                                      ? accent
+                                                      : Theme.of(context)
+                                                          .textTheme
+                                                          .titleMedium!
+                                                          .color,
+                                                ),
+                                                label: Text(
+                                                  'mix'.tr,
+                                                  style: TextStyle(
+                                                    color: on
+                                                        ? accent
+                                                        : Theme.of(context)
+                                                            .textTheme
+                                                            .titleMedium!
+                                                            .color,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                                selectedColor:
+                                                    accent.withOpacity(0.18),
+                                                side: BorderSide(
+                                                  color: on
+                                                      ? accent
+                                                      : Theme.of(context)
+                                                          .dividerColor,
+                                                ),
+                                                onSelected: (_) {
+                                                  playlistController
+                                                      .toggleMixMode();
+                                                },
+                                              ),
+                                            );
+                                          }),
+                                          Obx(() {
+                                            if (playlistController
+                                                    .isMixMode.isFalse ||
+                                                playlistController
+                                                    .isAnalyzingMix.isFalse) {
+                                              return const SizedBox.shrink();
+                                            }
+                                            return Padding(
+                                              padding: const EdgeInsets.only(
+                                                  left: 4, right: 8),
+                                              child: SizedBox(
+                                                width: 18,
+                                                height: 18,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  value: playlistController
+                                                              .mixAnalyzeProgress
+                                                              .value >
+                                                          0
+                                                      ? playlistController
+                                                          .mixAnalyzeProgress
+                                                          .value
+                                                      : null,
+                                                ),
+                                              ),
+                                            );
+                                          }),
+                                          Obx(() {
+                                            if (playlistController
+                                                .isMixMode.isFalse) {
+                                              return const SizedBox.shrink();
+                                            }
+                                            return IconButton(
+                                              tooltip: 'mixSmartOrder'.tr,
+                                              onPressed: () async {
+                                                await playlistController
+                                                    .smartOrderForMix();
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(snackbar(
+                                                          context,
+                                                          'mixSmartOrderDone'
+                                                              .tr,
+                                                          size: SanckBarSize
+                                                              .MEDIUM));
+                                                }
+                                              },
+                                              icon: const Icon(
+                                                  Icons.auto_awesome),
+                                            );
+                                          }),
                                           // Download button
                                           GetX<Downloader>(
                                               builder: (controller) {
@@ -749,14 +858,13 @@ class PlaylistScreen extends StatelessWidget {
                                   pl.playlistId.startsWith('MPSP');
                               final song =
                                   playlistController.songList[index - 3];
+                              final songIndex = index - 3;
                               void playThis() {
-                                playerController.playPlayListSong(
-                                    List<MediaItem>.from(
-                                        playlistController.songList),
-                                    index - 3,
-                                    playfrom: PlaylingFrom(
-                                        name: pl.title,
-                                        type: PlaylingFromType.PLAYLIST));
+                                _playPlaylistFrom(
+                                  playerController,
+                                  playlistController,
+                                  songIndex,
+                                );
                               }
                               // Podcast episodes get an AntennaPod-style row
                               // (date · 2-line title · duration), not the
@@ -765,16 +873,50 @@ class PlaylistScreen extends StatelessWidget {
                                 return _PodcastEpisodeTile(
                                     song: song, onTap: playThis);
                               }
-                              return Padding(
-                                padding:
-                                    const EdgeInsets.only(left: 20.0, right: 5),
-                                child: SongListTile(
-                                  onTap: playThis,
-                                  song: song,
-                                  isPlaylistOrAlbum: true,
-                                  playlist: pl,
-                                ),
-                              );
+                              return Obx(() {
+                                final mixOn =
+                                    playlistController.isMixMode.isTrue;
+                                final analysis =
+                                    playlistController.mixAnalyses[song.id];
+                                final isLast = songIndex >=
+                                    playlistController.songList.length - 1;
+                                final gapStyle = mixOn && !isLast
+                                    ? playlistController
+                                        .transitionForGap(songIndex)
+                                    : null;
+                                return Padding(
+                                  padding: const EdgeInsets.only(
+                                      left: 20.0, right: 5),
+                                  child: Column(
+                                    children: [
+                                      SongListTile(
+                                        onTap: playThis,
+                                        song: song,
+                                        isPlaylistOrAlbum: true,
+                                        playlist: pl,
+                                        showMixMeta: mixOn,
+                                        mixAnalysis: analysis,
+                                      ),
+                                      if (mixOn &&
+                                          gapStyle != null &&
+                                          !isLast)
+                                        MixTransitionChip(
+                                          style: gapStyle,
+                                          onTap: () async {
+                                            final picked =
+                                                await showMixTransitionPicker(
+                                                    context, gapStyle);
+                                            if (picked != null) {
+                                              await playlistController
+                                                  .setTransitionForGap(
+                                                      songIndex, picked);
+                                            }
+                                          },
+                                        ),
+                                    ],
+                                  ),
+                                );
+                              });
                             },
                           ),
                         ),
@@ -815,6 +957,36 @@ class PlaylistScreen extends StatelessWidget {
       builder: (context) => SongInfoBottomSheet(song),
     ).whenComplete(() => Get.delete<SongInfoController>());
   }
+}
+
+void _playPlaylistFrom(
+  PlayerController playerController,
+  PlaylistScreenController playlistController,
+  int index,
+) {
+  final pl = playlistController.playlist.value;
+  final mixOn = playlistController.isMixMode.isTrue;
+  if (Get.isRegistered<PlaylistMixService>()) {
+    final mix = Get.find<PlaylistMixService>();
+    if (mixOn) {
+      mix.activatePlayback(
+        enabled: true,
+        playlistId: pl.playlistId,
+        startIndex: index,
+        style: playlistController.transitionForGap(index),
+      );
+    } else {
+      mix.deactivatePlayback();
+    }
+  }
+  playerController.playPlayListSong(
+    List<MediaItem>.from(playlistController.songList),
+    index,
+    playfrom: PlaylingFrom(
+      name: pl.title,
+      type: PlaylingFromType.PLAYLIST,
+    ),
+  );
 }
 
 /// AntennaPod-style episode row: 56×56 art, a publish-date meta line, a 2-line

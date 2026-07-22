@@ -17,6 +17,7 @@ import 'package:rxdart/rxdart.dart';
 import '/models/album.dart';
 import '../models/playlist.dart';
 import '/services/equalizer.dart';
+import '/services/playlist_mix_service.dart';
 import '/services/stream_service.dart';
 import '/models/hm_streaming_data.dart';
 import '/ui/player/player_controller.dart';
@@ -61,6 +62,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   bool loudnessNormalizationEnabled = false;
   // var networkErrorPause = false;
   bool isSongLoading = true;
+  double _baseVolume = 1.0;
+  bool _mixTransitionInProgress = false;
+  bool _startMutedForMix = false;
 
   // list of shuffled queue songs ids
   List<String> shuffledQueue = [];
@@ -223,13 +227,90 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
             ? 700
             : 0;
     _player.positionStream.listen((value) async {
-      if (_player.duration != null && _player.duration?.inSeconds != 0) {
-        if (value.inMilliseconds >=
-            (_player.duration!.inMilliseconds - playerDurationOffset)) {
-          await _triggerNext();
+      if (_player.duration == null || _player.duration?.inSeconds == 0) {
+        return;
+      }
+      final durationMs = _player.duration!.inMilliseconds;
+      final posMs = value.inMilliseconds;
+
+      // Mix mode: fade out near the end, then advance.
+      if (!_mixTransitionInProgress && _isMixPlaybackActive()) {
+        final style = _currentMixStyle();
+        final fadeMs = style.fadeDuration.inMilliseconds;
+        if (fadeMs > 0) {
+          final remaining = durationMs - posMs;
+          if (remaining <= fadeMs && remaining > 50) {
+            _mixTransitionInProgress = true;
+            try {
+              await _mixFadeTo(0.0, Duration(milliseconds: remaining));
+              if (loopModeEnabled) {
+                await _player.seek(Duration.zero);
+                await _mixFadeTo(_baseVolume, style.fadeDuration);
+                if (!_player.playing) _player.play();
+              } else {
+                final nextIndex = _getNextSongIndex();
+                if (Get.isRegistered<PlaylistMixService>()) {
+                  Get.find<PlaylistMixService>()
+                      .advancePlaybackIndex(nextIndex);
+                }
+                _startMutedForMix = true;
+                await skipToNext();
+                await _mixFadeTo(_baseVolume, style.fadeDuration);
+              }
+            } finally {
+              _mixTransitionInProgress = false;
+            }
+            return;
+          }
         }
       }
+
+      if (_mixTransitionInProgress) return;
+
+      if (posMs >= (durationMs - playerDurationOffset)) {
+        await _triggerNext();
+      }
     });
+  }
+
+  bool _isMixPlaybackActive() {
+    try {
+      if (!Get.isRegistered<PlaylistMixService>()) return false;
+      return Get.find<PlaylistMixService>().mixPlaybackActive.isTrue;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  MixTransitionStyle _currentMixStyle() {
+    try {
+      if (!Get.isRegistered<PlaylistMixService>()) {
+        return MixTransitionStyle.auto;
+      }
+      return Get.find<PlaylistMixService>().playbackStyle;
+    } catch (_) {
+      return MixTransitionStyle.auto;
+    }
+  }
+
+  Future<void> _mixFadeTo(double target, Duration duration) async {
+    if (duration <= Duration.zero) {
+      await _player.setVolume(target.clamp(0.0, 1.0));
+      return;
+    }
+    final start = _player.volume;
+    const steps = 16;
+    final stepDur = Duration(
+      milliseconds: (duration.inMilliseconds / steps).round().clamp(20, 500),
+    );
+    for (var i = 1; i <= steps; i++) {
+      if (!_mixTransitionInProgress && target == 0.0) break;
+      final t = i / steps;
+      final v = start + (target - start) * t;
+      await _player.setVolume(v.clamp(0.0, 1.0));
+      await Future<void>.delayed(stepDur);
+    }
+    await _player.setVolume(target.clamp(0.0, 1.0));
   }
 
   Future<void> _triggerNext() async {
@@ -518,6 +599,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         isSongLoading = false;
         if (loudnessNormalizationEnabled && GetPlatform.isAndroid) {
           _normalizeVolume(streamInfo.audio!.loudnessDb);
+        } else {
+          _baseVolume = _player.volume.clamp(0.0, 1.0);
+          if (_baseVolume <= 0) _baseVolume = 1.0;
+        }
+        if (_startMutedForMix) {
+          await _player.setVolume(0);
+          _startMutedForMix = false;
         }
 
         if (restoreSession) {
@@ -610,6 +698,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       case 'toggleLoudnessNormalization':
         loudnessNormalizationEnabled = (extras!['enable'] as bool);
         if (!loudnessNormalizationEnabled) {
+          _baseVolume = 1.0;
           _player.setVolume(1.0);
           return;
         }
@@ -685,7 +774,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         break;
 
       case 'setVolume':
-        _player.setVolume(extras!['value'] / 100);
+        _baseVolume = (extras!['value'] / 100).clamp(0.0, 1.0);
+        _player.setVolume(_baseVolume);
         break;
 
       case 'shuffleCmd':
@@ -733,6 +823,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     // 0.0 means "loudness unknown" (older cache entries / failed fetch):
     // normalizing against it would just lower the volume to ~56%.
     if (currentLoudnessDb == 0.0) {
+      _baseVolume = 1.0;
       _player.setVolume(1.0);
       return;
     }
@@ -744,7 +835,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     final volumeAdjustment = pow(10.0, loudnessDifference / 20.0);
     printINFO(
         "loudness:$currentLoudnessDb Normalized volume: $volumeAdjustment");
-    _player.setVolume(volumeAdjustment.toDouble().clamp(0, 1.0));
+    _baseVolume = volumeAdjustment.toDouble().clamp(0, 1.0);
+    _player.setVolume(_baseVolume);
   }
 
   Future<void> saveSessionData() async {

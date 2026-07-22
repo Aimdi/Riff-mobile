@@ -23,6 +23,8 @@ import '/services/audio_handler.dart';
 import '/services/client_config_service.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/music_service.dart';
+import '/services/playlist_mix_service.dart';
+import '/services/track_analysis_service.dart';
 import '/ui/home.dart';
 import '/ui/player/player_controller.dart';
 import 'ui/screens/Settings/settings_screen_controller.dart';
@@ -108,6 +110,8 @@ Future<void> startApplicationServices() async {
   Get.lazyPut(() => CloudMusicService(), fenix: true);
   Get.lazyPut(() => PluginService(), fenix: true);
   Get.lazyPut(() => SoulSyncService(), fenix: true);
+  Get.lazyPut(() => TrackAnalysisService(), fenix: true);
+  Get.lazyPut(() => PlaylistMixService(), fenix: true);
   Get.lazyPut(() => ThemeController(), fenix: true);
   Get.lazyPut(() => PlayerController(), fenix: true);
   Get.lazyPut(() => HomeScreenController(), fenix: true);
@@ -153,6 +157,8 @@ initHive() async {
   await Hive.openBox("SavedAudiobooks");
   await Hive.openBox("PodcastDownloads");
   await Hive.openBox("PodcastProgress");
+  await Hive.openBox("TrackAnalysisCache");
+  await Hive.openBox("PlaylistMixPrefs");
 }
 
 void _setAppInitPrefs() {

@@ -2324,7 +2324,22 @@ Map<String, Map<String, String>> get keys => {
   "tasteModelDebugDes": "Inspect artist affinity and skip rates",
   "explorationRatio": "Exploration ratio",
   "topRisingArtists": "Top rising artists",
-  "keptFromFreshFinds": "Kept from Fresh Finds"
+  "keptFromFreshFinds": "Kept from Fresh Finds",
+  "mix": "Mix",
+  "mixAuto": "Auto",
+  "mixSmartOrder": "Smart order for Mix",
+  "mixSmartOrderDone": "Playlist reordered for smoother mixes",
+  "mixChooseTransition": "Choose transition",
+  "mixTransitionAuto": "Auto",
+  "mixTransitionFade": "Fade",
+  "mixTransitionRise": "Rise",
+  "mixTransitionBlend": "Blend",
+  "mixTransitionOff": "Off",
+  "mixTransitionAutoDes": "Pick a smooth blend from BPM and key",
+  "mixTransitionFadeDes": "Volume fade between tracks",
+  "mixTransitionRiseDes": "Shorter fade into the next track",
+  "mixTransitionBlendDes": "Longer overlap-style fade",
+  "mixTransitionOffDes": "No transition — hard cut"
 },
   "eo" : {
     "renamePlaylist": "Alinomi Ludliston",
