@@ -20,7 +20,7 @@ class AudiobooksScreen extends StatefulWidget {
 }
 
 class _AudiobooksScreenState extends State<AudiobooksScreen> {
-  // 0 = Discover, 1 = Library (Audiobookshelf server), 2 = Saved, 3 = Wish List
+  // 0 = Discover, 1 = Library (Audiobookshelf server), 2 = Saved
   int _mode = 0;
 
   @override
@@ -59,11 +59,6 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
                       icon: Icons.bookmark_border,
                       label: 'saved'.tr,
                       mode: 2),
-                  const SizedBox(width: 16),
-                  _audibleTab(
-                      icon: Icons.favorite_border,
-                      label: 'wishlist'.tr,
-                      mode: 3),
                 ],
               ),
             ),
@@ -77,9 +72,7 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
                     ? Obx(() => abs.isConnected.value
                         ? const _AbsLibraryView()
                         : const _AbsLoginForm())
-                    : _mode == 2
-                        ? const _SavedView()
-                        : const _WishlistView(),
+                    : const _SavedView(),
           ),
         ],
       ),
@@ -257,21 +250,6 @@ class _SavedView extends StatelessWidget {
           books: lib.saved.toList(),
           emptyIcon: Icons.bookmark_border,
           emptyText: 'noSavedAudiobooks'.tr,
-        ));
-  }
-}
-
-/// Audible-style wish list of catalog audiobooks.
-class _WishlistView extends StatelessWidget {
-  const _WishlistView();
-
-  @override
-  Widget build(BuildContext context) {
-    final lib = Get.find<AudiobookLibraryController>();
-    return Obx(() => _CatalogBookGrid(
-          books: lib.wishlist.toList(),
-          emptyIcon: Icons.favorite_border,
-          emptyText: 'noWishlistAudiobooks'.tr,
         ));
   }
 }
