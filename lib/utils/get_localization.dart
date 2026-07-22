@@ -2219,6 +2219,7 @@ Map<String, Map<String, String>> get keys => {
     "pluginSource": "Source",
     "torrentsDigger": "Torrent Search",
     "torrentsDiggerPluginDes": "qBittorrent-style search across sources (Torrents.csv, MyAnonamouse). Open magnets or send to your qBittorrent WebUI.",
+    "torrentSearchPluginDes": "qBittorrent-style search across sources (Torrents.csv, MyAnonamouse). Open magnets or send to your qBittorrent WebUI.",
     "torrents": "Torrents",
     "searchTorrents": "Search torrents",
     "torrentSearch": "Torrent Search",
