@@ -46,7 +46,9 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           ),
         ),
       );
-    } else if (title == "Videos" || title.contains("Songs")) {
+    } else if (title == "Videos" ||
+        title.contains("Songs") ||
+        title == "Episodes") {
       return isCompleteList
           ? Expanded(
               child: listViewSongVid(items,
@@ -60,7 +62,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
               height: items.length * 75.0,
               child: listViewSongVid(items),
             );
-    } else if (title.contains("playlists")) {
+    } else if (title.contains("playlists") || title == "Podcasts") {
       return listViewPlaylists(items, sc: scrollController);
     } else if (title == "Albums" || title == "Singles") {
       return listViewAlbums(items, sc: scrollController);

@@ -1827,7 +1827,7 @@ Map<String, Map<String, String>> get keys => {
   "noInboxEpisodes": "No episodes yet — subscribe to podcasts to fill your inbox.",
   "queue": "Queue",
   "queueEmpty": "Queue is empty. Long-press a podcast episode to add it.",
-  "episodes": "episodes",
+  "episodes": "Episodes",
   "remainingTime": "Remaining time:",
   "addToQueue": "Add to Queue",
   "addedToQueue": "Added to Queue",

@@ -77,7 +77,9 @@ class SeparateTabItemWidget extends StatelessWidget {
                         "${isResultWidget ? (searchResController?.separatedResultContent[title] ?? []).length : (artistController?.sepataredContent[title] != null ? artistController?.sepataredContent[title]['results'] : []).length} ${"items".tr}",
                     requiredSortTypes: buildSortTypeSet(
                         title == 'Albums' || title == "Singles",
-                        title == "Songs" || title == "Videos"),
+                        title == "Songs" ||
+                            title == "Videos" ||
+                            title == "Episodes"),
                     onSort: (type, ascending) {
                       isResultWidget
                           ? searchResController!.onSort(type, ascending, title)

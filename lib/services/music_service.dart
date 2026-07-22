@@ -7,6 +7,7 @@ import 'package:get/get.dart' as getx;
 import 'package:hive/hive.dart';
 
 import '/models/album.dart';
+import '/models/artist.dart';
 import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/ban_service.dart';
@@ -886,41 +887,72 @@ class MusicServices extends getx.GetxService {
         for (dynamic chipsItemRenderer in searchChips) {
           final chip = chipsItemRenderer['chipCloudChipRenderer'];
           final chipText = nav(chip, ['text', 'runs', 0, 'text']);
-          searchResults['searchEndpoint'][chipText] =
+          if (chipText == null) continue;
+          final normalized = _normalizeSearchCategory('$chipText');
+          searchResults['searchEndpoint'][normalized] =
               nav(chip, ['navigationEndpoint', 'searchEndpoint', 'params']);
+          // Keep raw label too when YTM uses a different spelling.
+          if (normalized != chipText) {
+            searchResults['searchEndpoint'][chipText] =
+                searchResults['searchEndpoint'][normalized];
+          }
         }
       }
 
-      // now Featured playlists and community playlists are not coming in top results
-      // so adding them in tab if not present
-      if ((searchResults['searchEndpoint'])
-              .containsKey("Community playlists") &&
-          !searchResults.containsKey("Community playlists")) {
-        searchResults["Community playlists"] = [];
-      }
-
-      if ((searchResults['searchEndpoint']).containsKey("Featured playlists") &&
-          !searchResults.containsKey("Featured playlists")) {
-        searchResults["Featured playlists"] = [];
+      // Always expose filter tabs from chips (RiPlay-style), even when the
+      // unfiltered top shelves omit that category.
+      const seedTabs = [
+        'Songs',
+        'Videos',
+        'Albums',
+        'Artists',
+        'Community playlists',
+        'Featured playlists',
+        'Podcasts',
+        'Episodes',
+      ];
+      final endpoints = searchResults['searchEndpoint'] as Map;
+      for (final key in seedTabs) {
+        if (endpoints.containsKey(key) && !searchResults.containsKey(key)) {
+          searchResults[key] = [];
+        }
       }
     }
 
     /// End Search Chips
 
     results = nav(results, ['sectionListRenderer', 'contents']);
+    if (results == null) {
+      return searchResults;
+    }
 
-    if (results.length == 1 && results[0]['itemSectionRenderer'] != null) {
+    // Flatten itemSectionRenderer wrappers (some payloads nest shelves).
+    final List<dynamic> flatResults = [];
+    for (final res in results) {
+      if (res is Map && res['itemSectionRenderer'] != null) {
+        final sectionContents = res['itemSectionRenderer']['contents'];
+        if (sectionContents is List) {
+          flatResults.addAll(sectionContents);
+        }
+      } else {
+        flatResults.add(res);
+      }
+    }
+    results = flatResults;
+
+    if (results.isEmpty) {
       return searchResults;
     }
 
     String? type;
 
     for (var res in results) {
+      if (res is! Map) continue;
       String category;
       if (res['musicShelfRenderer'] != null) {
         dynamic itemResults = res['musicShelfRenderer']['contents'];
         String? typeFilter = filter;
-        category = "mixed"; // Just a default value
+        category = "mixed";
         final resultTypes = [
           'artist',
           'playlist',
@@ -932,27 +964,44 @@ class MusicServices extends getx.GetxService {
         ];
         // Derive singular type from filter before parsing (podcasts → podcast)
         type = typeFilter?.substring(0, typeFilter.length - 1).toLowerCase();
-        final mixedItems =
-            parseSearchResults(itemResults, resultTypes, type, category);
+
         if (filter == null) {
-          for (var item in mixedItems) {
-            final itemType = item.runtimeType == MediaItem
-                ? (item.artist.split(",")[0]) + "s"
-                : "${item.runtimeType}s";
-            if (searchResults.containsKey(itemType) &&
-                (searchResults[itemType]).length < 3) {
-              (searchResults[itemType] as List).add(item);
-            } else if (!searchResults.containsKey(itemType)) {
-              searchResults[itemType] = [item];
+          final shelfTitle =
+              nav(res, ['musicShelfRenderer', ...title_text])?.toString();
+          category = _normalizeSearchCategory(shelfTitle);
+          final mixedItems =
+              parseSearchResults(itemResults, resultTypes, type, category);
+          if (!searchResults.containsKey(category)) {
+            searchResults[category] = <dynamic>[];
+          }
+          final bucket = searchResults[category] as List;
+          for (final item in mixedItems) {
+            if (item == null) continue;
+            // Prefer shelf title; fall back to runtime type if shelf was generic.
+            final key = category == 'mixed' || category.isEmpty
+                ? _categoryForSearchItem(item)
+                : category;
+            if (key != category) {
+              if (!searchResults.containsKey(key)) {
+                searchResults[key] = <dynamic>[];
+              }
+              final alt = searchResults[key] as List;
+              if (alt.length < 3) alt.add(item);
+            } else if (bucket.length < 3) {
+              bucket.add(item);
             }
           }
         } else {
-          category = nav(res, ['musicShelfRenderer', ...title_text]);
-          searchResults[category] = parseSearchResults(
+          category = _normalizeSearchCategory(
+              nav(res, ['musicShelfRenderer', ...title_text])?.toString());
+          // Prefer the requested filter label so tabs can find results.
+          final tabCategory = _categoryFromFilter(filter) ?? category;
+          searchResults[tabCategory] = parseSearchResults(
               res['musicShelfRenderer']['contents'],
               resultTypes,
               type,
-              category);
+              tabCategory);
+          category = tabCategory;
         }
       } else {
         continue;
@@ -1002,6 +1051,90 @@ class MusicServices extends getx.GetxService {
     }
 
     return searchResults;
+  }
+
+  /// Map YTM shelf / chip labels onto stable English tab keys.
+  static String _normalizeSearchCategory(String? raw) {
+    return normalizeSearchCategory(raw);
+  }
+
+  /// Public for tests / debugging.
+  static String normalizeSearchCategory(String? raw) {
+    final c = (raw ?? '').trim();
+    if (c.isEmpty) return 'Songs';
+    final lower = c.toLowerCase();
+    if (lower.contains('community') && lower.contains('playlist')) {
+      return 'Community playlists';
+    }
+    if (lower.contains('featured') && lower.contains('playlist')) {
+      return 'Featured playlists';
+    }
+    if (lower.contains('playlist')) return 'Community playlists';
+    if (lower.contains('song')) return 'Songs';
+    if (lower.contains('video')) return 'Videos';
+    if (lower.contains('album')) return 'Albums';
+    if (lower.contains('artist')) return 'Artists';
+    if (lower.contains('podcast')) return 'Podcasts';
+    if (lower.contains('episode')) return 'Episodes';
+    // Already a known English key
+    const known = {
+      'Songs',
+      'Videos',
+      'Albums',
+      'Artists',
+      'Community playlists',
+      'Featured playlists',
+      'Podcasts',
+      'Episodes',
+      'Playlists',
+    };
+    if (known.contains(c)) return c;
+    return c;
+  }
+
+  static String? _categoryFromFilter(String filter) {
+    switch (filter) {
+      case 'songs':
+        return 'Songs';
+      case 'videos':
+        return 'Videos';
+      case 'albums':
+        return 'Albums';
+      case 'artists':
+        return 'Artists';
+      case 'community_playlists':
+        return 'Community playlists';
+      case 'featured_playlists':
+        return 'Featured playlists';
+      case 'playlists':
+        return 'Community playlists';
+      case 'podcasts':
+        return 'Podcasts';
+      case 'episodes':
+        return 'Episodes';
+      default:
+        return null;
+    }
+  }
+
+  static String _categoryForSearchItem(dynamic item) {
+    if (item is MediaItem) {
+      final vt = '${item.extras?['videoType'] ?? ''}';
+      if (vt.contains('PODCAST')) return 'Episodes';
+      if (vt == 'MUSIC_VIDEO_TYPE_ATV' || vt.isEmpty) return 'Songs';
+      return 'Videos';
+    }
+    if (item is Album) return 'Albums';
+    if (item is Artist) return 'Artists';
+    if (item is Playlist) {
+      if (item.kind == 'podcast') return 'Podcasts';
+      return 'Community playlists';
+    }
+    final name = item.runtimeType.toString();
+    if (name == 'Album') return 'Albums';
+    if (name == 'Artist') return 'Artists';
+    if (name == 'Playlist') return 'Community playlists';
+    return 'Songs';
   }
 
   Future<Map<String, dynamic>> getSearchContinuation(Map additionalParamsNext,

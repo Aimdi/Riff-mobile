@@ -5,7 +5,7 @@ import 'package:get/get.dart';
 import '../screens/Search/search_result_screen_controller.dart';
 import '/models/album.dart';
 import '/models/artist.dart';
-// import '/models/playlist.dart';
+import '/models/playlist.dart';
 import '/ui/widgets/content_list_widget.dart';
 import 'separate_tab_item_widget.dart';
 
@@ -58,33 +58,44 @@ class ResultWidget extends StatelessWidget {
   List<Widget> generateWidgetList(
       SearchResultScreenController searchResScrController) {
     List<Widget> list = [];
-    for (dynamic item in searchResScrController.resultContent.entries) {
-      if (item.key == "Songs" || item.key == "Videos") {
+    // Stable overview order (skip empty stub sections).
+    final orderedKeys = [
+      ...SearchResultScreenController.preferredRailOrder,
+      ...searchResScrController.resultContent.keys.where((k) =>
+          k != 'searchEndpoint' &&
+          k != 'params' &&
+          !SearchResultScreenController.preferredRailOrder.contains(k)),
+    ];
+    final seen = <String>{};
+    for (final key in orderedKeys) {
+      if (!seen.add(key)) continue;
+      final value = searchResScrController.resultContent[key];
+      if (value is! List || value.isEmpty) continue;
+
+      if (key == 'Songs' || key == 'Videos' || key == 'Episodes') {
         list.add(SeparateTabItemWidget(
-          items: List<MediaItem>.from(item.value),
-          title: item.key,
+          items: List<MediaItem>.from(value),
+          title: key,
           isCompleteList: false,
         ));
-      } else if (item.key == "Albums") {
+      } else if (key == 'Albums') {
         list.add(ContentListWidget(
           content: AlbumContent(
-              title: item.key, albumList: List<Album>.from(item.value)),
+              title: key, albumList: List<Album>.from(value)),
           isHomeContent: false,
         ));
-      } 
-      // else if (item.key.contains("playlist")) {
-      //   list.add(ContentListWidget(
-      //     content: PlaylistContent(
-      //       title: item.key,
-      //       playlistList: List<Playlist>.from(item.value),
-      //     ),
-      //     isHomeContent: false,
-      //   ));
-      // } 
-      else if (item.key.contains("Artist")) {
+      } else if (key.contains('playlist') || key == 'Podcasts') {
+        list.add(ContentListWidget(
+          content: PlaylistContent(
+            title: key,
+            playlistList: List<Playlist>.from(value),
+          ),
+          isHomeContent: false,
+        ));
+      } else if (key.contains('Artist')) {
         list.add(SeparateTabItemWidget(
-          items: List<Artist>.from(item.value),
-          title: item.key,
+          items: List<Artist>.from(value),
+          title: key,
           isCompleteList: false,
         ));
       }
