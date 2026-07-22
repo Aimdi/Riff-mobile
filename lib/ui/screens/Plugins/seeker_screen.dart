@@ -2,26 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '/services/slskd_service.dart';
+import '/services/soulseek_service.dart';
 import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/snackbar.dart';
 
-/// In-app Soulseek search via a self-hosted [slskd](https://github.com/slskd/slskd)
-/// server. Optionally opens the Seeker Android client as a companion.
+/// In-app Soulseek client — login, search, and download like Seeker, without
+/// connecting to a separate home server.
 class SeekerScreen extends StatelessWidget {
   const SeekerScreen({super.key});
 
-  static const seekerPackageId = 'com.companyname.andriodapp1';
-  static const playStoreUrl =
-      'https://play.google.com/store/apps/details?id=$seekerPackageId';
-  static const izzyUrl =
-      'https://apt.izzysoft.de/fdroid/index/apk/$seekerPackageId';
-  static const slskdUrl = 'https://github.com/slskd/slskd';
-  static const seekerGithubUrl = 'https://github.com/jackBonadies/SeekerAndroid';
+  static const seekerGithub = 'https://github.com/jackBonadies/SeekerAndroid';
 
   @override
   Widget build(BuildContext context) {
-    final svc = Get.find<SlskdService>();
+    final svc = Get.find<SoulseekService>();
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: theme.canvasColor,
@@ -36,9 +30,9 @@ class SeekerScreen extends StatelessWidget {
             const SizedBox(height: 12),
             Expanded(
               child: Obx(
-                () => svc.isConnected.value
+                () => svc.isLoggedIn.value
                     ? const _SoulseekSearchView()
-                    : const _SlskdLoginForm(),
+                    : const _SoulseekLoginForm(),
               ),
             ),
           ],
@@ -48,88 +42,80 @@ class SeekerScreen extends StatelessWidget {
   }
 }
 
-class _SlskdLoginForm extends StatefulWidget {
-  const _SlskdLoginForm();
+class _SoulseekLoginForm extends StatefulWidget {
+  const _SoulseekLoginForm();
 
   @override
-  State<_SlskdLoginForm> createState() => _SlskdLoginFormState();
+  State<_SoulseekLoginForm> createState() => _SoulseekLoginFormState();
 }
 
-class _SlskdLoginFormState extends State<_SlskdLoginForm> {
-  final _url = TextEditingController(text: 'http://127.0.0.1:5030');
-  final _key = TextEditingController();
+class _SoulseekLoginFormState extends State<_SoulseekLoginForm> {
+  final _user = TextEditingController();
+  final _pass = TextEditingController();
   bool _obscure = true;
-  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _user.text = Get.find<SoulseekService>().username.value;
+  }
 
   @override
   void dispose() {
-    _url.dispose();
-    _key.dispose();
+    _user.dispose();
+    _pass.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    setState(() => _busy = true);
     try {
-      await Get.find<SlskdService>().connect(
-        serverUrl: _url.text,
-        apiKey: _key.text,
+      await Get.find<SoulseekService>().login(
+        user: _user.text,
+        pass: _pass.text,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        snackbar(context, 'slskdConnected'.tr, size: SanckBarSize.MEDIUM),
+        snackbar(context, 'soulseekLoggedIn'.tr, size: SanckBarSize.MEDIUM),
       );
     } catch (_) {
       if (!mounted) return;
+      final msg = Get.find<SoulseekService>().statusMessage.value;
       ScaffoldMessenger.of(context).showSnackBar(
-        snackbar(context, 'slskdConnectFailed'.tr, size: SanckBarSize.MEDIUM),
+        snackbar(
+          context,
+          msg.isEmpty ? 'soulseekLoginFailed'.tr : msg,
+          size: SanckBarSize.MEDIUM,
+        ),
       );
-    } finally {
-      if (mounted) setState(() => _busy = false);
     }
-  }
-
-  Future<void> _open(String url) async {
-    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-  }
-
-  Future<void> _openSeekerApp() async {
-    final intentUri = Uri.parse(
-      'intent:#Intent;package=${SeekerScreen.seekerPackageId};scheme=package;end',
-    );
-    try {
-      final ok =
-          await launchUrl(intentUri, mode: LaunchMode.externalApplication);
-      if (ok) return;
-    } catch (_) {/* fall through */}
-    await _open(SeekerScreen.playStoreUrl);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final svc = Get.find<SoulseekService>();
     return ListView(
       padding: const EdgeInsets.only(bottom: 120, top: 4),
       children: [
-        Text('slskdConnectTitle'.tr, style: theme.textTheme.titleMedium),
+        Text('soulseekLoginTitle'.tr, style: theme.textTheme.titleMedium),
         const SizedBox(height: 6),
-        Text('slskdConnectDes'.tr, style: theme.textTheme.bodyMedium),
+        Text('soulseekLoginDes'.tr, style: theme.textTheme.bodyMedium),
         const SizedBox(height: 16),
         TextField(
-          controller: _url,
-          keyboardType: TextInputType.url,
+          controller: _user,
+          textInputAction: TextInputAction.next,
           decoration: InputDecoration(
-            labelText: 'slskdServerUrl'.tr,
-            hintText: 'http://192.168.1.10:5030',
+            labelText: 'soulseekUsername'.tr,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           ),
         ),
         const SizedBox(height: 12),
         TextField(
-          controller: _key,
+          controller: _pass,
           obscureText: _obscure,
+          onSubmitted: (_) => svc.isBusy.value ? null : _submit(),
           decoration: InputDecoration(
-            labelText: 'slskdApiKey'.tr,
+            labelText: 'soulseekPassword'.tr,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
             suffixIcon: IconButton(
               icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
@@ -138,38 +124,26 @@ class _SlskdLoginFormState extends State<_SlskdLoginForm> {
           ),
         ),
         const SizedBox(height: 16),
-        FilledButton(
-          onPressed: _busy ? null : _submit,
-          child: _busy
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text('slskdConnect'.tr),
-        ),
-        const SizedBox(height: 20),
-        Text('slskdHint'.tr, style: theme.textTheme.bodySmall),
-        const SizedBox(height: 8),
-        TextButton(
-          onPressed: () => _open(SeekerScreen.slskdUrl),
-          child: Text('slskdDocs'.tr),
+        Obx(
+          () => FilledButton(
+            onPressed: svc.isBusy.value ? null : _submit,
+            child: svc.isBusy.value
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text('soulseekLogin'.tr),
+          ),
         ),
         const SizedBox(height: 16),
-        const Divider(),
-        const SizedBox(height: 8),
-        Text('seekerCompanionTitle'.tr, style: theme.textTheme.titleSmall),
-        const SizedBox(height: 4),
-        Text('seekerCompanionDes'.tr, style: theme.textTheme.bodySmall),
-        const SizedBox(height: 10),
-        OutlinedButton.icon(
-          onPressed: _openSeekerApp,
-          icon: const Icon(Icons.open_in_new),
-          label: Text('seekerOpenApp'.tr),
-        ),
+        Text('soulseekAccountHint'.tr, style: theme.textTheme.bodySmall),
         TextButton(
-          onPressed: () => _open(SeekerScreen.seekerGithubUrl),
-          child: Text('pluginSource'.tr),
+          onPressed: () => launchUrl(
+            Uri.parse('https://www.slsknet.org/news/node/1'),
+            mode: LaunchMode.externalApplication,
+          ),
+          child: Text('soulseekCreateAccount'.tr),
         ),
       ],
     );
@@ -185,7 +159,7 @@ class _SoulseekSearchView extends StatefulWidget {
 
 class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
   final _searchCtrl = TextEditingController();
-  List<SoulseekHit> _hits = [];
+  List<SoulseekFile> _hits = [];
   bool _loading = false;
   bool _searched = false;
   String? _error;
@@ -207,7 +181,7 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
       _searched = true;
     });
     try {
-      final hits = await Get.find<SlskdService>().search(q);
+      final hits = await Get.find<SoulseekService>().search(q);
       if (!mounted) return;
       setState(() {
         _hits = hits;
@@ -217,33 +191,28 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = _mapError(e);
+        _error = 'soulseekSearchFailed'.tr;
       });
     }
   }
 
-  String _mapError(Object e) {
-    final msg = e.toString();
-    if (msg.contains('slskdAuthFailed')) return 'slskdAuthFailed'.tr;
-    if (msg.contains('slskdNotLoggedIn')) return 'slskdNotLoggedIn'.tr;
-    if (msg.contains('slskdBusy')) return 'slskdBusy'.tr;
-    if (msg.contains('slskdNotConfigured')) return 'slskdNotConfigured'.tr;
-    return 'slskdSearchFailed'.tr;
-  }
-
-  Future<void> _download(SoulseekHit hit) async {
+  Future<void> _download(SoulseekFile hit) async {
     final key = '${hit.username}|${hit.filename}';
     setState(() => _downloadingKey = key);
     try {
-      await Get.find<SlskdService>().enqueueDownload(hit);
+      final file = await Get.find<SoulseekService>().download(hit);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        snackbar(context, 'slskdDownloadQueued'.tr, size: SanckBarSize.MEDIUM),
+        snackbar(
+          context,
+          'soulseekDownloadSaved'.trParams({'path': file.path}),
+          size: SanckBarSize.MEDIUM,
+        ),
       );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        snackbar(context, 'slskdDownloadFailed'.tr, size: SanckBarSize.MEDIUM),
+        snackbar(context, 'soulseekDownloadFailed'.tr, size: SanckBarSize.MEDIUM),
       );
     } finally {
       if (mounted) setState(() => _downloadingKey = null);
@@ -254,38 +223,27 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accent = Get.find<ThemeController>().accentColor.value;
-    final svc = Get.find<SlskdService>();
+    final svc = Get.find<SoulseekService>();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Obx(() {
-          final host = svc.host.value;
-          final user = svc.soulseekUser.value;
-          final loggedIn = svc.soulseekLoggedIn.value;
-          final status = loggedIn
-              ? (user.isEmpty
-                  ? 'slskdLoggedIn'.tr
-                  : 'slskdLoggedInAs'.trParams({'user': user}))
-              : 'slskdNotLoggedIn'.tr;
-          return Row(
+        Obx(
+          () => Row(
             children: [
               Expanded(
                 child: Text(
-                  '$host · $status',
+                  'soulseekLoggedInAs'.trParams({'user': svc.username.value}),
                   style: theme.textTheme.bodySmall,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               TextButton(
-                onPressed: () => svc.disconnect(),
+                onPressed: () => svc.logout(),
                 child: Text('disconnect'.tr),
               ),
             ],
-          );
-        }),
-        const SizedBox(height: 8),
+          ),
+        ),
         TextField(
           controller: _searchCtrl,
           textInputAction: TextInputAction.search,
@@ -354,14 +312,10 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
         final busy = _downloadingKey == key;
         return ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          title: Text(
-            hit.displayName,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
+          title: Text(hit.displayName, maxLines: 2, overflow: TextOverflow.ellipsis),
           subtitle: Text(hit.metaLabel, style: theme.textTheme.bodySmall),
           trailing: IconButton(
-            tooltip: 'slskdQueueDownload'.tr,
+            tooltip: 'soulseekDownload'.tr,
             onPressed: busy ? null : () => _download(hit),
             icon: busy
                 ? const SizedBox(
