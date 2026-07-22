@@ -2339,7 +2339,9 @@ Map<String, Map<String, String>> get keys => {
   "mixTransitionFadeDes": "Volume fade between tracks",
   "mixTransitionRiseDes": "Shorter fade into the next track",
   "mixTransitionBlendDes": "Longer overlap-style fade",
-  "mixTransitionOffDes": "No transition — hard cut"
+  "mixTransitionOffDes": "No transition — hard cut",
+  "mixEmpty": "Nothing here yet — play more music to build this mix",
+  "loading": "Loading…"
 },
   "eo" : {
     "renamePlaylist": "Alinomi Ludliston",
