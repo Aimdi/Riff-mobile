@@ -206,7 +206,9 @@ class Body extends StatelessWidget {
                         final items = homeScreenController
                                 .isContentFetched.value
                             ? [
-                                // Personal discovery (hidden on cold start)
+                                // Spotify-like Home order:
+                                // shortcuts → Made for you / Because → Quick Picks
+                                // → charts/editorial → quieter rediscover/fans last
                                 if (personal.isNotEmpty) ...[
                                   const HomeShortcutGrid(),
                                   if (Get.isRegistered<DiscoveryService>() &&
@@ -221,8 +223,12 @@ class Body extends StatelessWidget {
                                         visualDensity: VisualDensity.compact,
                                       ),
                                     ),
-                                  ...personal.map(
-                                      (s) => HomeDiscoverySection(section: s)),
+                                  ...personal
+                                      .where((s) =>
+                                          s.id == 'made_for_you' ||
+                                          '${s.id}'.startsWith('because_'))
+                                      .map((s) =>
+                                          HomeDiscoverySection(section: s)),
                                 ],
                                 Obx(() {
                                   final quickPicks =
@@ -275,7 +281,14 @@ class Body extends StatelessWidget {
                                     homeScreenController),
                                 ...getWidgetList(
                                     homeScreenController.fixedContent,
-                                    homeScreenController)
+                                    homeScreenController),
+                                if (personal.isNotEmpty)
+                                  ...personal
+                                      .where((s) =>
+                                          s.id != 'made_for_you' &&
+                                          !'${s.id}'.startsWith('because_'))
+                                      .map((s) =>
+                                          HomeDiscoverySection(section: s)),
                               ]
                             : [const HomeShimmer()];
                         return ListView.builder(

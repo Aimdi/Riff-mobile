@@ -34,9 +34,10 @@ String normalizeArtistKey(String? raw) {
       '');
   s = s.replaceAll(RegExp(r'\s+with\s+.*$', caseSensitive: false), '');
 
-  // Drop punctuation; ampersands become spaces
+  // Drop punctuation; keep Unicode letters/numbers (Željko, Björk, …).
+  // Note: Dart `\w` does NOT match Latin Extended even with unicode:true.
   s = s.replaceAll('&', ' ');
-  s = s.replaceAll(RegExp(r'[^\w\s]', unicode: true), ' ');
+  s = s.replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), ' ');
   s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
   return s;
 }
@@ -50,7 +51,7 @@ String normalizeTitleKey(String? raw) {
           r'\s*[\(\[][^\)\]]*(remaster|remix|version|edit|live|deluxe|anniversary|explicit|clean)[^\)\]]*[\)\]]',
           caseSensitive: false),
       '');
-  s = s.replaceAll(RegExp(r'[^\w\s]', unicode: true), ' ');
+  s = s.replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), ' ');
   s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
   return s;
 }

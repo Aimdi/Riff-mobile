@@ -97,82 +97,76 @@ class DiscoveryEngine {
   Future<List<DiscoverySection>> homeSections() async {
     if (!taste.hasEnoughSignal) return [];
 
+    // Spotify/RiPlay-style Home shelves: few, high-signal rows.
+    // Shortcuts already cover Fresh Finds / Release Radar / Rediscover —
+    // don't stack those again as full carousels above Quick Picks.
     final sections = <DiscoverySection>[];
     final mixes = await dailyMixes();
     if (mixes.isNotEmpty) {
       sections.add(DiscoverySection(
         id: 'made_for_you',
         title: 'Made for you',
-        reason: 'Daily mixes from your listening',
+        reason: 'Your Daily Mixes',
         tracks: mixes.expand((m) => m.tracks.take(1)).toList(),
         surface: DiscoverySurface.home,
       ));
     }
 
-    // Because you liked ⟨seed⟩ — 2–3 sections
-    final seeds = _recentStrongSeeds(limit: 3);
+    // One strong "Because you liked" shelf (not a wall of three).
+    final seeds = _recentStrongSeeds(limit: 1);
+    final usedIds = <String>{};
     for (final seed in seeds) {
-      final title = seed['title'] as String? ?? 'a track';
+      final title = _shortTitle(seed['title'] as String? ?? 'a track');
       final media = MediaItemBuilder.fromJson(seed);
       final similar = await similarSongs(media, limit: 12, unheardOnly: true);
       if (similar.isEmpty) continue;
+      usedIds.addAll(similar.map((e) => e.id));
       sections.add(DiscoverySection(
         id: 'because_${media.id}',
         title: 'Because you liked $title',
-        reason: 'Mostly unheard, similar energy',
+        reason: 'Similar energy you haven’t heard',
         tracks: similar.map(MediaItemBuilder.toJson).toList(),
         surface: DiscoverySurface.becauseYouLiked,
       ));
     }
 
-    final red = await rediscover(limit: 15);
-    if (red.isNotEmpty) {
+    // Optional Rediscover — only when it adds something new.
+    final red = await rediscover(limit: 12);
+    final redFresh =
+        red.where((e) => !usedIds.contains(e.id)).take(12).toList();
+    if (redFresh.length >= 4) {
       sections.add(DiscoverySection(
         id: 'rediscover',
         title: 'Rediscover',
         reason: 'Old favorites gone quiet',
-        tracks: red.map(MediaItemBuilder.toJson).toList(),
+        tracks: redFresh.map(MediaItemBuilder.toJson).toList(),
         surface: DiscoverySurface.rediscover,
       ));
     }
 
-    final fresh = await freshFinds(limit: 15);
-    if (fresh.isNotEmpty) {
-      sections.add(DiscoverySection(
-        id: 'fresh_finds',
-        title: 'Fresh Finds',
-        reason: 'Strictly new to you',
-        tracks: fresh.map(MediaItemBuilder.toJson).toList(),
-        surface: DiscoverySurface.freshFinds,
-      ));
-    }
-
-    final radar = await releaseRadar(limit: 15);
-    if (radar.isNotEmpty) {
-      sections.add(DiscoverySection(
-        id: 'release_radar',
-        title: 'Release Radar',
-        reason: 'New from artists you follow',
-        tracks: radar.map(MediaItemBuilder.toJson).toList(),
-        surface: DiscoverySurface.releaseRadar,
-      ));
-    }
-
-    // Fans of ⟨top artist⟩ also like
+    // Fans of ⟨top artist⟩ — use a real display name, skip if same as Because.
     final top = repo.topAffinities(limit: 1);
-    if (top.isNotEmpty) {
-      final artistName = top.keys.first;
-      // Expand via charts + related of a top track
-      if (seeds.isNotEmpty) {
-        final media = MediaItemBuilder.fromJson(seeds.first);
+    if (top.isNotEmpty && seeds.isNotEmpty) {
+      final artistKey = top.keys.first;
+      final artistName = repo.displayNameForArtistKey(artistKey) ??
+          _displayArtistFromEvents(artistKey) ??
+          _titleCaseKey(artistKey);
+      final media = MediaItemBuilder.fromJson(seeds.first);
+      final seedArtistKey = normalizeArtistKey(media.artist);
+      // Avoid a near-duplicate of the Because shelf.
+      if (seedArtistKey != artistKey) {
         final similar =
             await similarSongs(media, limit: 12, unheardOnly: true);
-        if (similar.isNotEmpty) {
+        final fresh = similar
+            .where((e) => !usedIds.contains(e.id))
+            .take(12)
+            .toList();
+        if (fresh.length >= 4) {
           sections.add(DiscoverySection(
-            id: 'fans_$artistName',
+            id: 'fans_$artistKey',
             title: 'Fans of $artistName also like',
-            reason: 'Unheard picks near your top artist',
-            tracks: similar.map(MediaItemBuilder.toJson).toList(),
+            reason: 'More from your orbit',
+            tracks: fresh.map(MediaItemBuilder.toJson).toList(),
             surface: DiscoverySurface.fansAlsoLike,
           ));
         }
@@ -180,6 +174,31 @@ class DiscoveryEngine {
     }
 
     return sections;
+  }
+
+  static String _shortTitle(String title) {
+    final t = title.trim();
+    if (t.length <= 32) return t;
+    return '${t.substring(0, 30).trimRight()}…';
+  }
+
+  static String _titleCaseKey(String key) {
+    if (key.isEmpty) return key;
+    return key.split(' ').map((w) {
+      if (w.isEmpty) return w;
+      return '${w[0].toUpperCase()}${w.substring(1)}';
+    }).join(' ');
+  }
+
+  String? _displayArtistFromEvents(String artistKey) {
+    // Prefer newest events that still carry a display artist string.
+    final events = repo.recentEvents(limit: 200).reversed;
+    for (final e in events) {
+      final a = e.artist;
+      if (a == null || a.isEmpty) continue;
+      if (normalizeArtistKey(a) == artistKey) return a;
+    }
+    return null;
   }
 
   /// Suggest tracks matching a playlist's aggregate profile.

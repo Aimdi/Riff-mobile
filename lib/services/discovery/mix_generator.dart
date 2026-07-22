@@ -90,7 +90,10 @@ class MixGenerator {
     for (var i = 0; i < clusters.length; i++) {
       final cluster = clusters[i];
       final tracks = await _buildClusterMix(cluster, limit: 30);
-      final names = cluster.take(2).toList();
+      final names = cluster
+          .take(2)
+          .map((k) => repo.displayNameForArtistKey(k) ?? _titleCaseKey(k))
+          .toList();
       final title = names.isEmpty
           ? 'Daily Mix ${i + 1}'
           : names.length == 1
@@ -112,6 +115,14 @@ class MixGenerator {
     }
     await repo.setPref('lastDailyMixGenerated', DateTime.now().millisecondsSinceEpoch);
     return mixes;
+  }
+
+  static String _titleCaseKey(String key) {
+    if (key.isEmpty) return key;
+    return key.split(' ').map((w) {
+      if (w.isEmpty) return w;
+      return '${w[0].toUpperCase()}${w.substring(1)}';
+    }).join(' ');
   }
 
   /// Greedy connected components on top artists via co-occurrence + affinity.

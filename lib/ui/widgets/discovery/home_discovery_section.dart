@@ -28,34 +28,43 @@ class HomeDiscoverySection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 5, top: 15, bottom: 5, right: 10),
+          padding: const EdgeInsets.only(left: 5, top: 18, bottom: 8, right: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 section.title,
-                style: Theme.of(context).textTheme.titleLarge,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 20,
+                    ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               if (section.reason.isNotEmpty)
-                Text(
-                  section.reason,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.color
-                            ?.withOpacity(0.7),
-                      ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    section.reason,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.color
+                              ?.withOpacity(0.65),
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
             ],
           ),
         ),
         SizedBox(
-          height: 180,
+          height: 168,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(left: 2, right: 8),
             itemCount: tracks.length,
             itemBuilder: (context, i) {
               final song = tracks[i];
@@ -72,6 +81,7 @@ class HomeDiscoverySection extends StatelessWidget {
             },
           ),
         ),
+        const SizedBox(height: 6),
       ],
     );
   }
