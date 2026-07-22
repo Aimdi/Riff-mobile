@@ -27,7 +27,7 @@ class CloudScreen extends StatelessWidget {
           Expanded(
             child: Obx(() => cloud.isConnected.value
                 ? const _CloudLibraryView()
-                : const _CloudLoginForm()),
+                : const CloudLoginForm()),
           ),
         ],
       ),
@@ -35,14 +35,14 @@ class CloudScreen extends StatelessWidget {
   }
 }
 
-class _CloudLoginForm extends StatefulWidget {
-  const _CloudLoginForm();
+class CloudLoginForm extends StatefulWidget {
+  const CloudLoginForm({super.key});
 
   @override
-  State<_CloudLoginForm> createState() => _CloudLoginFormState();
+  State<CloudLoginForm> createState() => _CloudLoginFormState();
 }
 
-class _CloudLoginFormState extends State<_CloudLoginForm> {
+class _CloudLoginFormState extends State<CloudLoginForm> {
   final _host = TextEditingController();
   final _user = TextEditingController();
   final _pass = TextEditingController();

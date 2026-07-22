@@ -13,6 +13,7 @@ import '../../widgets/add_to_playlist.dart';
 import '/ui/widgets/sort_widget.dart';
 import '../Settings/settings_screen_controller.dart';
 import '/services/piped_service.dart';
+import '/services/cloud_music_service.dart';
 import '../../../utils/helper.dart';
 import '/models/album.dart';
 import '/models/artist.dart';
@@ -23,9 +24,23 @@ import '/models/thumbnail.dart';
 class LibrarySongsController extends GetxController {
   late RxList<MediaItem> librarySongsList = RxList();
   final isSongFetched = false.obs;
+  /// When true, Songs shows cloud-server tracks instead of local downloads.
+  final showCloudSongs = false.obs;
   List<MediaItem> tempListContainer = [];
   SortWidgetController? sortWidgetController;
   final additionalOperationMode = OperationMode.none.obs;
+
+  Future<void> toggleCloudSongs() async {
+    showCloudSongs.value = !showCloudSongs.value;
+    if (!showCloudSongs.value) return;
+    final cloud = Get.find<CloudMusicService>();
+    if (cloud.isConnected.isFalse) return;
+    if (cloud.songs.isEmpty) {
+      try {
+        await cloud.fetchRandomSongs();
+      } catch (_) {/* status shown by service */}
+    }
+  }
 
   @override
   void onInit() {

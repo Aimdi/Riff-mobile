@@ -56,6 +56,9 @@ class SortWidget extends StatelessWidget {
     this.performAdditionalOperation,
     this.cancelAdditionalOperation,
     this.isImportFeatureRequired = false,
+    this.isCloudFeatureRequired = false,
+    this.isCloudModeActive,
+    this.onCloudToggle,
     required this.onSort,
   });
 
@@ -79,6 +82,11 @@ class SortWidget extends StatelessWidget {
   final Function(String?)? onSearchClose;
   final Function(SortType, bool) onSort;
   final bool isImportFeatureRequired;
+  /// Shows a cloud icon next to the duration (clock) control.
+  final bool isCloudFeatureRequired;
+  /// When non-null, drives the selected state of the cloud icon (use with Obx).
+  final bool? isCloudModeActive;
+  final VoidCallback? onCloudToggle;
 
   void _showImportDialog(BuildContext context) {
     showDialog(
@@ -232,6 +240,15 @@ class SortWidget extends StatelessWidget {
                               },
                             ))
                         : const SizedBox.shrink(),
+                    if (isCloudFeatureRequired)
+                      _customIconButton(
+                        isSelected: isCloudModeActive == true,
+                        icon: isCloudModeActive == true
+                            ? Icons.cloud
+                            : Icons.cloud_outlined,
+                        tooltip: "cloud".tr,
+                        onPressed: () => onCloudToggle?.call(),
+                      ),
                     const Expanded(child: SizedBox()),
                     Obx(
                       () => _customIconButton(

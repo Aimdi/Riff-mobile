@@ -193,7 +193,7 @@ class SettingsScreenController extends GetxController {
     } else {
       isBottomNavBarEnabled.value = false;
       // Side nav: Settings is last (… Artists, Settings)
-      homeScrCon.onSideBarTabSelected(8);
+      homeScrCon.onSideBarTabSelected(7);
     }
     if (!Get.find<PlayerController>().initFlagForPlayer) {
       playerCon.playerPanelMinHeight.value =

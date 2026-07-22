@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '/ui/widgets/modification_list.dart';
-import '../../../models/playlist.dart';
+import '/models/playlist.dart';
+import '/services/cloud_music_service.dart';
+import '../../widgets/modification_list.dart';
 import '../../widgets/piped_sync_widget.dart';
-import 'library_controller.dart';
 import '../../widgets/content_list_widget_item.dart';
 import '../../widgets/list_widget.dart';
 import '../../widgets/sort_widget.dart';
+import '../Cloud/cloud_screen.dart';
 import '../Settings/settings_screen_controller.dart';
+import 'library_controller.dart';
 
 class SongsLibraryWidget extends StatelessWidget {
   const SongsLibraryWidget({super.key, this.isBottomNavActive = false});
@@ -17,6 +19,7 @@ class SongsLibraryWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final topPadding = context.isLandscape ? 50.0 : 90.0;
+    final libSongsController = Get.find<LibrarySongsController>();
     return Padding(
       padding: isBottomNavActive
           ? const EdgeInsets.only(left: 15)
@@ -30,24 +33,38 @@ class SongsLibraryWidget extends StatelessWidget {
                 )
               : Align(
                   alignment: Alignment.centerLeft,
-                  child: Text(
-                    "libSongs".tr,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
+                  child: Obx(() {
+                    final cloudMode = libSongsController.showCloudSongs.value;
+                    return Text(
+                      cloudMode ? "cloud".tr : "libSongs".tr,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    );
+                  }),
                 ),
           Obx(() {
-            final libSongsController = Get.find<LibrarySongsController>();
+            final cloudMode = libSongsController.showCloudSongs.value;
+            final cloud = Get.find<CloudMusicService>();
+            final count = cloudMode
+                ? (cloud.isConnected.value
+                    ? cloud.songs.length
+                    : 0)
+                : libSongsController.librarySongsList.length;
             return SortWidget(
               tag: "LibSongSort",
               screenController: libSongsController,
-              itemCountTitle: "${libSongsController.librarySongsList.length}",
+              itemCountTitle: "$count",
               itemIcon: Icons.music_note,
               titleLeftPadding: 9,
               requiredSortTypes: buildSortTypeSet(true, true),
-              isSearchFeatureRequired: true,
-              isSongDeletetioFeatureRequired: true,
+              isSearchFeatureRequired: !cloudMode,
+              isSongDeletetioFeatureRequired: !cloudMode,
+              isCloudFeatureRequired: true,
+              isCloudModeActive: cloudMode,
+              onCloudToggle: () => libSongsController.toggleCloudSongs(),
               onSort: (type, ascending) {
-                libSongsController.onSort(type, ascending);
+                if (!cloudMode) {
+                  libSongsController.onSort(type, ascending);
+                }
               },
               onSearch: libSongsController.onSearch,
               onSearchClose: libSongsController.onSearchClose,
@@ -61,36 +78,106 @@ class SongsLibraryWidget extends StatelessWidget {
                   libSongsController.cancelAdditionalOperation,
             );
           }),
-          GetX<LibrarySongsController>(builder: (controller) {
-            return controller.librarySongsList.isNotEmpty
-                ? (controller.additionalOperationMode.value ==
-                        OperationMode.none
-                    ? ListWidget(
-                        controller.librarySongsList,
-                        "library Songs",
-                        true,
-                        isPlaylistOrAlbum: true,
-                        playlist: Playlist(
-                            title: "Library Songs",
-                            playlistId: "SongsDownloads",
-                            thumbnailUrl: "",
-                            isCloudPlaylist: false),
-                      )
-                    : ModificationList(
-                        mode: controller.additionalOperationMode.value,
-                        screenController: controller,
-                      ))
-                : Expanded(
-                    child: Center(
+          Expanded(
+            child: Obx(() {
+              if (libSongsController.showCloudSongs.value) {
+                return const _CloudSongsPane();
+              }
+              return GetX<LibrarySongsController>(builder: (controller) {
+                return controller.librarySongsList.isNotEmpty
+                    ? (controller.additionalOperationMode.value ==
+                            OperationMode.none
+                        ? ListWidget(
+                            controller.librarySongsList,
+                            "library Songs",
+                            true,
+                            isPlaylistOrAlbum: true,
+                            playlist: Playlist(
+                                title: "Library Songs",
+                                playlistId: "SongsDownloads",
+                                thumbnailUrl: "",
+                                isCloudPlaylist: false),
+                          )
+                        : ModificationList(
+                            mode: controller.additionalOperationMode.value,
+                            screenController: controller,
+                          ))
+                    : Center(
                         child: Text(
-                      "noOfflineSong".tr,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    )),
-                  );
-          })
+                        "noOfflineSong".tr,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ));
+              });
+            }),
+          ),
         ],
       ),
     );
+  }
+}
+
+/// Cloud songs (or connect form) shown when the Songs toolbar cloud toggle is on.
+class _CloudSongsPane extends StatelessWidget {
+  const _CloudSongsPane();
+
+  @override
+  Widget build(BuildContext context) {
+    final cloud = Get.find<CloudMusicService>();
+    return Obx(() {
+      if (cloud.isConnected.isFalse) {
+        return const CloudLoginForm();
+      }
+      if (cloud.isLoading.value && cloud.songs.isEmpty) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (cloud.songs.isEmpty) {
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('cloudNoSongs'.tr,
+                  style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: () => cloud.fetchRandomSongs(),
+                icon: const Icon(Icons.casino_outlined),
+                label: Text('cloudRandomMix'.tr),
+              ),
+            ],
+          ),
+        );
+      }
+      final list = cloud.songs.toList();
+      return ListView.builder(
+        padding: const EdgeInsets.only(bottom: 200, right: 8),
+        itemCount: list.length + 1,
+        itemBuilder: (context, i) {
+          if (i == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text('cloudRandomMix'.tr,
+                        style: Theme.of(context).textTheme.titleSmall),
+                  ),
+                  IconButton(
+                    tooltip: 'shuffle'.tr,
+                    icon: const Icon(Icons.casino_outlined, size: 20),
+                    onPressed: () => cloud.fetchRandomSongs(),
+                  ),
+                  TextButton(
+                    onPressed: () => cloud.logout(),
+                    child: Text('disconnect'.tr),
+                  ),
+                ],
+              ),
+            );
+          }
+          return CloudSongTile(songs: list, index: i - 1);
+        },
+      );
+    });
   }
 }
 
@@ -198,24 +285,19 @@ class PlaylistNAlbumLibraryWidget extends StatelessWidget {
                               crossAxisCount: columns,
                               childAspectRatio: (itemWidth / itemHeight),
                             ),
-                            controller:
-                                ScrollController(keepScrollOffset: false),
-                            shrinkWrap: true,
-                            scrollDirection: Axis.vertical,
-                            padding:
-                                const EdgeInsets.only(bottom: 200, top: 10),
+                            controller: ScrollController(keepScrollOffset: false),
                             itemCount: isAlbumContent
                                 ? libralbumCntrller.libraryAlbums.length
                                 : librplstCntrller.libraryPlaylists.length,
-                            itemBuilder: (context, index) => Center(
+                            itemBuilder: (BuildContext context, int index) {
+                              return Center(
                                   child: ContentListItem(
-                                    content: isAlbumContent
-                                        ? libralbumCntrller.libraryAlbums[index]
-                                        : librplstCntrller
-                                            .libraryPlaylists[index],
-                                    isLibraryItem: true,
-                                  ),
-                                )),
+                                content: isAlbumContent
+                                    ? libralbumCntrller.libraryAlbums[index]
+                                    : librplstCntrller.libraryPlaylists[index],
+                                isLibraryItem: true,
+                              ));
+                            }),
                       );
                     })
                   : Center(
