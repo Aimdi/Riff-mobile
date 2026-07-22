@@ -1,79 +1,123 @@
 <div align="center">
 
-# Riff Mobile 🎵
+<img src="cover.png" alt="Riff Mobile" width="720"/>
 
-**Stream YouTube Music on Android — no ads, no account, no tracking.**
+# Riff Mobile
 
-The mobile counterpart of [Riff](https://github.com/Aimdi/Riff) (the native
-Linux player): a true-black OLED look, a private on-device discovery
-engine, and a playback stack built to survive YouTube's changes.
+**YouTube Music, podcasts, audiobooks, and your own servers — on Android.**
+
+No ads. No Google account. No tracking. Personalization stays on your device.
 
 [![Build Android APK](https://github.com/Aimdi/Riff-mobile/actions/workflows/build.yml/badge.svg)](https://github.com/Aimdi/Riff-mobile/actions/workflows/build.yml)
 [![Latest release](https://img.shields.io/github/v/release/Aimdi/Riff-mobile)](https://github.com/Aimdi/Riff-mobile/releases/latest)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-green)](LICENSE)
 
-[**⬇️ Download the latest APK**](https://github.com/Aimdi/Riff-mobile/releases/latest)
+[Download the latest APK](https://github.com/Aimdi/Riff-mobile/releases/latest)
+·
+[Desktop Riff](https://github.com/Aimdi/Riff)
 
 </div>
 
 ---
 
-## Features
+Riff Mobile is the Android companion to [Riff](https://github.com/Aimdi/Riff) on Linux: a true-black player with a private on-device discovery engine and a playback stack built to survive YouTube’s constant client changes. It started as a fork of [Harmony Music](https://github.com/anandnet/Harmony-Music) and has grown into a fuller library app — music from YouTube Music, podcasts from the open web, audiobooks from LibriVox and Audiobookshelf, and optional self-hosted music via Subsonic-compatible servers.
 
-- 🔍 **Search** songs, albums, artists and playlists on YouTube Music
-- 🏠 **Home feed** with charts, moods and recommendations
-- 🧭 **Local discovery engine** — a private, on-device taste model builds
-  Daily Mixes, Fresh Finds, Release Radar and Rediscover sections from
-  what *you* play. No YouTube login exists or is needed: like Riff on the
-  desktop, personalization never leaves your phone. Sections appear on
-  Home after a handful of listens (tune it in Settings → Riff → Discovery)
-- 📻 **Radio / autoplay** — related songs keep playing when your queue ends
-- 🗒️ **Full queue control** — play next, enqueue, reorder, shuffle, repeat
-- ❤️ **Favorites, history and local playlists**
-- ⬇️ **Offline downloads**; downloaded songs play from disk
-- 🎙️ **Podcasts** (AntennaPod-style) — search Apple's public directory,
-  subscribe to any RSS feed, stream episodes; subscriptions stay on your
-  device, nothing is reported anywhere (Settings → Riff → Podcasts)
-- 🎛️ **Audio effects** — bass boost, volume boost (amplifies quiet tracks),
-  reverb presets, stereo width, plus speed & pitch (Settings → Riff)
-- 🎤 **Synced lyrics** (LRCLIB, with KuGou fallback) and live highlighting
-- 📊 **Stats page** — plays, hours listened, daily activity, top songs and
-  artists, exploration insights — all computed on-device (Settings → Riff)
-- 🚷 **"Never Play This"** — ban a song from the song menu; banned songs
-  stay out of radio and suggestions
-- 📻 **ListenBrainz scrobbling** (optional, token in Settings → Riff)
-- 🖤 **Pitch Black theme** — true-black OLED default with Riff's green
-  accent, plus Blue / Violet / Crimson / Amber variants
-- 🎚️ Equalizer, sleep timer, skip silence, streaming quality control
-- 🚗 **Android Auto** support
-- 🌍 Available in many languages
-- 🚫 No ads, no tracking, no Google account — by design
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.jpg" width="180" alt="Home"/>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.jpg" width="180" alt="Player"/>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.jpg" width="180" alt="Library"/>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.jpg" width="180" alt="Search"/>
+</p>
+
+## Highlights
+
+| | |
+|---|---|
+| **YouTube Music** | Search, home feed, charts, moods, radio, downloads — no login |
+| **On-device discovery** | Daily Mixes, Fresh Finds, Release Radar, Rediscover from *your* listens |
+| **Podcasts** | Apple directory + any RSS feed, folders, inbox/queue, transcripts |
+| **Audiobooks** | LibriVox discover, Audiobookshelf library, catalog browsing |
+| **Cloud songs** | Navidrome / OpenSubsonic / Ampache and friends (Subsonic API) |
+| **Plugins** | Torrents Digger, SoulSync, Seeker — enable what you need |
+| **Privacy** | No ads, no analytics, no Google account — by design |
+
+---
+
+## Music
+
+- Search songs, albums, artists, and playlists on YouTube Music
+- Home feed with charts, moods, and recommendations
+- **Local discovery engine** — a private taste model on your phone builds Daily Mixes, Fresh Finds, Release Radar, and Rediscover. No YouTube login; nothing leaves the device. Sections appear after a handful of listens (Settings → Riff → Discovery)
+- Radio / autoplay when the queue ends
+- Full queue control — play next, enqueue, reorder, shuffle, repeat
+- Favorites, history, and local playlists
+- Offline downloads (cached songs play from disk)
+- Piped playlist sync (optional)
+- Import songs, playlists, albums, and artists via share from YouTube / YouTube Music
+- **“Never Play This”** — ban a track from the song menu; it stays out of radio and suggestions
+- Optional [ListenBrainz](https://listenbrainz.org) scrobbling
+
+## Library & cloud
+
+Library tabs cover **Songs**, **Playlists**, **Albums**, and **Artists**.
+
+**Cloud** connects to a Subsonic-compatible server — Navidrome, OpenSubsonic, Airsonic-Advanced, Gonic, Ampache, and similar — so your self-hosted library sits beside YouTube Music. Credentials stay on the device.
+
+## Podcasts
+
+AntennaPod-style podcasts without giving up the rest of Riff:
+
+- Search Apple’s public podcast directory or subscribe to any RSS URL
+- Subscriptions, progress, and folders stay on your device
+- Spotify-style **folders** for organizing shows
+- Inbox / queue workflow for catching up
+- **Episode transcripts** when the feed provides them
+- Configure defaults under Settings → Riff → Podcasts
+
+## Audiobooks
+
+- **Discover** — free LibriVox titles you can play in-app
+- **Library** — connect an [Audiobookshelf](https://www.audiobookshelf.org/) server (same idea as Lissen): stream, resume, upload
+- **Catalog** — browse popular titles (preview / listen on Audible where playback isn’t available in-app)
+- Bookmark books to a **Saved** shelf
+
+## Plugins
+
+Optional features ship with the app and can be enabled from **Settings → Riff → Plugins**:
+
+| Plugin | What it does |
+|---|---|
+| **[Torrents Digger](https://gitlab.com/ForTheCommunity/torrentsdigger)** | Search public torrent indexes; open magnets in your torrent client |
+| **[SoulSync](https://github.com/Nezreka/SoulSync)** | Talk to your self-hosted SoulSync server (search + request downloads) |
+| **[Seeker](https://github.com/jackBonadies/SeekerAndroid)** | Jump to the Seeker companion app for Soulseek |
+
+Only enable plugins you intend to use, and only download content you have the right to use.
+
+## Player & look
+
+- Synced lyrics ([LRCLIB](https://lrclib.net), KuGou fallback) with live highlighting
+- Audio effects — bass boost, volume boost, reverb presets, stereo width, speed & pitch
+- Equalizer, sleep timer, skip silence, streaming quality
+- Pitch Black OLED theme with Riff’s green accent, plus Blue / Violet / Crimson / Amber
+- Side nav or bottom nav
+- Android Auto
+- Many languages
+- On-device **Stats** — plays, hours, daily activity, top songs/artists (Settings → Riff)
+
+---
 
 ## Why playback keeps working
 
-Most YouTube Music clients break every time YouTube rotates its player
-clients or cipher scheme (that's what killed the original Harmony Music
-v1.12.2 this app was forked from). Riff Mobile layers the approaches of
-the most resilient open-source players:
+Most YouTube Music clients break when YouTube rotates player clients or cipher schemes (that’s what ended upstream Harmony Music v1.12.2). Riff layers the approaches used by resilient open-source players:
 
-1. **[NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor)**
-   (the engine behind NewPipe and RiPlay) resolves streams first — it
-   tracks YouTube's JS player, signature deciphering, throttling and SABR
-   enforcement, and is updated continuously
-2. If that fails, a **fallback chain of current, PO-token-free player
-   clients** takes over — `ANDROID_VR` and `VISIONOS` payloads
-   transplanted from [Metrolist](https://github.com/mostafaalagamy/Metrolist)'s
-   client fleet, then sdk-less Android and iOS via
-   [youtube_explode_dart](https://github.com/Hexer10/youtube_explode_dart) 3.x
-3. Every resolved URL is **validated before it reaches the player**, so a
-   dead link falls through to the next resolver instead of failing silently
-4. Browse/search requests send a **consent cookie (`SOCS`) and a current
-   browser fingerprint**, so the app works on networks where YouTube
-   enforces consent walls (e.g. the EU)
+1. **[NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor)** resolves streams first — it tracks YouTube’s JS player, signature deciphering, throttling, and SABR enforcement
+2. If that fails, a **fallback chain of current, PO-token-free player clients** takes over — `ANDROID_VR` and `VISIONOS` payloads from [Metrolist](https://github.com/mostafaalagamy/Metrolist), then sdk-less Android and iOS via [youtube_explode_dart](https://github.com/Hexer10/youtube_explode_dart) 3.x
+3. Every resolved URL is **validated before it reaches the player**, so a dead link falls through instead of failing silently
+4. Browse/search requests send a **consent cookie (`SOCS`) and a current browser fingerprint**, so the app works on networks where YouTube enforces consent walls (e.g. the EU)
 
-The whole YouTube-facing stack is exercised on CI against the real
-YouTube Music API (home, charts, search, radio, stream resolution) via
-the *YT API diagnostics* workflow.
+The YouTube-facing stack is exercised on CI against the live YouTube Music API (home, charts, search, radio, stream resolution) via the *YT API diagnostics* workflow.
+
+---
 
 ## Install
 
@@ -81,44 +125,59 @@ Grab an APK from the [releases page](https://github.com/Aimdi/Riff-mobile/releas
 
 | APK | For |
 |---|---|
-| `app-arm64-v8a-release.apk` | Most phones (2017+) — **pick this one** |
+| `app-arm64-v8a-release.apk` | Most phones (2017+) — **use this** |
 | `app-armeabi-v7a-release.apk` | Older 32-bit devices |
-| `app-release.apk` | Universal (any device, larger) |
+| `app-release.apk` | Universal (larger) |
 | `app-x86_64-release.apk` | Emulators |
 
-Updates install over the existing app (`com.aimdi.riff`). The app checks
-this repository's releases and offers new versions in Settings.
+Updates install over the existing app (`com.aimdi.riff`). The app checks this repository’s releases and can offer updates from Settings.
+
+> Sideloading: allow installs from your browser/file manager. Riff is not distributed on the Play Store.
 
 ## Build from source
 
+Requires [Flutter](https://docs.flutter.dev/get-started/install) **3.24.x**.
+
 ```bash
+git clone https://github.com/Aimdi/Riff-mobile.git
+cd Riff-mobile
 flutter pub get
 flutter build apk --release
 ```
 
-Built with Flutter 3.24.x; APKs land in `build/app/outputs/flutter-apk/`.
-Every push builds APKs on CI, and a release can be cut from the *Build
-Android APK* workflow with a `release_tag` input.
+APKs land in `build/app/outputs/flutter-apk/`.
 
-## Credits
+Every push builds APKs on CI. Cutting a GitHub Release: run the *Build Android APK* workflow with a `release_tag` input (or push a `v*` tag).
 
-Riff Mobile stands on the shoulders of:
+### Useful targets
 
-- **[Harmony Music](https://github.com/anandnet/Harmony-Music)** by
-  [anandnet](https://github.com/anandnet) — the app this project is
-  forked from (no longer maintained upstream)
-- **[Riff](https://github.com/Aimdi/Riff)** — design and feature blueprint
-- **[NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor)** —
-  stream resolution engine
-- **[RiPlay](https://github.com/fast4x/RiPlay)** and
-  **[Metrolist](https://github.com/mostafaalagamy/Metrolist)** — the
-  playback-resilience playbooks this app borrows from
-- [youtube_explode_dart](https://github.com/Hexer10/youtube_explode_dart),
-  [LRCLIB](https://lrclib.net), [ListenBrainz](https://listenbrainz.org)
+```bash
+flutter build apk --release --split-per-abi   # arm64 / armeabi-v7a / x86_64
+flutter test
+```
+
+---
+
+## Related projects
+
+| Project | Role |
+|---|---|
+| [Riff](https://github.com/Aimdi/Riff) | Native Linux desktop player — design & feature blueprint |
+| [Harmony Music](https://github.com/anandnet/Harmony-Music) | Upstream Flutter app this project was forked from |
+| [NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor) | Stream resolution |
+| [RiPlay](https://github.com/fast4x/RiPlay) / [Metrolist](https://github.com/mostafaalagamy/Metrolist) | Playback-resilience approaches |
+| [SoulSync](https://github.com/Nezreka/SoulSync) / [Seeker](https://github.com/jackBonadies/SeekerAndroid) | Optional plugin backends |
+
+Also used: [youtube_explode_dart](https://github.com/Hexer10/youtube_explode_dart), [LRCLIB](https://lrclib.net), [ListenBrainz](https://listenbrainz.org), Apple’s public podcast directory, LibriVox, Audiobookshelf, Subsonic-compatible servers.
+
+---
+
+## Contributing
+
+Issues and PRs are welcome. For playback breakage after a YouTube change, include device, Android version, app version, and whether Home / Search / stream play fail. CI’s YT API diagnostics job is a good first check.
 
 ## License
 
-**GPL-3.0** (see [LICENSE](LICENSE)), as required by the Harmony Music base.
+**GPL-3.0** — see [LICENSE](LICENSE). Required by the Harmony Music base.
 
-Riff Mobile talks to YouTube Music's public endpoints and is not
-affiliated with or endorsed by YouTube. Use at your own discretion.
+Riff Mobile talks to YouTube Music’s public endpoints and is **not affiliated with or endorsed by YouTube, Google, Apple, Audible, or any catalog provider**. Use at your own discretion and respect applicable terms and copyright.
