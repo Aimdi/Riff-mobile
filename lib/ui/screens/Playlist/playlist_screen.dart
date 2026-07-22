@@ -405,7 +405,8 @@ class PlaylistScreen extends StatelessWidget {
                                                     .titleMedium!
                                                     .color,
                                               )),
-                                          // Mix mode toggle (Spotify-like)
+                                          // Mix mode toggle — icon-only to match
+                                          // the rest of the action row.
                                           Obx(() {
                                             final pl =
                                                 playlistController.playlist.value;
@@ -418,48 +419,23 @@ class PlaylistScreen extends StatelessWidget {
                                             }
                                             final on =
                                                 playlistController.isMixMode.isTrue;
-                                            final accent =
-                                                Theme.of(context).colorScheme.primary;
-                                            return Padding(
-                                              padding: const EdgeInsets.symmetric(
-                                                  horizontal: 4),
-                                              child: FilterChip(
-                                                selected: on,
-                                                showCheckmark: false,
-                                                avatar: Icon(
-                                                  Icons.tune,
-                                                  size: 16,
-                                                  color: on
-                                                      ? accent
-                                                      : Theme.of(context)
-                                                          .textTheme
-                                                          .titleMedium!
-                                                          .color,
-                                                ),
-                                                label: Text(
-                                                  'mix'.tr,
-                                                  style: TextStyle(
-                                                    color: on
-                                                        ? accent
-                                                        : Theme.of(context)
-                                                            .textTheme
-                                                            .titleMedium!
-                                                            .color,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                                selectedColor:
-                                                    accent.withOpacity(0.18),
-                                                side: BorderSide(
-                                                  color: on
-                                                      ? accent
-                                                      : Theme.of(context)
-                                                          .dividerColor,
-                                                ),
-                                                onSelected: (_) {
-                                                  playlistController
-                                                      .toggleMixMode();
-                                                },
+                                            final color = on
+                                                ? Theme.of(context)
+                                                    .colorScheme
+                                                    .primary
+                                                : Theme.of(context)
+                                                    .textTheme
+                                                    .titleMedium!
+                                                    .color;
+                                            return IconButton(
+                                              tooltip: 'mix'.tr,
+                                              onPressed: () {
+                                                playlistController
+                                                    .toggleMixMode();
+                                              },
+                                              icon: Icon(
+                                                Icons.tune,
+                                                color: color,
                                               ),
                                             );
                                           }),
