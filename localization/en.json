@@ -413,5 +413,6 @@
   "mySubscriptions": "My subscriptions",
   "noSubscriptions": "Search for a podcast above and subscribe. Your subscriptions stay on this device.",
   "noResults": "No results",
-  "noEpisodes": "No episodes found"
+  "noEpisodes": "No episodes found",
+  "folderColor": "Folder color"
 }

@@ -1840,6 +1840,7 @@ Map<String, Map<String, String>> get keys => {
   "folders": "Folders",
   "newFolder": "New folder",
   "folderName": "Folder name",
+  "folderColor": "Folder color",
   "addToFolder": "Add to folder",
   "deleteFolder": "Delete folder",
   "folderEmpty": "This folder is empty. Long-press a podcast to add it here.",

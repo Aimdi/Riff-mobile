@@ -11,6 +11,14 @@ import 'podcast_folder_screen.dart';
 import 'podcasts_library_controller.dart';
 import 'podcasts_screen.dart';
 
+/// Shared tile footprint so folders, library shows, and RSS subs line up
+/// in the Subs grid (matches [ContentListItem]: 130×180 with a 120 cover).
+const double _subsTileWidth = 130;
+const double _subsTileHeight = 180;
+const double _subsCoverSize = 120;
+const EdgeInsets _subsTilePadding =
+    EdgeInsets.symmetric(horizontal: 5);
+
 /// Long-press a podcast show anywhere it's listed to file it into folders.
 /// Reused by the Subscriptions screen and the main Podcasts library grid.
 void showPodcastFolderSheet(BuildContext context, Playlist podcast) {
@@ -50,7 +58,7 @@ void showPodcastFolderSheet(BuildContext context, Playlist podcast) {
                     value: fc.contains(f.id, podcast.playlistId),
                     onChanged: (_) => fc.toggle(f.id, podcast.playlistId),
                     title: Text(f.name),
-                    secondary: const Icon(Icons.folder_rounded),
+                    secondary: Icon(Icons.folder_rounded, color: f.color),
                   )),
               ListTile(
                 leading: const Icon(Icons.create_new_folder_outlined),
@@ -71,36 +79,95 @@ void showNewPodcastFolderDialog(BuildContext context,
     {String? assignPodcastId}) {
   final fc = Get.find<PodcastFolderController>();
   final ctrl = TextEditingController();
+  var colorIndex = 0;
   showDialog(
     context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text("newFolder".tr),
-      content: TextField(
-        controller: ctrl,
-        autofocus: true,
-        decoration: InputDecoration(
-          labelText: "folderName".tr,
-          border: const OutlineInputBorder(),
-          isDense: true,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setLocal) => AlertDialog(
+        title: Text("newFolder".tr),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: ctrl,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: "folderName".tr,
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text("folderColor".tr,
+                  style: Theme.of(ctx).textTheme.titleSmall),
+              const SizedBox(height: 8),
+              _FolderColorPicker(
+                selected: colorIndex,
+                onChanged: (i) => setLocal(() => colorIndex = i),
+              ),
+            ],
+          ),
         ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text("cancel".tr)),
+          TextButton(
+            onPressed: () {
+              final name = ctrl.text.trim();
+              if (name.isNotEmpty) {
+                final f = fc.createFolder(name, colorIndex: colorIndex);
+                if (assignPodcastId != null) {
+                  fc.toggle(f.id, assignPodcastId);
+                }
+              }
+              Navigator.of(ctx).pop();
+            },
+            child: Text("create".tr),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.of(ctx).pop(), child: Text("cancel".tr)),
-        TextButton(
-          onPressed: () {
-            final name = ctrl.text.trim();
-            if (name.isNotEmpty) {
-              final f = fc.createFolder(name);
-              if (assignPodcastId != null) fc.toggle(f.id, assignPodcastId);
-            }
-            Navigator.of(ctx).pop();
-          },
-          child: Text("create".tr),
-        ),
-      ],
     ),
   );
+}
+
+class _FolderColorPicker extends StatelessWidget {
+  const _FolderColorPicker({required this.selected, required this.onChanged});
+  final int selected;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (var i = 0; i < PodcastFolderColors.swatches.length; i++)
+          GestureDetector(
+            onTap: () => onChanged(i),
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: PodcastFolderColors.swatches[i],
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: selected == i
+                      ? Theme.of(context).colorScheme.onSurface
+                      : Colors.transparent,
+                  width: 2.5,
+                ),
+              ),
+              child: selected == i
+                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+                  : null,
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 /// Subscriptions ("Abonnements"): a grid of every podcast you follow, with
@@ -136,16 +203,14 @@ class PodcastSubsScreen extends StatelessWidget {
           );
         }
         return LayoutBuilder(builder: (context, constraints) {
-          const itemWidth = 130.0;
-          const itemHeight = 180.0;
           final columns =
-              (constraints.maxWidth / itemWidth).floor().clamp(2, 6);
+              (constraints.maxWidth / _subsTileWidth).floor().clamp(2, 6);
           final total = folderList.length + subs.length + rssSubs.length;
           return GridView.builder(
             padding: const EdgeInsets.fromLTRB(8, 12, 8, 200),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: columns,
-              childAspectRatio: itemWidth / itemHeight,
+              childAspectRatio: _subsTileWidth / _subsTileHeight,
             ),
             itemCount: total,
             itemBuilder: (context, index) {
@@ -205,46 +270,59 @@ class PodcastSubsScreen extends StatelessWidget {
 
   Widget _folderTile(
       BuildContext context, PodcastFolderController fc, PodcastFolder folder) {
+    final theme = Theme.of(context);
     return SizedBox(
-      width: 130,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: () => Get.to(() => PodcastFolderScreen(folderId: folder.id)),
-        onLongPress: () => _folderOptions(context, fc, folder),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AspectRatio(
-              aspectRatio: 1,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .surfaceContainerHighest
-                      .withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.folder_rounded,
-                  size: 54,
-                  color: Theme.of(context).colorScheme.onSurface,
+      width: _subsTileWidth,
+      height: _subsTileHeight,
+      child: Padding(
+        padding: _subsTilePadding,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => Get.to(() => PodcastFolderScreen(folderId: folder.id)),
+          onLongPress: () => _folderOptions(context, fc, folder),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox.square(
+                dimension: _subsCoverSize,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: folder.color.withOpacity(0.22),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: folder.color.withOpacity(0.55),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.folder_rounded,
+                    size: 48,
+                    color: folder.color,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              folder.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            Text(
-              "${folder.podcastIds.length} ${'items'.tr}",
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
+              const SizedBox(height: 5),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      folder.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    Text(
+                      "${folder.podcastIds.length} ${'items'.tr}",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -255,16 +333,39 @@ class PodcastSubsScreen extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       builder: (ctx) => SafeArea(
-        child: Wrap(children: [
-          ListTile(
-            leading: const Icon(Icons.delete_outline),
-            title: Text("deleteFolder".tr),
-            onTap: () {
-              fc.deleteFolder(folder.id);
-              Navigator.of(ctx).pop();
-            },
-          ),
-        ]),
+        child: Obx(() {
+          // Refresh color selection when setColor updates the list.
+          final current =
+              fc.findById(folder.id) ?? folder;
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(current.name, style: Theme.of(ctx).textTheme.titleMedium),
+                const SizedBox(height: 12),
+                Text("folderColor".tr,
+                    style: Theme.of(ctx).textTheme.titleSmall),
+                const SizedBox(height: 8),
+                _FolderColorPicker(
+                  selected: current.colorIndex,
+                  onChanged: (i) => fc.setColor(current.id, i),
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.delete_outline),
+                  title: Text("deleteFolder".tr),
+                  onTap: () {
+                    fc.deleteFolder(current.id);
+                    Navigator.of(ctx).pop();
+                  },
+                ),
+              ],
+            ),
+          );
+        }),
       ),
     );
   }
@@ -281,37 +382,43 @@ class _RssSubTile extends StatelessWidget {
     final theme = Theme.of(context);
     final art = Thumbnail((podcast['artwork'] ?? '').toString()).high;
     return SizedBox(
-      width: 130,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: () => Get.to(() => PodcastEpisodesScreen(podcast: podcast)),
-        onLongPress: () => _confirmUnfollow(context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: CachedNetworkImage(
-                imageUrl: art,
-                width: 130,
-                height: 130,
-                fit: BoxFit.cover,
-                errorWidget: (_, __, ___) => Container(
-                  width: 130,
-                  height: 130,
-                  color: theme.colorScheme.secondary.withOpacity(0.3),
-                  child: const Icon(Icons.podcasts, size: 44),
+      width: _subsTileWidth,
+      height: _subsTileHeight,
+      child: Padding(
+        padding: _subsTilePadding,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => Get.to(() => PodcastEpisodesScreen(podcast: podcast)),
+          onLongPress: () => _confirmUnfollow(context),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: CachedNetworkImage(
+                  imageUrl: art,
+                  width: _subsCoverSize,
+                  height: _subsCoverSize,
+                  fit: BoxFit.cover,
+                  errorWidget: (_, __, ___) => Container(
+                    width: _subsCoverSize,
+                    height: _subsCoverSize,
+                    color: theme.colorScheme.secondary.withOpacity(0.3),
+                    child: const Icon(Icons.podcasts, size: 44),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              (podcast['title'] ?? '').toString(),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleSmall,
-            ),
-          ],
+              const SizedBox(height: 5),
+              Expanded(
+                child: Text(
+                  (podcast['title'] ?? '').toString(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
