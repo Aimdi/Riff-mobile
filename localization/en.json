@@ -410,5 +410,11 @@
   "mySubscriptions": "My subscriptions",
   "noSubscriptions": "Search for a podcast above and subscribe. Your subscriptions stay on this device.",
   "noResults": "No results",
-  "noEpisodes": "No episodes found"
+  "noEpisodes": "No episodes found",
+  "plugins": "Plugins",
+  "pluginsSettingsDes": "Browse and download optional plugins",
+  "pluginsDes": "Extend Riff with optional plugins. New plugins will appear here when they are available to download.",
+  "pluginsEmptyTitle": "No plugins available yet",
+  "pluginsEmptyDes": "Check back later — offered plugins will show up here so you can download them.",
+  "downloadPlugin": "Download"
 }

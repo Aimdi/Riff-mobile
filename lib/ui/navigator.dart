@@ -13,6 +13,7 @@ import 'screens/Search/search_screen.dart';
 import 'screens/Stats/stats_screen.dart';
 import 'screens/Stats/rewind_screen.dart';
 import 'screens/Podcasts/podcasts_screen.dart';
+import 'screens/Plugins/plugins_screen.dart';
 
 class ScreenNavigationSetup {
   ScreenNavigationSetup._();
@@ -27,6 +28,7 @@ class ScreenNavigationSetup {
   static const statsScreen = '/statsScreen';
   static const rewindScreen = '/rewindScreen';
   static const podcastsScreen = '/podcastsScreen';
+  static const pluginsScreen = '/pluginsScreen';
 }
 
 class ScreenNavigation extends StatelessWidget {
@@ -72,6 +74,10 @@ class ScreenNavigation extends StatelessWidget {
             case ScreenNavigationSetup.podcastsScreen:
               return GetPageRoute(
                   page: () => const PodcastsScreen(), settings: settings);
+
+            case ScreenNavigationSetup.pluginsScreen:
+              return GetPageRoute(
+                  page: () => const PluginsScreen(), settings: settings);
 
             case ScreenNavigationSetup.searchScreen:
               return GetPageRoute(
