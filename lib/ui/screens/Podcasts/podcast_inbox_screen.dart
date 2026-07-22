@@ -8,7 +8,6 @@ import '/services/music_service.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
-import '../../navigator.dart';
 import 'podcast_queue_screen.dart';
 import 'podcasts_library_controller.dart';
 
@@ -17,11 +16,14 @@ import 'podcasts_library_controller.dart';
 /// newest-first (round-robin) so recent episodes from each show surface at the
 /// top. Tap an episode to play it.
 class PodcastInboxScreen extends StatefulWidget {
-  const PodcastInboxScreen({super.key, this.embedded = false});
+  const PodcastInboxScreen({super.key, this.embedded = false, this.onDiscover});
 
   /// When true, render just the content (no Scaffold/AppBar) so it can be shown
   /// inline inside the Podcasts library screen.
   final bool embedded;
+
+  /// Switches the parent to the Discover tab (shown on the empty state).
+  final VoidCallback? onDiscover;
 
   @override
   State<PodcastInboxScreen> createState() => _PodcastInboxScreenState();
@@ -155,127 +157,45 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
             const SizedBox(height: 8),
           ],
           if (_episodes.isNotEmpty) ...[
-            if (continueItems.isNotEmpty)
-              _sectionHeader(context, "latestEpisodes".tr),
+            _sectionHeader(context, "latestEpisodes".tr),
             for (int i = 0; i < _episodes.length; i++) ...[
               _row(context, i),
               if (i != _episodes.length - 1)
                 const Divider(height: 1, indent: 16, endIndent: 12),
             ],
           ],
-          // Discover section — always present so the inbox is never blank.
-          _discoverSection(context),
-          if (empty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              child: Text(
-                "noInboxEpisodes".tr,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.color
-                        ?.withOpacity(0.7)),
-              ),
-            ),
+          if (empty) _emptyState(context),
         ],
       ),
     );
   }
 
-  /// Horizontal "Discover" strip of featured podcasts, so the inbox always has
-  /// something to browse (matches the concept mockup).
-  Widget _discoverSection(BuildContext context) {
+  /// Friendly empty state pointing at the Discover tab instead of a bare
+  /// text line floating in a blank screen.
+  Widget _emptyState(BuildContext context) {
     final theme = Theme.of(context);
-    final controller = Get.find<LibraryPodcastsController>();
-    return Obx(() {
-      final featured = controller.featuredPodcasts.toList();
-      if (featured.isEmpty) return const SizedBox.shrink();
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final dim = theme.textTheme.bodySmall?.color;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 80, 24, 24),
+      child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              children: [
-                Text('discover'.tr,
-                    style: theme.textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w700)),
-                const Spacer(),
-                InkWell(
-                  onTap: controller.enterSearchMode,
-                  borderRadius: BorderRadius.circular(6),
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Row(
-                      children: [
-                        Text('more'.tr,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.secondary,
-                                fontWeight: FontWeight.w600)),
-                        Icon(Icons.arrow_forward,
-                            size: 16, color: theme.colorScheme.secondary),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          Icon(Icons.podcasts, size: 56, color: dim?.withOpacity(0.4)),
+          const SizedBox(height: 14),
+          Text(
+            "noInboxEpisodes".tr,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: dim?.withOpacity(0.7)),
           ),
-          SizedBox(
-            height: 188,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              physics: const BouncingScrollPhysics(),
-              itemCount: featured.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 14),
-              itemBuilder: (context, i) => _featuredTile(context, featured[i]),
+          if (widget.onDiscover != null) ...[
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: widget.onDiscover,
+              icon: const Icon(Icons.explore_outlined, size: 18),
+              label: Text('discover'.tr),
             ),
-          ),
-        ],
-      );
-    });
-  }
-
-  Widget _featuredTile(BuildContext context, dynamic p) {
-    final theme = Theme.of(context);
-    final art = Thumbnail((p.thumbnailUrl ?? '').toString()).high;
-    return InkWell(
-      borderRadius: BorderRadius.circular(10),
-      onTap: () => Get.toNamed(
-        ScreenNavigationSetup.playlistScreen,
-        id: ScreenNavigationSetup.id,
-        arguments: [p, p.playlistId, true],
-      ),
-      child: SizedBox(
-        width: 128,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: CachedNetworkImage(
-                imageUrl: art,
-                width: 128,
-                height: 128,
-                fit: BoxFit.cover,
-                errorWidget: (_, __, ___) => Container(
-                  width: 128,
-                  height: 128,
-                  color: theme.colorScheme.secondary.withOpacity(0.3),
-                  child: const Icon(Icons.podcasts, size: 44),
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text((p.title ?? '').toString(),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.w600, height: 1.1)),
           ],
-        ),
+        ],
       ),
     );
   }

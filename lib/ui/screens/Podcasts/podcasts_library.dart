@@ -39,18 +39,6 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
   List<String> _discoverySeeds = [];
   bool _discoveryLoaded = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // Tapping the search field surfaces discovery + categories right away.
-    _searchFocus.addListener(() {
-      if (_searchFocus.hasFocus) {
-        Get.find<LibraryPodcastsController>().enterSearchMode();
-        _loadDiscoveryRows();
-      }
-    });
-  }
-
   Future<void> _loadDiscoveryRows() async {
     if (_discoveryLoaded) return;
     _discoveryLoaded = true;
@@ -98,43 +86,10 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                     ),
                   ),
           ),
+          // Inline nav: Inbox / Queue / Subs / Discover swap the content below
+          // instead of opening a separate screen. Search lives in Discover.
           Padding(
-            padding: const EdgeInsets.fromLTRB(5, 8, 12, 4),
-            child: TextField(
-              controller: _searchCtrl,
-              focusNode: _searchFocus,
-              textInputAction: TextInputAction.search,
-              onSubmitted: controller.searchPodcasts,
-              decoration: InputDecoration(
-                hintText: 'searchPodcasts'.tr,
-                prefixIcon: const Icon(Icons.search),
-                isDense: true,
-                border: const OutlineInputBorder(),
-                suffixIcon: Obx(() {
-                  final hasQuery = controller.searchQuery.isNotEmpty ||
-                      controller.hasSearched.isTrue;
-                  if (!hasQuery) {
-                    return IconButton(
-                      icon: const Icon(Icons.arrow_forward),
-                      onPressed: () =>
-                          controller.searchPodcasts(_searchCtrl.text),
-                    );
-                  }
-                  return IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () {
-                      _searchCtrl.clear();
-                      controller.clearSearch();
-                    },
-                  );
-                }),
-              ),
-            ),
-          ),
-          // Inline nav: Inbox / Queue / Subscriptions swap the content below
-          // instead of opening a separate screen.
-          Padding(
-            padding: const EdgeInsets.only(left: 3, right: 10, bottom: 2),
+            padding: const EdgeInsets.only(left: 3, top: 6, right: 10, bottom: 2),
             child: Row(
               children: [
                 _navChip(
@@ -163,14 +118,15 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
           const Divider(height: 1, thickness: 0.5),
           Expanded(
             child: Obx(() {
-              // ── Search results mode ─────────────────────────────
-              if (controller.hasSearched.isTrue) {
-                return _buildSearchBody(controller, itemWidth, itemHeight);
-              }
-
-              // ── Inline Inbox / Queue / Subscriptions ────────────
+              // ── Inline Inbox / Queue / Subs / Discover ──────────
               if (_section == 1) {
-                return const PodcastInboxScreen(embedded: true);
+                return PodcastInboxScreen(
+                  embedded: true,
+                  onDiscover: () {
+                    _loadDiscoveryRows();
+                    setState(() => _section = 4);
+                  },
+                );
               }
               if (_section == 2) {
                 return const PodcastQueueScreen(embedded: true);
@@ -179,8 +135,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                 return const PodcastSubsScreen(embedded: true);
               }
               if (_section == 4) {
-                // Discover tab: same discovery + categories browse view.
-                return _browseView(controller, itemWidth, itemHeight);
+                // Discover tab: search + discovery rows + categories.
+                return _discoverView(controller, itemWidth, itemHeight);
               }
 
               // ── Fallback (unused: default section is Inbox) ─────
@@ -399,8 +355,9 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: () {
-          // Leaving search mode if it was active.
-          if (Get.find<LibraryPodcastsController>().hasSearched.isTrue) {
+          // Search state belongs to the Discover tab; reset it when leaving.
+          if (section != 4 &&
+              Get.find<LibraryPodcastsController>().hasSearched.isTrue) {
             _searchCtrl.clear();
             Get.find<LibraryPodcastsController>().clearSearch();
           }
@@ -408,58 +365,109 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
           if (section == 4) _loadDiscoveryRows();
           setState(() => _section = section);
         },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-          decoration: BoxDecoration(
-            color: active ? accent.withOpacity(0.14) : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(active ? activeIcon : icon, size: 22, color: color),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: color,
-                    fontWeight: active ? FontWeight.w600 : FontWeight.w400),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Center(
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(vertical: 6, horizontal: 18),
+              decoration: BoxDecoration(
+                color:
+                    active ? accent.withOpacity(0.12) : Colors.transparent,
+                borderRadius: BorderRadius.circular(18),
               ),
-            ],
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(active ? activeIcon : icon, size: 22, color: color),
+                  const SizedBox(height: 2),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: color,
+                        fontWeight:
+                            active ? FontWeight.w600 : FontWeight.w400),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildSearchBody(LibraryPodcastsController controller,
-      double itemWidth, double itemHeight) {
-    return Obx(() {
-      if (controller.isSearching.isTrue) {
-        return const Center(child: CircularProgressIndicator());
-      }
-      final items = controller.searchResults;
-      final query = controller.searchQuery.value.trim();
-      // No query yet → Spotify-style "Browse all" category tiles + suggestions.
-      if (items.isEmpty && query.isEmpty) {
-        return _browseView(controller, itemWidth, itemHeight);
-      }
-      if (items.isEmpty) {
-        return Center(
-          child: Text(
-            'noResults'.tr,
-            style: Theme.of(context).textTheme.titleMedium,
+  /// Discover tab: a rounded search bar on top; below it either the search
+  /// results or the browse view (discovery rows + categories + suggestions).
+  Widget _discoverView(LibraryPodcastsController controller, double itemWidth,
+      double itemHeight) {
+    final theme = Theme.of(context);
+    final hintColor = theme.textTheme.bodySmall?.color?.withOpacity(0.6);
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(5, 10, 12, 8),
+          child: TextField(
+            controller: _searchCtrl,
+            focusNode: _searchFocus,
+            textInputAction: TextInputAction.search,
+            onSubmitted: controller.searchPodcasts,
+            decoration: InputDecoration(
+              hintText: 'searchPodcasts'.tr,
+              hintStyle: theme.textTheme.bodyMedium?.copyWith(color: hintColor),
+              prefixIcon: Icon(Icons.search, color: hintColor),
+              filled: true,
+              fillColor: theme.colorScheme.onSurface.withOpacity(0.07),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(26),
+                borderSide: BorderSide.none,
+              ),
+              suffixIcon: Obx(() {
+                final active = controller.hasSearched.isTrue ||
+                    controller.searchQuery.isNotEmpty;
+                if (!active) return const SizedBox.shrink();
+                return IconButton(
+                  icon: Icon(Icons.close, color: hintColor),
+                  onPressed: () {
+                    _searchCtrl.clear();
+                    controller.clearSearch();
+                  },
+                );
+              }),
+            ),
           ),
-        );
-      }
-      return _podcastGrid(
-        controller, itemWidth, itemHeight,
-        header: '${items.length} ${'items'.tr}',
-        list: items.toList(),
-      );
-    });
+        ),
+        Expanded(
+          child: Obx(() {
+            if (controller.isSearching.isTrue) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final items = controller.searchResults;
+            final query = controller.searchQuery.value.trim();
+            if (controller.hasSearched.isTrue && query.isNotEmpty) {
+              if (items.isEmpty) {
+                return Center(
+                  child: Text(
+                    'noResults'.tr,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                );
+              }
+              return _podcastGrid(
+                controller, itemWidth, itemHeight,
+                header: '${items.length} ${'items'.tr}',
+                list: items.toList(),
+              );
+            }
+            return _browseView(controller, itemWidth, itemHeight);
+          }),
+        ),
+      ],
+    );
   }
 
   // Distinct tile colours for the browse categories (Spotify-style).
@@ -519,11 +527,11 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
           ),
         ),
         SliverPadding(
-          padding: const EdgeInsets.only(right: 8, bottom: 12),
+          padding: const EdgeInsets.only(left: 5, right: 8, bottom: 12),
           sliver: SliverGrid(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 1.9,
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 240,
+              mainAxisExtent: 68,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
             ),
@@ -552,7 +560,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               sliver: SliverGrid(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: columns,
-                  childAspectRatio: itemWidth / itemHeight,
+                  mainAxisExtent: itemHeight + 12,
                 ),
                 delegate: SliverChildBuilderDelegate(
                   (context, index) => Center(
@@ -572,17 +580,17 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
   Widget _categoryTile(String genreId, String name, int i) {
     final color = _categoryColors[i % _categoryColors.length];
     return InkWell(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(12),
       onTap: () => Get.to(
           () => PodcastCategoryScreen(genreId: genreId, name: name)),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Align(
-          alignment: Alignment.topLeft,
+          alignment: Alignment.centerLeft,
           child: Text(
             name,
             maxLines: 2,
@@ -590,7 +598,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
             style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
-                fontSize: 15),
+                fontSize: 14),
           ),
         ),
       ),
@@ -624,7 +632,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                 sliver: SliverGrid(
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: columns,
-                    childAspectRatio: itemWidth / itemHeight,
+                    mainAxisExtent: itemHeight + 12,
                   ),
                   delegate: SliverChildBuilderDelegate(
                     (context, index) => Center(
