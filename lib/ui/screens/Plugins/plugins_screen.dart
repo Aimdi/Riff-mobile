@@ -9,9 +9,8 @@ import '/ui/widgets/snackbar.dart';
 
 /// Catalog of optional plugins that extend Riff.
 ///
-/// Offered plugins can be installed (enabled) from this screen. The first
-/// offered plugin is Torrents Digger — a general torrent search UI based on
-/// https://gitlab.com/ForTheCommunity/torrentsdigger
+/// Offered plugins can be installed (enabled) from this screen.
+/// Bundled plugins: Torrents Digger, SoulSync, and Seeker.
 class PluginsScreen extends StatelessWidget {
   const PluginsScreen({super.key});
 
@@ -21,6 +20,18 @@ class PluginsScreen extends StatelessWidget {
       nameKey: 'torrentsDigger',
       desKey: 'torrentsDiggerPluginDes',
       sourceUrl: 'https://gitlab.com/ForTheCommunity/torrentsdigger',
+    ),
+    _PluginOffer(
+      id: PluginIds.soulSync,
+      nameKey: 'soulSync',
+      desKey: 'soulSyncPluginDes',
+      sourceUrl: 'https://github.com/Nezreka/SoulSync',
+    ),
+    _PluginOffer(
+      id: PluginIds.seeker,
+      nameKey: 'seeker',
+      desKey: 'seekerPluginDes',
+      sourceUrl: 'https://github.com/jackBonadies/SeekerAndroid',
     ),
   ];
 
@@ -149,6 +160,16 @@ class _PluginOfferTile extends StatelessWidget {
     if (offer.id == PluginIds.torrentsDigger) {
       Get.toNamed(
         ScreenNavigationSetup.torrentSearchScreen,
+        id: ScreenNavigationSetup.id,
+      );
+    } else if (offer.id == PluginIds.soulSync) {
+      Get.toNamed(
+        ScreenNavigationSetup.soulSyncScreen,
+        id: ScreenNavigationSetup.id,
+      );
+    } else if (offer.id == PluginIds.seeker) {
+      Get.toNamed(
+        ScreenNavigationSetup.seekerScreen,
         id: ScreenNavigationSetup.id,
       );
     }

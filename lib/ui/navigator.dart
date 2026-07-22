@@ -15,6 +15,8 @@ import 'screens/Stats/rewind_screen.dart';
 import 'screens/Podcasts/podcasts_screen.dart';
 import 'screens/Plugins/plugins_screen.dart';
 import 'screens/Plugins/torrent_search_screen.dart';
+import 'screens/Plugins/soul_sync_screen.dart';
+import 'screens/Plugins/seeker_screen.dart';
 
 class ScreenNavigationSetup {
   ScreenNavigationSetup._();
@@ -31,6 +33,8 @@ class ScreenNavigationSetup {
   static const podcastsScreen = '/podcastsScreen';
   static const pluginsScreen = '/pluginsScreen';
   static const torrentSearchScreen = '/torrentSearchScreen';
+  static const soulSyncScreen = '/soulSyncScreen';
+  static const seekerScreen = '/seekerScreen';
 }
 
 class ScreenNavigation extends StatelessWidget {
@@ -84,6 +88,14 @@ class ScreenNavigation extends StatelessWidget {
             case ScreenNavigationSetup.torrentSearchScreen:
               return GetPageRoute(
                   page: () => const TorrentSearchScreen(), settings: settings);
+
+            case ScreenNavigationSetup.soulSyncScreen:
+              return GetPageRoute(
+                  page: () => const SoulSyncScreen(), settings: settings);
+
+            case ScreenNavigationSetup.seekerScreen:
+              return GetPageRoute(
+                  page: () => const SeekerScreen(), settings: settings);
 
             case ScreenNavigationSetup.searchScreen:
               return GetPageRoute(

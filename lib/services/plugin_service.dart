@@ -5,6 +5,8 @@ import 'package:hive/hive.dart';
 class PluginIds {
   PluginIds._();
   static const torrentsDigger = 'torrents_digger';
+  static const soulSync = 'soul_sync';
+  static const seeker = 'seeker';
 }
 
 /// Tracks which optional plugins the user has installed/enabled.
