@@ -150,7 +150,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                 _navChip(
                     icon: Icons.subscriptions_outlined,
                     activeIcon: Icons.subscriptions,
-                    label: 'subscriptions'.tr,
+                    label: 'subsShort'.tr,
                     section: 3),
                 _navChip(
                     icon: Icons.explore_outlined,

@@ -1817,6 +1817,7 @@ Map<String, Map<String, String>> get keys => {
   "addedToQueue": "Added to Queue",
   "removedFromQueue": "Removed from Queue",
   "subscriptions": "Subscriptions",
+  "subsShort": "Subs",
   "clear": "Clear",
   "folder": "Folder",
   "folders": "Folders",
