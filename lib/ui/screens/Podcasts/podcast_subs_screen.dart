@@ -1,11 +1,15 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/models/playlist.dart';
+import '/models/thumbnail.dart';
+import '/services/podcast_service.dart';
 import '/ui/widgets/content_list_widget_item.dart';
 import 'podcast_folder_controller.dart';
 import 'podcast_folder_screen.dart';
 import 'podcasts_library_controller.dart';
+import 'podcasts_screen.dart';
 
 /// Long-press a podcast show anywhere it's listed to file it into folders.
 /// Reused by the Subscriptions screen and the main Podcasts library grid.
@@ -114,8 +118,12 @@ class PodcastSubsScreen extends StatelessWidget {
     final folders = Get.find<PodcastFolderController>();
     final content = Obx(() {
         final subs = controller.libraryPodcasts.toList();
+        // iTunes/RSS subscriptions (followed from Discover) live in a separate
+        // store; list them alongside the YouTube-Music library shows.
+        PodcastService.subsRev.value; // rebuild when RSS subs change
+        final rssSubs = PodcastService.subscriptions;
         final folderList = folders.folders.toList();
-        if (subs.isEmpty && folderList.isEmpty) {
+        if (subs.isEmpty && rssSubs.isEmpty && folderList.isEmpty) {
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -132,7 +140,7 @@ class PodcastSubsScreen extends StatelessWidget {
           const itemHeight = 180.0;
           final columns =
               (constraints.maxWidth / itemWidth).floor().clamp(2, 6);
-          final total = folderList.length + subs.length;
+          final total = folderList.length + subs.length + rssSubs.length;
           return GridView.builder(
             padding: const EdgeInsets.fromLTRB(8, 12, 8, 200),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -145,16 +153,21 @@ class PodcastSubsScreen extends StatelessWidget {
                 return Center(
                     child: _folderTile(context, folders, folderList[index]));
               }
-              final podcast = subs[index - folderList.length];
-              return Center(
-                child: GestureDetector(
-                  onLongPress: () => showPodcastFolderSheet(context, podcast),
-                  child: ContentListItem(
-                    content: podcast,
-                    isLibraryItem: true,
+              final subIndex = index - folderList.length;
+              if (subIndex < subs.length) {
+                final podcast = subs[subIndex];
+                return Center(
+                  child: GestureDetector(
+                    onLongPress: () => showPodcastFolderSheet(context, podcast),
+                    child: ContentListItem(
+                      content: podcast,
+                      isLibraryItem: true,
+                    ),
                   ),
-                ),
-              );
+                );
+              }
+              final rss = rssSubs[subIndex - subs.length];
+              return Center(child: _RssSubTile(podcast: rss));
             },
           );
         });
@@ -249,6 +262,74 @@ class PodcastSubsScreen extends StatelessWidget {
             onTap: () {
               fc.deleteFolder(folder.id);
               Navigator.of(ctx).pop();
+            },
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Tile for an iTunes/RSS subscription in the Subs grid. Tapping opens the
+/// episode list; long-press offers to unfollow.
+class _RssSubTile extends StatelessWidget {
+  const _RssSubTile({required this.podcast});
+  final Map<String, dynamic> podcast;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final art = Thumbnail((podcast['artwork'] ?? '').toString()).high;
+    return SizedBox(
+      width: 130,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => Get.to(() => PodcastEpisodesScreen(podcast: podcast)),
+        onLongPress: () => _confirmUnfollow(context),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: CachedNetworkImage(
+                imageUrl: art,
+                width: 130,
+                height: 130,
+                fit: BoxFit.cover,
+                errorWidget: (_, __, ___) => Container(
+                  width: 130,
+                  height: 130,
+                  color: theme.colorScheme.secondary.withOpacity(0.3),
+                  child: const Icon(Icons.podcasts, size: 44),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              (podcast['title'] ?? '').toString(),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleSmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmUnfollow(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Wrap(children: [
+          ListTile(
+            leading: const Icon(Icons.remove_circle_outline),
+            title: Text('${'subscribed'.tr} · ${podcast['title'] ?? ''}',
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Text('unsubscribe'.tr),
+            onTap: () async {
+              await PodcastService.unsubscribe('${podcast['feedUrl']}');
+              if (ctx.mounted) Navigator.of(ctx).pop();
             },
           ),
         ]),

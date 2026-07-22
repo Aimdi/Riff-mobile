@@ -205,10 +205,41 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
     Get.find<PlayerController>().playPlayListSong(items, index);
   }
 
+  Future<void> _toggleSubscribe() async {
+    final feed = widget.podcast['feedUrl'] ?? '';
+    if (PodcastService.isSubscribed(feed)) {
+      await PodcastService.unsubscribe(feed);
+    } else {
+      await PodcastService.subscribe(widget.podcast);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.podcast['title'] ?? '', maxLines: 1)),
+      appBar: AppBar(
+        title: Text(widget.podcast['title'] ?? '', maxLines: 1),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Obx(() {
+              PodcastService.subsRev.value; // rebuild on follow/unfollow
+              final subscribed =
+                  PodcastService.isSubscribed(widget.podcast['feedUrl'] ?? '');
+              return TextButton.icon(
+                onPressed: _toggleSubscribe,
+                icon: Icon(
+                    subscribed ? Icons.check_circle : Icons.add_circle_outline,
+                    size: 20,
+                    color: subscribed
+                        ? Theme.of(context).colorScheme.secondary
+                        : null),
+                label: Text(subscribed ? 'subscribed'.tr : 'subscribe'.tr),
+              );
+            }),
+          ),
+        ],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 import 'package:xml/xml.dart';
 
@@ -344,17 +345,26 @@ class PodcastService {
 
   // --- Subscriptions ---
 
+  /// Bumps whenever the subscription set changes, so Obx UIs (Subs grid,
+  /// follow buttons) rebuild live. Read `subsRev.value` inside an Obx.
+  static final subsRev = 0.obs;
+
   static bool isSubscribed(String feedUrl) => _subs.containsKey(feedUrl);
 
-  static Future<void> subscribe(Map<String, dynamic> podcast) =>
-      _subs.put(podcast['feedUrl'], {
-        'title': podcast['title'],
-        'author': podcast['author'],
-        'artwork': podcast['artwork'],
-        'feedUrl': podcast['feedUrl'],
-      });
+  static Future<void> subscribe(Map<String, dynamic> podcast) async {
+    await _subs.put(podcast['feedUrl'], {
+      'title': podcast['title'],
+      'author': podcast['author'],
+      'artwork': podcast['artwork'],
+      'feedUrl': podcast['feedUrl'],
+    });
+    subsRev.value++;
+  }
 
-  static Future<void> unsubscribe(String feedUrl) => _subs.delete(feedUrl);
+  static Future<void> unsubscribe(String feedUrl) async {
+    await _subs.delete(feedUrl);
+    subsRev.value++;
+  }
 
   static List<Map<String, dynamic>> get subscriptions => _subs.values
       .map((v) => Map<String, dynamic>.from(v))

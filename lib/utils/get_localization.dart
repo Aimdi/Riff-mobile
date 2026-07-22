@@ -1818,6 +1818,8 @@ Map<String, Map<String, String>> get keys => {
   "removedFromQueue": "Removed from Queue",
   "subscriptions": "Subscriptions",
   "subsShort": "Subs",
+  "subscribe": "Follow",
+  "subscribed": "Following",
   "clear": "Clear",
   "folder": "Folder",
   "folders": "Folders",
