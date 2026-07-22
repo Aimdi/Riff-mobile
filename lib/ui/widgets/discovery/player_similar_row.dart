@@ -1,5 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../../services/discovery/discovery_service.dart';
@@ -46,65 +47,76 @@ class _PlayerSimilarRowState extends State<PlayerSimilarRow> {
           ),
           SizedBox(
             height: 72,
-            child: _loading
-                ? const Center(
-                    child: SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _songs.length,
-                    itemBuilder: (context, i) {
-                      final s = _songs[i];
-                      return InkWell(
-                        onTap: () {
-                          // Play the tapped song now, with the rest of the
-                          // similar list queued after it.
-                          final list = List<MediaItem>.from(_songs);
-                          list[i] = DiscoveryService.withSource(
-                              s, DiscoverySource.similar);
-                          player.playPlayListSong(list, i);
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 280),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              child: _loading && _songs.isEmpty
+                  ? const Center(
+                      key: ValueKey('similar-loading'),
+                      child: SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : Opacity(
+                      key: ValueKey('similar-${_loadedForId ?? 'x'}'),
+                      opacity: _loading ? 0.45 : 1,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _songs.length,
+                        itemBuilder: (context, i) {
+                          final s = _songs[i];
+                          return InkWell(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              final list = List<MediaItem>.from(_songs);
+                              list[i] = DiscoveryService.withSource(
+                                  s, DiscoverySource.similar);
+                              player.playPlayListSong(list, i);
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 10),
+                              child: Row(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: ImageWidget(song: s, size: 56),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SizedBox(
+                                    width: 100,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(s.title,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall),
+                                        Text(s.artist ?? '',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .labelSmall),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
                         },
-                        borderRadius: BorderRadius.circular(8),
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 10),
-                          child: Row(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(6),
-                                child: ImageWidget(song: s, size: 56),
-                              ),
-                              const SizedBox(width: 8),
-                              SizedBox(
-                                width: 100,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(s.title,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall),
-                                    Text(s.artist ?? '',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelSmall),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+            ),
           ),
         ],
       );
@@ -112,8 +124,10 @@ class _PlayerSimilarRowState extends State<PlayerSimilarRow> {
   }
 
   Future<void> _load(MediaItem song) async {
-    _loading = true;
-    _loadedForId = song.id;
+    setState(() {
+      _loading = true;
+      _loadedForId = song.id;
+    });
     try {
       final list = await Get.find<DiscoveryService>()
           .similarSongs(song, limit: 12, unheardOnly: false);
@@ -124,7 +138,7 @@ class _PlayerSimilarRowState extends State<PlayerSimilarRow> {
         });
       }
     } catch (_) {
-      if (mounted) {
+      if (mounted && _loadedForId == song.id) {
         setState(() {
           _songs = [];
           _loading = false;

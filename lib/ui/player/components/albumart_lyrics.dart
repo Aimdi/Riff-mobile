@@ -14,10 +14,38 @@ class AlbumArtNLyrics extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final PlayerController playerController = Get.find<PlayerController>();
-    //final size = MediaQuery.of(context).size;
-    //double playerArtImageSize = size.width - ((size.height < 750) ? 90 : 60);
-    return Obx(() => playerController.currentSong.value != null
-        ? Stack(
+    return Obx(() {
+      final song = playerController.currentSong.value;
+      if (song == null) return const SizedBox.shrink();
+
+      return AnimatedSwitcher(
+        duration: const Duration(milliseconds: 320),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        layoutBuilder: (currentChild, previousChildren) {
+          return Stack(
+            alignment: Alignment.center,
+            children: <Widget>[
+              ...previousChildren,
+              if (currentChild != null) currentChild,
+            ],
+          );
+        },
+        transitionBuilder: (child, animation) {
+          final fade = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInCubic,
+          );
+          final scale = Tween<double>(begin: 0.97, end: 1).animate(fade);
+          return FadeTransition(
+            opacity: fade,
+            child: ScaleTransition(scale: scale, child: child),
+          );
+        },
+        child: KeyedSubtree(
+          key: ValueKey<String>(song.id),
+          child: Stack(
             children: [
               GestureDetector(
                 onLongPress: () {
@@ -32,7 +60,7 @@ class AlbumArtNLyrics extends StatelessWidget {
                         playerController.homeScaffoldkey.currentState!.context,
                     barrierColor: Colors.transparent.withAlpha(100),
                     builder: (context) => SongInfoBottomSheet(
-                      playerController.currentSong.value!,
+                      song,
                       calledFromPlayer: true,
                     ),
                   ).whenComplete(() => Get.delete<SongInfoController>());
@@ -50,7 +78,7 @@ class AlbumArtNLyrics extends StatelessWidget {
                 },
                 child: ImageWidget(
                   size: playerArtImageSize,
-                  song: playerController.currentSong.value!,
+                  song: song,
                   isPlayerArtImage: true,
                 ),
               ),
@@ -104,7 +132,6 @@ class AlbumArtNLyrics extends StatelessWidget {
                 SizedBox(
                   width: playerArtImageSize,
                   height: playerArtImageSize,
-                  //color: Colors.green,
                   child: Align(
                     alignment: Alignment.bottomRight,
                     child: Padding(
@@ -145,7 +172,9 @@ class AlbumArtNLyrics extends StatelessWidget {
                   ),
                 )
             ],
-          )
-        : Container());
+          ),
+        ),
+      );
+    });
   }
 }
