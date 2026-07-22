@@ -44,7 +44,7 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
           // Audible-style bar: icon + label items with a hairline below.
           Obx(() {
             final hasTorrents =
-                plugins.isInstalled(PluginIds.torrentsDigger);
+                plugins.isInstalled(PluginIds.torrentSearch);
             return SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Padding(

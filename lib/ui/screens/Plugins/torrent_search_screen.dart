@@ -3,15 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '/services/torrents_digger_service.dart';
+import '/services/torrent_search_service.dart';
 import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/snackbar.dart';
 
-/// General torrent search UI inspired by Torrents Digger.
+/// General torrent search UI.
 ///
-/// User types any query; results come from the public Torrents.csv index
-/// (same source Torrents Digger uses). Magnet links open in an external
-/// torrent client — Riff does not download torrent payloads.
+/// Results come from the public Torrents.csv index. Magnet links open in an
+/// external torrent client — Riff does not download torrent payloads.
 class TorrentSearchScreen extends StatefulWidget {
   const TorrentSearchScreen({super.key});
 
@@ -21,7 +20,7 @@ class TorrentSearchScreen extends StatefulWidget {
 
 class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
   final _searchCtrl = TextEditingController();
-  final _service = TorrentsDiggerService();
+  final _service = TorrentSearchService();
 
   List<TorrentHit> _results = [];
   int? _next;
@@ -38,6 +37,18 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
   Future<void> _search({bool loadMore = false}) async {
     final q = _searchCtrl.text.trim();
     if (q.isEmpty) return;
+
+    if (q.length < TorrentSearchService.minQueryLength) {
+      setState(() {
+        _loading = false;
+        _searched = true;
+        _results = [];
+        _next = null;
+        _error = 'torrentSearchTooShort'.tr;
+      });
+      return;
+    }
+
     setState(() {
       _loading = true;
       _error = null;
@@ -59,7 +70,15 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
         _next = res.next;
         _loading = false;
       });
-    } catch (e) {
+    } on TorrentSearchException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e.tooShort
+            ? 'torrentSearchTooShort'.tr
+            : 'torrentSearchFailed'.tr;
+      });
+    } catch (_) {
       if (!mounted) return;
       setState(() {
         _loading = false;
@@ -98,7 +117,7 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('torrentsDigger'.tr, style: theme.textTheme.titleLarge),
+            Text('torrentSearch'.tr, style: theme.textTheme.titleLarge),
             const SizedBox(height: 4),
             Text('torrentSearchDes'.tr, style: theme.textTheme.bodyMedium),
             const SizedBox(height: 12),

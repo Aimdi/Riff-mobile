@@ -4,7 +4,9 @@ import 'package:hive/hive.dart';
 /// Built-in plugin ids that can be offered from Settings → Plugins.
 class PluginIds {
   PluginIds._();
-  static const torrentsDigger = 'torrents_digger';
+
+  /// Hive id stays `torrents_digger` so existing installs keep the plugin.
+  static const torrentSearch = 'torrents_digger';
   static const soulSync = 'soul_sync';
   static const seeker = 'seeker';
 }

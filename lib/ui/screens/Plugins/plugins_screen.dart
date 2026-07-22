@@ -10,16 +10,16 @@ import '/ui/widgets/snackbar.dart';
 /// Catalog of optional plugins that extend Riff.
 ///
 /// Offered plugins can be installed (enabled) from this screen.
-/// Bundled plugins: Torrents Digger, SoulSync, and Seeker.
+/// Bundled plugins: Torrent Search, SoulSync, and Seeker.
 class PluginsScreen extends StatelessWidget {
   const PluginsScreen({super.key});
 
   static const List<_PluginOffer> _offers = [
     _PluginOffer(
-      id: PluginIds.torrentsDigger,
-      nameKey: 'torrentsDigger',
-      desKey: 'torrentsDiggerPluginDes',
-      sourceUrl: 'https://gitlab.com/ForTheCommunity/torrentsdigger',
+      id: PluginIds.torrentSearch,
+      nameKey: 'torrentSearch',
+      desKey: 'torrentSearchPluginDes',
+      sourceUrl: 'https://torrents-csv.com',
     ),
     _PluginOffer(
       id: PluginIds.soulSync,
@@ -157,7 +157,7 @@ class _PluginOfferTile extends StatelessWidget {
   }
 
   void _open() {
-    if (offer.id == PluginIds.torrentsDigger) {
+    if (offer.id == PluginIds.torrentSearch) {
       Get.toNamed(
         ScreenNavigationSetup.torrentSearchScreen,
         id: ScreenNavigationSetup.id,
