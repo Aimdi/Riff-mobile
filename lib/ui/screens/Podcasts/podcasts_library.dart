@@ -117,7 +117,9 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
           ),
           const Divider(height: 1, thickness: 0.5),
           Expanded(
-            child: Obx(() {
+            // Plain builder: section switching is setState-driven. (An Obx
+            // here would throw at runtime — its builder reads no Rx values.)
+            child: Builder(builder: (context) {
               // ── Inline Inbox / Queue / Subs / Discover ──────────
               if (_section == 1) {
                 return PodcastInboxScreen(
@@ -367,32 +369,31 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
         },
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Center(
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(vertical: 6, horizontal: 18),
-              decoration: BoxDecoration(
-                color:
-                    active ? accent.withOpacity(0.12) : Colors.transparent,
-                borderRadius: BorderRadius.circular(18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // M3-style indicator: a small pill behind the icon only, so
+              // long labels below never get squeezed into ellipsis.
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+                decoration: BoxDecoration(
+                  color:
+                      active ? accent.withOpacity(0.14) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(active ? activeIcon : icon, size: 22, color: color),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(active ? activeIcon : icon, size: 22, color: color),
-                  const SizedBox(height: 2),
-                  Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: color,
-                        fontWeight:
-                            active ? FontWeight.w600 : FontWeight.w400),
-                  ),
-                ],
+              const SizedBox(height: 3),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: color,
+                    fontWeight: active ? FontWeight.w600 : FontWeight.w400),
               ),
-            ),
+            ],
           ),
         ),
       ),
