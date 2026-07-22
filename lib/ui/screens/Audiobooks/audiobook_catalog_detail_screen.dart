@@ -167,7 +167,7 @@ class _AudiobookCatalogDetailScreenState
             ),
           Obx(() {
             final hasTorrents = Get.find<PluginService>()
-                .isInstalled(PluginIds.torrentsDigger);
+                .isInstalled(PluginIds.torrentSearch);
             if (!hasTorrents) return const SizedBox.shrink();
             return Padding(
               padding: const EdgeInsets.only(top: 8),
