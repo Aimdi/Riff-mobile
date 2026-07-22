@@ -7,6 +7,7 @@ import '/services/audiobookshelf_service.dart';
 import 'audiobook_catalog_detail_screen.dart';
 import 'audiobook_detail_screen.dart';
 import 'audiobook_library_controller.dart';
+import 'audiobook_upload_sheet.dart';
 
 /// Audiobooks: a free LibriVox "Discover" browser plus the Audiobookshelf
 /// (Lissen-inspired) server view for those who self-host.
@@ -505,9 +506,21 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                 '${abs.username.value} · ${abs.libraries.length} ${'libraries'.tr}',
                 style: theme.textTheme.bodySmall,
               ),
-              trailing: TextButton(
-                onPressed: () => abs.logout(),
-                child: Text('disconnect'.tr),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'uploadAudiobook'.tr,
+                    icon: const Icon(Icons.cloud_upload_outlined, size: 22),
+                    onPressed: abs.selectedLibrary == null
+                        ? null
+                        : () => AudiobookUploadSheet.show(context),
+                  ),
+                  TextButton(
+                    onPressed: () => abs.logout(),
+                    child: Text('disconnect'.tr),
+                  ),
+                ],
               ),
             )),
         // Library picker

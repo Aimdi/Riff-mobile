@@ -1,16 +1,40 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:dio/dio.dart';
-import 'package:get/get.dart';
+// get also exports FormData/MultipartFile for its own HTTP client; hide them
+// so the dio versions used for uploads win unambiguously.
+import 'package:get/get.dart' hide FormData, MultipartFile;
 import 'package:hive/hive.dart';
 
 import '../utils/helper.dart';
 
 /// Minimal library entry from Audiobookshelf (Lissen-style).
 class AbsLibrary {
-  AbsLibrary({required this.id, required this.name, this.mediaType = 'book'});
+  AbsLibrary(
+      {required this.id,
+      required this.name,
+      this.mediaType = 'book',
+      this.folders = const []});
   final String id;
   final String name;
   final String mediaType;
+
+  /// Storage folders configured for this library. Uploads must target one of
+  /// these by its folder id.
+  final List<AbsFolder> folders;
+}
+
+/// A storage folder within a library (upload destination).
+class AbsFolder {
+  AbsFolder({required this.id, required this.fullPath});
+  final String id;
+  final String fullPath;
+}
+
+/// A local file staged for upload to the server.
+class AbsUploadFile {
+  AbsUploadFile({required this.filename, required this.bytes});
+  final String filename;
+  final List<int> bytes;
 }
 
 /// Book row in a library listing.
@@ -234,10 +258,22 @@ class AudiobookshelfService extends GetxService {
     if (libs is List) {
       for (final l in libs) {
         if (l is! Map) continue;
+        final folders = <AbsFolder>[];
+        if (l['folders'] is List) {
+          for (final f in (l['folders'] as List)) {
+            if (f is Map && f['id'] != null) {
+              folders.add(AbsFolder(
+                id: f['id'].toString(),
+                fullPath: (f['fullPath'] ?? f['path'] ?? '').toString(),
+              ));
+            }
+          }
+        }
         list.add(AbsLibrary(
           id: l['id'].toString(),
           name: (l['name'] ?? 'Library').toString(),
           mediaType: (l['mediaType'] ?? 'book').toString(),
+          folders: folders,
         ));
       }
     }
@@ -247,6 +283,76 @@ class AudiobookshelfService extends GetxService {
   Future<void> selectLibrary(String id) async {
     selectedLibraryId.value = id;
     _persist();
+    await fetchBooks();
+  }
+
+  AbsLibrary? get selectedLibrary =>
+      libraries.firstWhereOrNull((l) => l.id == selectedLibraryId.value);
+
+  /// Upload one or more local audio files as a new item to the server, via
+  /// ABS's multipart `POST /api/upload`. Files are sent under the `0`, `1`, …
+  /// keys the server expects. [onProgress] reports 0..1 send progress.
+  ///
+  /// Requires the logged-in user to have upload permission on the server.
+  Future<void> uploadBook({
+    required String libraryId,
+    required String folderId,
+    required String title,
+    String? author,
+    String? series,
+    required List<AbsUploadFile> files,
+    void Function(double progress)? onProgress,
+    CancelToken? cancelToken,
+  }) async {
+    _ensureConnected();
+    if (files.isEmpty) {
+      throw StateError('No files to upload');
+    }
+    final form = FormData();
+    form.fields
+      ..add(MapEntry('title', title))
+      ..add(MapEntry('library', libraryId))
+      ..add(MapEntry('folder', folderId));
+    if (author != null && author.trim().isNotEmpty) {
+      form.fields.add(MapEntry('author', author.trim()));
+    }
+    if (series != null && series.trim().isNotEmpty) {
+      form.fields.add(MapEntry('series', series.trim()));
+    }
+    for (var i = 0; i < files.length; i++) {
+      final f = files[i];
+      form.files.add(MapEntry(
+        '$i',
+        MultipartFile.fromBytes(f.bytes, filename: f.filename),
+      ));
+    }
+    try {
+      await _dio.post(
+        '${host.value}/api/upload',
+        data: form,
+        cancelToken: cancelToken,
+        options: Options(
+          headers: {
+            if (_token != null) 'Authorization': 'Bearer $_token',
+            'content-type': 'multipart/form-data',
+          },
+          // Uploads can take a while; don't cut them off at 30s.
+          sendTimeout: const Duration(minutes: 30),
+          receiveTimeout: const Duration(minutes: 5),
+        ),
+        onSendProgress: (sent, total) {
+          if (total > 0 && onProgress != null) onProgress(sent / total);
+        },
+      );
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.cancel) rethrow;
+      final code = e.response?.statusCode;
+      if (code == 403) {
+        throw StateError('absUploadForbidden');
+      }
+      throw StateError(e.response?.data?.toString() ?? e.message ?? 'upload failed');
+    }
+    // Refresh the library so the new item shows up.
     await fetchBooks();
   }
 
