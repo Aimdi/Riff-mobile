@@ -1,6 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '/models/thumbnail.dart';
@@ -10,56 +11,80 @@ import '/ui/player/player_controller.dart';
 import '/ui/widgets/snackbar.dart';
 import 'podcast_queue_controller.dart';
 
-/// Long-press action sheet for a podcast episode: add it to (or remove it
-/// from) the Queue, and download it for offline playback (or delete it).
+/// Long-press action sheet for a podcast episode: queue + download.
+/// Opens immediately — download/queue state is resolved inside the builder
+/// so the sheet never waits on disk I/O before appearing.
 void showAddToQueueSheet(BuildContext context, MediaItem episode) {
-  final c = Get.find<PodcastQueueController>();
-  final queued = c.isQueued(episode.id);
-  final downloaded = PodcastDownloadService.isDownloaded(episode.id);
-  // Download is only possible for episodes with a direct enclosure URL
-  // (iTunes/RSS episodes), not YouTube-streamed ones.
-  final canDownload =
-      (episode.extras?['url'] as String?)?.isNotEmpty ?? false;
-  void snack(String msg) => ScaffoldMessenger.of(context)
-      .showSnackBar(snackbar(context, msg, size: SanckBarSize.MEDIUM));
+  HapticFeedback.mediumImpact();
   showModalBottomSheet(
     context: context,
+    isScrollControlled: false,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
     ),
-    builder: (ctx) => SafeArea(
-      child: Wrap(
-        children: [
-          ListTile(
-            leading:
-                Icon(queued ? Icons.playlist_remove : Icons.playlist_add),
-            title: Text(queued ? "removeFromQueue".tr : "addToQueue".tr),
-            onTap: () {
-              queued ? c.removeById(episode.id) : c.add(episode);
-              Navigator.of(ctx).pop();
-              snack(queued ? "removedFromQueue".tr : "addedToQueue".tr);
-            },
+    builder: (ctx) {
+      final c = Get.find<PodcastQueueController>();
+      final queued = c.isQueued(episode.id);
+      final downloaded = PodcastDownloadService.isDownloaded(episode.id);
+      final canDownload =
+          (episode.extras?['url'] as String?)?.isNotEmpty ?? false;
+      void snack(String msg) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          snackbar(context, msg, size: SanckBarSize.MEDIUM),
+        );
+      }
+
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: Theme.of(ctx).dividerColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                leading: Icon(
+                    queued ? Icons.playlist_remove : Icons.playlist_add),
+                title: Text(queued ? "removeFromQueue".tr : "addToQueue".tr),
+                onTap: () {
+                  queued ? c.removeById(episode.id) : c.add(episode);
+                  Navigator.of(ctx).pop();
+                  snack(queued ? "removedFromQueue".tr : "addedToQueue".tr);
+                },
+              ),
+              if (canDownload || downloaded)
+                ListTile(
+                  leading: Icon(downloaded
+                      ? Icons.delete_outline
+                      : Icons.download_outlined),
+                  title:
+                      Text(downloaded ? "removeDownload".tr : "download".tr),
+                  onTap: () async {
+                    Navigator.of(ctx).pop();
+                    if (downloaded) {
+                      await PodcastDownloadService.delete(episode.id);
+                      snack("downloadRemoved".tr);
+                      return;
+                    }
+                    snack("downloadStarted".tr);
+                    final ok =
+                        await PodcastDownloadService.download(episode);
+                    snack(ok ? "downloadComplete".tr : "downloadFailed".tr);
+                  },
+                ),
+            ],
           ),
-          if (canDownload || downloaded)
-            ListTile(
-              leading: Icon(
-                  downloaded ? Icons.delete_outline : Icons.download_outlined),
-              title: Text(downloaded ? "removeDownload".tr : "download".tr),
-              onTap: () async {
-                Navigator.of(ctx).pop();
-                if (downloaded) {
-                  await PodcastDownloadService.delete(episode.id);
-                  snack("downloadRemoved".tr);
-                  return;
-                }
-                snack("downloadStarted".tr);
-                final ok = await PodcastDownloadService.download(episode);
-                snack(ok ? "downloadComplete".tr : "downloadFailed".tr);
-              },
-            ),
-        ],
-      ),
-    ),
+        ),
+      );
+    },
   );
 }
 

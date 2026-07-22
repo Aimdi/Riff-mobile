@@ -13,17 +13,39 @@ class PodcastDownloadService {
   PodcastDownloadService._();
 
   static final _dio = Dio();
+  static final Set<String> _downloadedIds = {};
+  static bool _cacheWarmed = false;
 
   static Box get _box => Hive.box('PodcastDownloads');
 
-  static bool isDownloaded(String id) => localPath(id) != null;
+  static void _warmCache() {
+    if (_cacheWarmed || !Hive.isBoxOpen('PodcastDownloads')) return;
+    _cacheWarmed = true;
+    for (final key in _box.keys) {
+      final p = _box.get(key);
+      if (p is String && p.isNotEmpty) {
+        _downloadedIds.add(key.toString());
+      }
+    }
+  }
+
+  /// Fast path for UI (long-press sheet) — memory only, no disk I/O.
+  static bool isDownloaded(String id) {
+    _warmCache();
+    return _downloadedIds.contains(id);
+  }
 
   /// Absolute local path if the episode is downloaded and the file still
-  /// exists, else null.
+  /// exists, else null. May touch the filesystem (playback / cleanup).
   static String? localPath(String id) {
     if (!Hive.isBoxOpen('PodcastDownloads')) return null;
+    _warmCache();
+    if (!_downloadedIds.contains(id)) return null;
     final p = _box.get(id);
     if (p is String && p.isNotEmpty && File(p).existsSync()) return p;
+    // Stale Hive entry — drop it.
+    _downloadedIds.remove(id);
+    _box.delete(id);
     return null;
   }
 
@@ -40,7 +62,7 @@ class PodcastDownloadService {
       {void Function(double)? onProgress}) async {
     final url = episode.extras?['url'] as String?;
     if (url == null || url.isEmpty) return false;
-    if (isDownloaded(episode.id)) return true;
+    if (isDownloaded(episode.id) && localPath(episode.id) != null) return true;
     try {
       final dir = await _dir();
       final safe = episode.id.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
@@ -49,6 +71,7 @@ class PodcastDownloadService {
         if (total > 0 && onProgress != null) onProgress(rec / total);
       });
       await _box.put(episode.id, path);
+      _downloadedIds.add(episode.id);
       return true;
     } catch (_) {
       return false;
@@ -65,6 +88,7 @@ class PodcastDownloadService {
       } catch (_) {}
     }
     await _box.delete(id);
+    _downloadedIds.remove(id);
   }
 
   static String _ext(String url) {
