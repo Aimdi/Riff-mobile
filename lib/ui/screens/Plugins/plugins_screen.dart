@@ -10,7 +10,7 @@ import '/ui/widgets/snackbar.dart';
 /// Catalog of optional plugins that extend Riff.
 ///
 /// Offered plugins can be installed (enabled) from this screen.
-/// Bundled plugins: Torrents Digger, SoulSync, and Seeker.
+/// Bundled plugins: Torrents Digger, SoulSync, and Soulseek.
 class PluginsScreen extends StatelessWidget {
   const PluginsScreen({super.key});
 
@@ -29,9 +29,9 @@ class PluginsScreen extends StatelessWidget {
     ),
     _PluginOffer(
       id: PluginIds.seeker,
-      nameKey: 'seeker',
-      desKey: 'seekerPluginDes',
-      sourceUrl: 'https://github.com/jackBonadies/SeekerAndroid',
+      nameKey: 'soulseek',
+      desKey: 'soulseekPluginDes',
+      sourceUrl: 'https://github.com/nicotine-plus/nicotine-plus',
     ),
   ];
 
@@ -141,10 +141,34 @@ class _PluginOfferTile extends StatelessWidget {
   final bool installed;
 
   Future<void> _install(BuildContext context) async {
+    final isSoulseek = offer.id == PluginIds.seeker;
+    if (isSoulseek && context.mounted) {
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          content: Row(
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(width: 20),
+              Expanded(child: Text('soulseekInstalling'.tr)),
+            ],
+          ),
+        ),
+      );
+      // Brief pause so the “install engine” moment is visible — the client
+      // ships in-app; install still just enables the plugin.
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+      if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+    }
     await Get.find<PluginService>().install(offer.id);
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      snackbar(context, 'pluginInstalled'.tr, size: SanckBarSize.MEDIUM),
+      snackbar(
+        context,
+        isSoulseek ? 'soulseekInstalled'.tr : 'pluginInstalled'.tr,
+        size: SanckBarSize.MEDIUM,
+      ),
     );
   }
 
