@@ -10,7 +10,7 @@ import '/ui/widgets/snackbar.dart';
 /// Catalog of optional plugins that extend Riff.
 ///
 /// Offered plugins can be installed (enabled) from this screen.
-/// Bundled plugins: Torrent Search, SoulSync, and Soulseek.
+/// Bundled plugins: Torrent Search, SoulSync, and Seeker.
 class PluginsScreen extends StatelessWidget {
   const PluginsScreen({super.key});
 
