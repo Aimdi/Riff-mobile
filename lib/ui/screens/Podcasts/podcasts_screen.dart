@@ -132,9 +132,7 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
       ),
       title: Text(p['title'] ?? '', maxLines: 1),
       subtitle: Text(p['author'] ?? '', maxLines: 1),
-      trailing: IconButton(
-        icon: Icon(subscribed ? Icons.check_circle : Icons.add_circle_outline,
-            color: subscribed ? Theme.of(context).colorScheme.secondary : null),
+      trailing: TextButton(
         onPressed: () async {
           if (subscribed) {
             await PodcastService.unsubscribe(p['feedUrl']);
@@ -143,6 +141,15 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
           }
           setState(() {});
         },
+        child: Text(
+          subscribed ? 'subscribed'.tr : 'subscribe'.tr,
+          style: TextStyle(
+            color: subscribed
+                ? Theme.of(context).colorScheme.secondary
+                : Theme.of(context).textTheme.bodyMedium?.color,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
       onTap: () => Get.to(() => PodcastEpisodesScreen(podcast: p)),
     );
@@ -178,6 +185,30 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
       });
     }
   }
+
+  /// Lean MediaItem for the long-press sheet — skips shownotes / HQ thumb work
+  /// so the sheet can open immediately.
+  MediaItem _toSheetItem(Map<String, dynamic> e) => MediaItem(
+        id: e['id'],
+        title: e['title'] ?? '',
+        artist: widget.podcast['title'],
+        duration: () {
+          final sec = e['durationSec'];
+          final n = sec is int ? sec : int.tryParse('$sec') ?? 0;
+          return n > 0 ? Duration(seconds: n) : null;
+        }(),
+        artUri: Uri.tryParse(
+          (e['artwork'] ?? widget.podcast['artwork'] ?? '').toString(),
+        ),
+        extras: {
+          'url': e['url'],
+          'isPodcast': true,
+          if (e['chaptersUrl'] != null) 'chaptersUrl': e['chaptersUrl'],
+          if (e['transcriptUrl'] != null) 'transcriptUrl': e['transcriptUrl'],
+          if (e['transcriptUrl'] != null)
+            'transcriptType': e['transcriptType'],
+        },
+      );
 
   MediaItem _toMediaItem(Map<String, dynamic> e) => MediaItem(
         id: e['id'],
@@ -222,34 +253,14 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.podcast['title'] ?? '', maxLines: 1),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Obx(() {
-              PodcastService.subsRev.value; // rebuild on follow/unfollow
-              final subscribed =
-                  PodcastService.isSubscribed(widget.podcast['feedUrl'] ?? '');
-              return TextButton.icon(
-                onPressed: _toggleSubscribe,
-                icon: Icon(
-                    subscribed ? Icons.check_circle : Icons.add_circle_outline,
-                    size: 20,
-                    color: subscribed
-                        ? Theme.of(context).colorScheme.secondary
-                        : null),
-                label: Text(subscribed ? 'subscribed'.tr : 'subscribe'.tr),
-              );
-            }),
-          ),
-        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Fixed header — cover art + title + author stay pinned while
-                // the episode list scrolls (AntennaPod layout).
+                // Fixed header — cover art + title + Follow stay pinned while
+                // the episode list scrolls.
                 _header(context),
                 const Divider(height: 1),
                 Expanded(
@@ -269,10 +280,11 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
   }
 
   Widget _header(BuildContext context) {
-    final art =
-        (widget.podcast['artwork'] ?? '').toString();
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.secondary;
+    final art = (widget.podcast['artwork'] ?? '').toString();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -280,8 +292,8 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
             borderRadius: BorderRadius.circular(8),
             child: CachedNetworkImage(
               imageUrl: art,
-              width: 92,
-              height: 92,
+              width: 96,
+              height: 96,
               fit: BoxFit.cover,
               errorWidget: (_, __, ___) =>
                   const Icon(Icons.podcasts, size: 60),
@@ -296,18 +308,50 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
                   widget.podcast['title'] ?? '',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
+                  style: theme.textTheme.titleMedium
                       ?.copyWith(fontWeight: FontWeight.w600),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  widget.podcast['author'] ?? '',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
+                if ((widget.podcast['author'] ?? '').toString().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.podcast['author'] ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ],
+                const SizedBox(height: 10),
+                Obx(() {
+                  PodcastService.subsRev.value;
+                  final subscribed = PodcastService.isSubscribed(
+                      widget.podcast['feedUrl'] ?? '');
+                  if (subscribed) {
+                    return OutlinedButton.icon(
+                      onPressed: _toggleSubscribe,
+                      icon: Icon(Icons.check, size: 18, color: accent),
+                      label: Text('subscribed'.tr),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: accent,
+                        side: BorderSide(color: accent.withOpacity(0.55)),
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 8),
+                      ),
+                    );
+                  }
+                  return FilledButton.icon(
+                    onPressed: _toggleSubscribe,
+                    icon: const Icon(Icons.add, size: 18),
+                    label: Text('subscribe'.tr),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: accent,
+                      foregroundColor: Colors.black,
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                    ),
+                  );
+                }),
               ],
             ),
           ),
@@ -326,7 +370,7 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
         (e['artwork'] ?? widget.podcast['artwork'] ?? '').toString();
     return InkWell(
       onTap: () => _playFrom(i),
-      onLongPress: () => showAddToQueueSheet(context, _toMediaItem(e)),
+      onLongPress: () => showAddToQueueSheet(context, _toSheetItem(e)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
