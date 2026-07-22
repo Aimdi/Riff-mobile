@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:harmonymusic/ui/screens/Home/home_screen_controller.dart';
 import 'package:sidebar_with_animation/animated_side_bar.dart';
 
+import 'package:harmonymusic/ui/screens/Home/home_screen_controller.dart';
+
 // Tab indices used by HomeScreenController.onSideBarTabSelected:
-// 0 Home, 1 Songs, 2 Cloud, 3 Podcasts, 4 Audiobooks, 5 Playlists,
-// 6 Albums, 7 Artists, 8 Settings.
+// 0 Home, 1 Songs, 2 Podcasts, 3 Audiobooks, 4 Playlists,
+// 5 Albums, 6 Artists, 7 Settings.
+// Cloud lives under Songs (toolbar toggle), not on the rail.
 class SideNavBar extends StatefulWidget {
   const SideNavBar({super.key});
 
@@ -33,7 +35,8 @@ class _SideNavBarState extends State<SideNavBar> {
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _railItem(homeScreenController, sel, index: 0, label: "home".tr),
+                    _railItem(homeScreenController, sel,
+                        index: 0, label: "home".tr),
                     // Songs — tap opens Songs, the caret expands the sub-section.
                     _railItem(
                       homeScreenController,
@@ -41,7 +44,7 @@ class _SideNavBarState extends State<SideNavBar> {
                       index: 1,
                       label: "songs".tr,
                       // sub-items are "selected" too so Songs stays highlighted
-                      selectedForIndices: const [1, 5, 6, 7],
+                      selectedForIndices: const [1, 4, 5, 6],
                       trailing: InkWell(
                         customBorder: const CircleBorder(),
                         onTap: () =>
@@ -76,26 +79,24 @@ class _SideNavBarState extends State<SideNavBar> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   _railItem(homeScreenController, sel,
-                                      index: 5,
+                                      index: 4,
                                       label: "playlists".tr,
                                       sub: true),
                                   _railItem(homeScreenController, sel,
-                                      index: 6, label: "albums".tr, sub: true),
+                                      index: 5, label: "albums".tr, sub: true),
                                   _railItem(homeScreenController, sel,
-                                      index: 7, label: "artists".tr, sub: true),
+                                      index: 6, label: "artists".tr, sub: true),
                                 ],
                               )
                             : const SizedBox.shrink(),
                       ),
                     ),
                     _railItem(homeScreenController, sel,
-                        index: 2, label: "cloud".tr),
+                        index: 2, label: "podcasts".tr),
                     _railItem(homeScreenController, sel,
-                        index: 3, label: "podcasts".tr),
+                        index: 3, label: "audiobooks".tr),
                     _railItem(homeScreenController, sel,
-                        index: 4, label: "audiobooks".tr),
-                    _railItem(homeScreenController, sel,
-                        index: 8, label: "settings".tr),
+                        index: 7, label: "settings".tr),
                   ],
                 );
               }),
@@ -123,11 +124,6 @@ class _SideNavBarState extends State<SideNavBar> {
                     iconSelected: Icons.audiotrack,
                     iconUnselected: Icons.audiotrack,
                     text: 'songs'.tr,
-                  ),
-                  SideBarItem(
-                    iconSelected: Icons.cloud,
-                    iconUnselected: Icons.cloud_outlined,
-                    text: 'cloud'.tr,
                   ),
                   SideBarItem(
                     iconSelected: Icons.podcasts,
