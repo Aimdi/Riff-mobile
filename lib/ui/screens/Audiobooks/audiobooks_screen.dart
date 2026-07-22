@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 
 import '/services/audiobook_catalog_service.dart';
 import '/services/audiobookshelf_service.dart';
+import '/services/plugin_service.dart';
+import '/ui/navigator.dart';
 import 'audiobook_catalog_detail_screen.dart';
 import 'audiobook_detail_screen.dart';
 import 'audiobook_library_controller.dart';
@@ -26,6 +28,7 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
   @override
   Widget build(BuildContext context) {
     final abs = Get.find<AudiobookshelfService>();
+    final plugins = Get.find<PluginService>();
     final topPadding = context.isLandscape ? 50.0 : 90.0;
 
     return Padding(
@@ -39,30 +42,41 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
             Text('audiobooks'.tr, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
           // Audible-style bar: icon + label items with a hairline below.
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Padding(
-              padding: const EdgeInsets.only(left: 2, right: 8),
-              child: Row(
-                children: [
-                  _audibleTab(
-                      icon: Icons.play_circle_outline,
-                      label: 'discover'.tr,
-                      mode: 0),
-                  const SizedBox(width: 16),
-                  _audibleTab(
-                      icon: Icons.library_books_outlined,
-                      label: 'library'.tr,
-                      mode: 1),
-                  const SizedBox(width: 16),
-                  _audibleTab(
-                      icon: Icons.bookmark_border,
-                      label: 'saved'.tr,
-                      mode: 2),
-                ],
+          Obx(() {
+            final hasTorrents =
+                plugins.isInstalled(PluginIds.torrentsDigger);
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 2, right: 8),
+                child: Row(
+                  children: [
+                    _audibleTab(
+                        icon: Icons.play_circle_outline,
+                        label: 'discover'.tr,
+                        mode: 0),
+                    const SizedBox(width: 16),
+                    _audibleTab(
+                        icon: Icons.library_books_outlined,
+                        label: 'library'.tr,
+                        mode: 1),
+                    const SizedBox(width: 16),
+                    _audibleTab(
+                        icon: Icons.bookmark_border,
+                        label: 'saved'.tr,
+                        mode: 2),
+                    if (hasTorrents) ...[
+                      const SizedBox(width: 16),
+                      _audibleTab(
+                          icon: Icons.travel_explore_outlined,
+                          label: 'torrents'.tr,
+                          mode: 4),
+                    ],
+                  ],
+                ),
               ),
-            ),
-          ),
+            );
+          }),
           const Divider(height: 1, thickness: 0.5),
           const SizedBox(height: 8),
           Expanded(
@@ -88,7 +102,17 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
         : theme.textTheme.bodyMedium?.color?.withOpacity(0.75);
     return InkWell(
       borderRadius: BorderRadius.circular(8),
-      onTap: () => setState(() => _mode = mode),
+      onTap: () {
+        if (mode == 4) {
+          // Full search screen (same as Plugins → Open).
+          Get.toNamed(
+            ScreenNavigationSetup.torrentSearchScreen,
+            id: ScreenNavigationSetup.id,
+          );
+          return;
+        }
+        setState(() => _mode = mode);
+      },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
         child: Row(
