@@ -1809,6 +1809,7 @@ Map<String, Map<String, String>> get keys => {
   "singles": "Singles",
   "artists": "Artists",
   "settings": "Settings",
+  "settingsDes": "Theme, playback, downloads, and Riff features.",
   "library": "Library",
   "libSongs": "Library Songs",
   "libPlaylists": "Library Playlists",
