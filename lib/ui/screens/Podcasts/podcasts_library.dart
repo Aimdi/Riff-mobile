@@ -42,8 +42,18 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
   Future<void> _loadDiscoveryRows() async {
     if (_discoveryLoaded) return;
     _discoveryLoaded = true;
-    final subs = Get.find<LibraryPodcastsController>().libraryPodcasts.toList();
-    _discoverySeeds = subs.take(8).map((p) => p.title).toList();
+    // Seed the "listeners of X also enjoy" rows from BOTH subscription
+    // stores: YT-Music library shows and iTunes/RSS subscriptions.
+    final ytTitles = Get.find<LibraryPodcastsController>()
+        .libraryPodcasts
+        .map((p) => p.title)
+        .toList();
+    final rssTitles =
+        PodcastService.subscriptions.map((s) => '${s['title'] ?? ''}').toList();
+    _discoverySeeds = {...ytTitles, ...rssTitles}
+        .where((t) => t.trim().isNotEmpty)
+        .take(8)
+        .toList();
     await Future.wait(_discoverySeeds.map((title) async {
       try {
         final res = await PodcastService.similar(title);
@@ -423,10 +433,11 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               fillColor: theme.colorScheme.onSurface.withOpacity(0.07),
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 12),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(26),
-                borderSide: BorderSide.none,
-              ),
+              // All three states set explicitly: the app theme's focused
+              // underline would otherwise leak under the pill.
+              border: _searchBorder,
+              enabledBorder: _searchBorder,
+              focusedBorder: _searchBorder,
               suffixIcon: Obx(() {
                 final active = controller.hasSearched.isTrue ||
                     controller.searchQuery.isNotEmpty;
@@ -471,7 +482,12 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
     );
   }
 
-  // Distinct tile colours for the browse categories (Spotify-style).
+  static final _searchBorder = OutlineInputBorder(
+    borderRadius: BorderRadius.circular(26),
+    borderSide: BorderSide.none,
+  );
+
+  // Accent colours for the browse category chips.
   static const _categoryColors = <Color>[
     Color(0xFF1E3264),
     Color(0xFF8D67AB),
@@ -517,6 +533,13 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               childCount: discoverySeeds.length,
             ),
           ),
+        // ── Suggestions: one compact scrollwheel ────────────────
+        if (suggestions.isNotEmpty)
+          SliverToBoxAdapter(
+            child: _PodcastCarousel(
+                title: 'suggestions'.tr, podcasts: suggestions),
+          ),
+        // ── Browse all: two rows of scrolling category chips ────
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.only(left: 5, top: 12, bottom: 8),
@@ -527,80 +550,66 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                     ?.copyWith(fontWeight: FontWeight.w700)),
           ),
         ),
-        SliverPadding(
-          padding: const EdgeInsets.only(left: 5, right: 8, bottom: 12),
-          sliver: SliverGrid(
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 240,
-              mainAxisExtent: 68,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (context, i) => _categoryTile(genres[i]['id']!, genres[i]['name']!, i),
-              childCount: genres.length,
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: 100,
+            child: GridView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              physics: const BouncingScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2, // rows
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                mainAxisExtent: 165, // chip width
+              ),
+              itemCount: genres.length,
+              itemBuilder: (context, i) =>
+                  _categoryChip(genres[i]['id']!, genres[i]['name']!, i),
             ),
           ),
         ),
-        if (suggestions.isNotEmpty) ...[
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.only(left: 5, top: 4, bottom: 4),
-              child: Text('suggestions'.tr,
-                  style: Theme.of(context).textTheme.titleSmall),
-            ),
-          ),
-          SliverLayoutBuilder(builder: (context, constraints) {
-            final availableWidth = constraints.crossAxisExtent;
-            final width = availableWidth > 300 && availableWidth < 394
-                ? 310.0
-                : availableWidth;
-            final columns = (width / itemWidth).floor().clamp(2, 6);
-            return SliverPadding(
-              padding: const EdgeInsets.only(bottom: 200, top: 6),
-              sliver: SliverGrid(
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: columns,
-                  mainAxisExtent: itemHeight + 12,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) => Center(
-                    child: ContentListItem(
-                        content: suggestions[index], showSimilarOnOpen: true),
-                  ),
-                  childCount: suggestions.length,
-                ),
-              ),
-            );
-          }),
-        ],
+        const SliverToBoxAdapter(child: SizedBox(height: 200)),
       ],
     );
   }
 
-  Widget _categoryTile(String genreId, String name, int i) {
+  /// Compact tinted chip (colour-coded, not a Spotify colour block).
+  Widget _categoryChip(String genreId, String name, int i) {
     final color = _categoryColors[i % _categoryColors.length];
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(22),
       onTap: () => Get.to(
           () => PodcastCategoryScreen(genreId: genreId, name: name)),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14),
+        alignment: Alignment.centerLeft,
         decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(12),
+          color: color.withOpacity(0.20),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: color.withOpacity(0.55)),
         ),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            name,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 14),
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -673,7 +682,8 @@ class _PodcastCarousel extends StatelessWidget {
             physics: const BouncingScrollPhysics(),
             separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemCount: podcasts.length,
-            itemBuilder: (_, i) => ContentListItem(content: podcasts[i]),
+            itemBuilder: (_, i) =>
+                ContentListItem(content: podcasts[i], showSimilarOnOpen: true),
           ),
         ),
       ],
