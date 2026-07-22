@@ -32,68 +32,61 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settingsController = Get.find<SettingsScreenController>();
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.secondary;
     final topPadding = context.isLandscape ? 50.0 : 90.0;
     final isDesktop = GetPlatform.isDesktop;
     return Padding(
       padding: isBottomNavActive
-          ? EdgeInsets.only(left: 20, top: topPadding, right: 15)
-          : EdgeInsets.only(top: topPadding, left: 5, right: 5),
+          ? EdgeInsets.only(left: 20, top: topPadding, right: 20)
+          : EdgeInsets.only(top: topPadding, left: 16, right: 16),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              "settings".tr,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+          Text(
+            "settings".tr,
+            style: theme.textTheme.titleLarge,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "settingsDes".tr,
+            style: theme.textTheme.bodyMedium,
           ),
           Expanded(
               child: ListView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 200, top: 20),
+            padding: const EdgeInsets.only(bottom: 120, top: 18),
             children: [
               Obx(
                 () => settingsController.isNewVersionAvailable.value
                     ? Padding(
-                        padding: const EdgeInsets.only(
-                            top: 8.0, right: 10, bottom: 8.0),
-                        child: Material(
-                          type: MaterialType.transparency,
-                          child: ListTile(
-                            onTap: () {
-                              launchUrl(
-                                Uri.parse(
-                                  'https://github.com/Aimdi/Riff-mobile/releases/latest',
-                                ),
-                                mode: LaunchMode.externalApplication,
-                              );
-                            },
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
-                            tileColor: Theme.of(context).colorScheme.secondary,
-                            contentPadding:
-                                const EdgeInsets.only(left: 8, right: 10),
-                            leading:
-                                const CircleAvatar(child: Icon(Icons.download)),
-                            title: Text("newVersionAvailable".tr),
-                            visualDensity: const VisualDensity(horizontal: -2),
-                            subtitle: Text(
-                              "goToDownloadPage".tr,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium!
-                                  .copyWith(
-                                      color: Colors.white70, fontSize: 13),
-                            ),
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: ListTile(
+                          onTap: () {
+                            launchUrl(
+                              Uri.parse(
+                                'https://github.com/Aimdi/Riff-mobile/releases/latest',
+                              ),
+                              mode: LaunchMode.externalApplication,
+                            );
+                          },
+                          contentPadding:
+                              const EdgeInsets.symmetric(horizontal: 4),
+                          leading: Icon(Icons.system_update_alt, color: accent),
+                          title: Text("newVersionAvailable".tr),
+                          subtitle: Text(
+                            "goToDownloadPage".tr,
+                            style: theme.textTheme.bodyMedium,
                           ),
+                          trailing: Icon(Icons.chevron_right, color: accent),
                         ),
                       )
                     : const SizedBox.shrink(),
               ),
               CustomExpansionTile(
                 title: "personalisation".tr,
-                icon: Icons.palette,
+                icon: Icons.palette_outlined,
+                initiallyExpanded: true,
                 children: [
                   ListTile(
                     contentPadding: const EdgeInsets.only(left: 5, right: 10),
@@ -213,8 +206,8 @@ class SettingsScreen extends StatelessWidget {
               ),
               CustomExpansionTile(
                   title: "content".tr,
-                  icon: Icons.music_video,
-                  children: [
+                  icon: Icons.library_music_outlined,
+                children: [
                     ListTile(
                       contentPadding: const EdgeInsets.only(left: 5, right: 10),
                       title: Text("setDiscoverContent".tr),
@@ -338,7 +331,7 @@ class SettingsScreen extends StatelessWidget {
                   ]),
               CustomExpansionTile(
                 title: "music&Playback".tr,
-                icon: Icons.music_note,
+                icon: Icons.music_note_outlined,
                 children: [
                   ListTile(
                     contentPadding: const EdgeInsets.only(left: 5, right: 10),
@@ -539,7 +532,7 @@ class SettingsScreen extends StatelessWidget {
               ),
               CustomExpansionTile(
                 title: "download".tr,
-                icon: Icons.download,
+                icon: Icons.download_outlined,
                 children: [
                   ListTile(
                     contentPadding: const EdgeInsets.only(left: 5, right: 10),
@@ -632,7 +625,7 @@ class SettingsScreen extends StatelessWidget {
               ),
               CustomExpansionTile(
                   title: "${"backup".tr} & ${"restore".tr}",
-                  icon: Icons.restore,
+                  icon: Icons.settings_backup_restore_outlined,
                   children: [
                     ListTile(
                       contentPadding: const EdgeInsets.only(left: 5, right: 10),
@@ -664,7 +657,7 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ]),
               CustomExpansionTile(
-                  icon: Icons.miscellaneous_services,
+                  icon: Icons.tune_outlined,
                   title: "misc".tr,
                   children: [
                     ListTile(
@@ -687,8 +680,9 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ]),
               CustomExpansionTile(
-                icon: Icons.graphic_eq,
+                icon: Icons.graphic_eq_outlined,
                 title: "riffFeatures".tr,
+                initiallyExpanded: true,
                 children: [
                   Obx(() {
                     final connected = settingsController.ytConnected.value;
@@ -816,7 +810,7 @@ class SettingsScreen extends StatelessWidget {
                 ],
               ),
               CustomExpansionTile(
-                icon: Icons.info,
+                icon: Icons.info_outline,
                 title: "appInfo".tr,
                 children: [
                   ListTile(
@@ -827,6 +821,8 @@ class SettingsScreen extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     isThreeLine: true,
+                    trailing: Icon(Icons.open_in_new,
+                        size: 18, color: accent.withOpacity(0.8)),
                     onTap: () {
                       launchUrl(
                         Uri.parse(
@@ -836,16 +832,24 @@ class SettingsScreen extends StatelessWidget {
                       );
                     },
                   ),
-                  const Divider(),
-                  SizedBox(
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.center,
                     child: Column(
                       children: [
                         Text(
                           "Riff",
-                          style: Theme.of(context).textTheme.titleLarge,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: accent,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          ),
                         ),
-                        Text(settingsController.currentVersion,
-                            style: Theme.of(context).textTheme.titleMedium)
+                        const SizedBox(height: 4),
+                        Text(
+                          settingsController.currentVersion,
+                          style: theme.textTheme.bodySmall,
+                        ),
                       ],
                     ),
                   ),
@@ -854,10 +858,12 @@ class SettingsScreen extends StatelessWidget {
             ],
           )),
           Padding(
-            padding: const EdgeInsets.only(bottom: 20.0),
+            padding: const EdgeInsets.only(bottom: 16.0, top: 4),
             child: Text(
               "${settingsController.currentVersion} — based on Harmony Music ${"by".tr} anandnet",
-              style: Theme.of(context).textTheme.bodySmall,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.textTheme.bodySmall?.color?.withOpacity(0.65),
+              ),
             ),
           ),
         ],
