@@ -78,48 +78,59 @@ class PlayerControlWidget extends StatelessWidget {
                   },
                   blendMode: BlendMode.dstIn,
                   child: Obx(() {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          // Tap the title -> open its album/single (if any).
-                          onTap: () => _openAlbum(playerController),
-                          child: Marquee(
-                            delay: const Duration(milliseconds: 300),
-                            duration: const Duration(seconds: 10),
-                            id: "${playerController.currentSong.value}_title",
-                            child: Text(
-                              playerController.currentSong.value != null
-                                  ? playerController.currentSong.value!.title
-                                  : "NA",
-                              textAlign: TextAlign.start,
-                              style: Theme.of(context).textTheme.labelMedium!,
+                    final song = playerController.currentSong.value;
+                    return AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 280),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      transitionBuilder: (child, animation) {
+                        return FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0, 0.08),
+                              end: Offset.zero,
+                            ).animate(animation),
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: Column(
+                        key: ValueKey<String>(song?.id ?? 'none'),
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => _openAlbum(playerController),
+                            child: Marquee(
+                              delay: const Duration(milliseconds: 300),
+                              duration: const Duration(seconds: 10),
+                              id: "${song}_title",
+                              child: Text(
+                                song?.title ?? "NA",
+                                textAlign: TextAlign.start,
+                                style: Theme.of(context).textTheme.labelMedium!,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(
-                          height: 5,
-                        ),
-                        GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          // Tap the artist -> open the artist page.
-                          onTap: () => _openArtist(playerController),
-                          child: Marquee(
-                            delay: const Duration(milliseconds: 300),
-                            duration: const Duration(seconds: 10),
-                            id: "${playerController.currentSong.value}_subtitle",
-                            child: Text(
-                              playerController.currentSong.value != null
-                                  ? playerController.currentSong.value!.artist!
-                                  : "NA",
-                              textAlign: TextAlign.start,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.labelSmall,
+                          const SizedBox(height: 5),
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => _openArtist(playerController),
+                            child: Marquee(
+                              delay: const Duration(milliseconds: 300),
+                              duration: const Duration(seconds: 10),
+                              id: "${song}_subtitle",
+                              child: Text(
+                                song?.artist ?? "NA",
+                                textAlign: TextAlign.start,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.labelSmall,
+                              ),
                             ),
-                          ),
-                        )
-                      ],
+                          )
+                        ],
+                      ),
                     );
                   }),
                 ),
