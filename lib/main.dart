@@ -15,6 +15,7 @@ import '/services/piped_service.dart';
 import '/services/sponsorblock_service.dart';
 import '/services/spotify_import_service.dart';
 import '/services/audiobookshelf_service.dart';
+import '/services/cloud_music_service.dart';
 import 'utils/app_link_controller.dart';
 import '/services/audio_handler.dart';
 import '/services/client_config_service.dart';
@@ -102,6 +103,7 @@ Future<void> startApplicationServices() async {
   Get.lazyPut(() => SponsorBlockService(), fenix: true);
   Get.lazyPut(() => SpotifyImportService(), fenix: true);
   Get.lazyPut(() => AudiobookshelfService(), fenix: true);
+  Get.lazyPut(() => CloudMusicService(), fenix: true);
   Get.lazyPut(() => ThemeController(), fenix: true);
   Get.lazyPut(() => PlayerController(), fenix: true);
   Get.lazyPut(() => HomeScreenController(), fenix: true);

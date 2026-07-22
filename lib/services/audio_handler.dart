@@ -813,9 +813,12 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   Future<HMStreamingData> checkNGetUrl(String songId,
       {bool generateNewUrl = false, bool offlineReplacementUrl = false}) async {
     printINFO("Requested id : $songId");
-    // Podcast episodes and Audiobookshelf tracks carry a direct stream URL —
-    // no YouTube stream resolution needed (same pattern Lissen uses for ABS).
-    if (songId.startsWith("podcast_") || songId.startsWith("abs_")) {
+    // Podcast episodes, Audiobookshelf tracks and Cloud (self-hosted music
+    // server) songs carry a direct stream URL — no YouTube stream resolution
+    // needed (same pattern Lissen uses for ABS).
+    if (songId.startsWith("podcast_") ||
+        songId.startsWith("abs_") ||
+        songId.startsWith("cloud_")) {
       MediaItem? item;
       for (final e in queue.value) {
         if (e.id == songId) {
