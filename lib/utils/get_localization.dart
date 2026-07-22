@@ -1836,6 +1836,9 @@ Map<String, Map<String, String>> get keys => {
   "similarTitles": "Similar titles",
   "audiobookBrowseOnly": "Preview and listen on Audible — audiobooks can't be played inside Riff.",
   "saved": "Saved",
+  "wishlist": "Wish List",
+  "noWishlistAudiobooks":
+      "Nothing on your wish list yet — tap the heart on any audiobook to add it.",
   "noSavedAudiobooks": "No saved audiobooks yet. Tap the bookmark on a book to save it here.",
   "ratings": "ratings",
   "popular": "Popular",

@@ -19,7 +19,8 @@ class AudiobooksScreen extends StatefulWidget {
 }
 
 class _AudiobooksScreenState extends State<AudiobooksScreen> {
-  int _mode = 0; // 0 = Discover, 1 = Saved (local), 2 = My server (Audiobookshelf)
+  // 0 = Discover, 1 = Library (Audiobookshelf server), 2 = Saved, 3 = Wish List
+  int _mode = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -36,30 +37,79 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
           if (!widget.isBottomNavActive)
             Text('audiobooks'.tr, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.only(right: 8, bottom: 4),
-            child: SegmentedButton<int>(
-              segments: [
-                ButtonSegment(value: 0, label: Text('discover'.tr)),
-                ButtonSegment(value: 1, label: Text('saved'.tr)),
-                ButtonSegment(value: 2, label: Text('myServer'.tr)),
-              ],
-              selected: {_mode},
-              showSelectedIcon: false,
-              onSelectionChanged: (s) => setState(() => _mode = s.first),
+          // Audible-style bar: icon + label items with a hairline below.
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 2, right: 8),
+              child: Row(
+                children: [
+                  _audibleTab(
+                      icon: Icons.play_circle_outline,
+                      label: 'discover'.tr,
+                      mode: 0),
+                  const SizedBox(width: 16),
+                  _audibleTab(
+                      icon: Icons.library_books_outlined,
+                      label: 'library'.tr,
+                      mode: 1),
+                  const SizedBox(width: 16),
+                  _audibleTab(
+                      icon: Icons.bookmark_border,
+                      label: 'saved'.tr,
+                      mode: 2),
+                  const SizedBox(width: 16),
+                  _audibleTab(
+                      icon: Icons.favorite_border,
+                      label: 'wishlist'.tr,
+                      mode: 3),
+                ],
+              ),
             ),
           ),
+          const Divider(height: 1, thickness: 0.5),
           const SizedBox(height: 8),
           Expanded(
             child: _mode == 0
                 ? const _CatalogDiscover()
                 : _mode == 1
-                    ? const _SavedView()
-                    : Obx(() => abs.isConnected.value
+                    ? Obx(() => abs.isConnected.value
                         ? const _AbsLibraryView()
-                        : const _AbsLoginForm()),
+                        : const _AbsLoginForm())
+                    : _mode == 2
+                        ? const _SavedView()
+                        : const _WishlistView(),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _audibleTab(
+      {required IconData icon, required String label, required int mode}) {
+    final theme = Theme.of(context);
+    final active = _mode == mode;
+    final color = active
+        ? theme.colorScheme.secondary
+        : theme.textTheme.bodyMedium?.color?.withOpacity(0.75);
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => setState(() => _mode = mode),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: theme.textTheme.titleSmall?.copyWith(
+                  color: color,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w600),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -201,23 +251,63 @@ class _SavedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final lib = Get.find<AudiobookLibraryController>();
-    return Obx(() {
-      final books = lib.saved;
-      if (books.isEmpty) {
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              'noSavedAudiobooks'.tr,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium,
-            ),
+    return Obx(() => _CatalogBookGrid(
+          books: lib.saved.toList(),
+          emptyIcon: Icons.bookmark_border,
+          emptyText: 'noSavedAudiobooks'.tr,
+        ));
+  }
+}
+
+/// Audible-style wish list of catalog audiobooks.
+class _WishlistView extends StatelessWidget {
+  const _WishlistView();
+
+  @override
+  Widget build(BuildContext context) {
+    final lib = Get.find<AudiobookLibraryController>();
+    return Obx(() => _CatalogBookGrid(
+          books: lib.wishlist.toList(),
+          emptyIcon: Icons.favorite_border,
+          emptyText: 'noWishlistAudiobooks'.tr,
+        ));
+  }
+}
+
+/// Shared 2-column cover grid for locally stored catalog book lists.
+class _CatalogBookGrid extends StatelessWidget {
+  const _CatalogBookGrid(
+      {required this.books, required this.emptyIcon, required this.emptyText});
+  final List<AudiobookItem> books;
+  final IconData emptyIcon;
+  final String emptyText;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (books.isEmpty) {
+      final dim = theme.textTheme.bodySmall?.color;
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(emptyIcon, size: 52, color: dim?.withOpacity(0.4)),
+              const SizedBox(height: 12),
+              Text(
+                emptyText,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: dim?.withOpacity(0.8)),
+              ),
+            ],
           ),
-        );
-      }
-      return GridView.builder(
+        ),
+      );
+    }
+    return GridView.builder(
         padding: const EdgeInsets.only(bottom: 200, right: 8),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
@@ -266,7 +356,6 @@ class _SavedView extends StatelessWidget {
           );
         },
       );
-    });
   }
 }
 
