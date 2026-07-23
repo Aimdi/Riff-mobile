@@ -11,7 +11,13 @@ import '/ui/widgets/snackbar.dart';
 
 /// In-app Soulseek client — login + sockseek-style ranked search on mobile.
 class SeekerScreen extends StatelessWidget {
-  const SeekerScreen({super.key});
+  const SeekerScreen({super.key, this.initialQuery, this.embedded = false});
+
+  /// Prefills (and runs) search when already signed in.
+  final String? initialQuery;
+
+  /// When true, omit the full-screen chrome so it can sit inside Home search.
+  final bool embedded;
 
   static const seekerGithub = 'https://github.com/jackBonadies/SeekerAndroid';
 
@@ -19,26 +25,40 @@ class SeekerScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final svc = Get.find<SoulseekService>();
     final theme = Theme.of(context);
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (!embedded) ...[
+          Text('soulseek'.tr, style: theme.textTheme.titleLarge),
+          const SizedBox(height: 4),
+          Text('soulseekDes'.tr, style: theme.textTheme.bodyMedium),
+          const SizedBox(height: 12),
+        ] else ...[
+          Text('soulseek'.tr, style: theme.textTheme.titleMedium),
+          const SizedBox(height: 2),
+          Text('soulseekDes'.tr, style: theme.textTheme.bodySmall),
+          const SizedBox(height: 8),
+        ],
+        Expanded(
+          child: Obx(
+            () => svc.isLoggedIn.value
+                ? _SoulseekSearchView(initialQuery: initialQuery)
+                : const _SoulseekLoginForm(),
+          ),
+        ),
+      ],
+    );
+    if (embedded) {
+      return Padding(
+        padding: const EdgeInsets.only(left: 12, right: 12, top: 12),
+        child: body,
+      );
+    }
     return Scaffold(
       backgroundColor: theme.canvasColor,
       body: Padding(
         padding: const EdgeInsets.only(left: 16, right: 16, top: 70),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('soulseek'.tr, style: theme.textTheme.titleLarge),
-            const SizedBox(height: 4),
-            Text('soulseekDes'.tr, style: theme.textTheme.bodyMedium),
-            const SizedBox(height: 12),
-            Expanded(
-              child: Obx(
-                () => svc.isLoggedIn.value
-                    ? const _SoulseekSearchView()
-                    : const _SoulseekLoginForm(),
-              ),
-            ),
-          ],
-        ),
+        child: body,
       ),
     );
   }
@@ -155,7 +175,9 @@ class _SoulseekLoginFormState extends State<_SoulseekLoginForm> {
 /// Sockseek-inspired mobile search: song/album mode, live ranked results,
 /// format filters, album-folder interactive pick — all in-plugin.
 class _SoulseekSearchView extends StatefulWidget {
-  const _SoulseekSearchView();
+  const _SoulseekSearchView({this.initialQuery});
+
+  final String? initialQuery;
 
   @override
   State<_SoulseekSearchView> createState() => _SoulseekSearchViewState();
@@ -179,6 +201,21 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
   String? _error;
   String? _downloadingKey;
   double? _downloadProgress;
+
+  @override
+  void initState() {
+    super.initState();
+    final q = (widget.initialQuery ?? '').trim();
+    if (q.isNotEmpty) {
+      _searchCtrl.text = q;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (Get.find<SoulseekService>().isLoggedIn.value) {
+          _search();
+        }
+      });
+    }
+  }
 
   @override
   void dispose() {
