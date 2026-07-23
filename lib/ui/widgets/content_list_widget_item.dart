@@ -36,16 +36,15 @@ class ContentListItem extends StatelessWidget {
             id: ScreenNavigationSetup.id,
             arguments: [content, content.playlistId, showSimilarOnOpen]);
       },
-      child: Container(
-        width: 130,
-        height: 180,
-        padding: const EdgeInsets.symmetric(horizontal: 5),
+      child: SizedBox(
+        width: 112,
+        height: 156,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             isAlbum
                 ? ImageWidget(
-                    size: 120,
+                    size: 112,
                     album: content,
                   )
                 : content.isCloudPlaylist ||
@@ -54,11 +53,11 @@ class ContentListItem extends StatelessWidget {
                             content.playlistId == 'SongsCache' ||
                             content.playlistId == 'SongDownloads')
                     ? SizedBox.square(
-                        dimension: 120,
+                        dimension: 112,
                         child: Stack(
                           children: [
                             ImageWidget(
-                              size: 120,
+                              size: 112,
                               playlist: content,
                             ),
                             if (content.isPipedPlaylist)
@@ -115,8 +114,8 @@ class ContentListItem extends StatelessWidget {
                         ),
                       )
                     : Container(
-                        height: 120,
-                        width: 120,
+                        height: 112,
+                        width: 112,
                         decoration: BoxDecoration(
                             color: Theme.of(context).primaryColorLight,
                             borderRadius: BorderRadius.circular(10)),
@@ -130,37 +129,41 @@ class ContentListItem extends StatelessWidget {
                                       ? Icons.flight
                                       : Icons.download,
                           color: Colors.white,
-                          size: 40,
+                          size: 36,
                         ))),
-            const SizedBox(height: 5),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    content.title,
-                    maxLines: 2,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.15,
-                        ),
+            const SizedBox(height: 8),
+            Text(
+              content.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    letterSpacing: -0.15,
+                    height: 1.15,
                   ),
-                  Text(
-                    isAlbum
-                        ? isLibraryItem
-                            ? ""
-                            : "${content.artists[0]['name'] ?? ""} | ${content.year ?? ""}"
-                        : isLibraryItem
-                            ? ""
-                            : content.description ?? "",
-                    maxLines: 1,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              isAlbum
+                  ? isLibraryItem
+                      ? ""
+                      : "${content.artists[0]['name'] ?? ""} | ${content.year ?? ""}"
+                  : isLibraryItem
+                      ? ""
+                      : content.description ?? "",
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w400,
+                    fontSize: 12,
+                    color: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.color
+                        ?.withOpacity(0.6),
                   ),
-                ],
-              ),
-            )
+            ),
           ],
         ),
       ),

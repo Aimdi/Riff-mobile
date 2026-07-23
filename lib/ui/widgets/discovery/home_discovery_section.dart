@@ -28,7 +28,7 @@ class HomeDiscoverySection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 12, top: 18, bottom: 10, right: 12),
+          padding: const EdgeInsets.only(left: 12, top: 24, bottom: 10, right: 12),
           child: Text(
             section.title,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -41,22 +41,25 @@ class HomeDiscoverySection extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: 168,
+          height: 148,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.only(left: 2, right: 8),
+            padding: const EdgeInsets.only(left: 12, right: 12),
             itemCount: tracks.length,
             itemBuilder: (context, i) {
               final song = tracks[i];
-              return _DiscoveryCard(
-                song: song,
-                surface: section.surface,
-                onDismiss: () {
-                  if (Get.isRegistered<DiscoveryService>()) {
-                    Get.find<DiscoveryService>()
-                        .onDismiss(song, surface: section.surface);
-                  }
-                },
+              return Padding(
+                padding: EdgeInsets.only(right: i == tracks.length - 1 ? 0 : 12),
+                child: _DiscoveryCard(
+                  song: song,
+                  surface: section.surface,
+                  onDismiss: () {
+                    if (Get.isRegistered<DiscoveryService>()) {
+                      Get.find<DiscoveryService>()
+                          .onDismiss(song, surface: section.surface);
+                    }
+                  },
+                ),
               );
             },
           ),
@@ -82,7 +85,7 @@ class _DiscoveryCard extends StatelessWidget {
     final player = Get.find<PlayerController>();
     final reason = song.extras?['discoveryReason'] as String? ?? '';
     return SizedBox(
-      width: 130,
+      width: 112,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
@@ -163,33 +166,39 @@ class _DiscoveryCard extends StatelessWidget {
             ),
           );
         },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: ImageWidget(song: song, size: 120),
-              ),
-              const SizedBox(height: 7),
-              Text(song.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: Theme.of(context).textTheme.titleMedium?.color,
-                        fontWeight: FontWeight.w600,
-                      )),
-              Text(
-                reason.isNotEmpty ? reason : (song.artist ?? ''),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: ImageWidget(song: song, size: 112),
+            ),
+            const SizedBox(height: 8),
+            Text(song.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-              ),
-            ],
-          ),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: Theme.of(context).textTheme.titleMedium?.color,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      height: 1.15,
+                    )),
+            const SizedBox(height: 2),
+            Text(
+              reason.isNotEmpty ? reason : (song.artist ?? ''),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w400,
+                    fontSize: 12,
+                    color: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.color
+                        ?.withOpacity(0.6),
+                  ),
+            ),
+          ],
         ),
       ),
     );

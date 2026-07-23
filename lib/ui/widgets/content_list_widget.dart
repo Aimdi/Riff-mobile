@@ -25,16 +25,24 @@ class ContentListWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
+          Padding(
+            padding: const EdgeInsets.only(left: 12, top: 24, bottom: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  !isHomeContent && content.title.length > 12
-                      ? "${content.title.substring(0, 12)}..."
-                      : content.title,
-                  //maxLines: 2,
-                  style: Theme.of(context).textTheme.titleLarge,
+                Expanded(
+                  child: Text(
+                    !isHomeContent && content.title.length > 12
+                        ? "${content.title.substring(0, 12)}..."
+                        : content.title,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 19,
+                          letterSpacing: -0.35,
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 !isHomeContent
                     ? TextButton(
@@ -49,20 +57,19 @@ class ContentListWidget extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 5),
           SizedBox(
-            height: 200,
-            //color: Colors.blueAccent,
+            height: 168,
             child: Scrollbar(
               thickness: GetPlatform.isDesktop ? null : 0,
               controller: scrollController,
               child: ListView.separated(
                   controller: scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   addAutomaticKeepAlives: false,
                   addRepaintBoundaries: true,
                   physics: const BouncingScrollPhysics(),
                   separatorBuilder: (context, index) => const SizedBox(
-                        width: 15,
+                        width: 12,
                       ),
                   scrollDirection: Axis.horizontal,
                   itemCount: isAlbumContent

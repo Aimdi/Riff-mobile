@@ -135,7 +135,7 @@ class _RiffWaveHeroState extends State<RiffWaveHero> {
                           const SizedBox(height: 4),
                           Text(
                             'riffWaveDes'.tr,
-                            maxLines: 2,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w500,
@@ -177,14 +177,16 @@ class _RiffWaveHeroState extends State<RiffWaveHero> {
                   ],
                 ),
                 if (disc != null) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   Text(
-                    'waveMood'.tr,
+                    'waveMood'.tr.toUpperCase(),
                     style: theme.textTheme.labelSmall?.copyWith(
                       fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                      letterSpacing: 1.1,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
