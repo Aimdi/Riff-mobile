@@ -108,6 +108,10 @@ class AlbumArtNLyrics extends StatelessWidget {
                           song: song,
                           width: width,
                           maxHeight: height,
+                          onToggleVideo: () async {
+                            await AlbumArtNLyrics.setVideoPlaybackEnabled(false);
+                            playerController.currentSong.refresh();
+                          },
                         )
                       : ImageWidget(
                           size: playerArtImageSize,
