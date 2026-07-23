@@ -29,6 +29,7 @@ import '/services/music_service.dart';
 import '/services/sponsorblock_service.dart';
 import '/services/podcast_service.dart';
 import '/services/podcast_progress_service.dart';
+import '/ui/player/riff_wave.dart';
 
 class PlayerController extends GetxController
     with GetSingleTickerProviderStateMixin {
@@ -707,66 +708,24 @@ class PlayerController extends GetxController
   }
 
   /// Home "Riff Wave" — reliable personal radio.
-  /// Prefers YTM radio from a seed (works cold), with discovery mix as a
-  /// fast path when Daily Mix already has tracks.
+  ///
+  /// Does **not** use [pushSongToQueue]'s racy `setSourceNPlay` + delayed
+  /// `updateQueue` path (that left Wave silent or one-track-and-done).
+  /// Builds a queue first, then [playByIndex], and keeps radio mode on so
+  /// the stream continues past the first batch.
   Future<bool> startRiffWave() async {
     playinfrom.value = PlaylingFrom(
       type: PlaylingFromType.SELECTION,
       name: 'riffWave'.tr,
     );
 
-    // Fast path: play Daily Mix if we already generated one.
-    if (Get.isRegistered<DiscoveryService>()) {
-      final mixes = Get.find<DiscoveryService>().dailyMixes;
-      if (mixes.isNotEmpty && mixes.first.tracks.isNotEmpty) {
-        try {
-          final tracks = mixes.first.tracks
-              .map((m) => MediaItemBuilder.fromJson(m))
-              .where((m) => m.id.isNotEmpty)
-              .toList();
-          if (tracks.isNotEmpty) {
-            final tagged =
-                DiscoveryService.tagAll(tracks, DiscoverySource.dailyMix);
-            isRadioModeOn = true;
-            radioInitiatorItem = tagged.first;
-            await playPlayListSong(
-              tagged,
-              0,
-              playfrom: PlaylingFrom(
-                type: PlaylingFromType.SELECTION,
-                name: 'riffWave'.tr,
-              ),
-            );
-            // Keep radio mode so the queue can continue after the mix.
-            return true;
-          }
-        } catch (_) {
-          // Fall through to YTM radio.
-        }
-      }
-    }
-
     final seed = _resolveRiffWaveSeed();
-    if (seed == null || seed.id.isEmpty) return false;
-
-    isRadioModeOn = true;
-    radioInitiatorItem = seed;
-    _playerPanelCheck();
-
     List<MediaItem> tracks = [];
-    try {
-      final content = await _musicServices.getWatchPlaylist(
-        videoId: seed.id,
-        radio: true,
-        limit: 30,
-      );
-      radioContinuationParam = content['additionalParamsForNext'];
-      tracks = List<MediaItem>.from(content['tracks'] ?? const []);
-    } catch (_) {
-      tracks = [];
-    }
 
-    if (tracks.isEmpty && Get.isRegistered<DiscoveryService>()) {
+    // Mood chips map to DiscoveryService.exploration — try that first.
+    if (seed != null &&
+        seed.id.isNotEmpty &&
+        Get.isRegistered<DiscoveryService>()) {
       try {
         tracks = await Get.find<DiscoveryService>().smartRadioBatch(
           seed,
@@ -776,11 +735,45 @@ class PlayerController extends GetxController
       } catch (_) {}
     }
 
-    if (tracks.isEmpty) {
-      // Last resort: try playing the seed alone.
-      if (seed.title == 'Wave' || seed.id.isEmpty) return false;
-      tracks = [seed];
+    // YTM radio works cold when discovery has no candidates yet.
+    if (tracks.isEmpty && seed != null && seed.id.isNotEmpty) {
+      try {
+        final content = await _musicServices.getWatchPlaylist(
+          videoId: seed.id,
+          radio: true,
+          limit: 30,
+        );
+        radioContinuationParam = content['additionalParamsForNext'];
+        tracks = List<MediaItem>.from(content['tracks'] ?? const []);
+      } catch (_) {
+        tracks = [];
+      }
     }
+
+    // Cached Daily Mix as a offline-ish fallback queue.
+    if (tracks.isEmpty && Get.isRegistered<DiscoveryService>()) {
+      final mixes = Get.find<DiscoveryService>().dailyMixes;
+      if (mixes.isNotEmpty && mixes.first.tracks.isNotEmpty) {
+        try {
+          tracks = mixes.first.tracks
+              .map((m) => MediaItemBuilder.fromJson(m))
+              .where((m) => m.id.isNotEmpty)
+              .toList();
+        } catch (_) {}
+      }
+    }
+
+    if (tracks.isEmpty) {
+      if (seed == null || seed.id.isEmpty) return false;
+      tracks = [seed];
+    } else {
+      tracks = RiffWave.withSeedFirst(tracks, seed);
+    }
+
+    // Never route through playPlayListSong — it clears isRadioModeOn.
+    isRadioModeOn = true;
+    radioInitiatorItem = seed ?? tracks.first;
+    _playerPanelCheck();
 
     final tagged = Get.isRegistered<DiscoveryService>()
         ? DiscoveryService.tagAll(tracks, DiscoverySource.radio)
@@ -799,30 +792,30 @@ class PlayerController extends GetxController
   }
 
   MediaItem? _resolveRiffWaveSeed() {
-    if (currentSong.value != null) return currentSong.value;
-
+    MediaItem? dailyMixSeed;
     if (Get.isRegistered<DiscoveryService>()) {
       final mixes = Get.find<DiscoveryService>().dailyMixes;
       if (mixes.isNotEmpty && mixes.first.tracks.isNotEmpty) {
         try {
-          return MediaItemBuilder.fromJson(mixes.first.tracks.first);
+          dailyMixSeed = MediaItemBuilder.fromJson(mixes.first.tracks.first);
         } catch (_) {}
       }
     }
 
+    MediaItem? quickPick;
     if (Get.isRegistered<HomeScreenController>()) {
       final qp = Get.find<HomeScreenController>().quickPicks.value.songList;
-      if (qp.isNotEmpty) return qp.first;
+      if (qp.isNotEmpty) quickPick = qp.first;
     }
-
-    final recent = StatsService.mostRecentSong();
-    if (recent != null) return recent;
 
     final recentId = Hive.box('AppPrefs').get('recentSongId');
-    if (recentId is String && recentId.isNotEmpty) {
-      return MediaItem(id: recentId, title: 'Wave');
-    }
-    return null;
+    return RiffWave.resolveSeed(
+      currentSong: currentSong.value,
+      dailyMixSeed: dailyMixSeed,
+      quickPick: quickPick,
+      mostRecent: StatsService.mostRecentSong(),
+      recentSongId: recentId is String ? recentId : null,
+    );
   }
 
   Future<void> _addRadioContinuation(dynamic item) async {
