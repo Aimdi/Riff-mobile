@@ -1108,44 +1108,45 @@ class _PodcastSimilarFooterState extends State<_PodcastSimilarFooter> {
           top: BorderSide(color: theme.dividerColor.withOpacity(0.4)),
         ),
       ),
-      padding: EdgeInsets.only(top: 10, bottom: playerMin + 8),
+      padding: EdgeInsets.only(top: 8, bottom: playerMin + 6),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
             child: Text(
               "similarPodcasts".tr,
-              style: theme.textTheme.titleMedium
+              style: theme.textTheme.titleSmall
                   ?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
           SizedBox(
-            height: 150,
+            height: 96,
             child: _loading
                 ? const Center(
                     child: SizedBox(
-                      width: 26,
-                      height: 26,
+                      width: 20,
+                      height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   )
                 : ListView.separated(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: _similar.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 14),
+                    separatorBuilder: (_, __) => const SizedBox(width: 10),
                     itemBuilder: (context, i) {
                       final p = _similar[i];
                       final art =
-                          Thumbnail((p['artwork'] ?? '').toString()).high;
+                          Thumbnail((p['artwork'] ?? '').toString()).medium;
+                      const tile = 64.0;
                       return InkWell(
                         borderRadius: BorderRadius.circular(8),
                         onTap: () =>
                             Get.to(() => PodcastEpisodesScreen(podcast: p)),
                         child: SizedBox(
-                          width: 104,
+                          width: tile,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -1153,24 +1154,24 @@ class _PodcastSimilarFooterState extends State<_PodcastSimilarFooter> {
                                 borderRadius: BorderRadius.circular(8),
                                 child: CachedNetworkImage(
                                   imageUrl: art,
-                                  width: 104,
-                                  height: 104,
+                                  width: tile,
+                                  height: tile,
                                   fit: BoxFit.cover,
                                   errorWidget: (_, __, ___) => Container(
-                                    width: 104,
-                                    height: 104,
+                                    width: tile,
+                                    height: tile,
                                     color: theme
                                         .colorScheme.surfaceContainerHighest,
-                                    child: const Icon(Icons.podcasts, size: 30),
+                                    child: const Icon(Icons.podcasts, size: 22),
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 5),
+                              const SizedBox(height: 4),
                               Text(
                                 (p['title'] ?? '').toString(),
-                                maxLines: 2,
+                                maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodySmall?.copyWith(
+                                style: theme.textTheme.labelSmall?.copyWith(
                                     fontWeight: FontWeight.w500, height: 1.1),
                               ),
                             ],
