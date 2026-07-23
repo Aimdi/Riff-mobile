@@ -5,7 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '/services/audiobook_catalog_service.dart';
 import '/services/plugin_service.dart';
-import '/ui/navigator.dart';
+import '/ui/screens/Plugins/torrent_search_screen.dart';
 import 'audiobook_library_controller.dart';
 
 /// Details for a commercial audiobook. Browse-only: it can't play in Riff
@@ -172,10 +172,20 @@ class _AudiobookCatalogDetailScreenState
             return Padding(
               padding: const EdgeInsets.only(top: 8),
               child: OutlinedButton.icon(
-                onPressed: () => Get.toNamed(
-                  ScreenNavigationSetup.torrentSearchScreen,
-                  id: ScreenNavigationSetup.id,
-                ),
+                onPressed: () {
+                  // Detail was opened with Get.to (root stack). Push torrent
+                  // search on the same stack — nested toNamed is invisible here.
+                  final query = [
+                    if (book.author.trim().isNotEmpty) book.author.trim(),
+                    book.title.trim(),
+                  ].join(' ').trim();
+                  Get.to(
+                    () => TorrentSearchScreen(
+                      initialQuery: query.isEmpty ? null : query,
+                    ),
+                    transition: Transition.rightToLeft,
+                  );
+                },
                 icon: const Icon(Icons.travel_explore_outlined),
                 label: Text('searchTorrents'.tr),
               ),

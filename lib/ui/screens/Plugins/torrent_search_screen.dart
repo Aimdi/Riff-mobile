@@ -14,7 +14,11 @@ import '/ui/widgets/snackbar.dart';
 /// Private (API key / cookie): MyAnonamouse, Redacted, Orpheus.
 /// Optional: send results to a qBittorrent WebUI.
 class TorrentSearchScreen extends StatefulWidget {
-  const TorrentSearchScreen({super.key});
+  const TorrentSearchScreen({super.key, this.initialQuery});
+
+  /// Optional query to prefill and run when the screen opens (e.g. from an
+  /// audiobook detail "Search torrents" action).
+  final String? initialQuery;
 
   @override
   State<TorrentSearchScreen> createState() => _TorrentSearchScreenState();
@@ -38,6 +42,14 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
   void initState() {
     super.initState();
     _sources = TorrentSearchFacade.enabledSources();
+    final q = (widget.initialQuery ?? '').trim();
+    if (q.isNotEmpty) {
+      _searchCtrl.text = q;
+      // Run after first frame so snackbars/overlays have a context.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _search();
+      });
+    }
   }
 
   @override
