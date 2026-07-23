@@ -133,7 +133,8 @@ class VideoStreamService {
     }
   }
 
-  /// Prefer ~480p, then closest below 720p, never giant 1080+ on mobile data.
+  /// Prefer ~360p for the in-player surface (less decode lag). Fullscreen can
+  /// still use the same stream; 720p is a fallback only if nothing smaller exists.
   static VideoStreamInfo? _pickBest(List<VideoStreamInfo> streams) {
     if (streams.isEmpty) return null;
     streams.sort((a, b) => a.height.compareTo(b.height));
@@ -145,9 +146,9 @@ class VideoStreamService {
       return pick;
     }
 
-    return bestAtOrBelow(480) ??
+    return bestAtOrBelow(360) ??
+        bestAtOrBelow(480) ??
         bestAtOrBelow(720) ??
-        bestAtOrBelow(360) ??
         streams.first;
   }
 
