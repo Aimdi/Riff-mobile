@@ -29,6 +29,9 @@ class SettingsScreenController extends GetxController {
   final skipSilenceEnabled = false.obs;
   final sponsorBlockEnabled = true.obs;
   final podcastAutoSkipAdsEnabled = true.obs;
+  /// AntennaPod-experimental style: auto-advance to the next podcast episode
+  /// when one ends (queue or feed list already loaded into the player queue).
+  final podcastContinuousPlaybackEnabled = true.obs;
   final loudnessNormalizationEnabled = false.obs;
   final ytConnected = false.obs;
   final playbackSpeed = 1.0.obs;
@@ -60,7 +63,7 @@ class SettingsScreenController extends GetxController {
   final keepScreenAwake = false.obs;
   final restorePlaybackSession = false.obs;
   final cacheHomeScreenData = true.obs;
-  final currentVersion = "V1.7.55";
+  final currentVersion = "V1.7.63";
 
   @override
   void onInit() {
@@ -109,6 +112,8 @@ class SettingsScreenController extends GetxController {
     sponsorBlockEnabled.value = setBox.get("sponsorBlockEnabled") ?? true;
     podcastAutoSkipAdsEnabled.value =
         setBox.get("podcastAutoSkipAds") ?? true;
+    podcastContinuousPlaybackEnabled.value =
+        setBox.get("podcastContinuousPlayback") ?? true;
     loudnessNormalizationEnabled.value = isDesktop
         ? false
         : (setBox.get("loudnessNormalizationEnabled") ?? false);
@@ -291,6 +296,11 @@ class SettingsScreenController extends GetxController {
   void togglePodcastAutoSkipAds(bool val) {
     setBox.put('podcastAutoSkipAds', val);
     podcastAutoSkipAdsEnabled.value = val;
+  }
+
+  void togglePodcastContinuousPlayback(bool val) {
+    setBox.put('podcastContinuousPlayback', val);
+    podcastContinuousPlaybackEnabled.value = val;
   }
 
   void toggleSponsorBlock(bool val) {

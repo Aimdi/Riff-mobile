@@ -7,6 +7,7 @@ import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/widgets/content_list_widget_item.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/sort_widget.dart';
@@ -32,6 +33,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
   // Inline section shown in the content area: 1 = Inbox (default), 2 = Queue,
   // 3 = Subscriptions. Discovery now lives inside the search view.
   int _section = 1;
+  int _inboxRefreshNonce = 0;
 
   // "Listeners of X also enjoy" discovery rows, loaded lazily when the search
   // field is focused (shown first in the search view, above the categories).
@@ -96,32 +98,71 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                     ),
                   ),
           ),
-          // Inline nav: Inbox / Queue / Subs / Discover swap the content below
-          // instead of opening a separate screen. Search lives in Discover.
+          // Inline nav: Inbox / Queue / Subs / Discover + AntennaPod-style
+          // Refresh / Autoplay shortcuts on the right.
           Padding(
-            padding: const EdgeInsets.only(left: 3, top: 6, right: 10, bottom: 2),
+            padding: const EdgeInsets.only(left: 3, top: 6, right: 4, bottom: 2),
             child: Row(
               children: [
-                _navChip(
-                    icon: Icons.inbox_outlined,
-                    activeIcon: Icons.inbox,
-                    label: 'podcastInbox'.tr,
-                    section: 1),
-                _navChip(
-                    icon: Icons.playlist_play,
-                    activeIcon: Icons.playlist_play,
-                    label: 'queue'.tr,
-                    section: 2),
-                _navChip(
-                    icon: Icons.subscriptions_outlined,
-                    activeIcon: Icons.subscriptions,
-                    label: 'subsShort'.tr,
-                    section: 3),
-                _navChip(
-                    icon: Icons.explore_outlined,
-                    activeIcon: Icons.explore,
-                    label: 'discover'.tr,
-                    section: 4),
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _navChip(
+                            icon: Icons.inbox_outlined,
+                            activeIcon: Icons.inbox,
+                            label: 'podcastInbox'.tr,
+                            section: 1),
+                        _navChip(
+                            icon: Icons.playlist_play,
+                            activeIcon: Icons.playlist_play,
+                            label: 'queue'.tr,
+                            section: 2),
+                        _navChip(
+                            icon: Icons.subscriptions_outlined,
+                            activeIcon: Icons.subscriptions,
+                            label: 'subsShort'.tr,
+                            section: 3),
+                        _navChip(
+                            icon: Icons.explore_outlined,
+                            activeIcon: Icons.explore,
+                            label: 'discover'.tr,
+                            section: 4),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_section == 1)
+                  IconButton(
+                    tooltip: 'refreshInbox'.tr,
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.refresh_rounded, size: 22),
+                    onPressed: () =>
+                        setState(() => _inboxRefreshNonce++),
+                  ),
+                Obx(() {
+                  final settings = Get.find<SettingsScreenController>();
+                  final on =
+                      settings.podcastContinuousPlaybackEnabled.value;
+                  return IconButton(
+                    tooltip: on
+                        ? 'podcastAutoplayOn'.tr
+                        : 'podcastAutoplayOff'.tr,
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(
+                      on
+                          ? Icons.playlist_play_rounded
+                          : Icons.playlist_remove_rounded,
+                      size: 22,
+                      color: on
+                          ? Theme.of(context).colorScheme.secondary
+                          : null,
+                    ),
+                    onPressed: () =>
+                        settings.togglePodcastContinuousPlayback(!on),
+                  );
+                }),
               ],
             ),
           ),
@@ -134,6 +175,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               if (_section == 1) {
                 return PodcastInboxScreen(
                   embedded: true,
+                  refreshNonce: _inboxRefreshNonce,
                   onDiscover: () {
                     _loadDiscoveryRows();
                     setState(() => _section = 4);

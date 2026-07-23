@@ -419,6 +419,19 @@ class SettingsScreen extends StatelessWidget {
                             onChanged:
                                 settingsController.togglePodcastAutoSkipAds),
                       )),
+                  ListTile(
+                      contentPadding:
+                          const EdgeInsets.only(left: 5, right: 10),
+                      title: Text("podcastContinuousPlayback".tr),
+                      subtitle: Text("podcastContinuousPlaybackDes".tr,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      trailing: Obx(
+                        () => CustSwitch(
+                            value: settingsController
+                                .podcastContinuousPlaybackEnabled.value,
+                            onChanged: settingsController
+                                .togglePodcastContinuousPlayback),
+                      )),
                   if (isDesktop)
                     ListTile(
                         contentPadding:

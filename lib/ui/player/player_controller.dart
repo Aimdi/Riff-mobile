@@ -104,6 +104,9 @@ class PlayerController extends GetxController
   final inAdChapter = false.obs;
   bool get hasChapters => _chapters.isNotEmpty;
 
+  /// Podcasting 2.0 chapters for the current episode (UI chapter list).
+  List<PodcastChapter> get chapters => _chapters;
+
   bool get podcastAutoSkipAds =>
       Hive.box('AppPrefs').get('podcastAutoSkipAds', defaultValue: true);
   set podcastAutoSkipAds(bool v) =>

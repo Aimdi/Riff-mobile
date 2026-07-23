@@ -18,7 +18,9 @@ import '/models/album.dart';
 import '../models/playlist.dart';
 import '/services/equalizer.dart';
 import '/services/playlist_mix_service.dart';
+import '/services/podcast_progress_service.dart';
 import '/services/stream_service.dart';
+import '/ui/screens/Podcasts/podcast_queue_controller.dart';
 import '/models/hm_streaming_data.dart';
 import '/ui/player/player_controller.dart';
 import '../ui/screens/Home/home_screen_controller.dart';
@@ -321,7 +323,39 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       }
       return;
     }
-    skipToNext();
+
+    // AntennaPod-experimental: continuous podcast playback can be toggled off
+    // so an episode ends without auto-advancing.
+    final item = (currentIndex != null &&
+            currentIndex! >= 0 &&
+            currentIndex! < queue.value.length)
+        ? queue.value[currentIndex!]
+        : null;
+    if (item != null && PodcastProgressService.isPodcastItem(item)) {
+      final continuous = Hive.box('AppPrefs')
+              .get('podcastContinuousPlayback', defaultValue: true) ==
+          true;
+      if (!continuous) {
+        await pause();
+        return;
+      }
+      // Playing a lone Continue item with continuous on: append the rest of
+      // the manual Podcast Queue so listening keeps going.
+      final nextIdx = _getNextSongIndex();
+      if (nextIdx == currentIndex &&
+          Get.isRegistered<PodcastQueueController>()) {
+        final pq = Get.find<PodcastQueueController>().queue;
+        final qi = pq.indexWhere((e) => e.id == item.id);
+        final rest = qi >= 0
+            ? pq.sublist(qi + 1).toList()
+            : pq.where((e) => e.id != item.id).toList();
+        if (rest.isNotEmpty) {
+          await addQueueItems(rest);
+        }
+      }
+    }
+
+    await skipToNext();
   }
 
   void _listenForSequenceStateChanges() {

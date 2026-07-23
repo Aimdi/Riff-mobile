@@ -16,7 +16,12 @@ import 'podcasts_library_controller.dart';
 /// newest-first (round-robin) so recent episodes from each show surface at the
 /// top. Tap an episode to play it.
 class PodcastInboxScreen extends StatefulWidget {
-  const PodcastInboxScreen({super.key, this.embedded = false, this.onDiscover});
+  const PodcastInboxScreen({
+    super.key,
+    this.embedded = false,
+    this.onDiscover,
+    this.refreshNonce = 0,
+  });
 
   /// When true, render just the content (no Scaffold/AppBar) so it can be shown
   /// inline inside the Podcasts library screen.
@@ -24,6 +29,9 @@ class PodcastInboxScreen extends StatefulWidget {
 
   /// Switches the parent to the Discover tab (shown on the empty state).
   final VoidCallback? onDiscover;
+
+  /// Bumped by the parent refresh shortcut to reload inbox episodes.
+  final int refreshNonce;
 
   @override
   State<PodcastInboxScreen> createState() => _PodcastInboxScreenState();
@@ -37,6 +45,15 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant PodcastInboxScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshNonce != widget.refreshNonce) {
+      setState(() => _loading = true);
+      _load();
+    }
   }
 
   Future<void> _load() async {
