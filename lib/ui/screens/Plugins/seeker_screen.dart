@@ -545,7 +545,13 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
               }),
               leading: _CoverThumb(
                 size: 52,
-                future: SoulseekCoverService.instance
+                lookupKey: CoverLookupHint(
+                  artist: _query.artist,
+                  album: _query.mode == SoulseekSearchMode.album
+                      ? (_query.title ?? folder.folderName)
+                      : folder.folderName,
+                ).cacheKey,
+                loader: () => SoulseekCoverService.instance
                     .coverForAlbum(folder, query: _query),
                 fallback: Icon(
                   expanded ? Icons.folder_open : Icons.folder,
@@ -653,7 +659,8 @@ class _SongResultTile extends StatelessWidget {
       ),
       leading: _CoverThumb(
         size: coverSize,
-        future: SoulseekCoverService.instance
+        lookupKey: CoverLookupHint.fromFile(hit, query).cacheKey,
+        loader: () => SoulseekCoverService.instance
             .coverForFile(hit, query: query),
         fallback: Icon(
           Icons.music_note,
@@ -727,67 +734,120 @@ class _SongResultTile extends StatelessWidget {
   }
 }
 
-/// Async cover thumb — iTunes lookup with music-note / folder fallback.
-class _CoverThumb extends StatelessWidget {
+/// Loads one cover per [lookupKey] and keeps it across list rebuilds.
+class _CoverThumb extends StatefulWidget {
   const _CoverThumb({
     required this.size,
-    required this.future,
+    required this.lookupKey,
+    required this.loader,
     required this.fallback,
   });
 
   final double size;
-  final Future<String?> future;
+  final String lookupKey;
+  final Future<String?> Function() loader;
   final Widget fallback;
+
+  @override
+  State<_CoverThumb> createState() => _CoverThumbState();
+}
+
+class _CoverThumbState extends State<_CoverThumb> {
+  String? _url;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _CoverThumb oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.lookupKey != widget.lookupKey) {
+      _url = null;
+      _loading = true;
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    try {
+      final url = await widget.loader();
+      if (!mounted) return;
+      setState(() {
+        _url = (url != null && url.isNotEmpty) ? url : null;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _url = null;
+        _loading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SizedBox(
-      width: size,
-      height: size,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(6),
-        child: FutureBuilder<String?>(
-          future: future,
-          builder: (context, snap) {
-            final url = snap.data;
-            if (url != null && url.isNotEmpty) {
-              return CachedNetworkImage(
-                imageUrl: url,
-                width: size,
-                height: size,
-                fit: BoxFit.cover,
-                fadeInDuration: const Duration(milliseconds: 180),
-                placeholder: (_, __) => _placeholder(theme),
-                errorWidget: (_, __, ___) => _placeholder(theme),
-              );
-            }
-            if (snap.connectionState == ConnectionState.waiting) {
-              return _placeholder(theme);
-            }
-            return ColoredBox(
-              color: theme.colorScheme.surfaceContainerHighest
-                  .withOpacity(0.55),
-              child: Center(child: fallback),
-            );
-          },
-        ),
-      ),
-    );
-  }
+    final bg = theme.colorScheme.surfaceContainerHighest.withOpacity(0.7);
 
-  Widget _placeholder(ThemeData theme) {
-    return ColoredBox(
-      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.55),
-      child: Center(
-        child: SizedBox(
-          width: size * 0.28,
-          height: size * 0.28,
-          child: CircularProgressIndicator(
-            strokeWidth: 1.5,
-            color: theme.colorScheme.onSurface.withOpacity(0.35),
+    Widget child;
+    if (_url != null) {
+      child = CachedNetworkImage(
+        imageUrl: _url!,
+        width: widget.size,
+        height: widget.size,
+        fit: BoxFit.cover,
+        fadeInDuration: const Duration(milliseconds: 150),
+        httpHeaders: const {'User-Agent': 'RiffMobile/1.0'},
+        placeholder: (_, __) => ColoredBox(
+          color: bg,
+          child: Center(
+            child: SizedBox(
+              width: widget.size * 0.28,
+              height: widget.size * 0.28,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                color: theme.colorScheme.onSurface.withOpacity(0.35),
+              ),
+            ),
           ),
         ),
+        errorWidget: (_, __, ___) => ColoredBox(
+          color: bg,
+          child: Center(child: widget.fallback),
+        ),
+      );
+    } else if (_loading) {
+      child = ColoredBox(
+        color: bg,
+        child: Center(
+          child: SizedBox(
+            width: widget.size * 0.28,
+            height: widget.size * 0.28,
+            child: CircularProgressIndicator(
+              strokeWidth: 1.5,
+              color: theme.colorScheme.onSurface.withOpacity(0.35),
+            ),
+          ),
+        ),
+      );
+    } else {
+      child = ColoredBox(
+        color: bg,
+        child: Center(child: widget.fallback),
+      );
+    }
+
+    return SizedBox(
+      width: widget.size,
+      height: widget.size,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: child,
       ),
     );
   }
