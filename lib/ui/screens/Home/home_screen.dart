@@ -35,10 +35,9 @@ class HomeScreen extends StatelessWidget {
         Get.find<SettingsScreenController>();
 
     return Scaffold(
+        // Search lives in the Home title row; keep FAB only for Library add.
         floatingActionButton: Obx(
-          () => ((homeScreenController.tabIndex.value == 0 &&
-                      !GetPlatform.isDesktop) ||
-                  homeScreenController.tabIndex.value == 4)
+          () => homeScreenController.tabIndex.value == 4
               ? Obx(
                   () => Padding(
                     padding: EdgeInsets.only(
@@ -58,19 +57,12 @@ class HomeScreen extends StatelessWidget {
                                     BorderRadius.all(Radius.circular(14))),
                             elevation: 0,
                             onPressed: () async {
-                              if (homeScreenController.tabIndex.value == 4) {
-                                showDialog(
-                                    context: context,
-                                    builder: (context) =>
-                                        const CreateNRenamePlaylistPopup());
-                              } else {
-                                Get.toNamed(ScreenNavigationSetup.searchScreen,
-                                    id: ScreenNavigationSetup.id);
-                              }
+                              showDialog(
+                                  context: context,
+                                  builder: (context) =>
+                                      const CreateNRenamePlaylistPopup());
                             },
-                            child: Icon(homeScreenController.tabIndex.value == 4
-                                ? Icons.add
-                                : Icons.search)),
+                            child: const Icon(Icons.add)),
                       ),
                     ),
                   ),
@@ -258,12 +250,27 @@ class _HomeFeed extends StatelessWidget {
               ? const _OfflineHomeBanner()
               : const SizedBox.shrink()),
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-            child: Text(
-              'home'.tr,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    letterSpacing: -0.35,
+            padding: const EdgeInsets.fromLTRB(12, 0, 4, 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'home'.tr,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          letterSpacing: -0.35,
+                        ),
                   ),
+                ),
+                if (!GetPlatform.isDesktop)
+                  IconButton(
+                    tooltip: 'search'.tr,
+                    icon: const Icon(Icons.search),
+                    onPressed: () {
+                      Get.toNamed(ScreenNavigationSetup.searchScreen,
+                          id: ScreenNavigationSetup.id);
+                    },
+                  ),
+              ],
             ),
           ),
           const RiffWaveHero(),
