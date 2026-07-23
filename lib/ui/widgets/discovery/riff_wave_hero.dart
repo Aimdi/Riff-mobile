@@ -4,15 +4,14 @@ import 'package:get/get.dart';
 
 import '/models/media_Item_builder.dart';
 import '/services/discovery/discovery_service.dart';
-import '/services/discovery/discovery_types.dart';
+import '/services/stats_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/screens/Home/home_screen_controller.dart';
 import '/ui/utils/riff_tokens.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/snackbar.dart';
-import 'package:hive/hive.dart';
 
-/// Home hero: one-tap personal radio (Yandex/Apple “Wave” energy).
+/// Home personal-radio card — compact, left-aligned with the rest of Home.
 class RiffWaveHero extends StatefulWidget {
   const RiffWaveHero({super.key});
 
@@ -27,7 +26,7 @@ class _RiffWaveHeroState extends State<RiffWaveHero> {
       ? Get.find<DiscoveryService>()
       : null;
 
-  MediaItem? _artSeed() {
+  MediaItem? _previewArt() {
     final player = Get.find<PlayerController>();
     if (player.currentSong.value != null) return player.currentSong.value;
     final mixes = _disc?.dailyMixes;
@@ -38,16 +37,8 @@ class _RiffWaveHeroState extends State<RiffWaveHero> {
     }
     final qp = Get.find<HomeScreenController>().quickPicks.value.songList;
     if (qp.isNotEmpty) return qp.first;
-    return null;
-  }
-
-  Future<MediaItem?> _resolveSeed() async {
-    final art = _artSeed();
-    if (art != null) return art;
-    final recentId = Hive.box('AppPrefs').get('recentSongId');
-    if (recentId is String && recentId.isNotEmpty) {
-      return MediaItem(id: recentId, title: 'Radio');
-    }
+    final recent = StatsService.mostRecentSong();
+    if (recent != null) return recent;
     return null;
   }
 
@@ -55,20 +46,15 @@ class _RiffWaveHeroState extends State<RiffWaveHero> {
     if (_starting) return;
     setState(() => _starting = true);
     try {
-      final seed = await _resolveSeed();
-      if (seed == null) {
-        if (!mounted) return;
+      final ok = await Get.find<PlayerController>().startRiffWave();
+      if (!mounted) return;
+      if (!ok) {
         ScaffoldMessenger.of(context).showSnackBar(snackbar(
           context,
-          'mixEmpty'.tr,
+          'riffWaveEmpty'.tr,
           size: SanckBarSize.MEDIUM,
         ));
-        return;
       }
-      final player = Get.find<PlayerController>();
-      await player.startRadio(
-        DiscoveryService.withSource(seed, DiscoverySource.radio),
-      );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(snackbar(
@@ -81,10 +67,11 @@ class _RiffWaveHeroState extends State<RiffWaveHero> {
     }
   }
 
-  String _exploreLabel(double v) {
-    if (v < 0.33) return 'familiar'.tr;
-    if (v > 0.66) return 'adventurous'.tr;
-    return 'balanced'.tr;
+  void _setExploration(double v) {
+    final disc = _disc;
+    if (disc == null) return;
+    disc.exploration = v;
+    setState(() {});
   }
 
   @override
@@ -92,142 +79,177 @@ class _RiffWaveHeroState extends State<RiffWaveHero> {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.secondary;
     final disc = _disc;
+    final explore = disc?.exploration ?? 0.5;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 12, 14),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
+      padding: const EdgeInsets.fromLTRB(10, 0, 10, 16),
+      child: Material(
+        color: theme.cardColor,
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(RiffTokens.radiusLg),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              accent.withOpacity(0.28),
-              theme.cardColor.withOpacity(0.95),
-              theme.scaffoldBackgroundColor,
-            ],
-          ),
-          border: Border.fromBorderSide(RiffTokens.hairlineBorder(context)),
+          side: RiffTokens.hairlineBorder(context),
         ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Obx(() {
-                    Get.find<PlayerController>().currentSong.value;
-                    disc?.dailyMixes.length;
-                    final art = _artSeed();
-                    return ClipRRect(
-                      borderRadius:
-                          BorderRadius.circular(RiffTokens.radiusSm),
-                      child: art != null
-                          ? ImageWidget(song: art, size: 64)
-                          : ColoredBox(
-                              color: accent.withOpacity(0.2),
-                              child: SizedBox(
-                                width: 64,
-                                height: 64,
-                                child: Icon(Icons.graphic_eq_rounded,
-                                    color: accent, size: 30),
-                              ),
-                            ),
-                    );
-                  }),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'riffWave'.tr,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontSize: 22,
-                            letterSpacing: -0.4,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          'riffWaveDes'.tr,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: _starting ? null : _playWave,
-                    icon: _starting
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.play_arrow_rounded, size: 26),
-                    label: Text('play'.tr),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: accent,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      shape: const StadiumBorder(),
-                    ),
-                  ),
-                ],
-              ),
-              if (disc != null) ...[
-                const SizedBox(height: 12),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: _starting ? null : _playWave,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Row(
                   children: [
-                    Text(
-                      'familiar'.tr,
-                      style: theme.textTheme.labelSmall,
-                    ),
+                    Obx(() {
+                      Get.find<PlayerController>().currentSong.value;
+                      disc?.dailyMixes.length;
+                      Get.find<HomeScreenController>().quickPicks.value;
+                      final art = _previewArt();
+                      return ClipRRect(
+                        borderRadius:
+                            BorderRadius.circular(RiffTokens.radiusSm),
+                        child: art != null
+                            ? ImageWidget(song: art, size: 72)
+                            : ColoredBox(
+                                color: accent.withOpacity(0.18),
+                                child: SizedBox(
+                                  width: 72,
+                                  height: 72,
+                                  child: Icon(Icons.graphic_eq_rounded,
+                                      color: accent, size: 34),
+                                ),
+                              ),
+                      );
+                    }),
+                    const SizedBox(width: 14),
                     Expanded(
-                      child: SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          trackHeight: 2.5,
-                          thumbShape: const RoundSliderThumbShape(
-                              enabledThumbRadius: 7),
-                          overlayShape: const RoundSliderOverlayShape(
-                              overlayRadius: 14),
-                        ),
-                        child: Slider(
-                          value: disc.exploration.clamp(0.0, 1.0),
-                          onChanged: (nv) {
-                            disc.exploration = nv;
-                            setState(() {});
-                          },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'riffWave'.tr,
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontSize: 20,
+                              letterSpacing: -0.35,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'riffWaveDes'.tr,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              height: 1.25,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Material(
+                      color: accent,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: _starting ? null : _playWave,
+                        child: SizedBox(
+                          width: 52,
+                          height: 52,
+                          child: Center(
+                            child: _starting
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.4,
+                                      color: Colors.black,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.play_arrow_rounded,
+                                    color: Colors.black,
+                                    size: 32,
+                                  ),
+                          ),
                         ),
                       ),
                     ),
-                    Text(
-                      'adventurous'.tr,
-                      style: theme.textTheme.labelSmall,
-                    ),
                   ],
                 ),
-                Align(
-                  alignment: Alignment.center,
-                  child: Text(
-                    '${'exploration'.tr}: ${_exploreLabel(disc.exploration)}',
-                    style: theme.textTheme.bodySmall?.copyWith(
+                if (disc != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'waveMood'.tr,
+                    style: theme.textTheme.labelSmall?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: accent.withOpacity(0.9),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _MoodChip(
+                        label: 'familiar'.tr,
+                        selected: explore < 0.33,
+                        onTap: () => _setExploration(0.15),
+                      ),
+                      _MoodChip(
+                        label: 'balanced'.tr,
+                        selected: explore >= 0.33 && explore <= 0.66,
+                        onTap: () => _setExploration(0.5),
+                      ),
+                      _MoodChip(
+                        label: 'adventurous'.tr,
+                        selected: explore > 0.66,
+                        onTap: () => _setExploration(0.85),
+                      ),
+                    ],
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MoodChip extends StatelessWidget {
+  const _MoodChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.secondary;
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      visualDensity: VisualDensity.compact,
+      selectedColor: accent.withOpacity(0.28),
+      backgroundColor: theme.scaffoldBackgroundColor.withOpacity(0.55),
+      side: BorderSide(
+        color: selected ? accent.withOpacity(0.55) : theme.dividerColor,
+        width: RiffTokens.hairline,
+      ),
+      labelStyle: theme.textTheme.labelSmall?.copyWith(
+        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+        color: selected
+            ? theme.textTheme.titleMedium?.color
+            : theme.textTheme.titleSmall?.color,
+      ),
+      shape: const StadiumBorder(),
+      showCheckmark: false,
     );
   }
 }

@@ -28,7 +28,7 @@ class HomeDiscoverySection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 8, top: 20, bottom: 10, right: 12),
+          padding: const EdgeInsets.only(left: 12, top: 18, bottom: 10, right: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -356,7 +356,7 @@ class HomeShortcutGrid extends StatelessWidget {
       ];
 
       return Padding(
-        padding: const EdgeInsets.only(top: 10, bottom: 6),
+        padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
         child: LayoutBuilder(
           builder: (context, constraints) {
             // Two columns, quiet tiles — matches Home content density.

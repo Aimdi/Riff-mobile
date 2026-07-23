@@ -706,6 +706,125 @@ class PlayerController extends GetxController
     await pushSongToQueue(mediaItem, playlistid: playlistid, radio: true);
   }
 
+  /// Home "Riff Wave" — reliable personal radio.
+  /// Prefers YTM radio from a seed (works cold), with discovery mix as a
+  /// fast path when Daily Mix already has tracks.
+  Future<bool> startRiffWave() async {
+    playinfrom.value = PlaylingFrom(
+      type: PlaylingFromType.SELECTION,
+      name: 'riffWave'.tr,
+    );
+
+    // Fast path: play Daily Mix if we already generated one.
+    if (Get.isRegistered<DiscoveryService>()) {
+      final mixes = Get.find<DiscoveryService>().dailyMixes;
+      if (mixes.isNotEmpty && mixes.first.tracks.isNotEmpty) {
+        try {
+          final tracks = mixes.first.tracks
+              .map((m) => MediaItemBuilder.fromJson(m))
+              .where((m) => m.id.isNotEmpty)
+              .toList();
+          if (tracks.isNotEmpty) {
+            final tagged =
+                DiscoveryService.tagAll(tracks, DiscoverySource.dailyMix);
+            isRadioModeOn = true;
+            radioInitiatorItem = tagged.first;
+            await playPlayListSong(
+              tagged,
+              0,
+              playfrom: PlaylingFrom(
+                type: PlaylingFromType.SELECTION,
+                name: 'riffWave'.tr,
+              ),
+            );
+            // Keep radio mode so the queue can continue after the mix.
+            return true;
+          }
+        } catch (_) {
+          // Fall through to YTM radio.
+        }
+      }
+    }
+
+    final seed = _resolveRiffWaveSeed();
+    if (seed == null || seed.id.isEmpty) return false;
+
+    isRadioModeOn = true;
+    radioInitiatorItem = seed;
+    _playerPanelCheck();
+
+    List<MediaItem> tracks = [];
+    try {
+      final content = await _musicServices.getWatchPlaylist(
+        videoId: seed.id,
+        radio: true,
+        limit: 30,
+      );
+      radioContinuationParam = content['additionalParamsForNext'];
+      tracks = List<MediaItem>.from(content['tracks'] ?? const []);
+    } catch (_) {
+      tracks = [];
+    }
+
+    if (tracks.isEmpty && Get.isRegistered<DiscoveryService>()) {
+      try {
+        tracks = await Get.find<DiscoveryService>().smartRadioBatch(
+          seed,
+          sessionHistory: const [],
+          limit: 25,
+        );
+      } catch (_) {}
+    }
+
+    if (tracks.isEmpty) {
+      // Last resort: try playing the seed alone.
+      if (seed.title == 'Wave' || seed.id.isEmpty) return false;
+      tracks = [seed];
+    }
+
+    final tagged = Get.isRegistered<DiscoveryService>()
+        ? DiscoveryService.tagAll(tracks, DiscoverySource.radio)
+        : tracks;
+
+    await _audioHandler.updateQueue(tagged);
+    if (isShuffleModeEnabled.isTrue) {
+      await _audioHandler.customAction('shuffleCmd', {'index': 0});
+    }
+    await _audioHandler.customAction('playByIndex', {'index': 0});
+
+    if (isQueueLoopModeEnabled.isTrue && isShuffleModeEnabled.isFalse) {
+      toggleQueueLoopMode();
+    }
+    return true;
+  }
+
+  MediaItem? _resolveRiffWaveSeed() {
+    if (currentSong.value != null) return currentSong.value;
+
+    if (Get.isRegistered<DiscoveryService>()) {
+      final mixes = Get.find<DiscoveryService>().dailyMixes;
+      if (mixes.isNotEmpty && mixes.first.tracks.isNotEmpty) {
+        try {
+          return MediaItemBuilder.fromJson(mixes.first.tracks.first);
+        } catch (_) {}
+      }
+    }
+
+    if (Get.isRegistered<HomeScreenController>()) {
+      final qp = Get.find<HomeScreenController>().quickPicks.value.songList;
+      if (qp.isNotEmpty) return qp.first;
+    }
+
+    final recent = StatsService.mostRecentSong();
+    if (recent != null) return recent;
+
+    final recentId = Hive.box('AppPrefs').get('recentSongId');
+    if (recentId is String && recentId.isNotEmpty) {
+      return MediaItem(id: recentId, title: 'Wave');
+    }
+    return null;
+  }
+
   Future<void> _addRadioContinuation(dynamic item) async {
     final isSong = item.runtimeType.toString() == "MediaItem";
     // Prefer smart radio pipeline when discovery is available.

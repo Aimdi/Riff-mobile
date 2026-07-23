@@ -63,6 +63,30 @@ class StatsService {
     return level;
   }
 
+  /// Most recently played track as a lightweight [MediaItem], if any.
+  static MediaItem? mostRecentSong() {
+    if (_songs.isEmpty) return null;
+    String? bestId;
+    var bestTs = -1;
+    Map? bestVal;
+    for (final k in _songs.keys) {
+      final v = _songs.get(k);
+      if (v is! Map) continue;
+      final ts = (v['lastPlayed'] as int?) ?? 0;
+      if (ts > bestTs) {
+        bestTs = ts;
+        bestId = k.toString();
+        bestVal = v;
+      }
+    }
+    if (bestId == null || bestId.isEmpty || bestVal == null) return null;
+    return MediaItem(
+      id: bestId,
+      title: '${bestVal['title'] ?? bestId}',
+      artist: '${bestVal['artist'] ?? ''}',
+    );
+  }
+
   /// Top songs by play count: [{id, title, artist, plays}].
   static List<Map<String, dynamic>> topSongs([int n = 10]) {
     final list = _songs.keys

@@ -113,200 +113,219 @@ class Body extends StatelessWidget {
             : size.height < 750
                 ? 80.0
                 : 85.0;
-    const leftPadding = 5.0;
     if (homeScreenController.tabIndex.value == 0) {
-      return Padding(
-        padding: const EdgeInsets.only(left: leftPadding),
-        child: Stack(
-          children: [
-            GestureDetector(
-              onTap: () {
-                // for Desktop search bar
-                if (GetPlatform.isDesktop) {
-                  final sscontroller = Get.find<SearchScreenController>();
-                  if (sscontroller.focusNode.hasFocus) {
-                    sscontroller.focusNode.unfocus();
-                  }
+      return Stack(
+        children: [
+          GestureDetector(
+            onTap: () {
+              // for Desktop search bar
+              if (GetPlatform.isDesktop) {
+                final sscontroller = Get.find<SearchScreenController>();
+                if (sscontroller.focusNode.hasFocus) {
+                  sscontroller.focusNode.unfocus();
                 }
-              },
-              child: Obx(
-                () => homeScreenController.networkError.isTrue
-                    ? SizedBox(
-                        height: MediaQuery.of(context).size.height - 180,
-                        child: Column(
-                          children: [
-                            Align(
-                              alignment: Alignment.topLeft,
+              }
+            },
+            child: Obx(
+              () => homeScreenController.networkError.isTrue
+                  ? SizedBox(
+                      height: MediaQuery.of(context).size.height - 180,
+                      child: Column(
+                        children: [
+                          Align(
+                            alignment: Alignment.topLeft,
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 12),
                               child: Text(
                                 "home".tr,
                                 style: Theme.of(context).textTheme.titleLarge,
                               ),
                             ),
-                            Expanded(
-                              child: Center(
-                                child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        "networkError1".tr,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium,
-                                      ),
-                                      const SizedBox(
-                                        height: 10,
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 15, vertical: 10),
-                                        decoration: BoxDecoration(
-                                            color: Theme.of(context)
-                                                .textTheme
-                                                .titleLarge!
-                                                .color,
-                                            borderRadius:
-                                                BorderRadius.circular(10)),
-                                        child: InkWell(
-                                          onTap: () {
-                                            homeScreenController
-                                                .loadContentFromNetwork();
-                                          },
-                                          child: Text(
-                                            "retry".tr,
-                                            style: TextStyle(
-                                                color: Theme.of(context)
-                                                    .canvasColor),
-                                          ),
+                          ),
+                          Expanded(
+                            child: Center(
+                              child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      "networkError1".tr,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium,
+                                    ),
+                                    const SizedBox(
+                                      height: 10,
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 15, vertical: 10),
+                                      decoration: BoxDecoration(
+                                          color: Theme.of(context)
+                                              .textTheme
+                                              .titleLarge!
+                                              .color,
+                                          borderRadius:
+                                              BorderRadius.circular(10)),
+                                      child: InkWell(
+                                        onTap: () {
+                                          homeScreenController
+                                              .loadContentFromNetwork();
+                                        },
+                                        child: Text(
+                                          "retry".tr,
+                                          style: TextStyle(
+                                              color: Theme.of(context)
+                                                  .canvasColor),
                                         ),
-                                      ),
-                                    ]),
-                              ),
-                            )
-                          ],
-                        ),
-                      )
-                    : Obx(() {
-                        // dispose all detachached scroll controllers
-                        homeScreenController.disposeDetachedScrollControllers();
-                        final personal = Get.isRegistered<DiscoveryService>()
-                            ? Get.find<DiscoveryService>().personalSections
-                            : <dynamic>[].obs;
-                        final items = homeScreenController
-                                .isContentFetched.value
-                            ? [
-                                // Daily loop: Wave hero first, then shortcuts /
-                                // personal shelves → Quick Picks → editorial.
-                                if (homeScreenController
-                                    .showingCachedWhileOffline.isTrue)
-                                  const _OfflineHomeBanner(),
-                                const RiffWaveHero(),
-                                if (personal.isNotEmpty) ...[
-                                  const HomeShortcutGrid(),
-                                  if (Get.isRegistered<DiscoveryService>() &&
-                                      Get.find<DiscoveryService>()
-                                          .mixesUpdatedPill
-                                          .value)
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                          left: 5, top: 4),
-                                      child: Chip(
-                                        label: Text("mixesUpdated".tr),
-                                        visualDensity: VisualDensity.compact,
                                       ),
                                     ),
-                                  ...personal
-                                      .where((s) =>
-                                          s.id == 'made_for_you' ||
-                                          '${s.id}'.startsWith('because_'))
-                                      .map((s) =>
-                                          HomeDiscoverySection(section: s)),
-                                ],
-                                Obx(() {
-                                  final quickPicks =
-                                      homeScreenController.quickPicks.value;
-                                  // A fresh install has no personalized song
-                                  // shelf yet (Riff is login-less by design):
-                                  // don't reserve an empty 340px block.
-                                  if (quickPicks.songList.isEmpty) {
-                                    if (personal.isNotEmpty) {
-                                      return const SizedBox.shrink();
-                                    }
-                                    return Padding(
-                                      padding: const EdgeInsets.only(
-                                          top: 5, bottom: 15, right: 10),
-                                      child: Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.all(18),
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context).cardColor,
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text("discover".tr,
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .titleMedium),
-                                            const SizedBox(height: 6),
-                                            Text("discoverEmptyDes".tr,
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .bodyMedium),
-                                          ],
-                                        ),
+                                  ]),
+                            ),
+                          )
+                        ],
+                      ),
+                    )
+                  : Obx(() {
+                      // dispose all detachached scroll controllers
+                      homeScreenController.disposeDetachedScrollControllers();
+                      final personal = Get.isRegistered<DiscoveryService>()
+                          ? Get.find<DiscoveryService>().personalSections
+                          : <dynamic>[].obs;
+                      final items = homeScreenController
+                              .isContentFetched.value
+                          ? [
+                              // Home hierarchy (top → bottom):
+                              // title → Wave → shortcuts → Quick Picks →
+                              // personal → editorial shelves.
+                              if (homeScreenController
+                                  .showingCachedWhileOffline.isTrue)
+                                const _OfflineHomeBanner(),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                    12, 0, 12, 10),
+                                child: Text(
+                                  'home'.tr,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.copyWith(
+                                        letterSpacing: -0.35,
                                       ),
-                                    );
+                                ),
+                              ),
+                              const RiffWaveHero(),
+                              // Shortcuts always — not only after taste signal.
+                              const HomeShortcutGrid(),
+                              if (Get.isRegistered<DiscoveryService>() &&
+                                  Get.find<DiscoveryService>()
+                                      .mixesUpdatedPill
+                                      .value)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                      left: 12, top: 2, bottom: 4),
+                                  child: Chip(
+                                    label: Text("mixesUpdated".tr),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                ),
+                              if (personal.isNotEmpty)
+                                ...personal
+                                    .where((s) =>
+                                        s.id == 'made_for_you' ||
+                                        '${s.id}'.startsWith('because_'))
+                                    .map((s) =>
+                                        HomeDiscoverySection(section: s)),
+                              Obx(() {
+                                final quickPicks =
+                                    homeScreenController.quickPicks.value;
+                                // A fresh install has no personalized song
+                                // shelf yet (Riff is login-less by design):
+                                // don't reserve an empty 340px block.
+                                if (quickPicks.songList.isEmpty) {
+                                  if (personal.isNotEmpty) {
+                                    return const SizedBox.shrink();
                                   }
-                                  final scrollController = ScrollController();
-                                  homeScreenController.contentScrollControllers
-                                      .add(scrollController);
-                                  return QuickPicksWidget(
+                                  return Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                        12, 8, 12, 16),
+                                    child: Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.all(18),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context).cardColor,
+                                        borderRadius: BorderRadius.circular(
+                                            RiffTokens.radiusSm),
+                                        border: Border.fromBorderSide(
+                                            RiffTokens.hairlineBorder(
+                                                context)),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text("discover".tr,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .titleMedium),
+                                          const SizedBox(height: 6),
+                                          Text("discoverEmptyDes".tr,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }
+                                final scrollController = ScrollController();
+                                homeScreenController.contentScrollControllers
+                                    .add(scrollController);
+                                return Padding(
+                                  padding: const EdgeInsets.only(left: 8),
+                                  child: QuickPicksWidget(
                                       content: quickPicks,
-                                      scrollController: scrollController);
-                                }),
-                                ...getWidgetList(
-                                    homeScreenController.middleContent,
-                                    homeScreenController),
-                                ...getWidgetList(
-                                    homeScreenController.fixedContent,
-                                    homeScreenController),
-                                if (personal.isNotEmpty)
-                                  ...personal
-                                      .where((s) =>
-                                          s.id != 'made_for_you' &&
-                                          !'${s.id}'.startsWith('because_'))
-                                      .map((s) =>
-                                          HomeDiscoverySection(section: s)),
-                              ]
-                            : [const HomeShimmer()];
-                        return ListView.builder(
-                          padding:
-                              EdgeInsets.only(bottom: 200, top: topPadding),
-                          itemCount: items.length,
-                          itemBuilder: (context, index) => items[index],
-                        );
-                      }),
-              ),
+                                      scrollController: scrollController),
+                                );
+                              }),
+                              ...getWidgetList(
+                                  homeScreenController.middleContent,
+                                  homeScreenController),
+                              ...getWidgetList(
+                                  homeScreenController.fixedContent,
+                                  homeScreenController),
+                              if (personal.isNotEmpty)
+                                ...personal
+                                    .where((s) =>
+                                        s.id != 'made_for_you' &&
+                                        !'${s.id}'.startsWith('because_'))
+                                    .map((s) =>
+                                        HomeDiscoverySection(section: s)),
+                            ]
+                          : [const HomeShimmer()];
+                      return ListView.builder(
+                        padding:
+                            EdgeInsets.only(bottom: 200, top: topPadding),
+                        itemCount: items.length,
+                        itemBuilder: (context, index) => items[index],
+                      );
+                    }),
             ),
-            if (GetPlatform.isDesktop)
-              Align(
-                alignment: Alignment.topCenter,
-                child: LayoutBuilder(builder: (context, constraints) {
-                  return SizedBox(
-                    width: constraints.maxWidth > 800
-                        ? 800
-                        : constraints.maxWidth - 40,
-                    child: const Padding(
-                        padding: EdgeInsets.only(top: 15.0),
-                        child: DesktopSearchBar()),
-                  );
-                }),
-              )
-          ],
-        ),
+          ),
+          if (GetPlatform.isDesktop)
+            Align(
+              alignment: Alignment.topCenter,
+              child: LayoutBuilder(builder: (context, constraints) {
+                return SizedBox(
+                  width: constraints.maxWidth > 800
+                      ? 800
+                      : constraints.maxWidth - 40,
+                  child: const Padding(
+                      padding: EdgeInsets.only(top: 15.0),
+                      child: DesktopSearchBar()),
+                );
+              }),
+            )
+        ],
       );
     } else if (homeScreenController.tabIndex.value == 1) {
       return const SongsLibraryWidget();
@@ -351,7 +370,7 @@ class _OfflineHomeBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 12, 8),
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
       child: Material(
         color: theme.cardColor,
         shape: RoundedRectangleBorder(

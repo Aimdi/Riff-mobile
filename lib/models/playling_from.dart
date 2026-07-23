@@ -22,7 +22,9 @@ class PlaylingFrom {
   }
 
   get nameString {
-    if (type == PlaylingFromType.SELECTION) return "randomSelection".tr;
+    if (type == PlaylingFromType.SELECTION) {
+      return name.isNotEmpty ? name : "randomSelection".tr;
+    }
     return name;
   }
 }
