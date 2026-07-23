@@ -896,12 +896,12 @@ class PlayerController extends GetxController
         s.id.startsWith('podcast_');
   }
 
-  /// True when the current item is a YouTube *video* (not a YTM song).
-  /// Drives the in-player 16:9 video surface and video-only actions.
+  /// True when the current item can show the in-player 16:9 video surface
+  /// (music videos + YouTube-sourced podcast episodes).
   bool get isCurrentSongVideo {
     final s = currentSong.value;
     if (s == null) return false;
-    return s.isYoutubeVideo;
+    return s.canShowPlayerVideo;
   }
 
   /// Seek by a relative offset (podcast ±skip), clamped to [0, total].

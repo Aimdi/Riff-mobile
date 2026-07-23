@@ -207,7 +207,9 @@ dynamic parseVideo(dynamic result) {
     'artists': parseSongArtistsRuns(runs.sublist(0, artistsLen)),
     'playlistId': nav(result, navigation_playlist_id),
     'thumbnails': nav(result, thumbnail_renderer),
-    'views': runs[runs.length - 1]['text'].split(' ')[0]
+    'views': runs[runs.length - 1]['text'].split(' ')[0],
+    'resultType': 'video',
+    'videoType': 'MUSIC_VIDEO_TYPE_UGC',
   });
 }
 
@@ -1111,6 +1113,9 @@ MediaItem? parseEpisodeItem(Map<String, dynamic> data,
       'date': date,
       'description': descriptionText,
       'videoType': 'MUSIC_VIDEO_TYPE_PODCAST_EPISODE',
+      // Spotify-style: YTM podcast episodes are real YouTube videos.
+      'showVideo': true,
+      'podcastSource': 'yt_music_podcast',
     });
   } catch (_) {
     return null;

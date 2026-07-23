@@ -136,7 +136,10 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
 
   Future<void> toggleMixMode() async {
     final pl = playlist.value;
-    if (pl.kind == 'podcast' || pl.playlistId.startsWith('MPSP')) {
+    if (pl.kind == 'podcast' ||
+        pl.kind == 'yt_channel' ||
+        pl.playlistId.startsWith('MPSP') ||
+        RegExp(r'^UC[\w-]{20,}$').hasMatch(pl.playlistId)) {
       return;
     }
     final next = !isMixMode.value;
@@ -294,15 +297,20 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
       return;
     }
 
-    final content =
-        await _musicServices.getPlaylistOrAlbumSongs(playlistId: id);
+    final isYtChannel = playlist.value.kind == 'yt_channel' ||
+        RegExp(r'^UC[\w-]{20,}$').hasMatch(id);
+    final content = isYtChannel
+        ? await _musicServices.getChannelAsPodcast(id)
+        : await _musicServices.getPlaylistOrAlbumSongs(playlistId: id);
 
     if (isIdOnly) {
       content['playlistId'] = id;
       playlist.value = Playlist.fromJson(content);
       _animationController.forward();
-    } else if (content['kind'] == 'podcast' || id.startsWith('MPSP')) {
-      // Keep episode list metadata in sync for podcasts
+    } else if (content['kind'] == 'podcast' ||
+        content['kind'] == 'yt_channel' ||
+        id.startsWith('MPSP') ||
+        isYtChannel) {
       final thumbs = content['thumbnails'];
       final newThumb = Thumbnail.bestUrl(
         thumbs,
@@ -312,7 +320,8 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
       playlist.value = playlist.value.copyWith(
         title: content['title']?.toString() ?? playlist.value.title,
         thumbnailUrl: newThumb.isNotEmpty ? newThumb : null,
-        kind: 'podcast',
+        kind: content['kind']?.toString() ??
+            (isYtChannel ? 'yt_channel' : 'podcast'),
       );
     }
     songList.value = List<MediaItem>.from(content['tracks'] ?? const []);
@@ -330,7 +339,9 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
   bool _isPodcastContent(dynamic content) {
     if (content is Playlist) {
       return content.kind == 'podcast' ||
+          content.kind == 'yt_channel' ||
           content.playlistId.startsWith('MPSP') ||
+          RegExp(r'^UC[\w-]{20,}$').hasMatch(content.playlistId) ||
           (content.description?.toLowerCase().contains('podcast') ?? false);
     }
     return false;
@@ -338,7 +349,10 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
 
   @override
   Future<bool> checkIfAddedToLibrary(String id) async {
-    if (id.startsWith('MPSP') || playlist.value.kind == 'podcast') {
+    if (id.startsWith('MPSP') ||
+        playlist.value.kind == 'podcast' ||
+        playlist.value.kind == 'yt_channel' ||
+        RegExp(r'^UC[\w-]{20,}$').hasMatch(id)) {
       final box = await Hive.openBox('LibraryPodcasts');
       isAddedToLibrary.value = box.containsKey(id);
       if (isAddedToLibrary.value) {
@@ -360,8 +374,13 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
         final box = await Hive.openBox('LibraryPodcasts');
         final id = content.playlistId as String;
         if (add) {
+          final kind = content is Playlist && content.kind == 'yt_channel'
+              ? 'yt_channel'
+              : (RegExp(r'^UC[\w-]{20,}$').hasMatch(id)
+                  ? 'yt_channel'
+                  : 'podcast');
           final json = content is Playlist
-              ? {...content.toJson(), 'kind': 'podcast'}
+              ? {...content.toJson(), 'kind': kind}
               : content.toJson();
           await box.put(id, json);
         } else {
