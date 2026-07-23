@@ -235,7 +235,8 @@ class PlayerController extends GetxController
         buttonState.value = PlayButtonState.playing;
         if (playbackError.value != null) clearPlaybackError();
       } else {
-        _audioHandler.seek(Duration.zero);
+        // Use seek() so the muted video surface gets videoSeekSignal.
+        seek(Duration.zero);
         _audioHandler.pause();
       }
 
@@ -902,8 +903,9 @@ class PlayerController extends GetxController
   }
 
   void seek(Duration position) {
+    // videoSeekSignal is bumped inside MyAudioHandler.seek so notification /
+    // media-session scrubs stay aligned with the muted video surface too.
     _audioHandler.seek(position);
-    videoSeekSignal.value++;
   }
 
   /// True when the currently playing item is a podcast episode (from the
