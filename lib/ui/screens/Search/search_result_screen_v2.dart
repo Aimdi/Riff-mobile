@@ -6,6 +6,7 @@ import 'package:harmonymusic/ui/widgets/search_related_widgets.dart';
 
 import '../../navigator.dart';
 import '../../widgets/separate_tab_item_widget.dart';
+import '../Plugins/seeker_screen.dart';
 import 'search_result_screen_controller.dart';
 
 class SearchResultScreenBN extends StatelessWidget {
@@ -137,6 +138,14 @@ class SearchResultScreenBN extends StatelessWidget {
                                   ),
                                   ...searchResScrController.railItems
                                       .map((tabName) {
+                                    if (searchResScrController
+                                        .isSoulseekRail(tabName)) {
+                                      return SeekerScreen(
+                                        embedded: true,
+                                        initialQuery: searchResScrController
+                                            .queryString.value,
+                                      );
+                                    }
                                     if (tabName == "Songs" ||
                                         tabName == "Videos") {
                                       return SeparateTabItemWidget(

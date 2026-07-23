@@ -5,6 +5,7 @@ import 'package:harmonymusic/ui/screens/Settings/settings_screen_controller.dart
 import '../../../utils/helper.dart';
 import '../Home/home_screen_controller.dart';
 import '/services/music_service.dart';
+import '/services/plugin_service.dart';
 import '/ui/widgets/sort_widget.dart';
 
 class SearchResultScreenController extends GetxController
@@ -25,6 +26,9 @@ class SearchResultScreenController extends GetxController
   //ScrollContollers List
   final Map<String, ScrollController> scrollControllers = {};
 
+  /// Extra Home-search sidebar destination (not a YouTube Music filter).
+  static const soulseekRailItem = 'Soulseek';
+
   static const preferredRailOrder = [
     'Songs',
     'Videos',
@@ -35,6 +39,21 @@ class SearchResultScreenController extends GetxController
     'Podcasts',
     'Episodes',
   ];
+
+  bool get soulseekAvailable =>
+      Get.isRegistered<PluginService>() &&
+      Get.find<PluginService>().isInstalled(PluginIds.seeker);
+
+  bool isSoulseekRail(String? name) => name == soulseekRailItem;
+
+  void _ensureSoulseekRail() {
+    if (!soulseekAvailable) return;
+    if (!railItems.contains(soulseekRailItem)) {
+      railItems.add(soulseekRailItem);
+    }
+    scrollControllers.putIfAbsent(
+        soulseekRailItem, () => ScrollController());
+  }
 
   @override
   void onReady() {
@@ -58,48 +77,54 @@ class SearchResultScreenController extends GetxController
       tabController?.animateTo(value);
     }
 
-    if (value > 0 &&
-        (!separatedResultContent.containsKey(railItems[value - 1]) ||
-            separatedResultContent[railItems[value - 1]].isEmpty)) {
+    if (value > 0) {
       final tabName = railItems[value - 1];
-      final itemCount = (tabName == 'Songs' ||
-              tabName == 'Videos' ||
-              tabName == 'Episodes')
-          ? 25
-          : 10;
-      try {
-        final endpoints =
-            (resultContent['searchEndpoint'] as Map?)?.cast<String, dynamic>() ??
-                {};
-        final x = await musicServices.search(queryString.value,
-            filter: tabName.replaceAll(' ', '_').toLowerCase(),
-            limit: itemCount,
-            filterParams: endpoints[tabName]);
-        separatedResultContent[tabName] =
-            _listFromSearchResponse(x, tabName);
-        additionalParamNext[tabName] = x['params'];
+      // Soulseek is in-app plugin search — never hit YTM filters.
+      if (isSoulseekRail(tabName)) {
         isSeparatedResultContentFetced.value = true;
-        final scrollController = scrollControllers[tabName];
-        scrollController?.addListener(() {
-          if (scrollController.hasClients == false) return;
-          double maxScroll = scrollController.position.maxScrollExtent;
-          double currentScroll = scrollController.position.pixels;
-          final next = additionalParamNext[tabName];
-          if (next is! Map) return;
-          if (currentScroll >= maxScroll / 2 &&
-              next['additionalParams'] !=
-                  '&ctoken=null&continuation=null') {
-            if (!continuationInProgress) {
-              printINFO("Acchhsk");
-              continuationInProgress = true;
-              getContinuationContents();
+        return;
+      }
+      if (!separatedResultContent.containsKey(tabName) ||
+          separatedResultContent[tabName].isEmpty) {
+        final itemCount = (tabName == 'Songs' ||
+                tabName == 'Videos' ||
+                tabName == 'Episodes')
+            ? 25
+            : 10;
+        try {
+          final endpoints = (resultContent['searchEndpoint'] as Map?)
+                  ?.cast<String, dynamic>() ??
+              {};
+          final x = await musicServices.search(queryString.value,
+              filter: tabName.replaceAll(' ', '_').toLowerCase(),
+              limit: itemCount,
+              filterParams: endpoints[tabName]);
+          separatedResultContent[tabName] =
+              _listFromSearchResponse(x, tabName);
+          additionalParamNext[tabName] = x['params'];
+          isSeparatedResultContentFetced.value = true;
+          final scrollController = scrollControllers[tabName];
+          scrollController?.addListener(() {
+            if (scrollController.hasClients == false) return;
+            double maxScroll = scrollController.position.maxScrollExtent;
+            double currentScroll = scrollController.position.pixels;
+            final next = additionalParamNext[tabName];
+            if (next is! Map) return;
+            if (currentScroll >= maxScroll / 2 &&
+                next['additionalParams'] !=
+                    '&ctoken=null&continuation=null') {
+              if (!continuationInProgress) {
+                printINFO("Acchhsk");
+                continuationInProgress = true;
+                getContinuationContents();
+              }
             }
-          }
-        });
-      } catch (e) {
-        printERROR('Search filter "$tabName" failed: $e');
-        separatedResultContent[tabName] = [];
-        isSeparatedResultContentFetced.value = true;
+          });
+        } catch (e) {
+          printERROR('Search filter "$tabName" failed: $e');
+          separatedResultContent[tabName] = [];
+          isSeparatedResultContentFetced.value = true;
+        }
       }
     }
     isSeparatedResultContentFetced.value = true;
@@ -116,7 +141,16 @@ class SearchResultScreenController extends GetxController
   }
 
   Future<void> getContinuationContents() async {
-    final tabName = railItems[navigationRailCurrentIndex.value - 1];
+    final idx = navigationRailCurrentIndex.value - 1;
+    if (idx < 0 || idx >= railItems.length) {
+      continuationInProgress = false;
+      return;
+    }
+    final tabName = railItems[idx];
+    if (isSoulseekRail(tabName)) {
+      continuationInProgress = false;
+      return;
+    }
     try {
       final next = additionalParamNext[tabName];
       if (next is! Map) {
@@ -136,6 +170,7 @@ class SearchResultScreenController extends GetxController
   }
 
   void viewAllCallback(String text) {
+    if (isSoulseekRail(text)) return;
     onDestinationSelected(railItems.indexOf(text) + 1);
   }
 
@@ -150,6 +185,8 @@ class SearchResultScreenController extends GetxController
         printERROR('Search failed: $e');
         resultContent.value = {};
         railItems.clear();
+        _ensureSoulseekRail();
+        _initDesktopTabsIfNeeded();
         isResultContentFetced.value = true;
         return;
       }
@@ -168,6 +205,7 @@ class SearchResultScreenController extends GetxController
       for (final key in resultContent.keys) {
         if (key == 'searchEndpoint' || key == 'params') continue;
         if (preferredRailOrder.contains(key)) continue;
+        if (isSoulseekRail(key)) continue;
         if (resultContent[key] is List &&
             (resultContent[key] as List).isNotEmpty) {
           available.add(key);
@@ -178,6 +216,7 @@ class SearchResultScreenController extends GetxController
         ...preferredRailOrder.where(available.contains),
         ...available.where((k) => !preferredRailOrder.contains(k)),
       ];
+      _ensureSoulseekRail();
 
       final len =
           railItems.where((element) => element.contains('playlists')).length;
@@ -186,32 +225,40 @@ class SearchResultScreenController extends GetxController
           calH >= railitemHeight.value ? calH : railitemHeight.value;
 
       for (String item in railItems) {
-        scrollControllers[item] = ScrollController();
+        scrollControllers.putIfAbsent(item, () => ScrollController());
       }
 
-      if (GetPlatform.isDesktop ||
-          Get.find<SettingsScreenController>().isBottomNavBarEnabled.isTrue) {
-        for (var element in railItems) {
-          separatedResultContent[element] = [];
-        }
-
-        tabController =
-            TabController(length: railItems.length + 1, vsync: this);
-
-        tabController?.animation?.addListener(() {
-          int indexChange = tabController!.offset.round();
-          int index = tabController!.index + indexChange;
-
-          if (index != navigationRailCurrentIndex.value) {
-            onDestinationSelected(index, ignoreTabCommand: true);
-          }
-        });
-      }
+      _initDesktopTabsIfNeeded();
       isResultContentFetced.value = true;
     }
   }
 
+  void _initDesktopTabsIfNeeded() {
+    if (!(GetPlatform.isDesktop ||
+        Get.find<SettingsScreenController>().isBottomNavBarEnabled.isTrue)) {
+      return;
+    }
+    for (var element in railItems) {
+      if (!isSoulseekRail(element)) {
+        separatedResultContent.putIfAbsent(element, () => []);
+      }
+    }
+
+    tabController?.dispose();
+    tabController = TabController(length: railItems.length + 1, vsync: this);
+
+    tabController?.animation?.addListener(() {
+      int indexChange = tabController!.offset.round();
+      int index = tabController!.index + indexChange;
+
+      if (index != navigationRailCurrentIndex.value) {
+        onDestinationSelected(index, ignoreTabCommand: true);
+      }
+    });
+  }
+
   void onSort(SortType sortType, bool isAscending, String title) {
+    if (isSoulseekRail(title)) return;
     if (title == 'Songs' || title == 'Videos' || title == 'Episodes') {
       final songList = separatedResultContent[title].toList();
       sortSongsNVideos(songList, sortType, isAscending);
@@ -234,7 +281,7 @@ class SearchResultScreenController extends GetxController
   @override
   void onClose() {
     for (String item in railItems) {
-      (scrollControllers[item])!.dispose();
+      scrollControllers[item]?.dispose();
     }
     Get.find<HomeScreenController>().whenHomeScreenOnTop();
     tabController?.dispose();

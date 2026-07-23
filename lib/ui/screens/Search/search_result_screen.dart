@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/screens/Plugins/seeker_screen.dart';
 import '/ui/screens/Search/search_result_screen_v2.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import '../../navigator.dart';
@@ -146,6 +147,15 @@ class Body extends StatelessWidget {
         final topPadding = context.isLandscape ? 50.0 : 80.0;
         final name = searchResScrController.railItems[
             searchResScrController.navigationRailCurrentIndex.value - 1];
+        if (searchResScrController.isSoulseekRail(name)) {
+          return Padding(
+            padding: EdgeInsets.only(top: topPadding),
+            child: SeekerScreen(
+              embedded: true,
+              initialQuery: searchResScrController.queryString.value,
+            ),
+          );
+        }
         return SeparateTabItemWidget(
           items: const [],
           title: name,

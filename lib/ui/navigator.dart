@@ -103,8 +103,17 @@ class ScreenNavigation extends StatelessWidget {
                   page: () => const SoulSyncScreen(), settings: settings);
 
             case ScreenNavigationSetup.seekerScreen:
+              final args = settings.arguments;
+              final initialQuery = args is String
+                  ? args
+                  : (args is Map ? '${args['query'] ?? ''}' : null);
               return GetPageRoute(
-                  page: () => const SeekerScreen(), settings: settings);
+                  page: () => SeekerScreen(
+                        initialQuery: (initialQuery ?? '').trim().isEmpty
+                            ? null
+                            : initialQuery!.trim(),
+                      ),
+                  settings: settings);
 
             case ScreenNavigationSetup.searchScreen:
               return GetPageRoute(
