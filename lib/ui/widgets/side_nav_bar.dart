@@ -67,6 +67,7 @@ class _SideNavBarState extends State<SideNavBar> {
       labelKey: 'settings',
       icon: Icons.settings_rounded,
       iconOutlined: Icons.settings_outlined,
+      iconOnly: true,
     ),
   ];
 
@@ -191,7 +192,8 @@ class _SideNavBarState extends State<SideNavBar> {
                     SideBarItem(
                       iconSelected: d.icon,
                       iconUnselected: d.iconOutlined,
-                      text: d.labelKey.tr,
+                      // Settings: cog only — no "Settings" label on the rail.
+                      text: d.iconOnly ? '' : d.labelKey.tr,
                     ),
                 ],
               ),
@@ -216,7 +218,7 @@ class _SideNavBarState extends State<SideNavBar> {
     final accent = Theme.of(context).colorScheme.secondary;
     final normal = Theme.of(context).textTheme.titleLarge!.color;
     final color = isSelected ? accent : normal;
-    return InkWell(
+    final item = InkWell(
       onTap: () => controller.onSideBarTabSelected(destination.index),
       child: Padding(
         padding: EdgeInsets.symmetric(
@@ -229,18 +231,20 @@ class _SideNavBarState extends State<SideNavBar> {
               size: sub ? 18 : 22,
               color: color,
             ),
-            const SizedBox(height: 6),
-            RotatedBox(
-              quarterTurns: -1,
-              child: Text(
-                destination.labelKey.tr,
-                style: TextStyle(
-                  color: color,
-                  fontSize: sub ? 13 : 16,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+            if (!destination.iconOnly) ...[
+              const SizedBox(height: 6),
+              RotatedBox(
+                quarterTurns: -1,
+                child: Text(
+                  destination.labelKey.tr,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: sub ? 13 : 16,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  ),
                 ),
               ),
-            ),
+            ],
             if (trailing != null) ...[
               const SizedBox(height: 4),
               trailing,
@@ -249,6 +253,8 @@ class _SideNavBarState extends State<SideNavBar> {
         ),
       ),
     );
+    if (!destination.iconOnly) return item;
+    return Tooltip(message: destination.labelKey.tr, child: item);
   }
 }
 
@@ -258,10 +264,14 @@ class _RailDestination {
     required this.labelKey,
     required this.icon,
     required this.iconOutlined,
+    this.iconOnly = false,
   });
 
   final int index;
   final String labelKey;
   final IconData icon;
   final IconData iconOutlined;
+
+  /// When true, render only the glyph (no rail label text).
+  final bool iconOnly;
 }
