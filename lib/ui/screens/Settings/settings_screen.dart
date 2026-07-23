@@ -16,6 +16,7 @@ import '/services/ban_service.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/listenbrainz_service.dart';
 import '/services/music_service.dart';
+import '/services/video_stream_service.dart';
 import '/services/yt_auth_service.dart';
 import 'yt_login_screen.dart';
 import '../Home/home_screen_controller.dart';
@@ -351,6 +352,30 @@ class SettingsScreen extends StatelessWidget {
                           ),
                         ],
                         onChanged: settingsController.setStreamingQuality,
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    contentPadding: const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("videoQuality".tr),
+                    subtitle: Text("videoQualityDes".tr,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    trailing: Obx(
+                      () => DropdownButton(
+                        dropdownColor: Theme.of(context).cardColor,
+                        underline: const SizedBox.shrink(),
+                        value: settingsController.videoQuality.value,
+                        items: [
+                          DropdownMenuItem(
+                            value: VideoQuality.low,
+                            child: Text("low".tr),
+                          ),
+                          DropdownMenuItem(
+                            value: VideoQuality.high,
+                            child: Text("high".tr),
+                          ),
+                        ],
+                        onChanged: settingsController.setVideoQuality,
                       ),
                     ),
                   ),

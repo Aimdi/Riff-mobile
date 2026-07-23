@@ -45,6 +45,7 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
   Worker? _panelWorker;
   Worker? _seekWorker;
   Worker? _speedWorker;
+  Worker? _qualityWorker;
   Timer? _syncTimer;
   Duration _lastAudioPos = Duration.zero;
 
@@ -66,10 +67,14 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
     _panelWorker = ever(_player.isPlayerPanelOpen, (_) => _onPanelOpenChanged());
     _seekWorker = ever(_player.videoSeekSignal, (_) => _onExternalSeek());
     if (Get.isRegistered<SettingsScreenController>()) {
+      final settings = Get.find<SettingsScreenController>();
       _speedWorker = ever(
-        Get.find<SettingsScreenController>().playbackSpeed,
+        settings.playbackSpeed,
         (_) => _applySpeed(),
       );
+      _qualityWorker = ever(settings.videoQuality, (_) {
+        if (mounted) _boot(widget.song);
+      });
     }
     // Soft-sync rarely — frequent seeks were a major hitch source.
     _syncTimer = Timer.periodic(const Duration(seconds: 5), (_) {
@@ -106,6 +111,7 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
     _panelWorker?.dispose();
     _seekWorker?.dispose();
     _speedWorker?.dispose();
+    _qualityWorker?.dispose();
     _syncTimer?.cancel();
     final c = _controller;
     _controller = null;
@@ -159,8 +165,13 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
     }
 
     try {
-      final info = await VideoStreamService.resolve(song.id)
-          .timeout(const Duration(seconds: 12));
+      final quality = Get.isRegistered<SettingsScreenController>()
+          ? Get.find<SettingsScreenController>().videoQuality.value
+          : VideoQuality.high;
+      final info = await VideoStreamService.resolve(
+        song.id,
+        quality: quality,
+      ).timeout(const Duration(seconds: 12));
       if (!mounted || widget.song.id != song.id) return;
       if (info == null) {
         setState(() {

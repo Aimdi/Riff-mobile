@@ -6,6 +6,15 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 import '/utils/helper.dart';
 
+/// In-player muted video surface quality.
+///
+/// Both tiers prefer **video-only** H.264 so ExoPlayer does not decode a
+/// discarded muxed audio track. High caps at 720p to keep decode cost sane.
+enum VideoQuality {
+  low,
+  high,
+}
+
 /// Video URL for the muted in-player surface.
 ///
 /// Audio stays on just_audio. Prefer low-res **video-only** streams so ExoPlayer
@@ -39,22 +48,29 @@ class VideoStreamService {
   static const _newPipeChannel = MethodChannel('riff/newpipe');
   static final Map<String, VideoStreamInfo> _cache = {};
 
+  static String _cacheKey(String videoId, VideoQuality quality) =>
+      '$videoId:${quality.name}';
+
   /// Best effort video URL for [videoId] (muted player surface).
-  static Future<VideoStreamInfo?> resolve(String videoId) async {
+  static Future<VideoStreamInfo?> resolve(
+    String videoId, {
+    VideoQuality quality = VideoQuality.high,
+  }) async {
     final id = videoId.trim();
     if (id.isEmpty) return null;
-    final cached = _cache[id];
+    final key = _cacheKey(id, quality);
+    final cached = _cache[key];
     if (cached != null) return cached;
 
-    final viaNewPipe = await _viaNewPipe(id);
+    final viaNewPipe = await _viaNewPipe(id, quality);
     if (viaNewPipe != null) {
-      _cache[id] = viaNewPipe;
+      _cache[key] = viaNewPipe;
       return viaNewPipe;
     }
 
-    final viaExplode = await _viaExplode(id);
+    final viaExplode = await _viaExplode(id, quality);
     if (viaExplode != null) {
-      _cache[id] = viaExplode;
+      _cache[key] = viaExplode;
       return viaExplode;
     }
     return null;
@@ -63,12 +79,16 @@ class VideoStreamService {
   static void clearCache([String? videoId]) {
     if (videoId == null) {
       _cache.clear();
-    } else {
-      _cache.remove(videoId);
+      return;
     }
+    final id = videoId.trim();
+    _cache.removeWhere((k, _) => k == id || k.startsWith('$id:'));
   }
 
-  static Future<VideoStreamInfo?> _viaNewPipe(String videoId) async {
+  static Future<VideoStreamInfo?> _viaNewPipe(
+    String videoId,
+    VideoQuality quality,
+  ) async {
     if (!Platform.isAndroid) return null;
     try {
       final res = await _newPipeChannel
@@ -89,14 +109,17 @@ class VideoStreamService {
           hasAudio: e['hasAudio'] != false,
         ));
       }
-      return pickBestForPlayer(parsed);
+      return pickBestForPlayer(parsed, quality: quality);
     } catch (e) {
       printERROR('NewPipe muxed video failed ($videoId): $e');
     }
     return null;
   }
 
-  static Future<VideoStreamInfo?> _viaExplode(String videoId) async {
+  static Future<VideoStreamInfo?> _viaExplode(
+    String videoId,
+    VideoQuality quality,
+  ) async {
     final yt = YoutubeExplode();
     try {
       StreamManifest? res;
@@ -138,7 +161,7 @@ class VideoStreamService {
               hasAudio: true,
             )),
       ];
-      return pickBestForPlayer(parsed);
+      return pickBestForPlayer(parsed, quality: quality);
     } catch (e) {
       printERROR('Explode video failed ($videoId): $e');
       return null;
@@ -147,58 +170,105 @@ class VideoStreamService {
     }
   }
 
-  /// Prefer low-res video-only (no discarded audio decode), then low muxed.
+  /// Prefer video-only (no discarded audio decode), then quality-tier height.
   /// Exposed for unit tests.
-  static VideoStreamInfo? pickBestForPlayer(List<VideoStreamInfo> streams) {
+  static VideoStreamInfo? pickBestForPlayer(
+    List<VideoStreamInfo> streams, {
+    VideoQuality quality = VideoQuality.low,
+  }) {
     if (streams.isEmpty) return null;
 
-    int score(VideoStreamInfo s) {
-      var sc = 0;
-      final h = s.height;
-      if (h > 0 && h <= 144) {
-        sc += 100;
-      } else if (h <= 240) {
-        sc += 90;
-      } else if (h <= 360) {
-        sc += 55;
-      } else if (h <= 480) {
-        sc += 25;
-      } else if (h <= 720) {
-        sc += 5;
-      } else {
-        sc -= 40;
-      }
-
-      // Video-only avoids decoding muxed AAC that we immediately mute.
-      if (!s.hasAudio && h > 0 && h <= 360) {
-        sc += 45;
-      } else if (!s.hasAudio && h > 360) {
-        sc += 10;
-      }
-
-      final mime = (s.mimeType ?? '').toLowerCase();
-      // Prefer H.264/MP4 hardware paths over VP9/WebM on mid-range Android.
-      if (mime.contains('mp4') ||
-          mime.contains('avc') ||
-          mime.contains('h264') ||
-          mime == 'mp4') {
-        sc += 12;
-      }
-      if (mime.contains('webm') ||
-          mime.contains('vp9') ||
-          mime.contains('vp09')) {
-        sc -= 8;
-      }
-      return sc;
-    }
+    final score =
+        quality == VideoQuality.high ? _scoreHigh : _scoreLow;
 
     final ranked = List<VideoStreamInfo>.from(streams)
       ..sort((a, b) {
         final d = score(b).compareTo(score(a));
         if (d != 0) return d;
-        return a.height.compareTo(b.height);
+        // High: prefer taller when scores tie; Low: prefer shorter.
+        return quality == VideoQuality.high
+            ? b.height.compareTo(a.height)
+            : a.height.compareTo(b.height);
       });
     return ranked.first;
+  }
+
+  /// Battery/CPU-friendly: 144–240p video-only H.264.
+  static int _scoreLow(VideoStreamInfo s) {
+    var sc = 0;
+    final h = s.height;
+    if (h > 0 && h <= 144) {
+      sc += 100;
+    } else if (h <= 240) {
+      sc += 90;
+    } else if (h <= 360) {
+      sc += 55;
+    } else if (h <= 480) {
+      sc += 25;
+    } else if (h <= 720) {
+      sc += 5;
+    } else {
+      sc -= 40;
+    }
+
+    // Video-only avoids decoding muxed AAC that we immediately mute.
+    if (!s.hasAudio && h > 0 && h <= 360) {
+      sc += 45;
+    } else if (!s.hasAudio && h > 360) {
+      sc += 10;
+    }
+
+    sc += _codecBonus(s);
+    return sc;
+  }
+
+  /// Sharper picture without 1080p+ or muxed audio decode: prefer ≤720p
+  /// video-only H.264 (480–720 sweet spot).
+  static int _scoreHigh(VideoStreamInfo s) {
+    var sc = 0;
+    final h = s.height;
+    if (h > 720) {
+      // 1080p+ is a common hitch source on mid-range devices.
+      sc -= 50;
+    } else if (h >= 720) {
+      sc += 100;
+    } else if (h >= 480) {
+      sc += 88;
+    } else if (h >= 360) {
+      sc += 55;
+    } else if (h >= 240) {
+      sc += 30;
+    } else if (h > 0) {
+      sc += 10;
+    }
+
+    // Video-only is the main lag win at any height.
+    if (!s.hasAudio) {
+      sc += 50;
+    } else {
+      sc -= 20;
+    }
+
+    sc += _codecBonus(s);
+    return sc;
+  }
+
+  static int _codecBonus(VideoStreamInfo s) {
+    final mime = (s.mimeType ?? '').toLowerCase();
+    // Prefer H.264/MP4 hardware paths over VP9/WebM on mid-range Android.
+    var sc = 0;
+    if (mime.contains('mp4') ||
+        mime.contains('avc') ||
+        mime.contains('h264') ||
+        mime == 'mp4') {
+      sc += 12;
+    }
+    if (mime.contains('webm') ||
+        mime.contains('vp9') ||
+        mime.contains('vp09')) {
+      sc -= 8;
+    }
+    return sc;
   }
 
   static int _asInt(dynamic v) {

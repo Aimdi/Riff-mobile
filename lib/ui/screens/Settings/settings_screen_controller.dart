@@ -15,6 +15,7 @@ import '../../widgets/snackbar.dart';
 import '../../../utils/helper.dart';
 import '/services/music_service.dart';
 import '/services/sponsorblock_service.dart';
+import '/services/video_stream_service.dart';
 import '/services/yt_auth_service.dart';
 import '/ui/player/player_controller.dart';
 import '../Home/home_screen_controller.dart';
@@ -44,6 +45,8 @@ class SettingsScreenController extends GetxController {
   final virtualizer = 0.obs;
   final noOfHomeScreenContent = 3.obs;
   final streamingQuality = AudioQuality.High.obs;
+  /// In-player muted video surface (Low = 144–240p, High = ≤720p video-only).
+  final videoQuality = VideoQuality.high.obs;
   final playerUi = 0.obs;
   final slidableActionEnabled = true.obs;
   final isIgnoringBatteryOptimizations = false.obs;
@@ -63,7 +66,7 @@ class SettingsScreenController extends GetxController {
   final keepScreenAwake = false.obs;
   final restorePlaybackSession = false.obs;
   final cacheHomeScreenData = true.obs;
-  final currentVersion = "V1.7.65";
+  final currentVersion = "V1.7.66";
 
   @override
   void onInit() {
@@ -131,6 +134,14 @@ class SettingsScreenController extends GetxController {
     cacheHomeScreenData.value = setBox.get("cacheHomeScreenData") ?? true;
     streamingQuality.value =
         AudioQuality.values[setBox.get('streamingQuality')];
+    final videoQIndex = setBox.get('videoQuality');
+    if (videoQIndex is int &&
+        videoQIndex >= 0 &&
+        videoQIndex < VideoQuality.values.length) {
+      videoQuality.value = VideoQuality.values[videoQIndex];
+    } else {
+      videoQuality.value = VideoQuality.high;
+    }
     playerUi.value = isDesktop ? 0 : (setBox.get('playerUi') ?? 0);
     backgroundPlayEnabled.value = setBox.get("backgroundPlayEnabled") ?? true;
     keepScreenAwake.value =
@@ -176,6 +187,13 @@ class SettingsScreenController extends GetxController {
   void setStreamingQuality(dynamic val) {
     setBox.put("streamingQuality", AudioQuality.values.indexOf(val));
     streamingQuality.value = val;
+  }
+
+  void setVideoQuality(dynamic val) {
+    if (val is! VideoQuality) return;
+    setBox.put("videoQuality", VideoQuality.values.indexOf(val));
+    videoQuality.value = val;
+    VideoStreamService.clearCache();
   }
 
   void setPlayerUi(dynamic val) {

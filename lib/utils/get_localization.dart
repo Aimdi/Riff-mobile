@@ -2030,6 +2030,8 @@ Map<String, Map<String, String>> get keys => {
   "loudnessNormalizationDes": "Sets same lavel of loudness for all songs (Experimental) (Will not work on songs downloaded on previous version(< v1.10.0))",
   "streamingQuality": "Streaming quality",
   "streamingQualityDes": "Quality of music stream",
+  "videoQuality": "Video quality",
+  "videoQualityDes": "In-player video clarity. High uses up to 720p video-only; Low uses a lighter stream",
   "disableTransitionAnimation": "Disable transition animation",
   "disableTransitionAnimationDes": "Enable this option to disable tab transition animation",
   "enableSlidableAction": "Enable slidable actions",
