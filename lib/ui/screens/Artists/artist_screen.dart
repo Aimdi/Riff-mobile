@@ -217,7 +217,10 @@ class AboutArtist extends StatelessWidget {
                           .isArtistContentFetced.isFalse) {
                         return const SizedBox.shrink();
                       }
-                      final id = artistScreenController.artist_.browseId;
+                      final rawId = artistScreenController.artist_.browseId;
+                      final id = rawId.startsWith('MPLA')
+                          ? rawId.substring(4)
+                          : rawId;
                       if (!Get.isRegistered<LibraryPodcastsController>()) {
                         return const SizedBox.shrink();
                       }
@@ -251,12 +254,17 @@ class AboutArtist extends StatelessWidget {
                                   'YouTube channel',
                               kind: 'yt_channel',
                             );
-                            await lib.addToLibrary(pl);
+                            final saved = await lib.subscribeYoutubeChannel(
+                              pl.playlistId,
+                              seed: pl,
+                            );
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                   snackbar(
                                 context,
-                                'subscribedAsPodcast'.tr,
+                                saved != null
+                                    ? 'subscribedAsPodcast'.tr
+                                    : 'operationFailed'.tr,
                                 size: SanckBarSize.MEDIUM,
                               ));
                             }

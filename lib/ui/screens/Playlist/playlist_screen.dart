@@ -271,6 +271,19 @@ class PlaylistScreen extends StatelessWidget {
                                 : playlistController.songList.length + 3,
                             itemBuilder: (_, index) {
                               if (index == 0) {
+                                // Podcasts / YT channels: no music action strip
+                                // (play/shuffle/download/…). Follow lives under
+                                // the title in the header row (index == 1).
+                                final pl0 =
+                                    playlistController.playlist.value;
+                                final isPodcastPage = pl0.kind == 'podcast' ||
+                                    pl0.kind == 'yt_channel' ||
+                                    pl0.playlistId.startsWith('MPSP') ||
+                                    RegExp(r'^UC[\w-]{20,}$')
+                                        .hasMatch(pl0.playlistId);
+                                if (isPodcastPage) {
+                                  return const SizedBox.shrink();
+                                }
                                 return Padding(
                                   padding: const EdgeInsets.only(left: 15.0),
                                   child: SizedBox(
@@ -676,7 +689,9 @@ class PlaylistScreen extends StatelessWidget {
                                 final description = pl.description;
                                 final isPodcast = pl.kind == 'podcast' ||
                                     pl.playlistId.startsWith('MPSP') ||
-                                    pl.kind == 'yt_channel';
+                                    pl.kind == 'yt_channel' ||
+                                    RegExp(r'^UC[\w-]{20,}$')
+                                        .hasMatch(pl.playlistId);
 
                                 return AnimatedBuilder(
                                   animation:
@@ -892,7 +907,10 @@ class PlaylistScreen extends StatelessWidget {
 
                               final pl = playlistController.playlist.value;
                               final isPodcastList = pl.kind == 'podcast' ||
-                                  pl.playlistId.startsWith('MPSP');
+                                  pl.kind == 'yt_channel' ||
+                                  pl.playlistId.startsWith('MPSP') ||
+                                  RegExp(r'^UC[\w-]{20,}$')
+                                      .hasMatch(pl.playlistId);
                               final song =
                                   playlistController.songList[index - 3];
                               final songIndex = index - 3;
@@ -967,7 +985,9 @@ class PlaylistScreen extends StatelessWidget {
                 Obx(() {
                   final pl = playlistController.playlist.value;
                   final isPodcastList = pl.kind == 'podcast' ||
-                      pl.playlistId.startsWith('MPSP');
+                      pl.kind == 'yt_channel' ||
+                      pl.playlistId.startsWith('MPSP') ||
+                      RegExp(r'^UC[\w-]{20,}$').hasMatch(pl.playlistId);
                   if (!playlistController.showSimilarPodcasts.value ||
                       !isPodcastList) {
                     return const SizedBox.shrink();

@@ -683,20 +683,30 @@ class MusicServices extends getx.GetxService {
   /// can optionally show a 16:9 video surface.
   Future<Map<String, dynamic>> getChannelAsPodcast(String channelId,
       {int limit = 60}) async {
+    // Artist browse ids sometimes arrive as MPLA + UC…
+    if (channelId.startsWith('MPLA')) {
+      channelId = channelId.substring(4);
+    }
     final artist = await getArtist(channelId);
     final name = '${artist['name'] ?? ''}'.trim();
-    final videosShelf = artist['Videos'];
     var tracks = <MediaItem>[];
 
-    if (videosShelf is Map) {
-      final content = videosShelf['content'];
+    // Prefer Videos, then Songs / other MediaItem shelves. Non-music
+    // creators often have no "Videos" shelf on YouTube Music.
+    for (final shelfKey in const ['Videos', 'Songs']) {
+      final shelf = artist[shelfKey];
+      if (shelf is! Map) continue;
+      final content = shelf['content'];
       if (content is List && content.isNotEmpty) {
-        tracks = _tagYtChannelEpisodes(content, name);
+        tracks = _mergeMediaById(
+          tracks,
+          _tagYtChannelEpisodes(content, name),
+        );
       }
-      final endpoint = Map<String, dynamic>.from(videosShelf)..remove('content');
+      final endpoint = Map<String, dynamic>.from(shelf)..remove('content');
       if (endpoint.isNotEmpty && tracks.length < limit) {
         try {
-          final more = await getArtistRealtedContent(endpoint, 'Videos');
+          final more = await getArtistRealtedContent(endpoint, shelfKey);
           final results = more['results'];
           if (results is List && results.isNotEmpty) {
             tracks = _mergeMediaById(
@@ -705,8 +715,28 @@ class MusicServices extends getx.GetxService {
             );
           }
         } catch (e) {
-          printERROR('getChannelAsPodcast videos tab failed: $e');
+          printERROR('getChannelAsPodcast $shelfKey tab failed: $e');
         }
+      }
+      if (tracks.isNotEmpty) break;
+    }
+
+    // Last resort: channel uploads playlist (UC… → UU…).
+    if (tracks.isEmpty &&
+        channelId.startsWith('UC') &&
+        channelId.length > 2) {
+      final uploadsId = 'UU${channelId.substring(2)}';
+      try {
+        final pl = await getPlaylistOrAlbumSongs(
+          playlistId: uploadsId,
+          limit: limit,
+        );
+        final raw = pl['tracks'];
+        if (raw is List && raw.isNotEmpty) {
+          tracks = _tagYtChannelEpisodes(raw, name);
+        }
+      } catch (e) {
+        printERROR('getChannelAsPodcast uploads playlist failed: $e');
       }
     }
 
