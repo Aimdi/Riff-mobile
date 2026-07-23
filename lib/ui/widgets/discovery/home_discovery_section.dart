@@ -196,8 +196,8 @@ class _DiscoveryCard extends StatelessWidget {
   }
 }
 
-/// Compact Home shortcuts: Favorites, Daily Mix, Fresh Finds, etc.
-/// Soft surface tiles (not solid accent blocks) with working navigation.
+/// Compact Home shortcuts: 3×2 destination tiles (Zone A).
+/// Soft surface tiles with icon over label — not content carousels.
 class HomeShortcutGrid extends StatelessWidget {
   const HomeShortcutGrid({super.key});
 
@@ -257,163 +257,121 @@ class HomeShortcutGrid extends StatelessWidget {
     final disc = Get.isRegistered<DiscoveryService>()
         ? Get.find<DiscoveryService>()
         : null;
-    final mixes = disc?.dailyMixes ?? <GeneratedMix>[].obs;
     final theme = Theme.of(context);
-    final onSurface = theme.textTheme.titleMedium?.color ?? Colors.white;
 
-    return Obx(() {
-      final daily = mixes.isNotEmpty ? mixes.first : null;
-      MediaItem? dailyArt;
-      if (daily != null && daily.tracks.isNotEmpty) {
-        try {
-          dailyArt = MediaItemBuilder.fromJson(daily.tracks.first);
-        } catch (_) {}
-      }
+    final items = <_ShortcutItem>[
+      _ShortcutItem(
+        title: 'favorites'.tr,
+        icon: Icons.favorite_outline,
+        onTap: () => _openLibraryPlaylist('LIBFAV', 'favorites'.tr),
+      ),
+      _ShortcutItem(
+        title: 'recentlyPlayed'.tr,
+        icon: Icons.history,
+        onTap: () => _openLibraryPlaylist('LIBRP', 'recentlyPlayed'.tr),
+      ),
+      _ShortcutItem(
+        title: 'freshFinds'.tr,
+        icon: Icons.auto_awesome_outlined,
+        onTap: () {
+          if (disc == null) return;
+          _playTracks(
+            context,
+            () => disc.engine.freshFinds(),
+            DiscoverySource.discover,
+          );
+        },
+      ),
+      _ShortcutItem(
+        title: 'rediscover'.tr,
+        icon: Icons.history_toggle_off,
+        onTap: () {
+          if (disc == null) return;
+          _playTracks(
+            context,
+            () => disc.engine.rediscover(),
+            DiscoverySource.discover,
+          );
+        },
+      ),
+      _ShortcutItem(
+        title: 'releaseRadar'.tr,
+        icon: Icons.new_releases_outlined,
+        onTap: () {
+          if (disc == null) return;
+          _playTracks(
+            context,
+            () => disc.engine.releaseRadar(),
+            DiscoverySource.discover,
+          );
+        },
+      ),
+      _ShortcutItem(
+        title: 'downloads'.tr,
+        icon: Icons.download_outlined,
+        onTap: () => _openLibraryPlaylist('SongDownloads', 'downloads'.tr),
+      ),
+    ];
 
-      final items = <_ShortcutItem>[
-        _ShortcutItem(
-          title: 'favorites'.tr,
-          icon: Icons.favorite_outline,
-          onTap: () => _openLibraryPlaylist('LIBFAV', 'favorites'.tr),
-        ),
-        _ShortcutItem(
-          title: daily?.title ?? 'dailyMix'.tr,
-          icon: Icons.album_outlined,
-          art: dailyArt,
-          onTap: () {
-            if (daily == null || daily.tracks.isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                context,
-                'mixEmpty'.tr,
-                size: SanckBarSize.MEDIUM,
-              ));
-              return;
-            }
-            final tracks =
-                daily.tracks.map((m) => MediaItemBuilder.fromJson(m)).toList();
-            final tagged =
-                DiscoveryService.tagAll(tracks, DiscoverySource.dailyMix);
-            Get.find<PlayerController>().playPlayListSong(tagged, 0);
-          },
-        ),
-        _ShortcutItem(
-          title: 'freshFinds'.tr,
-          icon: Icons.explore_outlined,
-          onTap: () {
-            if (disc == null) return;
-            _playTracks(
-              context,
-              () => disc.engine.freshFinds(),
-              DiscoverySource.discover,
-            );
-          },
-        ),
-        _ShortcutItem(
-          title: 'rediscover'.tr,
-          icon: Icons.history_toggle_off,
-          onTap: () {
-            if (disc == null) return;
-            _playTracks(
-              context,
-              () => disc.engine.rediscover(),
-              DiscoverySource.discover,
-            );
-          },
-        ),
-        _ShortcutItem(
-          title: 'recentlyPlayed'.tr,
-          icon: Icons.history,
-          onTap: () => _openLibraryPlaylist('LIBRP', 'recentlyPlayed'.tr),
-        ),
-        _ShortcutItem(
-          title: 'releaseRadar'.tr,
-          icon: Icons.new_releases_outlined,
-          onTap: () {
-            if (disc == null) return;
-            _playTracks(
-              context,
-              () => disc.engine.releaseRadar(),
-              DiscoverySource.discover,
-            );
-          },
-        ),
-      ];
-
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // Two columns, quiet tiles — matches Home content density.
-            final tileW = (constraints.maxWidth - 8) / 2;
-            return Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: items.map((e) {
-                return SizedBox(
-                  width: tileW,
-                  height: 52,
-                  child: Material(
-                    color: Theme.of(context).cardColor.withOpacity(
-                          Theme.of(context).brightness == Brightness.dark
-                              ? 0.92
-                              : 1,
-                        ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(
-                        color: Theme.of(context).dividerColor.withOpacity(0.7),
-                        width: 0.5,
-                      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const gap = 8.0;
+          final tileW = (constraints.maxWidth - gap * 2) / 3;
+          return Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: items.map((e) {
+              return SizedBox(
+                width: tileW,
+                height: 72,
+                child: Material(
+                  color: theme.cardColor.withOpacity(
+                    theme.brightness == Brightness.dark ? 0.92 : 1,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: theme.dividerColor.withOpacity(0.7),
+                      width: 0.5,
                     ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: e.onTap,
-                      child: Row(
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: e.onTap,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 8),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          ClipRRect(
-                            borderRadius: const BorderRadius.horizontal(
-                              left: Radius.circular(12),
-                            ),
-                            child: SizedBox(
-                              width: 52,
-                              height: 52,
-                              child: e.art != null
-                                  ? ImageWidget(song: e.art!, size: 52)
-                                  : ColoredBox(
-                                      color: onSurface.withOpacity(0.08),
-                                      child: Icon(
-                                        e.icon,
-                                        size: 22,
-                                        color: onSurface.withOpacity(0.85),
-                                      ),
-                                    ),
+                          Icon(e.icon,
+                              size: 22,
+                              color: theme.textTheme.titleMedium?.color),
+                          const SizedBox(height: 6),
+                          Text(
+                            e.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                              letterSpacing: -0.1,
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              e.title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
-                                letterSpacing: -0.15,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
                         ],
                       ),
                     ),
                   ),
-                );
-              }).toList(),
-            );
-          },
-        ),
-      );
-    });
+                ),
+              );
+            }).toList(),
+          );
+        },
+      ),
+    );
   }
 }
 
@@ -422,10 +380,8 @@ class _ShortcutItem {
     required this.title,
     required this.icon,
     required this.onTap,
-    this.art,
   });
   final String title;
   final IconData icon;
   final VoidCallback onTap;
-  final MediaItem? art;
 }
