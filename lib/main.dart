@@ -177,6 +177,18 @@ void _setAppInitPrefs() {
       'newVersionVisibility': updateCheckFlag,
       "cacheHomeScreenData": true
     });
+    return;
+  }
+  // Non-empty boxes from upgrades / partial writes may omit keys that
+  // SettingsScreenController indexes without a null default on startup.
+  if (!appPrefs.containsKey('streamingQuality')) {
+    appPrefs.put('streamingQuality', 1);
+  }
+  if (!appPrefs.containsKey('skipSilenceEnabled')) {
+    appPrefs.put('skipSilenceEnabled', false);
+  }
+  if (!appPrefs.containsKey('themeModeType')) {
+    appPrefs.put('themeModeType', 2);
   }
 }
 

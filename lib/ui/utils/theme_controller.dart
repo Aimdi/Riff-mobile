@@ -50,9 +50,13 @@ class ThemeController extends GetxController {
     final platformDispatcher = WidgetsBinding.instance.platformDispatcher;
     platformDispatcher.onPlatformBrightnessChanged = () {
       systemBrightness = platformDispatcher.platformBrightness;
-      changeThemeModeType(
-          ThemeType.values[Hive.box('appPrefs').get("themeModeType")],
-          sysCall: true);
+      final modeIndex = Hive.box('appPrefs').get("themeModeType") ?? 2;
+      if (modeIndex is! int ||
+          modeIndex < 0 ||
+          modeIndex >= ThemeType.values.length) {
+        return;
+      }
+      changeThemeModeType(ThemeType.values[modeIndex], sysCall: true);
     };
   }
 

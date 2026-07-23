@@ -114,9 +114,16 @@ class SettingsScreenController extends GetxController {
     isTransitionAnimationDisabled.value =
         setBox.get("isTransitionAnimationDisabled") ?? false;
     cacheSongs.value = setBox.get('cacheSongs') ?? false;
-    themeModetype.value = ThemeType.values[setBox.get('themeModeType') ?? 2];
+    final themeModeIndex = setBox.get('themeModeType') ?? 2;
+    themeModetype.value = (themeModeIndex is int &&
+            themeModeIndex >= 0 &&
+            themeModeIndex < ThemeType.values.length)
+        ? ThemeType.values[themeModeIndex]
+        : ThemeType.dark;
+    // Never assign Hive null into RxBool — throws and blanks Home startup
+    // (SettingsScreenController is first resolved from Home/Player build).
     skipSilenceEnabled.value =
-        isDesktop ? false : setBox.get("skipSilenceEnabled");
+        isDesktop ? false : (setBox.get("skipSilenceEnabled") ?? false);
     sponsorBlockEnabled.value = setBox.get("sponsorBlockEnabled") ?? true;
     podcastAutoSkipAdsEnabled.value =
         setBox.get("podcastAutoSkipAds") ?? true;
@@ -138,8 +145,18 @@ class SettingsScreenController extends GetxController {
         setBox.get("restrorePlaybackSession") ?? false;
     cacheHomeScreenData.value = setBox.get("cacheHomeScreenData") ?? true;
     developerMode.value = setBox.get("developerMode") ?? false;
-    streamingQuality.value =
-        AudioQuality.values[setBox.get('streamingQuality')];
+    // Hive may lack this key when AppPrefs is non-empty (partial prefs /
+    // upgrade / ClientConfig writes). Indexing AudioQuality.values[null]
+    // throws TypeError during onInit and leaves a blank startup screen.
+    final streamQIndex = setBox.get('streamingQuality');
+    if (streamQIndex is int &&
+        streamQIndex >= 0 &&
+        streamQIndex < AudioQuality.values.length) {
+      streamingQuality.value = AudioQuality.values[streamQIndex];
+    } else {
+      streamingQuality.value = AudioQuality.High;
+      setBox.put('streamingQuality', AudioQuality.High.index);
+    }
     final videoQIndex = setBox.get('videoQuality');
     if (videoQIndex is int &&
         videoQIndex >= 0 &&
