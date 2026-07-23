@@ -200,6 +200,7 @@ class StandardPlayer extends StatelessWidget {
                     icon: const Icon(Icons.more_vert, size: 25),
                     onPressed: () {
                       showModalBottomSheet(
+                        useRootNavigator: true,
                         constraints: const BoxConstraints(maxWidth: 500),
                         shape: const RoundedRectangleBorder(
                           borderRadius:

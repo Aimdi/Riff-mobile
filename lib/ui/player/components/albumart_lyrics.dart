@@ -73,6 +73,7 @@ class AlbumArtNLyrics extends StatelessWidget {
                 GestureDetector(
                   onLongPress: () {
                     showModalBottomSheet(
+                      useRootNavigator: true,
                       constraints: const BoxConstraints(maxWidth: 500),
                       shape: const RoundedRectangleBorder(
                         borderRadius:

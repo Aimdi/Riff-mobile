@@ -8,6 +8,7 @@ import '/models/thumbnail.dart';
 import '/services/podcast_download_service.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/utils/sheet_insets.dart';
 import '/ui/widgets/snackbar.dart';
 import 'podcast_queue_controller.dart';
 
@@ -18,7 +19,10 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode) {
   HapticFeedback.mediumImpact();
   showModalBottomSheet(
     context: context,
-    isScrollControlled: false,
+    // Root overlay sits above the SlidingUpPanel mini player; nested
+    // navigator sheets were leaving Download under the playing bar.
+    useRootNavigator: true,
+    isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
     ),
@@ -37,7 +41,11 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode) {
 
       return SafeArea(
         child: Padding(
-          padding: const EdgeInsets.only(top: 8, bottom: 8),
+          padding: EdgeInsets.only(
+            top: 8,
+            // Root navigator already clears the mini player — only safe area.
+            bottom: 8 + sheetBottomInset(ctx, liftAboveMiniPlayer: false),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -51,8 +59,8 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode) {
                 ),
               ),
               ListTile(
-                leading: Icon(
-                    queued ? Icons.playlist_remove : Icons.playlist_add),
+                leading:
+                    Icon(queued ? Icons.playlist_remove : Icons.playlist_add),
                 title: Text(queued ? "removeFromQueue".tr : "addToQueue".tr),
                 onTap: () {
                   queued ? c.removeById(episode.id) : c.add(episode);
@@ -65,8 +73,7 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode) {
                   leading: Icon(downloaded
                       ? Icons.delete_outline
                       : Icons.download_outlined),
-                  title:
-                      Text(downloaded ? "removeDownload".tr : "download".tr),
+                  title: Text(downloaded ? "removeDownload".tr : "download".tr),
                   onTap: () async {
                     Navigator.of(ctx).pop();
                     if (downloaded) {
@@ -75,8 +82,7 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode) {
                       return;
                     }
                     snack("downloadStarted".tr);
-                    final ok =
-                        await PodcastDownloadService.download(episode);
+                    final ok = await PodcastDownloadService.download(episode);
                     snack(ok ? "downloadComplete".tr : "downloadFailed".tr);
                   },
                 ),
@@ -179,7 +185,8 @@ class PodcastQueueScreen extends StatelessWidget {
   Widget _row(BuildContext context, PodcastQueueController controller,
       MediaItem e, int i) {
     final date = (e.extras?['date'] ?? '').toString().trim();
-    final durationText = PodcastService.formatDuration(e.duration?.inSeconds ?? 0);
+    final durationText =
+        PodcastService.formatDuration(e.duration?.inSeconds ?? 0);
     final art = Thumbnail(e.artUri?.toString() ?? '').medium;
     return Padding(
       key: ValueKey(e.id),
@@ -217,7 +224,8 @@ class PodcastQueueScreen extends StatelessWidget {
                   children: [
                     if (date.isNotEmpty || durationText.isNotEmpty)
                       Text(
-                        [date, durationText].where((s) => s.isNotEmpty)
+                        [date, durationText]
+                            .where((s) => s.isNotEmpty)
                             .join('  ·  '),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

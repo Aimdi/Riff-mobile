@@ -8,6 +8,7 @@ import '../../../services/discovery/discovery_service.dart';
 import '../../../services/discovery/discovery_types.dart';
 import '../../navigator.dart';
 import '../../player/player_controller.dart';
+import '../../utils/sheet_insets.dart';
 import '../image_widget.dart';
 import '../snackbar.dart';
 import 'similar_songs_sheet.dart';
@@ -19,16 +20,16 @@ class HomeDiscoverySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tracks = section.tracks
-        .map((m) => MediaItemBuilder.fromJson(m))
-        .toList();
+    final tracks =
+        section.tracks.map((m) => MediaItemBuilder.fromJson(m)).toList();
     if (tracks.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 8, top: 20, bottom: 10, right: 12),
+          padding:
+              const EdgeInsets.only(left: 8, top: 20, bottom: 10, right: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -116,64 +117,71 @@ class _DiscoveryCard extends StatelessWidget {
         onLongPress: () {
           showModalBottomSheet(
             context: context,
+            useRootNavigator: true,
             isScrollControlled: true,
             constraints: const BoxConstraints(maxWidth: 500),
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
             ),
             builder: (ctx) => SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    leading: ImageWidget(song: song, size: 48),
-                    title: Text(song.title, maxLines: 1),
-                    subtitle: Text(song.artist ?? '', maxLines: 1),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.thumb_up_outlined),
-                    title: Text("thumbsUp".tr),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      if (Get.isRegistered<DiscoveryService>()) {
-                        Get.find<DiscoveryService>()
-                            .onThumbs(song, up: true, surface: surface);
-                      }
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.thumb_down_outlined),
-                    title: Text("thumbsDown".tr),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      onDismiss();
-                      if (Get.isRegistered<DiscoveryService>()) {
-                        Get.find<DiscoveryService>()
-                            .onThumbs(song, up: false, surface: surface);
-                      }
-                      ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                          context, "recommendationRemoved".tr,
-                          size: SanckBarSize.MEDIUM));
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.graphic_eq),
-                    title: Text("similarSongs".tr),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        constraints: const BoxConstraints(maxWidth: 500),
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(10.0)),
-                        ),
-                        builder: (_) => SimilarSongsSheet(seed: song),
-                      );
-                    },
-                  ),
-                ],
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom: sheetBottomInset(ctx, liftAboveMiniPlayer: false),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      leading: ImageWidget(song: song, size: 48),
+                      title: Text(song.title, maxLines: 1),
+                      subtitle: Text(song.artist ?? '', maxLines: 1),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.thumb_up_outlined),
+                      title: Text("thumbsUp".tr),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        if (Get.isRegistered<DiscoveryService>()) {
+                          Get.find<DiscoveryService>()
+                              .onThumbs(song, up: true, surface: surface);
+                        }
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.thumb_down_outlined),
+                      title: Text("thumbsDown".tr),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        onDismiss();
+                        if (Get.isRegistered<DiscoveryService>()) {
+                          Get.find<DiscoveryService>()
+                              .onThumbs(song, up: false, surface: surface);
+                        }
+                        ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                            context, "recommendationRemoved".tr,
+                            size: SanckBarSize.MEDIUM));
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.graphic_eq),
+                      title: Text("similarSongs".tr),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        showModalBottomSheet(
+                          context: context,
+                          useRootNavigator: true,
+                          isScrollControlled: true,
+                          constraints: const BoxConstraints(maxWidth: 500),
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(10.0)),
+                          ),
+                          builder: (_) => SimilarSongsSheet(seed: song),
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
           );
@@ -304,11 +312,10 @@ class HomeShortcutGrid extends StatelessWidget {
               ));
               return;
             }
-            final tracks = daily.tracks
-                .map((m) => MediaItemBuilder.fromJson(m))
-                .toList();
-            final tagged = DiscoveryService.tagAll(
-                tracks, DiscoverySource.dailyMix);
+            final tracks =
+                daily.tracks.map((m) => MediaItemBuilder.fromJson(m)).toList();
+            final tagged =
+                DiscoveryService.tagAll(tracks, DiscoverySource.dailyMix);
             Get.find<PlayerController>().playPlayListSong(tagged, 0);
           },
         ),
@@ -445,4 +452,3 @@ class _ShortcutItem {
   final VoidCallback onTap;
   final MediaItem? art;
 }
-

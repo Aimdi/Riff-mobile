@@ -600,6 +600,7 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
 
   void _openSongMenu(BuildContext context, MediaItem song) {
     showModalBottomSheet(
+      useRootNavigator: true,
       constraints: const BoxConstraints(maxWidth: 500),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
