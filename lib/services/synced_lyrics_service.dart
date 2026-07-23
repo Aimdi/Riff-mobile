@@ -23,7 +23,6 @@ class SyncedLyricsService {
   static Future<Map<String, dynamic>?> getSyncedLyrics(
       MediaItem song, int durInSec) async {
     final lyricsBox = await Hive.openBox("lyrics");
-    // check if lyrics available in local database
     if (lyricsBox.containsKey(song.id)) {
       return Map<String, dynamic>.from(await lyricsBox.get(song.id));
     }
@@ -35,14 +34,19 @@ class SyncedLyricsService {
     final source = _preferredSource();
 
     Future<Map<String, dynamic>?> tryBetter() async {
-      final lrc = await BetterLyricsService.getSyncedLyrics(
+      final r = await BetterLyricsService.fetch(
         artist: artist,
         title: title,
         album: album,
         durationSec: dur,
       );
-      if (lrc == null) return null;
-      return {"synced": lrc, "plainLyrics": _plainFromLrc(lrc)};
+      if (r == null) return null;
+      return {
+        "synced": r.lrc,
+        "plainLyrics": r.plain,
+        "ttml": r.ttml,
+        "source": "betterLyrics",
+      };
     }
 
     Future<Map<String, dynamic>?> tryLrclib() async {
@@ -54,7 +58,8 @@ class SyncedLyricsService {
           printINFO("Synced lyrics from LRCLIB");
           return {
             "synced": response["syncedLyrics"],
-            "plainLyrics": response["plainLyrics"]
+            "plainLyrics": response["plainLyrics"],
+            "source": "lrclib",
           };
         }
       } on DioException catch (e) {
@@ -65,11 +70,11 @@ class SyncedLyricsService {
 
     Future<Map<String, dynamic>?> tryKugou() async {
       try {
-        final kugou = await KuGouLyricsService.getSyncedLyrics(
-            artist, title, dur);
+        final kugou =
+            await KuGouLyricsService.getSyncedLyrics(artist, title, dur);
         if (kugou != null) {
           printINFO("Synced lyrics from KuGou");
-          return {"synced": kugou, "plainLyrics": null};
+          return {"synced": kugou, "plainLyrics": null, "source": "kugou"};
         }
       } catch (e) {
         printINFO("KuGou fallback failed: $e");
@@ -77,7 +82,6 @@ class SyncedLyricsService {
       return null;
     }
 
-    // Build provider order from Settings → Lyrics source.
     final providers = <Future<Map<String, dynamic>?> Function()>[];
     switch (source) {
       case LyricsSource.betterLyrics:
@@ -87,7 +91,6 @@ class SyncedLyricsService {
         providers.addAll([tryLrclib, tryKugou]);
         break;
       case LyricsSource.auto:
-        // Balanced: LRCLIB first, then Better Lyrics, then KuGou.
         providers.addAll([tryLrclib, tryBetter, tryKugou]);
         break;
     }
@@ -105,15 +108,5 @@ class SyncedLyricsService {
       if (lyricsBox.isOpen) await lyricsBox.close();
     }
     return null;
-  }
-
-  static String? _plainFromLrc(String lrc) {
-    final lines = lrc
-        .split('\n')
-        .map((l) => l.replaceFirst(RegExp(r'^\[[^\]]+\]'), '').trim())
-        .where((l) => l.isNotEmpty)
-        .toList();
-    if (lines.isEmpty) return null;
-    return lines.join('\n');
   }
 }

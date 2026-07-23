@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/services/better_lyrics_service.dart';
+import 'package:harmonymusic/utils/content_filters.dart';
+import 'package:audio_service/audio_service.dart';
 
 void main() {
   group('BetterLyricsService.ttmlToLrc', () {
@@ -23,8 +25,21 @@ void main() {
 
     test('ttmlToPlain drops timestamps', () {
       const ttml =
-          '<p begin="1.0" end="2.0"><span>One</span></p><p begin="2.0" end="3.0">Two</p>';
+          '<p begin="1.0" end="2.0"><span begin="1.0" end="1.5">One</span></p><p begin="2.0" end="3.0">Two</p>';
       expect(BetterLyricsService.ttmlToPlain(ttml), 'One\nTwo');
+    });
+
+    test('parseTimedLines keeps word spans', () {
+      const ttml = '''
+<p begin="1.0" end="2.0">
+<span begin="1.0" end="1.4">Hello</span>
+<span begin="1.4" end="2.0">world</span>
+</p>
+''';
+      final lines = BetterLyricsService.parseTimedLines(ttml);
+      expect(lines, hasLength(1));
+      expect(lines.first.hasWords, isTrue);
+      expect(lines.first.words.map((w) => w.text).toList(), ['Hello', 'world']);
     });
   });
 
@@ -32,5 +47,31 @@ void main() {
     expect(LyricsSource.auto.index, 0);
     expect(LyricsSource.betterLyrics.index, 1);
     expect(LyricsSource.lrclib.index, 2);
+  });
+
+  test('SongLinkShare builds odesli URL', () {
+    expect(
+      SongLinkShare.urlForVideoId('dQw4w9WgXcQ'),
+      'https://song.link/https://youtube.com/watch?v=dQw4w9WgXcQ',
+    );
+  });
+
+  test('ContentFilters hides videos when asked', () {
+    final song = MediaItem(
+      id: 'a',
+      title: 'Song',
+      extras: {'videoType': 'MUSIC_VIDEO_TYPE_ATV'},
+    );
+    final video = MediaItem(
+      id: 'b',
+      title: 'Video',
+      extras: {'videoType': 'MUSIC_VIDEO_TYPE_OMV'},
+    );
+    final filtered = ContentFilters.apply(
+      [song, video],
+      hideVideos: true,
+      hideShorts: false,
+    );
+    expect(filtered.map((e) => e.id), ['a']);
   });
 }
