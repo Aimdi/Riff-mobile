@@ -47,7 +47,7 @@ Riff Mobile is the Android companion to [Riff](https://github.com/Aimdi/Riff) on
 
 - Search songs, albums, artists, and playlists on YouTube Music
 - Home feed with charts, moods, and recommendations
-- **Local discovery engine** — a private taste model on your phone builds Daily Mixes, Fresh Finds, Release Radar, and Rediscover. No YouTube login; nothing leaves the device. Sections appear after a handful of listens (Settings → Riff → Discovery)
+- **Local discovery engine** — a private taste model on your phone builds Daily Mixes, Fresh Finds, Release Radar, and Rediscover. No YouTube login; nothing leaves the device. Sections appear after a handful of listens (Settings → Listening → Discovery)
 - Radio / autoplay when the queue ends
 - Full queue control — play next, enqueue, reorder, shuffle, repeat
 - Favorites, history, and local playlists
