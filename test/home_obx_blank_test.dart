@@ -52,4 +52,73 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('home-body'), findsOneWidget);
   });
+
+  testWidgets(
+      'HomeScreen body Obx with no observables blanks rail+content (pre-1.7.73)',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    final tabIndex = 0.obs;
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Scaffold(
+          // FAB Obx still has observables → green search button still shows.
+          floatingActionButton: Obx(
+            () => tabIndex.value == 0
+                ? const FloatingActionButton(onPressed: null, child: Icon(Icons.search))
+                : const SizedBox.shrink(),
+          ),
+          // Body Obx used to gate SideNavBar on isBottomNavBarEnabled; after
+          // always-showing SideNavBar it read zero Rx → GetX blank.
+          body: Obx(
+            () => const Row(
+              children: [
+                SizedBox(width: 48, child: Text('rail')),
+                Expanded(child: Text('home-content')),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNotNull);
+  });
+
+  testWidgets(
+      'HomeScreen Row without empty Obx shows rail and content (1.7.73)',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    final tabIndex = 0.obs;
+    final transitionOff = false.obs;
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Scaffold(
+          floatingActionButton: Obx(
+            () => tabIndex.value == 0
+                ? const FloatingActionButton(onPressed: null, child: Icon(Icons.search))
+                : const SizedBox.shrink(),
+          ),
+          body: Row(
+            children: [
+              const SizedBox(width: 48, child: Text('rail')),
+              Expanded(
+                child: Obx(
+                  () => Text(
+                    transitionOff.value ? 'home-content-static' : 'home-content',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('rail'), findsOneWidget);
+    expect(find.text('home-content'), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsOneWidget);
+  });
 }
