@@ -174,9 +174,11 @@ class LibraryPodcastsController extends GetxController {
       if (val is! List) continue;
       for (final item in val) {
         if (item is Artist) {
+          final id = _normalizeChannelId(item.browseId);
+          if (id.isEmpty) continue;
           out.add(Playlist(
             title: item.name,
-            playlistId: item.browseId,
+            playlistId: id,
             thumbnailUrl: item.thumbnailUrl,
             description: item.subscribers ?? 'YouTube channel',
             kind: 'yt_channel',
@@ -187,12 +189,20 @@ class LibraryPodcastsController extends GetxController {
     return out;
   }
 
+  /// Strip MPLA prefix / keep bare UC… ids for library keys.
+  String _normalizeChannelId(String raw) {
+    var id = raw.trim();
+    if (id.startsWith('MPLA')) id = id.substring(4);
+    return id;
+  }
+
   Playlist _channelPlaylistFromMap(Map<String, dynamic> data) {
     final thumbs = data['thumbnails'];
     final thumb = Thumbnail.bestUrl(thumbs, target: 'extraHigh');
+    final id = _normalizeChannelId('${data['playlistId'] ?? ''}');
     return Playlist(
       title: '${data['title'] ?? ''}',
-      playlistId: '${data['playlistId'] ?? ''}',
+      playlistId: id,
       thumbnailUrl:
           thumb.isNotEmpty ? thumb : Playlist.thumbPlaceholderUrl,
       description: '${data['description'] ?? 'YouTube channel'}',
@@ -243,13 +253,35 @@ class LibraryPodcastsController extends GetxController {
   }
 
   /// Subscribe to a YouTube channel as a podcast (videos = episodes).
-  Future<Playlist?> subscribeYoutubeChannel(String channelId) async {
-    final data =
-        await Get.find<MusicServices>().getChannelAsPodcast(channelId, limit: 1);
-    final pl = _channelPlaylistFromMap(data);
-    if (pl.playlistId.isEmpty) return null;
-    await addToLibrary(pl);
-    return pl;
+  ///
+  /// [seed] is used when the channel fetch fails so Follow still works from
+  /// search results (episodes load later when the channel is opened).
+  Future<Playlist?> subscribeYoutubeChannel(String channelId,
+      {Playlist? seed}) async {
+    final id = _normalizeChannelId(
+        channelId.isNotEmpty ? channelId : (seed?.playlistId ?? ''));
+    if (id.isEmpty) return null;
+    try {
+      final data =
+          await Get.find<MusicServices>().getChannelAsPodcast(id, limit: 1);
+      final pl = _channelPlaylistFromMap(data);
+      if (pl.playlistId.isNotEmpty && pl.title.isNotEmpty) {
+        await addToLibrary(pl);
+        return pl;
+      }
+    } catch (_) {}
+    if (seed != null) {
+      final toStore = Playlist(
+        title: seed.title.isNotEmpty ? seed.title : id,
+        playlistId: id,
+        thumbnailUrl: seed.thumbnailUrl,
+        description: seed.description ?? 'YouTube channel',
+        kind: 'yt_channel',
+      );
+      await addToLibrary(toStore);
+      return toStore;
+    }
+    return null;
   }
 
   Future<void> removeFromLibrary(String playlistId) async {

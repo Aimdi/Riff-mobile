@@ -796,10 +796,23 @@ dynamic parseSearchResult(Map<String, dynamic> data,
 
   if (resultType == 'artist') {
     searchResult['artist'] = getItemText(data, 0);
-    final list = data['flexColumns'][1]
-        ['musicResponsiveListItemFlexColumnRenderer']['text']['runs'];
-    searchResult['subscribers'] = list.length < 2 ? "" : list[2];
-    ['text'];
+    try {
+      final list = data['flexColumns'][1]
+          ['musicResponsiveListItemFlexColumnRenderer']['text']['runs'] as List;
+      // runs are usually [type, " · ", subscribers…] — take text safely.
+      String subs = '';
+      if (list.length > 2) {
+        final run = list[2];
+        if (run is Map && run['text'] != null) {
+          subs = '${run['text']}';
+        } else if (run is String) {
+          subs = run;
+        }
+      }
+      searchResult['subscribers'] = subs;
+    } catch (_) {
+      searchResult['subscribers'] = '';
+    }
     //final x = parseMenuPlaylists(data, searchResult);
   } else if (resultType == 'album') {
     searchResult['type'] = getItemText(data, 1);

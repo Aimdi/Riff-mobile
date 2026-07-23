@@ -11,6 +11,7 @@ import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/widgets/content_list_widget_item.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/podcast_follow_button.dart';
+import '/ui/widgets/snackbar.dart';
 import '/ui/widgets/sort_widget.dart';
 import 'podcast_category_screen.dart';
 import 'podcast_inbox_screen.dart';
@@ -537,42 +538,73 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                     ),
                     SliverToBoxAdapter(
                       child: SizedBox(
-                        height: itemHeight + 48,
+                        // ContentListItem is a fixed 180h tile — Follow sits
+                        // on top so it stays tappable (Column under it was
+                        // clipped / untappable).
+                        height: itemHeight + 8,
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                           itemCount: channels.length,
                           itemBuilder: (context, i) {
                             final ch = channels[i];
-                            final subscribed =
-                                controller.isInLibrary(ch.playlistId);
                             return Padding(
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 4),
-                              child: SizedBox(
-                                width: 130,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    ContentListItem(
-                                      content: ch,
-                                      isLibraryItem: subscribed,
-                                    ),
-                                    PodcastFollowButton(
-                                      compact: true,
-                                      following: subscribed,
-                                      onPressed: () async {
-                                        if (subscribed) {
-                                          await controller.removeFromLibrary(
-                                              ch.playlistId);
-                                        } else {
-                                          await controller.addToLibrary(ch);
-                                        }
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ),
+                              child: Obx(() {
+                                final subscribed = controller.libraryPodcasts
+                                    .any((p) => p.playlistId == ch.playlistId);
+                                return SizedBox(
+                                  width: 130,
+                                  child: Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      ContentListItem(
+                                        content: ch,
+                                        isLibraryItem: subscribed,
+                                      ),
+                                      Positioned(
+                                        left: 4,
+                                        right: 4,
+                                        top: 86,
+                                        child: PodcastFollowButton(
+                                          compact: true,
+                                          following: subscribed,
+                                          onPressed: () async {
+                                            if (subscribed) {
+                                              await controller
+                                                  .removeFromLibrary(
+                                                      ch.playlistId);
+                                              if (!context.mounted) return;
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(snackbar(
+                                                context,
+                                                'removeFromLib'.tr,
+                                                size: SanckBarSize.MEDIUM,
+                                              ));
+                                              return;
+                                            }
+                                            final pl = await controller
+                                                .subscribeYoutubeChannel(
+                                              ch.playlistId,
+                                              seed: ch,
+                                            );
+                                            if (!context.mounted) return;
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(snackbar(
+                                              context,
+                                              pl != null
+                                                  ? 'subscribedAsPodcast'.tr
+                                                  : 'operationFailed'.tr,
+                                              size: SanckBarSize.MEDIUM,
+                                            ));
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
                             );
                           },
                         ),

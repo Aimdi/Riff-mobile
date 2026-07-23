@@ -225,7 +225,9 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                   );
                 }
                 final lib = Get.find<LibraryPodcastsController>();
-                final id = c.artist_.browseId;
+                final rawId = c.artist_.browseId;
+                final id =
+                    rawId.startsWith('MPLA') ? rawId.substring(4) : rawId;
                 final subscribed =
                     lib.libraryPodcasts.any((p) => p.playlistId == id);
                 return PodcastFollowButton(
@@ -243,7 +245,7 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                           c.artist_.subscribers ?? 'YouTube channel',
                       kind: 'yt_channel',
                     );
-                    await lib.addToLibrary(pl);
+                    await lib.subscribeYoutubeChannel(id, seed: pl);
                   },
                 );
               }),
