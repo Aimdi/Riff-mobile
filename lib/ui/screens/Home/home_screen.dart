@@ -73,23 +73,24 @@ class HomeScreen extends StatelessWidget {
                 )
               : const SizedBox.shrink(),
         ),
-        body: Obx(
-          () => Row(
-            children: <Widget>[
-              const SideNavBar(),
-              Expanded(
-                child: Obx(() => AnimatedScreenTransition(
-                    enabled: settingsScreenController
-                        .isTransitionAnimationDisabled.isFalse,
-                    resverse: homeScreenController.reverseAnimationtransiton,
-                    horizontalTransition: false,
-                    child: Center(
-                      key: ValueKey<int>(homeScreenController.tabIndex.value),
-                      child: const Body(),
-                    ))),
-              ),
-            ],
-          ),
+        // Outer Obx removed: after bottom-nav removal it no longer read any
+        // observables (SideNavBar is always shown). Empty Obx throws in GetX
+        // and blanks SideNavBar + Body while the FAB Obx still paints.
+        body: Row(
+          children: <Widget>[
+            const SideNavBar(),
+            Expanded(
+              child: Obx(() => AnimatedScreenTransition(
+                  enabled: settingsScreenController
+                      .isTransitionAnimationDisabled.isFalse,
+                  resverse: homeScreenController.reverseAnimationtransiton,
+                  horizontalTransition: false,
+                  child: Center(
+                    key: ValueKey<int>(homeScreenController.tabIndex.value),
+                    child: const Body(),
+                  ))),
+            ),
+          ],
         ));
   }
 }
