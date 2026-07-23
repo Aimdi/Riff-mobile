@@ -305,7 +305,7 @@ class _HomePersonalTop extends StatelessWidget {
             ),
           ...personal
               .where((s) =>
-                  s.id == 'made_for_you' || '${s.id}'.startsWith('because_'))
+                  s.id == 'made_for_you' || s.id.startsWith('because_'))
               .map((s) => HomeDiscoverySection(section: s)),
         ],
       );
@@ -327,7 +327,7 @@ class _HomePersonalBottom extends StatelessWidget {
       return Column(
         children: personal
             .where((s) =>
-                s.id != 'made_for_you' && !'${s.id}'.startsWith('because_'))
+                s.id != 'made_for_you' && !s.id.startsWith('because_'))
             .map((s) => HomeDiscoverySection(section: s))
             .toList(),
       );
