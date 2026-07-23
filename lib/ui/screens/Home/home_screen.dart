@@ -113,38 +113,42 @@ class Body extends StatelessWidget {
             : size.height < 750
                 ? 80.0
                 : 85.0;
+    const leftPadding = 5.0;
     if (homeScreenController.tabIndex.value == 0) {
-      return Stack(
-        children: [
-          GestureDetector(
-            onTap: () {
-              // for Desktop search bar
-              if (GetPlatform.isDesktop) {
-                final sscontroller = Get.find<SearchScreenController>();
-                if (sscontroller.focusNode.hasFocus) {
-                  sscontroller.focusNode.unfocus();
+      return Padding(
+        padding: const EdgeInsets.only(left: leftPadding),
+        child: Stack(
+          children: [
+            GestureDetector(
+              onTap: () {
+                // for Desktop search bar
+                if (GetPlatform.isDesktop) {
+                  final sscontroller = Get.find<SearchScreenController>();
+                  if (sscontroller.focusNode.hasFocus) {
+                    sscontroller.focusNode.unfocus();
+                  }
                 }
-              }
-            },
-            child: Obx(
-              () => homeScreenController.networkError.isTrue
-                  ? SizedBox(
-                      height: MediaQuery.of(context).size.height - 180,
-                      child: Column(
-                        children: [
-                          Align(
-                            alignment: Alignment.topLeft,
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 12),
-                              child: Text(
-                                "home".tr,
-                                style: Theme.of(context).textTheme.titleLarge,
+              },
+              child: Obx(
+                () => homeScreenController.networkError.isTrue
+                    ? SizedBox(
+                        height: MediaQuery.of(context).size.height - 180,
+                        child: Column(
+                          children: [
+                            Align(
+                              alignment: Alignment.topLeft,
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 12),
+                                child: Text(
+                                  "home".tr,
+                                  style:
+                                      Theme.of(context).textTheme.titleLarge,
+                                ),
                               ),
                             ),
-                          ),
-                          Expanded(
-                            child: Center(
-                              child: Column(
+                            Expanded(
+                              child: Center(
+                                child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Text(
@@ -153,19 +157,17 @@ class Body extends StatelessWidget {
                                           .textTheme
                                           .titleMedium,
                                     ),
-                                    const SizedBox(
-                                      height: 10,
-                                    ),
+                                    const SizedBox(height: 10),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 15, vertical: 10),
                                       decoration: BoxDecoration(
-                                          color: Theme.of(context)
-                                              .textTheme
-                                              .titleLarge!
-                                              .color,
-                                          borderRadius:
-                                              BorderRadius.circular(10)),
+                                        color: Theme.of(context)
+                                            .textTheme
+                                            .titleLarge!
+                                            .color,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
                                       child: InkWell(
                                         onTap: () {
                                           homeScreenController
@@ -174,35 +176,39 @@ class Body extends StatelessWidget {
                                         child: Text(
                                           "retry".tr,
                                           style: TextStyle(
-                                              color: Theme.of(context)
-                                                  .canvasColor),
+                                            color:
+                                                Theme.of(context).canvasColor,
+                                          ),
                                         ),
                                       ),
-                                    ]),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            )
+                            ),
                           ],
                         ),
                       )
                     : _HomeFeed(topPadding: topPadding),
               ),
             ),
-          ),
-          if (GetPlatform.isDesktop)
-            Align(
-              alignment: Alignment.topCenter,
-              child: LayoutBuilder(builder: (context, constraints) {
-                return SizedBox(
-                  width: constraints.maxWidth > 800
-                      ? 800
-                      : constraints.maxWidth - 40,
-                  child: const Padding(
+            if (GetPlatform.isDesktop)
+              Align(
+                alignment: Alignment.topCenter,
+                child: LayoutBuilder(builder: (context, constraints) {
+                  return SizedBox(
+                    width: constraints.maxWidth > 800
+                        ? 800
+                        : constraints.maxWidth - 40,
+                    child: const Padding(
                       padding: EdgeInsets.only(top: 15.0),
-                      child: DesktopSearchBar()),
-                );
-              }),
-            )
-        ],
+                      child: DesktopSearchBar(),
+                    ),
+                  );
+                }),
+              ),
+          ],
+        ),
       );
     } else if (homeScreenController.tabIndex.value == 1) {
       return const SongsLibraryWidget();
