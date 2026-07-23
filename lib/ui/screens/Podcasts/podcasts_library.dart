@@ -754,6 +754,7 @@ class _EpisodeDiscoveryRow extends StatelessWidget {
 /// podcasts (plain maps: {title, author, artwork, feedUrl}). Tapping a card
 /// opens its episode list (PodcastEpisodesScreen), which streams straight from
 /// the RSS enclosure.
+/// Compact "Similar podcasts" strip (smaller than featured carousel cards).
 class _SimilarPodcastsRow extends StatelessWidget {
   const _SimilarPodcastsRow({required this.title, required this.podcasts});
   final String title;
@@ -765,21 +766,23 @@ class _SimilarPodcastsRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 5, top: 12, bottom: 6, right: 8),
+          padding: const EdgeInsets.only(left: 12, top: 10, bottom: 4, right: 8),
           child: Text(
             title,
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.titleLarge,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
           ),
         ),
         SizedBox(
-          height: 200,
+          height: 100,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             physics: const BouncingScrollPhysics(),
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemCount: podcasts.length,
             itemBuilder: (_, i) => _ItunesPodcastCard(podcast: podcasts[i]),
           ),
@@ -789,16 +792,18 @@ class _SimilarPodcastsRow extends StatelessWidget {
   }
 }
 
-/// Single square podcast card matching the tab's other cards (130×180).
+/// Compact square podcast chip for similar / suggestion rows.
 class _ItunesPodcastCard extends StatelessWidget {
   const _ItunesPodcastCard({required this.podcast});
   final Map<String, dynamic> podcast;
 
+  static const double _tile = 64;
+
   @override
   Widget build(BuildContext context) {
-    final art = Thumbnail((podcast['artwork'] ?? '').toString()).high;
+    final art = Thumbnail((podcast['artwork'] ?? '').toString()).medium;
     return SizedBox(
-      width: 130,
+      width: _tile,
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
         onTap: () => Get.to(() => PodcastEpisodesScreen(podcast: podcast)),
@@ -806,32 +811,29 @@ class _ItunesPodcastCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(5),
+              borderRadius: BorderRadius.circular(8),
               child: CachedNetworkImage(
                 imageUrl: art,
-                width: 120,
-                height: 120,
+                width: _tile,
+                height: _tile,
                 fit: BoxFit.cover,
                 errorWidget: (_, __, ___) => Container(
-                  width: 120,
-                  height: 120,
+                  width: _tile,
+                  height: _tile,
                   color: Theme.of(context).colorScheme.secondary.withOpacity(.3),
-                  child: const Icon(Icons.podcasts, size: 48),
+                  child: const Icon(Icons.podcasts, size: 22),
                 ),
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
               (podcast['title'] ?? '').toString(),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            Text(
-              (podcast['author'] ?? '').toString(),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    height: 1.1,
+                  ),
             ),
           ],
         ),
