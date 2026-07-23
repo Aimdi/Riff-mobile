@@ -29,10 +29,33 @@ class SoulseekFile {
   final int? bitRate;
   final int? lengthSeconds;
 
+  List<String> get pathParts {
+    final normalized = filename.replaceAll('/', '\\');
+    return normalized
+        .split('\\')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+
   String get displayName {
-    final parts = filename.replaceAll('/', '\\').split('\\');
+    final parts = pathParts;
     final base = parts.isEmpty ? filename : parts.last;
     return base.trim().isEmpty ? filename : base;
+  }
+
+  /// Parent folder path (everything except the file name).
+  String get folderPath {
+    final parts = pathParts;
+    if (parts.length <= 1) return '';
+    return parts.sublist(0, parts.length - 1).join('/');
+  }
+
+  /// Leaf folder name used for album grouping.
+  String get folderName {
+    final parts = pathParts;
+    if (parts.length <= 1) return username;
+    return parts[parts.length - 2];
   }
 
   String get extension {
@@ -53,14 +76,18 @@ class SoulseekFile {
     return '$size B';
   }
 
+  String get lengthLabel {
+    if (lengthSeconds == null || lengthSeconds! <= 0) return '';
+    final m = lengthSeconds! ~/ 60;
+    final s = lengthSeconds! % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
   String get metaLabel {
     final bits = <String>[sizeLabel];
     if (bitRate != null && bitRate! > 0) bits.add('${bitRate}kbps');
-    if (lengthSeconds != null && lengthSeconds! > 0) {
-      final m = lengthSeconds! ~/ 60;
-      final s = lengthSeconds! % 60;
-      bits.add('$m:${s.toString().padLeft(2, '0')}');
-    }
+    final len = lengthLabel;
+    if (len.isNotEmpty) bits.add(len);
     if (hasFreeSlot) bits.add('slot');
     bits.add(username);
     return bits.join(' · ');
@@ -180,9 +207,13 @@ class SoulseekClient {
   }
 
   /// Search the network. Collects results for [timeout], then returns.
+  ///
+  /// When [onHit] is set, it is invoked for each new audio hit as peers
+  /// respond (sockseek-style live results). Final list is still returned.
   Future<List<SoulseekFile>> search(
     String query, {
     Duration timeout = const Duration(seconds: 8),
+    void Function(SoulseekFile hit)? onHit,
   }) async {
     if (!loggedIn || _server == null) {
       throw SoulseekException('Not logged in');
@@ -199,6 +230,7 @@ class SoulseekClient {
       final key = '${hit.username}|${hit.filename}';
       if (!seen.add(key)) return;
       results.add(hit);
+      onHit?.call(hit);
     };
 
     _sendServer(
