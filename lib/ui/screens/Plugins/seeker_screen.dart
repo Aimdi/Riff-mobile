@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '/services/soulseek/soulseek_search.dart';
 import '/services/soulseek_service.dart';
 import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/snackbar.dart';
 
-/// In-app Soulseek client — login, search, and download like Seeker, without
-/// connecting to a separate home server.
+/// In-app Soulseek client — login + sockseek-style ranked search on mobile.
 class SeekerScreen extends StatelessWidget {
   const SeekerScreen({super.key});
 
@@ -150,6 +150,8 @@ class _SoulseekLoginFormState extends State<_SoulseekLoginForm> {
   }
 }
 
+/// Sockseek-inspired mobile search: song/album mode, live ranked results,
+/// format filters, album-folder interactive pick — all in-plugin.
 class _SoulseekSearchView extends StatefulWidget {
   const _SoulseekSearchView();
 
@@ -159,11 +161,22 @@ class _SoulseekSearchView extends StatefulWidget {
 
 class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
   final _searchCtrl = TextEditingController();
-  List<SoulseekFile> _hits = [];
+  final _ranker = const SoulseekSearchRanker();
+
+  SoulseekSearchMode _mode = SoulseekSearchMode.song;
+  SoulseekSearchFilters _filters = const SoulseekSearchFilters();
+  SoulseekQuery _query = const SoulseekQuery(raw: '', mode: SoulseekSearchMode.song);
+
+  final List<SoulseekFile> _rawHits = [];
+  List<RankedSoulseekFile> _ranked = [];
+  List<SoulseekAlbumFolder> _albums = [];
+  final Set<String> _expandedAlbums = {};
+
   bool _loading = false;
   bool _searched = false;
   String? _error;
   String? _downloadingKey;
+  double? _downloadProgress;
 
   @override
   void dispose() {
@@ -171,23 +184,52 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
     super.dispose();
   }
 
+  void _reproject() {
+    if (_mode == SoulseekSearchMode.album) {
+      _albums = _ranker.groupAlbums(_rawHits, _query, _filters);
+      _ranked = [];
+    } else {
+      _ranked = _ranker.rankFiles(_rawHits, _query, _filters);
+      _albums = [];
+    }
+  }
+
   Future<void> _search() async {
     final q = _searchCtrl.text.trim();
     if (q.isEmpty) return;
+    final parsed = SoulseekQuery.parse(q, _mode);
     setState(() {
       _loading = true;
       _error = null;
-      _hits = [];
+      _rawHits.clear();
+      _ranked = [];
+      _albums = [];
+      _expandedAlbums.clear();
       _searched = true;
+      _query = parsed;
     });
     try {
-      final hits = await Get.find<SoulseekService>().search(q);
+      final hits = await Get.find<SoulseekService>().search(
+        parsed.networkQuery,
+        timeout: const Duration(seconds: 10),
+        onHit: (hit) {
+          if (!mounted) return;
+          setState(() {
+            _rawHits.add(hit);
+            _reproject();
+          });
+        },
+      );
       if (!mounted) return;
       setState(() {
-        _hits = hits;
+        // Final pass in case anything arrived after last onHit paint.
+        _rawHits
+          ..clear()
+          ..addAll(hits);
+        _reproject();
         _loading = false;
       });
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() {
         _loading = false;
@@ -198,8 +240,12 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
 
   Future<void> _download(SoulseekFile hit) async {
     final key = '${hit.username}|${hit.filename}';
-    setState(() => _downloadingKey = key);
+    setState(() {
+      _downloadingKey = key;
+      _downloadProgress = 0;
+    });
     try {
+      // Progress not plumbed through service yet — keep indeterminate-ish.
       final file = await Get.find<SoulseekService>().download(hit);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -215,8 +261,58 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
         snackbar(context, 'soulseekDownloadFailed'.tr, size: SanckBarSize.MEDIUM),
       );
     } finally {
-      if (mounted) setState(() => _downloadingKey = null);
+      if (mounted) {
+        setState(() {
+          _downloadingKey = null;
+          _downloadProgress = null;
+        });
+      }
     }
+  }
+
+  Future<void> _downloadAlbum(SoulseekAlbumFolder folder) async {
+    final files = folder.files;
+    if (files.isEmpty) return;
+    for (var i = 0; i < files.length; i++) {
+      if (!mounted) return;
+      setState(() {
+        _downloadingKey = 'album|${folder.username}|${folder.folderPath}';
+        _downloadProgress = i / files.length;
+      });
+      try {
+        await Get.find<SoulseekService>().download(files[i]);
+      } catch (_) {
+        // Continue remaining tracks; surface one failure snackbar at end if all fail.
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _downloadingKey = null;
+      _downloadProgress = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      snackbar(
+        context,
+        'soulseekAlbumDownloadDone'.trParams({
+          'count': '${files.length}',
+          'name': folder.folderName,
+        }),
+        size: SanckBarSize.MEDIUM,
+      ),
+    );
+  }
+
+  void _toggleFormat(String ext) {
+    setState(() {
+      final next = {..._filters.formats};
+      if (next.contains(ext)) {
+        next.remove(ext);
+      } else {
+        next.add(ext);
+      }
+      _filters = _filters.copyWith(formats: next);
+      _reproject();
+    });
   }
 
   @override
@@ -249,7 +345,9 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
           textInputAction: TextInputAction.search,
           onSubmitted: (_) => _loading ? null : _search(),
           decoration: InputDecoration(
-            hintText: 'soulseekSearchHint'.tr,
+            hintText: _mode == SoulseekSearchMode.song
+                ? 'soulseekSearchHintSong'.tr
+                : 'soulseekSearchHintAlbum'.tr,
             prefixIcon: const Icon(Icons.search),
             suffixIcon: IconButton(
               icon: const Icon(Icons.arrow_forward),
@@ -259,40 +357,130 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
             isDense: true,
           ),
         ),
+        const SizedBox(height: 10),
+        SegmentedButton<SoulseekSearchMode>(
+          segments: [
+            ButtonSegment(
+              value: SoulseekSearchMode.song,
+              label: Text('soulseekModeSong'.tr),
+              icon: const Icon(Icons.music_note, size: 18),
+            ),
+            ButtonSegment(
+              value: SoulseekSearchMode.album,
+              label: Text('soulseekModeAlbum'.tr),
+              icon: const Icon(Icons.album, size: 18),
+            ),
+          ],
+          selected: {_mode},
+          onSelectionChanged: (s) {
+            setState(() {
+              _mode = s.first;
+              _query = SoulseekQuery.parse(_searchCtrl.text, _mode);
+              _reproject();
+            });
+          },
+        ),
         const SizedBox(height: 8),
-        Text('soulseekSearchNote'.tr, style: theme.textTheme.bodySmall),
-        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _filterChip(
+                label: 'FLAC',
+                selected: _filters.formats.contains('flac'),
+                onTap: () => _toggleFormat('flac'),
+                accent: accent,
+              ),
+              _filterChip(
+                label: 'MP3',
+                selected: _filters.formats.contains('mp3'),
+                onTap: () => _toggleFormat('mp3'),
+                accent: accent,
+              ),
+              _filterChip(
+                label: 'WAV',
+                selected: _filters.formats.contains('wav'),
+                onTap: () => _toggleFormat('wav'),
+                accent: accent,
+              ),
+              _filterChip(
+                label: 'soulseekFilterSlot'.tr,
+                selected: _filters.freeSlotOnly,
+                onTap: () => setState(() {
+                  _filters =
+                      _filters.copyWith(freeSlotOnly: !_filters.freeSlotOnly);
+                  _reproject();
+                }),
+                accent: accent,
+              ),
+              _filterChip(
+                label: '320+',
+                selected: _filters.minBitrate >= 320,
+                onTap: () => setState(() {
+                  _filters = _filters.copyWith(
+                    minBitrate: _filters.minBitrate >= 320 ? 0 : 320,
+                  );
+                  _reproject();
+                }),
+                accent: accent,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _loading
+              ? 'soulseekSearchingLive'.trParams({'count': '${_rawHits.length}'})
+              : 'soulseekSearchNote'.tr,
+          style: theme.textTheme.bodySmall,
+        ),
+        if (_loading) ...[
+          const SizedBox(height: 6),
+          const LinearProgressIndicator(minHeight: 2),
+        ],
+        const SizedBox(height: 8),
         Expanded(child: _body(theme, accent)),
       ],
     );
   }
 
+  Widget _filterChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+    required Color accent,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: FilterChip(
+        label: Text(label),
+        selected: selected,
+        onSelected: (_) => onTap(),
+        visualDensity: VisualDensity.compact,
+        selectedColor: accent.withOpacity(0.22),
+      ),
+    );
+  }
+
   Widget _body(ThemeData theme, Color accent) {
-    if (_loading) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 12),
-            Text('soulseekSearching'.tr, style: theme.textTheme.bodyMedium),
-          ],
-        ),
-      );
-    }
-    if (_error != null) {
+    if (_error != null && _rawHits.isEmpty) {
       return Center(child: Text(_error!, textAlign: TextAlign.center));
     }
     if (!_searched) {
       return Center(
-        child: Text(
-          'soulseekSearchPrompt'.tr,
-          textAlign: TextAlign.center,
-          style: theme.textTheme.bodyMedium,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            'soulseekSearchPromptSockseek'.tr,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium,
+          ),
         ),
       );
     }
-    if (_hits.isEmpty) {
+    if (!_loading &&
+        ((_mode == SoulseekSearchMode.song && _ranked.isEmpty) ||
+            (_mode == SoulseekSearchMode.album && _albums.isEmpty))) {
       return Center(
         child: Text(
           'soulseekNoResults'.tr,
@@ -302,31 +490,217 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
       );
     }
 
+    if (_mode == SoulseekSearchMode.album) {
+      return _albumList(theme, accent);
+    }
+    return _songList(theme, accent);
+  }
+
+  Widget _songList(ThemeData theme, Color accent) {
     return ListView.separated(
       padding: const EdgeInsets.only(bottom: 120),
-      itemCount: _hits.length,
+      itemCount: _ranked.length,
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {
-        final hit = _hits[index];
+        final ranked = _ranked[index];
+        final hit = ranked.file;
         final key = '${hit.username}|${hit.filename}';
         final busy = _downloadingKey == key;
-        return ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          title: Text(hit.displayName, maxLines: 2, overflow: TextOverflow.ellipsis),
-          subtitle: Text(hit.metaLabel, style: theme.textTheme.bodySmall),
-          trailing: IconButton(
-            tooltip: 'soulseekDownload'.tr,
-            onPressed: busy ? null : () => _download(hit),
-            icon: busy
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Icon(Icons.download_outlined, color: accent),
-          ),
+        return _SongResultTile(
+          hit: hit,
+          accent: accent,
+          busy: busy,
+          onDownload: () => _download(hit),
         );
       },
+    );
+  }
+
+  Widget _albumList(ThemeData theme, Color accent) {
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 120),
+      itemCount: _albums.length,
+      itemBuilder: (context, index) {
+        final folder = _albums[index];
+        final id = '${folder.username}|${folder.folderPath}';
+        final expanded = _expandedAlbums.contains(id);
+        final albumBusy =
+            _downloadingKey == 'album|${folder.username}|${folder.folderPath}';
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              onTap: () => setState(() {
+                if (expanded) {
+                  _expandedAlbums.remove(id);
+                } else {
+                  _expandedAlbums.add(id);
+                }
+              }),
+              leading: Icon(
+                expanded ? Icons.folder_open : Icons.folder,
+                color: accent,
+              ),
+              title: Text(
+                folder.folderName,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                [
+                  folder.username,
+                  '${folder.trackCount} ${'soulseekTracks'.tr}',
+                  if (folder.formatSummary.isNotEmpty) folder.formatSummary,
+                  folder.sizeLabel,
+                  if (folder.hasFreeSlot) 'soulseekFilterSlot'.tr,
+                ].join(' · '),
+                style: theme.textTheme.bodySmall,
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'soulseekDownloadAlbum'.tr,
+                    onPressed: albumBusy ? null : () => _downloadAlbum(folder),
+                    icon: albumBusy
+                        ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              value: _downloadProgress,
+                            ),
+                          )
+                        : Icon(Icons.download_outlined, color: accent),
+                  ),
+                  Icon(
+                    expanded ? Icons.expand_less : Icons.expand_more,
+                  ),
+                ],
+              ),
+            ),
+            if (expanded)
+              ...folder.files.map(
+                (hit) {
+                  final key = '${hit.username}|${hit.filename}';
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 28),
+                    child: _SongResultTile(
+                      hit: hit,
+                      accent: accent,
+                      busy: _downloadingKey == key,
+                      onDownload: () => _download(hit),
+                      compact: true,
+                    ),
+                  );
+                },
+              ),
+            const Divider(height: 1),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SongResultTile extends StatelessWidget {
+  const _SongResultTile({
+    required this.hit,
+    required this.accent,
+    required this.busy,
+    required this.onDownload,
+    this.compact = false,
+  });
+
+  final SoulseekFile hit;
+  final Color accent;
+  final bool busy;
+  final VoidCallback onDownload;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ext = hit.extension.toUpperCase();
+    final meta = <String>[
+      if (hit.bitRate != null && hit.bitRate! > 0) '${hit.bitRate}kbps',
+      hit.sizeLabel,
+      if (hit.lengthLabel.isNotEmpty) hit.lengthLabel,
+      if (hit.hasFreeSlot) 'soulseekFilterSlot'.tr,
+      hit.username,
+    ].join(' · ');
+
+    return ListTile(
+      dense: compact,
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: compact ? 4 : 4,
+        vertical: compact ? 0 : 4,
+      ),
+      title: Text(
+        hit.displayName,
+        maxLines: compact ? 1 : 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!compact && hit.folderPath.isNotEmpty)
+            Text(
+              hit.folderPath,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+              ),
+            ),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              if (ext.isNotEmpty) ...[
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: accent.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    ext,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: accent,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
+              Expanded(
+                child: Text(
+                  meta,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      isThreeLine: !compact,
+      trailing: IconButton(
+        tooltip: 'soulseekDownload'.tr,
+        onPressed: busy ? null : onDownload,
+        icon: busy
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(Icons.download_outlined, color: accent),
+      ),
     );
   }
 }

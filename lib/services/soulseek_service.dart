@@ -78,12 +78,16 @@ class SoulseekService extends GetxController {
     // Keep username for convenience.
   }
 
-  Future<List<SoulseekFile>> search(String query) async {
+  Future<List<SoulseekFile>> search(
+    String query, {
+    void Function(SoulseekFile hit)? onHit,
+    Duration timeout = const Duration(seconds: 8),
+  }) async {
     final c = _client;
     if (c == null || !c.loggedIn) {
       throw SoulseekException('soulseekNotLoggedIn');
     }
-    return c.search(query);
+    return c.search(query, onHit: onHit, timeout: timeout);
   }
 
   Future<File> download(SoulseekFile file) async {
