@@ -26,6 +26,11 @@ import 'player_controller.dart';
 /// is closed, the song changes, or the app goes to background (so music
 /// keeps playing with working notification controls).
 class VideoModeController extends GetxController with WidgetsBindingObserver {
+  /// Set at startup when the mpv library loaded. False in the lite
+  /// (audio-only) APK, where the engine is stripped — video mode's UI
+  /// hides entirely.
+  static bool engineAvailable = false;
+
   /// Video pane is showing and mpv owns playback.
   final isActive = false.obs;
   final isLoading = false.obs;
@@ -75,6 +80,7 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
   /// Video mode exists for YouTube tracks only — podcasts, Audiobookshelf,
   /// Cloud (self-hosted) and RSS items have no YouTube video counterpart.
   bool availableFor(MediaItem? song) {
+    if (!engineAvailable) return false;
     if (song == null || !GetPlatform.isAndroid) return false;
     final id = song.id;
     return !id.startsWith('podcast_') &&

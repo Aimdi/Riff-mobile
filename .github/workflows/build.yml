@@ -45,17 +45,33 @@ jobs:
         run: |
           flutter build apk --release
           flutter build apk --release --split-per-abi
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/*.apk dist/
+
+      # Same app minus the bundled mpv video engine (video mode hides
+      # itself at runtime) — for users who want the small audio-only APK.
+      - name: Build lite APKs (audio-only, no video engine)
+        env:
+          ORG_GRADLE_PROJECT_audioOnlyLite: 'true'
+        run: |
+          flutter build apk --release
+          flutter build apk --release --split-per-abi
+          for f in build/app/outputs/flutter-apk/*.apk; do
+            base=$(basename "$f" .apk)
+            cp "$f" "dist/${base%-release}-lite-release.apk"
+          done
+          ls -la dist/
 
       - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
           name: riff-apks
-          path: build/app/outputs/flutter-apk/*.apk
+          path: dist/*.apk
 
       - name: Create release
         if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.release_tag || github.ref_name }}
-          files: build/app/outputs/flutter-apk/*.apk
+          files: dist/*.apk
           generate_release_notes: true

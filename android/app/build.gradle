@@ -85,6 +85,18 @@ android {
         }
     }
 
+    // "Lite" audio-only build: strip the bundled mpv video engine
+    // (media_kit_libs_android_video) so the APK stays small. Video mode
+    // hides itself at runtime when the library is absent. Enabled per
+    // build with ORG_GRADLE_PROJECT_audioOnlyLite=true.
+    if ((project.findProperty('audioOnlyLite') ?: 'false').toString() == 'true') {
+        packaging {
+            jniLibs {
+                excludes += ['**/libmpv.so']
+            }
+        }
+    }
+
     testOptions {
         unitTests.all {
             testLogging {

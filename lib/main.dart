@@ -46,11 +46,13 @@ import 'utils/helper.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Video mode's mpv engine (safe no-op where libs are absent).
+  // Video mode's mpv engine. In the lite (audio-only) APK the library is
+  // stripped: init throws, the flag stays false and video mode hides.
   try {
     MediaKit.ensureInitialized();
+    VideoModeController.engineAvailable = true;
   } catch (e) {
-    debugPrint('MediaKit init skipped: $e');
+    debugPrint('MediaKit init skipped (lite build?): $e');
   }
   // Critical boxes only — open the rest after first frame so cold start
   // isn't stuck on ~18 sequential Hive opens + discovery network work.
