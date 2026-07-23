@@ -38,6 +38,11 @@ class PlayerController extends GetxController
   final playerPaneOpacity = (1.0).obs;
   final isPlayerpanelTopVisible = true.obs;
   final isPanelGTHOpened = false.obs;
+  /// True when the main player panel is nearly fully open. Muted in-player
+  /// video pauses while this is false so decoding stops behind the mini player.
+  final isPlayerPanelOpen = false.obs;
+  /// Bumped on every seek so [PlayerVideoSurface] can hard-sync immediately.
+  final videoSeekSignal = 0.obs;
   final playerPanelMinHeight = 0.0.obs;
   bool initFlagForPlayer = true;
   final isQueueReorderingInProcess = false.obs;
@@ -189,6 +194,12 @@ class PlayerController extends GetxController
       isPanelGTHOpened.value = true;
     } else {
       isPanelGTHOpened.value = false;
+    }
+
+    // Hysteresis near fully-open so the last bit of the gesture doesn't thrash.
+    final open = isPlayerPanelOpen.value ? x >= 0.85 : x >= 0.95;
+    if (isPlayerPanelOpen.value != open) {
+      isPlayerPanelOpen.value = open;
     }
   }
 
@@ -885,6 +896,7 @@ class PlayerController extends GetxController
 
   void seek(Duration position) {
     _audioHandler.seek(position);
+    videoSeekSignal.value++;
   }
 
   /// True when the currently playing item is a podcast episode (from the

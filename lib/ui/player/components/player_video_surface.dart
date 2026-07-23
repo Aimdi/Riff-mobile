@@ -8,6 +8,7 @@ import 'package:video_player/video_player.dart';
 
 import '/services/video_stream_service.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/utils/media_item_video.dart';
 
 /// Spotify-style in-player video pane for YouTube *videos* only.
@@ -41,10 +42,20 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
   bool _failed = false;
   bool _seeking = false;
   Worker? _playWorker;
+  Worker? _panelWorker;
+  Worker? _seekWorker;
+  Worker? _speedWorker;
   Timer? _syncTimer;
   Duration _lastAudioPos = Duration.zero;
 
   PlayerController get _player => Get.find<PlayerController>();
+
+  bool get _panelOpen {
+    // Desktop keeps the player visible; on mobile, pause decode while the
+    // slide-up panel is collapsed (mini player only).
+    if (GetPlatform.isDesktop) return true;
+    return _player.isPlayerPanelOpen.value;
+  }
 
   @override
   void initState() {
@@ -52,8 +63,17 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
     WidgetsBinding.instance.addObserver(this);
     _boot(widget.song);
     _playWorker = ever(_player.buttonState, (_) => _syncPlayPause());
-    // Rare soft-sync only — seeking every <1s caused constant hitching.
-    _syncTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+    _panelWorker = ever(_player.isPlayerPanelOpen, (_) => _onPanelOpenChanged());
+    _seekWorker = ever(_player.videoSeekSignal, (_) => _onExternalSeek());
+    if (Get.isRegistered<SettingsScreenController>()) {
+      _speedWorker = ever(
+        Get.find<SettingsScreenController>().playbackSpeed,
+        (_) => _applySpeed(),
+      );
+    }
+    // Soft-sync rarely — frequent seeks were a major hitch source.
+    _syncTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!_panelOpen) return;
       _correctDrift(soft: true);
     });
   }
@@ -67,7 +87,7 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
       unawaited(c.pause());
     } else if (state == AppLifecycleState.resumed) {
       _syncPlayPause();
-      _correctDrift(soft: false);
+      if (_panelOpen) _correctDrift(soft: false);
     }
   }
 
@@ -83,11 +103,40 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _playWorker?.dispose();
+    _panelWorker?.dispose();
+    _seekWorker?.dispose();
+    _speedWorker?.dispose();
     _syncTimer?.cancel();
     final c = _controller;
     _controller = null;
     unawaited(c?.dispose() ?? Future<void>.value());
     super.dispose();
+  }
+
+  void _onPanelOpenChanged() {
+    final c = _controller;
+    if (c == null || !c.value.isInitialized) return;
+    if (!_panelOpen) {
+      if (c.value.isPlaying) unawaited(c.pause());
+      return;
+    }
+    _correctDrift(soft: false);
+    _syncPlayPause();
+  }
+
+  void _onExternalSeek() {
+    if (!_panelOpen) return;
+    _correctDrift(soft: false);
+  }
+
+  Future<void> _applySpeed() async {
+    final c = _controller;
+    if (c == null || !c.value.isInitialized) return;
+    if (!Get.isRegistered<SettingsScreenController>()) return;
+    final speed = Get.find<SettingsScreenController>().playbackSpeed.value;
+    try {
+      await c.setPlaybackSpeed(speed.clamp(0.25, 2.0));
+    } catch (_) {}
   }
 
   Future<void> _boot(MediaItem song) async {
@@ -131,12 +180,17 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
       await c.initialize();
       await c.setVolume(0);
       await c.setLooping(false);
+      await _applySpeedTo(c);
       final pos = _player.progressBarStatus.value.current;
       if (pos > Duration.zero) {
         await c.seekTo(pos);
       }
-      if (_player.buttonState.value == PlayButtonState.playing) {
+      // Only start decoding when the full player is visible.
+      if (_panelOpen &&
+          _player.buttonState.value == PlayButtonState.playing) {
         unawaited(c.play());
+      } else {
+        await c.pause();
       }
       if (!mounted || widget.song.id != song.id) {
         await c.dispose();
@@ -157,9 +211,21 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
     }
   }
 
+  Future<void> _applySpeedTo(VideoPlayerController c) async {
+    if (!Get.isRegistered<SettingsScreenController>()) return;
+    final speed = Get.find<SettingsScreenController>().playbackSpeed.value;
+    try {
+      await c.setPlaybackSpeed(speed.clamp(0.25, 2.0));
+    } catch (_) {}
+  }
+
   void _syncPlayPause() {
     final c = _controller;
     if (c == null || !c.value.isInitialized) return;
+    if (!_panelOpen) {
+      if (c.value.isPlaying) unawaited(c.pause());
+      return;
+    }
     final playing = _player.buttonState.value == PlayButtonState.playing;
     if (playing && !c.value.isPlaying) {
       unawaited(c.play());
@@ -171,6 +237,7 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
   void _correctDrift({required bool soft}) {
     final c = _controller;
     if (c == null || !c.value.isInitialized || _seeking) return;
+    if (!_panelOpen) return;
     final audioPos = _player.progressBarStatus.value.current;
     final jumped =
         (audioPos - _lastAudioPos).abs() > const Duration(seconds: 1);
@@ -178,7 +245,7 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
     final drift = (audioPos - c.value.position).abs();
     // Soft periodic sync only corrects large drift; jumps always sync.
     final threshold =
-        soft ? const Duration(milliseconds: 1200) : const Duration(milliseconds: 350);
+        soft ? const Duration(milliseconds: 2000) : const Duration(milliseconds: 350);
     if (!jumped && drift <= threshold) {
       _syncPlayPause();
       return;
@@ -217,70 +284,70 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
     final height = widget.maxHeight ?? (widget.width * 9 / 16);
     final ready = _controller != null && _controller!.value.isInitialized;
 
+    // No ClipRRect — clipping a live texture forces an expensive save layer.
     return SizedBox(
       width: widget.width,
       height: height,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: ColoredBox(
-          color: Colors.black,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              if (ready)
-                Center(
-                  child: AspectRatio(
-                    aspectRatio: _controller!.value.aspectRatio == 0
-                        ? 16 / 9
-                        : _controller!.value.aspectRatio,
+      child: ColoredBox(
+        color: Colors.black,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (ready)
+              Center(
+                child: AspectRatio(
+                  aspectRatio: _controller!.value.aspectRatio == 0
+                      ? 16 / 9
+                      : _controller!.value.aspectRatio,
+                  child: RepaintBoundary(
                     child: VideoPlayer(_controller!),
                   ),
                 ),
-              if (_loading)
-                const Center(
-                  child: SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+              ),
+            if (_loading)
+              const Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 ),
-              if (_failed && !_loading)
-                Center(
-                  child: Text(
-                    'videoUnavailable'.tr,
-                    style: const TextStyle(color: Colors.white70, fontSize: 13),
-                  ),
+              ),
+            if (_failed && !_loading)
+              Center(
+                child: Text(
+                  'videoUnavailable'.tr,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
                 ),
-              if (widget.showControls && !_loading)
-                Positioned(
-                  left: 8,
-                  top: 8,
-                  child: _VideoBadge(failed: _failed),
+              ),
+            if (widget.showControls && !_loading)
+              Positioned(
+                left: 8,
+                top: 8,
+                child: _VideoBadge(failed: _failed),
+              ),
+            if (widget.showControls && !_loading)
+              Positioned(
+                right: 4,
+                top: 4,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (widget.onToggleVideo != null)
+                      _OverlayIconButton(
+                        tooltip: 'videoHide'.tr,
+                        icon: Icons.videocam_off_outlined,
+                        onPressed: widget.onToggleVideo!,
+                      ),
+                    if (!_failed && ready)
+                      _OverlayIconButton(
+                        tooltip: 'videoFullscreen'.tr,
+                        icon: Icons.fullscreen,
+                        onPressed: _openFullscreen,
+                      ),
+                  ],
                 ),
-              if (widget.showControls && !_loading)
-                Positioned(
-                  right: 4,
-                  top: 4,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (widget.onToggleVideo != null)
-                        _OverlayIconButton(
-                          tooltip: 'videoHide'.tr,
-                          icon: Icons.videocam_off_outlined,
-                          onPressed: widget.onToggleVideo!,
-                        ),
-                      if (!_failed && ready)
-                        _OverlayIconButton(
-                          tooltip: 'videoFullscreen'.tr,
-                          icon: Icons.fullscreen,
-                          onPressed: _openFullscreen,
-                        ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );

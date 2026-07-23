@@ -6,10 +6,10 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 import '/utils/helper.dart';
 
-/// Progressive / muxed video URL for in-player display.
+/// Video URL for the muted in-player surface.
 ///
-/// Audio stays on just_audio; this URL drives a muted [VideoPlayer] synced to
-/// the audio clock. Prefer ~480p progressive MP4 for reliability on mobile.
+/// Audio stays on just_audio. Prefer low-res **video-only** streams so ExoPlayer
+/// does not also decode a discarded muxed audio track (a major lag source).
 class VideoStreamInfo {
   const VideoStreamInfo({
     required this.url,
@@ -17,6 +17,7 @@ class VideoStreamInfo {
     required this.height,
     this.itag,
     this.mimeType,
+    this.hasAudio = true,
   });
 
   final String url;
@@ -24,6 +25,9 @@ class VideoStreamInfo {
   final int height;
   final int? itag;
   final String? mimeType;
+
+  /// True for progressive/muxed; false for adaptive video-only.
+  final bool hasAudio;
 
   double get aspectRatio =>
       width > 0 && height > 0 ? width / height : 16 / 9;
@@ -35,7 +39,7 @@ class VideoStreamService {
   static const _newPipeChannel = MethodChannel('riff/newpipe');
   static final Map<String, VideoStreamInfo> _cache = {};
 
-  /// Best effort muxed/progressive video URL for [videoId].
+  /// Best effort video URL for [videoId] (muted player surface).
   static Future<VideoStreamInfo?> resolve(String videoId) async {
     final id = videoId.trim();
     if (id.isEmpty) return null;
@@ -82,13 +86,14 @@ class VideoStreamService {
           height: _asInt(e['height']),
           itag: _asInt(e['itag']),
           mimeType: '${e['mimeType'] ?? ''}',
+          hasAudio: e['hasAudio'] != false,
         ));
       }
-      return _pickBest(parsed);
+      return pickBestForPlayer(parsed);
     } catch (e) {
       printERROR('NewPipe muxed video failed ($videoId): $e');
-      return null;
     }
+    return null;
   }
 
   static Future<VideoStreamInfo?> _viaExplode(String videoId) async {
@@ -106,50 +111,94 @@ class VideoStreamService {
             ytClients: clients,
             requireWatchPage: false,
           );
-          if (res.muxed.isNotEmpty) break;
+          if (res.muxed.isNotEmpty || res.videoOnly.isNotEmpty) break;
         } catch (e) {
           lastError = e;
         }
       }
-      if (res == null || res.muxed.isEmpty) {
-        if (lastError != null) printERROR('Explode muxed: $lastError');
+      if (res == null || (res.muxed.isEmpty && res.videoOnly.isEmpty)) {
+        if (lastError != null) printERROR('Explode video streams: $lastError');
         return null;
       }
-      final parsed = res.muxed
-          .map((e) => VideoStreamInfo(
-                url: e.url.toString(),
-                width: e.videoResolution.width,
-                height: e.videoResolution.height,
-                itag: e.tag,
-                mimeType: e.container.name,
-              ))
-          .toList();
-      return _pickBest(parsed);
+      final parsed = <VideoStreamInfo>[
+        ...res.videoOnly.map((e) => VideoStreamInfo(
+              url: e.url.toString(),
+              width: e.videoResolution.width,
+              height: e.videoResolution.height,
+              itag: e.tag,
+              mimeType: e.container.name,
+              hasAudio: false,
+            )),
+        ...res.muxed.map((e) => VideoStreamInfo(
+              url: e.url.toString(),
+              width: e.videoResolution.width,
+              height: e.videoResolution.height,
+              itag: e.tag,
+              mimeType: e.container.name,
+              hasAudio: true,
+            )),
+      ];
+      return pickBestForPlayer(parsed);
     } catch (e) {
-      printERROR('Explode muxed video failed ($videoId): $e');
+      printERROR('Explode video failed ($videoId): $e');
       return null;
     } finally {
       yt.close();
     }
   }
 
-  /// Prefer ~360p for the in-player surface (less decode lag). Fullscreen can
-  /// still use the same stream; 720p is a fallback only if nothing smaller exists.
-  static VideoStreamInfo? _pickBest(List<VideoStreamInfo> streams) {
+  /// Prefer low-res video-only (no discarded audio decode), then low muxed.
+  /// Exposed for unit tests.
+  static VideoStreamInfo? pickBestForPlayer(List<VideoStreamInfo> streams) {
     if (streams.isEmpty) return null;
-    streams.sort((a, b) => a.height.compareTo(b.height));
-    VideoStreamInfo? bestAtOrBelow(int maxH) {
-      VideoStreamInfo? pick;
-      for (final s in streams) {
-        if (s.height <= maxH) pick = s;
+
+    int score(VideoStreamInfo s) {
+      var sc = 0;
+      final h = s.height;
+      if (h > 0 && h <= 144) {
+        sc += 100;
+      } else if (h <= 240) {
+        sc += 90;
+      } else if (h <= 360) {
+        sc += 55;
+      } else if (h <= 480) {
+        sc += 25;
+      } else if (h <= 720) {
+        sc += 5;
+      } else {
+        sc -= 40;
       }
-      return pick;
+
+      // Video-only avoids decoding muxed AAC that we immediately mute.
+      if (!s.hasAudio && h > 0 && h <= 360) {
+        sc += 45;
+      } else if (!s.hasAudio && h > 360) {
+        sc += 10;
+      }
+
+      final mime = (s.mimeType ?? '').toLowerCase();
+      // Prefer H.264/MP4 hardware paths over VP9/WebM on mid-range Android.
+      if (mime.contains('mp4') ||
+          mime.contains('avc') ||
+          mime.contains('h264') ||
+          mime == 'mp4') {
+        sc += 12;
+      }
+      if (mime.contains('webm') ||
+          mime.contains('vp9') ||
+          mime.contains('vp09')) {
+        sc -= 8;
+      }
+      return sc;
     }
 
-    return bestAtOrBelow(360) ??
-        bestAtOrBelow(480) ??
-        bestAtOrBelow(720) ??
-        streams.first;
+    final ranked = List<VideoStreamInfo>.from(streams)
+      ..sort((a, b) {
+        final d = score(b).compareTo(score(a));
+        if (d != 0) return d;
+        return a.height.compareTo(b.height);
+      });
+    return ranked.first;
   }
 
   static int _asInt(dynamic v) {

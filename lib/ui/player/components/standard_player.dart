@@ -48,13 +48,11 @@ class StandardPlayer extends StatelessWidget {
 
       return Stack(
         children: [
-          // Static blur is expensive under a live video surface — use a flat
-          // scrim for videos instead.
+          // Skip HQ album-art decode + blur under live video — solid scrim only.
           if (showVideo) ...[
-            const BackgroudImage(),
             Positioned.fill(
               child: ColoredBox(
-                color: Theme.of(context).primaryColor.withOpacity(0.88),
+                color: Theme.of(context).primaryColor,
               ),
             ),
           ] else ...[

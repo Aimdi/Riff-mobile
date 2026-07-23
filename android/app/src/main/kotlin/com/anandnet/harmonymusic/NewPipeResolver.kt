@@ -6,6 +6,7 @@ import org.schabi.newpipe.extractor.downloader.Downloader
 import org.schabi.newpipe.extractor.downloader.Request
 import org.schabi.newpipe.extractor.downloader.Response
 import org.schabi.newpipe.extractor.stream.StreamInfo
+import org.schabi.newpipe.extractor.stream.VideoStream
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -94,8 +95,10 @@ object NewPipeResolver {
     }
 
     /**
-     * Progressive / muxed video+audio streams for in-player video display.
-     * Each map: itag, mimeType, width, height, url, size, durationMs.
+     * Player video streams: muxed + video-only.
+     * Each map: itag, mimeType, width, height, url, size, durationMs, hasAudio.
+     * Video-only is preferred by the Dart picker so muted playback does not
+     * decode a discarded audio track.
      */
     @JvmStatic
     fun getMuxedVideoStreams(videoId: String): List<Map<String, Any?>> {
@@ -103,18 +106,23 @@ object NewPipeResolver {
         val info = StreamInfo.getInfo(
             ServiceList.YouTube, "https://www.youtube.com/watch?v=$videoId")
         val durationMs = info.duration * 1000
-        return info.videoStreams
+        fun mapStream(s: VideoStream, hasAudio: Boolean): Map<String, Any?> =
+            mapOf(
+                "itag" to (s.itagItem?.id ?: -1),
+                "mimeType" to (s.format?.mimeType ?: ""),
+                "width" to s.width,
+                "height" to s.height,
+                "url" to s.content,
+                "size" to (s.itagItem?.contentLength ?: 0L),
+                "durationMs" to durationMs,
+                "hasAudio" to hasAudio,
+            )
+        val muxed = info.videoStreams
             .filter { it.isUrl && !it.content.isNullOrEmpty() }
-            .map { s ->
-                mapOf(
-                    "itag" to (s.itagItem?.id ?: -1),
-                    "mimeType" to (s.format?.mimeType ?: ""),
-                    "width" to s.width,
-                    "height" to s.height,
-                    "url" to s.content,
-                    "size" to (s.itagItem?.contentLength ?: 0L),
-                    "durationMs" to durationMs,
-                )
-            }
+            .map { mapStream(it, true) }
+        val videoOnly = info.videoOnlyStreams
+            .filter { it.isUrl && !it.content.isNullOrEmpty() }
+            .map { mapStream(it, false) }
+        return muxed + videoOnly
     }
 }
