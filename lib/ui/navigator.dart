@@ -86,8 +86,17 @@ class ScreenNavigation extends StatelessWidget {
                   page: () => const PluginsScreen(), settings: settings);
 
             case ScreenNavigationSetup.torrentSearchScreen:
+              final args = settings.arguments;
+              final initialQuery = args is String
+                  ? args
+                  : (args is Map ? '${args['query'] ?? ''}' : null);
               return GetPageRoute(
-                  page: () => const TorrentSearchScreen(), settings: settings);
+                  page: () => TorrentSearchScreen(
+                        initialQuery: (initialQuery ?? '').trim().isEmpty
+                            ? null
+                            : initialQuery!.trim(),
+                      ),
+                  settings: settings);
 
             case ScreenNavigationSetup.soulSyncScreen:
               return GetPageRoute(
