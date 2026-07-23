@@ -17,6 +17,7 @@ import '/ui/widgets/sleep_timer_bottom_sheet.dart';
 import '/ui/player/player_controller.dart';
 import '../screens/Library/library_controller.dart';
 import '/ui/widgets/add_to_playlist.dart';
+import '/ui/widgets/favorite_heart_button.dart';
 import '/ui/widgets/snackbar.dart';
 import '../../models/media_Item_builder.dart';
 import '../../models/playlist.dart';
@@ -80,17 +81,11 @@ class SongInfoBottomSheet extends StatelessWidget {
                                   .titleMedium!
                                   .color,
                             ))
-                        : IconButton(
-                            onPressed: songInfoController.toggleFav,
-                            icon: Obx(() => Icon(
-                                  songInfoController.isCurrentSongFav.isFalse
-                                      ? Icons.favorite_border
-                                      : Icons.favorite,
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium!
-                                      .color,
-                                ))),
+                        : FavoriteHeartButton(
+                            isFav: songInfoController.isCurrentSongFav,
+                            onToggleFav: songInfoController.toggleFav,
+                            song: () => song,
+                          ),
                     SongDownloadButton(
                       song_: song,
                       isDownloadingDoneCallback:

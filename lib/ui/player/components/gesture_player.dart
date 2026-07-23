@@ -8,6 +8,7 @@ import 'package:harmonymusic/ui/player/components/backgroud_image.dart';
 import 'package:ionicons/ionicons.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
+import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
 import '../../utils/theme_controller.dart';
 import '../player_controller.dart';
@@ -156,22 +157,15 @@ class GesturePlayer extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.start,
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                IconButton(
-                                    splashRadius: 10,
-                                    iconSize: 20,
-                                    visualDensity: const VisualDensity(
-                                        horizontal: -4, vertical: -4),
-                                    onPressed: playerController.toggleFavourite,
-                                    icon: Obx(() => Icon(
-                                          playerController
-                                                  .isCurrentSongFav.isFalse
-                                              ? Icons.favorite_border
-                                              : Icons.favorite,
-                                          color: Theme.of(context)
-                                              .textTheme
-                                              .titleMedium!
-                                              .color,
-                                        ))),
+                                FavoriteHeartButton(
+                                  splashRadius: 10,
+                                  iconSize: 20,
+                                  visualDensity: const VisualDensity(
+                                      horizontal: -4, vertical: -4),
+                                  isFav: playerController.isCurrentSongFav,
+                                  onToggleFav: playerController.toggleFavourite,
+                                  song: () => playerController.currentSong.value,
+                                ),
                                 Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceEvenly,
