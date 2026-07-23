@@ -40,25 +40,44 @@ import 'ui/screens/Podcasts/podcast_folder_controller.dart';
 import 'ui/screens/Audiobooks/audiobook_library_controller.dart';
 import 'utils/system_tray.dart';
 import 'utils/update_check_flag_file.dart';
+import 'utils/helper.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initHive();
+  // Critical boxes only — open the rest after first frame so cold start
+  // isn't stuck on ~18 sequential Hive opens + discovery network work.
+  await initHiveCritical();
   _setAppInitPrefs();
   // Load cached remote client config synchronously; refresh in background.
   unawaited(ClientConfigService.init());
   startApplicationServices();
   Get.put<AudioHandler>(await initAudioService(), permanent: true);
-  // Discovery depends on MusicServices — init after services are registered.
-  await Get.putAsync(() => DiscoveryService().init(), permanent: true);
-  if (!GetPlatform.isDesktop) {
-    await Get.putAsync(() => PlaybackRulesService().init(), permanent: true);
-  }
-  Get.put(SmartQueueService().init(), permanent: true);
   WidgetsBinding.instance.addObserver(LifecycleHandler());
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   TerminateRestart.instance.initialize();
   runApp(const MyApp());
+  // Warm the rest after the first frame is scheduled.
+  unawaited(_warmAfterFirstFrame());
+}
+
+/// Non-critical Hive boxes + discovery / audio-session setup.
+/// Kept off the critical path so Home can paint from cache immediately.
+Future<void> _warmAfterFirstFrame() async {
+  try {
+    await initHiveDeferred();
+    if (!Get.isRegistered<DiscoveryService>()) {
+      await Get.putAsync(() => DiscoveryService().init(), permanent: true);
+    }
+    if (!GetPlatform.isDesktop && !Get.isRegistered<PlaybackRulesService>()) {
+      await Get.putAsync(() => PlaybackRulesService().init(), permanent: true);
+    }
+    if (!Get.isRegistered<SmartQueueService>()) {
+      Get.put(SmartQueueService().init(), permanent: true);
+    }
+  } catch (e) {
+    // Never block the UI on background warm-up failures.
+    printERROR('Background warm-up failed: $e');
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -145,7 +164,7 @@ Future<void> startApplicationServices() async {
   }
 }
 
-initHive() async {
+initHiveCritical() async {
   String applicationDataDirectoryPath;
   if (GetPlatform.isDesktop) {
     applicationDataDirectoryPath =
@@ -155,27 +174,43 @@ initHive() async {
         (await getApplicationDocumentsDirectory()).path;
   }
   await Hive.initFlutter(applicationDataDirectoryPath);
-  await Hive.openBox("SongsCache");
-  await Hive.openBox("SongDownloads");
-  await Hive.openBox('SongsUrlCache');
-  // Hive box names are case-insensitive (files are lowercased). Never open /
-  // delete "appPrefs" separately from "AppPrefs" — that wipes prefs and can
-  // black-screen the app on launch (v1.7.82 regression).
-  await Hive.openBox("AppPrefs");
-  await Hive.openBox("BannedSongs");
-  await Hive.openBox("BannedArtists");
-  await Hive.openBox("BannedCollections");
-  await Hive.openBox("PodcastSubs");
-  await Hive.openBox("SongStats");
-  await Hive.openBox("DailyStats");
-  await Hive.openBox("SquareCovers");
-  await Hive.openBox("PodcastQueue");
-  await Hive.openBox("PodcastFolders");
-  await Hive.openBox("SavedAudiobooks");
-  await Hive.openBox("PodcastDownloads");
-  await Hive.openBox("PodcastProgress");
-  await Hive.openBox("TrackAnalysisCache");
-  await Hive.openBox("PlaylistMixPrefs");
+  // Needed before first paint / first play. Open in parallel.
+  await Future.wait([
+    Hive.openBox("SongsCache"),
+    Hive.openBox("SongDownloads"),
+    Hive.openBox('SongsUrlCache'),
+    // Hive box names are case-insensitive (files are lowercased). Never open /
+    // delete "appPrefs" separately from "AppPrefs" — that wipes prefs and can
+    // black-screen the app on launch (v1.7.82 regression).
+    Hive.openBox("AppPrefs"),
+    // Home filters touch bans as soon as network content arrives.
+    Hive.openBox("BannedSongs"),
+    Hive.openBox("BannedArtists"),
+    Hive.openBox("BannedCollections"),
+  ]);
+}
+
+/// Secondary boxes used by podcasts, stats, bans, discovery — not first paint.
+initHiveDeferred() async {
+  await Future.wait([
+    Hive.openBox("PodcastSubs"),
+    Hive.openBox("SongStats"),
+    Hive.openBox("DailyStats"),
+    Hive.openBox("SquareCovers"),
+    Hive.openBox("PodcastQueue"),
+    Hive.openBox("PodcastFolders"),
+    Hive.openBox("SavedAudiobooks"),
+    Hive.openBox("PodcastDownloads"),
+    Hive.openBox("PodcastProgress"),
+    Hive.openBox("TrackAnalysisCache"),
+    Hive.openBox("PlaylistMixPrefs"),
+  ]);
+}
+
+/// Full open (tests / tools). Prefer [initHiveCritical] + [initHiveDeferred].
+initHive() async {
+  await initHiveCritical();
+  await initHiveDeferred();
 }
 
 void _setAppInitPrefs() {
@@ -212,13 +247,16 @@ class LifecycleHandler extends WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) async {
     if (state == AppLifecycleState.resumed) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-      // Cheap mix regeneration check (no WorkManager in v1).
+      // Defer mix regen so resume doesn't compete with Home/play network.
       if (Get.isRegistered<DiscoveryService>()) {
-        unawaited(Get.find<DiscoveryService>().maybeRegenerateMixes());
+        Future<void>.delayed(const Duration(seconds: 6), () {
+          if (Get.isRegistered<DiscoveryService>()) {
+            unawaited(Get.find<DiscoveryService>().maybeRegenerateMixes());
+          }
+        });
       }
     } else if (state == AppLifecycleState.detached) {
       await Get.find<AudioHandler>().customAction("saveSession");
     }
   }
 }
-

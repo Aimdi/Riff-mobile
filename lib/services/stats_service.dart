@@ -14,6 +14,10 @@ class StatsService {
       "${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
 
   static Future<void> recordPlay(MediaItem item) async {
+    // Deferred Hive warm-up may not have opened stats boxes yet.
+    if (!Hive.isBoxOpen("SongStats") || !Hive.isBoxOpen("DailyStats")) {
+      return;
+    }
     final secs = item.duration?.inSeconds ?? 0;
     final now = DateTime.now();
 

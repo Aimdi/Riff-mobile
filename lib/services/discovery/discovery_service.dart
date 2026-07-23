@@ -66,8 +66,8 @@ class DiscoveryService extends GetxService {
     // Lazy load cached mixes for Home (no network)
     dailyMixes.assignAll(repo.mixesOfKind(MixKind.dailyMix));
 
-    // Fire-and-forget regeneration check after first frame window
-    Future.delayed(const Duration(seconds: 2), () {
+    // Fire-and-forget regeneration well after Home/cache paint + first play.
+    Future.delayed(const Duration(seconds: 12), () {
       maybeRegenerateMixes();
     });
 
@@ -89,8 +89,7 @@ class DiscoveryService extends GetxService {
 
   set wifiOnlyGeneration(bool v) => repo.setPref('wifiOnlyGeneration', v);
 
-  int get mixCount =>
-      repo.getPref('mixCount', defaultValue: 4) as int? ?? 4;
+  int get mixCount => repo.getPref('mixCount', defaultValue: 4) as int? ?? 4;
 
   set mixCount(int v) => repo.setPref('mixCount', v.clamp(3, 5));
 
@@ -122,8 +121,7 @@ class DiscoveryService extends GetxService {
       // Prefer continuous position; fall back to wall-clock if position reset
       var listened = positionMs > 0 ? positionMs : _prevPositionMs;
       if (listened <= 0 && _songStartedAtMs > 0) {
-        listened =
-            DateTime.now().millisecondsSinceEpoch - _songStartedAtMs;
+        listened = DateTime.now().millisecondsSinceEpoch - _songStartedAtMs;
       }
       await taste.logPlayEnded(
         videoId: _prevMedia!.id,
@@ -139,8 +137,8 @@ class DiscoveryService extends GetxService {
     _prevPositionMs = 0;
     _songStartedAtMs = DateTime.now().millisecondsSinceEpoch;
     if (next != null) {
-      _prevSource = DiscoverySource.fromWire(
-          next.extras?['discoverySource'] as String?);
+      _prevSource =
+          DiscoverySource.fromWire(next.extras?['discoverySource'] as String?);
       await taste.logPlayStarted(
         videoId: next.id,
         artist: next.artist,
@@ -178,8 +176,7 @@ class DiscoveryService extends GetxService {
         surface: surface,
       );
 
-  Future<void> onDismiss(MediaItem song, {String? surface}) =>
-      taste.logDismiss(
+  Future<void> onDismiss(MediaItem song, {String? surface}) => taste.logDismiss(
         videoId: song.id,
         artist: song.artist,
         title: song.title,
@@ -188,8 +185,17 @@ class DiscoveryService extends GetxService {
 
   // ─── Mix scheduler (resume / launch, no WorkManager) ──────────────────
 
+  DateTime? _lastMixRegenAt;
+
   Future<void> maybeRegenerateMixes({bool force = false}) async {
     if (!isReady.value || isGenerating.value) return;
+    // Avoid resume/launch double-firing within a short window.
+    if (!force &&
+        _lastMixRegenAt != null &&
+        DateTime.now().difference(_lastMixRegenAt!) <
+            const Duration(minutes: 15)) {
+      return;
+    }
     if (!force && wifiOnlyGeneration) {
       // Best-effort: if we cannot know connectivity, allow generation.
       // Callers on mobile can pass force or set wifiOnly false.
@@ -208,6 +214,7 @@ class DiscoveryService extends GetxService {
         final sections = await engine.homeSections();
         personalSections.assignAll(sections);
       }
+      _lastMixRegenAt = DateTime.now();
       mixesUpdatedPill.value = true;
       Future.delayed(const Duration(seconds: 4), () {
         mixesUpdatedPill.value = false;
@@ -296,8 +303,7 @@ class DiscoveryService extends GetxService {
     return item.copyWith(extras: extras);
   }
 
-  static List<MediaItem> tagAll(
-      List<MediaItem> items, DiscoverySource source) {
+  static List<MediaItem> tagAll(List<MediaItem> items, DiscoverySource source) {
     return items.map((e) => withSource(e, source)).toList();
   }
 }

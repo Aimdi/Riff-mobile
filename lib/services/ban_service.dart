@@ -20,7 +20,8 @@ class BanService {
           ? Hive.box("BannedCollections")
           : null;
 
-  static bool isBanned(String songId) => _box.containsKey(songId);
+  static bool isBanned(String songId) =>
+      Hive.isBoxOpen("BannedSongs") && _box.containsKey(songId);
 
   static Future<void> ban(MediaItem song) => _box.put(song.id, {
         "title": song.title,
