@@ -1927,7 +1927,7 @@ Map<String, Map<String, String>> get keys => {
   "networkError1": "Oops network error!",
   "retry": "Retry!",
   "noOfflineSong": "No offline songs!",
-  "recentlyPlayed": "Recently Played",
+  "recentlyPlayed": "Recently played",
   "favorites": "Favorites",
   "cachedOrOffline": "Cached/Offline",
   "downloads": "Downloads",

@@ -29,37 +29,15 @@ class HomeDiscoverySection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 12, top: 18, bottom: 10, right: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                section.title,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 20,
-                      letterSpacing: -0.35,
-                    ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (section.reason.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 3),
-                  child: Text(
-                    section.reason,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context)
-                              .textTheme
-                              .titleSmall
-                              ?.color
-                              ?.withOpacity(0.85),
-                          fontWeight: FontWeight.w500,
-                        ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+          child: Text(
+            section.title,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 19,
+                  letterSpacing: -0.35,
                 ),
-            ],
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
         SizedBox(

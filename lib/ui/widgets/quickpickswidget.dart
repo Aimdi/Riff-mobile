@@ -25,8 +25,14 @@ class QuickPicksWidget extends StatelessWidget {
           Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                content.title.toLowerCase().removeAllWhitespace.tr,
+                content.title == 'Quick picks' ||
+                        content.title.toLowerCase().removeAllWhitespace ==
+                            'quickpicks'
+                    ? 'Quick picks'
+                    : content.title.toLowerCase().removeAllWhitespace.tr,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 19,
                       letterSpacing: -0.35,
                     ),
               )),
