@@ -9,7 +9,6 @@ import 'albumart_lyrics.dart';
 import 'backgroud_image.dart';
 import 'lyrics_switch.dart';
 import 'player_control.dart';
-import 'player_video_surface.dart';
 
 /// Standard player widget
 ///
@@ -132,14 +131,8 @@ class StandardPlayer extends StatelessWidget {
                                     : (size.height < 750 ? 110 : 140))),
                       ),
                       if (!isVideo) const LyricsSwitch(),
-                      if (isVideo && !showVideo)
-                        PlayerVideoShowChip(
-                          onShow: () async {
-                            await AlbumArtNLyrics.setVideoPlaybackEnabled(true);
-                            playerController.currentSong.refresh();
-                          },
-                        ),
                       // Center the video/art in the remaining space above controls.
+                      // Video is opt-in via the videocam icon on the cover art.
                       Expanded(
                         child: Center(
                           child: ConstrainedBox(

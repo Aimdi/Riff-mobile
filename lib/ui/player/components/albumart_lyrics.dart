@@ -17,7 +17,8 @@ class AlbumArtNLyrics extends StatelessWidget {
   static bool get videoPlaybackEnabled {
     final v = Hive.box('AppPrefs').get('playerShowVideo');
     if (v is bool) return v;
-    return true;
+    // Opt-in: cover/thumbnail by default; user taps the video icon to enable.
+    return false;
   }
 
   static Future<void> setVideoPlaybackEnabled(bool on) async {
@@ -31,7 +32,8 @@ class AlbumArtNLyrics extends StatelessWidget {
       final song = playerController.currentSong.value;
       if (song == null) return const SizedBox.shrink();
 
-      final isVideo = song.canShowPlayerVideo && videoPlaybackEnabled;
+      final canVideo = song.canShowPlayerVideo;
+      final isVideo = canVideo && videoPlaybackEnabled;
       // Spotify-style: videos use a 16:9 frame, songs keep the square cover.
       final width = playerArtImageSize;
       final height = isVideo ? (width * 9 / 16) : playerArtImageSize;
@@ -119,6 +121,18 @@ class AlbumArtNLyrics extends StatelessWidget {
                           isPlayerArtImage: true,
                         ),
                 ),
+                // Opt-in: video stays off until the user taps the video icon.
+                if (canVideo && !isVideo)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: PlayerVideoEnableButton(
+                      onShow: () async {
+                        await AlbumArtNLyrics.setVideoPlaybackEnabled(true);
+                        playerController.currentSong.refresh();
+                      },
+                    ),
+                  ),
                 Obx(() => playerController.showLyricsflag.isTrue
                     ? InkWell(
                         onTap: () {
