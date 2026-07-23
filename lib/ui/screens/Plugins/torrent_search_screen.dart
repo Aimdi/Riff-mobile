@@ -159,7 +159,13 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
     final ctrl = TextEditingController(text: MamTorrentService.mamId ?? '');
     await showModalBottomSheet<void>(
       context: context,
+      // Nested navigator sits under the SlidingUpPanel mini-player; use the
+      // root overlay so this sheet is actually tappable.
+      useRootNavigator: true,
       isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor ??
+          Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
       ),
@@ -167,100 +173,116 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
         var obscure = true;
         var busy = false;
         return StatefulBuilder(builder: (ctx, setLocal) {
+          final bottomPad = _sheetBottomPadding(ctx);
           return Padding(
             padding: EdgeInsets.only(
               left: 20,
               right: 20,
-              top: 16,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+              top: 12,
+              bottom: bottomPad,
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text('mamConfigure'.tr,
-                    style: Theme.of(ctx).textTheme.titleMedium),
-                const SizedBox(height: 8),
-                Text('mamConfigureDes'.tr,
-                    style: Theme.of(ctx).textTheme.bodySmall),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: ctrl,
-                  obscureText: obscure,
-                  decoration: InputDecoration(
-                    labelText: 'mamId'.tr,
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                          obscure ? Icons.visibility : Icons.visibility_off),
-                      onPressed: () => setLocal(() => obscure = !obscure),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(ctx).dividerColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    if (MamTorrentService.isConfigured)
-                      TextButton(
+                  Text('mamConfigure'.tr,
+                      style: Theme.of(ctx).textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  Text('mamConfigureDes'.tr,
+                      style: Theme.of(ctx).textTheme.bodySmall),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: ctrl,
+                    obscureText: obscure,
+                    autofocus: true,
+                    textInputAction: TextInputAction.done,
+                    style: Theme.of(ctx).textTheme.bodyLarge,
+                    decoration: _cookieFieldDecoration(
+                      ctx,
+                      label: 'mamId'.tr,
+                      obscure: obscure,
+                      onToggleObscure: () =>
+                          setLocal(() => obscure = !obscure),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      if (MamTorrentService.isConfigured)
+                        TextButton(
+                          onPressed: busy
+                              ? null
+                              : () async {
+                                  await MamTorrentService.clearMamId();
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  setState(() {
+                                    _sources = {..._sources}
+                                      ..remove(TorrentSourceId.myAnonamouse);
+                                  });
+                                  await TorrentSearchFacade.setEnabledSources(
+                                      _sources);
+                                },
+                          child: Text('disconnect'.tr),
+                        ),
+                      const Spacer(),
+                      FilledButton(
                         onPressed: busy
                             ? null
                             : () async {
-                                await MamTorrentService.clearMamId();
-                                if (ctx.mounted) Navigator.pop(ctx);
-                                setState(() {
-                                  _sources = {..._sources}
-                                    ..remove(TorrentSourceId.myAnonamouse);
-                                });
-                                await TorrentSearchFacade.setEnabledSources(
-                                    _sources);
+                                setLocal(() => busy = true);
+                                try {
+                                  await MamTorrentService.saveMamId(ctrl.text);
+                                  await MamTorrentService().verify();
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  setState(() {
+                                    _sources = {
+                                      ..._sources,
+                                      TorrentSourceId.myAnonamouse
+                                    };
+                                  });
+                                  await TorrentSearchFacade.setEnabledSources(
+                                      _sources);
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      snackbar(context, 'mamConnected'.tr,
+                                          size: SanckBarSize.MEDIUM),
+                                    );
+                                  }
+                                } catch (_) {
+                                  setLocal(() => busy = false);
+                                  if (ctx.mounted) {
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                      snackbar(ctx, 'mamConnectFailed'.tr,
+                                          size: SanckBarSize.MEDIUM),
+                                    );
+                                  }
+                                }
                               },
-                        child: Text('disconnect'.tr),
+                        child: busy
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Text('save'.tr),
                       ),
-                    const Spacer(),
-                    FilledButton(
-                      onPressed: busy
-                          ? null
-                          : () async {
-                              setLocal(() => busy = true);
-                              try {
-                                await MamTorrentService.saveMamId(ctrl.text);
-                                await MamTorrentService().verify();
-                                if (ctx.mounted) Navigator.pop(ctx);
-                                setState(() {
-                                  _sources = {
-                                    ..._sources,
-                                    TorrentSourceId.myAnonamouse
-                                  };
-                                });
-                                await TorrentSearchFacade.setEnabledSources(
-                                    _sources);
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    snackbar(context, 'mamConnected'.tr,
-                                        size: SanckBarSize.MEDIUM),
-                                  );
-                                }
-                              } catch (_) {
-                                setLocal(() => busy = false);
-                                if (ctx.mounted) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                    snackbar(ctx, 'mamConnectFailed'.tr,
-                                        size: SanckBarSize.MEDIUM),
-                                  );
-                                }
-                              }
-                            },
-                      child: busy
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Text('save'.tr),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           );
         });
@@ -277,7 +299,11 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
         TextEditingController(text: QBittorrentService.password);
     await showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor ??
+          Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
       ),
@@ -285,111 +311,126 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
         var obscure = true;
         var busy = false;
         return StatefulBuilder(builder: (ctx, setLocal) {
+          final bottomPad = _sheetBottomPadding(ctx);
           return Padding(
             padding: EdgeInsets.only(
               left: 20,
               right: 20,
-              top: 16,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+              top: 12,
+              bottom: bottomPad,
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text('qbitConfigure'.tr,
-                    style: Theme.of(ctx).textTheme.titleMedium),
-                const SizedBox(height: 8),
-                Text('qbitConfigureDes'.tr,
-                    style: Theme.of(ctx).textTheme.bodySmall),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: url,
-                  decoration: InputDecoration(
-                    labelText: 'qbitUrl'.tr,
-                    hintText: 'http://192.168.1.10:8080',
-                    border: const OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: user,
-                  decoration: InputDecoration(
-                    labelText: 'username'.tr,
-                    border: const OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: pass,
-                  obscureText: obscure,
-                  decoration: InputDecoration(
-                    labelText: 'password'.tr,
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                          obscure ? Icons.visibility : Icons.visibility_off),
-                      onPressed: () => setLocal(() => obscure = !obscure),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    if (QBittorrentService.isConfigured)
-                      TextButton(
-                        onPressed: () async {
-                          await QBittorrentService.clear();
-                          if (ctx.mounted) Navigator.pop(ctx);
-                          setState(() {});
-                        },
-                        child: Text('disconnect'.tr),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(ctx).dividerColor,
+                        borderRadius: BorderRadius.circular(2),
                       ),
-                    const Spacer(),
-                    FilledButton(
-                      onPressed: busy
-                          ? null
-                          : () async {
-                              setLocal(() => busy = true);
-                              try {
-                                if (url.text.trim().isEmpty ||
-                                    pass.text.isEmpty) {
-                                  throw StateError('missing');
-                                }
-                                await QBittorrentService.save(
-                                  url: url.text,
-                                  username: user.text,
-                                  password: pass.text,
-                                );
-                                await QBittorrentService().login();
-                                if (ctx.mounted) Navigator.pop(ctx);
-                                setState(() {});
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    snackbar(context, 'qbitSaved'.tr,
-                                        size: SanckBarSize.MEDIUM),
-                                  );
-                                }
-                              } catch (_) {
-                                setLocal(() => busy = false);
-                                if (ctx.mounted) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                    snackbar(ctx, 'qbitSaveFailed'.tr,
-                                        size: SanckBarSize.MEDIUM),
-                                  );
-                                }
-                              }
-                            },
-                      child: busy
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Text('save'.tr),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                  Text('qbitConfigure'.tr,
+                      style: Theme.of(ctx).textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  Text('qbitConfigureDes'.tr,
+                      style: Theme.of(ctx).textTheme.bodySmall),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: url,
+                    keyboardType: TextInputType.url,
+                    autofocus: true,
+                    decoration: _cookieFieldDecoration(
+                      ctx,
+                      label: 'qbitUrl'.tr,
+                      hint: 'http://192.168.1.10:8080',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: user,
+                    decoration: _cookieFieldDecoration(
+                      ctx,
+                      label: 'username'.tr,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: pass,
+                    obscureText: obscure,
+                    decoration: _cookieFieldDecoration(
+                      ctx,
+                      label: 'password'.tr,
+                      obscure: obscure,
+                      onToggleObscure: () =>
+                          setLocal(() => obscure = !obscure),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      if (QBittorrentService.isConfigured)
+                        TextButton(
+                          onPressed: () async {
+                            await QBittorrentService.clear();
+                            if (ctx.mounted) Navigator.pop(ctx);
+                            setState(() {});
+                          },
+                          child: Text('disconnect'.tr),
+                        ),
+                      const Spacer(),
+                      FilledButton(
+                        onPressed: busy
+                            ? null
+                            : () async {
+                                setLocal(() => busy = true);
+                                try {
+                                  if (url.text.trim().isEmpty ||
+                                      pass.text.isEmpty) {
+                                    throw StateError('missing');
+                                  }
+                                  await QBittorrentService.save(
+                                    url: url.text,
+                                    username: user.text,
+                                    password: pass.text,
+                                  );
+                                  await QBittorrentService().login();
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  setState(() {});
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      snackbar(context, 'qbitSaved'.tr,
+                                          size: SanckBarSize.MEDIUM),
+                                    );
+                                  }
+                                } catch (_) {
+                                  setLocal(() => busy = false);
+                                  if (ctx.mounted) {
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                      snackbar(ctx, 'qbitSaveFailed'.tr,
+                                          size: SanckBarSize.MEDIUM),
+                                    );
+                                  }
+                                }
+                              },
+                        child: busy
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Text('save'.tr),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           );
         });
@@ -398,6 +439,49 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
     url.dispose();
     user.dispose();
     pass.dispose();
+  }
+
+  /// Clear of the mini-player + keyboard so fields stay tappable.
+  double _sheetBottomPadding(BuildContext ctx) {
+    final keyboard = MediaQuery.viewInsetsOf(ctx).bottom;
+    final safe = MediaQuery.paddingOf(ctx).bottom;
+    // Sheet uses the root overlay (above mini-player); only need a cushion.
+    return keyboard + safe + 16;
+  }
+
+  InputDecoration _cookieFieldDecoration(
+    BuildContext ctx, {
+    required String label,
+    String? hint,
+    bool? obscure,
+    VoidCallback? onToggleObscure,
+  }) {
+    final theme = Theme.of(ctx);
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: BorderSide(color: theme.dividerColor),
+    );
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      filled: true,
+      fillColor: theme.colorScheme.surface.withOpacity(0.9),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: border,
+      enabledBorder: border,
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.6),
+      ),
+      suffixIcon: onToggleObscure == null
+          ? null
+          : IconButton(
+              icon: Icon(obscure == true
+                  ? Icons.visibility
+                  : Icons.visibility_off),
+              onPressed: onToggleObscure,
+            ),
+    );
   }
 
   String _sourceLabel(TorrentSourceId id) {
