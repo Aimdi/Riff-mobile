@@ -19,6 +19,57 @@ class _SideNavBarState extends State<SideNavBar> {
   // Songs accordion: Playlists / Albums / Artists live under Songs now.
   bool _songsExpanded = false;
 
+  static const _destinations = <_RailDestination>[
+    _RailDestination(
+      index: 0,
+      labelKey: 'home',
+      icon: Icons.home_rounded,
+      iconOutlined: Icons.home_outlined,
+    ),
+    _RailDestination(
+      index: 1,
+      labelKey: 'songs',
+      icon: Icons.music_note_rounded,
+      iconOutlined: Icons.music_note_outlined,
+    ),
+    _RailDestination(
+      index: 2,
+      labelKey: 'podcasts',
+      icon: Icons.podcasts_rounded,
+      iconOutlined: Icons.podcasts_outlined,
+    ),
+    _RailDestination(
+      index: 3,
+      labelKey: 'audiobooks',
+      icon: Icons.headphones_rounded,
+      iconOutlined: Icons.headphones_outlined,
+    ),
+    _RailDestination(
+      index: 4,
+      labelKey: 'playlists',
+      icon: Icons.queue_music_rounded,
+      iconOutlined: Icons.queue_music,
+    ),
+    _RailDestination(
+      index: 5,
+      labelKey: 'albums',
+      icon: Icons.album_rounded,
+      iconOutlined: Icons.album_outlined,
+    ),
+    _RailDestination(
+      index: 6,
+      labelKey: 'artists',
+      icon: Icons.mic_rounded,
+      iconOutlined: Icons.mic_none_rounded,
+    ),
+    _RailDestination(
+      index: 7,
+      labelKey: 'settings',
+      icon: Icons.settings_rounded,
+      iconOutlined: Icons.settings_outlined,
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -35,14 +86,16 @@ class _SideNavBarState extends State<SideNavBar> {
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _railItem(homeScreenController, sel,
-                        index: 0, label: "home".tr),
+                    _railItem(
+                      homeScreenController,
+                      sel,
+                      destination: _destinations[0],
+                    ),
                     // Songs — tap opens Songs, the caret expands the sub-section.
                     _railItem(
                       homeScreenController,
                       sel,
-                      index: 1,
-                      label: "songs".tr,
+                      destination: _destinations[1],
                       // sub-items are "selected" too so Songs stays highlighted
                       selectedForIndices: const [1, 4, 5, 6],
                       trailing: InkWell(
@@ -56,7 +109,7 @@ class _SideNavBarState extends State<SideNavBar> {
                             duration: const Duration(milliseconds: 260),
                             curve: Curves.easeInOutCubic,
                             child: Icon(
-                              Icons.keyboard_arrow_down,
+                              Icons.keyboard_arrow_down_rounded,
                               size: 20,
                               color:
                                   Theme.of(context).textTheme.titleLarge!.color,
@@ -78,25 +131,44 @@ class _SideNavBarState extends State<SideNavBar> {
                             ? Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  _railItem(homeScreenController, sel,
-                                      index: 4,
-                                      label: "playlists".tr,
-                                      sub: true),
-                                  _railItem(homeScreenController, sel,
-                                      index: 5, label: "albums".tr, sub: true),
-                                  _railItem(homeScreenController, sel,
-                                      index: 6, label: "artists".tr, sub: true),
+                                  _railItem(
+                                    homeScreenController,
+                                    sel,
+                                    destination: _destinations[4],
+                                    sub: true,
+                                  ),
+                                  _railItem(
+                                    homeScreenController,
+                                    sel,
+                                    destination: _destinations[5],
+                                    sub: true,
+                                  ),
+                                  _railItem(
+                                    homeScreenController,
+                                    sel,
+                                    destination: _destinations[6],
+                                    sub: true,
+                                  ),
                                 ],
                               )
                             : const SizedBox.shrink(),
                       ),
                     ),
-                    _railItem(homeScreenController, sel,
-                        index: 2, label: "podcasts".tr),
-                    _railItem(homeScreenController, sel,
-                        index: 3, label: "audiobooks".tr),
-                    _railItem(homeScreenController, sel,
-                        index: 7, label: "settings".tr),
+                    _railItem(
+                      homeScreenController,
+                      sel,
+                      destination: _destinations[2],
+                    ),
+                    _railItem(
+                      homeScreenController,
+                      sel,
+                      destination: _destinations[3],
+                    ),
+                    _railItem(
+                      homeScreenController,
+                      sel,
+                      destination: _destinations[7],
+                    ),
                   ],
                 );
               }),
@@ -115,80 +187,53 @@ class _SideNavBarState extends State<SideNavBar> {
                 widthSwitch: 800,
                 mainLogoImage: 'assets/icons/icon.png',
                 sidebarItems: [
-                  SideBarItem(
-                    iconSelected: Icons.home,
-                    iconUnselected: Icons.home_outlined,
-                    text: 'home'.tr,
-                  ),
-                  SideBarItem(
-                    iconSelected: Icons.audiotrack,
-                    iconUnselected: Icons.audiotrack,
-                    text: 'songs'.tr,
-                  ),
-                  SideBarItem(
-                    iconSelected: Icons.podcasts,
-                    iconUnselected: Icons.podcasts,
-                    text: 'podcasts'.tr,
-                  ),
-                  SideBarItem(
-                    iconSelected: Icons.menu_book,
-                    iconUnselected: Icons.menu_book,
-                    text: 'audiobooks'.tr,
-                  ),
-                  SideBarItem(
-                    iconSelected: Icons.library_music,
-                    iconUnselected: Icons.library_music_outlined,
-                    text: 'playlists'.tr,
-                  ),
-                  SideBarItem(
-                    iconSelected: Icons.album,
-                    iconUnselected: Icons.album_outlined,
-                    text: 'albums'.tr,
-                  ),
-                  SideBarItem(
-                    iconSelected: Icons.person,
-                    text: 'artists'.tr,
-                  ),
-                  SideBarItem(
-                    iconSelected: Icons.settings,
-                    iconUnselected: Icons.settings_outlined,
-                    text: 'settings'.tr,
-                  ),
+                  for (final d in _destinations)
+                    SideBarItem(
+                      iconSelected: d.icon,
+                      iconUnselected: d.iconOutlined,
+                      text: d.labelKey.tr,
+                    ),
                 ],
               ),
             ),
     );
   }
 
-  /// One vertical (rotated-label) rail entry. [sub] renders the smaller,
-  /// indented accordion children. [selectedForIndices] lets the Songs parent
-  /// stay highlighted while a child tab (Playlists/Albums/Artists) is active.
+  /// One vertical rail entry with a destination glyph + rotated label.
+  /// [sub] renders the smaller, indented accordion children.
+  /// [selectedForIndices] lets the Songs parent stay highlighted while a
+  /// child tab (Playlists/Albums/Artists) is active.
   Widget _railItem(
     HomeScreenController controller,
     int selected, {
-    required int index,
-    required String label,
+    required _RailDestination destination,
     bool sub = false,
     List<int>? selectedForIndices,
     Widget? trailing,
   }) {
-    final isSelected =
-        selectedForIndices?.contains(selected) ?? (selected == index);
+    final isSelected = selectedForIndices?.contains(selected) ??
+        (selected == destination.index);
     final accent = Theme.of(context).colorScheme.secondary;
     final normal = Theme.of(context).textTheme.titleLarge!.color;
     final color = isSelected ? accent : normal;
     return InkWell(
-      onTap: () => controller.onSideBarTabSelected(index),
+      onTap: () => controller.onSideBarTabSelected(destination.index),
       child: Padding(
         padding: EdgeInsets.symmetric(
             vertical: sub ? 6 : 10, horizontal: sub ? 14 : 6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Icon(
+              isSelected ? destination.icon : destination.iconOutlined,
+              size: sub ? 18 : 22,
+              color: color,
+            ),
+            const SizedBox(height: 6),
             RotatedBox(
               quarterTurns: -1,
               child: Text(
-                label,
+                destination.labelKey.tr,
                 style: TextStyle(
                   color: color,
                   fontSize: sub ? 13 : 16,
@@ -205,4 +250,18 @@ class _SideNavBarState extends State<SideNavBar> {
       ),
     );
   }
+}
+
+class _RailDestination {
+  const _RailDestination({
+    required this.index,
+    required this.labelKey,
+    required this.icon,
+    required this.iconOutlined,
+  });
+
+  final int index;
+  final String labelKey;
+  final IconData icon;
+  final IconData iconOutlined;
 }
