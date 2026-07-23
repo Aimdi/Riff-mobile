@@ -10,7 +10,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Audio stream resolution via NewPipeExtractor - the same engine RiPlay
+ * Audio/video stream resolution via NewPipeExtractor - the same engine RiPlay
  * (and NewPipe itself) uses. It keeps up with YouTube's JS player,
  * signature deciphering and throttling parameters, which pure InnerTube
  * clients regularly break on.
@@ -79,6 +79,20 @@ object NewPipeResolver {
                 "errors=${info.errors}")
         }
         val durationMs = info.duration * 1000
+        return info.audioStreams
+            .filter { it.isUrl && !it.content.isNullOrEmpty() }
+            .map { s ->
+                mapOf(
+                    "itag" to (s.itagItem?.id ?: -1),
+                    "mimeType" to (s.format?.mimeType ?: ""),
+                    "bitrate" to (if (s.averageBitrate > 0) s.averageBitrate * 1000 else 0),
+                    "url" to s.content,
+                    "size" to (s.itagItem?.contentLength ?: 0L),
+                    "durationMs" to durationMs,
+                )
+            }
+    }
+
     /**
      * Progressive / muxed video+audio streams for in-player video display.
      * Each map: itag, mimeType, width, height, url, size, durationMs.
@@ -95,8 +109,8 @@ object NewPipeResolver {
                 mapOf(
                     "itag" to (s.itagItem?.id ?: -1),
                     "mimeType" to (s.format?.mimeType ?: ""),
-                    "width" to (s.width),
-                    "height" to (s.height),
+                    "width" to s.width,
+                    "height" to s.height,
                     "url" to s.content,
                     "size" to (s.itagItem?.contentLength ?: 0L),
                     "durationMs" to durationMs,
