@@ -20,24 +20,10 @@ class Home extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     printINFO("Home");
-    // #region agent log
-    try {
-      File('/opt/cursor/logs/debug.log').writeAsStringSync(
-          '{"location":"home.dart:build","message":"Home.build enter","data":{"width":${MediaQuery.of(context).size.width},"isWide":${MediaQuery.of(context).size.width > 800}},"hypothesisId":"A","timestamp":${DateTime.now().millisecondsSinceEpoch}}\n',
-          mode: FileMode.append);
-    } catch (_) {}
-    // #endregion
     final PlayerController playerController = Get.find<PlayerController>();
     final homeScreenController = Get.find<HomeScreenController>();
     final size = MediaQuery.of(context).size;
     final isWideScreen = size.width > 800;
-    // #region agent log
-    try {
-      File('/opt/cursor/logs/debug.log').writeAsStringSync(
-          '{"location":"home.dart:build","message":"Home scaffold building (no outer Obx)","data":{"initFlag":${playerController.initFlagForPlayer},"panelMin":${playerController.playerPanelMinHeight.value},"tab":${homeScreenController.tabIndex.value},"isWide":$isWideScreen},"hypothesisId":"A","runId":"post-fix","timestamp":${DateTime.now().millisecondsSinceEpoch}}\n',
-          mode: FileMode.append);
-    } catch (_) {}
-    // #endregion
     if (!playerController.initFlagForPlayer) {
       if (isWideScreen) {
         playerController.playerPanelMinHeight.value =
