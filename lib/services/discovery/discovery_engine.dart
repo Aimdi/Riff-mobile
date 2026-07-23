@@ -31,6 +31,17 @@ class DiscoveryEngine {
 
   Future<List<MediaItem>> similarSongs(MediaItem seed,
       {int limit = 25, bool unheardOnly = false}) async {
+    try {
+      return await _similarSongsImpl(seed,
+              limit: limit, unheardOnly: unheardOnly)
+          .timeout(const Duration(seconds: 15), onTimeout: () => []);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<List<MediaItem>> _similarSongsImpl(MediaItem seed,
+      {int limit = 25, bool unheardOnly = false}) async {
     final candidates = await _gatherForSeed(seed, widen: exploration > 0.6);
     final scored = _scoreAll(
       candidates,
@@ -256,14 +267,14 @@ class DiscoveryEngine {
     if (radio) {
       addAll(await sources.radioBatch(seed.id, limit: 30));
     }
-    addAll(await sources.relatedTracks(seed.id, limit: 40));
+    addAll(await sources.relatedTracks(seed.id, limit: 40, seed: seed));
 
     // Local graph
     for (final nid in sources.localNeighborIds(seed.id, limit: 25)) {
       if (seen.contains(nid)) continue;
       // Expand via related of neighbor when adventurous
       if (widen) {
-        addAll(await sources.relatedTracks(nid, limit: 8));
+        addAll(await sources.relatedTracks(nid, limit: 8, seed: seed));
       }
     }
 
@@ -271,7 +282,9 @@ class DiscoveryEngine {
       // Two-hop: related of first few related
       for (final m in List<Map<String, dynamic>>.from(out).take(4)) {
         final id = m['videoId'] as String?;
-        if (id != null) addAll(await sources.relatedTracks(id, limit: 8));
+        if (id != null) {
+          addAll(await sources.relatedTracks(id, limit: 8, seed: seed));
+        }
       }
     }
 

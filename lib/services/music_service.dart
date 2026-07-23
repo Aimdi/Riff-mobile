@@ -274,8 +274,26 @@ class MusicServices extends getx.GetxService {
         'watchNextTabbedResultsRenderer'
       ]);
 
-      lyricsBrowseId = getTabBrowseId(watchNextRenderer, 1);
-      relatedBrowseId = getTabBrowseId(watchNextRenderer, 2);
+      if (watchNextRenderer is! Map) {
+        if (onlyRelated) {
+          return {
+            'lyrics': null,
+            'related': null,
+          };
+        }
+        return {
+          'tracks': <dynamic>[],
+          'playlistId': playlistId,
+          'lyrics': null,
+          'related': null,
+          'additionalParamsForNext': null,
+        };
+      }
+
+      lyricsBrowseId = getTabBrowseId(
+          Map<String, dynamic>.from(watchNextRenderer), 1);
+      relatedBrowseId = getTabBrowseId(
+          Map<String, dynamic>.from(watchNextRenderer), 2);
       if (onlyRelated) {
         return {
           'lyrics': lyricsBrowseId,
@@ -283,19 +301,26 @@ class MusicServices extends getx.GetxService {
         };
       }
 
-      results.addAll(nav(watchNextRenderer, [
+      final panel = nav(watchNextRenderer, [
         ...tab_content,
         'musicQueueRenderer',
         'content',
         'playlistPanelRenderer'
-      ]));
-      playlist = results['contents']
-          .map((content) => nav(content,
-              ['playlistPanelVideoRenderer', ...navigation_playlist_id]))
-          .where((e) => e != null)
-          .toList()
-          .first;
-      tracks.addAll(parseWatchPlaylist(results['contents']));
+      ]);
+      if (panel is Map) {
+        results.addAll(Map<String, dynamic>.from(panel));
+      }
+      if (results['contents'] is List) {
+        final playlistIds = results['contents']
+            .map((content) => nav(content,
+                ['playlistPanelVideoRenderer', ...navigation_playlist_id]))
+            .where((e) => e != null)
+            .toList();
+        if (playlistIds.isNotEmpty) {
+          playlist = playlistIds.first;
+        }
+        tracks.addAll(parseWatchPlaylist(results['contents']));
+      }
     }
 
     dynamic additionalParamsForNext;
@@ -340,13 +365,18 @@ class MusicServices extends getx.GetxService {
 
   dynamic getContentRelatedToSong(String videoId, String hlCode) async {
     final params = await getWatchPlaylist(videoId: videoId, onlyRelated: true);
+    final relatedId = params['related'];
+    // Videos / some seeds have no Related tab — browsing null hangs or 400s.
+    if (relatedId is! String || relatedId.isEmpty) {
+      return <Map<String, dynamic>>[];
+    }
     final data = Map.from(_context);
-    data['browseId'] = params['related'];
+    data['browseId'] = relatedId;
     data['context']['client']['hl'] = hlCode;
     final response = (await _sendRequest('browse', data)).data;
     final sections = nav(response, ['contents'] + section_list);
-    final x = parseMixedContent(sections);
-    return x;
+    if (sections is! List) return <Map<String, dynamic>>[];
+    return parseMixedContent(sections);
   }
 
   dynamic getLyrics(String browseId) async {

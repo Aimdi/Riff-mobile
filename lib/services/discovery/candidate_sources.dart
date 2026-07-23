@@ -27,8 +27,11 @@ class CandidateSources {
   static const chartsTtl = Duration(days: 1);
 
   /// Related / "more like this" via next→related browse.
+  ///
+  /// Videos often lack a Related tab; we fall back to radio / search and
+  /// always bound wait time so the player UI cannot spin forever.
   Future<List<Map<String, dynamic>>> relatedTracks(String videoId,
-      {int limit = 40}) async {
+      {int limit = 40, MediaItem? seed}) async {
     final cacheKey = 'related:$videoId';
     final cached = repo.getCache(cacheKey);
     if (cached is List) {
@@ -39,22 +42,29 @@ class CandidateSources {
     }
 
     try {
-      final sections =
-          await music.getContentRelatedToSong(videoId, 'en') as List?;
-      final tracks = <Map<String, dynamic>>[];
-      if (sections != null) {
-        for (final section in sections) {
-          if (section is! Map) continue;
-          final contents = section['contents'] ?? section['playlists'];
-          if (contents is! List) continue;
-          for (final item in contents) {
-            final m = _asTrackMap(item);
-            if (m != null) tracks.add(m);
-          }
-        }
+      final tracks = await _relatedTracksUncached(videoId,
+              limit: limit, seed: seed)
+          .timeout(const Duration(seconds: 12), onTimeout: () => []);
+      if (tracks.isNotEmpty) {
+        await repo.putCache(cacheKey, tracks, relatedTtl);
       }
-      // Also pull radio-style next tracks as related
-      if (tracks.length < 10) {
+      return tracks.take(limit).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _relatedTracksUncached(
+    String videoId, {
+    required int limit,
+    MediaItem? seed,
+  }) async {
+    final tracks = <Map<String, dynamic>>[];
+    final isVideo = _seedLooksLikeVideo(seed);
+
+    // Music videos: Related browse is often missing — prefer radio first.
+    if (isVideo) {
+      try {
         final wp = await music.getWatchPlaylist(
             videoId: videoId, radio: true, limit: limit);
         final raw = wp['tracks'] as List? ?? [];
@@ -62,12 +72,74 @@ class CandidateSources {
           final m = _asTrackMap(t);
           if (m != null && m['videoId'] != videoId) tracks.add(m);
         }
-      }
-      await repo.putCache(cacheKey, tracks, relatedTtl);
-      return tracks.take(limit).toList();
-    } catch (_) {
-      return [];
+      } catch (_) {}
     }
+
+    if (tracks.length < 10) {
+      try {
+        final sections =
+            await music.getContentRelatedToSong(videoId, 'en') as List?;
+        if (sections != null) {
+          for (final section in sections) {
+            if (section is! Map) continue;
+            final contents = section['contents'] ?? section['playlists'];
+            if (contents is! List) continue;
+            for (final item in contents) {
+              final m = _asTrackMap(item);
+              if (m != null) tracks.add(m);
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Radio-style next tracks as related (songs + videos).
+    if (tracks.length < 10) {
+      try {
+        final wp = await music.getWatchPlaylist(
+            videoId: videoId, radio: true, limit: limit);
+        final raw = wp['tracks'] as List? ?? [];
+        for (final t in raw) {
+          final m = _asTrackMap(t);
+          if (m != null && m['videoId'] != videoId) tracks.add(m);
+        }
+      } catch (_) {}
+    }
+
+    // Last resort: search by title (and artist) so videos still get neighbors.
+    if (tracks.length < 8 && seed != null) {
+      final q = [
+        seed.title.trim(),
+        if ((seed.artist ?? '').trim().isNotEmpty) seed.artist!.trim(),
+      ].join(' ');
+      if (q.isNotEmpty) {
+        try {
+          final filter = isVideo ? 'videos' : 'songs';
+          final res = await music.search(q, filter: filter);
+          final bucket = isVideo
+              ? (res['Videos'] ?? res['videos'] ?? res['songs'] ?? [])
+              : (res['songs'] ?? res['Songs'] ?? res['Tracks'] ?? []);
+          if (bucket is List) {
+            for (final t in bucket.take(limit)) {
+              final m = _asTrackMap(t);
+              if (m != null && m['videoId'] != videoId) tracks.add(m);
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
+    return tracks;
+  }
+
+  static bool _seedLooksLikeVideo(MediaItem? seed) {
+    if (seed == null) return false;
+    final vt = '${seed.extras?['videoType'] ?? ''}';
+    if (vt.contains('PODCAST')) return false;
+    if (vt == 'MUSIC_VIDEO_TYPE_ATV') return false;
+    if (vt.isNotEmpty) return true; // OMV / UGC / etc.
+    final rt = '${seed.extras?['resultType'] ?? ''}'.toLowerCase();
+    return rt == 'video';
   }
 
   /// Radio continuation batch for a seed.

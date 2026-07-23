@@ -469,11 +469,16 @@ Map<String, dynamic> parseWatchTrack(Map<String, dynamic> data) {
 }
 
 String? getTabBrowseId(Map<String, dynamic> watchNextRenderer, int tabId) {
-  if (!watchNextRenderer['tabs'][tabId]['tabRenderer']
-      .containsKey('unselectable')) {
-    return watchNextRenderer['tabs'][tabId]['tabRenderer']['endpoint']
-        ['browseEndpoint']['browseId'];
-  } else {
+  try {
+    final tabs = watchNextRenderer['tabs'];
+    if (tabs is! List || tabId < 0 || tabId >= tabs.length) return null;
+    final tab = tabs[tabId];
+    if (tab is! Map) return null;
+    final renderer = tab['tabRenderer'];
+    if (renderer is! Map) return null;
+    if (renderer.containsKey('unselectable')) return null;
+    return renderer['endpoint']?['browseEndpoint']?['browseId'] as String?;
+  } catch (_) {
     return null;
   }
 }

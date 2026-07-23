@@ -31,7 +31,16 @@ class _PlayerSimilarRowState extends State<PlayerSimilarRow> {
       final song = player.currentSong.value;
       if (song == null) return const SizedBox.shrink();
       if (_loadedForId != song.id && !_loading) {
-        _load(song);
+        // Never start network work synchronously during build.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          final current = player.currentSong.value;
+          if (current != null &&
+              _loadedForId != current.id &&
+              !_loading) {
+            _load(current);
+          }
+        });
       }
       if (_songs.isEmpty && !_loading) return const SizedBox.shrink();
 
@@ -124,13 +133,16 @@ class _PlayerSimilarRowState extends State<PlayerSimilarRow> {
   }
 
   Future<void> _load(MediaItem song) async {
+    if (!mounted) return;
     setState(() {
       _loading = true;
       _loadedForId = song.id;
+      _songs = [];
     });
     try {
       final list = await Get.find<DiscoveryService>()
-          .similarSongs(song, limit: 12, unheardOnly: false);
+          .similarSongs(song, limit: 12, unheardOnly: false)
+          .timeout(const Duration(seconds: 16), onTimeout: () => []);
       if (mounted && _loadedForId == song.id) {
         setState(() {
           _songs = list;

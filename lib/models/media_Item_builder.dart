@@ -54,6 +54,8 @@ class MediaItemBuilder {
           'year': json['year'],
           'isPodcast': isPodcast,
           'description': json['description'],
+          'videoType': json['videoType'],
+          'resultType': json['resultType'],
         });
   }
 
