@@ -87,9 +87,17 @@ class MixGenerator {
     }
 
     final mixes = <GeneratedMix>[];
+    // Cross-mix dedupe so thin histories don't pad every mix from the same
+    // charts lead (that became three identical "Made for you" cards).
+    final crossMixSeen = <String>{};
     for (var i = 0; i < clusters.length; i++) {
       final cluster = clusters[i];
-      final tracks = await _buildClusterMix(cluster, limit: 30);
+      final tracks = await _buildClusterMix(cluster,
+          limit: 30, excludeIds: crossMixSeen);
+      for (final t in tracks) {
+        final id = t['videoId'] as String? ?? '';
+        if (id.isNotEmpty) crossMixSeen.add(id);
+      }
       final names = cluster
           .take(2)
           .map((k) => repo.displayNameForArtistKey(k) ?? _titleCaseKey(k))
@@ -183,7 +191,7 @@ class MixGenerator {
 
   /// ~60% familiar cluster favorites, ~25% unheard same artists, ~15% adjacent.
   Future<List<Map<String, dynamic>>> _buildClusterMix(List<String> cluster,
-      {int limit = 30}) async {
+      {int limit = 30, Set<String>? excludeIds}) async {
     final nFamiliar = (limit * 0.60).round();
     final nUnheardKnown = (limit * 0.25).round();
     final nAdjacent = limit - nFamiliar - nUnheardKnown;
@@ -191,7 +199,7 @@ class MixGenerator {
     final events = repo.recentEvents(limit: 5000);
     final clusterSet = cluster.toSet();
     final familiar = <Map<String, dynamic>>[];
-    final seen = <String>{};
+    final seen = <String>{...?excludeIds};
     final threeDaysAgo = DateTime.now()
         .subtract(const Duration(days: 3))
         .millisecondsSinceEpoch;

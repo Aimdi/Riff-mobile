@@ -5,6 +5,7 @@ import 'candidate_sources.dart';
 import 'discovery_math.dart';
 import 'discovery_repository.dart';
 import 'discovery_types.dart';
+import 'home_feed_assembly.dart';
 import 'mix_generator.dart';
 import 'taste_model.dart';
 
@@ -111,77 +112,69 @@ class DiscoveryEngine {
     // Spotify/RiPlay-style Home shelves: few, high-signal rows.
     // Shortcuts already cover Fresh Finds / Release Radar / Rediscover —
     // don't stack those again as full carousels above Quick Picks.
+    // Final Zone B order / caps / global dedupe live in home_feed_assembly.
     final sections = <DiscoverySection>[];
     final mixes = await dailyMixes();
     if (mixes.isNotEmpty) {
-      sections.add(DiscoverySection(
-        id: 'made_for_you',
-        title: 'Made for you',
-        reason: 'Your Daily Mixes',
-        tracks: mixes.expand((m) => m.tracks.take(1)).toList(),
-        surface: DiscoverySurface.home,
-      ));
+      // Unique lead per mix — never three identical chart-pad cards.
+      final leads = uniqueDailyMixLeads(mixes);
+      if (leads.isNotEmpty) {
+        sections.add(DiscoverySection(
+          id: 'made_for_you',
+          title: 'Your daily mixes',
+          reason: '',
+          tracks: leads,
+          surface: DiscoverySurface.home,
+        ));
+      }
     }
 
-    // One strong "Because you liked" shelf (not a wall of three).
+    // Contextual candidates (assembly picks at most one that fills minCount).
     final seeds = _recentStrongSeeds(limit: 1);
-    final usedIds = <String>{};
+    final usedIds = <String>{
+      for (final t in sections.expand((s) => s.tracks))
+        (t['videoId'] ?? '').toString(),
+    }..removeWhere((e) => e.isEmpty);
     for (final seed in seeds) {
       final title = _shortTitle(seed['title'] as String? ?? 'a track');
       final media = MediaItemBuilder.fromJson(seed);
-      final similar = await similarSongs(media, limit: 12, unheardOnly: true);
-      if (similar.isEmpty) continue;
-      usedIds.addAll(similar.map((e) => e.id));
+      final similar = await similarSongs(media, limit: 16, unheardOnly: true);
+      final fresh = similar.where((e) => !usedIds.contains(e.id)).toList();
+      if (fresh.isEmpty) continue;
+      usedIds.addAll(fresh.map((e) => e.id));
       sections.add(DiscoverySection(
         id: 'because_${media.id}',
         title: 'Because you liked $title',
-        reason: 'Similar energy you haven’t heard',
-        tracks: similar.map(MediaItemBuilder.toJson).toList(),
+        reason: '',
+        tracks: fresh.map(MediaItemBuilder.toJson).toList(),
         surface: DiscoverySurface.becauseYouLiked,
       ));
     }
 
-    // Optional Rediscover — only when it adds something new.
-    final red = await rediscover(limit: 12);
+    final red = await rediscover(limit: 16);
     final redFresh =
-        red.where((e) => !usedIds.contains(e.id)).take(12).toList();
-    if (redFresh.length >= 4) {
+        red.where((e) => !usedIds.contains(e.id)).take(16).toList();
+    if (redFresh.isNotEmpty) {
       sections.add(DiscoverySection(
         id: 'rediscover',
         title: 'Rediscover',
-        reason: 'Old favorites gone quiet',
+        reason: '',
         tracks: redFresh.map(MediaItemBuilder.toJson).toList(),
         surface: DiscoverySurface.rediscover,
       ));
     }
 
-    // Fans of ⟨top artist⟩ — use a real display name, skip if same as Because.
-    final top = repo.topAffinities(limit: 1);
-    if (top.isNotEmpty && seeds.isNotEmpty) {
-      final artistKey = top.keys.first;
-      final artistName = repo.displayNameForArtistKey(artistKey) ??
-          _displayArtistFromEvents(artistKey) ??
-          _titleCaseKey(artistKey);
-      final media = MediaItemBuilder.fromJson(seeds.first);
-      final seedArtistKey = normalizeArtistKey(media.artist);
-      // Avoid a near-duplicate of the Because shelf.
-      if (seedArtistKey != artistKey) {
-        final similar =
-            await similarSongs(media, limit: 12, unheardOnly: true);
-        final fresh = similar
-            .where((e) => !usedIds.contains(e.id))
-            .take(12)
-            .toList();
-        if (fresh.length >= 4) {
-          sections.add(DiscoverySection(
-            id: 'fans_$artistKey',
-            title: 'Fans of $artistName also like',
-            reason: 'More from your orbit',
-            tracks: fresh.map(MediaItemBuilder.toJson).toList(),
-            surface: DiscoverySurface.fansAlsoLike,
-          ));
-        }
-      }
+    final freshMix = await freshFinds(limit: 16);
+    final freshOnly =
+        freshMix.where((e) => !usedIds.contains(e.id)).take(16).toList();
+    if (freshOnly.isNotEmpty) {
+      sections.add(DiscoverySection(
+        id: 'fresh_finds',
+        title: 'Fresh finds',
+        reason: '',
+        tracks: freshOnly.map(MediaItemBuilder.toJson).toList(),
+        surface: DiscoverySurface.home,
+      ));
     }
 
     return sections;
@@ -191,25 +184,6 @@ class DiscoveryEngine {
     final t = title.trim();
     if (t.length <= 32) return t;
     return '${t.substring(0, 30).trimRight()}…';
-  }
-
-  static String _titleCaseKey(String key) {
-    if (key.isEmpty) return key;
-    return key.split(' ').map((w) {
-      if (w.isEmpty) return w;
-      return '${w[0].toUpperCase()}${w.substring(1)}';
-    }).join(' ');
-  }
-
-  String? _displayArtistFromEvents(String artistKey) {
-    // Prefer newest events that still carry a display artist string.
-    final events = repo.recentEvents(limit: 200).reversed;
-    for (final e in events) {
-      final a = e.artist;
-      if (a == null || a.isEmpty) continue;
-      if (normalizeArtistKey(a) == artistKey) return a;
-    }
-    return null;
   }
 
   /// Suggest tracks matching a playlist's aggregate profile.

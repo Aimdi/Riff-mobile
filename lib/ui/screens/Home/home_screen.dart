@@ -19,6 +19,8 @@ import '../../utils/riff_tokens.dart';
 import '../../widgets/quickpickswidget.dart';
 import '../../widgets/shimmer_widgets/home_shimmer.dart';
 import '../../../services/discovery/discovery_service.dart';
+import '../../../services/discovery/discovery_types.dart';
+import 'home_feed_view_model.dart';
 import 'home_screen_controller.dart';
 import '../Settings/settings_screen.dart';
 
@@ -267,11 +269,9 @@ class _HomeFeed extends StatelessWidget {
           ),
           const RiffWaveHero(),
           const HomeShortcutGrid(),
-          const _HomePersonalTop(),
-          const _HomeQuickPicksBlock(),
+          const _HomeZoneB(),
           const _HomeShelfBlock(kind: _HomeShelfKind.middle),
           const _HomeShelfBlock(kind: _HomeShelfKind.fixed),
-          const _HomePersonalBottom(),
         ],
       );
     });
@@ -280,22 +280,32 @@ class _HomeFeed extends StatelessWidget {
 
 enum _HomeShelfKind { middle, fixed }
 
-class _HomePersonalTop extends StatelessWidget {
-  const _HomePersonalTop();
+/// Zone B — personalised: daily mixes → quick picks → one contextual row.
+/// Order, caps, and global dedupe come from [assembleHomeFeedViewModel].
+class _HomeZoneB extends StatelessWidget {
+  const _HomeZoneB();
 
   @override
   Widget build(BuildContext context) {
-    if (!Get.isRegistered<DiscoveryService>()) {
-      return const SizedBox.shrink();
-    }
+    final home = Get.find<HomeScreenController>();
     return Obx(() {
-      final disc = Get.find<DiscoveryService>();
-      final personal = disc.personalSections;
-      if (personal.isEmpty) return const SizedBox.shrink();
+      final personal = Get.isRegistered<DiscoveryService>()
+          ? Get.find<DiscoveryService>().personalSections.toList()
+          : <DiscoverySection>[];
+      // Touch mixes-updated pill so Obx rebuilds when it flips.
+      if (Get.isRegistered<DiscoveryService>()) {
+        final _ = Get.find<DiscoveryService>().mixesUpdatedPill.value;
+      }
+      final vm = assembleHomeFeedViewModel(
+        personalSections: personal,
+        quickPicks: home.quickPicks.value,
+      );
+
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (disc.mixesUpdatedPill.value)
+          if (Get.isRegistered<DiscoveryService>() &&
+              Get.find<DiscoveryService>().mixesUpdatedPill.value)
             Padding(
               padding: const EdgeInsets.only(left: 12, top: 2, bottom: 4),
               child: Chip(
@@ -303,77 +313,51 @@ class _HomePersonalTop extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
               ),
             ),
-          ...personal
-              .where((s) =>
-                  s.id == 'made_for_you' || s.id.startsWith('because_'))
-              .map((s) => HomeDiscoverySection(section: s)),
+          if (vm.dailyMixes != null)
+            HomeDiscoverySection(section: vm.dailyMixes!),
+          if (vm.quickPicks != null && vm.quickPicks!.songList.isNotEmpty)
+            QuickPicksWidget(
+              content: vm.quickPicks!,
+              scrollController: home.scrollControllerFor('quick_picks'),
+            )
+          else if (vm.dailyMixes == null &&
+              vm.contextual == null &&
+              home.quickPicks.value.songList.isEmpty)
+            const _HomeDiscoverEmptyCard(),
+          if (vm.contextual != null)
+            HomeDiscoverySection(section: vm.contextual!),
         ],
       );
     });
   }
 }
 
-class _HomePersonalBottom extends StatelessWidget {
-  const _HomePersonalBottom();
+class _HomeDiscoverEmptyCard extends StatelessWidget {
+  const _HomeDiscoverEmptyCard();
 
   @override
   Widget build(BuildContext context) {
-    if (!Get.isRegistered<DiscoveryService>()) {
-      return const SizedBox.shrink();
-    }
-    return Obx(() {
-      final personal = Get.find<DiscoveryService>().personalSections;
-      if (personal.isEmpty) return const SizedBox.shrink();
-      return Column(
-        children: personal
-            .where((s) =>
-                s.id != 'made_for_you' && !s.id.startsWith('because_'))
-            .map((s) => HomeDiscoverySection(section: s))
-            .toList(),
-      );
-    });
-  }
-}
-
-class _HomeQuickPicksBlock extends StatelessWidget {
-  const _HomeQuickPicksBlock();
-
-  @override
-  Widget build(BuildContext context) {
-    final home = Get.find<HomeScreenController>();
-    return Obx(() {
-      final quickPicks = home.quickPicks.value;
-      final hasPersonal = Get.isRegistered<DiscoveryService>() &&
-          Get.find<DiscoveryService>().personalSections.isNotEmpty;
-      if (quickPicks.songList.isEmpty) {
-        if (hasPersonal) return const SizedBox.shrink();
-        return Padding(
-          padding: const EdgeInsets.only(top: 5, bottom: 15, right: 10),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text("discover".tr,
-                    style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 6),
-                Text("discoverEmptyDes".tr,
-                    style: Theme.of(context).textTheme.bodyMedium),
-              ],
-            ),
-          ),
-        );
-      }
-      return QuickPicksWidget(
-        content: quickPicks,
-        scrollController: home.scrollControllerFor('quick_picks'),
-      );
-    });
+    return Padding(
+      padding: const EdgeInsets.only(top: 5, bottom: 15, right: 10),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("discover".tr,
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 6),
+            Text("discoverEmptyDes".tr,
+                style: Theme.of(context).textTheme.bodyMedium),
+          ],
+        ),
+      ),
+    );
   }
 }
 
