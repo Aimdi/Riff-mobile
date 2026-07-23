@@ -1,10 +1,17 @@
 import 'package:dio/dio.dart';
 import 'package:hive/hive.dart';
 
+import 'torrent_extra_sources.dart';
+
 /// Identifiers for torrent search backends (qBittorrent search-plugin style).
 enum TorrentSourceId {
   torrentsCsv,
   myAnonamouse,
+  redacted,
+  orpheus,
+  x1337,
+  ruTracker,
+  audioBookBay,
 }
 
 extension TorrentSourceIdX on TorrentSourceId {
@@ -14,6 +21,16 @@ extension TorrentSourceIdX on TorrentSourceId {
         return 'torrents_csv';
       case TorrentSourceId.myAnonamouse:
         return 'myanonamouse';
+      case TorrentSourceId.redacted:
+        return 'redacted';
+      case TorrentSourceId.orpheus:
+        return 'orpheus';
+      case TorrentSourceId.x1337:
+        return '1337x';
+      case TorrentSourceId.ruTracker:
+        return 'rutracker';
+      case TorrentSourceId.audioBookBay:
+        return 'audiobookbay';
     }
   }
 
@@ -23,6 +40,16 @@ extension TorrentSourceIdX on TorrentSourceId {
         return 'torrentSourceTorrentsCsv';
       case TorrentSourceId.myAnonamouse:
         return 'torrentSourceMam';
+      case TorrentSourceId.redacted:
+        return 'torrentSourceRedacted';
+      case TorrentSourceId.orpheus:
+        return 'torrentSourceOrpheus';
+      case TorrentSourceId.x1337:
+        return 'torrentSource1337x';
+      case TorrentSourceId.ruTracker:
+        return 'torrentSourceRuTracker';
+      case TorrentSourceId.audioBookBay:
+        return 'torrentSourceAbb';
     }
   }
 
@@ -32,6 +59,16 @@ extension TorrentSourceIdX on TorrentSourceId {
         return TorrentSourceId.torrentsCsv;
       case 'myanonamouse':
         return TorrentSourceId.myAnonamouse;
+      case 'redacted':
+        return TorrentSourceId.redacted;
+      case 'orpheus':
+        return TorrentSourceId.orpheus;
+      case '1337x':
+        return TorrentSourceId.x1337;
+      case 'rutracker':
+        return TorrentSourceId.ruTracker;
+      case 'audiobookbay':
+        return TorrentSourceId.audioBookBay;
       default:
         return null;
     }
@@ -51,6 +88,8 @@ class TorrentHit {
     required this.downloads,
     required this.source,
     this.downloadUrl,
+    this.detailsUrl,
+    this.needsAuthDownload = false,
   });
 
   final String name;
@@ -63,8 +102,14 @@ class TorrentHit {
   final int downloads;
   final TorrentSourceId source;
 
-  /// Auth-aware or hash download URL (MAM). Prefer magnet when non-empty.
+  /// Auth-aware or hash download URL (MAM / Gazelle / RuTracker).
   final String? downloadUrl;
+
+  /// Details page used to scrape a magnet (1337x, ABB, RuTracker).
+  final String? detailsUrl;
+
+  /// When true, [downloadUrl] must be fetched with source credentials.
+  final bool needsAuthDownload;
 
   bool get hasMagnet => magnet.startsWith('magnet:');
   bool get hasDownloadUrl =>
@@ -73,7 +118,38 @@ class TorrentHit {
   /// Best URI to hand to an external client / qBittorrent.
   String get openUrl {
     if (hasMagnet) return magnet;
-    return downloadUrl?.trim() ?? '';
+    if (hasDownloadUrl && !needsAuthDownload) return downloadUrl!.trim();
+    return detailsUrl?.trim() ?? downloadUrl?.trim() ?? '';
+  }
+
+  TorrentHit copyWith({
+    String? name,
+    String? infoHash,
+    String? magnet,
+    String? sizeLabel,
+    String? dateLabel,
+    int? seeders,
+    int? leechers,
+    int? downloads,
+    TorrentSourceId? source,
+    String? downloadUrl,
+    String? detailsUrl,
+    bool? needsAuthDownload,
+  }) {
+    return TorrentHit(
+      name: name ?? this.name,
+      infoHash: infoHash ?? this.infoHash,
+      magnet: magnet ?? this.magnet,
+      sizeLabel: sizeLabel ?? this.sizeLabel,
+      dateLabel: dateLabel ?? this.dateLabel,
+      seeders: seeders ?? this.seeders,
+      leechers: leechers ?? this.leechers,
+      downloads: downloads ?? this.downloads,
+      source: source ?? this.source,
+      downloadUrl: downloadUrl ?? this.downloadUrl,
+      detailsUrl: detailsUrl ?? this.detailsUrl,
+      needsAuthDownload: needsAuthDownload ?? this.needsAuthDownload,
+    );
   }
 }
 
@@ -467,6 +543,29 @@ class QBittorrentService {
       throw StateError('qBittorrent add failed (${res.statusCode})');
     }
   }
+
+  /// Upload a .torrent file (for private trackers that need authenticated download).
+  Future<void> addTorrentFile(List<int> bytes, {String filename = 'file.torrent'}) async {
+    if (bytes.isEmpty) throw StateError('empty torrent');
+    final root = baseUrl;
+    if (root == null) throw StateError('qBittorrent URL missing');
+    final sid = await login();
+    final headers = <String, dynamic>{};
+    if (sid.isNotEmpty) headers['Cookie'] = 'SID=$sid';
+    final res = await _dio.post(
+      '$root/api/v2/torrents/add',
+      data: FormData.fromMap({
+        'torrents': MultipartFile.fromBytes(bytes, filename: filename),
+      }),
+      options: Options(
+        headers: headers,
+        validateStatus: (s) => s != null && s < 500,
+      ),
+    );
+    if (res.statusCode != 200) {
+      throw StateError('qBittorrent add failed (${res.statusCode})');
+    }
+  }
 }
 
 /// Facade: search selected sources (qBittorrent-style multi-indexer).
@@ -474,11 +573,26 @@ class TorrentSearchFacade {
   TorrentSearchFacade({
     TorrentsDiggerService? torrentsCsv,
     MamTorrentService? mam,
+    GazelleTorrentService? redacted,
+    GazelleTorrentService? orpheus,
+    X1337TorrentService? x1337,
+    RuTrackerTorrentService? ruTracker,
+    AudioBookBayService? abb,
   })  : _csv = torrentsCsv ?? TorrentsDiggerService(),
-        _mam = mam ?? MamTorrentService();
+        _mam = mam ?? MamTorrentService(),
+        _redacted = redacted ?? GazelleTorrentService.redacted(),
+        _orpheus = orpheus ?? GazelleTorrentService.orpheus(),
+        _x1337 = x1337 ?? X1337TorrentService(),
+        _ruTracker = ruTracker ?? RuTrackerTorrentService(),
+        _abb = abb ?? AudioBookBayService();
 
   final TorrentsDiggerService _csv;
   final MamTorrentService _mam;
+  final GazelleTorrentService _redacted;
+  final GazelleTorrentService _orpheus;
+  final X1337TorrentService _x1337;
+  final RuTrackerTorrentService _ruTracker;
+  final AudioBookBayService _abb;
 
   static const _sourcesKey = 'torrentSearchSources';
 
@@ -517,37 +631,75 @@ class TorrentSearchFacade {
 
     final futures = <Future>[];
 
+    void addSource(
+      bool enabled,
+      String label,
+      Future<List<TorrentHit>> Function() run, {
+      bool Function()? configured,
+    }) {
+      if (!enabled) return;
+      futures.add(() async {
+        if (configured != null && !configured()) {
+          errors.add('$label (not configured)');
+          return;
+        }
+        try {
+          parts.add(await run());
+        } catch (_) {
+          errors.add(label);
+        }
+      }());
+    }
+
     if (sources.contains(TorrentSourceId.torrentsCsv)) {
       futures.add(() async {
         try {
           final res = await _csv.search(q, after: csvAfter);
           parts.add(res.torrents);
           csvNext = res.next;
-        } catch (e) {
+        } catch (_) {
           errors.add('Torrents.csv');
         }
       }());
     }
 
-    if (sources.contains(TorrentSourceId.myAnonamouse)) {
-      futures.add(() async {
-        if (!MamTorrentService.isConfigured) {
-          errors.add('MyAnonamouse (not configured)');
-          return;
-        }
-        try {
-          final hits = await _mam.search(q);
-          parts.add(hits);
-        } catch (e) {
-          errors.add('MyAnonamouse');
-        }
-      }());
-    }
+    addSource(
+      sources.contains(TorrentSourceId.myAnonamouse),
+      'MyAnonamouse',
+      () => _mam.search(q),
+      configured: () => MamTorrentService.isConfigured,
+    );
+    addSource(
+      sources.contains(TorrentSourceId.redacted),
+      'Redacted',
+      () => _redacted.search(q),
+      configured: () => _redacted.isConfigured,
+    );
+    addSource(
+      sources.contains(TorrentSourceId.orpheus),
+      'Orpheus',
+      () => _orpheus.search(q),
+      configured: () => _orpheus.isConfigured,
+    );
+    addSource(
+      sources.contains(TorrentSourceId.x1337),
+      '1337x',
+      () => _x1337.search(q),
+    );
+    addSource(
+      sources.contains(TorrentSourceId.ruTracker),
+      'RuTracker',
+      () => _ruTracker.search(q),
+    );
+    addSource(
+      sources.contains(TorrentSourceId.audioBookBay),
+      'AudioBook Bay',
+      () => _abb.search(q),
+    );
 
     await Future.wait(futures);
 
     final results = <TorrentHit>[for (final p in parts) ...p];
-    // Prefer higher seeders first across sources.
     results.sort((a, b) => b.seeders.compareTo(a.seeders));
 
     return (
@@ -555,5 +707,57 @@ class TorrentSearchFacade {
       csvNext: csvNext,
       error: errors.isEmpty ? null : errors.join(', '),
     );
+  }
+
+  /// Resolve magnet / openable URL for sources that only return a details page.
+  Future<TorrentHit> resolve(TorrentHit hit) async {
+    if (hit.hasMagnet) return hit;
+    final details = hit.detailsUrl?.trim();
+    if (details == null || details.isEmpty) return hit;
+
+    String? magnet;
+    switch (hit.source) {
+      case TorrentSourceId.x1337:
+        magnet = await _x1337.fetchMagnet(details);
+        break;
+      case TorrentSourceId.audioBookBay:
+        magnet = await _abb.fetchMagnet(details);
+        break;
+      case TorrentSourceId.ruTracker:
+        magnet = await _ruTracker.fetchMagnet(details);
+        break;
+      default:
+        break;
+    }
+    if (magnet == null || !magnet.startsWith('magnet:')) return hit;
+    return hit.copyWith(magnet: magnet);
+  }
+
+  /// Send hit to qBittorrent — magnets/URLs, or authenticated .torrent upload.
+  Future<void> sendToQbit(TorrentHit hit) async {
+    final qbit = QBittorrentService();
+    if (hit.needsAuthDownload && hit.hasDownloadUrl) {
+      final bytes = await _fetchAuthTorrent(hit);
+      await qbit.addTorrentFile(bytes, filename: '${hit.source.prefsKey}.torrent');
+      return;
+    }
+    final resolved = await resolve(hit);
+    final url = resolved.openUrl;
+    if (url.isEmpty) throw StateError('no link');
+    await qbit.addUrl(url);
+  }
+
+  Future<List<int>> _fetchAuthTorrent(TorrentHit hit) async {
+    final url = hit.downloadUrl!.trim();
+    switch (hit.source) {
+      case TorrentSourceId.redacted:
+        return _redacted.fetchTorrentBytes(url);
+      case TorrentSourceId.orpheus:
+        return _orpheus.fetchTorrentBytes(url);
+      case TorrentSourceId.ruTracker:
+        return _ruTracker.fetchTorrentBytes(url);
+      default:
+        throw StateError('auth download unsupported for ${hit.source}');
+    }
   }
 }

@@ -53,13 +53,49 @@ void main() {
     expect(hit.openUrl, contains('myanonamouse.net'));
   });
 
-  test('TorrentSourceId prefs round-trip', () {
-    expect(TorrentSourceId.torrentsCsv.prefsKey, 'torrents_csv');
-    expect(TorrentSourceId.myAnonamouse.prefsKey, 'myanonamouse');
-    expect(TorrentSourceIdX.fromPrefs('torrents_csv'),
-        TorrentSourceId.torrentsCsv);
-    expect(TorrentSourceIdX.fromPrefs('myanonamouse'),
-        TorrentSourceId.myAnonamouse);
+  test('TorrentHit prefers detailsUrl when auth download is required', () {
+    const hit = TorrentHit(
+      name: 'Album',
+      infoHash: '',
+      magnet: '',
+      sizeLabel: '1 MB',
+      dateLabel: '2024-01-01',
+      seeders: 1,
+      leechers: 0,
+      downloads: 0,
+      source: TorrentSourceId.redacted,
+      downloadUrl: 'https://redacted.sh/ajax.php?action=download&id=1',
+      detailsUrl: 'https://redacted.sh/torrents.php?id=9&torrentid=1',
+      needsAuthDownload: true,
+    );
+    expect(hit.openUrl, contains('torrents.php'));
+    expect(hit.openUrl, isNot(contains('action=download')));
+  });
+
+  test('TorrentHit copyWith updates magnet', () {
+    const hit = TorrentHit(
+      name: 'Song',
+      infoHash: '',
+      magnet: '',
+      sizeLabel: '—',
+      dateLabel: '—',
+      seeders: 0,
+      leechers: 0,
+      downloads: 0,
+      source: TorrentSourceId.x1337,
+      detailsUrl: 'https://1337x.to/torrent/1/x/',
+    );
+    final resolved = hit.copyWith(magnet: 'magnet:?xt=urn:btih:deadbeef');
+    expect(resolved.hasMagnet, isTrue);
+    expect(resolved.detailsUrl, hit.detailsUrl);
+  });
+
+  test('TorrentSourceId prefs round-trip for all sources', () {
+    for (final id in TorrentSourceId.values) {
+      expect(TorrentSourceIdX.fromPrefs(id.prefsKey), id);
+    }
     expect(TorrentSourceIdX.fromPrefs('unknown'), isNull);
+    expect(TorrentSourceId.x1337.prefsKey, '1337x');
+    expect(TorrentSourceId.audioBookBay.prefsKey, 'audiobookbay');
   });
 }
