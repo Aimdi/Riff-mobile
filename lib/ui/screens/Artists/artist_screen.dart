@@ -7,6 +7,7 @@ import '/ui/player/player_controller.dart';
 import '/ui/screens/Artists/artist_screen_v2.dart';
 import '/ui/screens/Podcasts/podcasts_library_controller.dart';
 import '/ui/widgets/image_widget.dart';
+import '/ui/widgets/podcast_follow_button.dart';
 import '../../widgets/loader.dart';
 import '../../widgets/separate_tab_item_widget.dart';
 import '../../widgets/snackbar.dart';
@@ -190,69 +191,6 @@ class AboutArtist extends StatelessWidget {
                                               ? Icons.bookmark_add
                                               : Icons.bookmark_added),
                                     )),
-                                Obx(() {
-                                  if (artistScreenController
-                                      .isArtistContentFetced.isFalse) {
-                                    return const SizedBox.shrink();
-                                  }
-                                  final id = artistScreenController
-                                      .artist_.browseId;
-                                  if (!Get.isRegistered<
-                                      LibraryPodcastsController>()) {
-                                    return const SizedBox.shrink();
-                                  }
-                                  final lib =
-                                      Get.find<LibraryPodcastsController>();
-                                  // Touch the list so Obx rebuilds on subscribe.
-                                  final subscribed = lib.libraryPodcasts
-                                      .any((p) => p.playlistId == id);
-                                  return IconButton(
-                                    tooltip: subscribed
-                                        ? 'alreadySubscribedPodcast'.tr
-                                        : 'subscribeYoutubeChannel'.tr,
-                                    icon: Icon(
-                                      subscribed
-                                          ? Icons.podcasts
-                                          : Icons.podcasts_outlined,
-                                      size: 20,
-                                    ),
-                                    splashRadius: 18,
-                                    onPressed: () async {
-                                      if (subscribed) {
-                                        await lib.removeFromLibrary(id);
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(snackbar(
-                                            context,
-                                            'removeFromLib'.tr,
-                                            size: SanckBarSize.MEDIUM,
-                                          ));
-                                        }
-                                        return;
-                                      }
-                                      final pl = Playlist(
-                                        title: artistScreenController
-                                            .artist_.name,
-                                        playlistId: id,
-                                        thumbnailUrl: artistScreenController
-                                            .artist_.thumbnailUrl,
-                                        description: artistScreenController
-                                                .artist_.subscribers ??
-                                            'YouTube channel',
-                                        kind: 'yt_channel',
-                                      );
-                                      await lib.addToLibrary(pl);
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(snackbar(
-                                          context,
-                                          'subscribedAsPodcast'.tr,
-                                          size: SanckBarSize.MEDIUM,
-                                        ));
-                                      }
-                                    },
-                                  );
-                                }),
                                 IconButton(
                                     icon: const Icon(
                                       Icons.share,
@@ -274,6 +212,58 @@ class AboutArtist extends StatelessWidget {
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                     ),
+                    Obx(() {
+                      if (artistScreenController
+                          .isArtistContentFetced.isFalse) {
+                        return const SizedBox.shrink();
+                      }
+                      final id = artistScreenController.artist_.browseId;
+                      if (!Get.isRegistered<LibraryPodcastsController>()) {
+                        return const SizedBox.shrink();
+                      }
+                      final lib = Get.find<LibraryPodcastsController>();
+                      final subscribed = lib.libraryPodcasts
+                          .any((p) => p.playlistId == id);
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: PodcastFollowButton(
+                          following: subscribed,
+                          onPressed: () async {
+                            if (subscribed) {
+                              await lib.removeFromLibrary(id);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    snackbar(
+                                  context,
+                                  'removeFromLib'.tr,
+                                  size: SanckBarSize.MEDIUM,
+                                ));
+                              }
+                              return;
+                            }
+                            final pl = Playlist(
+                              title: artistScreenController.artist_.name,
+                              playlistId: id,
+                              thumbnailUrl: artistScreenController
+                                  .artist_.thumbnailUrl,
+                              description: artistScreenController
+                                      .artist_.subscribers ??
+                                  'YouTube channel',
+                              kind: 'yt_channel',
+                            );
+                            await lib.addToLibrary(pl);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  snackbar(
+                                context,
+                                'subscribedAsPodcast'.tr,
+                                size: SanckBarSize.MEDIUM,
+                              ));
+                            }
+                          },
+                        ),
+                      );
+                    }),
                     (artistData.containsKey("description") &&
                             artistData["description"] != null)
                         ? Align(

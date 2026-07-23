@@ -20,6 +20,7 @@ import '../../widgets/image_widget.dart';
 import '../../widgets/loader.dart';
 import '../../widgets/mix_transition_chip.dart';
 import '../../widgets/playlist_export_dialog.dart';
+import '../../widgets/podcast_follow_button.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/song_list_tile.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
@@ -278,54 +279,62 @@ class PlaylistScreen extends StatelessWidget {
                                       scrollDirection: Axis.horizontal,
                                       child: Row(
                                         children: [
-                                          // Bookmark button
-                                          Obx(() => (playlistController.playlist
-                                                      .value.isPipedPlaylist ||
-                                                  !playlistController.playlist
-                                                      .value.isCloudPlaylist)
-                                              ? const SizedBox.shrink()
-                                              : IconButton(
-                                                  tooltip: playlistController
-                                                          .isAddedToLibrary
-                                                          .isFalse
-                                                      ? "addToLibrary".tr
-                                                      : "removeFromLibrary".tr,
-                                                  splashRadius: 10,
-                                                  onPressed: () {
-                                                    final add =
-                                                        playlistController
-                                                            .isAddedToLibrary
-                                                            .isFalse;
-                                                    playlistController
-                                                        .addNremoveFromLibrary(
-                                                            playlistController
-                                                                .playlist.value,
-                                                            add: add)
-                                                        .then((value) {
-                                                      if (!context.mounted) {
-                                                        return;
-                                                      }
+                                          // Bookmark — playlists only. Podcasts
+                                          // use the green Follow pill under the title.
+                                          Obx(() {
+                                            final pl = playlistController
+                                                .playlist.value;
+                                            final isPodcast =
+                                                pl.kind == 'podcast' ||
+                                                    pl.playlistId
+                                                        .startsWith('MPSP') ||
+                                                    pl.kind == 'yt_channel';
+                                            if (isPodcast ||
+                                                pl.isPipedPlaylist ||
+                                                !pl.isCloudPlaylist) {
+                                              return const SizedBox.shrink();
+                                            }
+                                            return IconButton(
+                                                tooltip: playlistController
+                                                        .isAddedToLibrary
+                                                        .isFalse
+                                                    ? "addToLibrary".tr
+                                                    : "removeFromLibrary".tr,
+                                                splashRadius: 10,
+                                                onPressed: () {
+                                                  final add = playlistController
+                                                      .isAddedToLibrary.isFalse;
+                                                  playlistController
+                                                      .addNremoveFromLibrary(
+                                                          playlistController
+                                                              .playlist.value,
+                                                          add: add)
+                                                      .then((value) {
+                                                    if (!context.mounted) {
+                                                      return;
+                                                    }
 
-                                                      ScaffoldMessenger.of(context).showSnackBar(
-                                                          snackbar(
-                                                              context,
-                                                              value
-                                                                  ? add
-                                                                      ? "playlistBookmarkAddAlert"
-                                                                          .tr
-                                                                      : "listBookmarkRemoveAlert"
-                                                                          .tr
-                                                                  : "operationFailed"
-                                                                      .tr,
-                                                              size: SanckBarSize
-                                                                  .MEDIUM));
-                                                    });
-                                                  },
-                                                  icon: Icon(playlistController
-                                                          .isAddedToLibrary
-                                                          .isFalse
-                                                      ? Icons.bookmark_add
-                                                      : Icons.bookmark_added))),
+                                                    ScaffoldMessenger.of(context)
+                                                        .showSnackBar(snackbar(
+                                                            context,
+                                                            value
+                                                                ? add
+                                                                    ? "playlistBookmarkAddAlert"
+                                                                        .tr
+                                                                    : "listBookmarkRemoveAlert"
+                                                                        .tr
+                                                                : "operationFailed"
+                                                                    .tr,
+                                                            size: SanckBarSize
+                                                                .MEDIUM));
+                                                  });
+                                                },
+                                                icon: Icon(playlistController
+                                                        .isAddedToLibrary
+                                                        .isFalse
+                                                    ? Icons.bookmark_add
+                                                    : Icons.bookmark_added));
+                                          }),
                                           // Play button
                                           IconButton(
                                               tooltip: "play".tr,
@@ -666,15 +675,24 @@ class PlaylistScreen extends StatelessWidget {
                                 final title = pl.title;
                                 final description = pl.description;
                                 final isPodcast = pl.kind == 'podcast' ||
-                                    pl.playlistId.startsWith('MPSP');
+                                    pl.playlistId.startsWith('MPSP') ||
+                                    pl.kind == 'yt_channel';
 
                                 return AnimatedBuilder(
                                   animation:
                                       playlistController.animationController,
                                   builder: (context, child) {
+                                    // Podcasts need room for the Follow pill
+                                    // under the title (image-2 style header).
+                                    final base =
+                                        playlistController.heightAnimation.value;
+                                    final height = isPodcast
+                                        ? 10 +
+                                            ((base - 10) / 70).clamp(0.0, 1.0) *
+                                                110
+                                        : base;
                                     return SizedBox(
-                                      height: playlistController
-                                          .heightAnimation.value,
+                                      height: height,
                                       child: Transform.scale(
                                         scale: playlistController
                                             .scaleAnimation.value,
@@ -686,6 +704,8 @@ class PlaylistScreen extends StatelessWidget {
                                     padding: const EdgeInsets.only(
                                         left: 20.0, bottom: 10, right: 20),
                                     child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         // Explicit cover so the title row always
                                         // shows art (not a generic icon) even when
@@ -746,6 +766,47 @@ class PlaylistScreen extends StatelessWidget {
                                                   ),
                                                 ),
                                               ),
+                                              if (isPodcast) ...[
+                                                const SizedBox(height: 8),
+                                                Obx(() => PodcastFollowButton(
+                                                      following:
+                                                          playlistController
+                                                              .isAddedToLibrary
+                                                              .isTrue,
+                                                      onPressed: () {
+                                                        final add =
+                                                            playlistController
+                                                                .isAddedToLibrary
+                                                                .isFalse;
+                                                        playlistController
+                                                            .addNremoveFromLibrary(
+                                                                playlistController
+                                                                    .playlist
+                                                                    .value,
+                                                                add: add)
+                                                            .then((value) {
+                                                          if (!context
+                                                                  .mounted ||
+                                                              !value) {
+                                                            return;
+                                                          }
+                                                          ScaffoldMessenger.of(
+                                                                  context)
+                                                              .showSnackBar(
+                                                                  snackbar(
+                                                            context,
+                                                            add
+                                                                ? 'subscribedAsPodcast'
+                                                                    .tr
+                                                                : 'removeFromLib'
+                                                                    .tr,
+                                                            size: SanckBarSize
+                                                                .MEDIUM,
+                                                          ));
+                                                        });
+                                                      },
+                                                    )),
+                                              ],
                                             ],
                                           ),
                                         ),
