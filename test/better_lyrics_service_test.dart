@@ -57,12 +57,12 @@ void main() {
   });
 
   test('ContentFilters hides videos when asked', () {
-    final song = MediaItem(
+    const song = MediaItem(
       id: 'a',
       title: 'Song',
       extras: {'videoType': 'MUSIC_VIDEO_TYPE_ATV'},
     );
-    final video = MediaItem(
+    const video = MediaItem(
       id: 'b',
       title: 'Video',
       extras: {'videoType': 'MUSIC_VIDEO_TYPE_OMV'},
