@@ -13,6 +13,7 @@ import '../Library/library_controller.dart';
 import '../../widgets/snackbar.dart';
 import '/ui/widgets/link_piped.dart';
 import '/services/ban_service.dart';
+import '/services/better_lyrics_service.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/listenbrainz_service.dart';
 import '/services/music_service.dart';
@@ -241,6 +242,34 @@ class SettingsScreen extends StatelessWidget {
                           ),
                         ],
                         onChanged: settingsController.setVideoQuality,
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    contentPadding: const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("lyricsSource".tr),
+                    subtitle: Text("lyricsSourceDes".tr,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    trailing: Obx(
+                      () => DropdownButton(
+                        dropdownColor: Theme.of(context).cardColor,
+                        underline: const SizedBox.shrink(),
+                        value: settingsController.lyricsSource.value,
+                        items: [
+                          DropdownMenuItem(
+                            value: LyricsSource.betterLyrics,
+                            child: Text("lyricsSourceBetterLyrics".tr),
+                          ),
+                          DropdownMenuItem(
+                            value: LyricsSource.auto,
+                            child: Text("lyricsSourceAuto".tr),
+                          ),
+                          DropdownMenuItem(
+                            value: LyricsSource.lrclib,
+                            child: Text("lyricsSourceLrclib".tr),
+                          ),
+                        ],
+                        onChanged: settingsController.setLyricsSource,
                       ),
                     ),
                   ),

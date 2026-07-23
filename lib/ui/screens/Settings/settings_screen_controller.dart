@@ -15,6 +15,7 @@ import '../../widgets/snackbar.dart';
 import '../../../utils/helper.dart';
 import '/services/music_service.dart';
 import '/services/sponsorblock_service.dart';
+import '/services/better_lyrics_service.dart';
 import '/services/video_stream_service.dart';
 import '/services/yt_auth_service.dart';
 import '/ui/player/player_controller.dart';
@@ -47,6 +48,8 @@ class SettingsScreenController extends GetxController {
   final streamingQuality = AudioQuality.High.obs;
   /// In-player muted video surface (Low = 144–240p, High = ≤720p video-only).
   final videoQuality = VideoQuality.high.obs;
+  /// Synced lyrics provider preference (Settings → Listening).
+  final lyricsSource = LyricsSource.betterLyrics.obs;
   final playerUi = 0.obs;
   final slidableActionEnabled = true.obs;
   final isIgnoringBatteryOptimizations = false.obs;
@@ -67,7 +70,7 @@ class SettingsScreenController extends GetxController {
   final cacheHomeScreenData = true.obs;
   /// Unlocks Advanced developer tools (tap About version 7×).
   final developerMode = false.obs;
-  final currentVersion = "V1.7.76";
+  final currentVersion = "V1.7.77";
   int _versionTapCount = 0;
   DateTime? _lastVersionTap;
 
@@ -166,6 +169,14 @@ class SettingsScreenController extends GetxController {
     } else {
       videoQuality.value = VideoQuality.high;
     }
+    final lyricsSrcIndex = setBox.get('lyricsSource');
+    if (lyricsSrcIndex is int &&
+        lyricsSrcIndex >= 0 &&
+        lyricsSrcIndex < LyricsSource.values.length) {
+      lyricsSource.value = LyricsSource.values[lyricsSrcIndex];
+    } else {
+      lyricsSource.value = LyricsSource.betterLyrics;
+    }
     playerUi.value = isDesktop ? 0 : _asInt(setBox.get('playerUi'), 0);
     backgroundPlayEnabled.value = setBox.get("backgroundPlayEnabled") ?? true;
     keepScreenAwake.value = isDesktop
@@ -228,6 +239,26 @@ class SettingsScreenController extends GetxController {
     setBox.put("videoQuality", VideoQuality.values.indexOf(val));
     videoQuality.value = val;
     VideoStreamService.clearCache();
+  }
+
+  Future<void> setLyricsSource(dynamic val) async {
+    if (val is! LyricsSource) return;
+    setBox.put('lyricsSource', LyricsSource.values.indexOf(val));
+    lyricsSource.value = val;
+    // Drop cached lyrics so the next open uses the new provider order.
+    try {
+      final box = Hive.isBoxOpen('lyrics')
+          ? Hive.box('lyrics')
+          : await Hive.openBox('lyrics');
+      await box.clear();
+    } catch (_) {}
+    if (Get.isRegistered<PlayerController>()) {
+      final player = Get.find<PlayerController>();
+      player.lyrics.value = {"synced": "", "plainLyrics": ""};
+      if (player.showLyricsflag.isTrue) {
+        player.showLyricsflag.value = false;
+      }
+    }
   }
 
   void setPlayerUi(dynamic val) {
