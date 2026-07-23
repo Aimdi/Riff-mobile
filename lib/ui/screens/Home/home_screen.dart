@@ -35,8 +35,8 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
         floatingActionButton: Obx(
           () => ((homeScreenController.tabIndex.value == 0 &&
-                          !GetPlatform.isDesktop) ||
-                      homeScreenController.tabIndex.value == 4)
+                      !GetPlatform.isDesktop) ||
+                  homeScreenController.tabIndex.value == 4)
               ? Obx(
                   () => Padding(
                     padding: EdgeInsets.only(
@@ -178,137 +178,14 @@ class Body extends StatelessWidget {
                                                   .canvasColor),
                                         ),
                                       ),
-                                    ),
-                                  ]),
-                            ),
-                          )
-                        ],
-                      ),
-                    )
-                  : Obx(() {
-                      // dispose all detachached scroll controllers
-                      homeScreenController.disposeDetachedScrollControllers();
-                      final personal = Get.isRegistered<DiscoveryService>()
-                          ? Get.find<DiscoveryService>().personalSections
-                          : <dynamic>[].obs;
-                      final items = homeScreenController
-                              .isContentFetched.value
-                          ? [
-                              // Home hierarchy (top → bottom):
-                              // title → Wave → shortcuts → Quick Picks →
-                              // personal → editorial shelves.
-                              if (homeScreenController
-                                  .showingCachedWhileOffline.isTrue)
-                                const _OfflineHomeBanner(),
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                    12, 0, 12, 10),
-                                child: Text(
-                                  'home'.tr,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleLarge
-                                      ?.copyWith(
-                                        letterSpacing: -0.35,
-                                      ),
-                                ),
+                                    ]),
                               ),
-                              const RiffWaveHero(),
-                              // Shortcuts always — not only after taste signal.
-                              const HomeShortcutGrid(),
-                              if (Get.isRegistered<DiscoveryService>() &&
-                                  Get.find<DiscoveryService>()
-                                      .mixesUpdatedPill
-                                      .value)
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                      left: 12, top: 2, bottom: 4),
-                                  child: Chip(
-                                    label: Text("mixesUpdated".tr),
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                ),
-                              if (personal.isNotEmpty)
-                                ...personal
-                                    .where((s) =>
-                                        s.id == 'made_for_you' ||
-                                        '${s.id}'.startsWith('because_'))
-                                    .map((s) =>
-                                        HomeDiscoverySection(section: s)),
-                              Obx(() {
-                                final quickPicks =
-                                    homeScreenController.quickPicks.value;
-                                // A fresh install has no personalized song
-                                // shelf yet (Riff is login-less by design):
-                                // don't reserve an empty 340px block.
-                                if (quickPicks.songList.isEmpty) {
-                                  if (personal.isNotEmpty) {
-                                    return const SizedBox.shrink();
-                                  }
-                                  return Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                        12, 8, 12, 16),
-                                    child: Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.all(18),
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context).cardColor,
-                                        borderRadius: BorderRadius.circular(
-                                            RiffTokens.radiusSm),
-                                        border: Border.fromBorderSide(
-                                            RiffTokens.hairlineBorder(
-                                                context)),
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text("discover".tr,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .titleMedium),
-                                          const SizedBox(height: 6),
-                                          Text("discoverEmptyDes".tr,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                }
-                                final scrollController = ScrollController();
-                                homeScreenController.contentScrollControllers
-                                    .add(scrollController);
-                                return Padding(
-                                  padding: const EdgeInsets.only(left: 8),
-                                  child: QuickPicksWidget(
-                                      content: quickPicks,
-                                      scrollController: scrollController),
-                                );
-                              }),
-                              ...getWidgetList(
-                                  homeScreenController.middleContent,
-                                  homeScreenController),
-                              ...getWidgetList(
-                                  homeScreenController.fixedContent,
-                                  homeScreenController),
-                              if (personal.isNotEmpty)
-                                ...personal
-                                    .where((s) =>
-                                        s.id != 'made_for_you' &&
-                                        !'${s.id}'.startsWith('because_'))
-                                    .map((s) =>
-                                        HomeDiscoverySection(section: s)),
-                            ]
-                          : [const HomeShimmer()];
-                      return ListView.builder(
-                        padding:
-                            EdgeInsets.only(bottom: 200, top: topPadding),
-                        itemCount: items.length,
-                        itemBuilder: (context, index) => items[index],
-                      );
-                    }),
+                            )
+                          ],
+                        ),
+                      )
+                    : _HomeFeed(topPadding: topPadding),
+              ),
             ),
           ),
           if (GetPlatform.isDesktop)
@@ -347,18 +224,177 @@ class Body extends StatelessWidget {
       );
     }
   }
+}
 
-  List<Widget> getWidgetList(
-      dynamic list, HomeScreenController homeScreenController) {
-    return list
-        .map((content) {
-          final scrollController = ScrollController();
-          homeScreenController.contentScrollControllers.add(scrollController);
+/// Home tab feed with narrow Obx scopes so discovery / Quick Picks / shelves
+/// don't rebuild each other (and don't churn ScrollControllers).
+class _HomeFeed extends StatelessWidget {
+  const _HomeFeed({required this.topPadding});
+  final double topPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    final home = Get.find<HomeScreenController>();
+    return Obx(() {
+      if (home.isContentFetched.isFalse) {
+        return ListView(
+          padding: EdgeInsets.only(bottom: 200, top: topPadding),
+          children: const [HomeShimmer()],
+        );
+      }
+      return ListView(
+        padding: EdgeInsets.only(bottom: 200, top: topPadding),
+        children: [
+          // Hierarchy: offline → title → Wave → shortcuts → personal →
+          // Quick Picks → editorial (perf: narrow Obx per section).
+          Obx(() => home.showingCachedWhileOffline.isTrue
+              ? const _OfflineHomeBanner()
+              : const SizedBox.shrink()),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+            child: Text(
+              'home'.tr,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    letterSpacing: -0.35,
+                  ),
+            ),
+          ),
+          const RiffWaveHero(),
+          const HomeShortcutGrid(),
+          const _HomePersonalTop(),
+          const _HomeQuickPicksBlock(),
+          const _HomeShelfBlock(kind: _HomeShelfKind.middle),
+          const _HomeShelfBlock(kind: _HomeShelfKind.fixed),
+          const _HomePersonalBottom(),
+        ],
+      );
+    });
+  }
+}
+
+enum _HomeShelfKind { middle, fixed }
+
+class _HomePersonalTop extends StatelessWidget {
+  const _HomePersonalTop();
+
+  @override
+  Widget build(BuildContext context) {
+    if (!Get.isRegistered<DiscoveryService>()) {
+      return const SizedBox.shrink();
+    }
+    return Obx(() {
+      final disc = Get.find<DiscoveryService>();
+      final personal = disc.personalSections;
+      if (personal.isEmpty) return const SizedBox.shrink();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const HomeShortcutGrid(),
+          if (disc.mixesUpdatedPill.value)
+            Padding(
+              padding: const EdgeInsets.only(left: 5, top: 4),
+              child: Chip(
+                label: Text("mixesUpdated".tr),
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          ...personal
+              .where((s) =>
+                  s.id == 'made_for_you' || '${s.id}'.startsWith('because_'))
+              .map((s) => HomeDiscoverySection(section: s)),
+        ],
+      );
+    });
+  }
+}
+
+class _HomePersonalBottom extends StatelessWidget {
+  const _HomePersonalBottom();
+
+  @override
+  Widget build(BuildContext context) {
+    if (!Get.isRegistered<DiscoveryService>()) {
+      return const SizedBox.shrink();
+    }
+    return Obx(() {
+      final personal = Get.find<DiscoveryService>().personalSections;
+      if (personal.isEmpty) return const SizedBox.shrink();
+      return Column(
+        children: personal
+            .where((s) =>
+                s.id != 'made_for_you' && !'${s.id}'.startsWith('because_'))
+            .map((s) => HomeDiscoverySection(section: s))
+            .toList(),
+      );
+    });
+  }
+}
+
+class _HomeQuickPicksBlock extends StatelessWidget {
+  const _HomeQuickPicksBlock();
+
+  @override
+  Widget build(BuildContext context) {
+    final home = Get.find<HomeScreenController>();
+    return Obx(() {
+      final quickPicks = home.quickPicks.value;
+      final hasPersonal = Get.isRegistered<DiscoveryService>() &&
+          Get.find<DiscoveryService>().personalSections.isNotEmpty;
+      if (quickPicks.songList.isEmpty) {
+        if (hasPersonal) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: 5, bottom: 15, right: 10),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("discover".tr,
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 6),
+                Text("discoverEmptyDes".tr,
+                    style: Theme.of(context).textTheme.bodyMedium),
+              ],
+            ),
+          ),
+        );
+      }
+      return QuickPicksWidget(
+        content: quickPicks,
+        scrollController: home.scrollControllerFor('quick_picks'),
+      );
+    });
+  }
+}
+
+class _HomeShelfBlock extends StatelessWidget {
+  const _HomeShelfBlock({required this.kind});
+  final _HomeShelfKind kind;
+
+  @override
+  Widget build(BuildContext context) {
+    final home = Get.find<HomeScreenController>();
+    return Obx(() {
+      final list = kind == _HomeShelfKind.middle
+          ? home.middleContent
+          : home.fixedContent;
+      // Touch the list so Obx tracks length/content updates.
+      final _ = list.length;
+      return Column(
+        children: list.map<Widget>((content) {
+          final key = '${kind.name}_${content.title}';
           return ContentListWidget(
-              content: content, scrollController: scrollController);
-        })
-        .whereType<Widget>()
-        .toList();
+            content: content,
+            scrollController: home.scrollControllerFor(key),
+          );
+        }).toList(),
+      );
+    });
   }
 }
 
