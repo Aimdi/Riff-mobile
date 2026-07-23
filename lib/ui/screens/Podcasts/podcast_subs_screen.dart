@@ -224,9 +224,30 @@ class PodcastSubsScreen extends StatelessWidget {
                 return Center(
                   child: GestureDetector(
                     onLongPress: () => showPodcastFolderSheet(context, podcast),
-                    child: ContentListItem(
-                      content: podcast,
-                      isLibraryItem: true,
+                    child: Stack(
+                      children: [
+                        ContentListItem(
+                          content: podcast,
+                          isLibraryItem: true,
+                        ),
+                        if (podcast.kind == 'yt_channel' ||
+                            RegExp(r'^UC[\w-]{20,}$')
+                                .hasMatch(podcast.playlistId))
+                          Positioned(
+                            left: 8,
+                            top: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.65),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Icon(Icons.ondemand_video,
+                                  size: 14, color: Colors.white),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 );

@@ -69,6 +69,12 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     final ms = Get.find<MusicServices>();
     final ytFutures = ytSubs.take(25).map((p) async {
       try {
+        if (p.kind == 'yt_channel' ||
+            RegExp(r'^UC[\w-]{20,}$').hasMatch(p.playlistId)) {
+          final data =
+              await ms.getChannelAsPodcast(p.playlistId, limit: 15);
+          return List<MediaItem>.from(data['tracks'] ?? const []);
+        }
         final data = await ms.getPodcast(p.playlistId, limit: 15);
         return List<MediaItem>.from(data['tracks'] ?? const []);
       } catch (_) {

@@ -31,7 +31,7 @@ class AlbumArtNLyrics extends StatelessWidget {
       final song = playerController.currentSong.value;
       if (song == null) return const SizedBox.shrink();
 
-      final isVideo = song.isYoutubeVideo && videoPlaybackEnabled;
+      final isVideo = song.canShowPlayerVideo && videoPlaybackEnabled;
       // Spotify-style: videos use a 16:9 frame, songs keep the square cover.
       final width = playerArtImageSize;
       final height = isVideo ? (width * 9 / 16) : playerArtImageSize;

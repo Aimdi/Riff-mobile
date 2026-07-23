@@ -56,6 +56,9 @@ class MediaItemBuilder {
           'description': json['description'],
           'videoType': json['videoType'],
           'resultType': json['resultType'],
+          if (json['showVideo'] != null) 'showVideo': json['showVideo'],
+          if (json['podcastSource'] != null)
+            'podcastSource': json['podcastSource'],
         });
   }
 
@@ -123,5 +126,7 @@ class MediaItemBuilder {
         'resultType': mediaItem.extras?['resultType'],
         'isPodcast': mediaItem.extras?['isPodcast'],
         'description': mediaItem.extras?['description'],
+        'showVideo': mediaItem.extras?['showVideo'],
+        'podcastSource': mediaItem.extras?['podcastSource'],
       };
 }

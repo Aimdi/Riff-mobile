@@ -148,7 +148,7 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
     _controller = null;
     await old?.dispose();
 
-    if (!song.isYoutubeVideo) {
+    if (!song.canShowPlayerVideo) {
       if (mounted) {
         setState(() {
           _loading = false;

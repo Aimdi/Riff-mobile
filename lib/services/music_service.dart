@@ -8,6 +8,7 @@ import 'package:hive/hive.dart';
 
 import '/models/album.dart';
 import '/models/artist.dart';
+import '/models/media_Item_builder.dart';
 import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/ban_service.dart';
@@ -396,9 +397,14 @@ class MusicServices extends getx.GetxService {
       bool related = false,
       int suggestionsLimit = 0}) async {
     // Podcast browse IDs start with MPSP — use dedicated podcast parser.
+    // YouTube channel-as-podcast subscriptions use UC… channel ids.
     if (playlistId != null &&
         (playlistId.startsWith('MPSP') || playlistId.startsWith('MPED'))) {
       return getPodcast(playlistId, limit: limit);
+    }
+    if (playlistId != null &&
+        RegExp(r'^UC[\w-]{20,}$').hasMatch(playlistId)) {
+      return getChannelAsPodcast(playlistId, limit: limit);
     }
     String browseId = playlistId != null
         ? (playlistId.startsWith("VL") ? playlistId : "VL$playlistId")
@@ -670,6 +676,102 @@ class MusicServices extends getx.GetxService {
     podcast['tracks'] = tracks;
     podcast['trackCount'] = tracks.length;
     return podcast;
+  }
+
+  /// Subscribe-to-YouTube-channel-as-podcast (Podcini-style): channel uploads
+  /// become episodes. Each episode is a real YouTube video id so the player
+  /// can optionally show a 16:9 video surface.
+  Future<Map<String, dynamic>> getChannelAsPodcast(String channelId,
+      {int limit = 60}) async {
+    final artist = await getArtist(channelId);
+    final name = '${artist['name'] ?? ''}'.trim();
+    final videosShelf = artist['Videos'];
+    var tracks = <MediaItem>[];
+
+    if (videosShelf is Map) {
+      final content = videosShelf['content'];
+      if (content is List && content.isNotEmpty) {
+        tracks = _tagYtChannelEpisodes(content, name);
+      }
+      final endpoint = Map<String, dynamic>.from(videosShelf)..remove('content');
+      if (endpoint.isNotEmpty && tracks.length < limit) {
+        try {
+          final more = await getArtistRealtedContent(endpoint, 'Videos');
+          final results = more['results'];
+          if (results is List && results.isNotEmpty) {
+            tracks = _mergeMediaById(
+              tracks,
+              _tagYtChannelEpisodes(results, name),
+            );
+          }
+        } catch (e) {
+          printERROR('getChannelAsPodcast videos tab failed: $e');
+        }
+      }
+    }
+
+    if (tracks.length > limit) {
+      tracks = tracks.take(limit).toList();
+    }
+
+    final thumbs = artist['thumbnails'] ??
+        [
+          {'url': Playlist.thumbPlaceholderUrl}
+        ];
+    return {
+      'playlistId': channelId,
+      'title': name.isNotEmpty ? name : channelId,
+      'description': artist['description'] ?? 'YouTube channel',
+      'thumbnails': thumbs,
+      'author': {
+        'name': name,
+        'id': channelId,
+      },
+      'isCloudPlaylist': true,
+      'kind': 'yt_channel',
+      'tracks': tracks,
+      'trackCount': tracks.length,
+    };
+  }
+
+  List<MediaItem> _tagYtChannelEpisodes(List raw, String channelName) {
+    final out = <MediaItem>[];
+    for (final item in raw) {
+      MediaItem? m;
+      if (item is MediaItem) {
+        m = item;
+      } else if (item is Map) {
+        try {
+          m = MediaItemBuilder.fromJson(item);
+        } catch (_) {
+          m = null;
+        }
+      }
+      if (m == null || m.id.isEmpty || m.id.startsWith('podcast_')) continue;
+      out.add(m.copyWith(
+        artist: (m.artist == null || m.artist!.trim().isEmpty)
+            ? channelName
+            : m.artist,
+        extras: {
+          ...?m.extras,
+          'isPodcast': true,
+          'showVideo': true,
+          'podcastSource': 'yt_channel',
+          'videoType': m.extras?['videoType'] ?? 'MUSIC_VIDEO_TYPE_UGC',
+          'resultType': m.extras?['resultType'] ?? 'video',
+        },
+      ));
+    }
+    return out;
+  }
+
+  List<MediaItem> _mergeMediaById(List<MediaItem> a, List<MediaItem> b) {
+    final seen = <String>{for (final e in a) e.id};
+    final out = List<MediaItem>.from(a);
+    for (final e in b) {
+      if (seen.add(e.id)) out.add(e);
+    }
+    return out;
   }
 
   /// Discovery feed for the Podcasts tab: popular episodes + featured podcasts.

@@ -4,10 +4,13 @@ import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
+import '/models/artist.dart';
 import '/models/playlist.dart';
+import '/models/thumbnail.dart';
 import '/services/music_service.dart';
 import '/services/podcast_service.dart';
 import '/ui/widgets/sort_widget.dart';
+import '/utils/youtube_channel_url.dart';
 
 class LibraryPodcastsController extends GetxController {
   final libraryPodcasts = <Playlist>[].obs;
@@ -24,9 +27,11 @@ class LibraryPodcastsController extends GetxController {
   final similarSeedTitle = ''.obs;
   final isSimilarLoading = false.obs;
 
-  // Discover / directory search (YouTube Music podcasts)
+  // Discover / directory search (YouTube Music podcasts + channels)
   final searchQuery = ''.obs;
   final searchResults = <Playlist>[].obs;
+  /// YouTube channels found while searching (subscribe-as-podcast).
+  final channelSearchResults = <Playlist>[].obs;
   final isSearching = false.obs;
   final hasSearched = false.obs;
 
@@ -98,7 +103,7 @@ class LibraryPodcastsController extends GetxController {
     }
   }
 
-  /// Search the YouTube Music podcast directory.
+  /// Search YTM podcasts and YouTube channels (Podcini-style subscribe).
   Future<void> searchPodcasts(String query) async {
     final term = query.trim();
     searchQuery.value = term;
@@ -108,10 +113,27 @@ class LibraryPodcastsController extends GetxController {
     }
     isSearching.value = true;
     hasSearched.value = true;
+    final ms = Get.find<MusicServices>();
+    final list = <Playlist>[];
+    final channels = <Playlist>[];
     try {
-      final res = await Get.find<MusicServices>()
-          .search(term, filter: 'podcasts', limit: 30);
-      final list = <Playlist>[];
+      // Paste a channel URL / UC… id → resolve directly.
+      final channelId = YoutubeChannelUrl.tryChannelId(term);
+      final handle = YoutubeChannelUrl.tryHandle(term);
+      if (channelId != null) {
+        try {
+          final data = await ms.getChannelAsPodcast(channelId, limit: 1);
+          channels.add(_channelPlaylistFromMap(data));
+        } catch (_) {}
+      } else if (handle != null) {
+        try {
+          final artistRes =
+              await ms.search(handle, filter: 'artists', limit: 8);
+          channels.addAll(_playlistsFromArtistSearch(artistRes));
+        } catch (_) {}
+      }
+
+      final res = await ms.search(term, filter: 'podcasts', limit: 30);
       for (final entry in res.entries) {
         if (entry.key == 'params' || entry.key == 'searchEndpoint') continue;
         final val = entry.value;
@@ -122,12 +144,70 @@ class LibraryPodcastsController extends GetxController {
           }
         }
       }
+
+      // Always surface channels as an extra row for YouTube-ish queries, and
+      // lightly for normal queries so creators are discoverable.
+      if (channels.isEmpty &&
+          (YoutubeChannelUrl.looksLikeYoutubeInput(term) || term.length >= 3)) {
+        try {
+          final artistRes =
+              await ms.search(term, filter: 'artists', limit: 8);
+          channels.addAll(_playlistsFromArtistSearch(artistRes));
+        } catch (_) {}
+      }
+
       searchResults.assignAll(list);
+      channelSearchResults.assignAll(_uniqueById(channels));
     } catch (_) {
       searchResults.clear();
+      channelSearchResults.clear();
     } finally {
       isSearching.value = false;
     }
+  }
+
+  List<Playlist> _playlistsFromArtistSearch(Map res) {
+    final out = <Playlist>[];
+    for (final entry in res.entries) {
+      if (entry.key == 'params' || entry.key == 'searchEndpoint') continue;
+      final val = entry.value;
+      if (val is! List) continue;
+      for (final item in val) {
+        if (item is Artist) {
+          out.add(Playlist(
+            title: item.name,
+            playlistId: item.browseId,
+            thumbnailUrl: item.thumbnailUrl,
+            description: item.subscribers ?? 'YouTube channel',
+            kind: 'yt_channel',
+          ));
+        }
+      }
+    }
+    return out;
+  }
+
+  Playlist _channelPlaylistFromMap(Map<String, dynamic> data) {
+    final thumbs = data['thumbnails'];
+    final thumb = Thumbnail.bestUrl(thumbs, target: 'extraHigh');
+    return Playlist(
+      title: '${data['title'] ?? ''}',
+      playlistId: '${data['playlistId'] ?? ''}',
+      thumbnailUrl:
+          thumb.isNotEmpty ? thumb : Playlist.thumbPlaceholderUrl,
+      description: '${data['description'] ?? 'YouTube channel'}',
+      kind: 'yt_channel',
+    );
+  }
+
+  List<Playlist> _uniqueById(List<Playlist> list) {
+    final seen = <String>{};
+    final out = <Playlist>[];
+    for (final p in list) {
+      if (p.playlistId.isEmpty || !seen.add(p.playlistId)) continue;
+      out.add(p);
+    }
+    return out;
   }
 
   /// Entering the search field shows the "browse" state (a suggestions grid)
@@ -140,6 +220,7 @@ class LibraryPodcastsController extends GetxController {
   void clearSearch() {
     searchQuery.value = '';
     searchResults.clear();
+    channelSearchResults.clear();
     hasSearched.value = false;
     isSearching.value = false;
   }
@@ -147,15 +228,28 @@ class LibraryPodcastsController extends GetxController {
   Future<void> addToLibrary(Playlist podcast) async {
     final box = await Hive.openBox('LibraryPodcasts');
     final id = podcast.playlistId;
-    final toStore = podcast.copyWith(kind: 'podcast');
+    final kind =
+        podcast.kind == 'yt_channel' ? 'yt_channel' : 'podcast';
+    final toStore = podcast.copyWith(kind: kind);
     await box.put(id, {
       ...toStore.toJson(),
-      'kind': 'podcast',
-      'description': podcast.description ?? 'Podcast',
+      'kind': kind,
+      'description': podcast.description ??
+          (kind == 'yt_channel' ? 'YouTube channel' : 'Podcast'),
     });
     await refreshLib();
     // Seed the "similar" row once we have something to base it on.
     if (similarPodcasts.isEmpty) loadSimilar();
+  }
+
+  /// Subscribe to a YouTube channel as a podcast (videos = episodes).
+  Future<Playlist?> subscribeYoutubeChannel(String channelId) async {
+    final data =
+        await Get.find<MusicServices>().getChannelAsPodcast(channelId, limit: 1);
+    final pl = _channelPlaylistFromMap(data);
+    if (pl.playlistId.isEmpty) return null;
+    await addToLibrary(pl);
+    return pl;
   }
 
   Future<void> removeFromLibrary(String playlistId) async {

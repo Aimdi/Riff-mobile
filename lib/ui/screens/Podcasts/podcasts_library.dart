@@ -468,7 +468,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
             textInputAction: TextInputAction.search,
             onSubmitted: controller.searchPodcasts,
             decoration: InputDecoration(
-              hintText: 'searchPodcasts'.tr,
+              hintText: 'searchPodcastsOrYoutube'.tr,
               hintStyle: theme.textTheme.bodyMedium?.copyWith(color: hintColor),
               prefixIcon: Icon(Icons.search, color: hintColor),
               filled: true,
@@ -501,9 +501,10 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               return const Center(child: CircularProgressIndicator());
             }
             final items = controller.searchResults;
+            final channels = controller.channelSearchResults;
             final query = controller.searchQuery.value.trim();
             if (controller.hasSearched.isTrue && query.isNotEmpty) {
-              if (items.isEmpty) {
+              if (items.isEmpty && channels.isEmpty) {
                 return Center(
                   child: Text(
                     'noResults'.tr,
@@ -511,10 +512,134 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                   ),
                 );
               }
-              return _podcastGrid(
-                controller, itemWidth, itemHeight,
-                header: '${items.length} ${'items'.tr}',
-                list: items.toList(),
+              return CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  if (channels.isNotEmpty) ...[
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 8, 10, 2),
+                        child: Text(
+                          'youtubeChannels'.tr,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
+                        child: Text(
+                          'youtubeChannelsDes'.tr,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: SizedBox(
+                        height: itemHeight + 8,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          itemCount: channels.length,
+                          itemBuilder: (context, i) {
+                            final ch = channels[i];
+                            final subscribed =
+                                controller.isInLibrary(ch.playlistId);
+                            return Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 4),
+                              child: Stack(
+                                children: [
+                                  ContentListItem(
+                                    content: ch,
+                                    isLibraryItem: subscribed,
+                                  ),
+                                  Positioned(
+                                    right: 2,
+                                    top: 2,
+                                    child: Material(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .secondary
+                                          .withOpacity(0.92),
+                                      shape: const CircleBorder(),
+                                      child: IconButton(
+                                        tooltip: subscribed
+                                            ? 'removeFromLib'.tr
+                                            : 'subscribeYoutubeChannel'.tr,
+                                        visualDensity: VisualDensity.compact,
+                                        iconSize: 18,
+                                        padding: const EdgeInsets.all(6),
+                                        constraints: const BoxConstraints(
+                                            minWidth: 32, minHeight: 32),
+                                        onPressed: () async {
+                                          if (subscribed) {
+                                            await controller.removeFromLibrary(
+                                                ch.playlistId);
+                                          } else {
+                                            await controller.addToLibrary(ch);
+                                          }
+                                        },
+                                        icon: Icon(
+                                          subscribed
+                                              ? Icons.subscriptions
+                                              : Icons.add,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSecondary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (items.isNotEmpty) ...[
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding:
+                            const EdgeInsets.only(left: 5, top: 8, bottom: 4),
+                        child: Text(
+                          '${items.length} ${'items'.tr}',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                      ),
+                    ),
+                    SliverLayoutBuilder(builder: (context, constraints) {
+                      final availableWidth = constraints.crossAxisExtent;
+                      final width =
+                          availableWidth > 300 && availableWidth < 394
+                              ? 310.0
+                              : availableWidth;
+                      final columns =
+                          (width / itemWidth).floor().clamp(2, 6);
+                      return SliverPadding(
+                        padding: const EdgeInsets.only(bottom: 200, top: 10),
+                        sliver: SliverGrid(
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: columns,
+                            mainAxisExtent: itemHeight + 12,
+                          ),
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) => Center(
+                              child: ContentListItem(
+                                  content: items[index],
+                                  showSimilarOnOpen: true),
+                            ),
+                            childCount: items.length,
+                          ),
+                        ),
+                      );
+                    }),
+                  ] else
+                    const SliverToBoxAdapter(child: SizedBox(height: 80)),
+                ],
               );
             }
             return _browseView(controller, itemWidth, itemHeight);
@@ -657,49 +782,6 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
     );
   }
 
-  Widget _podcastGrid(LibraryPodcastsController controller, double itemWidth,
-      double itemHeight,
-      {required String header, required List<Playlist> list}) {
-    return CustomScrollView(
-      physics: const BouncingScrollPhysics(),
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.only(left: 5, top: 8, bottom: 4),
-            child: Text(
-              header,
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-          ),
-        ),
-        SliverLayoutBuilder(
-            builder: (context, constraints) {
-              final availableWidth = constraints.crossAxisExtent;
-              final width = availableWidth > 300 && availableWidth < 394
-                  ? 310.0
-                  : availableWidth;
-              final columns = (width / itemWidth).floor().clamp(2, 6);
-              return SliverPadding(
-                padding: const EdgeInsets.only(bottom: 200, top: 10),
-                sliver: SliverGrid(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columns,
-                    mainAxisExtent: itemHeight + 12,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => Center(
-                      child: ContentListItem(
-                          content: list[index], showSimilarOnOpen: true),
-                    ),
-                    childCount: list.length,
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      );
-  }
 }
 
 class _PodcastCarousel extends StatelessWidget {
