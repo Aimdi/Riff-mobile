@@ -10,6 +10,7 @@ import '../../models/playling_from.dart';
 import '../../services/downloader.dart';
 import '../../services/discovery/discovery_service.dart';
 import '../../services/discovery/discovery_types.dart';
+import '../../services/smart_queue_service.dart';
 import '../screens/Playlist/playlist_screen_controller.dart';
 import '../widgets/snackbar.dart';
 import '/services/listenbrainz_service.dart';
@@ -152,6 +153,9 @@ class PlayerController extends GetxController
     _listenForPlaylistChange();
     _listenForKeyboardActivity();
     _setInitLyricsMode();
+    if (Get.isRegistered<SmartQueueService>()) {
+      Get.find<SmartQueueService>().attach(this);
+    }
     final appPrefs = Hive.box("AppPrefs");
     isLoopModeEnabled.value = appPrefs.get("isLoopModeEnabled") ?? false;
     isShuffleModeEnabled.value = appPrefs.get("isShuffleModeEnabled") ?? false;
@@ -512,7 +516,7 @@ class PlayerController extends GetxController
         if (isRadioModeOn && (currentSong.value!.id == currentQueue.last.id)) {
           await _addRadioContinuation(radioInitiatorItem!);
         }
-        lyrics.value = {"synced": "", "plainLyrics": ""};
+        lyrics.value = {"synced": "", "plainLyrics": "", "ttml": ""};
         showLyricsflag.value = false;
         if (isDesktopLyricsDialogOpen) {
           Navigator.pop(Get.context!);

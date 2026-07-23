@@ -50,6 +50,22 @@ class SettingsScreenController extends GetxController {
   final videoQuality = VideoQuality.high.obs;
   /// Synced lyrics provider preference (Settings → Listening).
   final lyricsSource = LyricsSource.betterLyrics.obs;
+  /// Force low streaming quality to save mobile data.
+  final dataSaver = false.obs;
+  /// Hide YouTube music videos from home/search feeds.
+  final hideVideoSongs = false.obs;
+  /// Hide Shorts-style items from feeds.
+  final hideShorts = true.obs;
+  /// Pause when headphones disconnect / audio becomes noisy.
+  final pauseOnHeadsetDisconnect = true.obs;
+  /// Resume when Bluetooth headphones reconnect after a noisy pause.
+  final resumeOnBluetooth = true.obs;
+  /// Inject similar tracks when the queue runs low (Echo Brain–lite).
+  final smartQueueInjection = true.obs;
+  /// Ambient canvas motion behind album art.
+  final playerCanvas = true.obs;
+  /// Filter settings list.
+  final settingsSearch = ''.obs;
   final playerUi = 0.obs;
   final slidableActionEnabled = true.obs;
   final isIgnoringBatteryOptimizations = false.obs;
@@ -70,7 +86,7 @@ class SettingsScreenController extends GetxController {
   final cacheHomeScreenData = true.obs;
   /// Unlocks Advanced developer tools (tap About version 7×).
   final developerMode = false.obs;
-  final currentVersion = "V1.7.78";
+  final currentVersion = "V1.7.79";
   int _versionTapCount = 0;
   DateTime? _lastVersionTap;
 
@@ -177,6 +193,14 @@ class SettingsScreenController extends GetxController {
     } else {
       lyricsSource.value = LyricsSource.betterLyrics;
     }
+    dataSaver.value = setBox.get('dataSaver') ?? false;
+    hideVideoSongs.value = setBox.get('hideVideoSongs') ?? false;
+    hideShorts.value = setBox.get('hideShorts') ?? true;
+    pauseOnHeadsetDisconnect.value =
+        setBox.get('pauseOnHeadsetDisconnect') ?? true;
+    resumeOnBluetooth.value = setBox.get('resumeOnBluetooth') ?? true;
+    smartQueueInjection.value = setBox.get('smartQueueInjection') ?? true;
+    playerCanvas.value = setBox.get('playerCanvas') ?? true;
     playerUi.value = isDesktop ? 0 : _asInt(setBox.get('playerUi'), 0);
     backgroundPlayEnabled.value = setBox.get("backgroundPlayEnabled") ?? true;
     keepScreenAwake.value = isDesktop
@@ -254,11 +278,64 @@ class SettingsScreenController extends GetxController {
     } catch (_) {}
     if (Get.isRegistered<PlayerController>()) {
       final player = Get.find<PlayerController>();
-      player.lyrics.value = {"synced": "", "plainLyrics": ""};
+      player.lyrics.value = {"synced": "", "plainLyrics": "", "ttml": ""};
       if (player.showLyricsflag.isTrue) {
         player.showLyricsflag.value = false;
       }
     }
+  }
+
+  void toggleDataSaver(bool val) {
+    setBox.put('dataSaver', val);
+    dataSaver.value = val;
+  }
+
+  void toggleHideVideoSongs(bool val) {
+    setBox.put('hideVideoSongs', val);
+    hideVideoSongs.value = val;
+    if (Get.isRegistered<HomeScreenController>()) {
+      Get.find<HomeScreenController>().loadContentFromNetwork(silent: true);
+    }
+  }
+
+  void toggleHideShorts(bool val) {
+    setBox.put('hideShorts', val);
+    hideShorts.value = val;
+    if (Get.isRegistered<HomeScreenController>()) {
+      Get.find<HomeScreenController>().loadContentFromNetwork(silent: true);
+    }
+  }
+
+  void togglePauseOnHeadsetDisconnect(bool val) {
+    setBox.put('pauseOnHeadsetDisconnect', val);
+    pauseOnHeadsetDisconnect.value = val;
+  }
+
+  void toggleResumeOnBluetooth(bool val) {
+    setBox.put('resumeOnBluetooth', val);
+    resumeOnBluetooth.value = val;
+  }
+
+  void toggleSmartQueueInjection(bool val) {
+    setBox.put('smartQueueInjection', val);
+    smartQueueInjection.value = val;
+  }
+
+  void togglePlayerCanvas(bool val) {
+    setBox.put('playerCanvas', val);
+    playerCanvas.value = val;
+  }
+
+  void setSettingsSearch(String q) {
+    settingsSearch.value = q;
+  }
+
+  bool settingsMatch(String title, [String? subtitle]) {
+    final q = settingsSearch.value.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    if (title.toLowerCase().contains(q)) return true;
+    if (subtitle != null && subtitle.toLowerCase().contains(q)) return true;
+    return false;
   }
 
   void setPlayerUi(dynamic val) {

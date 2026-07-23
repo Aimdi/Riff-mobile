@@ -11,6 +11,7 @@ import '/models/playlist.dart';
 import '/services/ban_service.dart';
 import '/models/quick_picks.dart';
 import '/services/music_service.dart';
+import '/utils/content_filters.dart';
 import '../Settings/settings_screen_controller.dart';
 import '/ui/widgets/new_version_dialog.dart';
 
@@ -64,7 +65,7 @@ class HomeScreenController extends GetxController {
       final List quickPicksData = homeScreenData.get("quickPicks");
       final List middleContentData = homeScreenData.get("middleContent") ?? [];
       final List fixedContentData = homeScreenData.get("fixedContent") ?? [];
-      quickPicks.value = QuickPicks(
+      _setQuickPicks(
           quickPicksData.map((e) => MediaItemBuilder.fromJson(e)).toList(),
           title: quickPicksType);
       middleContent.value = middleContentData
@@ -85,6 +86,19 @@ class HomeScreenController extends GetxController {
     }
   }
 
+  List<MediaItem> _filterSongs(List<MediaItem> songs) {
+    final s = Get.find<SettingsScreenController>();
+    return ContentFilters.apply(
+      songs,
+      hideVideos: s.hideVideoSongs.isTrue,
+      hideShorts: s.hideShorts.isTrue,
+    );
+  }
+
+  void _setQuickPicks(List<MediaItem> songs, {required String title}) {
+    quickPicks.value = QuickPicks(_filterSongs(songs), title: title);
+  }
+
   Future<void> loadContentFromNetwork({bool silent = false}) async {
     final box = Hive.box("AppPrefs");
     String contentType = box.get("discoverContentType") ?? "QP";
@@ -99,7 +113,7 @@ class HomeScreenController extends GetxController {
         final index = homeContentListMap
             .indexWhere((element) => element['title'] == "Trending");
         if (index != -1 && index != 0) {
-          quickPicks.value = QuickPicks(
+          _setQuickPicks(
               List<MediaItem>.from(homeContentListMap[index]["contents"]),
               title: "Trending");
         } else if (index == -1) {
@@ -108,9 +122,7 @@ class HomeScreenController extends GetxController {
               element['title'] ==
               (contentType == "TMV" ? "Top Music Videos" : "Trending"));
           if (index != -1) {
-            quickPicks.value = QuickPicks(
-                List<MediaItem>.from(charts[index]["contents"]),
-                title: charts[index]['title']);
+            _setQuickPicks(List<MediaItem>.from(charts[index]["contents"]), title: charts[index]['title']);
             middleContentTemp.addAll(charts);
           }
         }
@@ -119,17 +131,14 @@ class HomeScreenController extends GetxController {
             .indexWhere((element) => element['title'] == "Top music videos");
         if (index != -1 && index != 0) {
           final con = homeContentListMap.removeAt(index);
-          quickPicks.value = QuickPicks(List<MediaItem>.from(con["contents"]),
-              title: con["title"]);
+          _setQuickPicks(List<MediaItem>.from(con["contents"]), title: con["title"]);
         } else if (index == -1) {
           List charts = await _musicServices.getCharts(contentType);
           final index = charts.indexWhere((element) =>
               element['title'] ==
               (contentType == "TMV" ? "Top Music Videos" : "Trending"));
           if (index != -1) {
-            quickPicks.value = QuickPicks(
-                List<MediaItem>.from(charts[index]["contents"]),
-                title: charts[index]["title"]);
+            _setQuickPicks(List<MediaItem>.from(charts[index]["contents"]), title: charts[index]["title"]);
             middleContentTemp.addAll(charts);
           }
         }
@@ -162,8 +171,7 @@ class HomeScreenController extends GetxController {
         }
         if (index != -1) {
           final con = homeContentListMap.removeAt(index);
-          quickPicks.value = QuickPicks(List<MediaItem>.from(con["contents"]),
-              title: con["title"] ?? "Quick picks");
+          _setQuickPicks(List<MediaItem>.from(con["contents"]), title: con["title"] ?? "Quick picks");
         }
       }
 
@@ -255,7 +263,7 @@ class HomeScreenController extends GetxController {
     }
     if (quickPicks_ == null) return;
 
-    quickPicks.value = quickPicks_;
+    _setQuickPicks(quickPicks_.songList, title: quickPicks_.title);
 
     // set home content last update time
     cachedHomeScreenData(updateQuickPicksNMiddleContent: true);

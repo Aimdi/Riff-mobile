@@ -54,6 +54,25 @@ class SettingsScreen extends StatelessWidget {
             "settingsDes".tr,
             style: theme.textTheme.bodyMedium,
           ),
+          const SizedBox(height: 12),
+          TextField(
+            onChanged: settingsController.setSettingsSearch,
+            decoration: InputDecoration(
+              hintText: 'settingsSearch'.tr,
+              prefixIcon: const Icon(Icons.search, size: 20),
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: accent.withOpacity(0.35)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: accent.withOpacity(0.25)),
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
+          ),
           Expanded(
               child: ListView(
             physics: const BouncingScrollPhysics(),
@@ -273,6 +292,130 @@ class SettingsScreen extends StatelessWidget {
                       ),
                     ),
                   ),
+                  Obx(() {
+                    if (!settingsController.settingsMatch(
+                        'dataSaver'.tr, 'dataSaverDes'.tr)) {
+                      return const SizedBox.shrink();
+                    }
+                    return ListTile(
+                      contentPadding:
+                          const EdgeInsets.only(left: 5, right: 10),
+                      title: Text('dataSaver'.tr),
+                      subtitle: Text('dataSaverDes'.tr,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      trailing: CustSwitch(
+                        value: settingsController.dataSaver.isTrue,
+                        onChanged: settingsController.toggleDataSaver,
+                      ),
+                    );
+                  }),
+                  Obx(() {
+                    if (!settingsController.settingsMatch(
+                        'hideVideoSongs'.tr, 'hideVideoSongsDes'.tr)) {
+                      return const SizedBox.shrink();
+                    }
+                    return ListTile(
+                      contentPadding:
+                          const EdgeInsets.only(left: 5, right: 10),
+                      title: Text('hideVideoSongs'.tr),
+                      subtitle: Text('hideVideoSongsDes'.tr,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      trailing: CustSwitch(
+                        value: settingsController.hideVideoSongs.isTrue,
+                        onChanged: settingsController.toggleHideVideoSongs,
+                      ),
+                    );
+                  }),
+                  Obx(() {
+                    if (!settingsController.settingsMatch(
+                        'hideShorts'.tr, 'hideShortsDes'.tr)) {
+                      return const SizedBox.shrink();
+                    }
+                    return ListTile(
+                      contentPadding:
+                          const EdgeInsets.only(left: 5, right: 10),
+                      title: Text('hideShorts'.tr),
+                      subtitle: Text('hideShortsDes'.tr,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      trailing: CustSwitch(
+                        value: settingsController.hideShorts.isTrue,
+                        onChanged: settingsController.toggleHideShorts,
+                      ),
+                    );
+                  }),
+                  Obx(() {
+                    if (!settingsController.settingsMatch(
+                        'pauseOnHeadsetDisconnect'.tr,
+                        'pauseOnHeadsetDisconnectDes'.tr)) {
+                      return const SizedBox.shrink();
+                    }
+                    return ListTile(
+                      contentPadding:
+                          const EdgeInsets.only(left: 5, right: 10),
+                      title: Text('pauseOnHeadsetDisconnect'.tr),
+                      subtitle: Text('pauseOnHeadsetDisconnectDes'.tr,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      trailing: CustSwitch(
+                        value: settingsController
+                            .pauseOnHeadsetDisconnect.isTrue,
+                        onChanged:
+                            settingsController.togglePauseOnHeadsetDisconnect,
+                      ),
+                    );
+                  }),
+                  Obx(() {
+                    if (!settingsController.settingsMatch(
+                        'resumeOnBluetooth'.tr, 'resumeOnBluetoothDes'.tr)) {
+                      return const SizedBox.shrink();
+                    }
+                    return ListTile(
+                      contentPadding:
+                          const EdgeInsets.only(left: 5, right: 10),
+                      title: Text('resumeOnBluetooth'.tr),
+                      subtitle: Text('resumeOnBluetoothDes'.tr,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      trailing: CustSwitch(
+                        value: settingsController.resumeOnBluetooth.isTrue,
+                        onChanged: settingsController.toggleResumeOnBluetooth,
+                      ),
+                    );
+                  }),
+                  Obx(() {
+                    if (!settingsController.settingsMatch(
+                        'smartQueueInjection'.tr,
+                        'smartQueueInjectionDes'.tr)) {
+                      return const SizedBox.shrink();
+                    }
+                    return ListTile(
+                      contentPadding:
+                          const EdgeInsets.only(left: 5, right: 10),
+                      title: Text('smartQueueInjection'.tr),
+                      subtitle: Text('smartQueueInjectionDes'.tr,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      trailing: CustSwitch(
+                        value: settingsController.smartQueueInjection.isTrue,
+                        onChanged:
+                            settingsController.toggleSmartQueueInjection,
+                      ),
+                    );
+                  }),
+                  Obx(() {
+                    if (!settingsController.settingsMatch(
+                        'playerCanvas'.tr, 'playerCanvasDes'.tr)) {
+                      return const SizedBox.shrink();
+                    }
+                    return ListTile(
+                      contentPadding:
+                          const EdgeInsets.only(left: 5, right: 10),
+                      title: Text('playerCanvas'.tr),
+                      subtitle: Text('playerCanvasDes'.tr,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      trailing: CustSwitch(
+                        value: settingsController.playerCanvas.isTrue,
+                        onChanged: settingsController.togglePlayerCanvas,
+                      ),
+                    );
+                  }),
                   if (GetPlatform.isAndroid)
                     ListTile(
                         contentPadding:

@@ -19,6 +19,7 @@ import '../screens/Library/library_controller.dart';
 import '/ui/widgets/add_to_playlist.dart';
 import '/ui/widgets/favorite_heart_button.dart';
 import '/ui/widgets/snackbar.dart';
+import '/utils/content_filters.dart';
 import '../../models/media_Item_builder.dart';
 import '../../models/playlist.dart';
 import '../navigator.dart';
@@ -361,8 +362,9 @@ class SongInfoBottomSheet extends StatelessWidget {
               visualDensity: const VisualDensity(vertical: -1),
               leading: const Icon(Icons.share),
               title: Text("shareSong".tr),
-              onTap: () =>
-                  Share.share("https://youtube.com/watch?v=${song.id}"),
+              subtitle: Text("shareSongLinkDes".tr,
+                  style: Theme.of(context).textTheme.bodySmall),
+              onTap: () => Share.share(SongLinkShare.shareText(song)),
             ),
           ],
         ),

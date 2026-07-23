@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '../../widgets/loader.dart';
 import '../player_controller.dart';
+import 'word_synced_lyrics.dart';
 
 class LyricsWidget extends StatelessWidget {
   final EdgeInsetsGeometry padding;
@@ -28,7 +29,7 @@ class LyricsWidget extends StatelessWidget {
                         child: SelectableText(
                           playerController.lyrics["plainLyrics"] == "NA"
                               ? "lyricsNotAvailable".tr
-                              : playerController.lyrics["plainLyrics"],
+                              : playerController.lyrics["plainLyrics"] ?? "",
                           textAlign: TextAlign.center,
                           style: playerController.isDesktopLyricsDialogOpen
                               ? Theme.of(context).textTheme.titleMedium!
@@ -41,29 +42,36 @@ class LyricsWidget extends StatelessWidget {
                     ),
                   ),
                 )
-              : IgnorePointer(
-                  child: LyricsReader(
-                    padding: const EdgeInsets.only(left: 5, right: 5),
-                    lyricUi: playerController.lyricUi,
-                    position: playerController
-                        .progressBarStatus.value.current.inMilliseconds,
-                    model: LyricsModelBuilder.create()
-                        .bindLyricToMain(
-                            playerController.lyrics['synced'].toString())
-                        .getModel(),
-                    emptyBuilder: () => Center(
-                      child: Text(
-                        "syncedLyricsNotAvailable".tr,
-                        style: playerController.isDesktopLyricsDialogOpen
-                              ? Theme.of(context).textTheme.titleMedium!
-                              : Theme.of(context)
-                                  .textTheme
-                                  .titleMedium!
-                                  .copyWith(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                ),
+              : _syncedBody(context, playerController),
+    );
+  }
+
+  Widget _syncedBody(BuildContext context, PlayerController playerController) {
+    final ttml = (playerController.lyrics['ttml'] ?? '').toString();
+    if (ttml.isNotEmpty) {
+      return WordSyncedLyricsWidget(ttml: ttml, padding: padding);
+    }
+    return IgnorePointer(
+      child: LyricsReader(
+        padding: const EdgeInsets.only(left: 5, right: 5),
+        lyricUi: playerController.lyricUi,
+        position:
+            playerController.progressBarStatus.value.current.inMilliseconds,
+        model: LyricsModelBuilder.create()
+            .bindLyricToMain(playerController.lyrics['synced'].toString())
+            .getModel(),
+        emptyBuilder: () => Center(
+          child: Text(
+            "syncedLyricsNotAvailable".tr,
+            style: playerController.isDesktopLyricsDialogOpen
+                ? Theme.of(context).textTheme.titleMedium!
+                : Theme.of(context)
+                    .textTheme
+                    .titleMedium!
+                    .copyWith(color: Colors.white),
+          ),
+        ),
+      ),
     );
   }
 }

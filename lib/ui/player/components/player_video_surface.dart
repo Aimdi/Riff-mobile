@@ -83,7 +83,7 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
       });
     }
     // Soft-sync rarely — seeks hitch more at High (≤720p) quality.
-    _syncTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    _syncTimer = Timer.periodic(const Duration(seconds: 12), (_) {
       if (!_panelOpen) return;
       _correctDrift(soft: true);
     });

@@ -3,11 +3,13 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../screens/Settings/settings_screen_controller.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
 import '../player_controller.dart';
 import 'albumart_lyrics.dart';
 import 'backgroud_image.dart';
 import 'lyrics_switch.dart';
+import 'player_canvas_backdrop.dart';
 import 'player_control.dart';
 
 /// Standard player widget
@@ -31,6 +33,8 @@ class StandardPlayer extends StatelessWidget {
     return Obx(() {
       final isVideo = playerController.isCurrentSongVideo;
       final showVideo = isVideo && AlbumArtNLyrics.videoPlaybackEnabled;
+      final canvasOn = Get.isRegistered<SettingsScreenController>() &&
+          Get.find<SettingsScreenController>().playerCanvas.isTrue;
 
       // Video frame: full width minus padding, capped so 16:9 fits between
       // header and transport without floating under the status bar.
@@ -56,6 +60,8 @@ class StandardPlayer extends StatelessWidget {
             ),
           ] else ...[
             const BackgroudImage(),
+            if (canvasOn)
+              const Positioned.fill(child: PlayerCanvasBackdrop()),
             BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
               child: Stack(

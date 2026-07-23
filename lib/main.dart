@@ -24,7 +24,9 @@ import '/services/audio_handler.dart';
 import '/services/client_config_service.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/music_service.dart';
+import '/services/playback_rules_service.dart';
 import '/services/playlist_mix_service.dart';
+import '/services/smart_queue_service.dart';
 import '/services/track_analysis_service.dart';
 import '/ui/home.dart';
 import '/ui/player/player_controller.dart';
@@ -49,6 +51,10 @@ Future<void> main() async {
   Get.put<AudioHandler>(await initAudioService(), permanent: true);
   // Discovery depends on MusicServices — init after services are registered.
   await Get.putAsync(() => DiscoveryService().init(), permanent: true);
+  if (!GetPlatform.isDesktop) {
+    await Get.putAsync(() => PlaybackRulesService().init(), permanent: true);
+  }
+  Get.put(SmartQueueService().init(), permanent: true);
   WidgetsBinding.instance.addObserver(LifecycleHandler());
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   TerminateRestart.instance.initialize();
