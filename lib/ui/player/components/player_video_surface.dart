@@ -62,7 +62,13 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _boot(widget.song);
+    // Defer decoder boot until the full player is visible — mini-player
+    // should not pay for muted video decode in the background.
+    if (_panelOpen) {
+      _boot(widget.song);
+    } else {
+      _loading = false;
+    }
     _playWorker = ever(_player.buttonState, (_) => _syncPlayPause());
     _panelWorker = ever(_player.isPlayerPanelOpen, (_) => _onPanelOpenChanged());
     _seekWorker = ever(_player.videoSeekSignal, (_) => _onExternalSeek());
@@ -73,11 +79,11 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
         (_) => _applySpeed(),
       );
       _qualityWorker = ever(settings.videoQuality, (_) {
-        if (mounted) _boot(widget.song);
+        if (mounted && _panelOpen) _boot(widget.song);
       });
     }
-    // Soft-sync rarely — frequent seeks were a major hitch source.
-    _syncTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    // Soft-sync rarely — seeks hitch more at High (≤720p) quality.
+    _syncTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (!_panelOpen) return;
       _correctDrift(soft: true);
     });
@@ -120,14 +126,38 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
   }
 
   void _onPanelOpenChanged() {
-    final c = _controller;
-    if (c == null || !c.value.isInitialized) return;
     if (!_panelOpen) {
-      if (c.value.isPlaying) unawaited(c.pause());
+      // Release the decoder while the slide-up panel is collapsed so audio
+      // keeps playing smoothly; recreate when the user opens the player again.
+      unawaited(_releaseDecoder());
+      return;
+    }
+    if (_controller == null || !_controller!.value.isInitialized) {
+      _boot(widget.song);
       return;
     }
     _correctDrift(soft: false);
     _syncPlayPause();
+  }
+
+  Future<void> _releaseDecoder() async {
+    final c = _controller;
+    _controller = null;
+    if (c != null) {
+      try {
+        if (c.value.isInitialized && c.value.isPlaying) {
+          await c.pause();
+        }
+      } catch (_) {}
+      try {
+        await c.dispose();
+      } catch (_) {}
+    }
+    if (mounted) {
+      setState(() {
+        _loading = false;
+      });
+    }
   }
 
   void _onExternalSeek() {
@@ -146,6 +176,15 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
   }
 
   Future<void> _boot(MediaItem song) async {
+    if (!_panelOpen) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _failed = false;
+        });
+      }
+      return;
+    }
     setState(() {
       _loading = true;
       _failed = false;
@@ -172,7 +211,7 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
         song.id,
         quality: quality,
       ).timeout(const Duration(seconds: 12));
-      if (!mounted || widget.song.id != song.id) return;
+      if (!mounted || widget.song.id != song.id || !_panelOpen) return;
       if (info == null) {
         setState(() {
           _loading = false;
@@ -189,6 +228,10 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
         ),
       );
       await c.initialize();
+      if (!mounted || widget.song.id != song.id || !_panelOpen) {
+        await c.dispose();
+        return;
+      }
       await c.setVolume(0);
       await c.setLooping(false);
       await _applySpeedTo(c);
@@ -203,7 +246,7 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
       } else {
         await c.pause();
       }
-      if (!mounted || widget.song.id != song.id) {
+      if (!mounted || widget.song.id != song.id || !_panelOpen) {
         await c.dispose();
         return;
       }
@@ -255,8 +298,13 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
     _lastAudioPos = audioPos;
     final drift = (audioPos - c.value.position).abs();
     // Soft periodic sync only corrects large drift; jumps always sync.
-    final threshold =
-        soft ? const Duration(milliseconds: 2000) : const Duration(milliseconds: 350);
+    // High quality seeks hitch more — tolerate wider drift before seeking.
+    final highQuality = Get.isRegistered<SettingsScreenController>() &&
+        Get.find<SettingsScreenController>().videoQuality.value ==
+            VideoQuality.high;
+    final threshold = soft
+        ? Duration(milliseconds: highQuality ? 3000 : 2000)
+        : const Duration(milliseconds: 350);
     if (!jumped && drift <= threshold) {
       _syncPlayPause();
       return;
@@ -537,6 +585,29 @@ class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Compact circular control on album/cover art — tap to opt into video.
+class PlayerVideoEnableButton extends StatelessWidget {
+  const PlayerVideoEnableButton({super.key, required this.onShow});
+
+  final VoidCallback onShow;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black.withOpacity(0.55),
+      shape: const CircleBorder(),
+      child: IconButton(
+        tooltip: 'videoShow'.tr,
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.all(8),
+        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        onPressed: onShow,
+        icon: const Icon(Icons.videocam_outlined, color: Colors.white, size: 22),
       ),
     );
   }

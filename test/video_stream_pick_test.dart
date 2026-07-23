@@ -170,5 +170,45 @@ void main() {
       ], quality: VideoQuality.high);
       expect(pick?.url, 'vo720');
     });
+
+    test('never picks muxed when any video-only exists', () {
+      final pick = VideoStreamService.pickBestForPlayer([
+        const VideoStreamInfo(
+          url: 'mux720',
+          width: 1280,
+          height: 720,
+          mimeType: 'video/mp4',
+          hasAudio: true,
+        ),
+        const VideoStreamInfo(
+          url: 'vo360',
+          width: 640,
+          height: 360,
+          mimeType: 'video/mp4',
+          hasAudio: false,
+        ),
+      ], quality: VideoQuality.high);
+      expect(pick?.url, 'vo360');
+    });
+
+    test('prefers mp4 over vp9 at same high height', () {
+      final pick = VideoStreamService.pickBestForPlayer([
+        const VideoStreamInfo(
+          url: 'webm720',
+          width: 1280,
+          height: 720,
+          mimeType: 'video/webm',
+          hasAudio: false,
+        ),
+        const VideoStreamInfo(
+          url: 'mp4720',
+          width: 1280,
+          height: 720,
+          mimeType: 'video/mp4',
+          hasAudio: false,
+        ),
+      ], quality: VideoQuality.high);
+      expect(pick?.url, 'mp4720');
+    });
   });
 }

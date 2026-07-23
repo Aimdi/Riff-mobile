@@ -178,10 +178,23 @@ class VideoStreamService {
   }) {
     if (streams.isEmpty) return null;
 
+    // Mute surface never needs muxed A/V — drop muxed whenever any video-only
+    // candidate exists (biggest lag win without lowering resolution).
+    final videoOnly = streams.where((s) => !s.hasAudio).toList();
+    var pool = videoOnly.isNotEmpty ? videoOnly : streams;
+
+    // Cap height per tier so we never "upgrade" into hitchy 1080p+ when a
+    // ≤720 (High) / ≤360 (Low) option exists.
+    final maxH = quality == VideoQuality.high ? 720 : 360;
+    final capped = pool.where((s) => s.height > 0 && s.height <= maxH).toList();
+    if (capped.isNotEmpty) {
+      pool = capped;
+    }
+
     final score =
         quality == VideoQuality.high ? _scoreHigh : _scoreLow;
 
-    final ranked = List<VideoStreamInfo>.from(streams)
+    final ranked = List<VideoStreamInfo>.from(pool)
       ..sort((a, b) {
         final d = score(b).compareTo(score(a));
         if (d != 0) return d;
@@ -216,6 +229,8 @@ class VideoStreamService {
       sc += 45;
     } else if (!s.hasAudio && h > 360) {
       sc += 10;
+    } else if (s.hasAudio) {
+      sc -= 25;
     }
 
     sc += _codecBonus(s);
@@ -244,9 +259,9 @@ class VideoStreamService {
 
     // Video-only is the main lag win at any height.
     if (!s.hasAudio) {
-      sc += 50;
+      sc += 60;
     } else {
-      sc -= 20;
+      sc -= 30;
     }
 
     sc += _codecBonus(s);
@@ -261,12 +276,14 @@ class VideoStreamService {
         mime.contains('avc') ||
         mime.contains('h264') ||
         mime == 'mp4') {
-      sc += 12;
+      sc += 20;
     }
     if (mime.contains('webm') ||
         mime.contains('vp9') ||
-        mime.contains('vp09')) {
-      sc -= 8;
+        mime.contains('vp09') ||
+        mime.contains('av01') ||
+        mime.contains('av1')) {
+      sc -= 15;
     }
     return sc;
   }
