@@ -39,7 +39,10 @@ class YtAuthService {
   }
 
   /// Per-request auth headers (the SAPISIDHASH is time-based).
-  static Map<String, String> authHeaders() {
+  /// [origin] must match the site the request is made against
+  /// (`music.youtube.com` for browse, `www.youtube.com` for player/streams).
+  static Map<String, String> authHeaders(
+      {String origin = _origin}) {
     final c = cookie;
     if (c == null) return {};
     final sapisid =
@@ -47,12 +50,17 @@ class YtAuthService {
             RegExp(r'__Secure-3PAPISID=([^;]+)').firstMatch(c)?.group(1);
     if (sapisid == null) return {};
     final ts = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    final hash = sha1.convert(utf8.encode('$ts $sapisid $_origin')).toString();
+    final hash = sha1.convert(utf8.encode('$ts $sapisid $origin')).toString();
     return {
       'cookie': c,
       'authorization': 'SAPISIDHASH ${ts}_$hash',
-      'x-origin': _origin,
+      'x-origin': origin,
       'x-goog-authuser': '0',
     };
   }
+
+  /// Headers for NewPipe / youtube_explode player requests.
+  static Map<String, String> streamAuthHeaders() =>
+      authHeaders(origin: 'https://www.youtube.com');
 }
+

@@ -1079,27 +1079,78 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       })();
       HMStreamingData? streamInfo;
       if (songsUrlCacheBox.containsKey(songId) && !generateNewUrl) {
-        final streamInfoJson = songsUrlCacheBox.get(songId);
-        if (streamInfoJson.runtimeType.toString().contains("Map") &&
-            !isExpired(url: (streamInfoJson['lowQualityAudio']['url']))) {
-          printINFO("Got cached Url ($songId)");
-          streamInfo = HMStreamingData.fromJson(streamInfoJson);
+        try {
+          final streamInfoJson = songsUrlCacheBox.get(songId);
+          final low = streamInfoJson is Map
+              ? streamInfoJson['lowQualityAudio']
+              : null;
+          final cachedUrl =
+              low is Map ? low['url']?.toString() : null;
+          if (streamInfoJson is Map &&
+              cachedUrl != null &&
+              cachedUrl.isNotEmpty &&
+              !isExpired(url: cachedUrl)) {
+            printINFO("Got cached Url ($songId)");
+            streamInfo = HMStreamingData.fromJson(streamInfoJson);
+          }
+        } catch (e) {
+          printERROR("Bad SongsUrlCache entry for $songId: $e");
+          try {
+            await songsUrlCacheBox.delete(songId);
+          } catch (_) {}
         }
       }
 
       if (streamInfo == null) {
         final token = RootIsolateToken.instance;
-        // Remote client config is handed over by value: the spawned
-        // isolate shares no statics or Hive with the main isolate.
+        // Remote client config + optional YT login cookies are handed over
+        // by value: the spawned isolate shares no statics or Hive.
         final clientConfigJson = ClientConfigService.currentJson;
-        final streamInfoJson = await Isolate.run(() => getStreamInfo(
+        final authHeaders = StreamProvider.authHeadersFromSession();
+        Map<String, dynamic> streamInfoJson;
+        try {
+          if (token != null) {
+            streamInfoJson = await Isolate.run(() => getStreamInfo(
+                  songId,
+                  token,
+                  clientConfigJson: clientConfigJson,
+                  fetchLoudness: loudnessNormalizationEnabled,
+                  authHeaders: authHeaders,
+                ));
+          } else {
+            streamInfoJson = await getStreamInfo(
               songId,
-              token,
+              null,
               clientConfigJson: clientConfigJson,
               fetchLoudness: loudnessNormalizationEnabled,
-            ));
-        streamInfo = HMStreamingData.fromJson(streamInfoJson);
-        if (streamInfo.playable) songsUrlCacheBox.put(songId, streamInfoJson);
+              authHeaders: authHeaders,
+            );
+          }
+        } catch (e) {
+          printERROR("getStreamInfo isolate failed, retrying in-place: $e");
+          try {
+            streamInfoJson = await StreamProvider.fetch(songId,
+                    clientConfigJson: clientConfigJson,
+                    authHeaders: authHeaders)
+                .then((p) => p.hmStreamingData);
+          } catch (e2) {
+            printERROR("stream resolve failed: $e2");
+            return HMStreamingData(
+                playable: false, statusMSG: "streamLoadFailed");
+          }
+        }
+        try {
+          streamInfo = HMStreamingData.fromJson(streamInfoJson);
+        } catch (e) {
+          printERROR("HMStreamingData.fromJson failed: $e");
+          return HMStreamingData(
+              playable: false, statusMSG: "streamLoadFailed");
+        }
+        if (streamInfo.playable) {
+          try {
+            songsUrlCacheBox.put(songId, streamInfoJson);
+          } catch (_) {}
+        }
       }
 
       streamInfo.setQualityIndex(qualityIndex as int);

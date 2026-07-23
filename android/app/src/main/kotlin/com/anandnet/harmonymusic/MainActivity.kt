@@ -91,8 +91,11 @@ class MainActivity : AudioServiceActivity() {
                         result.error("ARG", "videoId missing", null)
                         return@setMethodCallHandler
                     }
+                    val cookie = call.argument<String>("cookie")
+                    val authorization = call.argument<String>("authorization")
                     resolverExecutor.execute {
                         try {
+                            NewPipeResolver.setAuth(cookie, authorization)
                             val streams = NewPipeResolver.getAudioStreams(videoId)
                             val json = JSONArray(
                                 streams.map { JSONObject(it) }).toString()
@@ -110,8 +113,11 @@ class MainActivity : AudioServiceActivity() {
                         result.error("ARG", "videoId missing", null)
                         return@setMethodCallHandler
                     }
+                    val cookie = call.argument<String>("cookie")
+                    val authorization = call.argument<String>("authorization")
                     resolverExecutor.execute {
                         try {
+                            NewPipeResolver.setAuth(cookie, authorization)
                             val streams =
                                 NewPipeResolver.getMuxedVideoStreams(videoId)
                             val json = JSONArray(

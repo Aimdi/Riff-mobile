@@ -1389,6 +1389,8 @@ class PlayerController extends GetxController
         return "streamPlaybackFailed".tr;
       case "streamLoadFailed":
         return "streamLoadFailed".tr;
+      case "streamBotBlocked":
+        return "streamBotBlocked".tr;
       default:
         if (message.isEmpty) return "streamLoadFailed".tr;
         final lower = message.toLowerCase();
@@ -1397,6 +1399,9 @@ class PlayerController extends GetxController
         }
         if (lower.contains('unavailable')) return "songUnavailable".tr;
         if (lower.contains('purchase')) return "songRequiresPurchase".tr;
+        if (lower.contains('bot') || lower.contains('sign in to confirm')) {
+          return "streamBotBlocked".tr;
+        }
         return message;
     }
   }

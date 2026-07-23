@@ -4,13 +4,17 @@ import 'package:flutter/services.dart';
 import 'package:harmonymusic/services/stream_service.dart';
 
 Future<Map<String, dynamic>> getStreamInfo(String songId, dynamic token,
-    {String? clientConfigJson, bool fetchLoudness = false}) async {
-  if (songId.substring(0, 4) == "MPED") {
+    {String? clientConfigJson,
+    bool fetchLoudness = false,
+    Map<String, String>? authHeaders}) async {
+  if (songId.length >= 4 && songId.substring(0, 4) == "MPED") {
     songId = songId.substring(4);
   }
-  BackgroundIsolateBinaryMessenger.ensureInitialized(token);
-  final playerResponse =
-      (await StreamProvider.fetch(songId, clientConfigJson: clientConfigJson));
+  if (token != null) {
+    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+  }
+  final playerResponse = (await StreamProvider.fetch(songId,
+      clientConfigJson: clientConfigJson, authHeaders: authHeaders));
   final data = playerResponse.hmStreamingData;
   // Loudness used to always hit youtubei /player after resolve — that added a
   // full network RTT to every cache-miss play. Only fetch when normalization

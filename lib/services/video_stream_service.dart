@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
+import '/services/stream_service.dart';
 import '/utils/helper.dart';
 
 /// In-player muted video surface quality.
@@ -91,8 +92,16 @@ class VideoStreamService {
   ) async {
     if (!Platform.isAndroid) return null;
     try {
+      final auth = StreamProvider.authHeadersFromSession();
+      final args = <String, dynamic>{'videoId': videoId};
+      if (auth != null) {
+        if (auth['cookie'] != null) args['cookie'] = auth['cookie'];
+        if (auth['authorization'] != null) {
+          args['authorization'] = auth['authorization'];
+        }
+      }
       final res = await _newPipeChannel
-          .invokeMethod<String>('getMuxedVideoStreams', {'videoId': videoId});
+          .invokeMethod<String>('getMuxedVideoStreams', args);
       if (res == null) return null;
       final list = jsonDecode(res) as List;
       final parsed = <VideoStreamInfo>[];

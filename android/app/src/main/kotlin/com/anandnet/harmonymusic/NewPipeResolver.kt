@@ -27,6 +27,20 @@ object NewPipeResolver {
     @Volatile
     private var initialized = false
 
+    /** Optional YouTube session cookie (SAPISID…) from in-app login. */
+    @Volatile
+    private var authCookie: String? = null
+
+    /** Optional Authorization: SAPISIDHASH … header. */
+    @Volatile
+    private var authHeader: String? = null
+
+    @JvmStatic
+    fun setAuth(cookie: String?, authorization: String?) {
+        authCookie = cookie?.takeIf { it.isNotBlank() }
+        authHeader = authorization?.takeIf { it.isNotBlank() }
+    }
+
     private class SimpleDownloader : Downloader() {
         override fun execute(request: Request): Response {
             val conn = URL(request.url()).openConnection() as HttpURLConnection
@@ -39,6 +53,17 @@ object NewPipeResolver {
             }
             if (conn.getRequestProperty("User-Agent") == null) {
                 conn.setRequestProperty("User-Agent", USER_AGENT)
+            }
+            // Prefer the signed-in session when available — anonymous player
+            // responses increasingly return LOGIN_REQUIRED / bot checks.
+            val cookie = authCookie
+            if (cookie != null && conn.getRequestProperty("Cookie") == null) {
+                conn.setRequestProperty("Cookie", cookie)
+            }
+            val auth = authHeader
+            if (auth != null && conn.getRequestProperty("Authorization") == null) {
+                conn.setRequestProperty("Authorization", auth)
+                conn.setRequestProperty("X-Origin", "https://www.youtube.com")
             }
             request.dataToSend()?.let { data ->
                 conn.doOutput = true

@@ -1988,6 +1988,7 @@ Map<String, Map<String, String>> get keys => {
   "autoDownFavSongDes": "Automatically download favorite songs when added to favorites",
   "networkError": "Network error! Check your network connection.",
   "streamLoadFailed": "Couldn't load this stream",
+  "streamBotBlocked": "YouTube blocked this stream. Connect your YouTube account in Settings, or tap Retry.",
   "streamRetrying": "Couldn't load stream — retrying…",
   "streamPlaybackFailed": "Playback failed. Tap Retry to try again.",
   "songRequiresPurchase": "This song requires a purchase",

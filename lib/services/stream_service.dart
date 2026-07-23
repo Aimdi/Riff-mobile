@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
+import '/services/yt_auth_service.dart';
 import '/utils/helper.dart';
 
 class StreamProvider {
@@ -90,14 +91,36 @@ class StreamProvider {
 
   static const _newPipeChannel = MethodChannel('riff/newpipe');
 
+  static bool _looksLikeBotBlock(Object e) {
+    final s = e.toString().toLowerCase();
+    return s.contains('sign in to confirm') ||
+        s.contains('login_required') ||
+        s.contains('signinconfirmnotbot') ||
+        s.contains('not a bot');
+  }
+
   /// Primary resolver on Android: NewPipeExtractor via the platform
   /// channel (the engine RiPlay uses). Returns null when unavailable or
   /// failed so the caller can fall back to youtube_explode_dart.
-  static Future<StreamProvider?> _fetchViaNewPipe(String videoId) async {
+  ///
+  /// When [botBlocked] is set, the caller should prefer an authenticated
+  /// retry / clearer error over a generic "unplayable".
+  static Future<StreamProvider?> _fetchViaNewPipe(String videoId,
+      {Map<String, String>? authHeaders,
+      void Function(Object error)? onBotBlocked}) async {
     if (!Platform.isAndroid) return null;
     try {
-      final res = await _newPipeChannel
-          .invokeMethod<String>('getAudioStreams', {'videoId': videoId});
+      final args = <String, dynamic>{'videoId': videoId};
+      if (authHeaders != null) {
+        if (authHeaders['cookie'] != null) {
+          args['cookie'] = authHeaders['cookie'];
+        }
+        if (authHeaders['authorization'] != null) {
+          args['authorization'] = authHeaders['authorization'];
+        }
+      }
+      final res = await _newPipeChannel.invokeMethod<String>(
+          'getAudioStreams', args);
       if (res == null) return null;
       final list = jsonDecode(res) as List;
       final formats = list
@@ -127,6 +150,7 @@ class StreamProvider {
       return provider;
     } catch (e) {
       printERROR("NewPipe resolver failed ($videoId): $e");
+      if (_looksLikeBotBlock(e)) onBotBlocked?.call(e);
       return null;
     }
   }
@@ -135,11 +159,18 @@ class StreamProvider {
     try {
       final client = HttpClient()
         ..connectionTimeout = const Duration(seconds: 8);
-      final req = await client.headUrl(Uri.parse(url));
+      // Prefer a tiny ranged GET — some CDNs reject HEAD with 403/405
+      // even when the stream is fine.
+      final req = await client.getUrl(Uri.parse(url));
+      req.headers.set(HttpHeaders.rangeHeader, 'bytes=0-1');
       final res = await req.close();
       await res.drain<void>();
       client.close();
-      return res.statusCode >= 200 && res.statusCode < 300;
+      // 2xx and 206 are success; 403/429 may be IP luck — keep the URL
+      // and let the player try rather than discarding a good resolve.
+      if (res.statusCode >= 200 && res.statusCode < 300) return true;
+      if (res.statusCode == 403 || res.statusCode == 429) return true;
+      return false;
     } catch (_) {
       // Network hiccup on the check should not discard the stream.
       return true;
@@ -147,11 +178,16 @@ class StreamProvider {
   }
 
   static Future<StreamProvider> fetch(String videoId,
-      {String? clientConfigJson}) async {
-    final viaNewPipe = await _fetchViaNewPipe(videoId);
+      {String? clientConfigJson, Map<String, String>? authHeaders}) async {
+    var sawBotBlock = false;
+    void markBot(Object _) => sawBotBlock = true;
+
+    final viaNewPipe = await _fetchViaNewPipe(videoId,
+        authHeaders: authHeaders, onBotBlocked: markBot);
     if (viaNewPipe != null) return viaNewPipe;
 
-    final yt = YoutubeExplode();
+    final httpClient = _AuthedYoutubeHttpClient(authHeaders ?? const {});
+    final yt = YoutubeExplode(httpClient: httpClient);
 
     try {
       StreamManifest? res;
@@ -163,6 +199,7 @@ class StreamProvider {
           if (res.audioOnly.isNotEmpty) break;
         } catch (e) {
           lastError = e;
+          if (_looksLikeBotBlock(e)) sawBotBlock = true;
         }
       }
       if (res == null || res.audioOnly.isEmpty) {
@@ -186,7 +223,12 @@ class StreamProvider {
                   size: e.size.totalBytes))
               .toList());
     } catch (e) {
-      if (e is SocketException) {
+      if (sawBotBlock || _looksLikeBotBlock(e)) {
+        return StreamProvider(
+          playable: false,
+          statusMSG: "streamBotBlocked",
+        );
+      } else if (e is SocketException) {
         return StreamProvider(
           playable: false,
           statusMSG: "networkError",
@@ -218,6 +260,17 @@ class StreamProvider {
     }
   }
 
+  /// Convenience for callers that only have the Hive cookie string.
+  static Map<String, String>? authHeadersFromSession() {
+    try {
+      if (!YtAuthService.isConnected) return null;
+      final h = YtAuthService.streamAuthHeaders();
+      return h.isEmpty ? null : h;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Audio? get highestQualityAudio =>
       audioFormats?.lastWhere((item) => item.itag == 251 || item.itag == 140,
           orElse: () => audioFormats!.first);
@@ -241,6 +294,29 @@ class StreamProvider {
       "lowQualityAudio": lowQualityAudio?.toJson(),
       "highQualityAudio": highestQualityAudio?.toJson()
     };
+  }
+}
+
+/// Merges optional YouTube login cookies into explode's default headers.
+class _AuthedYoutubeHttpClient extends YoutubeHttpClient {
+  _AuthedYoutubeHttpClient(this._extra);
+  final Map<String, String> _extra;
+
+  @override
+  Map<String, String> get headers {
+    final base = Map<String, String>.from(YoutubeHttpClient.defaultHeaders);
+    final cookie = _extra['cookie'];
+    if (cookie != null && cookie.isNotEmpty) {
+      final existing = base['cookie'];
+      base['cookie'] =
+          (existing == null || existing.isEmpty) ? cookie : '$existing; $cookie';
+    }
+    final auth = _extra['authorization'];
+    if (auth != null && auth.isNotEmpty) {
+      base['authorization'] = auth;
+      base['x-origin'] = _extra['x-origin'] ?? 'https://www.youtube.com';
+    }
+    return base;
   }
 }
 
@@ -271,16 +347,31 @@ class Audio {
         "size": size
       };
 
-  factory Audio.fromJson(json) => Audio(
-      audioCodec: (json["audioCodec"] as String).contains("mp4a")
-          ? Codec.mp4a
-          : Codec.opus,
-      itag: json['itag'],
-      duration: json["approxDurationMs"] ?? 0,
-      bitrate: json["bitrate"] ?? 0,
-      loudnessDb: (json['loudnessDb'])?.toDouble() ?? 0.0,
-      url: json['url'],
-      size: json["size"] ?? 0);
+  factory Audio.fromJson(json) {
+    if (json == null || json is! Map) {
+      throw ArgumentError('Audio.fromJson expected a Map');
+    }
+    final codecRaw = (json["audioCodec"] ?? '').toString();
+    final url = (json['url'] ?? '').toString();
+    if (url.isEmpty) {
+      throw ArgumentError('Audio.fromJson missing url');
+    }
+    final loudness = json['loudnessDb'];
+    double loudnessDb = 0.0;
+    if (loudness is num) {
+      loudnessDb = loudness.toDouble();
+    } else if (loudness is String) {
+      loudnessDb = double.tryParse(loudness) ?? 0.0;
+    }
+    return Audio(
+        audioCodec: codecRaw.contains("mp4a") ? Codec.mp4a : Codec.opus,
+        itag: (json['itag'] as num?)?.toInt() ?? 0,
+        duration: (json["approxDurationMs"] as num?)?.toInt() ?? 0,
+        bitrate: (json["bitrate"] as num?)?.toInt() ?? 0,
+        loudnessDb: loudnessDb,
+        url: url,
+        size: (json["size"] as num?)?.toInt() ?? 0);
+  }
 }
 
 enum Codec { mp4a, opus }

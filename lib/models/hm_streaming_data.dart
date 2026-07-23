@@ -20,19 +20,39 @@ class HMStreamingData {
   Audio? get audio => qualityIndex == 0 ? lowQualityAudio : highQualityAudio;
 
   factory HMStreamingData.fromJson(json) {
-    if(!json['playable']) {
+    final playable = json['playable'] == true;
+    final statusMSG = (json['statusMSG'] ?? '').toString();
+    if (!playable) {
       return HMStreamingData(
         playable: false,
-        statusMSG: json['statusMSG'],
+        statusMSG: statusMSG.isEmpty ? "streamLoadFailed" : statusMSG,
       );
     }
-    final lowQualityAudio = Audio.fromJson(json['lowQualityAudio']);
-    final highQualityAudio = Audio.fromJson(json['highQualityAudio']);
+    final lowRaw = json['lowQualityAudio'];
+    final highRaw = json['highQualityAudio'];
+    // Prefer whichever quality parsed; fall back so a partial payload
+    // still plays instead of throwing into streamLoadFailed.
+    Audio? low;
+    Audio? high;
+    try {
+      if (lowRaw != null) low = Audio.fromJson(lowRaw);
+    } catch (_) {}
+    try {
+      if (highRaw != null) high = Audio.fromJson(highRaw);
+    } catch (_) {}
+    low ??= high;
+    high ??= low;
+    if (low == null || high == null) {
+      return HMStreamingData(
+        playable: false,
+        statusMSG: statusMSG.isEmpty ? "streamLoadFailed" : statusMSG,
+      );
+    }
     return HMStreamingData(
-        playable: json['playable'],
-        statusMSG: json['statusMSG'],
-        lowQualityAudio: lowQualityAudio,
-        highQualityAudio: highQualityAudio);
+        playable: true,
+        statusMSG: statusMSG.isEmpty ? "OK" : statusMSG,
+        lowQualityAudio: low,
+        highQualityAudio: high);
   }
 
   Map<String, dynamic> toJson() => {
