@@ -43,6 +43,20 @@ class VideoStreamInfo {
       width > 0 && height > 0 ? width / height : 16 / 9;
 }
 
+/// One video-only stream candidate for mpv video mode.
+class VideoOnlyStream {
+  VideoOnlyStream({
+    required this.url,
+    required this.height,
+    this.fps = 30,
+    this.mimeType = '',
+  });
+  final String url;
+  final int height;
+  final int fps;
+  final String mimeType;
+}
+
 class VideoStreamService {
   VideoStreamService._();
 
@@ -63,18 +77,28 @@ class VideoStreamService {
     final cached = _cache[key];
     if (cached != null) return cached;
 
-    final viaNewPipe = await _viaNewPipe(id, quality);
+    final viaNewPipe = await _viaNewPipeMuxed(id, quality);
     if (viaNewPipe != null) {
       _cache[key] = viaNewPipe;
       return viaNewPipe;
     }
 
-    final viaExplode = await _viaExplode(id, quality);
+    final viaExplode = await _viaExplodeMuxed(id, quality);
     if (viaExplode != null) {
       _cache[key] = viaExplode;
       return viaExplode;
     }
     return null;
+  }
+
+  /// Best video-only stream at or below [maxHeight] (1080p default) for mpv
+  /// video mode. Audio is paired separately from the music pipeline.
+  static Future<VideoOnlyStream?> bestVideoOnly(String videoId,
+      {int maxHeight = 1080}) async {
+    final native = await _viaNewPipeVideoOnly(videoId);
+    final streams = native ?? await _viaExplodeVideoOnly(videoId);
+    if (streams == null || streams.isEmpty) return null;
+    return _pickVideoOnly(streams, maxHeight);
   }
 
   static void clearCache([String? videoId]) {
@@ -86,22 +110,54 @@ class VideoStreamService {
     _cache.removeWhere((k, _) => k == id || k.startsWith('$id:'));
   }
 
-  static Future<VideoStreamInfo?> _viaNewPipe(
+  /// Highest resolution wins; at equal height prefer higher fps, then a
+  /// codec the device likely hardware-decodes (avc/vp9 over av1).
+  static VideoOnlyStream _pickVideoOnly(
+      List<VideoOnlyStream> streams, int maxHeight) {
+    int codecRank(String mime) {
+      final m = mime.toLowerCase();
+      if (m.contains('avc') || m.contains('h264') || m.contains('mp4')) {
+        return 2;
+      }
+      if (m.contains('vp9') || m.contains('vp09') || m.contains('webm')) {
+        return 1;
+      }
+      return 0; // av01 and friends
+    }
+
+    final within =
+        streams.where((s) => s.height > 0 && s.height <= maxHeight).toList();
+    final pool = within.isEmpty ? streams : within;
+    pool.sort((a, b) {
+      final h = a.height.compareTo(b.height);
+      if (h != 0) return h;
+      final f = a.fps.compareTo(b.fps);
+      if (f != 0) return f;
+      return codecRank(a.mimeType).compareTo(codecRank(b.mimeType));
+    });
+    return pool.last;
+  }
+
+  static Map<String, dynamic> _authArgs(String videoId) {
+    final args = <String, dynamic>{'videoId': videoId};
+    final auth = StreamProvider.authHeadersFromSession();
+    if (auth != null) {
+      if (auth['cookie'] != null) args['cookie'] = auth['cookie'];
+      if (auth['authorization'] != null) {
+        args['authorization'] = auth['authorization'];
+      }
+    }
+    return args;
+  }
+
+  static Future<VideoStreamInfo?> _viaNewPipeMuxed(
     String videoId,
     VideoQuality quality,
   ) async {
     if (!Platform.isAndroid) return null;
     try {
-      final auth = StreamProvider.authHeadersFromSession();
-      final args = <String, dynamic>{'videoId': videoId};
-      if (auth != null) {
-        if (auth['cookie'] != null) args['cookie'] = auth['cookie'];
-        if (auth['authorization'] != null) {
-          args['authorization'] = auth['authorization'];
-        }
-      }
       final res = await _newPipeChannel
-          .invokeMethod<String>('getMuxedVideoStreams', args);
+          .invokeMethod<String>('getMuxedVideoStreams', _authArgs(videoId));
       if (res == null) return null;
       final list = jsonDecode(res) as List;
       final parsed = <VideoStreamInfo>[];
@@ -125,7 +181,32 @@ class VideoStreamService {
     return null;
   }
 
-  static Future<VideoStreamInfo?> _viaExplode(
+  static Future<List<VideoOnlyStream>?> _viaNewPipeVideoOnly(
+      String videoId) async {
+    if (!Platform.isAndroid) return null;
+    try {
+      final res = await _newPipeChannel
+          .invokeMethod<String>('getVideoStreams', _authArgs(videoId));
+      if (res == null) return null;
+      final list = jsonDecode(res) as List;
+      final streams = list
+          .whereType<Map>()
+          .where((e) => (e['url'] ?? '').toString().isNotEmpty)
+          .map((e) => VideoOnlyStream(
+                url: e['url'].toString(),
+                height: (e['height'] as num?)?.toInt() ?? 0,
+                fps: (e['fps'] as num?)?.toInt() ?? 30,
+                mimeType: (e['mimeType'] ?? '').toString(),
+              ))
+          .toList();
+      return streams.isEmpty ? null : streams;
+    } catch (e) {
+      printERROR('NewPipe video resolver failed ($videoId): $e');
+      return null;
+    }
+  }
+
+  static Future<VideoStreamInfo?> _viaExplodeMuxed(
     String videoId,
     VideoQuality quality,
   ) async {
@@ -173,6 +254,27 @@ class VideoStreamService {
       return pickBestForPlayer(parsed, quality: quality);
     } catch (e) {
       printERROR('Explode video failed ($videoId): $e');
+      return null;
+    } finally {
+      yt.close();
+    }
+  }
+
+  static Future<List<VideoOnlyStream>?> _viaExplodeVideoOnly(
+      String videoId) async {
+    final yt = YoutubeExplode();
+    try {
+      final manifest = await yt.videos.streamsClient.getManifest(videoId);
+      return manifest.videoOnly
+          .map((s) => VideoOnlyStream(
+                url: s.url.toString(),
+                height: s.videoResolution.height,
+                fps: s.framerate.framesPerSecond.round(),
+                mimeType: '${s.codec.mimeType}; codecs=${s.videoCodec}',
+              ))
+          .toList();
+    } catch (e) {
+      printERROR('Explode video resolver failed ($videoId): $e');
       return null;
     } finally {
       yt.close();

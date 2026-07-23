@@ -23,6 +23,7 @@ import '/services/stream_service.dart';
 import '/ui/screens/Podcasts/podcast_queue_controller.dart';
 import '/models/hm_streaming_data.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/player/video_mode_controller.dart';
 import '../ui/screens/Home/home_screen_controller.dart';
 import '/services/background_task.dart';
 import '/services/client_config_service.dart';
@@ -458,6 +459,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   @override
   Future<void> play() async {
+    // Video mode's engine owns playback (and plays the audio itself):
+    // ignore stray transport (e.g. media notification) so the paused
+    // audio pipeline can't start underneath the video.
+    if (Get.isRegistered<VideoModeController>() &&
+        Get.find<VideoModeController>().isActive.value) {
+      return;
+    }
     if (currentSongUrl == null ||
         (GetPlatform.isDesktop &&
             (_player.duration == null ||

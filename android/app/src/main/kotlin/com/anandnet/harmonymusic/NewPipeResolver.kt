@@ -150,4 +150,35 @@ object NewPipeResolver {
             .map { mapStream(it, false) }
         return muxed + videoOnly
     }
+
+    /**
+     * Returns video-only streams for [videoId] (video mode pairs one of
+     * these with an audio-only stream inside a single mpv instance, so
+     * A/V sync is the engine's job). Each map: itag, mimeType, height,
+     * fps, url, size (bytes), durationMs.
+     */
+    @JvmStatic
+    fun getVideoStreams(videoId: String): List<Map<String, Any?>> {
+        ensureInit()
+        val info = StreamInfo.getInfo(
+            ServiceList.YouTube, "https://www.youtube.com/watch?v=$videoId")
+        if (info.videoOnlyStreams.isEmpty()) {
+            println("NewPipeResolver: no video-only streams for $videoId; " +
+                "errors=${info.errors}")
+        }
+        val durationMs = info.duration * 1000
+        return info.videoOnlyStreams
+            .filter { it.isUrl && !it.content.isNullOrEmpty() }
+            .map { s ->
+                mapOf(
+                    "itag" to (s.itagItem?.id ?: -1),
+                    "mimeType" to (s.format?.mimeType ?: ""),
+                    "height" to s.height,
+                    "fps" to s.fps,
+                    "url" to s.content,
+                    "size" to (s.itagItem?.contentLength ?: 0L),
+                    "durationMs" to durationMs,
+                )
+            }
+    }
 }

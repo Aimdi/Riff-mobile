@@ -130,6 +130,28 @@ class MainActivity : AudioServiceActivity() {
                         }
                     }
                 }
+                "getVideoStreams" -> {
+                    val videoId = call.argument<String>("videoId")
+                    if (videoId.isNullOrEmpty()) {
+                        result.error("ARG", "videoId missing", null)
+                        return@setMethodCallHandler
+                    }
+                    val cookie = call.argument<String>("cookie")
+                    val authorization = call.argument<String>("authorization")
+                    resolverExecutor.execute {
+                        try {
+                            NewPipeResolver.setAuth(cookie, authorization)
+                            val streams = NewPipeResolver.getVideoStreams(videoId)
+                            val json = JSONArray(
+                                streams.map { JSONObject(it) }).toString()
+                            mainHandler.post { result.success(json) }
+                        } catch (e: Throwable) {
+                            mainHandler.post {
+                                result.error("NEWPIPE", e.toString(), null)
+                            }
+                        }
+                    }
+                }
                 "getCookies" -> {
                     val url = call.argument<String>("url")
                     if (url.isNullOrEmpty()) {

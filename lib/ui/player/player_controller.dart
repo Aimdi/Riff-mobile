@@ -31,6 +31,7 @@ import '/services/podcast_service.dart';
 import '/services/podcast_progress_service.dart';
 import '/ui/player/riff_wave.dart';
 import '/ui/player/progress_ui_throttle.dart';
+import 'video_mode_controller.dart';
 
 class PlayerController extends GetxController
     with GetSingleTickerProviderStateMixin {
@@ -235,6 +236,8 @@ class PlayerController extends GetxController
 
   void _listenForChangesInPlayerState() {
     _audioHandler.playbackState.listen((playerState) {
+      // Video mode drives buttonState from the mpv engine's state.
+      if (_videoModeActive) return;
       final isPlaying = playerState.playing;
       final processingState = playerState.processingState;
       if (processingState == AudioProcessingState.loading) {
@@ -281,6 +284,9 @@ class PlayerController extends GetxController
 
   void _listenForChangesInPosition() {
     AudioService.position.listen((position) {
+      // While video mode's engine owns playback, mpv feeds the progress
+      // bar; the (paused) audio pipeline's stale ticks must not fight it.
+      if (_videoModeActive) return;
       final oldState = progressBarStatus.value;
       if (isSleepEndOfSongActive.isTrue) {
         timerDurationLeft.value = oldState.total.inSeconds - position.inSeconds;
@@ -476,6 +482,7 @@ class PlayerController extends GetxController
 
   void _listenForChangesInBufferedPosition() {
     _audioHandler.playbackState.listen((playbackState) {
+      if (_videoModeActive) return;
       final oldState = progressBarStatus.value;
       if (progressBarStatus.value.total.inSeconds != 0 &&
           playbackState.bufferedPosition.inSeconds /
@@ -1017,6 +1024,12 @@ class PlayerController extends GetxController
     isQueueReorderingInProcess.value = false;
   }
 
+  /// True while video mode's mpv engine owns playback — the transport
+  /// (play/pause/seek) is routed to it instead of the audio pipeline.
+  bool get _videoModeActive =>
+      Get.isRegistered<VideoModeController>() &&
+      Get.find<VideoModeController>().isActive.value;
+
   void play() {
     _audioHandler.play();
   }
@@ -1027,6 +1040,10 @@ class PlayerController extends GetxController
 
   void playPause() {
     if (initFlagForPlayer) return;
+    if (_videoModeActive) {
+      Get.find<VideoModeController>().playPauseVideo();
+      return;
+    }
     _audioHandler.playbackState.value.playing ? pause() : play();
     // for gesture player
     if (Get.find<SettingsScreenController>().playerUi.value == 1) {
@@ -1046,6 +1063,10 @@ class PlayerController extends GetxController
   }
 
   void seek(Duration position) {
+    if (_videoModeActive) {
+      Get.find<VideoModeController>().seekVideo(position);
+      return;
+    }
     // videoSeekSignal is bumped inside MyAudioHandler.seek so notification /
     // media-session scrubs stay aligned with the muted video surface too.
     _audioHandler.seek(position);
