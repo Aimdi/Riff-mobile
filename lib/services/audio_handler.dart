@@ -484,7 +484,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   Future<void> pause() => _player.pause();
 
   @override
-  Future<void> seek(Duration position) => _player.seek(position);
+  Future<void> seek(Duration position) async {
+    await _player.seek(position);
+    // Notification / OS seeks bypass PlayerController.seek — still nudge video.
+    if (Get.isRegistered<PlayerController>()) {
+      Get.find<PlayerController>().videoSeekSignal.value++;
+    }
+  }
 
   @override
   Future<void> skipToQueueItem(int index) async {

@@ -8,13 +8,14 @@ import 'package:video_player/video_player.dart';
 
 import '/services/video_stream_service.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/player/video_av_sync_policy.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/utils/media_item_video.dart';
 
 /// Spotify-style in-player video pane for YouTube *videos* only.
 ///
-/// Audio stays on just_audio (source of truth). Video is muted and lightly
-/// seek-synced — aggressive sync was a major source of stutter.
+/// Audio stays on just_audio (source of truth). Video is muted and kept in
+/// sync with rate nudges for small drift and seeks for larger gaps / jumps.
 class PlayerVideoSurface extends StatefulWidget {
   const PlayerVideoSurface({
     super.key,
@@ -41,6 +42,8 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
   bool _loading = true;
   bool _failed = false;
   bool _seeking = false;
+  bool _rateNudging = false;
+  PlayButtonState? _lastButtonState;
   Worker? _playWorker;
   Worker? _panelWorker;
   Worker? _seekWorker;
@@ -48,6 +51,8 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
   Worker? _qualityWorker;
   Timer? _syncTimer;
   Duration _lastAudioPos = Duration.zero;
+  DateTime? _lastAudioSampleAt;
+  static const _policy = VideoAvSyncPolicy();
 
   PlayerController get _player => Get.find<PlayerController>();
 
@@ -69,23 +74,36 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
     } else {
       _loading = false;
     }
-    _playWorker = ever(_player.buttonState, (_) => _syncPlayPause());
+    _lastButtonState = _player.buttonState.value;
+    _lastAudioPos = _player.progressBarStatus.value.current;
+    _playWorker = ever(_player.buttonState, (state) {
+      final wasPlaying = _lastButtonState == PlayButtonState.playing;
+      final nowPlaying = state == PlayButtonState.playing;
+      _lastButtonState = state;
+      if (!wasPlaying && nowPlaying && _panelOpen) {
+        // Resume often leaves video a frame or two off — realign first.
+        _alignToAudio(softOnly: false);
+      } else {
+        _syncPlayPause();
+      }
+    });
     _panelWorker = ever(_player.isPlayerPanelOpen, (_) => _onPanelOpenChanged());
     _seekWorker = ever(_player.videoSeekSignal, (_) => _onExternalSeek());
     if (Get.isRegistered<SettingsScreenController>()) {
       final settings = Get.find<SettingsScreenController>();
       _speedWorker = ever(
         settings.playbackSpeed,
-        (_) => _applySpeed(),
+        (_) => _applySpeed(forceNominal: true),
       );
       _qualityWorker = ever(settings.videoQuality, (_) {
         if (mounted && _panelOpen) _boot(widget.song);
       });
     }
-    // Soft-sync rarely — seeks hitch more at High (≤720p) quality.
-    _syncTimer = Timer.periodic(const Duration(seconds: 12), (_) {
+    // Frequent drift checks; policy decides nudge vs seek so we avoid hitchy
+    // periodic seeks while still catching notification / OS seeks.
+    _syncTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
       if (!_panelOpen) return;
-      _correctDrift(soft: true);
+      _alignToAudio(softOnly: true);
     });
   }
 
@@ -97,8 +115,11 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
         state == AppLifecycleState.inactive) {
       unawaited(c.pause());
     } else if (state == AppLifecycleState.resumed) {
-      _syncPlayPause();
-      if (_panelOpen) _correctDrift(soft: false);
+      if (_panelOpen) {
+        _alignToAudio(softOnly: false);
+      } else {
+        _syncPlayPause();
+      }
     }
   }
 
@@ -136,8 +157,7 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
       _boot(widget.song);
       return;
     }
-    _correctDrift(soft: false);
-    _syncPlayPause();
+    _alignToAudio(softOnly: false);
   }
 
   Future<void> _releaseDecoder() async {
@@ -162,16 +182,32 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
 
   void _onExternalSeek() {
     if (!_panelOpen) return;
-    _correctDrift(soft: false);
+    _alignToAudio(softOnly: false);
   }
 
-  Future<void> _applySpeed() async {
+  double get _basePlaybackSpeed {
+    if (!Get.isRegistered<SettingsScreenController>()) return 1.0;
+    return Get.find<SettingsScreenController>()
+        .playbackSpeed
+        .value
+        .clamp(0.25, 2.0);
+  }
+
+  Future<void> _applySpeed({
+    double speedFactor = 1.0,
+    bool forceNominal = false,
+  }) async {
     final c = _controller;
     if (c == null || !c.value.isInitialized) return;
-    if (!Get.isRegistered<SettingsScreenController>()) return;
-    final speed = Get.find<SettingsScreenController>().playbackSpeed.value;
+    final factor = forceNominal ? 1.0 : speedFactor;
+    if (forceNominal) _rateNudging = false;
     try {
-      await c.setPlaybackSpeed(speed.clamp(0.25, 2.0));
+      await c.setPlaybackSpeed(
+        _policy.effectiveSpeed(
+          baseSpeed: _basePlaybackSpeed,
+          speedFactor: factor,
+        ),
+      );
     } catch (_) {}
   }
 
@@ -234,15 +270,18 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
       }
       await c.setVolume(0);
       await c.setLooping(false);
-      await _applySpeedTo(c);
+      try {
+        await c.setPlaybackSpeed(_basePlaybackSpeed);
+      } catch (_) {}
       final pos = _player.progressBarStatus.value.current;
       if (pos > Duration.zero) {
         await c.seekTo(pos);
+        await _waitForVideoNear(c, pos);
       }
       // Only start decoding when the full player is visible.
       if (_panelOpen &&
           _player.buttonState.value == PlayButtonState.playing) {
-        unawaited(c.play());
+        await c.play();
       } else {
         await c.pause();
       }
@@ -250,10 +289,18 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
         await c.dispose();
         return;
       }
+      _lastAudioPos = _player.progressBarStatus.value.current;
+      _rateNudging = false;
       setState(() {
         _controller = c;
         _loading = false;
         _failed = false;
+      });
+      // Boot latency can leave video a beat behind after play() starts.
+      Future<void>.delayed(const Duration(milliseconds: 350), () {
+        if (mounted && widget.song.id == song.id && _panelOpen) {
+          _alignToAudio(softOnly: false);
+        }
       });
     } catch (_) {
       if (mounted && widget.song.id == song.id) {
@@ -263,14 +310,6 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
         });
       }
     }
-  }
-
-  Future<void> _applySpeedTo(VideoPlayerController c) async {
-    if (!Get.isRegistered<SettingsScreenController>()) return;
-    final speed = Get.find<SettingsScreenController>().playbackSpeed.value;
-    try {
-      await c.setPlaybackSpeed(speed.clamp(0.25, 2.0));
-    } catch (_) {}
   }
 
   void _syncPlayPause() {
@@ -288,36 +327,97 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
     }
   }
 
-  void _correctDrift({required bool soft}) {
+  void _alignToAudio({required bool softOnly}) {
     final c = _controller;
     if (c == null || !c.value.isInitialized || _seeking) return;
     if (!_panelOpen) return;
+
     final audioPos = _player.progressBarStatus.value.current;
-    final jumped =
-        (audioPos - _lastAudioPos).abs() > const Duration(seconds: 1);
+    final now = DateTime.now();
+    final elapsedMs = _lastAudioSampleAt == null
+        ? 500
+        : now.difference(_lastAudioSampleAt!).inMilliseconds.clamp(1, 5000);
+    _lastAudioSampleAt = now;
+    final mediaDeltaMs = (audioPos - _lastAudioPos).abs().inMilliseconds;
+    // Natural advance ≈ wall time × speed; anything well beyond that is a seek
+    // (notification scrub, skip, track restart) — including paths that never
+    // bump videoSeekSignal.
+    final naturalMaxMs =
+        (elapsedMs * _basePlaybackSpeed * 1.4).round() + 300;
+    final jumped = mediaDeltaMs > naturalMaxMs &&
+        mediaDeltaMs > VideoAvSyncPolicy.audioJumpMs;
     _lastAudioPos = audioPos;
-    final drift = (audioPos - c.value.position).abs();
-    // Soft periodic sync only corrects large drift; jumps always sync.
-    // High quality seeks hitch more — tolerate wider drift before seeking.
+
+    final signedDriftMs =
+        audioPos.inMilliseconds - c.value.position.inMilliseconds;
     final highQuality = Get.isRegistered<SettingsScreenController>() &&
         Get.find<SettingsScreenController>().videoQuality.value ==
             VideoQuality.high;
-    final threshold = soft
-        ? Duration(milliseconds: highQuality ? 3000 : 2000)
-        : const Duration(milliseconds: 350);
-    if (!jumped && drift <= threshold) {
-      _syncPlayPause();
-      return;
-    }
-    _seeking = true;
-    unawaited(() async {
-      try {
-        await c.seekTo(audioPos);
+
+    final decision = _policy.decide(
+      signedDriftMs: signedDriftMs,
+      softOnly: softOnly,
+      highQuality: highQuality,
+      audioJumpDetected: jumped,
+    );
+
+    switch (decision.action) {
+      case VideoSyncAction.none:
+        if (_rateNudging) {
+          unawaited(_applySpeed(forceNominal: true));
+        }
         _syncPlayPause();
-      } finally {
-        _seeking = false;
+        return;
+      case VideoSyncAction.rateNudge:
+        _rateNudging = true;
+        unawaited(_applySpeed(speedFactor: decision.speedFactor));
+        _syncPlayPause();
+        return;
+      case VideoSyncAction.seek:
+        unawaited(_seekVideoToAudio(c));
+        return;
+    }
+  }
+
+  Future<void> _seekVideoToAudio(VideoPlayerController c) async {
+    if (_seeking) return;
+    _seeking = true;
+    try {
+      var target = _player.progressBarStatus.value.current;
+      await c.seekTo(target);
+      await _waitForVideoNear(c, target);
+      // Audio may have advanced while the decoder sought — one follow-up if needed.
+      target = _player.progressBarStatus.value.current;
+      final remain =
+          (target.inMilliseconds - c.value.position.inMilliseconds).abs();
+      if (remain > VideoAvSyncPolicy.hardSeekMs) {
+        await c.seekTo(target);
+        await _waitForVideoNear(c, target);
       }
-    }());
+      _lastAudioPos = _player.progressBarStatus.value.current;
+      await _applySpeed(forceNominal: true);
+      _syncPlayPause();
+      // Brief cooldown so we don't seek-thrash if position reports lag.
+      await Future<void>.delayed(const Duration(milliseconds: 180));
+    } catch (_) {
+      // Decoder may be disposing mid-seek.
+    } finally {
+      _seeking = false;
+    }
+  }
+
+  Future<void> _waitForVideoNear(
+    VideoPlayerController c,
+    Duration target, {
+    int maxAttempts = 8,
+  }) async {
+    for (var i = 0; i < maxAttempts; i++) {
+      if (!c.value.isInitialized) return;
+      final delta =
+          (c.value.position.inMilliseconds - target.inMilliseconds).abs();
+      if (delta <= 200) return;
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
   }
 
   Future<void> _openFullscreen() async {
@@ -335,7 +435,7 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
             FadeTransition(opacity: anim, child: child),
       ),
     );
-    if (mounted) _correctDrift(soft: false);
+    if (mounted) _alignToAudio(softOnly: false);
   }
 
   @override
