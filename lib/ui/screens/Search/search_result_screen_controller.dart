@@ -249,8 +249,7 @@ class SearchResultScreenController extends GetxController
   }
 
   void _initDesktopTabsIfNeeded() {
-    if (!(GetPlatform.isDesktop ||
-        Get.find<SettingsScreenController>().isBottomNavBarEnabled.isTrue)) {
+    if (!GetPlatform.isDesktop) {
       return;
     }
     for (var element in railItems) {

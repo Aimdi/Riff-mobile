@@ -65,7 +65,11 @@ class SettingsScreenController extends GetxController {
   final keepScreenAwake = false.obs;
   final restorePlaybackSession = false.obs;
   final cacheHomeScreenData = true.obs;
+  /// Unlocks Advanced developer tools (tap About version 7×).
+  final developerMode = false.obs;
   final currentVersion = "V1.7.70";
+  int _versionTapCount = 0;
+  DateTime? _lastVersionTap;
 
   @override
   void onInit() {
