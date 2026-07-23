@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import '/models/thumbnail.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/widgets/podcast_follow_button.dart';
 import 'podcast_queue_screen.dart';
 
 /// AntennaPod-style podcast section: discover via Apple's directory,
@@ -132,7 +133,9 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
       ),
       title: Text(p['title'] ?? '', maxLines: 1),
       subtitle: Text(p['author'] ?? '', maxLines: 1),
-      trailing: TextButton(
+      trailing: PodcastFollowButton(
+        compact: true,
+        following: subscribed,
         onPressed: () async {
           if (subscribed) {
             await PodcastService.unsubscribe(p['feedUrl']);
@@ -141,15 +144,6 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
           }
           setState(() {});
         },
-        child: Text(
-          subscribed ? 'subscribed'.tr : 'subscribe'.tr,
-          style: TextStyle(
-            color: subscribed
-                ? Theme.of(context).colorScheme.secondary
-                : Theme.of(context).textTheme.bodyMedium?.color,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
       ),
       onTap: () => Get.to(() => PodcastEpisodesScreen(podcast: p)),
     );
@@ -281,7 +275,6 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
 
   Widget _header(BuildContext context) {
     final theme = Theme.of(context);
-    final accent = theme.colorScheme.secondary;
     final art = (widget.podcast['artwork'] ?? '').toString();
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
@@ -325,31 +318,9 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
                   PodcastService.subsRev.value;
                   final subscribed = PodcastService.isSubscribed(
                       widget.podcast['feedUrl'] ?? '');
-                  if (subscribed) {
-                    return OutlinedButton.icon(
-                      onPressed: _toggleSubscribe,
-                      icon: Icon(Icons.check, size: 18, color: accent),
-                      label: Text('subscribed'.tr),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: accent,
-                        side: BorderSide(color: accent.withOpacity(0.55)),
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 8),
-                      ),
-                    );
-                  }
-                  return FilledButton.icon(
+                  return PodcastFollowButton(
+                    following: subscribed,
                     onPressed: _toggleSubscribe,
-                    icon: const Icon(Icons.add, size: 18),
-                    label: Text('subscribe'.tr),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: accent,
-                      foregroundColor: Colors.black,
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
-                    ),
                   );
                 }),
               ],

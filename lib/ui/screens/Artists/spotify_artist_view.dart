@@ -3,9 +3,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/models/playlist.dart';
 import '/models/playling_from.dart';
 import '/models/thumbnail.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/screens/Podcasts/podcasts_library_controller.dart';
+import '/ui/widgets/podcast_follow_button.dart';
 import '/ui/widgets/songinfo_bottom_sheet.dart';
 import '../../navigator.dart';
 import '../../widgets/snackbar.dart';
@@ -205,7 +208,11 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
             ),
           Row(
             children: [
-              Obx(() => OutlinedButton(
+              // Artist library bookmark stays in the app bar; this Follow is
+              // subscribe-as-podcast (same green pill as RSS shows).
+              Obx(() {
+                if (!Get.isRegistered<LibraryPodcastsController>()) {
+                  return OutlinedButton(
                     onPressed: _toggleFollow,
                     style: OutlinedButton.styleFrom(
                       visualDensity: VisualDensity.compact,
@@ -215,7 +222,31 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                     child: Text(c.isAddedToLibrary.isFalse
                         ? 'follow'.tr
                         : 'following'.tr),
-                  )),
+                  );
+                }
+                final lib = Get.find<LibraryPodcastsController>();
+                final id = c.artist_.browseId;
+                final subscribed =
+                    lib.libraryPodcasts.any((p) => p.playlistId == id);
+                return PodcastFollowButton(
+                  following: subscribed,
+                  onPressed: () async {
+                    if (subscribed) {
+                      await lib.removeFromLibrary(id);
+                      return;
+                    }
+                    final pl = Playlist(
+                      title: c.artist_.name,
+                      playlistId: id,
+                      thumbnailUrl: c.artist_.thumbnailUrl,
+                      description:
+                          c.artist_.subscribers ?? 'YouTube channel',
+                      kind: 'yt_channel',
+                    );
+                    await lib.addToLibrary(pl);
+                  },
+                );
+              }),
               const Spacer(),
               IconButton(
                 tooltip: 'shuffle'.tr,

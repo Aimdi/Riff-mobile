@@ -70,7 +70,7 @@ class SettingsScreenController extends GetxController {
   final cacheHomeScreenData = true.obs;
   /// Unlocks Advanced developer tools (tap About version 7×).
   final developerMode = false.obs;
-  final currentVersion = "V1.7.77";
+  final currentVersion = "V1.7.78";
   int _versionTapCount = 0;
   DateTime? _lastVersionTap;
 
