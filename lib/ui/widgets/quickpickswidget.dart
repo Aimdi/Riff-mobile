@@ -52,6 +52,7 @@ class QuickPicksWidget extends StatelessWidget {
                         if (event.buttons == kSecondaryMouseButton) {
                           //show songinfobotomsheet
                           showModalBottomSheet(
+                            useRootNavigator: true,
                             constraints: const BoxConstraints(maxWidth: 500),
                             shape: const RoundedRectangleBorder(
                               borderRadius: BorderRadius.vertical(
@@ -90,6 +91,7 @@ class QuickPicksWidget extends StatelessWidget {
                           },
                           onLongPress: () {
                             showModalBottomSheet(
+                              useRootNavigator: true,
                               constraints: const BoxConstraints(maxWidth: 500),
                               shape: const RoundedRectangleBorder(
                                 borderRadius: BorderRadius.vertical(
@@ -110,6 +112,7 @@ class QuickPicksWidget extends StatelessWidget {
                                   splashRadius: 20,
                                   onPressed: () {
                                     showModalBottomSheet(
+                                      useRootNavigator: true,
                                       constraints:
                                           const BoxConstraints(maxWidth: 500),
                                       shape: const RoundedRectangleBorder(

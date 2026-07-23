@@ -51,6 +51,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                 borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
               ),
               isScrollControlled: true,
+              useRootNavigator: true,
               context: playerController.homeScaffoldkey.currentState!.context,
               barrierColor: Colors.transparent.withAlpha(100),
               builder: (context) => SongInfoBottomSheet(
@@ -125,6 +126,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                       BorderRadius.vertical(top: Radius.circular(16.0)),
                 ),
                 isScrollControlled: true,
+                useRootNavigator: true,
                 context: playerController.homeScaffoldkey.currentState!.context,
                 //constraints: BoxConstraints(maxHeight:Get.height),
                 barrierColor: Colors.transparent.withAlpha(100),
@@ -208,6 +210,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                         splashRadius: 20,
                         onPressed: () {
                           showModalBottomSheet(
+                            useRootNavigator: true,
                             constraints: const BoxConstraints(maxWidth: 500),
                             shape: const RoundedRectangleBorder(
                               borderRadius: BorderRadius.vertical(

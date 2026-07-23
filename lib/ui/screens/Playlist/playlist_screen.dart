@@ -1004,6 +1004,7 @@ class PlaylistScreen extends StatelessWidget {
 
   Future openBottomSheet(BuildContext context, MediaItem song) {
     return showModalBottomSheet(
+      useRootNavigator: true, 
       constraints: const BoxConstraints(maxWidth: 500),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),

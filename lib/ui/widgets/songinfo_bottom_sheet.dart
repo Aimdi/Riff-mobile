@@ -19,6 +19,7 @@ import '../screens/Library/library_controller.dart';
 import '/ui/widgets/add_to_playlist.dart';
 import '/ui/widgets/favorite_heart_button.dart';
 import '/ui/widgets/snackbar.dart';
+import '/ui/utils/sheet_insets.dart';
 import '/utils/content_filters.dart';
 import '../../models/media_Item_builder.dart';
 import '../../models/playlist.dart';
@@ -45,7 +46,11 @@ class SongInfoBottomSheet extends StatelessWidget {
         Get.put(SongInfoController(song, calledFromPlayer));
     final playerController = Get.find<PlayerController>();
     return Padding(
-      padding: EdgeInsets.only(bottom: Get.mediaQuery.padding.bottom),
+      // Callers should use useRootNavigator: true so the sheet clears the
+      // mini player; keep system safe-area inset here.
+      padding: EdgeInsets.only(
+        bottom: sheetBottomInset(context, liftAboveMiniPlayer: false),
+      ),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,

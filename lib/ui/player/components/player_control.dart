@@ -149,9 +149,9 @@ class PlayerControlWidget extends StatelessWidget {
           const SizedBox(
             height: 20,
           ),
-          // Shownotes + Transcript (podcast only) — above the seek bar like
-          // AntennaPod. Transcript appears when the feed publishes a
-          // Podcasting 2.0 <podcast:transcript> for the episode.
+          // Shownotes / chapters / transcript / autoplay — tools row above
+          // the seek bar. Autoplay lives here (not in the transport row) so
+          // speed · −10 · play · +30 · next stays visually mirrored.
           Obx(() {
             if (!playerController.isCurrentSongPodcast) {
               return const SizedBox.shrink();
@@ -159,6 +159,8 @@ class PlayerControlWidget extends StatelessWidget {
             final song = playerController.currentSong.value;
             final transcriptUrl =
                 (song?.extras?['transcriptUrl'] ?? '').toString();
+            final settings = Get.find<SettingsScreenController>();
+            final autoOn = settings.podcastContinuousPlaybackEnabled.value;
             final style = OutlinedButton.styleFrom(
               foregroundColor: Theme.of(context).textTheme.titleMedium!.color,
               side: BorderSide(
@@ -170,6 +172,22 @@ class PlayerControlWidget extends StatelessWidget {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
             );
+            final autoStyle = OutlinedButton.styleFrom(
+              foregroundColor: autoOn
+                  ? Theme.of(context).colorScheme.secondary
+                  : Theme.of(context).textTheme.titleMedium!.color,
+              side: BorderSide(
+                color: autoOn
+                    ? Theme.of(context).colorScheme.secondary
+                    : Theme.of(context)
+                        .textTheme
+                        .titleLarge!
+                        .color!
+                        .withOpacity(0.4),
+              ),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            );
             return Padding(
               padding: const EdgeInsets.only(bottom: 14),
               child: Wrap(
@@ -178,6 +196,18 @@ class PlayerControlWidget extends StatelessWidget {
                 runSpacing: 8,
                 children: [
                   OutlinedButton.icon(
+                    onPressed: () =>
+                        settings.togglePodcastContinuousPlayback(!autoOn),
+                    icon: Icon(
+                      autoOn
+                          ? Icons.playlist_play_rounded
+                          : Icons.playlist_remove_rounded,
+                      size: 20,
+                    ),
+                    label: Text(autoOn ? 'auto'.tr : 'stop'.tr),
+                    style: autoStyle,
+                  ),
+                  OutlinedButton.icon(
                     onPressed: () => _openShownotes(playerController, context),
                     icon: const Icon(Icons.info_outline, size: 20),
                     label: Text("shownotes".tr),
@@ -185,8 +215,7 @@ class PlayerControlWidget extends StatelessWidget {
                   ),
                   if (playerController.hasChapters)
                     OutlinedButton.icon(
-                      onPressed: () =>
-                          _openChapters(playerController, context),
+                      onPressed: () => _openChapters(playerController, context),
                       icon: const Icon(Icons.list_rounded, size: 20),
                       label: Text("chapters".tr),
                       style: style,
@@ -196,8 +225,7 @@ class PlayerControlWidget extends StatelessWidget {
                       onPressed: () => PodcastTranscriptSheet.open(
                         context,
                         url: transcriptUrl,
-                        type:
-                            '${song?.extras?['transcriptType'] ?? ''}',
+                        type: '${song?.extras?['transcriptType'] ?? ''}',
                       ),
                       icon: const Icon(Icons.subtitles_outlined, size: 20),
                       label: Text("transcript".tr),
@@ -256,10 +284,8 @@ class PlayerControlWidget extends StatelessWidget {
                 : 0.0;
             final song = controller.currentSong.value;
             final seed = (song?.id ?? song?.title ?? '').hashCode;
-            final timeStyle = Theme.of(context)
-                .textTheme
-                .titleMedium!
-                .copyWith(fontSize: 14);
+            final timeStyle =
+                Theme.of(context).textTheme.titleMedium!.copyWith(fontSize: 14);
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6),
               child: Column(
@@ -361,7 +387,8 @@ class PlayerControlWidget extends StatelessWidget {
     );
   }
 
-  /// AntennaPod-style transport: autoplay · speed · −10s · play/pause · +30s · next.
+  /// AntennaPod-style transport: speed · −10s · play/pause · +30s · next.
+  /// (Autoplay is in the tools row above so this bar stays mirrored.)
   Widget _podcastControls(
       PlayerController playerController, BuildContext context) {
     final color = Theme.of(context).textTheme.titleMedium!.color;
@@ -377,12 +404,15 @@ class PlayerControlWidget extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 10),
                       child: ActionChip(
                         avatar: Icon(Icons.fast_forward,
-                            size: 18, color: Theme.of(context).colorScheme.onSecondary),
+                            size: 18,
+                            color: Theme.of(context).colorScheme.onSecondary),
                         label: Text('skipAd'.tr,
                             style: TextStyle(
-                                color: Theme.of(context).colorScheme.onSecondary,
+                                color:
+                                    Theme.of(context).colorScheme.onSecondary,
                                 fontWeight: FontWeight.w600)),
-                        backgroundColor: Theme.of(context).colorScheme.secondary,
+                        backgroundColor:
+                            Theme.of(context).colorScheme.secondary,
                         onPressed: playerController.skipAd,
                       ),
                     ),
@@ -392,70 +422,65 @@ class PlayerControlWidget extends StatelessWidget {
     );
   }
 
-  Widget _podcastButtonsRow(PlayerController playerController,
-      BuildContext context, Color? color) {
-    final settings = Get.find<SettingsScreenController>();
+  Widget _podcastButtonsRow(
+      PlayerController playerController, BuildContext context, Color? color) {
+    final labelStyle = Theme.of(context).textTheme.labelSmall;
+    // Five equal columns around a fixed play button keep left/right mirrored.
+    Widget side({required Widget child}) => Expanded(child: child);
+
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Continuous autoplay toggle (AntennaPod-experimental shortcut).
-        Obx(() {
-          final on = settings.podcastContinuousPlaybackEnabled.value;
-          return Column(
+        side(child: _SpeedButton(color: color)),
+        side(
+          child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                tooltip: on
-                    ? 'podcastAutoplayOn'.tr
-                    : 'podcastAutoplayOff'.tr,
-                iconSize: 26,
+                iconSize: 32,
                 onPressed: () =>
-                    settings.togglePodcastContinuousPlayback(!on),
-                icon: Icon(
-                  on ? Icons.playlist_play_rounded : Icons.playlist_remove_rounded,
-                  color: on
-                      ? Theme.of(context).colorScheme.secondary
-                      : color,
-                ),
+                    playerController.seekBy(const Duration(seconds: -10)),
+                icon: Icon(Icons.replay_10, color: color),
               ),
-              Text(on ? 'auto'.tr : 'stop'.tr,
-                  style: Theme.of(context).textTheme.labelSmall),
+              Text('10', style: labelStyle),
             ],
-          );
-        }),
-        // Playback speed — tap to cycle common podcast speeds.
-        _SpeedButton(color: color),
-        // Skip back 10s
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              iconSize: 32,
-              onPressed: () =>
-                  playerController.seekBy(const Duration(seconds: -10)),
-              icon: Icon(Icons.replay_10, color: color),
-            ),
-            Text("10", style: Theme.of(context).textTheme.labelSmall),
-          ],
+          ),
         ),
         const CircleAvatar(
-            radius: 35,
-            child: AnimatedPlayButton(key: Key("podcastPlayButton"))),
-        // Skip forward 30s
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              iconSize: 32,
-              onPressed: () =>
-                  playerController.seekBy(const Duration(seconds: 30)),
-              icon: Icon(Icons.forward_30, color: color),
-            ),
-            Text("30", style: Theme.of(context).textTheme.labelSmall),
-          ],
+          radius: 35,
+          child: AnimatedPlayButton(key: Key('podcastPlayButton')),
         ),
-        _nextButton(playerController, context),
+        side(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                iconSize: 32,
+                onPressed: () =>
+                    playerController.seekBy(const Duration(seconds: 30)),
+                icon: Icon(Icons.forward_30, color: color),
+              ),
+              Text('30', style: labelStyle),
+            ],
+          ),
+        ),
+        side(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _nextButton(playerController, context),
+              // Reserve the same caption line as Speed / 10 / 30.
+              Text(
+                ' ',
+                style: labelStyle,
+                strutStyle: StrutStyle(
+                  forceStrutHeight: true,
+                  fontSize: labelStyle?.fontSize ?? 12,
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -502,8 +527,8 @@ class PlayerControlWidget extends StatelessWidget {
                       ? Theme.of(ctx).colorScheme.error
                       : Theme.of(ctx).colorScheme.secondary,
                 ),
-                title: Text(c.title,
-                    maxLines: 2, overflow: TextOverflow.ellipsis),
+                title:
+                    Text(c.title, maxLines: 2, overflow: TextOverflow.ellipsis),
                 subtitle: Text(fmt(c.startSec)),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -555,7 +580,6 @@ class PlayerControlWidget extends StatelessWidget {
       ),
     );
   }
-
 
   Widget _previousButton(
       PlayerController playerController, BuildContext context) {

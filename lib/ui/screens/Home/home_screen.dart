@@ -289,10 +289,9 @@ class _HomePersonalTop extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const HomeShortcutGrid(),
           if (disc.mixesUpdatedPill.value)
             Padding(
-              padding: const EdgeInsets.only(left: 5, top: 4),
+              padding: const EdgeInsets.only(left: 12, top: 2, bottom: 4),
               child: Chip(
                 label: Text("mixesUpdated".tr),
                 visualDensity: VisualDensity.compact,

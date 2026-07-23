@@ -34,6 +34,7 @@ class GesturePlayer extends StatelessWidget {
           },
           onLongPress: () {
             showModalBottomSheet(
+              useRootNavigator: true,
               constraints: const BoxConstraints(maxWidth: 500),
               shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
