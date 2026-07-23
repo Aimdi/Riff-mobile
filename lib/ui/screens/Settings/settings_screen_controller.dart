@@ -66,7 +66,11 @@ class SettingsScreenController extends GetxController {
   final keepScreenAwake = false.obs;
   final restorePlaybackSession = false.obs;
   final cacheHomeScreenData = true.obs;
-  final currentVersion = "V1.7.67";
+  /// Unlocks Advanced developer tools (tap About version 7×).
+  final developerMode = false.obs;
+  final currentVersion = "V1.7.68";
+  int _versionTapCount = 0;
+  DateTime? _lastVersionTap;
 
   @override
   void onInit() {
@@ -132,6 +136,7 @@ class SettingsScreenController extends GetxController {
     restorePlaybackSession.value =
         setBox.get("restrorePlaybackSession") ?? false;
     cacheHomeScreenData.value = setBox.get("cacheHomeScreenData") ?? true;
+    developerMode.value = setBox.get("developerMode") ?? false;
     streamingQuality.value =
         AudioQuality.values[setBox.get('streamingQuality')];
     final videoQIndex = setBox.get('videoQuality');
@@ -414,6 +419,27 @@ class SettingsScreenController extends GetxController {
 
   Future<void> resetAppSettingsToDefault() async {
     await setBox.clear();
+  }
+
+  /// Returns `true`/`false` when developer mode toggled after 7 taps; else null.
+  bool? onVersionLabelTapped() {
+    final now = DateTime.now();
+    if (_lastVersionTap == null ||
+        now.difference(_lastVersionTap!) > const Duration(seconds: 2)) {
+      _versionTapCount = 0;
+    }
+    _lastVersionTap = now;
+    _versionTapCount++;
+    if (_versionTapCount < 7) return null;
+    _versionTapCount = 0;
+    final next = !developerMode.value;
+    setDeveloperMode(next);
+    return next;
+  }
+
+  void setDeveloperMode(bool val) {
+    setBox.put('developerMode', val);
+    developerMode.value = val;
   }
 
   void toggleStopPlyabackOnSwipeAway(bool val) {

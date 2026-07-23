@@ -84,8 +84,9 @@ class SettingsScreen extends StatelessWidget {
                       )
                     : const SizedBox.shrink(),
               ),
+              // Appearance — look & feel
               CustomExpansionTile(
-                title: "personalisation".tr,
+                title: "settingsAppearance".tr,
                 icon: Icons.palette_outlined,
                 children: [
                   ListTile(
@@ -204,134 +205,11 @@ class SettingsScreen extends StatelessWidget {
                       )),
                 ],
               ),
+
+              // Listening — playback quality, effects, discovery
               CustomExpansionTile(
-                  title: "content".tr,
-                  icon: Icons.library_music_outlined,
-                children: [
-                    ListTile(
-                      contentPadding: const EdgeInsets.only(left: 5, right: 10),
-                      title: Text("setDiscoverContent".tr),
-                      subtitle: Obx(() => Text(
-                          settingsController.discoverContentType.value == "QP"
-                              ? "quickpicks".tr
-                              : settingsController.discoverContentType.value ==
-                                      "TMV"
-                                  ? "topmusicvideos".tr
-                                  : settingsController
-                                              .discoverContentType.value ==
-                                          "TR"
-                                      ? "trending".tr
-                                      : "basedOnLast".tr,
-                          style: Theme.of(context).textTheme.bodyMedium)),
-                      onTap: () => showDialog(
-                        context: context,
-                        builder: (context) =>
-                            const DiscoverContentSelectorDialog(),
-                      ),
-                    ),
-                    ListTile(
-                      contentPadding: const EdgeInsets.only(left: 5, right: 10),
-                      title: Text("homeContentCount".tr),
-                      subtitle: Text("homeContentCountDes".tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
-                      trailing: Obx(
-                        () => DropdownButton(
-                          dropdownColor: Theme.of(context).cardColor,
-                          underline: const SizedBox.shrink(),
-                          value: settingsController.noOfHomeScreenContent.value,
-                          items: ([3, 5, 7, 9, 11])
-                              .map((e) =>
-                                  DropdownMenuItem(value: e, child: Text("$e")))
-                              .toList(),
-                          onChanged: settingsController.setContentNumber,
-                        ),
-                      ),
-                    ),
-                    ListTile(
-                        contentPadding:
-                            const EdgeInsets.only(left: 5, right: 10),
-                        title: Text("cacheHomeScreenData".tr),
-                        subtitle: Text("cacheHomeScreenDataDes".tr,
-                            style: Theme.of(context).textTheme.bodyMedium),
-                        trailing: Obx(
-                          () => CustSwitch(
-                              value:
-                                  settingsController.cacheHomeScreenData.value,
-                              onChanged:
-                                  settingsController.toggleCacheHomeScreenData),
-                        )),
-                    ListTile(
-                      contentPadding:
-                          const EdgeInsets.only(left: 5, right: 10, top: 0),
-                      title: Text("Piped".tr),
-                      subtitle: Text("linkPipedDes".tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
-                      trailing: TextButton(
-                          child: Obx(() => Text(
-                                settingsController.isLinkedWithPiped.value
-                                    ? "unLink".tr
-                                    : "link".tr,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium!
-                                    .copyWith(fontSize: 15),
-                              )),
-                          onPressed: () {
-                            if (settingsController.isLinkedWithPiped.isFalse) {
-                              showDialog(
-                                context: context,
-                                builder: (context) => const LinkPiped(),
-                              ).whenComplete(
-                                  () => Get.delete<PipedLinkedController>());
-                            } else {
-                              settingsController.unlinkPiped();
-                            }
-                          }),
-                    ),
-                    Obx(() => (settingsController.isLinkedWithPiped.isTrue)
-                        ? ListTile(
-                            contentPadding: const EdgeInsets.only(
-                                left: 5, right: 10, top: 0),
-                            title: Text("resetblacklistedplaylist".tr),
-                            subtitle: Text("resetblacklistedplaylistDes".tr,
-                                style: Theme.of(context).textTheme.bodyMedium),
-                            trailing: TextButton(
-                                child: Text(
-                                  "reset".tr,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium!
-                                      .copyWith(fontSize: 15),
-                                ),
-                                onPressed: () async {
-                                  await Get.find<LibraryPlaylistsController>()
-                                      .resetBlacklistedPlaylist();
-                                  ScaffoldMessenger.of(Get.context!)
-                                      .showSnackBar(snackbar(Get.context!,
-                                          "blacklistPlstResetAlert".tr,
-                                          size: SanckBarSize.MEDIUM));
-                                }),
-                          )
-                        : const SizedBox.shrink()),
-                    ListTile(
-                      contentPadding: const EdgeInsets.only(left: 5, right: 10),
-                      title: Text("clearImgCache".tr),
-                      subtitle: Text(
-                        "clearImgCacheDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      isThreeLine: true,
-                      onTap: () {
-                        settingsController.clearImagesCache().then((value) =>
-                            ScaffoldMessenger.of(Get.context!).showSnackBar(
-                                snackbar(Get.context!, "clearImgCacheAlert".tr,
-                                    size: SanckBarSize.BIG)));
-                      },
-                    ),
-                  ]),
-              CustomExpansionTile(
-                title: "music&Playback".tr,
-                icon: Icons.music_note_outlined,
+                title: "settingsListening".tr,
+                icon: Icons.headphones_outlined,
                 children: [
                   ListTile(
                     contentPadding: const EdgeInsets.only(left: 5, right: 10),
@@ -432,31 +310,30 @@ class SettingsScreen extends StatelessWidget {
                             onChanged: settingsController.toggleSponsorBlock),
                       )),
                   ListTile(
+                    contentPadding:
+                        const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("speedAndPitch".tr),
+                    subtitle: Text("speedAndPitchDes".tr,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    onTap: () => showDialog(
+                        context: context,
+                        builder: (context) => const SpeedPitchDialog()),
+                  ),
+                  if (!isDesktop)
+                    ListTile(
                       contentPadding:
-                          const EdgeInsets.only(left: 5, right: 10),
-                      title: Text("skipPodcastAds".tr),
-                      subtitle: Text("skipPodcastAdsDes".tr,
+                          const EdgeInsets.only(left: 5, right: 10, top: 0),
+                      title: Text("equalizer".tr),
+                      subtitle: Text("equalizerDes".tr,
                           style: Theme.of(context).textTheme.bodyMedium),
-                      trailing: Obx(
-                        () => CustSwitch(
-                            value: settingsController
-                                .podcastAutoSkipAdsEnabled.value,
-                            onChanged:
-                                settingsController.togglePodcastAutoSkipAds),
-                      )),
-                  ListTile(
-                      contentPadding:
-                          const EdgeInsets.only(left: 5, right: 10),
-                      title: Text("podcastContinuousPlayback".tr),
-                      subtitle: Text("podcastContinuousPlaybackDes".tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
-                      trailing: Obx(
-                        () => CustSwitch(
-                            value: settingsController
-                                .podcastContinuousPlaybackEnabled.value,
-                            onChanged: settingsController
-                                .togglePodcastContinuousPlayback),
-                      )),
+                      onTap: () async {
+                        try {
+                          await Get.find<PlayerController>().openEqualizer();
+                        } catch (e) {
+                          printERROR(e);
+                        }
+                      },
+                    ),
                   if (isDesktop)
                     ListTile(
                         contentPadding:
@@ -505,68 +382,282 @@ class SettingsScreen extends StatelessWidget {
                           onChanged: settingsController.toggleAutoOpenPlayer),
                     ),
                   ),
-                  if (!isDesktop)
+                  ListTile(
+                    contentPadding:
+                        const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("discoverySettings".tr),
+                    subtitle: Text("discoverySettingsDes".tr,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => showDialog(
+                        context: context,
+                        builder: (context) => const DiscoverySettingsDialog()),
+                  ),
+                ],
+              ),
+
+              // Library & sync — home feed, accounts, scrobbling
+              CustomExpansionTile(
+                  title: "settingsLibrarySync".tr,
+                  icon: Icons.library_music_outlined,
+                children: [
+                    ListTile(
+                      contentPadding: const EdgeInsets.only(left: 5, right: 10),
+                      title: Text("setDiscoverContent".tr),
+                      subtitle: Obx(() => Text(
+                          settingsController.discoverContentType.value == "QP"
+                              ? "quickpicks".tr
+                              : settingsController.discoverContentType.value ==
+                                      "TMV"
+                                  ? "topmusicvideos".tr
+                                  : settingsController
+                                              .discoverContentType.value ==
+                                          "TR"
+                                      ? "trending".tr
+                                      : "basedOnLast".tr,
+                          style: Theme.of(context).textTheme.bodyMedium)),
+                      onTap: () => showDialog(
+                        context: context,
+                        builder: (context) =>
+                            const DiscoverContentSelectorDialog(),
+                      ),
+                    ),
+                    ListTile(
+                      contentPadding: const EdgeInsets.only(left: 5, right: 10),
+                      title: Text("homeContentCount".tr),
+                      subtitle: Text("homeContentCountDes".tr,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      trailing: Obx(
+                        () => DropdownButton(
+                          dropdownColor: Theme.of(context).cardColor,
+                          underline: const SizedBox.shrink(),
+                          value: settingsController.noOfHomeScreenContent.value,
+                          items: ([3, 5, 7, 9, 11])
+                              .map((e) =>
+                                  DropdownMenuItem(value: e, child: Text("$e")))
+                              .toList(),
+                          onChanged: settingsController.setContentNumber,
+                        ),
+                      ),
+                    ),
+                    ListTile(
+                        contentPadding:
+                            const EdgeInsets.only(left: 5, right: 10),
+                        title: Text("cacheHomeScreenData".tr),
+                        subtitle: Text("cacheHomeScreenDataDes".tr,
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        trailing: Obx(
+                          () => CustSwitch(
+                              value:
+                                  settingsController.cacheHomeScreenData.value,
+                              onChanged:
+                                  settingsController.toggleCacheHomeScreenData),
+                        )),
+                  Obx(() {
+                    final connected = settingsController.ytConnected.value;
+                    return ListTile(
+                      contentPadding:
+                          const EdgeInsets.only(left: 5, right: 10),
+                      title: Text("ytAccount".tr),
+                      subtitle: Text(
+                          connected ? "ytConnectedDes".tr : "ytAccountDes".tr,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      trailing: Icon(connected ? Icons.link_off : Icons.login),
+                      onTap: () async {
+                        if (connected) {
+                          await YtAuthService.disconnect();
+                          settingsController.ytConnected.value = false;
+                          Get.find<HomeScreenController>()
+                              .loadContentFromNetwork();
+                        } else {
+                          final ok =
+                              await Get.to(() => const YtLoginScreen());
+                          if (ok == true) {
+                            settingsController.ytConnected.value = true;
+                            Get.find<HomeScreenController>()
+                                .loadContentFromNetwork();
+                            ScaffoldMessenger.of(Get.context!).showSnackBar(
+                                snackbar(Get.context!, "ytConnectedMsg".tr,
+                                    size: SanckBarSize.BIG,
+                                    duration: const Duration(seconds: 3)));
+                          }
+                        }
+                      },
+                    );
+                  }),
                     ListTile(
                       contentPadding:
                           const EdgeInsets.only(left: 5, right: 10, top: 0),
-                      title: Text("equalizer".tr),
-                      subtitle: Text("equalizerDes".tr,
+                      title: Text("Piped".tr),
+                      subtitle: Text("linkPipedDes".tr,
                           style: Theme.of(context).textTheme.bodyMedium),
-                      onTap: () async {
-                        try {
-                          await Get.find<PlayerController>().openEqualizer();
-                        } catch (e) {
-                          printERROR(e);
-                        }
-                      },
+                      trailing: TextButton(
+                          child: Obx(() => Text(
+                                settingsController.isLinkedWithPiped.value
+                                    ? "unLink".tr
+                                    : "link".tr,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium!
+                                    .copyWith(fontSize: 15),
+                              )),
+                          onPressed: () {
+                            if (settingsController.isLinkedWithPiped.isFalse) {
+                              showDialog(
+                                context: context,
+                                builder: (context) => const LinkPiped(),
+                              ).whenComplete(
+                                  () => Get.delete<PipedLinkedController>());
+                            } else {
+                              settingsController.unlinkPiped();
+                            }
+                          }),
                     ),
-                  if (!isDesktop)
+                    Obx(() => (settingsController.isLinkedWithPiped.isTrue)
+                        ? ListTile(
+                            contentPadding: const EdgeInsets.only(
+                                left: 5, right: 10, top: 0),
+                            title: Text("resetblacklistedplaylist".tr),
+                            subtitle: Text("resetblacklistedplaylistDes".tr,
+                                style: Theme.of(context).textTheme.bodyMedium),
+                            trailing: TextButton(
+                                child: Text(
+                                  "reset".tr,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium!
+                                      .copyWith(fontSize: 15),
+                                ),
+                                onPressed: () async {
+                                  await Get.find<LibraryPlaylistsController>()
+                                      .resetBlacklistedPlaylist();
+                                  ScaffoldMessenger.of(Get.context!)
+                                      .showSnackBar(snackbar(Get.context!,
+                                          "blacklistPlstResetAlert".tr,
+                                          size: SanckBarSize.MEDIUM));
+                                }),
+                          )
+                        : const SizedBox.shrink()),
+                  ListTile(
+                    contentPadding:
+                        const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("listenBrainz".tr),
+                    subtitle: Text("listenBrainzDes".tr,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    onTap: () => showDialog(
+                        context: context,
+                        builder: (context) => const ListenBrainzDialog()),
+                  ),
+                  ListTile(
+                    contentPadding:
+                        const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("bannedSongs".tr),
+                    subtitle: Text("neverPlayThisDes".tr,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    onTap: () => showDialog(
+                        context: context,
+                        builder: (context) => const BannedSongsDialog()),
+                  ),
+                  ListTile(
+                    contentPadding:
+                        const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("stats".tr),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Get.toNamed(ScreenNavigationSetup.statsScreen,
+                        id: ScreenNavigationSetup.id),
+                  ),
+                  ListTile(
+                    contentPadding:
+                        const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("riffRewind".tr),
+                    subtitle: Text("riffRewindDes".tr,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Get.toNamed(ScreenNavigationSetup.rewindScreen,
+                        id: ScreenNavigationSetup.id),
+                  ),
                     ListTile(
                       contentPadding: const EdgeInsets.only(left: 5, right: 10),
-                      title: Text("stopMusicOnTaskClear".tr),
-                      subtitle: Text("stopMusicOnTaskClearDes".tr,
+                      title: Text("clearImgCache".tr),
+                      subtitle: Text(
+                        "clearImgCacheDes".tr,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      isThreeLine: true,
+                      onTap: () {
+                        settingsController.clearImagesCache().then((value) =>
+                            ScaffoldMessenger.of(Get.context!).showSnackBar(
+                                snackbar(Get.context!, "clearImgCacheAlert".tr,
+                                    size: SanckBarSize.BIG)));
+                      },
+                    ),
+                  ]),
+
+              // Podcasts — first-class, not buried under Riff
+              CustomExpansionTile(
+                title: "podcasts".tr,
+                icon: Icons.podcasts_outlined,
+                children: [
+                  ListTile(
+                    contentPadding:
+                        const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("podcasts".tr),
+                    subtitle: Text("podcastsDes".tr,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Get.toNamed(
+                        ScreenNavigationSetup.podcastsScreen,
+                        id: ScreenNavigationSetup.id),
+                  ),
+                  ListTile(
+                      contentPadding:
+                          const EdgeInsets.only(left: 5, right: 10),
+                      title: Text("skipPodcastAds".tr),
+                      subtitle: Text("skipPodcastAdsDes".tr,
                           style: Theme.of(context).textTheme.bodyMedium),
                       trailing: Obx(
                         () => CustSwitch(
                             value: settingsController
-                                .stopPlyabackOnSwipeAway.value,
+                                .podcastAutoSkipAdsEnabled.value,
+                            onChanged:
+                                settingsController.togglePodcastAutoSkipAds),
+                      )),
+                  ListTile(
+                      contentPadding:
+                          const EdgeInsets.only(left: 5, right: 10),
+                      title: Text("podcastContinuousPlayback".tr),
+                      subtitle: Text("podcastContinuousPlaybackDes".tr,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      trailing: Obx(
+                        () => CustSwitch(
+                            value: settingsController
+                                .podcastContinuousPlaybackEnabled.value,
                             onChanged: settingsController
-                                .toggleStopPlyabackOnSwipeAway),
-                      ),
-                    ),
-                  GetPlatform.isAndroid
-                      ? Obx(
-                          () => ListTile(
-                            contentPadding:
-                                const EdgeInsets.only(left: 5, right: 10),
-                            title: Text("ignoreBatOpt".tr),
-                            onTap: settingsController
-                                    .isIgnoringBatteryOptimizations.isFalse
-                                ? settingsController
-                                    .enableIgnoringBatteryOptimizations
-                                : null,
-                            subtitle: Obx(() => RichText(
-                                  text: TextSpan(
-                                    text:
-                                        "${"status".tr}: ${settingsController.isIgnoringBatteryOptimizations.isTrue ? "enabled".tr : "disabled".tr}\n",
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium!
-                                        .copyWith(fontWeight: FontWeight.bold),
-                                    children: <TextSpan>[
-                                      TextSpan(
-                                          text: "ignoreBatOptDes".tr,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium),
-                                    ],
-                                  ),
-                                )),
-                          ),
-                        )
-                      : const SizedBox.shrink(),
+                                .togglePodcastContinuousPlayback),
+                      )),
                 ],
               ),
+
+              // Plugins — first-class
+              CustomExpansionTile(
+                title: "plugins".tr,
+                icon: Icons.extension_outlined,
+                children: [
+                  ListTile(
+                    contentPadding:
+                        const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("plugins".tr),
+                    subtitle: Text("pluginsSettingsDes".tr,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Get.toNamed(
+                        ScreenNavigationSetup.pluginsScreen,
+                        id: ScreenNavigationSetup.id),
+                  ),
+                ],
+              ),
+
+              // Downloads
               CustomExpansionTile(
                 title: "download".tr,
                 icon: Icons.download_outlined,
@@ -660,9 +751,11 @@ class SettingsScreen extends StatelessWidget {
                     ),
                 ],
               ),
+
+              // Advanced — backup, power, reset, developer tools
               CustomExpansionTile(
-                  title: "${"backup".tr} & ${"restore".tr}",
-                  icon: Icons.settings_backup_restore_outlined,
+                  title: "settingsAdvanced".tr,
+                  icon: Icons.tune_outlined,
                   children: [
                     ListTile(
                       contentPadding: const EdgeInsets.only(left: 5, right: 10),
@@ -692,11 +785,52 @@ class SettingsScreen extends StatelessWidget {
                       ).whenComplete(
                           () => Get.delete<RestoreDialogController>()),
                     ),
-                  ]),
-              CustomExpansionTile(
-                  icon: Icons.tune_outlined,
-                  title: "misc".tr,
-                  children: [
+                    if (!isDesktop)
+                      ListTile(
+                        contentPadding:
+                            const EdgeInsets.only(left: 5, right: 10),
+                        title: Text("stopMusicOnTaskClear".tr),
+                        subtitle: Text("stopMusicOnTaskClearDes".tr,
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        trailing: Obx(
+                          () => CustSwitch(
+                              value: settingsController
+                                  .stopPlyabackOnSwipeAway.value,
+                              onChanged: settingsController
+                                  .toggleStopPlyabackOnSwipeAway),
+                        ),
+                      ),
+                    GetPlatform.isAndroid
+                        ? Obx(
+                            () => ListTile(
+                              contentPadding:
+                                  const EdgeInsets.only(left: 5, right: 10),
+                              title: Text("ignoreBatOpt".tr),
+                              onTap: settingsController
+                                      .isIgnoringBatteryOptimizations.isFalse
+                                  ? settingsController
+                                      .enableIgnoringBatteryOptimizations
+                                  : null,
+                              subtitle: Obx(() => RichText(
+                                    text: TextSpan(
+                                      text:
+                                          "${"status".tr}: ${settingsController.isIgnoringBatteryOptimizations.isTrue ? "enabled".tr : "disabled".tr}\n",
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium!
+                                          .copyWith(fontWeight: FontWeight.bold),
+                                      children: <TextSpan>[
+                                        TextSpan(
+                                            text: "ignoreBatOptDes".tr,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium),
+                                      ],
+                                    ),
+                                  )),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
                     ListTile(
                       contentPadding: const EdgeInsets.only(left: 5, right: 10),
                       title: Text("resetToDefault".tr),
@@ -715,136 +849,44 @@ class SettingsScreen extends StatelessWidget {
                         });
                       },
                     ),
+                    Obx(() {
+                      if (!settingsController.developerMode.value) {
+                        return const SizedBox.shrink();
+                      }
+                      return ListTile(
+                        contentPadding:
+                            const EdgeInsets.only(left: 5, right: 10),
+                        title: Text("tasteModelDebug".tr),
+                        subtitle: Text("tasteModelDebugDes".tr,
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        onTap: () => showDialog(
+                            context: context,
+                            builder: (context) =>
+                                const TasteModelDebugDialog()),
+                      );
+                    }),
+                    Obx(() {
+                      if (!settingsController.developerMode.value) {
+                        return const SizedBox.shrink();
+                      }
+                      return ListTile(
+                        contentPadding:
+                            const EdgeInsets.only(left: 5, right: 10),
+                        title: Text("developerMode".tr),
+                        subtitle: Text("developerModeDes".tr,
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        trailing: CustSwitch(
+                          value: true,
+                          onChanged: (v) {
+                            if (!v) {
+                              settingsController.setDeveloperMode(false);
+                            }
+                          },
+                        ),
+                      );
+                    }),
                   ]),
-              CustomExpansionTile(
-                icon: Icons.graphic_eq_outlined,
-                title: "riffFeatures".tr,
-                children: [
-                  Obx(() {
-                    final connected = settingsController.ytConnected.value;
-                    return ListTile(
-                      contentPadding:
-                          const EdgeInsets.only(left: 5, right: 10),
-                      title: Text("ytAccount".tr),
-                      subtitle: Text(
-                          connected ? "ytConnectedDes".tr : "ytAccountDes".tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
-                      trailing: Icon(connected ? Icons.link_off : Icons.login),
-                      onTap: () async {
-                        if (connected) {
-                          await YtAuthService.disconnect();
-                          settingsController.ytConnected.value = false;
-                          Get.find<HomeScreenController>()
-                              .loadContentFromNetwork();
-                        } else {
-                          final ok =
-                              await Get.to(() => const YtLoginScreen());
-                          if (ok == true) {
-                            settingsController.ytConnected.value = true;
-                            Get.find<HomeScreenController>()
-                                .loadContentFromNetwork();
-                            ScaffoldMessenger.of(Get.context!).showSnackBar(
-                                snackbar(Get.context!, "ytConnectedMsg".tr,
-                                    size: SanckBarSize.BIG,
-                                    duration: const Duration(seconds: 3)));
-                          }
-                        }
-                      },
-                    );
-                  }),
-                  ListTile(
-                    contentPadding:
-                        const EdgeInsets.only(left: 5, right: 10),
-                    title: Text("speedAndPitch".tr),
-                    subtitle: Text("speedAndPitchDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    onTap: () => showDialog(
-                        context: context,
-                        builder: (context) => const SpeedPitchDialog()),
-                  ),
-                  ListTile(
-                    contentPadding:
-                        const EdgeInsets.only(left: 5, right: 10),
-                    title: Text("stats".tr),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Get.toNamed(ScreenNavigationSetup.statsScreen,
-                        id: ScreenNavigationSetup.id),
-                  ),
-                  ListTile(
-                    contentPadding:
-                        const EdgeInsets.only(left: 5, right: 10),
-                    title: Text("riffRewind".tr),
-                    subtitle: Text("riffRewindDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Get.toNamed(ScreenNavigationSetup.rewindScreen,
-                        id: ScreenNavigationSetup.id),
-                  ),
-                  ListTile(
-                    contentPadding:
-                        const EdgeInsets.only(left: 5, right: 10),
-                    title: Text("podcasts".tr),
-                    subtitle: Text("podcastsDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Get.toNamed(
-                        ScreenNavigationSetup.podcastsScreen,
-                        id: ScreenNavigationSetup.id),
-                  ),
-                  ListTile(
-                    contentPadding:
-                        const EdgeInsets.only(left: 5, right: 10),
-                    title: Text("plugins".tr),
-                    subtitle: Text("pluginsSettingsDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Get.toNamed(
-                        ScreenNavigationSetup.pluginsScreen,
-                        id: ScreenNavigationSetup.id),
-                  ),
-                  ListTile(
-                    contentPadding:
-                        const EdgeInsets.only(left: 5, right: 10),
-                    title: Text("bannedSongs".tr),
-                    subtitle: Text("neverPlayThisDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    onTap: () => showDialog(
-                        context: context,
-                        builder: (context) => const BannedSongsDialog()),
-                  ),
-                  ListTile(
-                    contentPadding:
-                        const EdgeInsets.only(left: 5, right: 10),
-                    title: Text("listenBrainz".tr),
-                    subtitle: Text("listenBrainzDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    onTap: () => showDialog(
-                        context: context,
-                        builder: (context) => const ListenBrainzDialog()),
-                  ),
-                  ListTile(
-                    contentPadding:
-                        const EdgeInsets.only(left: 5, right: 10),
-                    title: Text("discoverySettings".tr),
-                    subtitle: Text("discoverySettingsDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => showDialog(
-                        context: context,
-                        builder: (context) => const DiscoverySettingsDialog()),
-                  ),
-                  ListTile(
-                    contentPadding:
-                        const EdgeInsets.only(left: 5, right: 10),
-                    title: Text("tasteModelDebug".tr),
-                    subtitle: Text("tasteModelDebugDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    onTap: () => showDialog(
-                        context: context,
-                        builder: (context) => const TasteModelDebugDialog()),
-                  ),
-                ],
-              ),
+
               CustomExpansionTile(
                 icon: Icons.info_outline,
                 title: "appInfo".tr,
@@ -882,9 +924,29 @@ class SettingsScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          settingsController.currentVersion,
-                          style: theme.textTheme.bodySmall,
+                        // Tap version 7× to unlock developer tools (taste debug).
+                        GestureDetector(
+                          onTap: () {
+                            final enabled =
+                                settingsController.onVersionLabelTapped();
+                            if (enabled == null) return;
+                            ScaffoldMessenger.of(Get.context!).showSnackBar(
+                              snackbar(
+                                Get.context!,
+                                enabled
+                                    ? "developerModeEnabled".tr
+                                    : "developerModeDisabled".tr,
+                                size: SanckBarSize.MEDIUM,
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                          child: Obx(() => Text(
+                                settingsController.developerMode.value
+                                    ? "${settingsController.currentVersion} · ${"developerMode".tr}"
+                                    : settingsController.currentVersion,
+                                style: theme.textTheme.bodySmall,
+                              )),
                         ),
                       ],
                     ),
@@ -1271,7 +1333,7 @@ class _ListenBrainzDialogState extends State<ListenBrainzDialog> {
   }
 }
 
-/// Discovery preferences (Settings → Riff → Discovery).
+/// Discovery preferences (Settings → Listening → Discovery).
 class DiscoverySettingsDialog extends StatefulWidget {
   const DiscoverySettingsDialog({super.key});
 
