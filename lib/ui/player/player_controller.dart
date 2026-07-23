@@ -29,6 +29,7 @@ import '/services/music_service.dart';
 import '/services/sponsorblock_service.dart';
 import '/services/podcast_service.dart';
 import '/services/podcast_progress_service.dart';
+import '/ui/player/progress_ui_throttle.dart';
 
 class PlayerController extends GetxController
     with GetSingleTickerProviderStateMixin {
@@ -39,9 +40,11 @@ class PlayerController extends GetxController
   final playerPaneOpacity = (1.0).obs;
   final isPlayerpanelTopVisible = true.obs;
   final isPanelGTHOpened = false.obs;
+
   /// True when the main player panel is nearly fully open. Muted in-player
   /// video pauses while this is false so decoding stops behind the mini player.
   final isPlayerPanelOpen = false.obs;
+
   /// Bumped on every seek so [PlayerVideoSurface] can hard-sync immediately.
   final videoSeekSignal = 0.obs;
   final playerPanelMinHeight = 0.0.obs;
@@ -193,17 +196,25 @@ class PlayerController extends GetxController
   }
 
   void panellistener(double x) {
+    // Only publish when values actually change — panel drag used to rewrite
+    // opacity/visibility every frame and rebuild the mini player continuously.
     if (x >= 0 && x <= 0.2) {
-      playerPaneOpacity.value = 1 - (x * 5);
-      isPlayerpanelTopVisible.value = true;
+      final opacity = 1 - (x * 5);
+      if ((playerPaneOpacity.value - opacity).abs() > 0.03) {
+        playerPaneOpacity.value = opacity;
+      }
+      if (!isPlayerpanelTopVisible.value) {
+        isPlayerpanelTopVisible.value = true;
+      }
     } else if (x > 0.2) {
-      isPlayerpanelTopVisible.value = false;
+      if (isPlayerpanelTopVisible.value) {
+        isPlayerpanelTopVisible.value = false;
+      }
     }
 
-    if (x > 0.6) {
-      isPanelGTHOpened.value = true;
-    } else {
-      isPanelGTHOpened.value = false;
+    final gthOpen = x > 0.6;
+    if (isPanelGTHOpened.value != gthOpen) {
+      isPanelGTHOpened.value = gthOpen;
     }
 
     // Hysteresis near fully-open so the last bit of the gesture doesn't thrash.
@@ -264,6 +275,8 @@ class PlayerController extends GetxController
     }
   }
 
+  final _progressUiThrottle = ProgressUiThrottle();
+
   void _listenForChangesInPosition() {
     AudioService.position.listen((position) {
       final oldState = progressBarStatus.value;
@@ -274,18 +287,26 @@ class PlayerController extends GetxController
           cancelSleepTimer();
         }
       }
-      progressBarStatus.update((val) {
-        val!.current = position;
-        val.buffered = oldState.buffered;
-        val.total = oldState.total;
-      });
-      // Feed skip/listen fraction tracking (notification & headset skips too).
+      // Full-rate side effects — never throttle skip / podcast / taste logic.
       if (Get.isRegistered<DiscoveryService>()) {
         Get.find<DiscoveryService>().onPositionTick(position.inMilliseconds);
       }
       _maybeSkipSponsorBlock(position);
       _maybeSkipAdChapter(position);
       _handlePodcastProgress(position);
+
+      // Progress widgets (mini player, lyrics, seek bar) only need ~10 Hz.
+      if (!_progressUiThrottle.shouldUpdate(
+        position: position,
+        previousUiPosition: oldState.current,
+      )) {
+        return;
+      }
+      progressBarStatus.update((val) {
+        val!.current = position;
+        val.buffered = oldState.buffered;
+        val.total = oldState.total;
+      });
     });
   }
 
@@ -372,8 +393,8 @@ class PlayerController extends GetxController
     _chapterSeekInFlight = true;
     printINFO('Ad chapter skip "${current.title}" → ${target.inSeconds}s');
     seek(target);
-    Future.delayed(const Duration(milliseconds: 350),
-        () => _chapterSeekInFlight = false);
+    Future.delayed(
+        const Duration(milliseconds: 350), () => _chapterSeekInFlight = false);
   }
 
   /// Manual "Skip ad": jump past the current ad chapter if in one, else jump
@@ -433,7 +454,8 @@ class PlayerController extends GetxController
 
     // Don't skip past the end of the track — just leave it to natural end.
     final total = progressBarStatus.value.total;
-    if (total > Duration.zero && target >= total - const Duration(milliseconds: 400)) {
+    if (total > Duration.zero &&
+        target >= total - const Duration(milliseconds: 400)) {
       return;
     }
 
@@ -448,6 +470,8 @@ class PlayerController extends GetxController
     });
   }
 
+  DateTime? _lastBufferedUiAt;
+
   void _listenForChangesInBufferedPosition() {
     _audioHandler.playbackState.listen((playbackState) {
       final oldState = progressBarStatus.value;
@@ -461,8 +485,20 @@ class PlayerController extends GetxController
           _newSongFlag = false;
         }
       }
+      final buffered = playbackState.bufferedPosition;
+      // Skip no-op / dense buffered updates — they rebuild progress widgets.
+      if (buffered == oldState.buffered) return;
+      final now = DateTime.now();
+      if (_lastBufferedUiAt != null &&
+          now.difference(_lastBufferedUiAt!) <
+              const Duration(milliseconds: 200) &&
+          (buffered - oldState.buffered).abs() <
+              const Duration(milliseconds: 500)) {
+        return;
+      }
+      _lastBufferedUiAt = now;
       progressBarStatus.update((val) {
-        val!.buffered = playbackState.bufferedPosition;
+        val!.buffered = buffered;
         val.current = oldState.current;
         val.total = oldState.total;
       });
@@ -484,10 +520,8 @@ class PlayerController extends GetxController
         // Capture position before switching so DiscoveryService can score the skip.
         final posMs = progressBarStatus.value.current.inMilliseconds;
         // Persist the outgoing podcast episode's position before switching.
-        PodcastProgressService.save(
-            currentSong.value,
-            Duration(milliseconds: posMs),
-            progressBarStatus.value.total,
+        PodcastProgressService.save(currentSong.value,
+            Duration(milliseconds: posMs), progressBarStatus.value.total,
             nowMs: DateTime.now().millisecondsSinceEpoch);
         currentSong.value = mediaItem;
         clearPlaybackError();
@@ -533,7 +567,6 @@ class PlayerController extends GetxController
   void _listenForPlaylistChange() {
     _audioHandler.queue.listen((queue) {
       currentQueue.value = queue;
-      currentQueue.refresh();
     });
   }
 
@@ -596,7 +629,8 @@ class PlayerController extends GetxController
             // Ensure seed is first if missing
             if (tracks.isEmpty || tracks.first.id != mediaItem.id) {
               tracks = [
-                DiscoveryService.withSource(mediaItem, DiscoverySource.userClick),
+                DiscoveryService.withSource(
+                    mediaItem, DiscoverySource.userClick),
                 ...tracks
               ];
             }
@@ -613,8 +647,7 @@ class PlayerController extends GetxController
               radio: radio,
               playlistId: playlistid);
           radioContinuationParam = content['additionalParamsForNext'];
-          final src =
-              radio ? DiscoverySource.radio : DiscoverySource.userClick;
+          final src = radio ? DiscoverySource.radio : DiscoverySource.userClick;
           tracks = Get.isRegistered<DiscoveryService>()
               ? DiscoveryService.tagAll(
                   List<MediaItem>.from(content['tracks']), src)
@@ -654,12 +687,10 @@ class PlayerController extends GetxController
     final seed = mediaItem == null
         ? null
         : (Get.isRegistered<DiscoveryService>()
-            ? DiscoveryService.withSource(
-                mediaItem,
+            ? DiscoveryService.withSource(mediaItem,
                 radio ? DiscoverySource.radio : DiscoverySource.userClick)
             : mediaItem);
-    await _audioHandler
-        .customAction("setSourceNPlay", {'mediaItem': seed});
+    await _audioHandler.customAction("setSourceNPlay", {'mediaItem': seed});
 
     // disable queue loop mode when radio is started
     if (radio &&
@@ -911,8 +942,7 @@ class PlayerController extends GetxController
   bool get isCurrentSongPodcast {
     final s = currentSong.value;
     if (s == null) return false;
-    return (s.extras?['isPodcast'] == true) ||
-        s.id.startsWith('podcast_');
+    return (s.extras?['isPodcast'] == true) || s.id.startsWith('podcast_');
   }
 
   /// True when the current item can show the in-player 16:9 video surface
@@ -1058,8 +1088,7 @@ class PlayerController extends GetxController
     } catch (e) {}
     isCurrentSongFav.value = !isCurrentSongFav.value;
     if (Get.isRegistered<DiscoveryService>()) {
-      Get.find<DiscoveryService>()
-          .onFavorite(currMediaItem, add: adding);
+      Get.find<DiscoveryService>().onFavorite(currMediaItem, add: adding);
     }
     if (Get.find<SettingsScreenController>()
             .autoDownloadFavoriteSongEnabled
@@ -1202,9 +1231,7 @@ class PlayerController extends GetxController
   void notifyPlayError(String message, {bool isRetrying = false}) {
     final context = Get.context;
     if (context == null) return;
-    final text = isRetrying
-        ? "streamRetrying".tr
-        : _localizePlayError(message);
+    final text = isRetrying ? "streamRetrying".tr : _localizePlayError(message);
     if (!isRetrying) {
       playbackError.value = text;
     }

@@ -256,7 +256,7 @@ class PlaylistScreen extends StatelessWidget {
                         () => ScrollConfiguration(
                           behavior: PlaylistAlbumScrollBehaviour(),
                           child: ListView.builder(
-                            addRepaintBoundaries: false,
+                            addRepaintBoundaries: true,
                             padding: EdgeInsets.only(
                               top: playlistController.isSearchingOn.isTrue
                                   ? 0

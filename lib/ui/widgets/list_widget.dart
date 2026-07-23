@@ -90,7 +90,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
         bottom: 200,
         top: 0,
       ),
-      addRepaintBoundaries: false,
+      addRepaintBoundaries: true,
       addAutomaticKeepAlives: false,
       controller: sc,
       itemCount: items.length,

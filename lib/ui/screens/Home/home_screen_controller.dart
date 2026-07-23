@@ -29,8 +29,15 @@ class HomeScreenController extends GetxController {
   final showVersionDialog = true.obs;
   //isHomeScreenOnTop var only useful if bottom nav enabled
   final isHomeSreenOnTop = true.obs;
-  final List<ScrollController> contentScrollControllers = [];
+
+  /// Stable horizontal shelf scroll controllers keyed by section id.
+  /// Creating/disposing these inside Obx builders was a Home jank source.
+  final Map<String, ScrollController> _contentScrollControllers = {};
   bool reverseAnimationtransiton = false;
+
+  ScrollController scrollControllerFor(String key) {
+    return _contentScrollControllers.putIfAbsent(key, ScrollController.new);
+  }
 
   @override
   onInit() {
@@ -126,7 +133,8 @@ class HomeScreenController extends GetxController {
               element['title'] ==
               (contentType == "TMV" ? "Top Music Videos" : "Trending"));
           if (index != -1) {
-            _setQuickPicks(List<MediaItem>.from(charts[index]["contents"]), title: charts[index]['title']);
+            _setQuickPicks(List<MediaItem>.from(charts[index]["contents"]),
+                title: charts[index]['title']);
             middleContentTemp.addAll(charts);
           }
         }
@@ -135,14 +143,16 @@ class HomeScreenController extends GetxController {
             .indexWhere((element) => element['title'] == "Top music videos");
         if (index != -1 && index != 0) {
           final con = homeContentListMap.removeAt(index);
-          _setQuickPicks(List<MediaItem>.from(con["contents"]), title: con["title"]);
+          _setQuickPicks(List<MediaItem>.from(con["contents"]),
+              title: con["title"]);
         } else if (index == -1) {
           List charts = await _musicServices.getCharts(contentType);
           final index = charts.indexWhere((element) =>
               element['title'] ==
               (contentType == "TMV" ? "Top Music Videos" : "Trending"));
           if (index != -1) {
-            _setQuickPicks(List<MediaItem>.from(charts[index]["contents"]), title: charts[index]["title"]);
+            _setQuickPicks(List<MediaItem>.from(charts[index]["contents"]),
+                title: charts[index]["title"]);
             middleContentTemp.addAll(charts);
           }
         }
@@ -175,7 +185,8 @@ class HomeScreenController extends GetxController {
         }
         if (index != -1) {
           final con = homeContentListMap.removeAt(index);
-          _setQuickPicks(List<MediaItem>.from(con["contents"]), title: con["title"] ?? "Quick picks");
+          _setQuickPicks(List<MediaItem>.from(con["contents"]),
+              title: con["title"] ?? "Quick picks");
         }
       }
 
@@ -214,7 +225,7 @@ class HomeScreenController extends GetxController {
   ) {
     List contentTemp = [];
     for (var content in contents) {
-      if((content["contents"]).isEmpty) continue;
+      if ((content["contents"]).isEmpty) continue;
       if ((content["contents"][0]).runtimeType == Playlist) {
         final tmp = PlaylistContent(
             playlistList: BanService.filterCollections(
@@ -365,19 +376,16 @@ class HomeScreenController extends GetxController {
     }
   }
 
-  void disposeDetachedScrollControllers({bool disposeAll = false}) {
-    final scrollControllersCopy = contentScrollControllers.toList();
-    for (final contoller in scrollControllersCopy) {
-      if (!contoller.hasClients || disposeAll) {
-        contentScrollControllers.remove(contoller);
-        contoller.dispose();
-      }
+  void disposeContentScrollControllers() {
+    for (final controller in _contentScrollControllers.values) {
+      controller.dispose();
     }
+    _contentScrollControllers.clear();
   }
 
   @override
   void dispose() {
-    disposeDetachedScrollControllers(disposeAll: true);
+    disposeContentScrollControllers();
     super.dispose();
   }
 }

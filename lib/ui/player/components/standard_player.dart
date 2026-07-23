@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -60,40 +58,38 @@ class StandardPlayer extends StatelessWidget {
             ),
           ] else ...[
             const BackgroudImage(),
-            if (canvasOn)
-              const Positioned.fill(child: PlayerCanvasBackdrop()),
-            BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withOpacity(0.8),
+            if (canvasOn) const Positioned.fill(child: PlayerCanvasBackdrop()),
+            // Lighter than BackdropFilter blur — solid tint keeps art readable
+            // without per-frame save-layer cost while the panel animates.
+            Stack(
+              children: [
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor.withOpacity(0.82),
+                    ),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Container(
+                    height: 65 + Get.mediaQuery.padding.bottom + 120,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Theme.of(context).primaryColor,
+                          Theme.of(context).primaryColor,
+                          Theme.of(context).primaryColor.withOpacity(0.4),
+                          Theme.of(context).primaryColor.withOpacity(0),
+                        ],
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        stops: const [0, 0.5, 0.8, 1],
                       ),
                     ),
                   ),
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Container(
-                      height: 65 + Get.mediaQuery.padding.bottom + 120,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Theme.of(context).primaryColor,
-                            Theme.of(context).primaryColor,
-                            Theme.of(context).primaryColor.withOpacity(0.4),
-                            Theme.of(context).primaryColor.withOpacity(0),
-                          ],
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          stops: const [0, 0.5, 0.8, 1],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ],
 

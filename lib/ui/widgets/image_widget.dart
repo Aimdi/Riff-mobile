@@ -101,7 +101,7 @@ class ImageWidget extends StatelessWidget {
               height: size,
               width: size,
               fit: BoxFit.cover,
-              filterQuality: FilterQuality.high,
+              filterQuality: FilterQuality.medium,
               errorBuilder: (_, __, ___) => _placeholder(context),
             )
           : (imageUrl.isEmpty)
@@ -125,7 +125,7 @@ class ImageWidget extends StatelessWidget {
                   // One dimension only — setting both forces a square decode and
                   // elongates 16:9 YouTube frames.
                   memCacheWidth: decodeSide,
-                  filterQuality: FilterQuality.high,
+                  filterQuality: FilterQuality.medium,
                   imageUrl: imageUrl,
                   fit: BoxFit.cover,
                   alignment: Alignment.center,
@@ -222,7 +222,7 @@ class _SongCoverImageState extends State<_SongCoverImage> {
       height: widget.size,
       width: widget.size,
       memCacheWidth: widget.decodeSide,
-      filterQuality: FilterQuality.high,
+      filterQuality: FilterQuality.medium,
       imageUrl: _url,
       fit: BoxFit.cover,
       alignment: Alignment.center,
