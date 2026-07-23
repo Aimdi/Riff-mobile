@@ -26,9 +26,11 @@ class QuickPicksWidget extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 content.title.toLowerCase().removeAllWhitespace.tr,
-                style: Theme.of(context).textTheme.titleLarge,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      letterSpacing: -0.35,
+                    ),
               )),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Expanded(
             child: Scrollbar(
               thickness: GetPlatform.isDesktop ? null : 0,

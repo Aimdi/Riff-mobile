@@ -48,7 +48,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
             showModalBottomSheet(
               constraints: const BoxConstraints(maxWidth: 500),
               shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
               ),
               isScrollControlled: true,
               context: playerController.homeScaffoldkey.currentState!.context,
@@ -122,7 +122,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                 constraints: const BoxConstraints(maxWidth: 500),
                 shape: const RoundedRectangleBorder(
                   borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(10.0)),
+                      BorderRadius.vertical(top: Radius.circular(16.0)),
                 ),
                 isScrollControlled: true,
                 context: playerController.homeScaffoldkey.currentState!.context,
@@ -134,11 +134,15 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                 ),
               ).whenComplete(() => Get.delete<SongInfoController>());
             },
-            contentPadding: const EdgeInsets.only(top: 0, left: 5, right: 30),
+            contentPadding:
+                const EdgeInsets.only(top: 0, left: 8, right: 16, bottom: 0),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
             leading: thumbReplacementWithIndex
                 ? SizedBox(
                     width: 27.5,
-                    height: 55,
+                    height: 52,
                     child: Center(
                       child: Text(
                         "$index.",
@@ -147,7 +151,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                     ),
                   )
                 : ImageWidget(
-                    size: 55,
+                    size: 52,
                     song: song,
                   ),
             title: Marquee(
@@ -159,13 +163,18 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                     ? song.title.substring(0, 50)
                     : song.title,
                 maxLines: 1,
-                style: Theme.of(context).textTheme.titleMedium,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.15,
+                    ),
               ),
             ),
             subtitle: Text(
               "${song.artist}",
               maxLines: 1,
-              style: Theme.of(context).textTheme.titleSmall,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
             trailing: SizedBox(
               width: showMixMeta

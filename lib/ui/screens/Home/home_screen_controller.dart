@@ -20,6 +20,9 @@ class HomeScreenController extends GetxController {
   final isContentFetched = false.obs;
   final tabIndex = 0.obs;
   final networkError = false.obs;
+
+  /// Cached Home is on screen because a background refresh failed.
+  final showingCachedWhileOffline = false.obs;
   final quickPicks = QuickPicks([]).obs;
   final middleContent = [].obs;
   final fixedContent = [].obs;
@@ -104,6 +107,7 @@ class HomeScreenController extends GetxController {
     String contentType = box.get("discoverContentType") ?? "QP";
 
     networkError.value = false;
+    if (!silent) showingCachedWhileOffline.value = false;
     try {
       List middleContentTemp = [];
       final homeContentListMap = await _musicServices.getHome(
@@ -179,6 +183,7 @@ class HomeScreenController extends GetxController {
       fixedContent.value = _setContentList(homeContentListMap);
 
       isContentFetched.value = true;
+      showingCachedWhileOffline.value = false;
 
       // set home content last update time
       cachedHomeScreenData(updateAll: true);
@@ -189,12 +194,18 @@ class HomeScreenController extends GetxController {
       printERROR("Home Content not loaded due to ${r.message}");
       await Future.delayed(const Duration(seconds: 1));
       networkError.value = !silent;
+      if (silent && isContentFetched.isTrue) {
+        showingCachedWhileOffline.value = true;
+      }
     } catch (e, stack) {
       // A parsing failure (YT Music response shape change) must surface
       // the retry UI instead of leaving the loading shimmer forever.
       printERROR("Home Content failed to parse: $e\n$stack");
       await Future.delayed(const Duration(seconds: 1));
       networkError.value = !silent;
+      if (silent && isContentFetched.isTrue) {
+        showingCachedWhileOffline.value = true;
+      }
     }
   }
 

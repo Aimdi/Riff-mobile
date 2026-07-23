@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -23,23 +25,40 @@ class MiniPlayer extends StatelessWidget {
     final playerController = Get.find<PlayerController>();
     final size = MediaQuery.of(context).size;
     final isWideScreen = size.width > 800;
+    final theme = Theme.of(context);
+    final frostBase = theme.cardColor;
+    final frost = frostBase.withOpacity(
+      theme.brightness == Brightness.dark ? 0.72 : 0.88,
+    );
     return Obx(() {
       return Visibility(
         visible: playerController.isPlayerpanelTopVisible.value,
         child: AnimatedOpacity(
           opacity: playerController.playerPaneOpacity.value,
           duration: Duration.zero,
-          child: Container(
-            height: playerController.playerPanelMinHeight.value,
-            width: size.width,
-            color: Theme.of(context).bottomSheetTheme.backgroundColor,
-            child: Center(
-              child: Column(
-                children: [
-                  !isWideScreen
-                      ? GetX<PlayerController>(
-                          builder: (controller) => Container(
-                              height: 3,
+          child: ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: frost,
+                  border: Border(
+                    top: BorderSide(
+                      color: theme.dividerColor.withOpacity(0.9),
+                      width: 0.5,
+                    ),
+                  ),
+                ),
+                child: SizedBox(
+                  height: playerController.playerPanelMinHeight.value,
+                  width: size.width,
+                  child: Center(
+                    child: Column(
+                      children: [
+                        !isWideScreen
+                            ? GetX<PlayerController>(
+                                builder: (controller) => Container(
+                                    height: 2,
                               color: Theme.of(context)
                                   .progressIndicatorTheme
                                   .color,
@@ -163,7 +182,7 @@ class MiniPlayer extends StatelessWidget {
                         ),
                         //player control
                         SizedBox(
-                          width: isWideScreen ? 450 : 90,
+                          width: isWideScreen ? 450 : 132,
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
@@ -199,27 +218,26 @@ class MiniPlayer extends StatelessWidget {
                                             ))),
                                   ],
                                 ),
-                              if (isWideScreen)
-                                SizedBox(
-                                    width: 40,
-                                    child: InkWell(
-                                      onTap: (playerController
-                                                  .currentQueue.isEmpty ||
-                                              (playerController
-                                                      .currentQueue.first.id ==
-                                                  playerController
-                                                      .currentSong.value?.id))
-                                          ? null
-                                          : playerController.prev,
-                                      child: Icon(
-                                        Icons.skip_previous,
-                                        color: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium!
-                                            .color,
-                                        size: 35,
-                                      ),
-                                    )),
+                              SizedBox(
+                                  width: isWideScreen ? 40 : 34,
+                                  child: InkWell(
+                                    onTap: (playerController
+                                                .currentQueue.isEmpty ||
+                                            (playerController
+                                                    .currentQueue.first.id ==
+                                                playerController
+                                                    .currentSong.value?.id))
+                                        ? null
+                                        : playerController.prev,
+                                    child: Icon(
+                                      Icons.skip_previous_rounded,
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium!
+                                          .color,
+                                      size: isWideScreen ? 35 : 28,
+                                    ),
+                                  )),
                               isWideScreen
                                   ? Container(
                                       decoration: BoxDecoration(
@@ -227,21 +245,21 @@ class MiniPlayer extends StatelessWidget {
                                               .colorScheme
                                               .secondary,
                                           borderRadius:
-                                              BorderRadius.circular(10)),
+                                              BorderRadius.circular(12)),
                                       width: 58,
                                       height: 58,
                                       child: Center(
                                           child: AnimatedPlayButton(
                                         iconSize: isWideScreen ? 43 : 35,
                                       )))
-                                  : SizedBox.square(
-                                      dimension: 50,
+                                  : const SizedBox.square(
+                                      dimension: 44,
                                       child: Center(
                                           child: AnimatedPlayButton(
-                                        iconSize: isWideScreen ? 43 : 35,
+                                        iconSize: 32,
                                       ))),
                               SizedBox(
-                                  width: 40,
+                                  width: isWideScreen ? 40 : 34,
                                   child: Obx(() {
                                     final isLastSong =
                                         playerController.currentQueue.isEmpty ||
@@ -260,7 +278,7 @@ class MiniPlayer extends StatelessWidget {
                                           ? null
                                           : playerController.next,
                                       child: Icon(
-                                        Icons.skip_next,
+                                        Icons.skip_next_rounded,
                                         color: isLastSong
                                             ? Theme.of(context)
                                                 .textTheme
@@ -271,7 +289,7 @@ class MiniPlayer extends StatelessWidget {
                                                 .textTheme
                                                 .titleMedium!
                                                 .color,
-                                        size: 35,
+                                        size: isWideScreen ? 35 : 28,
                                       ),
                                     );
                                   })),
@@ -493,6 +511,9 @@ class MiniPlayer extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+                  ),
+                ),
               ),
             ),
           ),

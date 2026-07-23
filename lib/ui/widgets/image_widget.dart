@@ -63,7 +63,7 @@ class ImageWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.secondary.withOpacity(0.85),
         shape: isCircle ? BoxShape.circle : BoxShape.rectangle,
-        borderRadius: isCircle ? null : BorderRadius.circular(8),
+        borderRadius: isCircle ? null : BorderRadius.circular(10),
       ),
       child: Image.asset(
         _fallbackAsset,
@@ -92,7 +92,7 @@ class ImageWidget extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         shape: artist != null ? BoxShape.circle : BoxShape.rectangle,
-        borderRadius: artist != null ? null : BorderRadius.circular(5),
+        borderRadius: artist != null ? null : BorderRadius.circular(10),
       ),
       child: offlineAvailable
           ? Image.file(

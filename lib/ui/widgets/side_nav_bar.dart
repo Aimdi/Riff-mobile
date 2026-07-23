@@ -216,20 +216,38 @@ class _SideNavBarState extends State<SideNavBar> {
     final isSelected = selectedForIndices?.contains(selected) ??
         (selected == destination.index);
     final accent = Theme.of(context).colorScheme.secondary;
-    final normal = Theme.of(context).textTheme.titleLarge!.color;
+    final normal = Theme.of(context).textTheme.titleSmall?.color ??
+        Theme.of(context).textTheme.titleLarge!.color;
     final color = isSelected ? accent : normal;
     final item = InkWell(
+      customBorder: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
       onTap: () => controller.onSideBarTabSelected(destination.index),
       child: Padding(
         padding: EdgeInsets.symmetric(
-            vertical: sub ? 6 : 10, horizontal: sub ? 14 : 6),
+            vertical: sub ? 4 : 8, horizontal: sub ? 10 : 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              isSelected ? destination.icon : destination.iconOutlined,
-              size: sub ? 18 : 22,
-              color: color,
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              padding: EdgeInsets.all(sub ? 6 : 8),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? accent.withOpacity(0.16)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: isSelected
+                    ? Border.all(color: accent.withOpacity(0.28), width: 0.5)
+                    : null,
+              ),
+              child: Icon(
+                isSelected ? destination.icon : destination.iconOutlined,
+                size: sub ? 18 : 22,
+                color: color,
+              ),
             ),
             if (!destination.iconOnly) ...[
               const SizedBox(height: 6),
@@ -239,8 +257,10 @@ class _SideNavBarState extends State<SideNavBar> {
                   destination.labelKey.tr,
                   style: TextStyle(
                     color: color,
-                    fontSize: sub ? 13 : 16,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                    fontSize: sub ? 12 : 15,
+                    fontWeight:
+                        isSelected ? FontWeight.w700 : FontWeight.w500,
+                    letterSpacing: -0.1,
                   ),
                 ),
               ),

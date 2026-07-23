@@ -14,6 +14,8 @@ import '/ui/widgets/create_playlist_dialog.dart';
 import '../../navigator.dart';
 import '../../widgets/content_list_widget.dart';
 import '../../widgets/discovery/home_discovery_section.dart';
+import '../../widgets/discovery/riff_wave_hero.dart';
+import '../../utils/riff_tokens.dart';
 import '../../widgets/quickpickswidget.dart';
 import '../../widgets/shimmer_widgets/home_shimmer.dart';
 import '../../../services/discovery/discovery_service.dart';
@@ -192,9 +194,12 @@ class Body extends StatelessWidget {
                         final items = homeScreenController
                                 .isContentFetched.value
                             ? [
-                                // Spotify-like Home order:
-                                // shortcuts → Made for you / Because → Quick Picks
-                                // → charts/editorial → quieter rediscover/fans last
+                                // Daily loop: Wave hero first, then shortcuts /
+                                // personal shelves → Quick Picks → editorial.
+                                if (homeScreenController
+                                    .showingCachedWhileOffline.isTrue)
+                                  const _OfflineHomeBanner(),
+                                const RiffWaveHero(),
                                 if (personal.isNotEmpty) ...[
                                   const HomeShortcutGrid(),
                                   if (Get.isRegistered<DiscoveryService>() &&
@@ -335,5 +340,55 @@ class Body extends StatelessWidget {
         })
         .whereType<Widget>()
         .toList();
+  }
+}
+
+/// Soft strip when Home is showing cached shelves after a silent network miss.
+class _OfflineHomeBanner extends StatelessWidget {
+  const _OfflineHomeBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 0, 12, 8),
+      child: Material(
+        color: theme.cardColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+          side: RiffTokens.hairlineBorder(context),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+          onTap: () =>
+              Get.find<HomeScreenController>().loadContentFromNetwork(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                Icon(Icons.cloud_off_outlined,
+                    size: 18, color: theme.colorScheme.secondary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'offlineHomeBanner'.tr,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Text(
+                  'retry'.tr,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.secondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
