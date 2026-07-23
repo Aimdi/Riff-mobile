@@ -44,7 +44,7 @@ class ThemeController extends GetxController {
     systemBrightness =
         WidgetsBinding.instance.platformDispatcher.platformBrightness;
 
-    final box = Hive.box('appPrefs');
+    final box = Hive.box('AppPrefs');
     final primaryRaw = box.get("themePrimaryColor") ?? 4278199603;
     primaryColor.value =
         Color(primaryRaw is int ? primaryRaw : 4278199603);
@@ -76,7 +76,7 @@ class ThemeController extends GetxController {
     final platformDispatcher = WidgetsBinding.instance.platformDispatcher;
     platformDispatcher.onPlatformBrightnessChanged = () {
       systemBrightness = platformDispatcher.platformBrightness;
-      changeThemeModeType(_themeTypeFromPrefs(Hive.box('appPrefs')),
+      changeThemeModeType(_themeTypeFromPrefs(Hive.box('AppPrefs')),
           sysCall: true);
     };
   }
@@ -102,7 +102,7 @@ class ThemeController extends GetxController {
   /// Changes the Pitch Black accent color and rebuilds the theme.
   void changeAccentColor(Color color) {
     accentColor.value = color;
-    final box = Hive.box('appPrefs');
+    final box = Hive.box('AppPrefs');
     box.put("riffAccentColor", color.value);
     changeThemeModeType(_themeTypeFromPrefs(box));
   }
@@ -129,7 +129,7 @@ class ThemeController extends GetxController {
         textColor: textColor.value,
         titleColorSwatch: _createMaterialColor(textColor.value));
     currentSongId = songId;
-    Hive.box('appPrefs').put("themePrimaryColor", (primaryColor.value!).value);
+    Hive.box('AppPrefs').put("themePrimaryColor", (primaryColor.value!).value);
     setWindowsTitleBarColor(themedata.value!.scaffoldBackgroundColor);
   }
 

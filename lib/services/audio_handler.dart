@@ -93,7 +93,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     _notifyAudioHandlerAboutPlaybackEvents();
     _listenToPlaybackForNextSong();
     _listenForSequenceStateChanges();
-    final appPrefsBox = Hive.box("appPrefs");
+    final appPrefsBox = Hive.box("AppPrefs");
     _player
         .setSkipSilenceEnabled(appPrefsBox.get("skipSilenceEnabled") ?? false);
     _player.setSpeed((appPrefsBox.get("playbackSpeed") ?? 1.0).toDouble());
@@ -142,7 +142,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   void _applyAudioFx([int? sessionId]) {
     final id = sessionId ?? _player.androidAudioSessionId;
     if (id == null) return;
-    final box = Hive.box("appPrefs");
+    final box = Hive.box("AppPrefs");
     _fxChannel.invokeMethod('setAudioFx', {
       'sessionId': id,
       'bass': box.get("bassBoost") ?? 0,

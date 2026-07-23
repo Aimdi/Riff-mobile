@@ -153,6 +153,20 @@ initHive() async {
   await Hive.openBox("SongDownloads");
   await Hive.openBox('SongsUrlCache');
   await Hive.openBox("AppPrefs");
+  // Legacy ThemeController / audio_handler used "appPrefs" (wrong case).
+  // On case-sensitive filesystems that was a separate empty box — merge once.
+  try {
+    if (await Hive.boxExists('appPrefs')) {
+      final legacy = await Hive.openBox('appPrefs');
+      final prefs = Hive.box('AppPrefs');
+      for (final key in legacy.keys) {
+        if (!prefs.containsKey(key)) {
+          await prefs.put(key, legacy.get(key));
+        }
+      }
+      await legacy.deleteFromDisk();
+    }
+  } catch (_) {}
   await Hive.openBox("BannedSongs");
   await Hive.openBox("BannedArtists");
   await Hive.openBox("BannedCollections");
