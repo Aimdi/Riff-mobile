@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -23,23 +25,40 @@ class MiniPlayer extends StatelessWidget {
     final playerController = Get.find<PlayerController>();
     final size = MediaQuery.of(context).size;
     final isWideScreen = size.width > 800;
+    final theme = Theme.of(context);
+    final frostBase = theme.cardColor;
+    final frost = frostBase.withOpacity(
+      theme.brightness == Brightness.dark ? 0.72 : 0.88,
+    );
     return Obx(() {
       return Visibility(
         visible: playerController.isPlayerpanelTopVisible.value,
         child: AnimatedOpacity(
           opacity: playerController.playerPaneOpacity.value,
           duration: Duration.zero,
-          child: Container(
-            height: playerController.playerPanelMinHeight.value,
-            width: size.width,
-            color: Theme.of(context).bottomSheetTheme.backgroundColor,
-            child: Center(
-              child: Column(
-                children: [
-                  !isWideScreen
-                      ? GetX<PlayerController>(
-                          builder: (controller) => Container(
-                              height: 3,
+          child: ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: frost,
+                  border: Border(
+                    top: BorderSide(
+                      color: theme.dividerColor.withOpacity(0.9),
+                      width: 0.5,
+                    ),
+                  ),
+                ),
+                child: SizedBox(
+                  height: playerController.playerPanelMinHeight.value,
+                  width: size.width,
+                  child: Center(
+                    child: Column(
+                      children: [
+                        !isWideScreen
+                            ? GetX<PlayerController>(
+                                builder: (controller) => Container(
+                                    height: 2,
                               color: Theme.of(context)
                                   .progressIndicatorTheme
                                   .color,
@@ -493,6 +512,9 @@ class MiniPlayer extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+                  ),
+                ),
               ),
             ),
           ),

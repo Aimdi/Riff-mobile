@@ -140,7 +140,10 @@ class ContentListItem extends StatelessWidget {
                   Text(
                     content.title,
                     maxLines: 2,
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.15,
+                        ),
                   ),
                   Text(
                     isAlbum
@@ -151,7 +154,9 @@ class ContentListItem extends StatelessWidget {
                             ? ""
                             : content.description ?? "",
                     maxLines: 1,
-                    style: Theme.of(context).textTheme.titleSmall,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
                   ),
                 ],
               ),

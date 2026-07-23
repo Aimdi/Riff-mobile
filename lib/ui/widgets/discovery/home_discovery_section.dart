@@ -28,7 +28,7 @@ class HomeDiscoverySection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 5, top: 18, bottom: 8, right: 10),
+          padding: const EdgeInsets.only(left: 8, top: 20, bottom: 10, right: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -37,21 +37,23 @@ class HomeDiscoverySection extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w700,
                       fontSize: 20,
+                      letterSpacing: -0.35,
                     ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               if (section.reason.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(top: 2),
+                  padding: const EdgeInsets.only(top: 3),
                   child: Text(
                     section.reason,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(context)
                               .textTheme
-                              .bodySmall
+                              .titleSmall
                               ?.color
-                              ?.withOpacity(0.65),
+                              ?.withOpacity(0.85),
+                          fontWeight: FontWeight.w500,
                         ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -104,7 +106,7 @@ class _DiscoveryCard extends StatelessWidget {
     return SizedBox(
       width: 130,
       child: InkWell(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         onTap: () {
           final tagged = Get.isRegistered<DiscoveryService>()
               ? DiscoveryService.withSource(song, DiscoverySource.discover)
@@ -117,7 +119,7 @@ class _DiscoveryCard extends StatelessWidget {
             isScrollControlled: true,
             constraints: const BoxConstraints(maxWidth: 500),
             shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
             ),
             builder: (ctx) => SafeArea(
               child: Column(
@@ -182,17 +184,24 @@ class _DiscoveryCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(12),
                 child: ImageWidget(song: song, size: 120),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 7),
               Text(song.title,
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: Theme.of(context).textTheme.titleMedium?.color,
+                        fontWeight: FontWeight.w600,
+                      )),
               Text(
                 reason.isNotEmpty ? reason : (song.artist ?? ''),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
               ),
             ],
           ),
@@ -360,16 +369,26 @@ class HomeShortcutGrid extends StatelessWidget {
                   width: tileW,
                   height: 52,
                   child: Material(
-                    color: onSurface.withOpacity(0.06),
-                    borderRadius: BorderRadius.circular(6),
+                    color: Theme.of(context).cardColor.withOpacity(
+                          Theme.of(context).brightness == Brightness.dark
+                              ? 0.92
+                              : 1,
+                        ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: Theme.of(context).dividerColor.withOpacity(0.7),
+                        width: 0.5,
+                      ),
+                    ),
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(12),
                       onTap: e.onTap,
                       child: Row(
                         children: [
                           ClipRRect(
                             borderRadius: const BorderRadius.horizontal(
-                              left: Radius.circular(6),
+                              left: Radius.circular(12),
                             ),
                             child: SizedBox(
                               width: 52,
@@ -393,8 +412,9 @@ class HomeShortcutGrid extends StatelessWidget {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                                 fontSize: 13,
+                                letterSpacing: -0.15,
                               ),
                             ),
                           ),
