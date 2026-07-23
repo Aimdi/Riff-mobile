@@ -99,7 +99,7 @@ Only enable plugins you intend to use, and only download content you have the ri
 - Audio effects — bass boost, volume boost, reverb presets, stereo width, speed & pitch
 - Equalizer, sleep timer, skip silence, streaming quality
 - Pitch Black OLED theme with Riff’s green accent, plus Blue / Violet / Crimson / Amber
-- Side nav or bottom nav
+- Side nav rail
 - Android Auto
 - Many languages
 - On-device **Stats** — plays, hours, daily activity, top songs/artists (Settings → Library & sync)

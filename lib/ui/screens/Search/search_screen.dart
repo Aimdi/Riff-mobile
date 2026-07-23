@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'components/search_item.dart';
-import '/ui/screens/Settings/settings_screen_controller.dart';
 import '../../widgets/modified_text_field.dart';
 import '/ui/navigator.dart';
 import 'search_screen_controller.dart';
@@ -13,43 +12,34 @@ class SearchScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final searchScreenController = Get.put(SearchScreenController());
-    final settingsScreenController = Get.find<SettingsScreenController>();
     final topPadding = context.isLandscape ? 50.0 : 80.0;
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: Obx(
         () => Row(
           children: [
-            settingsScreenController.isBottomNavBarEnabled.isFalse
-                ? Container(
-                    width: 60,
-                    color:
-                        Theme.of(context).navigationRailTheme.backgroundColor,
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: EdgeInsets.only(top: topPadding),
-                          child: IconButton(
-                            icon: Icon(
-                              Icons.arrow_back_ios_new,
-                              color: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium!
-                                  .color,
-                            ),
-                            onPressed: () {
-                              Get.nestedKey(ScreenNavigationSetup.id)!
-                                  .currentState!
-                                  .pop();
-                            },
-                          ),
-                        ),
-                      ],
+            Container(
+              width: 60,
+              color: Theme.of(context).navigationRailTheme.backgroundColor,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: EdgeInsets.only(top: topPadding),
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.arrow_back_ios_new,
+                        color: Theme.of(context).textTheme.titleMedium!.color,
+                      ),
+                      onPressed: () {
+                        Get.nestedKey(ScreenNavigationSetup.id)!
+                            .currentState!
+                            .pop();
+                      },
                     ),
-                  )
-                : const SizedBox(
-                    width: 15,
                   ),
+                ],
+              ),
+            ),
             Expanded(
               child: Padding(
                 padding: EdgeInsets.only(top: topPadding, left: 5),
@@ -80,8 +70,7 @@ class SearchScreen extends StatelessWidget {
                             id: ScreenNavigationSetup.id, arguments: val);
                         searchScreenController.addToHistryQueryList(val);
                       },
-                      autofocus: settingsScreenController
-                          .isBottomNavBarEnabled.isFalse,
+                      autofocus: true,
                       cursorColor: Theme.of(context).textTheme.bodySmall!.color,
                       decoration: InputDecoration(
                           contentPadding: const EdgeInsets.only(left: 5),

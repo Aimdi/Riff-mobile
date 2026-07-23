@@ -6,7 +6,6 @@ import '/models/playlist.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/screens/Artists/artist_screen_v2.dart';
 import '/ui/screens/Podcasts/podcasts_library_controller.dart';
-import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/widgets/image_widget.dart';
 import '../../widgets/loader.dart';
 import '../../widgets/separate_tab_item_widget.dart';
@@ -55,8 +54,7 @@ class ArtistScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: GetPlatform.isDesktop ||
-              Get.find<SettingsScreenController>().isBottomNavBarEnabled.value
+      body: GetPlatform.isDesktop
           ? ArtistScreenBN(
               artistScreenController: artistScreenController, tag: tag)
           : SpotifyArtistView(controller: artistScreenController),

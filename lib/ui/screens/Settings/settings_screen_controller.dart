@@ -61,16 +61,11 @@ class SettingsScreenController extends GetxController {
   final downloadingFormat = "".obs;
   final autoDownloadFavoriteSongEnabled = false.obs;
   final isTransitionAnimationDisabled = false.obs;
-  final isBottomNavBarEnabled = false.obs;
   final backgroundPlayEnabled = true.obs;
   final keepScreenAwake = false.obs;
   final restorePlaybackSession = false.obs;
   final cacheHomeScreenData = true.obs;
-  /// Unlocks Advanced developer tools (tap About version 7×).
-  final developerMode = false.obs;
-  final currentVersion = "V1.7.68";
-  int _versionTapCount = 0;
-  DateTime? _lastVersionTap;
+  final currentVersion = "V1.7.69";
 
   @override
   void onInit() {
@@ -107,8 +102,10 @@ class SettingsScreenController extends GetxController {
         : appLang == "zh_Hans"
             ? "zh-CN"
             : appLang;
-    isBottomNavBarEnabled.value =
-        isDesktop ? false : (setBox.get("isBottomNavBarEnabled") ?? false);
+    // Bottom nav option removed — clear any leftover preference.
+    if (setBox.get("isBottomNavBarEnabled") == true) {
+      setBox.put("isBottomNavBarEnabled", false);
+    }
     noOfHomeScreenContent.value = setBox.get("noOfHomeScreenContent") ?? 3;
     isTransitionAnimationDisabled.value =
         setBox.get("isTransitionAnimationDisabled") ?? false;
@@ -209,25 +206,6 @@ class SettingsScreenController extends GetxController {
     }
 
     playerUi.value = val;
-  }
-
-  void enableBottomNavBar(bool val) {
-    final homeScrCon = Get.find<HomeScreenController>();
-    final playerCon = Get.find<PlayerController>();
-    if (val) {
-      // Bottom nav: Settings is index 3
-      homeScrCon.onSideBarTabSelected(3);
-      isBottomNavBarEnabled.value = true;
-    } else {
-      isBottomNavBarEnabled.value = false;
-      // Side nav: Settings is last (… Artists, Settings)
-      homeScrCon.onSideBarTabSelected(7);
-    }
-    if (!Get.find<PlayerController>().initFlagForPlayer) {
-      playerCon.playerPanelMinHeight.value =
-          val ? 75.0 : 75.0 + Get.mediaQuery.viewPadding.bottom;
-    }
-    setBox.put("isBottomNavBarEnabled", val);
   }
 
   void toggleSlidableAction(bool val) {

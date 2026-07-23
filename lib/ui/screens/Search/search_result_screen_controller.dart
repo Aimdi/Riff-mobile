@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:harmonymusic/ui/screens/Settings/settings_screen_controller.dart';
 
 import '../../../utils/helper.dart';
 import '../Home/home_screen_controller.dart';
@@ -228,7 +227,23 @@ class SearchResultScreenController extends GetxController
         scrollControllers.putIfAbsent(item, () => ScrollController());
       }
 
-      _initDesktopTabsIfNeeded();
+      if (GetPlatform.isDesktop) {
+        for (var element in railItems) {
+          separatedResultContent[element] = [];
+        }
+
+        tabController =
+            TabController(length: railItems.length + 1, vsync: this);
+
+        tabController?.animation?.addListener(() {
+          int indexChange = tabController!.offset.round();
+          int index = tabController!.index + indexChange;
+
+          if (index != navigationRailCurrentIndex.value) {
+            onDestinationSelected(index, ignoreTabCommand: true);
+          }
+        });
+      }
       isResultContentFetced.value = true;
     }
   }

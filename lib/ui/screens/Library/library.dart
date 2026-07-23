@@ -220,8 +220,7 @@ class PlaylistNAlbumLibraryWidget extends StatelessWidget {
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                       ),
-                (settingscrnController.isBottomNavBarEnabled.isTrue ||
-                        isAlbumContent ||
+                (isAlbumContent ||
                         settingscrnController.isLinkedWithPiped.isFalse)
                     ? const SizedBox.shrink()
                     : PipedSyncWidget(
