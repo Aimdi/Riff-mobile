@@ -75,12 +75,15 @@ class PodcastQueueController extends GetxController {
         'artist': m.artist,
         'artUri': m.artUri?.toString(),
         'durationMs': m.duration?.inMilliseconds,
-        // Keep only the primitive extras needed for playback + display.
+        // Keep extras needed for playback, chapters, transcripts, and display.
         'url': m.extras?['url'],
         'isPodcast': m.extras?['isPodcast'] ?? true,
         'date': m.extras?['date'],
         'description': m.extras?['description'],
         'length': m.extras?['length'],
+        'chaptersUrl': m.extras?['chaptersUrl'],
+        'transcriptUrl': m.extras?['transcriptUrl'],
+        'transcriptType': m.extras?['transcriptType'],
       };
 
   MediaItem _fromMap(Map<String, dynamic> m) => MediaItem(
@@ -99,6 +102,10 @@ class PodcastQueueController extends GetxController {
           'date': m['date'],
           'description': m['description'],
           'length': m['length'],
+          if (m['chaptersUrl'] != null) 'chaptersUrl': m['chaptersUrl'],
+          if (m['transcriptUrl'] != null) 'transcriptUrl': m['transcriptUrl'],
+          if (m['transcriptType'] != null)
+            'transcriptType': m['transcriptType'],
         },
       );
 }

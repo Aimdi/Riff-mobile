@@ -174,8 +174,10 @@ class PlayerControlWidget extends StatelessWidget {
             );
             return Padding(
               padding: const EdgeInsets.only(bottom: 14),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 10,
+                runSpacing: 8,
                 children: [
                   OutlinedButton.icon(
                     onPressed: () => _openShownotes(playerController, context),
@@ -183,8 +185,15 @@ class PlayerControlWidget extends StatelessWidget {
                     label: Text("shownotes".tr),
                     style: style,
                   ),
-                  if (transcriptUrl.isNotEmpty) ...[
-                    const SizedBox(width: 10),
+                  if (playerController.hasChapters)
+                    OutlinedButton.icon(
+                      onPressed: () =>
+                          _openChapters(playerController, context),
+                      icon: const Icon(Icons.list_rounded, size: 20),
+                      label: Text("chapters".tr),
+                      style: style,
+                    ),
+                  if (transcriptUrl.isNotEmpty)
                     OutlinedButton.icon(
                       onPressed: () => PodcastTranscriptSheet.open(
                         context,
@@ -196,7 +205,6 @@ class PlayerControlWidget extends StatelessWidget {
                       label: Text("transcript".tr),
                       style: style,
                     ),
-                  ],
                 ],
               ),
             );
@@ -317,7 +325,7 @@ class PlayerControlWidget extends StatelessWidget {
     );
   }
 
-  /// AntennaPod-style transport: speed · −10s · play/pause · +30s · next.
+  /// AntennaPod-style transport: autoplay · speed · −10s · play/pause · +30s · next.
   Widget _podcastControls(
       PlayerController playerController, BuildContext context) {
     final color = Theme.of(context).textTheme.titleMedium!.color;
@@ -350,10 +358,36 @@ class PlayerControlWidget extends StatelessWidget {
 
   Widget _podcastButtonsRow(PlayerController playerController,
       BuildContext context, Color? color) {
+    final settings = Get.find<SettingsScreenController>();
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
+        // Continuous autoplay toggle (AntennaPod-experimental shortcut).
+        Obx(() {
+          final on = settings.podcastContinuousPlaybackEnabled.value;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: on
+                    ? 'podcastAutoplayOn'.tr
+                    : 'podcastAutoplayOff'.tr,
+                iconSize: 26,
+                onPressed: () =>
+                    settings.togglePodcastContinuousPlayback(!on),
+                icon: Icon(
+                  on ? Icons.playlist_play_rounded : Icons.playlist_remove_rounded,
+                  color: on
+                      ? Theme.of(context).colorScheme.secondary
+                      : color,
+                ),
+              ),
+              Text(on ? 'auto'.tr : 'stop'.tr,
+                  style: Theme.of(context).textTheme.labelSmall),
+            ],
+          );
+        }),
         // Playback speed — tap to cycle common podcast speeds.
         _SpeedButton(color: color),
         // Skip back 10s
@@ -387,6 +421,65 @@ class PlayerControlWidget extends StatelessWidget {
         ),
         _nextButton(playerController, context),
       ],
+    );
+  }
+
+  void _openChapters(PlayerController playerController, BuildContext context) {
+    final chapters = playerController.chapters;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.55,
+        maxChildSize: 0.9,
+        builder: (ctx, scrollCtrl) {
+          String fmt(double sec) {
+            final d = Duration(milliseconds: (sec * 1000).round());
+            final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+            final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+            final h = d.inHours;
+            return h > 0 ? '$h:$m:$s' : '$m:$s';
+          }
+
+          return ListView.builder(
+            controller: scrollCtrl,
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 24),
+            itemCount: chapters.length + 1,
+            itemBuilder: (ctx, i) {
+              if (i == 0) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                  child: Text('chapters'.tr,
+                      style: Theme.of(ctx).textTheme.titleLarge),
+                );
+              }
+              final c = chapters[i - 1];
+              return ListTile(
+                leading: Icon(
+                  c.isAd ? Icons.campaign_outlined : Icons.play_arrow_rounded,
+                  color: c.isAd
+                      ? Theme.of(ctx).colorScheme.error
+                      : Theme.of(ctx).colorScheme.secondary,
+                ),
+                title: Text(c.title,
+                    maxLines: 2, overflow: TextOverflow.ellipsis),
+                subtitle: Text(fmt(c.startSec)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  playerController.seek(
+                    Duration(milliseconds: (c.startSec * 1000).round()),
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
