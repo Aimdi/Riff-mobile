@@ -233,6 +233,35 @@ class GesturePlayer extends StatelessWidget {
                       const SizedBox(
                         height: 5,
                       ),
+                      Obx(() {
+                        final err = playerController.playbackError.value;
+                        if (err == null || err.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
+                        final theme = Theme.of(context);
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            children: [
+                              Icon(Icons.error_outline,
+                                  size: 16, color: theme.colorScheme.error),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  err,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: playerController.retryPlayback,
+                                child: Text("retry".tr),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
                       GetX<PlayerController>(builder: (controller) {
                         return ProgressBar(
                           thumbRadius: 6,

@@ -209,6 +209,44 @@ class PlayerControlWidget extends StatelessWidget {
               ),
             );
           }),
+          // Visible reason when a song won't start — snackbar alone is easy to miss.
+          Obx(() {
+            final err = playerController.playbackError.value;
+            if (err == null || err.isEmpty) return const SizedBox.shrink();
+            final theme = Theme.of(context);
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(6, 0, 6, 8),
+              child: Material(
+                color: theme.colorScheme.error.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline,
+                          size: 18, color: theme.colorScheme.error),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          err,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.textTheme.titleMedium?.color,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: playerController.retryPlayback,
+                        child: Text("retry".tr),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
           // The seek control IS the SoundCloud-style waveform (no separate
           // slider line): it fills with the accent colour as the track plays,
           // shows the elapsed/total time beneath, and is tap/drag seekable.

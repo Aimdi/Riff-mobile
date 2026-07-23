@@ -191,30 +191,26 @@ class StreamProvider {
           playable: false,
           statusMSG: "networkError",
         );
-      } else if (e is VideoUnplayableException) {
-        return StreamProvider(
-          playable: false,
-          statusMSG: e.message,
-        );
       } else if (e is VideoRequiresPurchaseException) {
         return StreamProvider(
           playable: false,
-          statusMSG: "Song requires purchase",
+          statusMSG: "songRequiresPurchase",
         );
       } else if (e is VideoUnavailableException) {
         return StreamProvider(
           playable: false,
-          statusMSG: "Song is unavailable",
+          statusMSG: "songUnavailable",
         );
-      } else if (e is YoutubeExplodeException) {
+      } else if (e is VideoUnplayableException ||
+          e is YoutubeExplodeException) {
         return StreamProvider(
           playable: false,
-          statusMSG: e.message,
+          statusMSG: "songNotPlayable",
         );
       } else {
         return StreamProvider(
           playable: false,
-          statusMSG: "Unknown error occurred",
+          statusMSG: "streamUnknownError",
         );
       }
     } finally {

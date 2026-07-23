@@ -179,9 +179,7 @@ class Downloader extends GetxService {
     if (!playerResponse.playable) {
       ScaffoldMessenger.of(Get.context!).showSnackBar(snackbar(
           Get.context!,
-          playerResponse.statusMSG == "networkError"
-              ? playerResponse.statusMSG.tr
-              : playerResponse.statusMSG,
+          playerResponse.statusMSG.tr,
           size: SanckBarSize.BIG,
           duration: const Duration(seconds: 2),
           top: !GetPlatform.isDesktop));
