@@ -11,16 +11,15 @@ void main() {
       'phone-width Scaffold Obx with no observables throws (pre-fix pattern)',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
-    final isWideScreen = false;
 
     await tester.pumpWidget(
       GetMaterialApp(
         home: Obx(
-          () => Scaffold(
+          () => const Scaffold(
             // Mirrors post-bottom-nav Home on phone: endDrawer null, no
             // bottomNavigationBar observable reads in this Obx scope.
-            endDrawer: isWideScreen ? const Drawer() : null,
-            body: const Center(child: Text('home-body')),
+            endDrawer: null,
+            body: Center(child: Text('home-body')),
           ),
         ),
       ),
