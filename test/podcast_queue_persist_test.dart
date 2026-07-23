@@ -26,7 +26,7 @@ void main() {
 
   test('queue persistence keeps chapters and transcript extras', () async {
     final c = Get.find<PodcastQueueController>();
-    c.add(MediaItem(
+    c.add(const MediaItem(
       id: 'podcast_ep1',
       title: 'Episode 1',
       artist: 'Show',
