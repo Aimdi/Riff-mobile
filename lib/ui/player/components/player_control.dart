@@ -8,6 +8,7 @@ import '/ui/player/components/podcast_transcript_sheet.dart';
 import '../../navigator.dart';
 import '../../screens/Settings/settings_screen_controller.dart';
 import '../../widgets/discovery/player_similar_row.dart';
+import '../../widgets/favorite_heart_button.dart';
 import '../player_controller.dart';
 
 class PlayerControlWidget extends StatelessWidget {
@@ -137,14 +138,11 @@ class PlayerControlWidget extends StatelessWidget {
               ),
               SizedBox(
                 width: 45,
-                child: IconButton(
-                    onPressed: playerController.toggleFavourite,
-                    icon: Obx(() => Icon(
-                          playerController.isCurrentSongFav.isFalse
-                              ? Icons.favorite_border
-                              : Icons.favorite,
-                          color: Theme.of(context).textTheme.titleMedium!.color,
-                        ))),
+                child: FavoriteHeartButton(
+                  isFav: playerController.isCurrentSongFav,
+                  onToggleFav: playerController.toggleFavourite,
+                  song: () => playerController.currentSong.value,
+                ),
               ),
             ],
           ),

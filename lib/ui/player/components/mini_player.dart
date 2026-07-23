@@ -8,6 +8,7 @@ import '/ui/widgets/lyrics_dialog.dart';
 import '/ui/widgets/song_info_dialog.dart';
 import '/ui/player/player_controller.dart';
 import '../../widgets/add_to_playlist.dart';
+import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/sleep_timer_bottom_sheet.dart';
 import '../../widgets/song_download_btn.dart';
 import '../../widgets/image_widget.dart';
@@ -169,20 +170,14 @@ class MiniPlayer extends StatelessWidget {
                               if (isWideScreen)
                                 Row(
                                   children: [
-                                    IconButton(
-                                        iconSize: 20,
-                                        onPressed:
-                                            playerController.toggleFavourite,
-                                        icon: Obx(() => Icon(
-                                              playerController
-                                                      .isCurrentSongFav.isFalse
-                                                  ? Icons.favorite_border
-                                                  : Icons.favorite,
-                                              color: Theme.of(context)
-                                                  .textTheme
-                                                  .titleMedium!
-                                                  .color,
-                                            ))),
+                                    FavoriteHeartButton(
+                                      iconSize: 20,
+                                      isFav: playerController.isCurrentSongFav,
+                                      onToggleFav:
+                                          playerController.toggleFavourite,
+                                      song: () =>
+                                          playerController.currentSong.value,
+                                    ),
                                     IconButton(
                                         iconSize: 20,
                                         onPressed:
