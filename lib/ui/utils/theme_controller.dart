@@ -32,31 +32,40 @@ class ThemeController extends GetxController {
     systemBrightness =
         WidgetsBinding.instance.platformDispatcher.platformBrightness;
 
+    final box = Hive.box('appPrefs');
+    final primaryRaw = box.get("themePrimaryColor") ?? 4278199603;
     primaryColor.value =
-        Color(Hive.box('appPrefs').get("themePrimaryColor") ?? 4278199603);
+        Color(primaryRaw is int ? primaryRaw : 4278199603);
 
-    accentColor.value = Color(
-        Hive.box('appPrefs').get("riffAccentColor") ?? 0xFF1DB954);
+    final accentRaw = box.get("riffAccentColor") ?? 0xFF1DB954;
+    accentColor.value = Color(accentRaw is int ? accentRaw : 0xFF1DB954);
 
-    changeThemeModeType(
-        ThemeType.values[Hive.box('appPrefs').get("themeModeType") ?? 2]);
+    changeThemeModeType(_themeTypeFromPrefs(box));
 
     _listenSystemBrightness();
 
     super.onInit();
   }
 
+  /// Safe Hive → ThemeType mapping (invalid/missing → dark). Used on
+  /// construction — runs before SettingsScreenController and blanks the app
+  /// if ThemeType.values[badIndex] throws.
+  static ThemeType _themeTypeFromPrefs(Box box) {
+    final modeIndex = box.get("themeModeType") ?? 2;
+    if (modeIndex is int &&
+        modeIndex >= 0 &&
+        modeIndex < ThemeType.values.length) {
+      return ThemeType.values[modeIndex];
+    }
+    return ThemeType.dark;
+  }
+
   void _listenSystemBrightness() {
     final platformDispatcher = WidgetsBinding.instance.platformDispatcher;
     platformDispatcher.onPlatformBrightnessChanged = () {
       systemBrightness = platformDispatcher.platformBrightness;
-      final modeIndex = Hive.box('appPrefs').get("themeModeType") ?? 2;
-      if (modeIndex is! int ||
-          modeIndex < 0 ||
-          modeIndex >= ThemeType.values.length) {
-        return;
-      }
-      changeThemeModeType(ThemeType.values[modeIndex], sysCall: true);
+      changeThemeModeType(_themeTypeFromPrefs(Hive.box('appPrefs')),
+          sysCall: true);
     };
   }
 
@@ -81,9 +90,9 @@ class ThemeController extends GetxController {
   /// Changes the Pitch Black accent color and rebuilds the theme.
   void changeAccentColor(Color color) {
     accentColor.value = color;
-    Hive.box('appPrefs').put("riffAccentColor", color.value);
-    changeThemeModeType(
-        ThemeType.values[Hive.box('appPrefs').get("themeModeType") ?? 2]);
+    final box = Hive.box('appPrefs');
+    box.put("riffAccentColor", color.value);
+    changeThemeModeType(_themeTypeFromPrefs(box));
   }
 
   void setTheme(ImageProvider imageProvider, String songId) async {

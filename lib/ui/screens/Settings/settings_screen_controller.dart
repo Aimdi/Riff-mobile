@@ -67,7 +67,7 @@ class SettingsScreenController extends GetxController {
   final cacheHomeScreenData = true.obs;
   /// Unlocks Advanced developer tools (tap About version 7×).
   final developerMode = false.obs;
-  final currentVersion = "V1.7.71";
+  final currentVersion = "V1.7.72";
   int _versionTapCount = 0;
   DateTime? _lastVersionTap;
 
@@ -110,7 +110,8 @@ class SettingsScreenController extends GetxController {
     if (setBox.get("isBottomNavBarEnabled") == true) {
       setBox.put("isBottomNavBarEnabled", false);
     }
-    noOfHomeScreenContent.value = setBox.get("noOfHomeScreenContent") ?? 3;
+    noOfHomeScreenContent.value =
+        _asInt(setBox.get("noOfHomeScreenContent"), 3);
     isTransitionAnimationDisabled.value =
         setBox.get("isTransitionAnimationDisabled") ?? false;
     cacheSongs.value = setBox.get('cacheSongs') ?? false;
@@ -136,11 +137,11 @@ class SettingsScreenController extends GetxController {
     playbackSpeed.value = (setBox.get("playbackSpeed") ?? 1.0).toDouble();
     playbackPitch.value = (setBox.get("playbackPitch") ?? 1.0).toDouble();
     auddApiToken.value = setBox.get("auddApiToken") ?? '';
-    bassBoost.value = setBox.get("bassBoost") ?? 0;
-    volumeBoostMb.value = setBox.get("volumeBoostMb") ?? 0;
-    reverbPreset.value = setBox.get("reverbPreset") ?? 0;
-    virtualizer.value = setBox.get("virtualizer") ?? 0;
-    autoOpenPlayer.value = (setBox.get("autoOpenPlayer") ?? true);
+    bassBoost.value = _asInt(setBox.get("bassBoost"), 0);
+    volumeBoostMb.value = _asInt(setBox.get("volumeBoostMb"), 0);
+    reverbPreset.value = _asInt(setBox.get("reverbPreset"), 0);
+    virtualizer.value = _asInt(setBox.get("virtualizer"), 0);
+    autoOpenPlayer.value = setBox.get("autoOpenPlayer") ?? true;
     restorePlaybackSession.value =
         setBox.get("restrorePlaybackSession") ?? false;
     cacheHomeScreenData.value = setBox.get("cacheHomeScreenData") ?? true;
@@ -165,10 +166,11 @@ class SettingsScreenController extends GetxController {
     } else {
       videoQuality.value = VideoQuality.high;
     }
-    playerUi.value = isDesktop ? 0 : (setBox.get('playerUi') ?? 0);
+    playerUi.value = isDesktop ? 0 : _asInt(setBox.get('playerUi'), 0);
     backgroundPlayEnabled.value = setBox.get("backgroundPlayEnabled") ?? true;
-    keepScreenAwake.value =
-        setBox.get("keepScreenAwake") ?? GetPlatform.isDesktop ? true : false;
+    keepScreenAwake.value = isDesktop
+        ? true
+        : (setBox.get("keepScreenAwake") ?? false);
     final downloadPath =
         setBox.get('downloadLocationPath') ?? await _createInAppSongDownDir();
     downloadLocationPath.value =
@@ -182,7 +184,9 @@ class SettingsScreenController extends GetxController {
     discoverContentType.value = setBox.get('discoverContentType') ?? "QP";
     slidableActionEnabled.value = setBox.get('slidableActionEnabled') ?? true;
     if (setBox.containsKey("piped")) {
-      isLinkedWithPiped.value = setBox.get("piped")['isLoggedIn'];
+      final piped = setBox.get("piped");
+      isLinkedWithPiped.value =
+          piped is Map && piped['isLoggedIn'] == true;
     }
     stopPlyabackOnSwipeAway.value =
         setBox.get('stopPlyabackOnSwipeAway') ?? false;
@@ -192,6 +196,13 @@ class SettingsScreenController extends GetxController {
     }
     autoDownloadFavoriteSongEnabled.value =
         setBox.get("autoDownloadFavoriteSongEnabled") ?? false;
+  }
+
+  /// Coerce Hive numerics into int for RxInt assignments (double/null → fallback).
+  static int _asInt(dynamic v, int fallback) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return fallback;
   }
 
   void setAppLanguage(String? val) {
