@@ -72,7 +72,7 @@ AntennaPod-style podcasts without giving up the rest of Riff:
 - Spotify-style **folders** for organizing shows
 - Inbox / queue workflow for catching up
 - **Episode transcripts** when the feed provides them
-- Configure defaults under Settings → Riff → Podcasts
+- Configure defaults under Settings → Podcasts
 
 ## Audiobooks
 
@@ -83,7 +83,7 @@ AntennaPod-style podcasts without giving up the rest of Riff:
 
 ## Plugins
 
-Optional features ship with the app and can be enabled from **Settings → Riff → Plugins**:
+Optional features ship with the app and can be enabled from **Settings → Plugins**:
 
 | Plugin | What it does |
 |---|---|
@@ -102,7 +102,7 @@ Only enable plugins you intend to use, and only download content you have the ri
 - Side nav or bottom nav
 - Android Auto
 - Many languages
-- On-device **Stats** — plays, hours, daily activity, top songs/artists (Settings → Riff)
+- On-device **Stats** — plays, hours, daily activity, top songs/artists (Settings → Library & sync)
 
 ---
 
