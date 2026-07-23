@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:harmonymusic/ui/screens/Settings/settings_screen_controller.dart';
 
 import '../../../utils/helper.dart';
 import '../Home/home_screen_controller.dart';
@@ -189,8 +188,7 @@ class SearchResultScreenController extends GetxController
         scrollControllers[item] = ScrollController();
       }
 
-      if (GetPlatform.isDesktop ||
-          Get.find<SettingsScreenController>().isBottomNavBarEnabled.isTrue) {
+      if (GetPlatform.isDesktop) {
         for (var element in railItems) {
           separatedResultContent[element] = [];
         }

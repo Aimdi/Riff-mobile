@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
 import '/models/media_Item_builder.dart';
-import '/ui/player/player_controller.dart';
 import '../../../utils/update_check_flag_file.dart';
 import '../../../utils/helper.dart';
 import '/models/album.dart';
@@ -276,11 +275,6 @@ class HomeScreenController extends GetxController {
     tabIndex.value = index;
   }
 
-  void onBottonBarTabSelected(int index) {
-    reverseAnimationtransiton = index > tabIndex.value;
-    tabIndex.value = index;
-  }
-
   void _checkNewVersion() {
     showVersionDialog.value =
         Hive.box("AppPrefs").get("newVersionVisibility") ?? true;
@@ -301,33 +295,9 @@ class HomeScreenController extends GetxController {
     showVersionDialog.value = !val;
   }
 
-  ///This is used to minimized bottom navigation bar by setting [isHomeSreenOnTop.value] to `true` and set mini player height.
-  ///
-  ///and applicable/useful if bottom nav enabled
+  /// Kept for call sites that refresh mini-player height after nested routes.
   void whenHomeScreenOnTop() {
-    if (Get.find<SettingsScreenController>().isBottomNavBarEnabled.isTrue) {
-      final currentRoute = getCurrentRouteName();
-      final isHomeOnTop = currentRoute == '/homeScreen';
-      final isResultScreenOnTop = currentRoute == '/searchResultScreen';
-      final playerCon = Get.find<PlayerController>();
-
-      isHomeSreenOnTop.value = isHomeOnTop;
-
-      // Set miniplayer height accordingly
-      if (!playerCon.initFlagForPlayer) {
-        if (isHomeOnTop) {
-          playerCon.playerPanelMinHeight.value = 75.0;
-        } else {
-          Future.delayed(
-              isResultScreenOnTop
-                  ? const Duration(milliseconds: 300)
-                  : Duration.zero, () {
-            playerCon.playerPanelMinHeight.value =
-                75.0 + Get.mediaQuery.viewPadding.bottom;
-          });
-        }
-      }
-    }
+    // Side-rail only: mini-player always accounts for system bottom inset.
   }
 
   Future<void> cachedHomeScreenData({

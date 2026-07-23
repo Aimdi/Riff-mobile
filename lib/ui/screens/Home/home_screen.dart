@@ -4,12 +4,10 @@ import 'package:get/get.dart';
 import '../Search/components/desktop_search_bar.dart';
 import '/ui/screens/Search/search_screen_controller.dart';
 import '/ui/widgets/animated_screen_transition.dart';
-import '../Library/library_combined.dart';
 import '../../widgets/side_nav_bar.dart';
 import '../Library/library.dart';
 import '../Podcasts/podcasts_library.dart';
 import '../Audiobooks/audiobooks_screen.dart';
-import '../Search/search_screen.dart';
 import '../Settings/settings_screen_controller.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/create_playlist_dialog.dart';
@@ -36,8 +34,7 @@ class HomeScreen extends StatelessWidget {
         floatingActionButton: Obx(
           () => ((homeScreenController.tabIndex.value == 0 &&
                           !GetPlatform.isDesktop) ||
-                      homeScreenController.tabIndex.value == 4) &&
-                  settingsScreenController.isBottomNavBarEnabled.isFalse
+                      homeScreenController.tabIndex.value == 4)
               ? Obx(
                   () => Padding(
                     padding: EdgeInsets.only(
@@ -66,8 +63,6 @@ class HomeScreen extends StatelessWidget {
                                 Get.toNamed(ScreenNavigationSetup.searchScreen,
                                     id: ScreenNavigationSetup.id);
                               }
-                              // file:///data/user/0/com.example.harmonymusic/cache/libCachedImageData/
-                              //file:///data/user/0/com.example.harmonymusic/cache/just_audio_cache/
                             },
                             child: Icon(homeScreenController.tabIndex.value == 4
                                 ? Icons.add
@@ -81,20 +76,13 @@ class HomeScreen extends StatelessWidget {
         body: Obx(
           () => Row(
             children: <Widget>[
-              // create a navigation rail
-              settingsScreenController.isBottomNavBarEnabled.isFalse
-                  ? const SideNavBar()
-                  : const SizedBox(
-                      width: 0,
-                    ),
-              //const VerticalDivider(thickness: 1, width: 2),
+              const SideNavBar(),
               Expanded(
                 child: Obx(() => AnimatedScreenTransition(
                     enabled: settingsScreenController
                         .isTransitionAnimationDisabled.isFalse,
                     resverse: homeScreenController.reverseAnimationtransiton,
-                    horizontalTransition:
-                        settingsScreenController.isBottomNavBarEnabled.isTrue,
+                    horizontalTransition: false,
                     child: Center(
                       key: ValueKey<int>(homeScreenController.tabIndex.value),
                       child: const Body(),
@@ -114,7 +102,6 @@ class Body extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final homeScreenController = Get.find<HomeScreenController>();
-    final settingsScreenController = Get.find<SettingsScreenController>();
     final size = MediaQuery.of(context).size;
     final topPadding = GetPlatform.isDesktop
         ? 85.0
@@ -123,11 +110,10 @@ class Body extends StatelessWidget {
             : size.height < 750
                 ? 80.0
                 : 85.0;
-    final leftPadding =
-        settingsScreenController.isBottomNavBarEnabled.isTrue ? 20.0 : 5.0;
+    const leftPadding = 5.0;
     if (homeScreenController.tabIndex.value == 0) {
       return Padding(
-        padding: EdgeInsets.only(left: leftPadding),
+        padding: const EdgeInsets.only(left: leftPadding),
         child: Stack(
           children: [
             GestureDetector(
@@ -317,17 +303,11 @@ class Body extends StatelessWidget {
         ),
       );
     } else if (homeScreenController.tabIndex.value == 1) {
-      return settingsScreenController.isBottomNavBarEnabled.isTrue
-          ? const SearchScreen()
-          : const SongsLibraryWidget();
+      return const SongsLibraryWidget();
     } else if (homeScreenController.tabIndex.value == 2) {
-      return settingsScreenController.isBottomNavBarEnabled.isTrue
-          ? const CombinedLibrary()
-          : const PodcastsLibraryWidget();
+      return const PodcastsLibraryWidget();
     } else if (homeScreenController.tabIndex.value == 3) {
-      return settingsScreenController.isBottomNavBarEnabled.isTrue
-          ? const SettingsScreen(isBottomNavActive: true)
-          : const AudiobooksScreen();
+      return const AudiobooksScreen();
     } else if (homeScreenController.tabIndex.value == 4) {
       return const PlaylistNAlbumLibraryWidget(isAlbumContent: false);
     } else if (homeScreenController.tabIndex.value == 5) {
