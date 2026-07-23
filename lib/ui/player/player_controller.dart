@@ -88,6 +88,9 @@ class PlayerController extends GetxController
 
   final buttonState = PlayButtonState.paused.obs;
 
+  /// Localized reason the current song failed to start/play (null when OK).
+  final playbackError = RxnString();
+
   // track whether wakelock is currently enabled to avoid repeated calls
   bool _wakelockActive = false;
 
@@ -226,6 +229,7 @@ class PlayerController extends GetxController
         buttonState.value = PlayButtonState.paused;
       } else if (processingState != AudioProcessingState.completed) {
         buttonState.value = PlayButtonState.playing;
+        if (playbackError.value != null) clearPlaybackError();
       } else {
         _audioHandler.seek(Duration.zero);
         _audioHandler.pause();
@@ -482,6 +486,7 @@ class PlayerController extends GetxController
             progressBarStatus.value.total,
             nowMs: DateTime.now().millisecondsSinceEpoch);
         currentSong.value = mediaItem;
+        clearPlaybackError();
         // Arm auto-resume for the incoming podcast episode (either backend).
         if (PodcastProgressService.isPodcastItem(mediaItem)) {
           _pendingResumeId = mediaItem.id;
@@ -1192,12 +1197,68 @@ class PlayerController extends GetxController
     await _audioHandler.customAction("openEqualizer");
   }
 
-  /// Called from audio handler in case audio is not playable
-  /// or returned streamInfo null due to network error
-  void notifyPlayError(String message) {
-    ScaffoldMessenger.of(Get.context!).showSnackBar(snackbar(
-        Get.context!, message == "networkError" ? message.tr : message,
-        size: SanckBarSize.MEDIUM));
+  /// Called from audio handler when audio is not playable, a stream resolve
+  /// fails, or playback hits a runtime error. [isRetrying] shows a softer
+  /// “retrying…” snackbar instead of a hard failure.
+  void notifyPlayError(String message, {bool isRetrying = false}) {
+    final context = Get.context;
+    if (context == null) return;
+    final text = isRetrying
+        ? "streamRetrying".tr
+        : _localizePlayError(message);
+    if (!isRetrying) {
+      playbackError.value = text;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(snackbar(
+      context,
+      text,
+      size: SanckBarSize.MEDIUM,
+      duration: Duration(seconds: isRetrying ? 2 : 3),
+    ));
+  }
+
+  void clearPlaybackError() {
+    if (playbackError.value != null) playbackError.value = null;
+  }
+
+  /// Force a fresh stream URL for the current queue index.
+  void retryPlayback() {
+    clearPlaybackError();
+    _audioHandler.customAction("playByIndex", {
+      "index": currentSongIndex.value,
+      "newUrl": true,
+    });
+  }
+
+  static String _localizePlayError(String message) {
+    switch (message) {
+      case "networkError":
+        return "networkError".tr;
+      case "songNotPlayable":
+        return "songNotPlayable".tr;
+      case "songRequiresPurchase":
+      case "Song requires purchase":
+        return "songRequiresPurchase".tr;
+      case "songUnavailable":
+      case "Song is unavailable":
+        return "songUnavailable".tr;
+      case "streamUnknownError":
+      case "Unknown error occurred":
+        return "streamUnknownError".tr;
+      case "streamPlaybackFailed":
+        return "streamPlaybackFailed".tr;
+      case "streamLoadFailed":
+        return "streamLoadFailed".tr;
+      default:
+        if (message.isEmpty) return "streamLoadFailed".tr;
+        final lower = message.toLowerCase();
+        if (lower.contains('network') || lower.contains('socket')) {
+          return "networkError".tr;
+        }
+        if (lower.contains('unavailable')) return "songUnavailable".tr;
+        if (lower.contains('purchase')) return "songRequiresPurchase".tr;
+        return message;
+    }
   }
 
   @override

@@ -194,31 +194,30 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       if (e is PlayerException) {
         printERROR('Error code: ${e.code}');
         printERROR('Error message: ${e.message}');
-      } else {
-        printERROR('An error occurred: $e');
-        Duration curPos = _player.position;
-        await _player.stop();
-
-        if (isPlayingUsingLockCachingSource &&
-            e.toString().contains("Connection closed while receiving data")) {
-          await _player.seek(curPos, index: 0);
-          await _player.play();
-          return;
+        if (Get.isRegistered<PlayerController>()) {
+          Get.find<PlayerController>()
+              .notifyPlayError("streamPlaybackFailed");
         }
-
-        //Workaround when 403 error encountered
-        // customAction("playByIndex", {'index': currentIndex, 'newUrl': true})
-        //     .whenComplete(() async {
-        //   await _player.stop();
-        //   if (currentSongUrl == null) {
-        //     networkErrorPause = true;
-        //   } else {
-        //     _player.play();
-        //   }
-        // });
-        customAction("playByIndex", {'index': currentIndex, 'newUrl': true});
-        await _player.seek(curPos, index: 0);
+        return;
       }
+      printERROR('An error occurred: $e');
+      Duration curPos = _player.position;
+      await _player.stop();
+
+      if (isPlayingUsingLockCachingSource &&
+          e.toString().contains("Connection closed while receiving data")) {
+        await _player.seek(curPos, index: 0);
+        await _player.play();
+        return;
+      }
+
+      // Expired / blocked URL — refresh stream and tell the user we're retrying.
+      if (Get.isRegistered<PlayerController>()) {
+        Get.find<PlayerController>()
+            .notifyPlayError("streamRetrying", isRetrying: true);
+      }
+      customAction("playByIndex", {'index': currentIndex, 'newUrl': true});
+      await _player.seek(curPos, index: 0);
     });
   }
 
@@ -612,7 +611,21 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
 
         mediaItem.add(currentSong);
-        final streamInfo = await futureStreamInfo;
+        late final HMStreamingData streamInfo;
+        try {
+          streamInfo = await futureStreamInfo;
+        } catch (e) {
+          printERROR('playByIndex stream resolve failed: $e');
+          if (songIndex != currentIndex) return;
+          currentSongUrl = null;
+          isSongLoading = false;
+          Get.find<PlayerController>().notifyPlayError("streamLoadFailed");
+          playbackState.add(playbackState.value.copyWith(
+              processingState: AudioProcessingState.error,
+              errorCode: 500,
+              errorMessage: "streamLoadFailed"));
+          return;
+        }
         if (songIndex != currentIndex) {
           return;
         } else if (!streamInfo.playable) {
@@ -702,7 +715,18 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         await _playList.clear();
         mediaItem.add(currMed);
         queue.add([currMed]);
-        final streamInfo = (await futureStreamInfo);
+        late final HMStreamingData streamInfo;
+        try {
+          streamInfo = await futureStreamInfo;
+        } catch (e) {
+          printERROR('setSourceNPlay stream resolve failed: $e');
+          currentSongUrl = null;
+          isSongLoading = false;
+          Get.find<PlayerController>().notifyPlayError("streamLoadFailed");
+          playbackState.add(playbackState.value
+              .copyWith(processingState: AudioProcessingState.error));
+          return;
+        }
         if (!streamInfo.playable) {
           currentSongUrl = null;
           isSongLoading = false;
