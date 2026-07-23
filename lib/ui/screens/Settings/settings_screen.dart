@@ -86,7 +86,6 @@ class SettingsScreen extends StatelessWidget {
               CustomExpansionTile(
                 title: "personalisation".tr,
                 icon: Icons.palette_outlined,
-                initiallyExpanded: true,
                 children: [
                   ListTile(
                     contentPadding: const EdgeInsets.only(left: 5, right: 10),
@@ -682,7 +681,6 @@ class SettingsScreen extends StatelessWidget {
               CustomExpansionTile(
                 icon: Icons.graphic_eq_outlined,
                 title: "riffFeatures".tr,
-                initiallyExpanded: true,
                 children: [
                   Obx(() {
                     final connected = settingsController.ytConnected.value;
