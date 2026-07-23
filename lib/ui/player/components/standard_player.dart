@@ -33,7 +33,22 @@ class StandardPlayer extends StatelessWidget {
     playerArtImageSize = playerArtImageSize > spaceAvailableForArtImage
         ? spaceAvailableForArtImage
         : playerArtImageSize;
-    return Stack(
+    // Videos are 16:9 — allow a wider frame so they don't look squeezed.
+    return Obx(() {
+      final isVideo = playerController.isCurrentSongVideo;
+      var artSize = playerArtImageSize;
+      if (isVideo) {
+        // Width-limited 16:9 that still fits the available height.
+        final maxVideoHeight = spaceAvailableForArtImage;
+        final byWidth = size.width - 60;
+        final heightFromWidth = byWidth * 9 / 16;
+        if (heightFromWidth <= maxVideoHeight) {
+          artSize = byWidth;
+        } else {
+          artSize = maxVideoHeight * 16 / 9;
+        }
+      }
+      return Stack(
       children: [
         /// Stack first child
         /// Album art image in background covering the whole screen
@@ -130,7 +145,9 @@ class StandardPlayer extends StatelessWidget {
                               height: size.height < 750 ? 60 : 90,
                             )
                           : SizedBox(
-                              height: size.height < 750 ? 110 : 140,
+                              height: size.height < 750
+                                  ? (isVideo ? 80 : 110)
+                                  : (isVideo ? 100 : 140),
                             ),
                     ),
 
@@ -138,11 +155,16 @@ class StandardPlayer extends StatelessWidget {
                     Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const LyricsSwitch(),
+                        // Lyrics switch is for songs; videos get a compact
+                        // video-only action row instead.
+                        if (isVideo)
+                          const _PlayerVideoOptionsBar()
+                        else
+                          const LyricsSwitch(),
                         ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 500),
                             child: AlbumArtNLyrics(
-                                playerArtImageSize: playerArtImageSize)),
+                                playerArtImageSize: artSize)),
                       ],
                     ),
 
@@ -233,6 +255,65 @@ class StandardPlayer extends StatelessWidget {
             ),
           )
       ],
+    );
+    });
+  }
+}
+
+/// Video-only options row (replaces lyrics switch when a YouTube video plays).
+class _PlayerVideoOptionsBar extends StatefulWidget {
+  const _PlayerVideoOptionsBar();
+
+  @override
+  State<_PlayerVideoOptionsBar> createState() => _PlayerVideoOptionsBarState();
+}
+
+class _PlayerVideoOptionsBarState extends State<_PlayerVideoOptionsBar> {
+  late bool _showVideo;
+
+  @override
+  void initState() {
+    super.initState();
+    _showVideo = AlbumArtNLyrics.videoPlaybackEnabled;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.videocam_outlined,
+              size: 16, color: theme.textTheme.bodySmall?.color),
+          const SizedBox(width: 6),
+          Text(
+            'videoPlaying'.tr,
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 12),
+          TextButton(
+            onPressed: () async {
+              final next = !_showVideo;
+              await AlbumArtNLyrics.setVideoPlaybackEnabled(next);
+              setState(() => _showVideo = next);
+              // Force art rebuild by toggling a no-op on current song observer.
+              final player = Get.find<PlayerController>();
+              final s = player.currentSong.value;
+              if (s != null) {
+                player.currentSong.refresh();
+              }
+            },
+            child: Text(
+              _showVideo ? 'videoHide'.tr : 'videoShow'.tr,
+              style: theme.textTheme.labelMedium,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

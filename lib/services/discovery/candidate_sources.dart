@@ -1,6 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 
 import '../../models/media_Item_builder.dart';
+import '../../utils/media_item_video.dart';
 import '../music_service.dart';
 import 'discovery_math.dart';
 import 'discovery_repository.dart';
@@ -134,12 +135,8 @@ class CandidateSources {
 
   static bool _seedLooksLikeVideo(MediaItem? seed) {
     if (seed == null) return false;
-    final vt = '${seed.extras?['videoType'] ?? ''}';
-    if (vt.contains('PODCAST')) return false;
-    if (vt == 'MUSIC_VIDEO_TYPE_ATV') return false;
-    if (vt.isNotEmpty) return true; // OMV / UGC / etc.
-    final rt = '${seed.extras?['resultType'] ?? ''}'.toLowerCase();
-    return rt == 'video';
+    // Prefer shared helper so player + discovery stay in sync.
+    return seed.isYoutubeVideo;
   }
 
   /// Radio continuation batch for a seed.

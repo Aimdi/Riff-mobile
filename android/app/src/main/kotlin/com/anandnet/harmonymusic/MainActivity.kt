@@ -104,6 +104,26 @@ class MainActivity : AudioServiceActivity() {
                         }
                     }
                 }
+                "getMuxedVideoStreams" -> {
+                    val videoId = call.argument<String>("videoId")
+                    if (videoId.isNullOrEmpty()) {
+                        result.error("ARG", "videoId missing", null)
+                        return@setMethodCallHandler
+                    }
+                    resolverExecutor.execute {
+                        try {
+                            val streams =
+                                NewPipeResolver.getMuxedVideoStreams(videoId)
+                            val json = JSONArray(
+                                streams.map { JSONObject(it) }).toString()
+                            mainHandler.post { result.success(json) }
+                        } catch (e: Throwable) {
+                            mainHandler.post {
+                                result.error("NEWPIPE", e.toString(), null)
+                            }
+                        }
+                    }
+                }
                 "getCookies" -> {
                     val url = call.argument<String>("url")
                     if (url.isNullOrEmpty()) {

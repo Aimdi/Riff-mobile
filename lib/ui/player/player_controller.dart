@@ -19,6 +19,7 @@ import '/ui/screens/Settings/settings_screen_controller.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../services/windows_audio_service.dart';
 import '../../utils/helper.dart';
+import '../../utils/media_item_video.dart';
 import '/models/media_Item_builder.dart';
 import '../screens/Home/home_screen_controller.dart';
 import '../widgets/sliding_up_panel.dart';
@@ -893,6 +894,14 @@ class PlayerController extends GetxController
     if (s == null) return false;
     return (s.extras?['isPodcast'] == true) ||
         s.id.startsWith('podcast_');
+  }
+
+  /// True when the current item is a YouTube *video* (not a YTM song).
+  /// Drives the in-player 16:9 video surface and video-only actions.
+  bool get isCurrentSongVideo {
+    final s = currentSong.value;
+    if (s == null) return false;
+    return s.isYoutubeVideo;
   }
 
   /// Seek by a relative offset (podcast ±skip), clamped to [0, total].

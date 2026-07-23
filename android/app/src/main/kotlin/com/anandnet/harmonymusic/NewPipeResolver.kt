@@ -79,13 +79,24 @@ object NewPipeResolver {
                 "errors=${info.errors}")
         }
         val durationMs = info.duration * 1000
-        return info.audioStreams
+    /**
+     * Progressive / muxed video+audio streams for in-player video display.
+     * Each map: itag, mimeType, width, height, url, size, durationMs.
+     */
+    @JvmStatic
+    fun getMuxedVideoStreams(videoId: String): List<Map<String, Any?>> {
+        ensureInit()
+        val info = StreamInfo.getInfo(
+            ServiceList.YouTube, "https://www.youtube.com/watch?v=$videoId")
+        val durationMs = info.duration * 1000
+        return info.videoStreams
             .filter { it.isUrl && !it.content.isNullOrEmpty() }
             .map { s ->
                 mapOf(
                     "itag" to (s.itagItem?.id ?: -1),
                     "mimeType" to (s.format?.mimeType ?: ""),
-                    "bitrate" to (if (s.averageBitrate > 0) s.averageBitrate * 1000 else 0),
+                    "width" to (s.width),
+                    "height" to (s.height),
                     "url" to s.content,
                     "size" to (s.itagItem?.contentLength ?: 0L),
                     "durationMs" to durationMs,

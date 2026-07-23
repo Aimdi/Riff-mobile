@@ -118,6 +118,10 @@ class MediaItemBuilder {
         ],
         'url': mediaItem.extras!['url'],
         'trackDetails': mediaItem.extras?['trackDetails'],
-        'year': mediaItem.extras?['year']
+        'year': mediaItem.extras?['year'],
+        'videoType': mediaItem.extras?['videoType'],
+        'resultType': mediaItem.extras?['resultType'],
+        'isPodcast': mediaItem.extras?['isPodcast'],
+        'description': mediaItem.extras?['description'],
       };
 }
