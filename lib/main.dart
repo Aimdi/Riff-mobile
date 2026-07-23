@@ -88,7 +88,13 @@ class MyApp extends StatelessWidget {
                   data: mQuery.copyWith(textScaler: scale),
                   child: AnimatedTheme(
                       duration: const Duration(milliseconds: 700),
-                      data: controller.themedata.value!,
+                      // Never bang-null: a missing theme must not black-screen.
+                      data: controller.themedata.value ??
+                          ThemeData(
+                            brightness: Brightness.dark,
+                            canvasColor: Colors.black,
+                            scaffoldBackgroundColor: Colors.black,
+                          ),
                       child: child!),
                 ),
               ),
@@ -152,21 +158,10 @@ initHive() async {
   await Hive.openBox("SongsCache");
   await Hive.openBox("SongDownloads");
   await Hive.openBox('SongsUrlCache');
+  // Hive box names are case-insensitive (files are lowercased). Never open /
+  // delete "appPrefs" separately from "AppPrefs" — that wipes prefs and can
+  // black-screen the app on launch (v1.7.82 regression).
   await Hive.openBox("AppPrefs");
-  // Legacy ThemeController / audio_handler used "appPrefs" (wrong case).
-  // On case-sensitive filesystems that was a separate empty box — merge once.
-  try {
-    if (await Hive.boxExists('appPrefs')) {
-      final legacy = await Hive.openBox('appPrefs');
-      final prefs = Hive.box('AppPrefs');
-      for (final key in legacy.keys) {
-        if (!prefs.containsKey(key)) {
-          await prefs.put(key, legacy.get(key));
-        }
-      }
-      await legacy.deleteFromDisk();
-    }
-  } catch (_) {}
   await Hive.openBox("BannedSongs");
   await Hive.openBox("BannedArtists");
   await Hive.openBox("BannedCollections");
