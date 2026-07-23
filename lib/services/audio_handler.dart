@@ -1,9 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:math';
 
 import 'package:flutter/services.dart';
-
 
 import 'package:hive/hive.dart';
 import 'package:get/get.dart';
@@ -195,8 +195,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         printERROR('Error code: ${e.code}');
         printERROR('Error message: ${e.message}');
         if (Get.isRegistered<PlayerController>()) {
-          Get.find<PlayerController>()
-              .notifyPlayError("streamPlaybackFailed");
+          Get.find<PlayerController>().notifyPlayError("streamPlaybackFailed");
         }
         return;
       }
@@ -586,7 +585,6 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   @override
   Future<void> customAction(String name, [Map<String, dynamic>? extras]) async {
     switch (name) {
-
       case 'dispose':
         await _player.dispose();
         super.stop();
@@ -679,6 +677,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         } else {
           await _player.play();
         }
+        prefetchNextInQueue();
         break;
 
       case 'checkWithCacheDb':
@@ -696,12 +695,11 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
             jsonData['streamInfo'] = dbStreamData != null
                 ? [
                     true,
-                    dbStreamData[
-                        (Hive.box('AppPrefs').get('dataSaver') == true ||
-                                Hive.box('AppPrefs').get('streamingQuality') ==
-                                    0)
-                            ? 'lowQualityAudio'
-                            : "highQualityAudio"]
+                    dbStreamData[(Hive.box('AppPrefs').get('dataSaver') ==
+                                true ||
+                            Hive.box('AppPrefs').get('streamingQuality') == 0)
+                        ? 'lowQualityAudio'
+                        : "highQualityAudio"]
                   ]
                 : null;
             songsCacheBox.put(song.id, jsonData);
@@ -754,6 +752,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
 
         await _player.play();
+        prefetchNextInQueue();
         break;
 
       case 'toggleSkipSilence':
@@ -1094,8 +1093,11 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         // isolate shares no statics or Hive with the main isolate.
         final clientConfigJson = ClientConfigService.currentJson;
         final streamInfoJson = await Isolate.run(() => getStreamInfo(
-            songId, token,
-            clientConfigJson: clientConfigJson));
+              songId,
+              token,
+              clientConfigJson: clientConfigJson,
+              fetchLoudness: loudnessNormalizationEnabled,
+            ));
         streamInfo = HMStreamingData.fromJson(streamInfoJson);
         if (streamInfo.playable) songsUrlCacheBox.put(songId, streamInfoJson);
       }
@@ -1104,12 +1106,37 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       return streamInfo;
     }
   }
+
+  /// Warm [SongsUrlCache] for [songId] without blocking playback.
+  void prefetchStreamUrl(String songId) {
+    if (songId.isEmpty ||
+        songId.startsWith('podcast_') ||
+        songId.startsWith('abs_') ||
+        songId.startsWith('cloud_')) {
+      return;
+    }
+    unawaited(() async {
+      try {
+        await checkNGetUrl(songId);
+      } catch (_) {}
+    }());
+  }
+
+  /// Prefetch the next queue item once the current track is playing.
+  void prefetchNextInQueue() {
+    try {
+      if (queue.value.isEmpty) return;
+      final next = _getNextSongIndex();
+      if (next == currentIndex) return;
+      if (next < 0 || next >= queue.value.length) return;
+      prefetchStreamUrl(queue.value[next].id);
+    } catch (_) {}
+  }
 }
 
 class UrlError extends Error {
   String message() => 'Unable to fetch url';
 }
-
 
 // for Android Auto
 class MediaLibrary {
