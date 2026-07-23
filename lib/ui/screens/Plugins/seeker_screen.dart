@@ -1,7 +1,9 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '/services/soulseek/soulseek_cover_service.dart';
 import '/services/soulseek/soulseek_search.dart';
 import '/services/soulseek_service.dart';
 import '/ui/utils/theme_controller.dart';
@@ -508,6 +510,7 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
         final busy = _downloadingKey == key;
         return _SongResultTile(
           hit: hit,
+          query: _query,
           accent: accent,
           busy: busy,
           onDownload: () => _download(hit),
@@ -540,9 +543,14 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
                   _expandedAlbums.add(id);
                 }
               }),
-              leading: Icon(
-                expanded ? Icons.folder_open : Icons.folder,
-                color: accent,
+              leading: _CoverThumb(
+                size: 52,
+                future: SoulseekCoverService.instance
+                    .coverForAlbum(folder, query: _query),
+                fallback: Icon(
+                  expanded ? Icons.folder_open : Icons.folder,
+                  color: accent,
+                ),
               ),
               title: Text(
                 folder.folderName,
@@ -590,6 +598,7 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
                     padding: const EdgeInsets.only(left: 28),
                     child: _SongResultTile(
                       hit: hit,
+                      query: _query,
                       accent: accent,
                       busy: _downloadingKey == key,
                       onDownload: () => _download(hit),
@@ -609,6 +618,7 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
 class _SongResultTile extends StatelessWidget {
   const _SongResultTile({
     required this.hit,
+    required this.query,
     required this.accent,
     required this.busy,
     required this.onDownload,
@@ -616,6 +626,7 @@ class _SongResultTile extends StatelessWidget {
   });
 
   final SoulseekFile hit;
+  final SoulseekQuery query;
   final Color accent;
   final bool busy;
   final VoidCallback onDownload;
@@ -632,12 +643,23 @@ class _SongResultTile extends StatelessWidget {
       if (hit.hasFreeSlot) 'soulseekFilterSlot'.tr,
       hit.username,
     ].join(' · ');
+    final coverSize = compact ? 40.0 : 52.0;
 
     return ListTile(
       dense: compact,
       contentPadding: EdgeInsets.symmetric(
         horizontal: compact ? 4 : 4,
         vertical: compact ? 0 : 4,
+      ),
+      leading: _CoverThumb(
+        size: coverSize,
+        future: SoulseekCoverService.instance
+            .coverForFile(hit, query: query),
+        fallback: Icon(
+          Icons.music_note,
+          size: coverSize * 0.45,
+          color: accent.withOpacity(0.8),
+        ),
       ),
       title: Text(
         hit.displayName,
@@ -700,6 +722,72 @@ class _SongResultTile extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             : Icon(Icons.download_outlined, color: accent),
+      ),
+    );
+  }
+}
+
+/// Async cover thumb — iTunes lookup with music-note / folder fallback.
+class _CoverThumb extends StatelessWidget {
+  const _CoverThumb({
+    required this.size,
+    required this.future,
+    required this.fallback,
+  });
+
+  final double size;
+  final Future<String?> future;
+  final Widget fallback;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: size,
+      height: size,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: FutureBuilder<String?>(
+          future: future,
+          builder: (context, snap) {
+            final url = snap.data;
+            if (url != null && url.isNotEmpty) {
+              return CachedNetworkImage(
+                imageUrl: url,
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+                fadeInDuration: const Duration(milliseconds: 180),
+                placeholder: (_, __) => _placeholder(theme),
+                errorWidget: (_, __, ___) => _placeholder(theme),
+              );
+            }
+            if (snap.connectionState == ConnectionState.waiting) {
+              return _placeholder(theme);
+            }
+            return ColoredBox(
+              color: theme.colorScheme.surfaceContainerHighest
+                  .withOpacity(0.55),
+              child: Center(child: fallback),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _placeholder(ThemeData theme) {
+    return ColoredBox(
+      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.55),
+      child: Center(
+        child: SizedBox(
+          width: size * 0.28,
+          height: size * 0.28,
+          child: CircularProgressIndicator(
+            strokeWidth: 1.5,
+            color: theme.colorScheme.onSurface.withOpacity(0.35),
+          ),
+        ),
       ),
     );
   }

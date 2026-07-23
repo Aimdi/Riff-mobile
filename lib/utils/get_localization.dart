@@ -2316,7 +2316,7 @@ Map<String, Map<String, String>> get keys => {
     "soulseekSearchHint": "Artist - Title",
     "soulseekSearchHintSong": "Artist - Song title",
     "soulseekSearchHintAlbum": "Artist - Album title",
-    "soulseekSearchNote": "Results are ranked like Sockseek — prefer free-slot peers and preferred formats.",
+    "soulseekSearchNote": "Results are ranked like Sockseek — covers load from Apple Music metadata. Prefer free-slot peers.",
     "soulseekSearchPrompt": "Search for a song on the Soulseek network.",
     "soulseekSearchPromptSockseek": "Try Artist - Title. Pick Song or Album, then choose a ranked result.",
     "soulseekSearching": "Searching Soulseek…",
