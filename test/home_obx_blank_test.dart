@@ -121,4 +121,66 @@ void main() {
     expect(find.text('home-content'), findsOneWidget);
     expect(find.byType(FloatingActionButton), findsOneWidget);
   });
+
+  testWidgets(
+      'SearchScreen outer Obx with no observables blanks search (pre-1.7.74)',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    final suggestions = <String>[].obs;
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Scaffold(
+          // Outer Obx used to read isBottomNavBarEnabled for the back rail;
+          // after always-showing rail it read zero Rx → blank Search.
+          body: Obx(
+            () => Row(
+              children: [
+                const SizedBox(width: 60, child: Text('back')),
+                Expanded(
+                  child: Obx(
+                    () => Text(
+                      suggestions.isEmpty ? 'search-empty' : 'search-list',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNotNull);
+  });
+
+  testWidgets(
+      'SearchScreen Row without empty outer Obx shows search UI (1.7.74)',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    final suggestions = <String>[].obs;
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Scaffold(
+          body: Row(
+            children: [
+              const SizedBox(width: 60, child: Text('back')),
+              Expanded(
+                child: Obx(
+                  () => Text(
+                    suggestions.isEmpty ? 'search-empty' : 'search-list',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('back'), findsOneWidget);
+    expect(find.text('search-empty'), findsOneWidget);
+  });
 }

@@ -15,8 +15,10 @@ class SearchScreen extends StatelessWidget {
     final topPadding = context.isLandscape ? 50.0 : 80.0;
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      body: Obx(
-        () => Row(
+      // Outer Obx removed: after bottom-nav removal it no longer read any
+      // observables (rail was conditional on isBottomNavBarEnabled). Empty
+      // Obx throws in GetX and blanks the whole Search screen.
+      body: Row(
           children: [
             Container(
               width: 60,
@@ -135,7 +137,6 @@ class SearchScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }
