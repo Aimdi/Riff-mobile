@@ -12,7 +12,6 @@ import '../Settings/settings_screen_controller.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/create_playlist_dialog.dart';
 import '../../navigator.dart';
-import '../../widgets/content_list_widget.dart';
 import '../../widgets/discovery/home_discovery_section.dart';
 import '../../widgets/discovery/riff_wave_hero.dart';
 import '../../utils/riff_tokens.dart';
@@ -20,6 +19,7 @@ import '../../widgets/quickpickswidget.dart';
 import '../../widgets/shimmer_widgets/home_shimmer.dart';
 import '../../../services/discovery/discovery_service.dart';
 import '../../../services/discovery/discovery_types.dart';
+import 'home_explore_section.dart';
 import 'home_feed_view_model.dart';
 import 'home_screen_controller.dart';
 import '../Settings/settings_screen.dart';
@@ -253,8 +253,7 @@ class _HomeFeed extends StatelessWidget {
       return ListView(
         padding: EdgeInsets.only(bottom: 200, top: topPadding),
         children: [
-          // Hierarchy: offline → title → Wave → shortcuts → personal →
-          // Quick Picks → editorial (perf: narrow Obx per section).
+          // Hierarchy: offline → title → Wave → shortcuts → Zone B → Explore.
           Obx(() => home.showingCachedWhileOffline.isTrue
               ? const _OfflineHomeBanner()
               : const SizedBox.shrink()),
@@ -269,16 +268,15 @@ class _HomeFeed extends StatelessWidget {
           ),
           const RiffWaveHero(),
           const HomeShortcutGrid(),
+          const HomeZoneDivider(),
           const _HomeZoneB(),
-          const _HomeShelfBlock(kind: _HomeShelfKind.middle),
-          const _HomeShelfBlock(kind: _HomeShelfKind.fixed),
+          const HomeZoneDivider(),
+          const HomeExploreSection(),
         ],
       );
     });
   }
 }
-
-enum _HomeShelfKind { middle, fixed }
 
 /// Zone B — personalised: daily mixes → quick picks → one contextual row.
 /// Order, caps, and global dedupe come from [assembleHomeFeedViewModel].
@@ -358,32 +356,6 @@ class _HomeDiscoverEmptyCard extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _HomeShelfBlock extends StatelessWidget {
-  const _HomeShelfBlock({required this.kind});
-  final _HomeShelfKind kind;
-
-  @override
-  Widget build(BuildContext context) {
-    final home = Get.find<HomeScreenController>();
-    return Obx(() {
-      final list = kind == _HomeShelfKind.middle
-          ? home.middleContent
-          : home.fixedContent;
-      // Touch the list so Obx tracks length/content updates.
-      final _ = list.length;
-      return Column(
-        children: list.map<Widget>((content) {
-          final key = '${kind.name}_${content.title}';
-          return ContentListWidget(
-            content: content,
-            scrollController: home.scrollControllerFor(key),
-          );
-        }).toList(),
-      );
-    });
   }
 }
 

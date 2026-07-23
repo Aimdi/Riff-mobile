@@ -4,7 +4,8 @@ import 'package:harmonymusic/models/album.dart';
 import 'package:harmonymusic/models/artist.dart';
 
 import 'package:harmonymusic/ui/screens/Artists/artist_screen.dart';
-import 'package:harmonymusic/ui/screens/Home/home_screen.dart';
+import 'screens/Home/explore_screen.dart';
+import 'screens/Home/home_screen.dart';
 
 import 'screens/Album/album_screen.dart';
 import 'screens/Playlist/playlist_screen.dart';
@@ -35,6 +36,7 @@ class ScreenNavigationSetup {
   static const torrentSearchScreen = '/torrentSearchScreen';
   static const soulSyncScreen = '/soulSyncScreen';
   static const seekerScreen = '/seekerScreen';
+  static const exploreScreen = '/exploreScreen';
 }
 
 class ScreenNavigation extends StatelessWidget {
@@ -113,6 +115,14 @@ class ScreenNavigation extends StatelessWidget {
                             ? null
                             : initialQuery!.trim(),
                       ),
+                  settings: settings);
+
+            case ScreenNavigationSetup.exploreScreen:
+              final focus = settings.arguments is String
+                  ? settings.arguments as String
+                  : null;
+              return GetPageRoute(
+                  page: () => ExploreScreen(focusTitle: focus),
                   settings: settings);
 
             case ScreenNavigationSetup.searchScreen:

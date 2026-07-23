@@ -2013,6 +2013,7 @@ Map<String, Map<String, String>> get keys => {
   "setDiscoverContent": "Set discover content",
   "quickpicks": "Quick Picks",
   "discover": "Discover",
+  "explore": "Explore",
   "trending": "Trending",
   "topmusicvideos": "Top Music Videos",
   "basedOnLast": "Based on last interaction",
