@@ -4,13 +4,10 @@ import 'package:hive/hive.dart';
 
 import '/ui/player/components/lyrics_widget.dart';
 import '/ui/player/components/player_video_surface.dart';
-import '/ui/player/components/video_pane.dart';
 import '/ui/player/player_controller.dart';
-import '/ui/player/video_mode_controller.dart';
 import '/utils/media_item_video.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/sleep_timer_bottom_sheet.dart';
-import '../../widgets/snackbar.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
 
 class AlbumArtNLyrics extends StatelessWidget {
@@ -31,15 +28,9 @@ class AlbumArtNLyrics extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final PlayerController playerController = Get.find<PlayerController>();
-    final videoMode = Get.find<VideoModeController>();
     return Obx(() {
       final song = playerController.currentSong.value;
       if (song == null) return const SizedBox.shrink();
-
-      // Real mpv video mode replaces the art with the engine-rendered pane.
-      if (videoMode.isActive.value) {
-        return VideoPane(size: playerArtImageSize);
-      }
 
       final canVideo = song.canShowPlayerVideo;
       final isVideo = canVideo && videoPlaybackEnabled;
@@ -141,42 +132,6 @@ class AlbumArtNLyrics extends StatelessWidget {
                         await AlbumArtNLyrics.setVideoPlaybackEnabled(true);
                         playerController.currentSong.refresh();
                       },
-                    ),
-                  ),
-                // Real mpv video mode — YouTube tracks only; hidden behind lyrics.
-                // Sit on the left so it doesn't collide with muted-surface toggle.
-                if (videoMode.availableFor(song) &&
-                    playerController.showLyricsflag.isFalse)
-                  Positioned(
-                    left: 8,
-                    top: 8,
-                    child: Material(
-                      color: Colors.black.withOpacity(0.45),
-                      shape: const CircleBorder(),
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: () async {
-                          if (videoMode.isLoading.value) return;
-                          final ok = await videoMode.enable();
-                          if (!ok && context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                snackbar(context, 'videoUnavailable'.tr,
-                                    size: SanckBarSize.BIG));
-                          }
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Obx(() => videoMode.isLoading.value
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Icon(Icons.videocam_outlined,
-                                  size: 20, color: Colors.white)),
-                        ),
-                      ),
                     ),
                   ),
                 Obx(() => playerController.showLyricsflag.isTrue

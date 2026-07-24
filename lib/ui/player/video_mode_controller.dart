@@ -12,29 +12,35 @@ import '/services/client_config_service.dart';
 import '/services/stream_service.dart';
 import '/services/utils.dart';
 import '/services/video_stream_service.dart';
+import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/utils/helper.dart';
+import '/utils/media_item_video.dart';
 import 'player_controller.dart';
 
 /// Video mode: plays the current YouTube track as real video, the way a
 /// video player does it — ONE mpv engine is given the video-only stream
 /// plus the same audio-only stream the music pipeline uses, and schedules
-/// video frames against the audio clock. There is no app-level "sync"
-/// between two players, so nothing can drift.
+/// video frames against the audio clock. There is no app-level drift
+/// correction (rate nudges / periodic seeks) because two engines never run
+/// at once, so nothing can drift.
 ///
 /// The audio pipeline (just_audio/ExoPlayer) is paused while video mode is
 /// active and takes over again — at the video's position — when the pane
-/// is closed, the song changes, or the app goes to background (so music
-/// keeps playing with working notification controls).
+/// closes, the song changes, or the app goes to background (music keeps
+/// playing with working notification controls).
 class VideoModeController extends GetxController with WidgetsBindingObserver {
   /// Set at startup when the mpv library loaded. False in the lite
   /// (audio-only) APK, where the engine is stripped — video mode's UI
-  /// hides entirely.
+  /// then hides entirely.
   static bool engineAvailable = false;
 
-  /// Video pane is showing and mpv owns playback.
+  /// The video pane is showing and mpv owns playback.
   final isActive = false.obs;
   final isLoading = false.obs;
   final isVideoPlaying = false.obs;
+
+  /// Width/height of the loaded video (for aspect ratio); 16:9 fallback.
+  final videoAspect = (16 / 9).obs;
 
   Player? _player;
   VideoController? videoController;
@@ -50,7 +56,7 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _songWorker = ever(_pc.currentSong, (MediaItem? song) {
       // The audio pipeline moved to another item under an active video —
-      // close the pane rather than showing a stale video.
+      // close stale video; the surface widget re-enables for the new song.
       if (isActive.value && song != null && song.id != _activeSongId) {
         disable(resume: false);
       }
@@ -71,38 +77,38 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Screen off / app backgrounded → hand playback back to the audio
-    // pipeline so music continues in background.
+    // pipeline so music continues in background with a live notification.
     if (state == AppLifecycleState.paused && isActive.value) {
       disable();
     }
   }
 
-  /// Video mode exists for YouTube tracks only — podcasts, Audiobookshelf,
-  /// Cloud (self-hosted) and RSS items have no YouTube video counterpart.
+  /// Video mode exists for YouTube videos (and YT-sourced podcast
+  /// episodes) on Android builds that bundle the engine.
   bool availableFor(MediaItem? song) {
     if (!engineAvailable) return false;
     if (song == null || !GetPlatform.isAndroid) return false;
-    final id = song.id;
-    return !id.startsWith('podcast_') &&
-        !id.startsWith('abs_') &&
-        !id.startsWith('cloud_') &&
-        song.extras?['isPodcast'] != true;
+    return song.canShowPlayerVideo;
   }
 
-  /// Switch the current track to video. Returns false when no video (or no
-  /// audio url) could be resolved — the caller shows the error.
+  /// Switch the current track to video. Returns false when no video (or
+  /// no audio url) could be resolved — the caller shows the error state.
   Future<bool> enable() async {
     final song = _pc.currentSong.value;
-    if (!availableFor(song) || isLoading.value || isActive.value) {
-      return false;
-    }
+    if (!availableFor(song) || isLoading.value) return false;
+    if (isActive.value && song!.id == _activeSongId) return true;
     isLoading.value = true;
     try {
-      final video = await VideoStreamService.bestVideoOnly(song!.id);
+      final quality = Get.isRegistered<SettingsScreenController>()
+          ? Get.find<SettingsScreenController>().videoQuality.value
+          : VideoQuality.high;
+      final video = await VideoStreamService.resolve(song!.id,
+          quality: quality);
       if (video == null) return false;
       // Same audio stream the music pipeline plays — quality unchanged.
       final audioUrl = await _audioUrlFor(song.id);
       if (audioUrl == null) return false;
+      if (_pc.currentSong.value?.id != song.id) return false;
 
       final wasPlaying = _pc.buttonState.value == PlayButtonState.playing;
       final position = _pc.progressBarStatus.value.current;
@@ -112,6 +118,7 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
           configuration: const PlayerConfiguration(title: 'Riff video'));
       videoController ??= VideoController(_player!);
       final p = _player!;
+      videoAspect.value = video.aspectRatio;
       await p.open(Media(video.url, start: position), play: false);
       // Attach the audio track to the SAME engine (mpv audio-add): this is
       // what makes A/V sync the engine's job instead of the app's.
@@ -133,8 +140,7 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
   }
 
   /// Close the pane. With [resume], the audio pipeline continues from the
-  /// video's position (single handoff seek — the engines never run
-  /// together).
+  /// video's position (a single handoff seek — engines never overlap).
   Future<void> disable({bool resume = true}) async {
     if (!isActive.value) return;
     final p = _player;
@@ -164,8 +170,13 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
     }
   }
 
-  Future<void> toggle() async =>
-      isActive.value ? await disable() : await enable();
+  /// Close only if this [songId] owns the active session (used by the
+  /// surface's dispose so a new song's surface isn't torn down).
+  Future<void> disableIfActiveFor(String songId, {bool resume = true}) async {
+    if (isActive.value && _activeSongId == songId) {
+      await disable(resume: resume);
+    }
+  }
 
   /// Transport while video mode is active (routed from PlayerController).
   void playPauseVideo() => _player?.playOrPause();
@@ -195,6 +206,11 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
     _subs.add(p.stream.buffering.listen((buffering) {
       if (!isActive.value) return;
       if (buffering) _pc.buttonState.value = PlayButtonState.loading;
+    }));
+    _subs.add(p.stream.videoParams.listen((params) {
+      final w = params.dw ?? 0;
+      final h = params.dh ?? 0;
+      if (w > 0 && h > 0) videoAspect.value = w / h;
     }));
     _subs.add(p.stream.completed.listen((done) async {
       if (!done || !isActive.value) return;

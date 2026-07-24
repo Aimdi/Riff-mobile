@@ -2049,7 +2049,7 @@ Map<String, Map<String, String>> get keys => {
   "streamingQuality": "Streaming quality",
   "streamingQualityDes": "Quality of music stream",
   "videoQuality": "Video quality",
-  "videoQualityDes": "In-player video clarity. High uses up to 720p video-only; Low uses a lighter stream",
+  "videoQualityDes": "In-player video clarity. High plays full quality up to 1080p; Low saves data with up to 480p",
   "lyricsSource": "Lyrics source",
   "lyricsSourceDes": "Where synced lyrics are fetched from",
   "lyricsSourceBetterLyrics": "Better Lyrics",

@@ -1067,8 +1067,6 @@ class PlayerController extends GetxController
       Get.find<VideoModeController>().seekVideo(position);
       return;
     }
-    // videoSeekSignal is bumped inside MyAudioHandler.seek so notification /
-    // media-session scrubs stay aligned with the muted video surface too.
     _audioHandler.seek(position);
   }
 
