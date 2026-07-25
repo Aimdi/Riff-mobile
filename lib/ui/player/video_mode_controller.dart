@@ -98,6 +98,7 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
     if (!availableFor(song) || isLoading.value) return false;
     if (isActive.value && song!.id == _activeSongId) return true;
     isLoading.value = true;
+    var pausedAudioForVideo = false;
     try {
       final quality = Get.isRegistered<SettingsScreenController>()
           ? Get.find<SettingsScreenController>().videoQuality.value
@@ -113,6 +114,7 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
       final wasPlaying = _pc.buttonState.value == PlayButtonState.playing;
       final position = _pc.progressBarStatus.value.current;
       _pc.pause();
+      pausedAudioForVideo = wasPlaying;
 
       _player ??= Player(
           configuration: const PlayerConfiguration(title: 'Riff video'));
@@ -124,6 +126,10 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
       // what makes A/V sync the engine's job instead of the app's.
       await p.setAudioTrack(AudioTrack.uri(audioUrl));
       _wire(p);
+      // Silence guard: the video-only stream carries NO audio of its own.
+      // If the external track failed to attach, playback would "run"
+      // silently — retry once, then hand back to the audio pipeline.
+      _armSilenceGuard(p, song.id, audioUrl);
       _activeSongId = song.id;
       isActive.value = true;
       if (wasPlaying) {
@@ -133,6 +139,9 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
     } catch (e) {
       printERROR('Video mode enable failed: $e');
       await disable(resume: false);
+      // We paused the music to switch engines; a failed switch must not
+      // leave the app stuck in silence — resume the audio pipeline.
+      if (pausedAudioForVideo) _pc.play();
       return false;
     } finally {
       isLoading.value = false;
@@ -176,6 +185,33 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
     if (isActive.value && _activeSongId == songId) {
       await disable(resume: resume);
     }
+  }
+
+  /// The video-only stream has no audio track; if `audio-add` failed the
+  /// engine would advance silently. Verify a real audio track exists once
+  /// playback is underway; retry the attach once, then bail back to the
+  /// audio pipeline so the user never sits in silent "playback".
+  void _armSilenceGuard(Player p, String songId, String audioUrl,
+      {bool retried = false}) {
+    Future.delayed(const Duration(seconds: 3), () async {
+      if (!isActive.value || _activeSongId != songId || _player != p) return;
+      final hasRealAudio = p.state.tracks.audio
+          .any((t) => t.id != 'auto' && t.id != 'no' && t.id.isNotEmpty);
+      if (hasRealAudio) return;
+      if (!retried) {
+        printERROR('Video mode: audio track missing — retrying attach');
+        try {
+          await p.setAudioTrack(AudioTrack.uri(audioUrl));
+        } catch (e) {
+          printERROR('Video mode: audio re-attach failed: $e');
+        }
+        _armSilenceGuard(p, songId, audioUrl, retried: true);
+        return;
+      }
+      printERROR(
+          'Video mode: no audio track after retry — handing back to audio');
+      await disable(); // resumes the audio pipeline at the same position
+    });
   }
 
   /// Transport while video mode is active (routed from PlayerController).
