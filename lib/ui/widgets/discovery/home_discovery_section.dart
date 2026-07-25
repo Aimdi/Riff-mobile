@@ -14,14 +14,44 @@ import '../snackbar.dart';
 import 'similar_songs_sheet.dart';
 
 /// Horizontal carousel for a personal discovery section on Home.
-class HomeDiscoverySection extends StatelessWidget {
+///
+/// Stateful so the section's tracks are deserialized once (in [initState] /
+/// [didUpdateWidget]) instead of on every Home rebuild — this widget sits
+/// under an Obx that fires when the mixes-updated pill flips, and re-parsing
+/// the whole list each time was pure wasted work on the Home scroll path.
+class HomeDiscoverySection extends StatefulWidget {
   const HomeDiscoverySection({super.key, required this.section});
   final DiscoverySection section;
 
   @override
+  State<HomeDiscoverySection> createState() => _HomeDiscoverySectionState();
+}
+
+class _HomeDiscoverySectionState extends State<HomeDiscoverySection> {
+  late List<MediaItem> tracks;
+
+  @override
+  void initState() {
+    super.initState();
+    tracks = _parse();
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeDiscoverySection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.section.tracks, widget.section.tracks)) {
+      tracks = _parse();
+    }
+  }
+
+  List<MediaItem> _parse() => widget.section.tracks
+      .map((m) => MediaItemBuilder.fromJson(m))
+      .toList();
+
+  DiscoverySection get section => widget.section;
+
+  @override
   Widget build(BuildContext context) {
-    final tracks =
-        section.tracks.map((m) => MediaItemBuilder.fromJson(m)).toList();
     if (tracks.isEmpty) return const SizedBox.shrink();
 
     return Column(

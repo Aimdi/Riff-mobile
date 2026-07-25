@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer/shimmer.dart';
 
+import '/services/image_cache_manager.dart';
+
 import '../screens/Settings/settings_screen_controller.dart';
 import '/models/artist.dart';
 import '/models/thumbnail.dart';
@@ -122,6 +124,7 @@ class ImageWidget extends StatelessWidget {
                   : CachedNetworkImage(
                   height: size,
                   width: size,
+                  cacheManager: RiffImageCache.instance,
                   // One dimension only — setting both forces a square decode and
                   // elongates 16:9 YouTube frames.
                   memCacheWidth: decodeSide,
@@ -134,6 +137,7 @@ class ImageWidget extends StatelessWidget {
                       return CachedNetworkImage(
                         height: size,
                         width: size,
+                        cacheManager: RiffImageCache.instance,
                         memCacheWidth: decodeSide,
                         imageUrl: raw,
                         fit: BoxFit.cover,

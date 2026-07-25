@@ -114,9 +114,33 @@ class MusicServices extends getx.GetxService {
     }
   }
 
+  // Short-lived in-memory cache of `browse` responses (artist / album /
+  // playlist / home). Revisiting one of these screens within the TTL
+  // returns instantly instead of a network round-trip behind a spinner —
+  // the biggest "everything loads" win. Playback ('next'/'player') and
+  // search are intentionally never cached here.
+  static const _browseCacheTtl = Duration(minutes: 6);
+  static const _browseCacheMax = 64;
+  final Map<String, ({DateTime at, dynamic data})> _browseCache = {};
+
+  bool _isCacheableBrowse(String action, String additionalParams) =>
+      action == 'browse' && additionalParams.isEmpty;
+
+  Response _cachedResponse(dynamic data) =>
+      Response(requestOptions: RequestOptions(path: ''), data: data,
+          statusCode: 200);
+
   Future<Response> _sendRequest(String action, Map<dynamic, dynamic> data,
       {additionalParams = "", int retries = 2}) async {
     //print("$baseUrl$action$fixedParms$additionalParams          data:$data");
+    final cacheable = _isCacheableBrowse(action, additionalParams);
+    final cacheKey = cacheable ? '$action|$data' : '';
+    if (cacheable) {
+      final hit = _browseCache[cacheKey];
+      if (hit != null && DateTime.now().difference(hit.at) < _browseCacheTtl) {
+        return _cachedResponse(hit.data);
+      }
+    }
     try {
       final response =
           await dio.post("$baseUrl$action$fixedParms$additionalParams",
@@ -128,6 +152,12 @@ class MusicServices extends getx.GetxService {
               data: data);
 
       if (response.statusCode == 200) {
+        if (cacheable && response.data != null) {
+          if (_browseCache.length >= _browseCacheMax) {
+            _browseCache.remove(_browseCache.keys.first);
+          }
+          _browseCache[cacheKey] = (at: DateTime.now(), data: response.data);
+        }
         return response;
       } else if (retries > 0) {
         return _sendRequest(action, data,
