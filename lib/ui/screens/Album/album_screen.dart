@@ -1,4 +1,5 @@
 import 'package:audio_service/audio_service.dart';
+import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -431,7 +432,7 @@ class AlbumScreen extends StatelessWidget {
                                   child: Center(
                                     child:
                                         albumController.isContentFetched.isFalse
-                                            ? const LoadingIndicator()
+                                            ? const SongListShimmer(itemCount: 6)
                                             : Text(
                                                 "emptyPlaylist".tr,
                                                 style: Theme.of(context)

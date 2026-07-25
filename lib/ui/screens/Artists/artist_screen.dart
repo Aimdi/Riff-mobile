@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -100,7 +101,7 @@ class Body extends StatelessWidget {
       return Obx(() {
         if (artistScreenController.isSeparatedArtistContentFetced.isFalse &&
             artistScreenController.navigationRailCurrentIndex.value != 0) {
-          return const Center(child: LoadingIndicator());
+          return const SongListShimmer(itemCount: 8, topPadding: 8);
         }
         return SeparateTabItemWidget(
           artistControllerTag: tag,
