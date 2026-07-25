@@ -46,7 +46,12 @@ void main() {
   });
 
   group('canShowPlayerVideo', () {
-    test('YTM podcast episodes can show video', () {
+    test('music videos can show video', () {
+      expect(item(videoType: 'MUSIC_VIDEO_TYPE_OMV').canShowPlayerVideo, isTrue);
+      expect(item(resultType: 'video').canShowPlayerVideo, isTrue);
+    });
+
+    test('YTM podcast episodes are audio-first (no video)', () {
       expect(
         item(
           videoType: 'MUSIC_VIDEO_TYPE_PODCAST_EPISODE',
@@ -54,11 +59,11 @@ void main() {
           podcastSource: 'yt_music_podcast',
           showVideo: true,
         ).canShowPlayerVideo,
-        isTrue,
+        isFalse,
       );
     });
 
-    test('yt_channel episodes can show video', () {
+    test('yt_channel episodes are audio-first (no video)', () {
       expect(
         item(
           videoType: 'MUSIC_VIDEO_TYPE_UGC',
@@ -66,7 +71,7 @@ void main() {
           podcastSource: 'yt_channel',
           showVideo: true,
         ).canShowPlayerVideo,
-        isTrue,
+        isFalse,
       );
     });
 

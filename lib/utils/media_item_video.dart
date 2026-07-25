@@ -20,18 +20,17 @@ extension MediaItemVideoX on MediaItem {
 
   /// Whether the in-player 16:9 surface may load for this item.
   ///
-  /// Includes normal music videos plus YouTube-sourced podcast episodes
-  /// (channel subscriptions / YTM podcast shows). Never RSS (`podcast_` ids).
+  /// True only for music videos — NOT podcasts.
+  ///
+  /// Podcasts (RSS or YouTube-sourced) are audio-first: the in-player video
+  /// surface is never engaged for them. Resolving a separate video stream
+  /// for a long episode made playback sit "loading" instead of just playing
+  /// the audio — a podcast should start instantly as audio.
   bool get canShowPlayerVideo {
     if (id.startsWith('podcast_')) return false;
-    if (extras?['showVideo'] == true) return true;
+    if (extras?['isPodcast'] == true) return false;
     final source = '${extras?['podcastSource'] ?? ''}';
-    if (source == 'yt_channel' || source == 'yt_music_podcast') return true;
-    if (extras?['isPodcast'] == true) {
-      final vt = '${extras?['videoType'] ?? ''}';
-      // Official YTM podcast episodes are real YouTube videos.
-      if (vt.contains('PODCAST')) return true;
-    }
+    if (source == 'yt_channel' || source == 'yt_music_podcast') return false;
     return isYoutubeVideo;
   }
 }
