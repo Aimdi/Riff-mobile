@@ -185,10 +185,22 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                 );
               }
               if (_section == 2) {
-                return const PodcastQueueScreen(embedded: true);
+                return PodcastQueueScreen(
+                  embedded: true,
+                  onDiscover: () {
+                    _loadDiscoveryRows();
+                    setState(() => _section = 4);
+                  },
+                );
               }
               if (_section == 3) {
-                return const PodcastSubsScreen(embedded: true);
+                return PodcastSubsScreen(
+                  embedded: true,
+                  onDiscover: () {
+                    _loadDiscoveryRows();
+                    setState(() => _section = 4);
+                  },
+                );
               }
               if (_section == 4) {
                 // Discover tab: search + discovery rows + categories.

@@ -6,6 +6,7 @@ import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/podcast_service.dart';
 import '/ui/widgets/content_list_widget_item.dart';
+import 'podcast_empty_state.dart';
 import 'podcast_folder_controller.dart';
 import 'podcast_folder_screen.dart';
 import 'podcasts_library_controller.dart';
@@ -174,7 +175,10 @@ class _FolderColorPicker extends StatelessWidget {
 /// Spotify-style folders. Folder tiles come first; long-press a show to file
 /// it into a folder, long-press a folder to delete it.
 class PodcastSubsScreen extends StatelessWidget {
-  const PodcastSubsScreen({super.key, this.embedded = false});
+  const PodcastSubsScreen({super.key, this.embedded = false, this.onDiscover});
+
+  /// Jumps to the Discover tab (embedded mode) from the empty state.
+  final VoidCallback? onDiscover;
 
   /// When true, render just the content (no Scaffold/AppBar) for inline use.
   final bool embedded;
@@ -191,15 +195,11 @@ class PodcastSubsScreen extends StatelessWidget {
         final rssSubs = PodcastService.subscriptions;
         final folderList = folders.folders.toList();
         if (subs.isEmpty && rssSubs.isEmpty && folderList.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(
-                "noPodcastsBookmarked".tr,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
+          return PodcastEmptyState(
+            icon: Icons.subscriptions_outlined,
+            message: "noPodcastsBookmarked".tr,
+            actionLabel: onDiscover != null ? 'discover'.tr : null,
+            onAction: onDiscover,
           );
         }
         return LayoutBuilder(builder: (context, constraints) {
@@ -262,14 +262,23 @@ class PodcastSubsScreen extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: () => showNewPodcastFolderDialog(context),
-              icon: const Icon(Icons.create_new_folder_outlined, size: 20),
-              label: Text("newFolder".tr),
-            ),
-          ),
+          // "New folder" only makes sense once something can be filed —
+          // don't float a lone action over the empty state.
+          Obx(() {
+            PodcastService.subsRev.value;
+            final hasAny = controller.libraryPodcasts.isNotEmpty ||
+                PodcastService.subscriptions.isNotEmpty ||
+                folders.folders.isNotEmpty;
+            if (!hasAny) return const SizedBox.shrink();
+            return Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => showNewPodcastFolderDialog(context),
+                icon: const Icon(Icons.create_new_folder_outlined, size: 20),
+                label: Text("newFolder".tr),
+              ),
+            );
+          }),
           Expanded(child: content),
         ],
       );

@@ -8,6 +8,7 @@ import '/services/music_service.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
+import 'podcast_empty_state.dart';
 import 'podcast_queue_screen.dart';
 import 'podcasts_library_controller.dart';
 
@@ -197,31 +198,15 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
   }
 
   /// Friendly empty state pointing at the Discover tab instead of a bare
-  /// text line floating in a blank screen.
+  /// text line floating in a blank screen (shared layout across tabs).
   Widget _emptyState(BuildContext context) {
-    final theme = Theme.of(context);
-    final dim = theme.textTheme.bodySmall?.color;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 80, 24, 24),
-      child: Column(
-        children: [
-          Icon(Icons.podcasts, size: 56, color: dim?.withOpacity(0.4)),
-          const SizedBox(height: 14),
-          Text(
-            "noInboxEpisodes".tr,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(color: dim?.withOpacity(0.7)),
-          ),
-          if (widget.onDiscover != null) ...[
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: widget.onDiscover,
-              icon: const Icon(Icons.explore_outlined, size: 18),
-              label: Text('discover'.tr),
-            ),
-          ],
-        ],
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.55,
+      child: PodcastEmptyState(
+        icon: Icons.podcasts,
+        message: "noInboxEpisodes".tr,
+        actionLabel: widget.onDiscover != null ? 'discover'.tr : null,
+        onAction: widget.onDiscover,
       ),
     );
   }

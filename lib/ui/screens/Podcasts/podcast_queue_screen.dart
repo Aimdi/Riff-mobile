@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import '/models/thumbnail.dart';
 import '/services/podcast_download_service.dart';
 import '/services/podcast_service.dart';
+import 'podcast_empty_state.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/utils/sheet_insets.dart';
 import '/ui/widgets/snackbar.dart';
@@ -98,7 +99,10 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode) {
 /// played in order. Reorder by dragging the handle, swipe/remove to drop one,
 /// tap to play from that point.
 class PodcastQueueScreen extends StatelessWidget {
-  const PodcastQueueScreen({super.key, this.embedded = false});
+  const PodcastQueueScreen({super.key, this.embedded = false, this.onDiscover});
+
+  /// Jumps to the Discover tab (embedded mode) from the empty state.
+  final VoidCallback? onDiscover;
 
   /// When true, render just the content (no Scaffold/AppBar) for inline use.
   final bool embedded;
@@ -116,15 +120,11 @@ class PodcastQueueScreen extends StatelessWidget {
     final body = Obx(() {
       final items = controller.queue;
       if (items.isEmpty) {
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              "queueEmpty".tr,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-          ),
+        return PodcastEmptyState(
+          icon: Icons.playlist_play_rounded,
+          message: "queueEmpty".tr,
+          actionLabel: onDiscover != null ? 'discover'.tr : null,
+          onAction: onDiscover,
         );
       }
       return Column(

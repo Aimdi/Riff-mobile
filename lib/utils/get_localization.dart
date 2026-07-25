@@ -1921,7 +1921,7 @@ Map<String, Map<String, String>> get keys => {
   "auddTokenHint": "Song recognition uses the audD API. Get a free token at dashboard.audd.io and paste it here.",
   "save": "Save",
   "nowPlaying": "Now playing",
-  "noPodcastsBookmarked": "No bookmarked podcasts yet. Discover some above!",
+  "noPodcastsBookmarked": "No podcasts followed yet — find shows in Discover and tap Follow",
   "communityplaylists": "Community Playlists",
   "featuredplaylists": "Featured Playlists",
   "items": "items",
