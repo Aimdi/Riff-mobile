@@ -16,6 +16,7 @@ import '../../../mixins/additional_opeartion_mixin.dart';
 import '../../../models/album.dart' show Album;
 import '../../../models/media_Item_builder.dart';
 import '../../../models/playlist.dart';
+import '../../../services/discovery/discovery_service.dart';
 import '../../../services/music_service.dart';
 import '../../../services/piped_service.dart';
 import '../../../services/playlist_mix_service.dart';
@@ -246,6 +247,20 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
         playlistId == "LIBRP" ||
         playlistId == "LIBFAV");
 
+    // Generated discovery mixes (Daily Mix / Rediscover / Fresh Finds /
+    // Release Radar) live in a RIFF_<id> box that is only (re)written on mix
+    // regeneration — on a plain launch that box can be empty even though the
+    // in-memory mix (used for playback) is populated, which showed as an
+    // "Empty playlist!" while the mix still played. Load from the live
+    // discovery data with a box fallback, and self-heal the box.
+    if (playlistId.startsWith('RIFF_')) {
+      if (!isIdOnly) playlist.value = playlist_;
+      _animationController.forward();
+      await _loadGeneratedMix(playlistId);
+      isContentFetched.value = true;
+      return;
+    }
+
     if (!isIdOnly && !playlist_.isCloudPlaylist) {
       playlist.value = playlist_;
       _animationController.forward();
@@ -284,6 +299,35 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
       // Handle any errors that occur during the fetch
       printERROR("Error fetching playlist details: $e");
     }
+  }
+
+  /// Load a generated discovery mix (RIFF_<id>). Prefers the materialized
+  /// local box; if it's empty, pulls the live mix from DiscoveryService and
+  /// backfills the box so Library / offline / Android Auto see it too.
+  Future<void> _loadGeneratedMix(String playlistId) async {
+    final box = await Hive.openBox(playlistId);
+    var songs = box.values
+        .map<MediaItem?>((e) => MediaItemBuilder.fromJson(e))
+        .whereType<MediaItem>()
+        .toList();
+    if (songs.isEmpty && Get.isRegistered<DiscoveryService>()) {
+      final mixId = playlistId.substring('RIFF_'.length);
+      final mix = Get.find<DiscoveryService>().repo.getMix(mixId);
+      if (mix != null && mix.tracks.isNotEmpty) {
+        songs = mix.tracks
+            .map<MediaItem?>((e) => MediaItemBuilder.fromJson(e))
+            .whereType<MediaItem>()
+            .toList();
+        await box.clear();
+        for (final t in mix.tracks) {
+          final id = t['videoId'] as String? ?? '';
+          if (id.isNotEmpty) await box.put(id, t);
+        }
+      }
+    }
+    await box.close();
+    songList.value = songs;
+    checkDownloadStatus();
   }
 
   Future<void> _fetchSongOnline(

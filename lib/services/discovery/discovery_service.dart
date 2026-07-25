@@ -66,6 +66,11 @@ class DiscoveryService extends GetxService {
     // Lazy load cached mixes for Home (no network)
     dailyMixes.assignAll(repo.mixesOfKind(MixKind.dailyMix));
 
+    // Keep the RIFF_<id> playlist boxes in sync with cached mixes so opening
+    // a mix from Library / Android Auto shows its tracks even without a
+    // regeneration this session (regeneration also re-materializes).
+    Future.microtask(materializeMixPlaylists);
+
     // Fire-and-forget regeneration well after Home/cache paint + first play.
     Future.delayed(const Duration(seconds: 12), () {
       maybeRegenerateMixes();
