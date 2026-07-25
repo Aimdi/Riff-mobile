@@ -2,13 +2,14 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
-import 'package:widget_marquee/widget_marquee.dart';
 
 import '../../services/piped_service.dart';
+import '../utils/riff_tokens.dart';
 import '/models/media_Item_builder.dart';
 import '/ui/widgets/create_playlist_dialog.dart';
 import '../../models/playlist.dart';
 import 'common_dialog_widget.dart';
+import 'image_widget.dart';
 import 'snackbar.dart';
 
 class AddToPlaylist extends StatelessWidget {
@@ -17,144 +18,210 @@ class AddToPlaylist extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final addToPlaylistController = Get.put(AddToPlaylistController());
+    final controller = Get.put(AddToPlaylistController());
     final isPipedLinked = Get.find<PipedServices>().isLoggedIn;
+    final theme = Theme.of(context);
+
     return CommonDialog(
-      child: Container(
-        height: isPipedLinked ? 400 : 350,
-        padding:
-            const EdgeInsets.only(top: 20, bottom: 30, left: 20, right: 20),
-        child: Stack(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(children: [
-              Container(
-                padding: const EdgeInsets.only(bottom: 10.0, top: 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 8.0),
-                        child: Marquee(
-                          id:"createNewPlaylistx",
-                          delay: const Duration(milliseconds: 300),
-                          child: Text(
-                            "CreateNewPlaylist".tr,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10,),
-                    InkWell(
-                      child: const Icon(Icons.playlist_add),
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        showDialog(
-                          context: context,
-                          builder: (context) => CreateNRenamePlaylistPopup(
-                              isCreateNadd: true, songItems: songItems),
-                        );
-                      },
-                    )
-                  ],
-                ),
-              ),
-              if (isPipedLinked)
-                Obx(
-                  () => Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Radio(
-                              value: "piped",
-                              groupValue:
-                                  addToPlaylistController.playlistType.value,
-                              onChanged:
-                                  addToPlaylistController.changePlaylistType),
-                          Text("Piped".tr),
-                        ],
-                      ),
-                      const SizedBox(
-                        width: 15,
-                      ),
-                      Row(
-                        children: [
-                          Radio(
-                              value: "local",
-                              groupValue:
-                                  addToPlaylistController.playlistType.value,
-                              onChanged:
-                                  addToPlaylistController.changePlaylistType),
-                          Text("local".tr),
-                        ],
-                      )
-                    ],
+            // Title + inline "New" create action.
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    "addToPlaylist".tr,
+                    style: theme.textTheme.titleLarge,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-              Container(
-                decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColorLight,
-                    borderRadius: BorderRadius.circular(10)),
-                height: 250,
-                //color: Colors.green,
-                child: Obx(
-                  () => addToPlaylistController.playlists.isNotEmpty
-                      ? ListView.builder(
-                          itemCount: addToPlaylistController.playlists.length,
-                          itemBuilder: (context, index) => ListTile(
-                            leading: const Icon(Icons.playlist_play),
-                            title: Text(
-                              (addToPlaylistController.playlists[index]).title,
-                            ),
-                            onTap: () {
-                              addToPlaylistController
-                                  .addSongsToPlaylist(
-                                      songItems,
-                                      (addToPlaylistController.playlists[index])
-                                          .playlistId,
-                                      context)
-                                  .then((value) {
-                                if (!context.mounted) return;
-                                if (value) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      snackbar(context,
-                                          "songAddedToPlaylistAlert".tr,
-                                          size: SanckBarSize.MEDIUM));
-                                  Navigator.of(context).pop();
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      snackbar(context, "songAlreadyExists".tr,
-                                          size: SanckBarSize.MEDIUM));
-                                  Navigator.of(context).pop();
-                                }
-                              });
-                            },
-                          ),
-                        )
-                      : Center(
-                          child: Text("noLibPlaylist".tr),
-                        ),
+                const SizedBox(width: 8),
+                FilledButton.tonalIcon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    showDialog(
+                      context: context,
+                      builder: (context) => CreateNRenamePlaylistPopup(
+                          isCreateNadd: true, songItems: songItems),
+                    );
+                  },
+                  icon: const Icon(Icons.add, size: 18),
+                  label: Text("newPlaylistShort".tr),
+                  style: FilledButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  ),
                 ),
-              )
-            ]),
-            Obx(() => (addToPlaylistController.additionInProgress.isTrue &&
-                    isPipedLinked)
-                ? const Positioned(
-                    top: 60,
-                    right: 8,
-                    child: SizedBox(
-                        height: 15,
-                        width: 15,
-                        child: CircularProgressIndicator(
-                          backgroundColor: Colors.transparent,
-                          strokeWidth: 2,
-                        )),
-                  )
-                : const SizedBox.shrink()),
+              ],
+            ),
+            // Piped / local source toggle (only when a Piped account is linked).
+            if (isPipedLinked) ...[
+              const SizedBox(height: 12),
+              Obx(() => SegmentedButton<String>(
+                    style: ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    segments: [
+                      ButtonSegment(
+                          value: "local",
+                          label: Text("local".tr),
+                          icon: const Icon(Icons.phone_android, size: 16)),
+                      ButtonSegment(
+                          value: "piped",
+                          label: Text("Piped".tr),
+                          icon: const Icon(Icons.cloud_outlined, size: 16)),
+                    ],
+                    selected: {controller.playlistType.value},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (s) =>
+                        controller.changePlaylistType(s.first),
+                  )),
+            ],
+            const SizedBox(height: 12),
+            // Playlist list — flexible height so the last row is never clipped.
+            Flexible(
+              child: Obx(() {
+                if (controller.additionInProgress.value) {
+                  return const SizedBox(
+                    height: 120,
+                    child: Center(
+                      child: SizedBox(
+                        height: 26,
+                        width: 26,
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      ),
+                    ),
+                  );
+                }
+                if (controller.playlists.isEmpty) {
+                  return _EmptyPlaylists(theme: theme);
+                }
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
+                  child: Material(
+                    color: theme.primaryColorLight.withOpacity(0.35),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      itemCount: controller.playlists.length,
+                      separatorBuilder: (_, __) => Divider(
+                        height: 1,
+                        thickness: RiffTokens.hairline,
+                        indent: 68,
+                        color: theme.dividerColor.withOpacity(0.25),
+                      ),
+                      itemBuilder: (context, index) => _PlaylistRow(
+                        playlist: controller.playlists[index],
+                        onTap: () => _onPick(context, controller, index),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _onPick(BuildContext context, AddToPlaylistController controller,
+      int index) {
+    controller
+        .addSongsToPlaylist(
+            songItems, controller.playlists[index].playlistId, context)
+        .then((added) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(snackbar(
+          context,
+          added ? "songAddedToPlaylistAlert".tr : "songAlreadyExists".tr,
+          size: SanckBarSize.MEDIUM));
+      Navigator.of(context).pop();
+    });
+  }
+}
+
+/// One playlist row: rounded cover art, title, and song count when known.
+class _PlaylistRow extends StatelessWidget {
+  const _PlaylistRow({required this.playlist, required this.onTap});
+  final Playlist playlist;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final count = playlist.songCount;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+              child: ImageWidget(size: 44, playlist: playlist),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    playlist.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  if (count != null && count.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      "$count ${'songs'.tr}",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.add, size: 22, color: theme.colorScheme.secondary),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyPlaylists extends StatelessWidget {
+  const _EmptyPlaylists({required this.theme});
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final dim = theme.textTheme.bodySmall?.color;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.playlist_add, size: 48, color: dim?.withOpacity(0.4)),
+          const SizedBox(height: 12),
+          Text(
+            "noLibPlaylist".tr,
+            textAlign: TextAlign.center,
+            style:
+                theme.textTheme.bodyMedium?.copyWith(color: dim?.withOpacity(0.8)),
+          ),
+        ],
       ),
     );
   }

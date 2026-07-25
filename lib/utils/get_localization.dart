@@ -1951,6 +1951,7 @@ Map<String, Map<String, String>> get keys => {
   "startRadio": "Start radio",
   "playNext": "Play next",
   "addToPlaylist": "Add to playlist",
+  "newPlaylistShort": "New",
   "favHeartHint": "Tap to like · Hold to add to playlist",
   "noLibPlaylist": "You don't have any lib playlist!",
   "enqueueSong": "Enqueue this song",
