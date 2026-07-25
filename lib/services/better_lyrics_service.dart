@@ -190,10 +190,12 @@ class BetterLyricsService {
     final m = seconds ~/ 60;
     final s = seconds - m * 60;
     final whole = s.floor();
-    final frac = ((s - whole) * 100).round().clamp(0, 99);
+    // 3 fractional digits: flutter_lyric's parser only handles millisecond
+    // stamps correctly (2-digit stamps hit its broken padRight branch).
+    final frac = ((s - whole) * 1000).round().clamp(0, 999);
     return '${m.toString().padLeft(2, '0')}:'
         '${whole.toString().padLeft(2, '0')}.'
-        '${frac.toString().padLeft(2, '0')}';
+        '${frac.toString().padLeft(3, '0')}';
   }
 }
 

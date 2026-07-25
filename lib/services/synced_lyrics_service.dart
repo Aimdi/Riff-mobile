@@ -20,7 +20,29 @@ class SyncedLyricsService {
     return LyricsSource.auto;
   }
 
+  /// flutter_lyric's LRC parser mis-handles sub-second stamps shorter than
+  /// 3 digits ([mm:ss.47] parses as 47ms instead of 470ms), firing every
+  /// line early by a per-line amount — the "lyrics out of sync" bug. All
+  /// providers emit 2-digit stamps; padding to 3 digits routes the parser
+  /// through its correct branch. Idempotent, applied to cached copies too.
+  static String normalizeLrcTimestamps(String lrc) {
+    return lrc.replaceAllMapped(
+      RegExp(r'\[(\d{1,2}):(\d{2})\.(\d{1,2})\]'),
+      (m) => '[${m[1]}:${m[2]}.${m[3]!.padRight(3, '0')}]',
+    );
+  }
+
   static Future<Map<String, dynamic>?> getSyncedLyrics(
+      MediaItem song, int durInSec) async {
+    final r = await _getSyncedLyricsRaw(song, durInSec);
+    final synced = r?['synced'];
+    if (synced is String && synced.isNotEmpty) {
+      r!['synced'] = normalizeLrcTimestamps(synced);
+    }
+    return r;
+  }
+
+  static Future<Map<String, dynamic>?> _getSyncedLyricsRaw(
       MediaItem song, int durInSec) async {
     final lyricsBox = await Hive.openBox("lyrics");
     if (lyricsBox.containsKey(song.id)) {

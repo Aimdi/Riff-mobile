@@ -44,8 +44,11 @@ class PlaybackRulesService extends GetxService {
 
   bool _isBtOutput(AudioDevice d) {
     final t = d.type;
+    // ignore: experimental_member_use
     return t == AudioDeviceType.bluetoothA2dp ||
+        // ignore: experimental_member_use
         t == AudioDeviceType.bluetoothSco ||
+        // ignore: experimental_member_use
         t == AudioDeviceType.bluetoothLe;
   }
 

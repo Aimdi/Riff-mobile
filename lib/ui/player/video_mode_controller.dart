@@ -16,6 +16,7 @@ import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/utils/helper.dart';
 import '/utils/media_item_video.dart';
 import 'player_controller.dart';
+import 'progress_ui_throttle.dart';
 
 /// Video mode: plays the current YouTube track as real video, the way a
 /// video player does it — ONE mpv engine is given the video-only stream
@@ -44,6 +45,7 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
 
   Player? _player;
   VideoController? videoController;
+  final _uiThrottle = ProgressUiThrottle();
   String? _activeSongId;
   final List<StreamSubscription> _subs = [];
   Worker? _songWorker;
@@ -223,6 +225,15 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
     _unwire();
     _subs.add(p.stream.position.listen((pos) {
       if (!isActive.value) return;
+      // Lyrics get the full-rate clock; the progress-bar fan-out is
+      // throttled like the audio path (mpv emits per frame, 24-60 Hz).
+      _pc.lyricsPositionMs.value = pos.inMilliseconds;
+      if (!_uiThrottle.shouldUpdate(
+        position: pos,
+        previousUiPosition: _pc.progressBarStatus.value.current,
+      )) {
+        return;
+      }
       _pc.progressBarStatus.update((val) {
         val!.current = pos;
       });

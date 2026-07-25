@@ -15,8 +15,8 @@ void main() {
 ''';
       final lrc = BetterLyricsService.ttmlToLrc(ttml);
       expect(lrc, isNotNull);
-      expect(lrc, contains('[00:09.73]The club'));
-      expect(lrc, contains('[01:02.50]Hello world'));
+      expect(lrc, contains('[00:09.731]The club'));
+      expect(lrc, contains('[01:02.500]Hello world'));
     });
 
     test('returns null when no timed lines', () {

@@ -62,8 +62,7 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
     final accent = Theme.of(context).colorScheme.secondary;
 
     return Obx(() {
-      final posSec =
-          player.progressBarStatus.value.current.inMilliseconds / 1000.0;
+      final posSec = player.lyricsPositionMs.value / 1000.0;
       var activeLine = 0;
       for (var i = 0; i < _lines.length; i++) {
         if (_lines[i].beginSec <= posSec) activeLine = i;

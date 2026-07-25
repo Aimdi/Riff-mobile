@@ -87,6 +87,9 @@ class PlayerController extends GetxController
   final gesturePlayerVisibleState = 2.obs;
   final lyricUi =
       UINetease(highlight: true, defaultSize: 20, defaultExtSize: 12);
+  /// Un-throttled playback clock for lyric-line highlighting (ms). The
+  /// progress bar stays on the throttled progressBarStatus fan-out.
+  final lyricsPositionMs = 0.obs;
   RxMap<String, dynamic> lyrics =
       <String, dynamic>{"synced": "", "plainLyrics": ""}.obs;
   ScrollController scrollController = ScrollController();
@@ -296,6 +299,9 @@ class PlayerController extends GetxController
         }
       }
       // Full-rate side effects — never throttle skip / podcast / taste logic.
+      // Lyrics keep their own un-throttled clock so line highlighting never
+      // lags behind the (intentionally ~10 Hz) progress-bar fan-out.
+      lyricsPositionMs.value = position.inMilliseconds;
       if (Get.isRegistered<DiscoveryService>()) {
         Get.find<DiscoveryService>().onPositionTick(position.inMilliseconds);
       }
