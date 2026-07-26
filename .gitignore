@@ -70,3 +70,8 @@ android/app/.cxx/Debug/*
 
 /android/app/.cxx
 
+# Transient git worktrees created by agent tooling — full repo checkouts,
+# scratch space only. Scoped to worktrees/ so a deliberate .claude/settings.json
+# or project skill can still be tracked.
+.claude/worktrees/
+
