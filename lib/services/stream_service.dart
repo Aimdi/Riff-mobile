@@ -91,6 +91,37 @@ class StreamProvider {
 
   static const _newPipeChannel = MethodChannel('riff/newpipe');
 
+  /// Budget for the NewPipe platform-channel round trip.
+  ///
+  /// The Android side runs a handful of HTTP calls inside NewPipeExtractor;
+  /// a healthy resolve lands well under 2s on mobile data. 12s covers a slow
+  /// but alive extraction while guaranteeing that a wedged extractor costs
+  /// one pause, not the whole playback attempt — [fetch] gates the entire
+  /// youtube_explode fallback ladder on this call returning.
+  static const Duration newPipeTimeout = Duration(seconds: 12);
+
+  /// Cap for the "does this url actually serve bytes" probe. Only two bytes
+  /// are requested, so anything past 10s is a stalled read, and the client
+  /// already gives up on the connect phase at 8s.
+  static const Duration urlProbeTimeout = Duration(seconds: 10);
+
+  /// Awaits [call] but treats a hang exactly like a failure: once [timeout]
+  /// elapses the pending result is abandoned and null is returned (with the
+  /// [TimeoutException] reported through [onError]), so a caller that falls
+  /// through on null reaches its next resolver either way.
+  ///
+  /// Public so tests can drive it with an injected delay.
+  static Future<T?> callWithTimeout<T>(
+      Future<T?> Function() call, Duration timeout,
+      {void Function(Object error)? onError}) async {
+    try {
+      return await call().timeout(timeout);
+    } catch (e) {
+      onError?.call(e);
+      return null;
+    }
+  }
+
   static bool _looksLikeBotBlock(Object e) {
     final s = e.toString().toLowerCase();
     return s.contains('sign in to confirm') ||
@@ -119,8 +150,14 @@ class StreamProvider {
           args['authorization'] = authHeaders['authorization'];
         }
       }
-      final res = await _newPipeChannel.invokeMethod<String>(
-          'getAudioStreams', args);
+      final res = await callWithTimeout<String>(
+        () => _newPipeChannel.invokeMethod<String>('getAudioStreams', args),
+        newPipeTimeout,
+        onError: (e) {
+          printERROR("NewPipe resolver failed ($videoId): $e");
+          if (_looksLikeBotBlock(e)) onBotBlocked?.call(e);
+        },
+      );
       if (res == null) return null;
       final list = jsonDecode(res) as List;
       final formats = list
@@ -156,24 +193,32 @@ class StreamProvider {
   }
 
   static Future<bool> _urlIsPlayable(String url) async {
+    // A hiccup — or a read that never finishes — on the check should not
+    // discard the stream, but it must not stall the resolver ladder either.
+    final ok = await callWithTimeout<bool>(() => _probeUrl(url),
+        urlProbeTimeout);
+    return ok ?? true;
+  }
+
+  static Future<bool> _probeUrl(String url) async {
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 8);
     try {
-      final client = HttpClient()
-        ..connectionTimeout = const Duration(seconds: 8);
       // Prefer a tiny ranged GET — some CDNs reject HEAD with 403/405
       // even when the stream is fine.
       final req = await client.getUrl(Uri.parse(url));
       req.headers.set(HttpHeaders.rangeHeader, 'bytes=0-1');
       final res = await req.close();
       await res.drain<void>();
-      client.close();
       // 2xx and 206 are success; 403/429 may be IP luck — keep the URL
       // and let the player try rather than discarding a good resolve.
       if (res.statusCode >= 200 && res.statusCode < 300) return true;
       if (res.statusCode == 403 || res.statusCode == 429) return true;
       return false;
-    } catch (_) {
-      // Network hiccup on the check should not discard the stream.
-      return true;
+    } finally {
+      // Runs on every exit path — including after the caller has given up
+      // on this probe — so a failed check does not leak the socket.
+      client.close(force: true);
     }
   }
 

@@ -18,6 +18,7 @@ import '../utils/helper.dart';
 import 'constant.dart';
 import 'continuations.dart';
 import 'nav_parser.dart';
+import 'network_policy.dart';
 
 enum AudioQuality {
   Low,
@@ -51,7 +52,13 @@ class MusicServices extends getx.GetxService {
     super.onInit();
   }
 
-  final dio = Dio();
+  // Without these a hung connection parks the future forever: the request
+  // never fails, so nothing downstream can retry or surface an error.
+  final dio = Dio(BaseOptions(
+    connectTimeout: ApiRetryPolicy.connectTimeout,
+    sendTimeout: ApiRetryPolicy.sendTimeout,
+    receiveTimeout: ApiRetryPolicy.receiveTimeout,
+  ));
 
   Future<void> init() async {
     //check visitor id in data base, if not generate one , set lang code
@@ -117,28 +124,23 @@ class MusicServices extends getx.GetxService {
   Future<Response> _sendRequest(String action, Map<dynamic, dynamic> data,
       {additionalParams = "", int retries = 2}) async {
     //print("$baseUrl$action$fixedParms$additionalParams          data:$data");
-    try {
-      final response =
-          await dio.post("$baseUrl$action$fixedParms$additionalParams",
-              options: Options(
-                // Auth headers personalize the feed when a YouTube
-                // account is connected; empty map when anonymous.
-                headers: {..._headers, ...YtAuthService.authHeaders()},
-              ),
-              data: data);
-
-      if (response.statusCode == 200) {
-        return response;
-      } else if (retries > 0) {
-        return _sendRequest(action, data,
-            additionalParams: additionalParams, retries: retries - 1);
-      } else {
-        throw NetworkError();
-      }
-    } on DioException catch (e) {
-      printINFO("Error $e");
-      throw NetworkError();
-    }
+    final response = await ApiRetryPolicy.run(
+      () => dio.post("$baseUrl$action$fixedParms$additionalParams",
+          options: Options(
+            // Auth headers personalize the feed when a YouTube
+            // account is connected; empty map when anonymous.
+            headers: {..._headers, ...YtAuthService.authHeaders()},
+            // Hand non-2xx back as a response instead of a DioException:
+            // dio's default validateStatus rejected every non-2xx, which is
+            // why the old status-code retry branch here was dead code.
+            validateStatus: (_) => true,
+          ),
+          data: data),
+      retries: retries,
+      onError: (e) => printINFO("Error $e"),
+    );
+    if (response == null) throw NetworkError();
+    return response;
   }
 
   // Future<List<Map<String, dynamic>>>
