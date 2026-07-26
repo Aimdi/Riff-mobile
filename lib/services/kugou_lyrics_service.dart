@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
+import '/services/kugou_lyrics_match.dart';
 import '/utils/helper.dart';
 
 /// KuGou synced-lyrics provider, ported from RiPlay. Used as a fallback
@@ -27,7 +28,8 @@ class KuGouLyricsService {
         for (final s in songs) {
           final dur = (s['duration'] ?? 0) as int;
           if (dur >= durationSec - tolerance && dur <= durationSec + tolerance) {
-            final cand = await _searchLyricsByHash(s['hash'] as String);
+            final cand = await _searchLyricsByHash(
+                s['hash'] as String, durationSec, artist, title);
             if (cand != null) {
               final lrc = await _download(cand[0], cand[1]);
               if (lrc != null && lrc.contains('[')) return lrc;
@@ -37,7 +39,8 @@ class KuGouLyricsService {
       }
 
       // 2) Fall back to a keyword lyric search.
-      final cand = await _searchLyricsByKeyword(keyword);
+      final cand =
+          await _searchLyricsByKeyword(keyword, durationSec, artist, title);
       if (cand != null) {
         final lrc = await _download(cand[0], cand[1]);
         if (lrc != null && lrc.contains('[')) return lrc;
@@ -64,8 +67,12 @@ class KuGouLyricsService {
     return [];
   }
 
-  /// Returns [id, accessKey] of the first lyric candidate, or null.
-  static Future<List<dynamic>?> _searchLyricsByHash(String hash) async {
+  /// Returns [id, accessKey] of the best lyric candidate, or null.
+  ///
+  /// The hash already identifies the track, so a candidate is still accepted
+  /// when none of them lines up with [durationSec].
+  static Future<List<dynamic>?> _searchLyricsByHash(
+      String hash, int durationSec, String artist, String title) async {
     final res = await _dio.get('https://krcs.kugou.com/search',
         queryParameters: {
           'ver': 1,
@@ -73,26 +80,42 @@ class KuGouLyricsService {
           'client': 'mobi',
           'hash': hash
         });
-    return _firstCandidate(res.data);
+    return _bestCandidate(res.data, durationSec, artist, title,
+        requireDurationMatch: false);
   }
 
-  static Future<List<dynamic>?> _searchLyricsByKeyword(String keyword) async {
+  /// Keyword fallback. The query alone does not pin down the track, so the
+  /// duration is sent along and a candidate is only accepted when its own
+  /// duration agrees — otherwise a wrong track's lyrics get cached forever.
+  static Future<List<dynamic>?> _searchLyricsByKeyword(
+      String keyword, int durationSec, String artist, String title) async {
     final res = await _dio.get('https://krcs.kugou.com/search',
         queryParameters: {
           'ver': 1,
           'man': 'yes',
           'client': 'mobi',
-          'keyword': keyword
+          'keyword': keyword,
+          if (durationSec > 0) 'duration': durationSec * 1000,
         });
-    return _firstCandidate(res.data);
+    return _bestCandidate(res.data, durationSec, artist, title,
+        requireDurationMatch: true);
   }
 
-  static List<dynamic>? _firstCandidate(dynamic data) {
-    final cands = _json(data)?['candidates'];
-    if (cands is List && cands.isNotEmpty) {
-      return [cands[0]['id'], cands[0]['accesskey']];
-    }
-    return null;
+  static List<dynamic>? _bestCandidate(
+    dynamic data,
+    int durationSec,
+    String artist,
+    String title, {
+    required bool requireDurationMatch,
+  }) {
+    final best = pickBestKuGouCandidate(
+      parseKuGouCandidates(_json(data)),
+      targetDurationSec: durationSec,
+      requireDurationMatch: requireDurationMatch,
+      title: title,
+      artist: artist,
+    );
+    return best == null ? null : [best.id, best.accessKey];
   }
 
   static Future<String?> _download(dynamic id, dynamic accessKey) async {
