@@ -8,6 +8,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../utils/app_version.dart';
 import '../../../utils/update_check_flag_file.dart';
 import '/services/piped_service.dart';
 import '../Library/library_controller.dart';
@@ -86,19 +87,30 @@ class SettingsScreenController extends GetxController {
   final cacheHomeScreenData = true.obs;
   /// Unlocks Advanced developer tools (tap About version 7×).
   final developerMode = false.obs;
-  final currentVersion = "V1.7.79";
+  /// App version sourced from the installed package (see [AppVersion]);
+  /// seeded with the pubspec-backed fallback so it is never a stale literal.
+  final currentVersionRx = AppVersion.display.obs;
   int _versionTapCount = 0;
   DateTime? _lastVersionTap;
 
   @override
   void onInit() {
     _setInitValue();
-    if (updateCheckFlag) _checkNewVersion();
+    _loadAppVersion();
     _createInAppSongDownDir();
     super.onInit();
   }
 
+  /// e.g. `V1.7.95` — reactive, so Settings -> About refreshes once the real
+  /// package version resolves.
+  String get currentVersion => currentVersionRx.value;
+
   get currentVision => currentVersion;
+
+  Future<void> _loadAppVersion() async {
+    currentVersionRx.value = await AppVersion.load();
+    if (updateCheckFlag) _checkNewVersion();
+  }
   get isCurrentPathsupportDownDir =>
       "$_supportDir/Music" == downloadLocationPath.toString();
   String get supportDirPath => _supportDir;

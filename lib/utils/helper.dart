@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '/ui/navigator.dart';
 import '/ui/widgets/sort_widget.dart';
+import 'app_version.dart';
 
 void printERROR(dynamic text, {String tag = "Harmony Music"}) {
   if (kReleaseMode) return;
@@ -167,21 +168,7 @@ Future<bool> newVersionCheck(String currentVersion) async {
             .get("https://api.github.com/repos/Aimdi/Riff-mobile/tags"))
         .data;
     final availableVersion = tags[0]['name'] as String;
-    List currentVersion_ = currentVersion.substring(1).split(".");
-    List availableVersion_ = availableVersion.substring(1).split(".");
-    if (int.parse(availableVersion_[0]) > int.parse(currentVersion_[0])) {
-      return true;
-    } else if (int.parse(availableVersion_[1]) >
-            int.parse(currentVersion_[1]) &&
-        int.parse(availableVersion_[0]) == int.parse(currentVersion_[0])) {
-      return true;
-    } else if (int.parse(availableVersion_[2]) >
-            int.parse(currentVersion_[2]) &&
-        int.parse(availableVersion_[0]) == int.parse(currentVersion_[0]) &&
-        int.parse(availableVersion_[1]) == int.parse(currentVersion_[1])) {
-      return true;
-    }
-    return false;
+    return isNewerVersion(availableVersion, currentVersion);
   } catch (e) {
     return false;
   }
