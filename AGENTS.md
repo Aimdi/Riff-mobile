@@ -26,14 +26,15 @@ with JDK 21 will fail the Gradle/AGP step.
 ### Lint / test / build
 
 - Lint: `flutter analyze` (clean on this repo).
-- Tests: prefer running suites explicitly —
-  `flutter test test/discovery test/podcast_episode_parse_test.dart`
-  (pure unit) and `flutter test test/yt_e2e_diagnose_test.dart -r expanded`
-  (hits the **live** YouTube Music / Apple / KuGou APIs; needs network
-  egress, which works in this VM).
-- `test/widget_test.dart` is the **stale default Flutter counter test** and
-  fails on purpose against this app's `MyApp` — do not treat its failure as an
-  environment problem, and note that a bare `flutter test` will report it.
+- Tests: `flutter test --exclude-tags live` runs the offline suite — this is
+  what CI runs on every push, and it must stay green.
+- `flutter test test/yt_e2e_diagnose_test.dart -r expanded` runs the suite
+  tagged `live`, which hits the **real** YouTube Music / Apple / KuGou APIs;
+  it needs network egress (works in this VM). Running it by path ignores the
+  tag filter. The *YT API diagnostics* workflow runs it nightly, so a YouTube
+  change surfaces there rather than in user reports.
+- Tags are declared in `dart_test.yaml`. Any new suite that reaches a
+  third-party API over the network belongs under the `live` tag.
 - Dev build: `flutter build apk --debug` → `build/app/outputs/flutter-apk/`.
   First build downloads Gradle + auto-installs extra SDK platforms (31/33).
   Release build (`flutter build apk --release`) uses `android/key.properties`

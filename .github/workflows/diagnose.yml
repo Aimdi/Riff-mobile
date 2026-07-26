@@ -2,6 +2,11 @@ name: YT API diagnostics
 
 on:
   workflow_dispatch:
+  # Nightly, so a YouTube player-client rotation or cipher change shows up
+  # here before users hit it. GitHub emails the repo owner when a scheduled
+  # run on the default branch fails.
+  schedule:
+    - cron: '0 6 * * *'
 
 jobs:
   diagnose:

@@ -41,6 +41,11 @@ jobs:
       - name: Analyze
         run: flutter analyze
 
+      # Everything except the `live` suite, which needs real YouTube/Apple/
+      # KuGou egress and is covered by the scheduled YT API diagnostics run.
+      - name: Test
+        run: flutter test --exclude-tags live
+
       - name: Build APKs (universal + per-abi)
         run: |
           flutter build apk --release

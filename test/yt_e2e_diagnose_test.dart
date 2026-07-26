@@ -8,6 +8,14 @@
 // Note: googlevideo stream URLs are often IP-locked/403 for datacenter
 // IPs, so the stream HEAD check can fail on CI while working fine on a
 // phone - the manifest fetch result is what matters here.
+//
+// Tagged `live` so the per-push suite (`flutter test --exclude-tags live`)
+// skips it: it needs real network egress and third-party APIs that are
+// outside our control. The scheduled *YT API diagnostics* workflow runs
+// this file by path, which ignores the tag filter.
+
+@Tags(<String>['live'])
+library;
 
 import 'dart:io';
 

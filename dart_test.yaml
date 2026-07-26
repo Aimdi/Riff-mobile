@@ -1,0 +1,7 @@
+# Test runner config. Declaring tags here keeps `flutter test` from warning
+# about unrecognised tag names.
+tags:
+  # Suites that talk to real third-party APIs (YouTube Music, Apple, KuGou,
+  # LibriVox). Excluded from the per-push run in .github/workflows/build.yml;
+  # exercised by the scheduled .github/workflows/diagnose.yml.
+  live:
