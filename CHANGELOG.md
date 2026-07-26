@@ -1,3 +1,38 @@
+# 1.7.96
+
+**Playback resilience**
+* Remote client config now refreshes the moment a stream fails, instead of only
+  once per cold start behind a 12h timer — a published fix reaches users in
+  minutes rather than up to a day
+* Config downloads are validated before being cached, so a malformed emergency
+  fix can no longer be stored and silently ignored
+* Network waits are bounded: a hung NewPipe resolve now falls through to the
+  fallback player clients instead of blocking them forever
+
+**Lyrics**
+* LRCLIB lookups no longer send a literal "null" album to the exact-match
+  endpoint, which had been guaranteeing a miss for search, radio and
+  watch-playlist tracks; parameters are now properly encoded and time-limited
+* KuGou no longer caches the wrong track's lyrics forever when its top result's
+  duration is clearly wrong
+
+**Fixes**
+* Settings and the update check read the real app version instead of a
+  hardcoded string that had drifted 16 patches behind
+* Sorting albums by "Date" sorts by year and by "Name" sorts by title — the two
+  comparators were inverted
+* Shuffle no longer drops the currently playing track each time the queue grows,
+  which had been compounding on every radio continuation
+* A single play is logged once; re-emitted track events no longer inflate play
+  counts, scrobbles, and skip signals
+* A track whose duration never resolved is no longer scored as a full listen by
+  the discovery engine
+
+**Project**
+* The test suite runs on every push (197 tests) and the live YouTube API
+  diagnostics run nightly, so a player-client rotation surfaces before users
+  hit it
+
 # 1.1.0 — Discovery redesign
 * Local private taste model (affinity, familiarity, co-occurrence, impressions, skip learning)
 * Shared recommendation pipeline for radio, similar songs, and generated mixes
