@@ -48,6 +48,12 @@ class TasteModel {
 
   /// Call when a track ends or is skipped. [listenedMs] and [totalMs]
   /// determine fraction / quick-skip.
+  ///
+  /// A [totalMs] of 0 means the duration is unknown (e.g. the stream never
+  /// resolved, or the item legitimately carries no duration). That is treated
+  /// as *no* signal — the event is still recorded with a null fraction, but the
+  /// artist affinity is left untouched — except when [listenedMs] is under 10s,
+  /// which is an unambiguous quick skip regardless of track length.
   Future<void> logPlayEnded({
     required String videoId,
     required String? artist,
@@ -59,9 +65,10 @@ class TasteModel {
   }) async {
     final artistKey = normalizeArtistKey(artist);
     final now = DateTime.now();
-    final fraction =
-        totalMs > 0 ? (listenedMs / totalMs).clamp(0.0, 1.0) : 0.0;
-    final isQuickSkip = listenedMs < 10000 && fraction < 0.30;
+    // null == unknown duration; never fabricate a denominator.
+    final double? fraction =
+        totalMs > 0 ? (listenedMs / totalMs).clamp(0.0, 1.0) : null;
+    final isQuickSkip = listenedMs < 10000 && (fraction ?? 0.0) < 0.30;
 
     DiscoveryEventKind kind;
     double affinityDelta;
@@ -69,6 +76,10 @@ class TasteModel {
     if (isQuickSkip) {
       kind = DiscoveryEventKind.quickSkip;
       affinityDelta = AffinityWeights.quickSkip;
+    } else if (fraction == null) {
+      // Unknown duration is unknown signal, not evidence either way.
+      kind = DiscoveryEventKind.playEnded;
+      affinityDelta = 0.0;
     } else {
       final quality = classifyListen(fraction);
       switch (quality) {

@@ -129,7 +129,9 @@ class DiscoveryService extends GetxService {
         title: _prevMedia!.title,
         source: _prevSource,
         listenedMs: listened,
-        totalMs: totalMs > 0 ? totalMs : listened,
+        // Never fabricate a denominator: an unresolved/unknown duration must
+        // stay 0 so TasteModel scores it as unknown instead of a 100% listen.
+        totalMs: totalMs,
       );
     }
 

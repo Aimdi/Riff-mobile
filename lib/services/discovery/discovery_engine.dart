@@ -373,6 +373,12 @@ class DiscoveryEngine {
           e.event != DiscoveryEventKind.favorite) {
         continue;
       }
+      // A play only seeds if it demonstrably ran to (near) completion; a null
+      // fraction on a playEnded means the duration was never known.
+      if (e.event == DiscoveryEventKind.playEnded &&
+          (e.fraction == null || e.fraction! < 0.85)) {
+        continue;
+      }
       if (e.fraction != null && e.fraction! < 0.85) continue;
       if (seen.contains(e.videoId)) continue;
       seen.add(e.videoId);

@@ -63,6 +63,38 @@ void main() {
     expect(repo.skipRateOf(normalizeArtistKey('Phonk King')), greaterThan(0.4));
   });
 
+  test('unknown duration is neutral, not a full listen', () async {
+    // Track whose stream never resolved: position/duration never advanced, so
+    // totalMs is 0. This must not be scored as a 100% listen.
+    await taste.logPlayEnded(
+      videoId: 'v',
+      artist: 'Ghost',
+      title: 'T',
+      source: DiscoverySource.userClick,
+      listenedMs: 30000,
+      totalMs: 0,
+    );
+    expect(repo.affinityOf(normalizeArtistKey('Ghost')), 0.0);
+    final ev = repo.recentEvents(limit: 10).last;
+    expect(ev.event, DiscoveryEventKind.playEnded);
+    expect(ev.fraction, isNull);
+  });
+
+  test('unknown duration under 10s is still a quick skip', () async {
+    await taste.logPlayEnded(
+      videoId: 'v',
+      artist: 'Ghost Two',
+      title: 'T',
+      source: DiscoverySource.userClick,
+      listenedMs: 4000,
+      totalMs: 0,
+    );
+    expect(repo.affinityOf(normalizeArtistKey('Ghost Two')),
+        closeTo(AffinityWeights.quickSkip, 0.01));
+    expect(repo.recentEvents(limit: 10).last.event,
+        DiscoveryEventKind.quickSkip);
+  });
+
   test('favorite bumps affinity strongly', () async {
     await taste.logFavorite('vid', 'Artist X', 'Song', add: true);
     expect(repo.affinityOf(normalizeArtistKey('Artist X')),
