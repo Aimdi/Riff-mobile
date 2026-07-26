@@ -72,10 +72,20 @@ void main() {
       expect(reported, isA<StateError>());
     });
 
-    test('the NewPipe budget is bounded so the ladder is always reached', () {
+    test('the NewPipe budget outlasts the native resolver but stays finite',
+        () {
+      // NewPipeResolver.kt sets connectTimeout=15s and readTimeout=20s on each
+      // connection, so a single native request can legitimately take 35s. A
+      // Dart timeout below that would cancel work that was about to succeed —
+      // turning a slow cold resolve (watch page + ~2MB base.js on a congested
+      // link) into a spurious failure. This backstop exists only for a channel
+      // that never returns at all, so it must sit ABOVE the native worst case.
+      const nativeWorstCase = Duration(seconds: 35);
+      expect(StreamProvider.newPipeTimeout, greaterThan(nativeWorstCase));
       expect(StreamProvider.newPipeTimeout,
-          lessThanOrEqualTo(const Duration(seconds: 20)));
-      expect(StreamProvider.newPipeTimeout, greaterThan(Duration.zero));
+          lessThanOrEqualTo(const Duration(seconds: 60)));
+      // The URL probe is a 2-byte ranged GET with its own 8s connect timeout,
+      // so it stays on a short leash.
       expect(StreamProvider.urlProbeTimeout,
           lessThanOrEqualTo(const Duration(seconds: 20)));
     });

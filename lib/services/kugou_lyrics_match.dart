@@ -80,26 +80,33 @@ int? normalizeKuGouDuration(dynamic raw) {
 /// a gate, only a preference, so a legitimate match is never thrown away over
 /// punctuation or a translated title.
 ///
-/// When nothing lands inside the tolerance the result depends on
-/// [requireDurationMatch]: `true` (keyword search, where the query alone does
-/// not pin down the track) returns null rather than risk caching the wrong
-/// lyrics; `false` (hash search, where the track is already identified) falls
-/// back to the first candidate, preserving the previous behaviour.
+/// This never returns null for a non-empty list: when no candidate is a better
+/// duration match, KuGou's top result stands, which is exactly the behaviour
+/// this function replaced. That matters most on the keyword path, which is
+/// only reached after the song search already failed to match on duration —
+/// rejecting there a second time would delete the fallback's whole purpose.
 ///
-/// If the target duration is unknown, or no candidate reports a duration,
-/// there is nothing to judge by and the first candidate is returned.
+/// If the target duration is unknown, or the top candidate reports no
+/// duration, there is nothing to judge it by and it is returned as-is.
 KuGouLyricCandidate? pickBestKuGouCandidate(
   List<KuGouLyricCandidate> candidates, {
   required int targetDurationSec,
   int toleranceSec = 5,
-  bool requireDurationMatch = true,
   String? title,
   String? artist,
 }) {
   if (candidates.isEmpty) return null;
 
-  final judgeable = candidates.any((c) => c.durationSec != null);
-  if (targetDurationSec <= 0 || !judgeable) return candidates.first;
+  // KuGou's own ranking is the only quality signal we have, so it is the
+  // default answer. We override it in exactly one case: the top result
+  // carries a duration and that duration is demonstrably wrong. Anything
+  // looser lets a duration-matching karaoke cover outrank the correct entry
+  // whenever the correct entry happens to report no duration — which is the
+  // original "wrong lyrics cached forever" defect wearing a different hat.
+  final first = candidates.first;
+  final firstDur = first.durationSec;
+  if (targetDurationSec <= 0 || firstDur == null) return first;
+  if ((firstDur - targetDurationSec).abs() <= toleranceSec) return first;
 
   KuGouLyricCandidate? best;
   var bestDrift = 0;
@@ -122,7 +129,12 @@ KuGouLyricCandidate? pickBestKuGouCandidate(
   }
   if (best != null) return best;
 
-  return requireDurationMatch ? null : candidates.first;
+  // Nothing better found. Returning the top result is exactly the old
+  // behaviour — never worse than before. Returning null here instead would
+  // gut the keyword fallback: it is only reached when the song search already
+  // failed to match on duration, so requiring a duration match a second time
+  // rejects precisely the tracks the fallback exists to rescue.
+  return candidates.first;
 }
 
 /// A small 0..3 preference score for how well a candidate's text matches the

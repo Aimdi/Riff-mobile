@@ -98,7 +98,15 @@ class StreamProvider {
   /// but alive extraction while guaranteeing that a wedged extractor costs
   /// one pause, not the whole playback attempt — [fetch] gates the entire
   /// youtube_explode fallback ladder on this call returning.
-  static const Duration newPipeTimeout = Duration(seconds: 12);
+  // Backstop against a channel-level hang, NOT a latency budget. It must sit
+  // above the native resolver's own worst case or it turns slow-but-working
+  // resolves into failures: NewPipeResolver.kt sets connectTimeout=15s and
+  // readTimeout=20s on EACH connection, and a cold resolve fetches the watch
+  // page plus the ~2MB base.js before deciphering. A first play on a congested
+  // mobile link legitimately lands past 12s. Native timeouts already surface
+  // as errors and fall through to the youtube_explode chain on their own;
+  // this only catches the case where the channel never returns at all.
+  static const Duration newPipeTimeout = Duration(seconds: 45);
 
   /// Cap for the "does this url actually serve bytes" probe. Only two bytes
   /// are requested, so anything past 10s is a stalled read, and the client

@@ -80,13 +80,14 @@ class KuGouLyricsService {
           'client': 'mobi',
           'hash': hash
         });
-    return _bestCandidate(res.data, durationSec, artist, title,
-        requireDurationMatch: false);
+    return _bestCandidate(res.data, durationSec, artist, title);
   }
 
-  /// Keyword fallback. The query alone does not pin down the track, so the
-  /// duration is sent along and a candidate is only accepted when its own
-  /// duration agrees — otherwise a wrong track's lyrics get cached forever.
+  /// Keyword fallback. The duration is sent along so KuGou can rank sensibly,
+  /// and the picker prefers a closer match, but a miss still falls back to the
+  /// top result: this path is only reached once the song search failed to
+  /// match on duration, so rejecting on duration again would return nothing
+  /// for exactly the tracks the fallback exists to rescue.
   static Future<List<dynamic>?> _searchLyricsByKeyword(
       String keyword, int durationSec, String artist, String title) async {
     final res = await _dio.get('https://krcs.kugou.com/search',
@@ -97,21 +98,18 @@ class KuGouLyricsService {
           'keyword': keyword,
           if (durationSec > 0) 'duration': durationSec * 1000,
         });
-    return _bestCandidate(res.data, durationSec, artist, title,
-        requireDurationMatch: true);
+    return _bestCandidate(res.data, durationSec, artist, title);
   }
 
   static List<dynamic>? _bestCandidate(
     dynamic data,
     int durationSec,
     String artist,
-    String title, {
-    required bool requireDurationMatch,
-  }) {
+    String title,
+  ) {
     final best = pickBestKuGouCandidate(
       parseKuGouCandidates(_json(data)),
       targetDurationSec: durationSec,
-      requireDurationMatch: requireDurationMatch,
       title: title,
       artist: artist,
     );

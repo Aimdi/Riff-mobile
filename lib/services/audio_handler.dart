@@ -1159,6 +1159,15 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           try {
             songsUrlCacheBox.put(songId, streamInfoJson);
           } catch (_) {}
+        } else if (streamInfo.statusMSG == "streamLoadFailed" ||
+            streamInfo.statusMSG == "streamBotBlocked") {
+          // The retired-client case does NOT throw: StreamProvider.fetch
+          // returns playable:false, so the catch blocks above never see it.
+          // This is the branch a published client fix actually needs to reach.
+          // Deliberately excludes songRequiresPurchase and networkError — a
+          // fresh client list fixes neither, and burning the cooldown on them
+          // would leave none for the failure it can fix.
+          unawaited(ClientConfigService.forceRefresh());
         }
       }
 

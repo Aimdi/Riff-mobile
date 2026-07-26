@@ -96,7 +96,10 @@ void main() {
       expect(best.accessKey, 'ak-real');
     });
 
-    test('picks the closest duration, not merely the first in tolerance', () {
+    // KuGou's ranking is the only quality signal once the top result is
+    // duration-plausible, so it stands. Overriding it on a 3s delta let a
+    // lower-ranked upload win on noise.
+    test('keeps the top result when its own duration is plausible', () {
       final cands = parseKuGouCandidates({
         'candidates': [
           cand(id: 'near', song: 'Song', durationMs: 216000),
@@ -105,20 +108,55 @@ void main() {
       });
       expect(
         pickBestKuGouCandidate(cands, targetDurationSec: 213)!.id,
-        'exact',
+        'near',
       );
     });
 
-    test('keyword search returns null when nothing matches the duration', () {
+    // The actual defect: the top result's duration is demonstrably wrong.
+    test('overrides the top result when its duration is demonstrably wrong',
+        () {
       final cands = parseKuGouCandidates({
         'candidates': [
-          cand(id: 'wrong', song: 'Some Cover', durationMs: 300000, score: 99),
+          cand(id: 'remix', song: 'Song', durationMs: 372000),
+          cand(id: 'correct', song: 'Song', durationMs: 213000),
         ],
       });
       expect(
-        pickBestKuGouCandidate(cands,
-            targetDurationSec: 212, requireDurationMatch: true),
-        isNull,
+        pickBestKuGouCandidate(cands, targetDurationSec: 213)!.id,
+        'correct',
+      );
+    });
+
+    // Regression guard for the review blocker: the keyword path is only
+    // reached after the song search already failed to match on duration, so
+    // returning null here would gut the fallback for precisely the tracks it
+    // exists to rescue (live cuts, alternate masters, uploads with an intro).
+    test('keyword search keeps the top result when nothing matches duration',
+        () {
+      final cands = parseKuGouCandidates({
+        'candidates': [
+          cand(id: 'correct', song: 'Faded', durationMs: 218000, score: 99),
+        ],
+      });
+      expect(
+        pickBestKuGouCandidate(cands, targetDurationSec: 212)!.id,
+        'correct',
+      );
+    });
+
+    // A duration-matching cover must not outrank the correct top result just
+    // because the correct one reports no duration.
+    test('a duration-matching cover never displaces an unjudgeable top result',
+        () {
+      final cands = parseKuGouCandidates({
+        'candidates': [
+          cand(id: 'correct', song: 'Never Gonna Give You Up', durationMs: 0),
+          cand(id: 'karaoke', song: 'Never Gonna (Cover)', durationMs: 213000),
+        ],
+      });
+      expect(
+        pickBestKuGouCandidate(cands, targetDurationSec: 213)!.id,
+        'correct',
       );
     });
 
@@ -130,9 +168,7 @@ void main() {
         ],
       });
       expect(
-        pickBestKuGouCandidate(cands,
-                targetDurationSec: 212, requireDurationMatch: false)!
-            .id,
+        pickBestKuGouCandidate(cands, targetDurationSec: 212)!.id,
         'first',
       );
     });
@@ -155,17 +191,19 @@ void main() {
       expect(pickBestKuGouCandidate(const [], targetDurationSec: 212), isNull);
     });
 
-    test('honours the tolerance bound', () {
+    test('a sole out-of-tolerance candidate is still returned, never dropped',
+        () {
       final cands = parseKuGouCandidates({
         'candidates': [cand(id: 'a', durationMs: 218000)],
       });
+      // No better option exists, so the top result stands either way — this
+      // is the old behaviour, and losing it would gut the keyword fallback.
       expect(
-          pickBestKuGouCandidate(cands,
-              targetDurationSec: 212, toleranceSec: 5),
-          isNull);
+          pickBestKuGouCandidate(cands, targetDurationSec: 212, toleranceSec: 5)!
+              .id,
+          'a');
       expect(
-          pickBestKuGouCandidate(cands,
-                  targetDurationSec: 212, toleranceSec: 6)!
+          pickBestKuGouCandidate(cands, targetDurationSec: 212, toleranceSec: 6)!
               .id,
           'a');
     });
@@ -173,6 +211,8 @@ void main() {
     test('breaks duration ties on text, then on KuGou score', () {
       final cands = parseKuGouCandidates({
         'candidates': [
+          // Out of tolerance, so the picker engages instead of short-circuiting.
+          cand(id: 'decoy', song: 'Decoy', durationMs: 400000, score: 99),
           cand(
               id: 'other',
               song: 'Different Song',
@@ -196,6 +236,7 @@ void main() {
 
       final tied = parseKuGouCandidates({
         'candidates': [
+          cand(id: 'decoy', song: 'Decoy', durationMs: 400000, score: 99),
           cand(id: 'low', song: 'Faded', durationMs: 212000, score: 10),
           cand(id: 'high', song: 'Faded', durationMs: 212000, score: 90),
         ],
@@ -209,6 +250,7 @@ void main() {
     test('text affinity never overrides a better duration match', () {
       final cands = parseKuGouCandidates({
         'candidates': [
+          cand(id: 'decoy', song: 'Decoy', durationMs: 400000, score: 99),
           cand(
               id: 'titled',
               song: 'Faded',
