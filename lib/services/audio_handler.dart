@@ -19,6 +19,7 @@ import '../models/playlist.dart';
 import '/services/equalizer.dart';
 import '/services/playlist_mix_service.dart';
 import '/services/podcast_progress_service.dart';
+import '/services/shuffle_order.dart';
 import '/services/stream_service.dart';
 import '/ui/screens/Podcasts/podcast_queue_controller.dart';
 import '/models/hm_streaming_data.dart';
@@ -384,13 +385,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
     if (shuffleModeEnabled) {
       final mediaItemsIds = mediaItems.toList().map((item) => item.id).toList();
-      final notPlayedshuffledQueue = shuffledQueue.isNotEmpty
-          ? shuffledQueue.toList().sublist(currentShuffleIndex + 1)
-          : shuffledQueue;
-      notPlayedshuffledQueue.addAll(mediaItemsIds);
-      notPlayedshuffledQueue.shuffle();
-      shuffledQueue.replaceRange(
-          currentShuffleIndex, shuffledQueue.length, notPlayedshuffledQueue);
+      shuffledQueue = appendToShuffleOrder(
+          shuffledQueue, currentShuffleIndex, mediaItemsIds);
     }
   }
 
