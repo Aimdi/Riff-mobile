@@ -258,6 +258,10 @@ class LifecycleHandler extends WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) async {
     if (state == AppLifecycleState.resumed) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+      // A resident install can otherwise sit on a stale client config for a
+      // full TTL; resume is the cheapest moment to pick up a published fix.
+      // Self-rate-limited to one network attempt per 5 minutes.
+      unawaited(ClientConfigService.forceRefresh());
       // Defer mix regen so resume doesn't compete with Home/play network.
       if (Get.isRegistered<DiscoveryService>()) {
         Future<void>.delayed(const Duration(seconds: 6), () {

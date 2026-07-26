@@ -1139,6 +1139,10 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
                 .then((p) => p.hmStreamingData);
           } catch (e2) {
             printERROR("stream resolve failed: $e2");
+            // A retired client is the usual cause: pull a fresh remote
+            // config (TTL-bypassing, 5-min cooldown) so the next attempt —
+            // or the next track — can use a published fix.
+            unawaited(ClientConfigService.forceRefresh());
             return HMStreamingData(
                 playable: false, statusMSG: "streamLoadFailed");
           }
@@ -1147,6 +1151,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           streamInfo = HMStreamingData.fromJson(streamInfoJson);
         } catch (e) {
           printERROR("HMStreamingData.fromJson failed: $e");
+          unawaited(ClientConfigService.forceRefresh());
           return HMStreamingData(
               playable: false, statusMSG: "streamLoadFailed");
         }
