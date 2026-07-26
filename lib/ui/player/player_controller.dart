@@ -30,6 +30,7 @@ import '/services/sponsorblock_service.dart';
 import '/services/podcast_service.dart';
 import '/services/podcast_progress_service.dart';
 import '/ui/player/riff_wave.dart';
+import '/ui/player/play_log_gate.dart';
 import '/ui/player/progress_ui_throttle.dart';
 import 'video_mode_controller.dart';
 
@@ -281,6 +282,7 @@ class PlayerController extends GetxController
   }
 
   final _progressUiThrottle = ProgressUiThrottle();
+  final _playLogGate = PlayLogGate();
 
   void _listenForChangesInPosition() {
     AudioService.position.listen((position) {
@@ -544,17 +546,27 @@ class PlayerController extends GetxController
         }
         currentSongIndex.value = currentQueue
             .indexWhere((element) => element.id == currentSong.value!.id);
-        // Fire-and-forget SponsorBlock load for this video id.
-        unawaited(_loadSponsorBlockFor(mediaItem.id));
-        // Podcast chapters (ad auto-skip) for this episode.
-        unawaited(_loadChaptersFor(mediaItem));
+        // The handler re-emits the *currently playing* item on non-play events
+        // (duration discovery at queue index 0, queue reorder/shuffle, item
+        // removal). Those must not be logged as a new play. Decided
+        // synchronously, before the first await, so a second event arriving
+        // while this callback is suspended is rejected.
+        final isNewPlay = _playLogGate.accept(mediaItem.id);
+        if (isNewPlay) {
+          // Fire-and-forget SponsorBlock load for this video id.
+          unawaited(_loadSponsorBlockFor(mediaItem.id));
+          // Podcast chapters (ad auto-skip) for this episode.
+          unawaited(_loadChaptersFor(mediaItem));
+        }
         await _checkFav();
-        await _addToRP(currentSong.value!);
-        StatsService.recordPlay(currentSong.value!);
-        ListenBrainzService.submitListen(currentSong.value!);
-        if (Get.isRegistered<DiscoveryService>()) {
-          await Get.find<DiscoveryService>()
-              .onMediaChanged(mediaItem, positionMs: posMs);
+        if (isNewPlay) {
+          await _addToRP(currentSong.value!);
+          StatsService.recordPlay(currentSong.value!);
+          ListenBrainzService.submitListen(currentSong.value!);
+          if (Get.isRegistered<DiscoveryService>()) {
+            await Get.find<DiscoveryService>()
+                .onMediaChanged(mediaItem, positionMs: posMs);
+          }
         }
         if (isRadioModeOn && (currentSong.value!.id == currentQueue.last.id)) {
           await _addRadioContinuation(radioInitiatorItem!);
@@ -1098,6 +1110,9 @@ class PlayerController extends GetxController
   }
 
   void seekByIndex(int index) {
+    // An intentional re-tap of the row that is already playing is a genuine
+    // new play, so let it through the duplicate gate.
+    _playLogGate.reset();
     _audioHandler.customAction("playByIndex", {"index": index});
   }
 
