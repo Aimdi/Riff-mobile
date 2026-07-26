@@ -6,6 +6,7 @@ import 'package:hive/hive.dart';
 
 import '/services/better_lyrics_service.dart';
 import '/services/kugou_lyrics_service.dart';
+import '/services/lrclib_query.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 
 class SyncedLyricsService {
@@ -51,9 +52,19 @@ class SyncedLyricsService {
 
     Future<Map<String, dynamic>?> tryLrclib() async {
       try {
-        final url =
-            'https://lrclib.net/api/get?artist_name=${artist.replaceAll(" ", "+")}&track_name=${title.replaceAll(" ", "+")}&album_name=${album?.replaceAll(" ", "+")}&duration=$dur';
-        final response = (await Dio().get(url)).data;
+        final dio = Dio(BaseOptions(
+          receiveTimeout: const Duration(seconds: 10),
+          sendTimeout: const Duration(seconds: 8),
+        ));
+        final response = (await dio.get(
+          lrclibGetUrl,
+          queryParameters: buildLrclibGetParams(
+            artist: artist,
+            title: title,
+            album: album,
+            durationSec: dur,
+          ),
+        )).data;
         if (response["syncedLyrics"] != null) {
           printINFO("Synced lyrics from LRCLIB");
           return {
