@@ -757,43 +757,60 @@ class SettingsScreen extends StatelessWidget {
                 title: "podcasts".tr,
                 icon: Icons.podcasts_outlined,
                 children: [
-                  ListTile(
-                    contentPadding:
-                        const EdgeInsets.only(left: 5, right: 10),
-                    title: Text("podcasts".tr),
-                    subtitle: Text("podcastsDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Get.toNamed(
-                        ScreenNavigationSetup.podcastsScreen,
-                        id: ScreenNavigationSetup.id),
-                  ),
-                  ListTile(
+                  Obx(() {
+                    if (!settingsController.settingsMatch(
+                        'podcasts'.tr, 'podcastsDes'.tr)) {
+                      return const SizedBox.shrink();
+                    }
+                    return ListTile(
                       contentPadding:
                           const EdgeInsets.only(left: 5, right: 10),
-                      title: Text("skipPodcastAds".tr),
-                      subtitle: Text("skipPodcastAdsDes".tr,
+                      title: Text("podcasts".tr),
+                      subtitle: Text("podcastsDes".tr,
                           style: Theme.of(context).textTheme.bodyMedium),
-                      trailing: Obx(
-                        () => CustSwitch(
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Get.toNamed(
+                          ScreenNavigationSetup.podcastsScreen,
+                          id: ScreenNavigationSetup.id),
+                    );
+                  }),
+                  Obx(() {
+                    if (!settingsController.settingsMatch(
+                        'skipPodcastAds'.tr, 'skipPodcastAdsDes'.tr)) {
+                      return const SizedBox.shrink();
+                    }
+                    return ListTile(
+                        contentPadding:
+                            const EdgeInsets.only(left: 5, right: 10),
+                        title: Text("skipPodcastAds".tr),
+                        subtitle: Text("skipPodcastAdsDes".tr,
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        trailing: CustSwitch(
                             value: settingsController
                                 .podcastAutoSkipAdsEnabled.value,
                             onChanged:
                                 settingsController.togglePodcastAutoSkipAds),
-                      )),
-                  ListTile(
-                      contentPadding:
-                          const EdgeInsets.only(left: 5, right: 10),
-                      title: Text("podcastContinuousPlayback".tr),
-                      subtitle: Text("podcastContinuousPlaybackDes".tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
-                      trailing: Obx(
-                        () => CustSwitch(
+                      );
+                  }),
+                  Obx(() {
+                    if (!settingsController.settingsMatch(
+                        'podcastContinuousPlayback'.tr,
+                        'podcastContinuousPlaybackDes'.tr)) {
+                      return const SizedBox.shrink();
+                    }
+                    return ListTile(
+                        contentPadding:
+                            const EdgeInsets.only(left: 5, right: 10),
+                        title: Text("podcastContinuousPlayback".tr),
+                        subtitle: Text("podcastContinuousPlaybackDes".tr,
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        trailing: CustSwitch(
                             value: settingsController
                                 .podcastContinuousPlaybackEnabled.value,
                             onChanged: settingsController
                                 .togglePodcastContinuousPlayback),
-                      )),
+                      );
+                  }),
                 ],
               ),
 

@@ -91,6 +91,17 @@ class PodcastDownloadService {
     _downloadedIds.remove(id);
   }
 
+  /// All downloaded episode ids with existing files (for the Downloads hub).
+  static List<String> downloadedIds() {
+    if (!Hive.isBoxOpen('PodcastDownloads')) return [];
+    _warmCache();
+    final out = <String>[];
+    for (final id in _downloadedIds.toList()) {
+      if (localPath(id) != null) out.add(id);
+    }
+    return out;
+  }
+
   static String _ext(String url) {
     final path = Uri.tryParse(url)?.path ?? '';
     final dot = path.lastIndexOf('.');

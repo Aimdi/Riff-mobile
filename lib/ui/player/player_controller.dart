@@ -132,6 +132,10 @@ class PlayerController extends GetxController
   // to the saved position when a partially-played item starts.
   int _lastProgressSaveMs = 0;
   int _lastAbsSyncMs = 0;
+  /// Wall-clock ms of the last ABS position tick (for timeListened delta).
+  int _absLastTickMs = 0;
+  /// Seconds listened since last ABS sync/close (accumulated while playing).
+  double _absTimeListenedSec = 0;
   String? _pendingResumeId;
   int _pendingResumeMs = 0;
 
@@ -366,7 +370,10 @@ class PlayerController extends GetxController
 
   void _handleAbsProgress(Duration position) {
     final song = currentSong.value;
-    if (!_isAbsItem(song)) return;
+    if (!_isAbsItem(song)) {
+      _absLastTickMs = 0;
+      return;
+    }
     final total = progressBarStatus.value.total;
     _maybeApplyPendingResume(song!, position, total);
 
@@ -375,6 +382,20 @@ class PlayerController extends GetxController
     if (!Get.isRegistered<AudiobookshelfService>()) return;
 
     final nowMs = DateTime.now().millisecondsSinceEpoch;
+    // Accumulate listened delta only while actively playing.
+    if (buttonState.value == PlayButtonState.playing) {
+      if (_absLastTickMs > 0) {
+        final deltaSec = (nowMs - _absLastTickMs) / 1000.0;
+        // Cap to avoid huge jumps after seek/pause/background gaps.
+        if (deltaSec > 0 && deltaSec < 30) {
+          _absTimeListenedSec += deltaSec;
+        }
+      }
+      _absLastTickMs = nowMs;
+    } else {
+      _absLastTickMs = 0;
+    }
+
     if (nowMs - _lastAbsSyncMs < 10000) return;
     _lastAbsSyncMs = nowMs;
 
@@ -385,6 +406,8 @@ class PlayerController extends GetxController
       if (!_isAbsItem(m)) return sum;
       return sum + (m.duration?.inMilliseconds ?? 0) / 1000.0;
     });
+    final listened = _absTimeListenedSec;
+    _absTimeListenedSec = 0;
 
     unawaited(Get.find<AudiobookshelfService>().syncProgress(
       sessionId: sessionId,
@@ -392,7 +415,38 @@ class PlayerController extends GetxController
       duration: bookDuration > 0
           ? bookDuration
           : (total.inMilliseconds / 1000.0),
+      timeListened: listened,
       isPaused: buttonState.value != PlayButtonState.playing,
+    ));
+  }
+
+  /// Best-effort ABS session close when leaving an ABS item.
+  void _maybeCloseAbsSession(MediaItem? previous, MediaItem? next) {
+    if (previous == null || !_isAbsItem(previous)) return;
+    if (next != null && next.id == previous.id) return;
+    final sessionId = previous.extras?['absSessionId']?.toString();
+    if (sessionId == null || sessionId.isEmpty) return;
+    if (!Get.isRegistered<AudiobookshelfService>()) return;
+
+    final startOff =
+        (previous.extras?['absStartOffsetSec'] as num?)?.toDouble() ?? 0.0;
+    final posMs = progressBarStatus.value.current.inMilliseconds;
+    final bookAbsolute = startOff + posMs / 1000.0;
+    final bookDuration = currentQueue.fold<double>(0, (sum, m) {
+      if (!_isAbsItem(m)) return sum;
+      return sum + (m.duration?.inMilliseconds ?? 0) / 1000.0;
+    });
+    final totalSec = progressBarStatus.value.total.inMilliseconds / 1000.0;
+    final listened = _absTimeListenedSec;
+    _absTimeListenedSec = 0;
+    _absLastTickMs = 0;
+    _lastAbsSyncMs = 0;
+
+    unawaited(Get.find<AudiobookshelfService>().closeSession(
+      sessionId,
+      currentTime: bookAbsolute,
+      duration: bookDuration > 0 ? bookDuration : totalSec,
+      timeListened: listened,
     ));
   }
 
@@ -584,6 +638,8 @@ class PlayerController extends GetxController
         PodcastProgressService.save(currentSong.value,
             Duration(milliseconds: posMs), progressBarStatus.value.total,
             nowMs: DateTime.now().millisecondsSinceEpoch);
+        // Close ABS listening session when leaving an ABS item (best effort).
+        _maybeCloseAbsSession(currentSong.value, mediaItem);
         currentSong.value = mediaItem;
         clearPlaybackError();
         // Arm auto-resume for the incoming podcast episode (either backend).

@@ -112,23 +112,71 @@ class MiniPlayer extends StatelessWidget {
                                     ),
                                     SizedBox(
                                       height: 20,
-                                      child: Marquee(
-                                        id: "${playerController.currentSong.value}_mini",
-                                        delay:
-                                            const Duration(milliseconds: 300),
-                                        duration: const Duration(seconds: 5),
-                                        child: Text(
-                                          playerController.currentSong.value !=
-                                                  null
-                                              ? playerController
-                                                  .currentSong.value!.artist!
-                                              : "",
-                                          maxLines: 1,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .titleSmall,
-                                        ),
-                                      ),
+                                      child: () {
+                                        final err = playerController
+                                            .playbackError.value;
+                                        if (err != null && err.isNotEmpty) {
+                                          final errColor =
+                                              theme.colorScheme.error;
+                                          return Row(
+                                            children: [
+                                              Icon(Icons.error_outline,
+                                                  size: 14, color: errColor),
+                                              const SizedBox(width: 4),
+                                              Expanded(
+                                                child: Text(
+                                                  err,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: theme
+                                                      .textTheme.titleSmall
+                                                      ?.copyWith(
+                                                    color: errColor,
+                                                  ),
+                                                ),
+                                              ),
+                                              TextButton(
+                                                onPressed: playerController
+                                                    .retryPlayback,
+                                                style: TextButton.styleFrom(
+                                                  padding:
+                                                      const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 6),
+                                                  minimumSize: Size.zero,
+                                                  tapTargetSize:
+                                                      MaterialTapTargetSize
+                                                          .shrinkWrap,
+                                                  visualDensity:
+                                                      VisualDensity.compact,
+                                                  foregroundColor: errColor,
+                                                ),
+                                                child: Text("retry".tr),
+                                              ),
+                                            ],
+                                          );
+                                        }
+                                        return Marquee(
+                                          id: "${playerController.currentSong.value}_mini",
+                                          delay: const Duration(
+                                              milliseconds: 300),
+                                          duration:
+                                              const Duration(seconds: 5),
+                                          child: Text(
+                                            playerController
+                                                        .currentSong.value !=
+                                                    null
+                                                ? playerController
+                                                    .currentSong
+                                                    .value!
+                                                    .artist!
+                                                : "",
+                                            maxLines: 1,
+                                            style: theme.textTheme.titleSmall,
+                                          ),
+                                        );
+                                      }(),
                                     ),
                                   ],
                                 ),

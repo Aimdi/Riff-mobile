@@ -63,8 +63,14 @@ class SearchResultScreenBN extends StatelessWidget {
               Expanded(
                 child: Obx(
                   () {
-                    if (searchResScrController.isResultContentFetced.isTrue &&
-                        searchResScrController.railItems.isEmpty) {
+                    if (searchResScrController.isResultContentFetced.isFalse) {
+                      return const Center(child: LoadingIndicator());
+                    }
+                    final ytmRails = searchResScrController.railItems
+                        .where((r) =>
+                            !searchResScrController.isSoulseekRail(r))
+                        .toList();
+                    if (ytmRails.isEmpty) {
                       return Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -75,12 +81,28 @@ class SearchResultScreenBN extends StatelessWidget {
                             ),
                             Text(
                                 "'${searchResScrController.queryString.value}'"),
+                            if (searchResScrController.railItems.any(
+                                searchResScrController.isSoulseekRail)) ...[
+                              const SizedBox(height: 16),
+                              TextButton.icon(
+                                onPressed: () {
+                                  final idx = searchResScrController.railItems
+                                      .indexWhere(searchResScrController
+                                          .isSoulseekRail);
+                                  if (idx >= 0) {
+                                    searchResScrController
+                                        .onDestinationSelected(idx + 1);
+                                  }
+                                },
+                                icon: const Icon(Icons.search),
+                                label: Text('soulseek'.tr),
+                              ),
+                            ],
                           ],
                         ),
                       );
-                    } else if (searchResScrController
-                        .isResultContentFetced.isTrue) {
-                      return Column(
+                    }
+                    return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Padding(
@@ -173,11 +195,6 @@ class SearchResultScreenBN extends StatelessWidget {
                           ),
                         ],
                       );
-                    } else {
-                      return const Center(
-                        child: LoadingIndicator(),
-                      );
-                    }
                   },
                 ),
               )

@@ -709,6 +709,7 @@ class AudiobookshelfService extends GetxService {
     required String sessionId,
     required double currentTime,
     required double duration,
+    double timeListened = 0,
     bool isPaused = false,
   }) async {
     if (!isConnected.value || sessionId.isEmpty) return;
@@ -718,13 +719,36 @@ class AudiobookshelfService extends GetxService {
         data: {
           'currentTime': currentTime,
           'duration': duration,
-          'timeListened': 0,
+          'timeListened': timeListened,
           if (isPaused) 'isPaused': true,
         },
         options: _authOptions,
       );
     } catch (e) {
       printERROR('ABS progress sync failed: $e');
+    }
+  }
+
+  /// Close a listening session (Lissen: POST /api/session/{id}/close).
+  Future<void> closeSession(
+    String sessionId, {
+    required double currentTime,
+    required double duration,
+    double timeListened = 0,
+  }) async {
+    if (!isConnected.value || sessionId.isEmpty) return;
+    try {
+      await _dio.post(
+        '${host.value}/api/session/$sessionId/close',
+        data: {
+          'currentTime': currentTime,
+          'duration': duration,
+          'timeListened': timeListened,
+        },
+        options: _authOptions,
+      );
+    } catch (e) {
+      printERROR('ABS session close failed: $e');
     }
   }
 

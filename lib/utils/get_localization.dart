@@ -1836,6 +1836,7 @@ Map<String, Map<String, String>> get keys => {
   "markAsUnplayed": "Mark as unplayed",
   "openShow": "Open show",
   "left": "left",
+  "noDownloads": "No downloaded episodes yet. Long-press an episode to download.",
   "podcastInbox": "Inbox",
   "noInboxEpisodes": "No episodes yet — subscribe to podcasts to fill your inbox.",
   "queue": "Queue",
