@@ -9,6 +9,7 @@ import '../../models/playlist.dart';
 import '../../services/track_analysis_service.dart';
 import '../player/player_controller.dart';
 import '../screens/Settings/settings_screen_controller.dart';
+import '../utils/theme_controller.dart';
 import 'add_to_playlist.dart';
 import 'image_widget.dart';
 import 'snackbar.dart';
@@ -116,123 +117,140 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
               //label: 'Play Next',
             ),
           ]),
-          child: ListTile(
-            onTap: onTap,
-            onLongPress: () async {
-              showModalBottomSheet(
-                constraints: const BoxConstraints(maxWidth: 500),
-                shape: const RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(16.0)),
-                ),
-                isScrollControlled: true,
-                useRootNavigator: true,
-                context: playerController.homeScaffoldkey.currentState!.context,
-                //constraints: BoxConstraints(maxHeight:Get.height),
-                barrierColor: Colors.transparent.withAlpha(100),
-                builder: (context) => SongInfoBottomSheet(
-                  song,
-                  playlist: playlist,
-                ),
-              ).whenComplete(() => Get.delete<SongInfoController>());
-            },
-            contentPadding:
-                const EdgeInsets.only(top: 0, left: 8, right: 16, bottom: 0),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            leading: thumbReplacementWithIndex
-                ? SizedBox(
-                    width: 27.5,
-                    height: 52,
-                    child: Center(
-                      child: Text(
-                        "$index.",
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
-                  )
-                : ImageWidget(
-                    size: 52,
-                    song: song,
-                  ),
-            title: Marquee(
-              delay: const Duration(milliseconds: 300),
-              duration: const Duration(seconds: 5),
-              id: song.title.hashCode.toString(),
-              child: Text(
-                song.title.length > 50
-                    ? song.title.substring(0, 50)
-                    : song.title,
-                maxLines: 1,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.15,
-                    ),
+          child: Obx(() {
+            final isCurrent =
+                playerController.currentSong.value?.id == song.id;
+            final theme = Theme.of(context);
+            final accent = theme.colorScheme.primary;
+            final highlight = theme.brightness == Brightness.dark
+                ? RiffSurfaces.elevatedSoft
+                : accent.withOpacity(0.08);
+            return DecoratedBox(
+              decoration: BoxDecoration(
+                color: isCurrent ? highlight : null,
+                borderRadius: BorderRadius.circular(10),
+                border: isCurrent
+                    ? Border(
+                        left: BorderSide(color: accent, width: 2.5),
+                      )
+                    : null,
               ),
-            ),
-            subtitle: Text(
-              "${song.artist}",
-              maxLines: 1,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
-            trailing: SizedBox(
-              width: showMixMeta
-                  ? (Get.size.width > 800 ? 168 : 132)
-                  : (Get.size.width > 800 ? 80 : 40),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  if (showMixMeta) ...[
-                    _MixMetaColumn(analysis: mixAnalysis),
-                    const SizedBox(width: 6),
-                  ],
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (isPlaylistOrAlbum)
-                        Obx(() =>
-                            playerController.currentSong.value?.id == song.id
-                                ? const Icon(
-                                    Icons.equalizer,
-                                  )
-                                : const SizedBox.shrink()),
-                      Text(
-                        song.extras!['length'] ?? "",
-                        style: Theme.of(context).textTheme.titleSmall,
+              child: ListTile(
+                onTap: onTap,
+                onLongPress: () async {
+                  showModalBottomSheet(
+                    constraints: const BoxConstraints(maxWidth: 500),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(16.0)),
+                    ),
+                    isScrollControlled: true,
+                    useRootNavigator: true,
+                    context:
+                        playerController.homeScaffoldkey.currentState!.context,
+                    barrierColor: Colors.transparent.withAlpha(100),
+                    builder: (context) => SongInfoBottomSheet(
+                      song,
+                      playlist: playlist,
+                    ),
+                  ).whenComplete(() => Get.delete<SongInfoController>());
+                },
+                contentPadding: const EdgeInsets.only(
+                    top: 0, left: 8, right: 16, bottom: 0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                leading: thumbReplacementWithIndex
+                    ? SizedBox(
+                        width: 27.5,
+                        height: 52,
+                        child: Center(
+                          child: Text(
+                            "$index.",
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                      )
+                    : ImageWidget(
+                        size: 52,
+                        song: song,
                       ),
+                title: Marquee(
+                  delay: const Duration(milliseconds: 300),
+                  duration: const Duration(seconds: 5),
+                  id: song.title.hashCode.toString(),
+                  child: Text(
+                    song.title.length > 50
+                        ? song.title.substring(0, 50)
+                        : song.title,
+                    maxLines: 1,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.15,
+                          color: isCurrent ? accent : null,
+                        ),
+                  ),
+                ),
+                subtitle: Text(
+                  "${song.artist}",
+                  maxLines: 1,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+                trailing: SizedBox(
+                  width: showMixMeta
+                      ? (Get.size.width > 800 ? 168 : 132)
+                      : (Get.size.width > 800 ? 80 : 40),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (showMixMeta) ...[
+                        _MixMetaColumn(analysis: mixAnalysis),
+                        const SizedBox(width: 6),
+                      ],
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (isPlaylistOrAlbum && isCurrent)
+                            Icon(Icons.equalizer, color: accent, size: 18),
+                          Text(
+                            song.extras!['length'] ?? "",
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                        ],
+                      ),
+                      if (GetPlatform.isDesktop)
+                        IconButton(
+                            splashRadius: 20,
+                            onPressed: () {
+                              showModalBottomSheet(
+                                useRootNavigator: true,
+                                constraints:
+                                    const BoxConstraints(maxWidth: 500),
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(10.0)),
+                                ),
+                                isScrollControlled: true,
+                                context: playerController
+                                    .homeScaffoldkey.currentState!.context,
+                                barrierColor:
+                                    Colors.transparent.withAlpha(100),
+                                builder: (context) => SongInfoBottomSheet(
+                                  song,
+                                  playlist: playlist,
+                                ),
+                              ).whenComplete(
+                                  () => Get.delete<SongInfoController>());
+                            },
+                            icon: const Icon(Icons.more_vert))
                     ],
                   ),
-                  if (GetPlatform.isDesktop)
-                    IconButton(
-                        splashRadius: 20,
-                        onPressed: () {
-                          showModalBottomSheet(
-                            useRootNavigator: true,
-                            constraints: const BoxConstraints(maxWidth: 500),
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(10.0)),
-                            ),
-                            isScrollControlled: true,
-                            context: playerController
-                                .homeScaffoldkey.currentState!.context,
-                            //constraints: BoxConstraints(maxHeight:Get.height),
-                            barrierColor: Colors.transparent.withAlpha(100),
-                            builder: (context) => SongInfoBottomSheet(
-                              song,
-                              playlist: playlist,
-                            ),
-                          ).whenComplete(
-                              () => Get.delete<SongInfoController>());
-                        },
-                        icon: const Icon(Icons.more_vert))
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          }),
         ));
   }
 }

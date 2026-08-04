@@ -100,6 +100,11 @@ class SearchScreenController extends GetxController with ProcessLink {
     historyQuerylist.remove(txt);
   }
 
+  Future<void> clearHistory() async {
+    await queryBox.clear();
+    historyQuerylist.clear();
+  }
+
   @override
   void dispose() {
     _suggestionDebounce?.cancel();

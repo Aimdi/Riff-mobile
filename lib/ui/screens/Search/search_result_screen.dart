@@ -22,16 +22,21 @@ class SearchResultScreen extends StatelessWidget {
         : Scaffold(
             body: Row(
               children: [
-                Align(
-                  alignment: Alignment.topCenter,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.only(bottom: 200),
-                    child: IntrinsicHeight(
+                // Slim left rail: put rotated labels in the icon slot so
+                // NavigationRail doesn't expand to unrotated text width.
+                SizedBox(
+                  width: 48,
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.only(bottom: 200),
                       child: Obx(
                         () => NavigationRail(
                           onDestinationSelected:
                               searchResScrController.onDestinationSelected,
-                          minWidth: 60,
+                          minWidth: 48,
+                          groupAlignment: -1,
+                          labelType: NavigationRailLabelType.none,
                           destinations: (searchResScrController
                                       .isResultContentFetced.value &&
                                   searchResScrController.railItems.isNotEmpty)
@@ -50,8 +55,12 @@ class SearchResultScreen extends StatelessWidget {
                                 height: context.isLandscape ? 50 : 80,
                               ),
                               IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                    minWidth: 40, minHeight: 40),
                                 icon: Icon(
                                   Icons.arrow_back_ios_new,
+                                  size: 20,
                                   color: Theme.of(context)
                                       .textTheme
                                       .titleMedium!
@@ -63,12 +72,9 @@ class SearchResultScreen extends StatelessWidget {
                                       .pop();
                                 },
                               ),
-                              const SizedBox(
-                                height: 10,
-                              ),
+                              const SizedBox(height: 8),
                             ],
                           ),
-                          labelType: NavigationRailLabelType.all,
                           selectedIndex: searchResScrController
                               .navigationRailCurrentIndex.value,
                         ),
@@ -98,11 +104,40 @@ class SearchResultScreen extends StatelessWidget {
   }
 
   NavigationRailDestination railDestination(String label) {
+    final text = label.toLowerCase().removeAllWhitespace.tr;
     return NavigationRailDestination(
-      icon: const SizedBox.shrink(),
-      label: RotatedBox(
+      icon: _RailLabel(text),
+      selectedIcon: _RailLabel(text, selected: true),
+      label: const SizedBox.shrink(),
+    );
+  }
+}
+
+class _RailLabel extends StatelessWidget {
+  const _RailLabel(this.label, {this.selected = false});
+  final String label;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final style = selected
+        ? theme.navigationRailTheme.selectedLabelTextStyle
+        : theme.navigationRailTheme.unselectedLabelTextStyle;
+    return SizedBox(
+      width: 28,
+      height: 72,
+      child: Center(
+        child: RotatedBox(
           quarterTurns: -1,
-          child: Text(label.toLowerCase().removeAllWhitespace.tr)),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: (style ?? theme.textTheme.labelSmall)?.copyWith(fontSize: 12),
+          ),
+        ),
+      ),
     );
   }
 }
