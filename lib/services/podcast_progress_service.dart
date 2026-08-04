@@ -64,6 +64,25 @@ class PodcastProgressService {
     return null;
   }
 
+  /// Seconds still left on an in-progress episode, or null if unknown/finished.
+  static int? remainingSec(String id, {int? fallbackDurationSec}) {
+    if (!Hive.isBoxOpen('PodcastProgress')) {
+      return fallbackDurationSec != null && fallbackDurationSec > 0
+          ? fallbackDurationSec
+          : null;
+    }
+    final r = _box.get(id);
+    if (r is Map && r['positionMs'] is int && r['durationMs'] is int) {
+      final leftMs = (r['durationMs'] as int) - (r['positionMs'] as int);
+      if (leftMs <= 0) return 0;
+      return (leftMs / 1000).round();
+    }
+    if (fallbackDurationSec != null && fallbackDurationSec > 0) {
+      return fallbackDurationSec;
+    }
+    return null;
+  }
+
   static void clear(String id) {
     if (Hive.isBoxOpen('PodcastProgress')) _box.delete(id);
   }

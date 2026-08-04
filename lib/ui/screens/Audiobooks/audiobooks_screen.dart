@@ -23,7 +23,15 @@ class AudiobooksScreen extends StatefulWidget {
 
 class _AudiobooksScreenState extends State<AudiobooksScreen> {
   // 0 = Discover, 1 = Library (Audiobookshelf server), 2 = Saved
-  int _mode = 0;
+  // Prefer Library when already connected (Discover is browse-only).
+  late int _mode;
+
+  @override
+  void initState() {
+    super.initState();
+    final abs = Get.find<AudiobookshelfService>();
+    _mode = abs.isConnected.value ? 1 : 0;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -575,64 +583,214 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
               return const Center(child: CircularProgressIndicator());
             }
             if (abs.books.isEmpty) {
-              return Center(child: Text('absNoBooks'.tr));
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.menu_book_outlined,
+                          size: 52,
+                          color: theme.textTheme.bodySmall?.color
+                              ?.withOpacity(0.4)),
+                      const SizedBox(height: 12),
+                      Text('absNoBooks'.tr,
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyMedium),
+                    ],
+                  ),
+                ),
+              );
             }
+            final continueBooks = abs.books
+                .where((b) =>
+                    (b.progress ?? 0) > 0.02 && (b.progress ?? 0) < 0.98)
+                .toList();
             return RefreshIndicator(
               onRefresh: () => abs.fetchBooks(),
-              child: GridView.builder(
-                padding: const EdgeInsets.only(bottom: 200, right: 8),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.72,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-                itemCount: abs.books.length,
-                itemBuilder: (context, i) {
-                  final book = abs.books[i];
-                  final token = abs.token ?? '';
-                  final cover = book.coverUrl(abs.host.value, token);
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(10),
-                    onTap: () => Get.to(
-                      () => AudiobookDetailScreen(bookId: book.id),
-                      transition: Transition.rightToLeft,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: CachedNetworkImage(
-                              imageUrl: cover,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              errorWidget: (_, __, ___) => Container(
-                                color: theme.primaryColorLight,
-                                child: const Icon(Icons.menu_book, size: 48),
+              child: CustomScrollView(
+                slivers: [
+                  if (continueBooks.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(0, 4, 8, 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('continueListening'.tr,
+                                style: theme.textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              height: 150,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: continueBooks.length.clamp(0, 12),
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 10),
+                                itemBuilder: (context, i) {
+                                  final book = continueBooks[i];
+                                  final token = abs.token ?? '';
+                                  final cover =
+                                      book.coverUrl(abs.host.value, token);
+                                  final prog = book.progress ?? 0;
+                                  return SizedBox(
+                                    width: 100,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(10),
+                                      onTap: () => Get.to(
+                                        () => AudiobookDetailScreen(
+                                            bookId: book.id),
+                                        transition: Transition.rightToLeft,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              child: Stack(
+                                                fit: StackFit.expand,
+                                                children: [
+                                                  CachedNetworkImage(
+                                                    imageUrl: cover,
+                                                    fit: BoxFit.cover,
+                                                    errorWidget: (_, __,
+                                                            ___) =>
+                                                        Container(
+                                                      color: theme
+                                                          .primaryColorLight,
+                                                      child: const Icon(
+                                                          Icons.menu_book,
+                                                          size: 36),
+                                                    ),
+                                                  ),
+                                                  Positioned(
+                                                    left: 0,
+                                                    right: 0,
+                                                    bottom: 0,
+                                                    child:
+                                                        LinearProgressIndicator(
+                                                      value: prog,
+                                                      minHeight: 4,
+                                                      backgroundColor: Colors
+                                                          .black
+                                                          .withOpacity(0.25),
+                                                      valueColor:
+                                                          AlwaysStoppedAnimation(
+                                                              theme
+                                                                  .colorScheme
+                                                                  .secondary),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(book.title,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: theme.textTheme.bodySmall),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
-                          ),
+                          ],
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          book.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleSmall,
-                        ),
-                        if (book.author != null)
-                          Text(
-                            book.author!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall,
-                          ),
-                      ],
+                      ),
                     ),
-                  );
-                },
+                  SliverPadding(
+                    padding: const EdgeInsets.only(bottom: 200, right: 8),
+                    sliver: SliverGrid(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.72,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) {
+                          final book = abs.books[i];
+                          final token = abs.token ?? '';
+                          final cover = book.coverUrl(abs.host.value, token);
+                          final prog = book.progress;
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () => Get.to(
+                              () => AudiobookDetailScreen(bookId: book.id),
+                              transition: Transition.rightToLeft,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        CachedNetworkImage(
+                                          imageUrl: cover,
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                          errorWidget: (_, __, ___) =>
+                                              Container(
+                                            color: theme.primaryColorLight,
+                                            child: const Icon(Icons.menu_book,
+                                                size: 48),
+                                          ),
+                                        ),
+                                        if (prog != null &&
+                                            prog > 0.02 &&
+                                            prog < 0.98)
+                                          Positioned(
+                                            left: 0,
+                                            right: 0,
+                                            bottom: 0,
+                                            child: LinearProgressIndicator(
+                                              value: prog,
+                                              minHeight: 4,
+                                              backgroundColor: Colors.black
+                                                  .withOpacity(0.25),
+                                              valueColor:
+                                                  AlwaysStoppedAnimation(theme
+                                                      .colorScheme.secondary),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  book.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.titleSmall,
+                                ),
+                                if (book.author != null)
+                                  Text(
+                                    book.author!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
+                        childCount: abs.books.length,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             );
           }),

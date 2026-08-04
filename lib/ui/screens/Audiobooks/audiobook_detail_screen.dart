@@ -48,13 +48,25 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
     }
   }
 
-  Future<void> _play({int index = 0}) async {
+  /// Play from [index] (chapter tap), or resume the ABS session when [index]
+  /// is null (primary Play / Continue button).
+  Future<void> _play({int? index}) async {
     final detail = _detail;
     if (detail == null || detail.tracks.isEmpty) return;
     final abs = Get.find<AudiobookshelfService>();
     final items = abs.toMediaItems(detail);
     final player = Get.find<PlayerController>();
-    final start = index.clamp(0, items.length - 1);
+
+    final mapped = AudiobookshelfService.mapCurrentTimeToTrack(
+      detail.currentTime,
+      detail.tracks.map((t) => t.duration).toList(),
+    );
+    final start = (index ?? mapped.$1).clamp(0, items.length - 1);
+    final resumeMs = index == null ? mapped.$2.inMilliseconds : 0;
+
+    if (resumeMs > 5000) {
+      player.armResume(items[start].id, resumeMs);
+    }
     await player.playPlayListSong(items, start);
   }
 
@@ -78,6 +90,10 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        Icon(Icons.cloud_off_outlined,
+                            size: 48,
+                            color: theme.colorScheme.error.withOpacity(0.8)),
+                        const SizedBox(height: 12),
                         Text(_error!, textAlign: TextAlign.center),
                         const SizedBox(height: 12),
                         TextButton(onPressed: _load, child: Text('retry'.tr)),
@@ -92,6 +108,7 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
   Widget _buildBody(ThemeData theme, AudiobookshelfService abs) {
     final d = _detail!;
     final cover = abs.coverUrl(d.id, width: 600);
+    final canResume = d.currentTime > 5;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 200),
       children: [
@@ -132,9 +149,11 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                   ],
                   const SizedBox(height: 10),
                   ElevatedButton.icon(
-                    onPressed: d.tracks.isEmpty ? null : () => _play(index: 0),
-                    icon: const Icon(Icons.play_arrow),
-                    label: Text('play'.tr),
+                    onPressed: d.tracks.isEmpty ? null : () => _play(),
+                    icon: Icon(canResume ? Icons.play_arrow : Icons.play_arrow),
+                    label: Text(canResume
+                        ? 'continueListening'.tr
+                        : 'play'.tr),
                   ),
                 ],
               ),
@@ -153,26 +172,34 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
           style: theme.textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
-        ...List.generate(d.tracks.length, (i) {
-          final t = d.tracks[i];
-          final dur = t.duration > 0
-              ? _fmt(Duration(milliseconds: (t.duration * 1000).round()))
-              : '';
-          return ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: CircleAvatar(
-              radius: 16,
-              child: Text('${i + 1}', style: const TextStyle(fontSize: 12)),
-            ),
-            title: Text(t.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-            subtitle: dur.isEmpty ? null : Text(dur),
-            trailing: IconButton(
-              icon: const Icon(Icons.play_arrow),
-              onPressed: () => _play(index: i),
-            ),
-            onTap: () => _play(index: i),
-          );
-        }),
+        if (d.tracks.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Text('absNoBooks'.tr,
+                style: theme.textTheme.bodyMedium),
+          )
+        else
+          ...List.generate(d.tracks.length, (i) {
+            final t = d.tracks[i];
+            final dur = t.duration > 0
+                ? _fmt(Duration(milliseconds: (t.duration * 1000).round()))
+                : '';
+            return ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: CircleAvatar(
+                radius: 16,
+                child: Text('${i + 1}', style: const TextStyle(fontSize: 12)),
+              ),
+              title:
+                  Text(t.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+              subtitle: dur.isEmpty ? null : Text(dur),
+              trailing: IconButton(
+                icon: const Icon(Icons.play_arrow),
+                onPressed: () => _play(index: i),
+              ),
+              onTap: () => _play(index: i),
+            );
+          }),
       ],
     );
   }

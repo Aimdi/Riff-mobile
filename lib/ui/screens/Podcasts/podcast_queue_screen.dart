@@ -6,16 +6,18 @@ import 'package:get/get.dart';
 
 import '/models/thumbnail.dart';
 import '/services/podcast_download_service.dart';
+import '/services/podcast_progress_service.dart';
 import '/services/podcast_service.dart';
 import 'podcast_empty_state.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/utils/sheet_insets.dart';
 import '/ui/widgets/snackbar.dart';
 import 'podcast_queue_controller.dart';
+import 'podcasts_screen.dart';
 
-/// Long-press action sheet for a podcast episode: queue + download.
-/// Opens immediately — download/queue state is resolved inside the builder
-/// so the sheet never waits on disk I/O before appearing.
+/// Long-press action sheet for a podcast episode: queue, download, play next,
+/// mark played, and shownotes. Opens immediately — download/queue state is
+/// resolved inside the builder so the sheet never waits on disk I/O.
 void showAddToQueueSheet(BuildContext context, MediaItem episode) {
   HapticFeedback.mediumImpact();
   showModalBottomSheet(
@@ -33,6 +35,8 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode) {
       final downloaded = PodcastDownloadService.isDownloaded(episode.id);
       final canDownload =
           (episode.extras?['url'] as String?)?.isNotEmpty ?? false;
+      final notes = (episode.extras?['description'] ?? '').toString().trim();
+      final feedUrl = (episode.extras?['feedUrl'] ?? '').toString().trim();
       void snack(String msg) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -60,6 +64,15 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode) {
                 ),
               ),
               ListTile(
+                leading: const Icon(Icons.playlist_play),
+                title: Text("playNext".tr),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  Get.find<PlayerController>().playNext(episode);
+                  snack("playNext".tr);
+                },
+              ),
+              ListTile(
                 leading:
                     Icon(queued ? Icons.playlist_remove : Icons.playlist_add),
                 title: Text(queued ? "removeFromQueue".tr : "addToQueue".tr),
@@ -85,6 +98,71 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode) {
                     snack("downloadStarted".tr);
                     final ok = await PodcastDownloadService.download(episode);
                     snack(ok ? "downloadComplete".tr : "downloadFailed".tr);
+                  },
+                ),
+              ListTile(
+                leading: const Icon(Icons.check_circle_outline),
+                title: Text("markAsPlayed".tr),
+                onTap: () {
+                  PodcastProgressService.clear(episode.id);
+                  Navigator.of(ctx).pop();
+                  snack("markAsPlayed".tr);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.notes_outlined),
+                title: Text("shownotes".tr),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  showModalBottomSheet(
+                    context: context,
+                    useRootNavigator: true,
+                    isScrollControlled: true,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(12)),
+                    ),
+                    builder: (sctx) => DraggableScrollableSheet(
+                      expand: false,
+                      initialChildSize: 0.55,
+                      minChildSize: 0.35,
+                      maxChildSize: 0.9,
+                      builder: (_, scrollCtrl) => SingleChildScrollView(
+                        controller: scrollCtrl,
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(episode.title,
+                                style: Theme.of(sctx).textTheme.titleLarge),
+                            if ((episode.artist ?? '').isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(episode.artist!,
+                                  style: Theme.of(sctx).textTheme.titleSmall),
+                            ],
+                            const Divider(height: 24),
+                            Text(
+                              notes.isEmpty ? "noShownotes".tr : notes,
+                              style: Theme.of(sctx).textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              if (feedUrl.isNotEmpty)
+                ListTile(
+                  leading: const Icon(Icons.podcasts_outlined),
+                  title: Text("openShow".tr),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    Get.to(() => PodcastEpisodesScreen(podcast: {
+                          'feedUrl': feedUrl,
+                          'title': episode.artist ?? '',
+                          'artwork': episode.artUri?.toString() ?? '',
+                        }));
                   },
                 ),
             ],

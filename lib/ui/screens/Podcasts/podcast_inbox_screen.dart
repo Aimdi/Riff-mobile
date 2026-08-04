@@ -13,9 +13,8 @@ import 'podcast_queue_screen.dart';
 import 'podcasts_library_controller.dart';
 
 /// AntennaPod-style Inbox: the latest episodes across every subscribed podcast,
-/// merged into one list. Episodes are fetched per subscription and interleaved
-/// newest-first (round-robin) so recent episodes from each show surface at the
-/// top. Tap an episode to play it.
+/// merged into one list sorted by publish date (newest first). Tap an episode
+/// to play it; Continue Listening resumes and queues the rest of that show.
 class PodcastInboxScreen extends StatefulWidget {
   const PodcastInboxScreen({
     super.key,
@@ -84,21 +83,23 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     });
     final rssFutures = rssSubs.take(25).map((s) async {
       try {
+        final feedUrl = '${s['feedUrl']}';
         final eps = await PodcastService.episodes(
-          '${s['feedUrl']}',
+          feedUrl,
           '${s['title'] ?? ''}',
           '${s['artwork'] ?? ''}',
         );
         return eps
             .take(12)
-            .map((e) => _rssToMediaItem(e, '${s['title'] ?? ''}'))
+            .map((e) => _rssToMediaItem(e, '${s['title'] ?? ''}', feedUrl))
             .toList();
       } catch (_) {
         return <MediaItem>[];
       }
     });
     final lists = await Future.wait([...ytFutures, ...rssFutures]);
-    final merged = _roundRobin(lists.where((l) => l.isNotEmpty).toList());
+    final merged =
+        _mergeNewestFirst(lists.where((l) => l.isNotEmpty).toList());
     if (mounted) {
       setState(() {
         _episodes = merged;
@@ -107,7 +108,8 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     }
   }
 
-  MediaItem _rssToMediaItem(Map<String, dynamic> e, String podcastTitle) =>
+  MediaItem _rssToMediaItem(
+          Map<String, dynamic> e, String podcastTitle, String feedUrl) =>
       MediaItem(
         id: '${e['id']}',
         title: '${e['title'] ?? ''}',
@@ -122,6 +124,8 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
           'isPodcast': true,
           'description': e['description'],
           'date': e['date'],
+          'pubDateMs': e['pubDateMs'] ?? 0,
+          'feedUrl': feedUrl,
           if (e['chaptersUrl'] != null) 'chaptersUrl': e['chaptersUrl'],
           if (e['transcriptUrl'] != null) 'transcriptUrl': e['transcriptUrl'],
           if (e['transcriptUrl'] != null)
@@ -129,27 +133,68 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
         },
       );
 
-  /// Interleave per-podcast episode lists (each already newest-first) so the
-  /// most recent episode of every show comes first, then the second, etc.
-  List<MediaItem> _roundRobin(List<List<MediaItem>> lists) {
-    final out = <MediaItem>[];
-    var i = 0;
-    var any = true;
-    while (any) {
-      any = false;
-      for (final l in lists) {
-        if (i < l.length) {
-          out.add(l[i]);
-          any = true;
-        }
+  /// Flatten per-podcast lists and sort by pubDateMs (newest first). Items
+  /// without a parseable date (typical of YT shelves) sort after dated ones.
+  List<MediaItem> _mergeNewestFirst(List<List<MediaItem>> lists) {
+    final all = <MediaItem>[for (final l in lists) ...l];
+    all.sort((a, b) {
+      final am = (a.extras?['pubDateMs'] as int?) ?? 0;
+      final bm = (b.extras?['pubDateMs'] as int?) ?? 0;
+      if (am == 0 && bm == 0) {
+        return (b.extras?['date'] ?? '')
+            .toString()
+            .compareTo((a.extras?['date'] ?? '').toString());
       }
-      i++;
-    }
-    return out;
+      if (am == 0) return 1;
+      if (bm == 0) return -1;
+      return bm.compareTo(am);
+    });
+    return all;
   }
 
   void _play(int index) {
     Get.find<PlayerController>().playPlayListSong(_episodes, index);
+  }
+
+  /// Resume an in-progress episode and queue the rest of that show (or the
+  /// inbox from that point) so continuous playback doesn't stop after one.
+  void _playContinue(MediaItem item) {
+    final pc = Get.find<PlayerController>();
+    final show = (item.artist ?? '').trim();
+
+    if (show.isNotEmpty) {
+      final same =
+          _episodes.where((e) => (e.artist ?? '').trim() == show).toList();
+      final i = same.indexWhere((e) => e.id == item.id);
+      if (i >= 0) {
+        pc.playPlayListSong(same, i);
+        return;
+      }
+      if (same.isNotEmpty) {
+        pc.playPlayListSong(
+            [item, ...same.where((e) => e.id != item.id)], 0);
+        return;
+      }
+    }
+
+    final idx = _episodes.indexWhere((e) => e.id == item.id);
+    pc.playPlayListSong(idx >= 0 ? _episodes : [item], idx >= 0 ? idx : 0);
+  }
+
+  String _remainingLabel(MediaItem e) {
+    final left = PodcastProgressService.remainingSec(
+      e.id,
+      fallbackDurationSec: e.duration?.inSeconds,
+    );
+    if (left == null || left <= 0) {
+      return PodcastService.formatDuration(e.duration?.inSeconds ?? 0);
+    }
+    final tot = e.duration?.inSeconds ?? 0;
+    if (tot > 0 && left >= tot) {
+      return PodcastService.formatDuration(tot);
+    }
+    final fmt = PodcastService.formatDuration(left);
+    return fmt.isEmpty ? '' : '$fmt ${'left'.tr}';
   }
 
   @override
@@ -230,8 +275,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     final art = Thumbnail(item.artUri?.toString() ?? '').medium;
     final prog = PodcastProgressService.progress(item.id) ?? 0.0;
     return InkWell(
-      onTap: () =>
-          Get.find<PlayerController>().playPlayListSong([item], 0),
+      onTap: () => _playContinue(item),
       onLongPress: () => showAddToQueueSheet(context, item),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -281,6 +325,9 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.bodySmall),
+                      if (_remainingLabel(item).isNotEmpty)
+                        Text(_remainingLabel(item),
+                            style: theme.textTheme.bodySmall),
                     ],
                   ),
                 ),
@@ -309,7 +356,8 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     final date = (e.extras?['date'] ?? '').toString().trim();
     final show = e.artist ?? '';
     final meta = [date, show].where((s) => s.isNotEmpty).join('  ·  ');
-    final durationText = PodcastService.formatDuration(e.duration?.inSeconds ?? 0);
+    final timeLabel = _remainingLabel(e);
+    final prog = PodcastProgressService.progress(e.id);
     final art = Thumbnail(e.artUri?.toString() ?? '').medium;
     return InkWell(
       onTap: () => _play(i),
@@ -355,14 +403,30 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
                               .titleSmall
                               ?.copyWith(fontWeight: FontWeight.w600),
                         ),
-                        if (durationText.isNotEmpty)
+                        if (timeLabel.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(top: 2),
                             child: Text(
-                              durationText,
+                              timeLabel,
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
                           ),
+                        if (prog != null && prog > 0 && prog < 1) ...[
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: prog,
+                              minHeight: 3,
+                              backgroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.15),
+                              valueColor: AlwaysStoppedAnimation(
+                                  Theme.of(context).colorScheme.secondary),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

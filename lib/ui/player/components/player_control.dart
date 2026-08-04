@@ -335,11 +335,11 @@ class PlayerControlWidget extends StatelessWidget {
               ),
             );
           }),
-          Obx(() => playerController.isCurrentSongPodcast
+          Obx(() => playerController.usesLongFormTransport
               ? _podcastControls(playerController, context)
               : _musicControls(playerController, context)),
-          // Similar songs are music-only; hide for podcast episodes.
-          Obx(() => playerController.isCurrentSongPodcast
+          // Similar songs are music-only; hide for podcasts and audiobooks.
+          Obx(() => playerController.usesLongFormTransport
               ? const SizedBox.shrink()
               : const PlayerSimilarRow()),
         ]);

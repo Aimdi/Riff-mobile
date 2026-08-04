@@ -26,6 +26,7 @@ void showPodcastFolderSheet(BuildContext context, Playlist podcast) {
   final fc = Get.find<PodcastFolderController>();
   showModalBottomSheet(
     context: context,
+    useRootNavigator: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
     ),
@@ -362,6 +363,7 @@ class PodcastSubsScreen extends StatelessWidget {
       BuildContext context, PodcastFolderController fc, PodcastFolder folder) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       builder: (ctx) => SafeArea(
         child: Obx(() {
           // Refresh color selection when setColor updates the list.
@@ -457,6 +459,7 @@ class _RssSubTile extends StatelessWidget {
   void _confirmUnfollow(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       builder: (ctx) => SafeArea(
         child: Wrap(children: [
           ListTile(

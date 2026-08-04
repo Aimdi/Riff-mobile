@@ -29,6 +29,7 @@ import '/services/music_service.dart';
 import '/services/sponsorblock_service.dart';
 import '/services/podcast_service.dart';
 import '/services/podcast_progress_service.dart';
+import '/services/audiobookshelf_service.dart';
 import '/ui/player/riff_wave.dart';
 import '/ui/player/play_log_gate.dart';
 import '/ui/player/progress_ui_throttle.dart';
@@ -127,9 +128,10 @@ class PlayerController extends GetxController
   set podcastAutoSkipAds(bool v) =>
       Hive.box('AppPrefs').put('podcastAutoSkipAds', v);
 
-  // Podcast resume: persist position periodically and auto-seek to the saved
-  // position when a partially-played episode starts.
+  // Podcast / audiobook resume: persist position periodically and auto-seek
+  // to the saved position when a partially-played item starts.
   int _lastProgressSaveMs = 0;
+  int _lastAbsSyncMs = 0;
   String? _pendingResumeId;
   int _pendingResumeMs = 0;
 
@@ -304,6 +306,7 @@ class PlayerController extends GetxController
       _maybeSkipSponsorBlock(position);
       _maybeSkipAdChapter(position);
       _handlePodcastProgress(position);
+      _handleAbsProgress(position);
 
       // Progress widgets (mini player, lyrics, seek bar) only need ~10 Hz.
       if (!_progressUiThrottle.shouldUpdate(
@@ -326,6 +329,18 @@ class PlayerController extends GetxController
     final total = progressBarStatus.value.total;
 
     // Auto-resume once: a partially-played episode that just started near 0.
+    _maybeApplyPendingResume(song, position, total);
+
+    // Persist position at most every 5s.
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (nowMs - _lastProgressSaveMs >= 5000) {
+      _lastProgressSaveMs = nowMs;
+      PodcastProgressService.save(song, position, total, nowMs: nowMs);
+    }
+  }
+
+  void _maybeApplyPendingResume(
+      MediaItem song, Duration position, Duration total) {
     if (_pendingResumeId == song.id &&
         _pendingResumeMs > 5000 &&
         position.inMilliseconds < 4000) {
@@ -334,16 +349,51 @@ class PlayerController extends GetxController
       if (total <= Duration.zero ||
           target < total - const Duration(seconds: 10)) {
         seek(target);
-        return;
       }
     }
+  }
 
-    // Persist position at most every 5s.
+  bool _isAbsItem(MediaItem? s) =>
+      s != null &&
+      (s.id.startsWith('abs_') ||
+          s.extras?['streamSource'] == 'audiobookshelf');
+
+  /// Arm a one-shot seek after playback starts (ABS resume / explicit offset).
+  void armResume(String id, int offsetMs) {
+    _pendingResumeId = id;
+    _pendingResumeMs = offsetMs;
+  }
+
+  void _handleAbsProgress(Duration position) {
+    final song = currentSong.value;
+    if (!_isAbsItem(song)) return;
+    final total = progressBarStatus.value.total;
+    _maybeApplyPendingResume(song!, position, total);
+
+    final sessionId = song.extras?['absSessionId']?.toString();
+    if (sessionId == null || sessionId.isEmpty) return;
+    if (!Get.isRegistered<AudiobookshelfService>()) return;
+
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    if (nowMs - _lastProgressSaveMs >= 5000) {
-      _lastProgressSaveMs = nowMs;
-      PodcastProgressService.save(song, position, total, nowMs: nowMs);
-    }
+    if (nowMs - _lastAbsSyncMs < 10000) return;
+    _lastAbsSyncMs = nowMs;
+
+    final startOff =
+        (song.extras?['absStartOffsetSec'] as num?)?.toDouble() ?? 0.0;
+    final bookAbsolute = startOff + position.inMilliseconds / 1000.0;
+    final bookDuration = currentQueue.fold<double>(0, (sum, m) {
+      if (!_isAbsItem(m)) return sum;
+      return sum + (m.duration?.inMilliseconds ?? 0) / 1000.0;
+    });
+
+    unawaited(Get.find<AudiobookshelfService>().syncProgress(
+      sessionId: sessionId,
+      currentTime: bookAbsolute,
+      duration: bookDuration > 0
+          ? bookDuration
+          : (total.inMilliseconds / 1000.0),
+      isPaused: buttonState.value != PlayButtonState.playing,
+    ));
   }
 
   Future<void> _loadChaptersFor(MediaItem item) async {
@@ -541,6 +591,12 @@ class PlayerController extends GetxController
           _pendingResumeId = mediaItem.id;
           _pendingResumeMs =
               PodcastProgressService.positionMs(mediaItem.id) ?? 0;
+        } else if (_isAbsItem(mediaItem)) {
+          // Keep armResume() from detail screen if it targets this item.
+          if (_pendingResumeId != mediaItem.id) {
+            _pendingResumeId = null;
+            _pendingResumeMs = 0;
+          }
         } else {
           _pendingResumeId = null;
         }
@@ -1083,12 +1139,24 @@ class PlayerController extends GetxController
   }
 
   /// True when the currently playing item is a podcast episode (from the
-  /// Podcasts section) — drives the podcast player transport.
+  /// Podcasts section) — drives podcast-only chrome (shownotes, autoplay).
   bool get isCurrentSongPodcast {
     final s = currentSong.value;
     if (s == null) return false;
     return (s.extras?['isPodcast'] == true) || s.id.startsWith('podcast_');
   }
+
+  /// True for Audiobookshelf streams (abs_ ids).
+  bool get isCurrentSongAudiobook {
+    final s = currentSong.value;
+    if (s == null) return false;
+    return s.id.startsWith('abs_') ||
+        s.extras?['streamSource'] == 'audiobookshelf';
+  }
+
+  /// Podcast OR audiobook — ±skip / speed transport (not podcast-only tools).
+  bool get usesLongFormTransport =>
+      isCurrentSongPodcast || isCurrentSongAudiobook;
 
   /// True when the current item can show the in-player 16:9 video surface
   /// (music videos + YouTube-sourced podcast episodes).

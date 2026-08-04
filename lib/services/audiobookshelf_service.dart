@@ -6,6 +6,9 @@ import 'package:get/get.dart' hide FormData, MultipartFile;
 import 'package:hive/hive.dart';
 
 import '../utils/helper.dart';
+import 'abs_progress.dart';
+
+export 'abs_progress.dart' show mapAbsCurrentTimeToTrack, parseAbsProgress;
 
 /// Minimal library entry from Audiobookshelf (Lissen-style).
 class AbsLibrary {
@@ -30,11 +33,14 @@ class AbsFolder {
   final String fullPath;
 }
 
-/// A local file staged for upload to the server.
+/// A local file staged for upload to the server. Prefer [path] (streamed from
+/// disk) over [bytes] to avoid OOM on large audiobooks.
 class AbsUploadFile {
-  AbsUploadFile({required this.filename, required this.bytes});
+  AbsUploadFile({required this.filename, this.bytes, this.path})
+      : assert(bytes != null || path != null);
   final String filename;
-  final List<int> bytes;
+  final List<int>? bytes;
+  final String? path;
 }
 
 /// Book row in a library listing.
@@ -321,10 +327,10 @@ class AudiobookshelfService extends GetxService {
     }
     for (var i = 0; i < files.length; i++) {
       final f = files[i];
-      form.files.add(MapEntry(
-        '$i',
-        MultipartFile.fromBytes(f.bytes, filename: f.filename),
-      ));
+      final part = (f.path != null && f.path!.isNotEmpty)
+          ? await MultipartFile.fromFile(f.path!, filename: f.filename)
+          : MultipartFile.fromBytes(f.bytes ?? const [], filename: f.filename);
+      form.files.add(MapEntry('$i', part));
     }
     try {
       await _dio.post(
@@ -378,14 +384,18 @@ class AudiobookshelfService extends GetxService {
       if (results is List) {
         for (final r in results) {
           if (r is! Map) continue;
-          final meta = (r['media'] is Map)
-              ? (r['media']['metadata'] as Map? ?? {})
+          final media = (r['media'] is Map) ? r['media'] as Map : {};
+          final meta = media['metadata'] is Map
+              ? media['metadata'] as Map
               : <String, dynamic>{};
           list.add(AbsBook(
             id: r['id'].toString(),
             title: (meta['title'] ?? 'Untitled').toString(),
             author: meta['authorName']?.toString(),
             subtitle: meta['subtitle']?.toString(),
+            duration: (media['duration'] as num?)?.toDouble() ??
+                (r['duration'] as num?)?.toDouble(),
+            progress: parseAbsProgress(r),
           ));
         }
       }
@@ -433,6 +443,7 @@ class AudiobookshelfService extends GetxService {
                         ? meta['authors'][0]['name']?.toString()
                         : meta['authors'][0]?.toString())
                     : null),
+            progress: parseAbsProgress(Map<String, dynamic>.from(item)),
           ));
         }
       }
@@ -567,9 +578,12 @@ class AudiobookshelfService extends GetxService {
   /// IDs use the `abs_` prefix so [MyAudioHandler.checkNGetUrl] skips YT resolve.
   List<MediaItem> toMediaItems(AbsBookDetail book) {
     final cover = coverUrl(book.id);
+    var startOffset = 0.0;
     return book.tracks.map((t) {
       final id = 'abs_${book.id}_${t.index}';
       final url = streamUrl(t.contentUrl);
+      final thisStart = startOffset;
+      startOffset += t.duration > 0 ? t.duration : 0;
       return MediaItem(
         id: id,
         title: t.title,
@@ -585,6 +599,7 @@ class AudiobookshelfService extends GetxService {
           'absItemId': book.id,
           'absSessionId': book.sessionId,
           'absTrackIndex': t.index,
+          'absStartOffsetSec': thisStart,
           'album': {'name': book.title, 'id': book.id},
           'artists': [
             {'name': book.author.isEmpty ? 'Audiobook' : book.author, 'id': null}
@@ -593,6 +608,13 @@ class AudiobookshelfService extends GetxService {
       );
     }).toList();
   }
+
+  /// Map ABS book-absolute [currentTimeSec] onto a track index + in-track offset.
+  static (int trackIndex, Duration offset) mapCurrentTimeToTrack(
+    double currentTimeSec,
+    List<double> trackDurationsSec,
+  ) =>
+      mapAbsCurrentTimeToTrack(currentTimeSec, trackDurationsSec);
 
   /// Optional progress sync (Lissen: POST /api/session/{id}/sync).
   Future<void> syncProgress({
