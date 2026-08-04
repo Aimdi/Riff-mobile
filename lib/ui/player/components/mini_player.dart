@@ -7,6 +7,8 @@ import 'package:widget_marquee/widget_marquee.dart';
 import '/ui/widgets/lyrics_dialog.dart';
 import '/ui/widgets/song_info_dialog.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/utils/riff_tokens.dart';
+import '/ui/utils/theme_controller.dart';
 import '../../widgets/add_to_playlist.dart';
 import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/sleep_timer_bottom_sheet.dart';
@@ -116,9 +118,19 @@ class _MiniPlayerArt extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
           song != null
-              ? ImageWidget(
-                  size: 50,
-                  song: song,
+              ? Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: RiffSurfaces.hairline,
+                      width: RiffTokens.hairline,
+                    ),
+                  ),
+                  child: ImageWidget(
+                    size: 50,
+                    song: song,
+                    borderRadius: 8,
+                  ),
                 )
               : const SizedBox(
                   height: 50,
@@ -269,22 +281,14 @@ class _MiniPlayerTransport extends StatelessWidget {
               );
             })),
         isWideScreen
-            ? Container(
-                decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.secondary,
-                    borderRadius: BorderRadius.circular(12)),
-                width: 58,
-                height: 58,
-                child: Center(
-                    child: AnimatedPlayButton(
-                  iconSize: isWideScreen ? 43 : 35,
-                )))
-            : const SizedBox.square(
-                dimension: 44,
-                child: Center(
-                    child: AnimatedPlayButton(
-                  iconSize: 32,
-                ))),
+            ? const AnimatedPlayButton(
+                iconSize: 30,
+                size: 58,
+              )
+            : const AnimatedPlayButton(
+                iconSize: 26,
+                size: 44,
+              ),
         SizedBox(
             width: isWideScreen ? 40 : 34,
             child: Obx(() {
@@ -497,12 +501,10 @@ class _MiniPlayerThinProgress extends StatelessWidget {
     return GetX<PlayerController>(
       builder: (controller) => Container(
         height: 2,
-        color: Theme.of(context).progressIndicatorTheme.color,
+        color: RiffSurfaces.hairline,
         child: MiniPlayerProgressBar(
           progressBarStatus: controller.progressBarStatus.value,
-          progressBarColor:
-              Theme.of(context).progressIndicatorTheme.linearTrackColor ??
-                  Colors.white,
+          progressBarColor: Theme.of(context).colorScheme.secondary,
         ),
       ),
     );

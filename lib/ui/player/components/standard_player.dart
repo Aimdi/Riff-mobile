@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../screens/Settings/settings_screen_controller.dart';
+import '../../utils/theme_controller.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
 import '../player_controller.dart';
 import 'albumart_lyrics.dart';
@@ -172,23 +173,29 @@ class StandardPlayer extends StatelessWidget {
                   Expanded(
                     child: Padding(
                       padding:
-                          const EdgeInsets.only(top: 8.0, left: 5, right: 5),
+                          const EdgeInsets.only(top: 10.0, left: 5, right: 5),
                       child: Obx(
-                        () => Column(
-                          children: [
-                            Text(playerController.playinfrom.value.typeString,
-                                style: const TextStyle(
-                                    fontSize: 12, fontWeight: FontWeight.bold)),
-                            Obx(
-                              () => Text(
-                                "\"${playerController.playinfrom.value.nameString}\"",
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold),
-                              ),
-                            )
-                          ],
-                        ),
+                        () {
+                          final from = playerController.playinfrom.value;
+                          final type = from.typeString.trim();
+                          final name = from.nameString.trim();
+                          final label = name.isEmpty
+                              ? (type.isEmpty ? '' : type)
+                              : type.isEmpty
+                                  ? name
+                                  : '$type · $name';
+                          if (label.isEmpty) return const SizedBox.shrink();
+                          return Text(
+                            label,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: RiffSurfaces.textMuted,
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),

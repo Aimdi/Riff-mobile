@@ -8,6 +8,7 @@ import 'package:widget_marquee/widget_marquee.dart';
 
 import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
+import '../../utils/riff_tokens.dart';
 import '../../utils/theme_controller.dart';
 import '../player_controller.dart';
 
@@ -17,6 +18,7 @@ class GesturePlayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final PlayerController playerController = Get.find<PlayerController>();
+    final accent = Theme.of(context).colorScheme.secondary;
     return Stack(
       children: [
         GestureDetector(
@@ -61,8 +63,8 @@ class GesturePlayer extends StatelessWidget {
                           playerController.gesturePlayerVisibleState.value == 1
                               ? Icons.play_arrow
                               : Icons.pause,
-                          size: 180,
-                          color: Colors.white,
+                          size: 72,
+                          color: accent,
                         ),
                 ),
               ),
@@ -80,11 +82,16 @@ class GesturePlayer extends StatelessWidget {
                 right: 20),
             child: Container(
               decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(10)),
+                color: RiffSurfaces.elevated.withOpacity(0.92),
+                borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
+                border: Border.all(
+                  color: RiffSurfaces.hairline,
+                  width: RiffTokens.hairline,
+                ),
+              ),
               constraints: const BoxConstraints(maxWidth: 500),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
                 // No BackdropFilter — blur here was expensive during gestures.
                 child: Padding(
                   padding:
@@ -100,23 +107,22 @@ class GesturePlayer extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Obx(() {
+                                  final title = playerController
+                                      .currentSong.value?.title;
                                   return Marquee(
                                     delay: const Duration(milliseconds: 300),
                                     duration: const Duration(seconds: 10),
                                     id: "${playerController.currentSong.value}_title",
                                     child: Text(
-                                      playerController.currentSong.value != null
-                                          ? playerController
-                                              .currentSong.value!.title
-                                          : "NA",
+                                      (title != null && title.isNotEmpty)
+                                          ? title
+                                          : "—",
                                       textAlign: TextAlign.start,
                                       style: Theme.of(context)
                                           .textTheme
                                           .titleMedium!
                                           .copyWith(
-                                              color: Theme.of(context)
-                                                  .primaryColor
-                                                  .complementaryColor),
+                                              color: RiffSurfaces.textPrimary),
                                     ),
                                   );
                                 }),
@@ -124,24 +130,23 @@ class GesturePlayer extends StatelessWidget {
                                   height: 7,
                                 ),
                                 GetX<PlayerController>(builder: (controller) {
+                                  final artist =
+                                      controller.currentSong.value?.artist;
                                   return Marquee(
                                     delay: const Duration(milliseconds: 300),
                                     duration: const Duration(seconds: 10),
                                     id: "${playerController.currentSong.value}_subtitle",
                                     child: Text(
-                                      playerController.currentSong.value != null
-                                          ? controller
-                                              .currentSong.value!.artist!
-                                          : "NA",
+                                      (artist != null && artist.isNotEmpty)
+                                          ? artist
+                                          : "—",
                                       textAlign: TextAlign.start,
                                       overflow: TextOverflow.ellipsis,
                                       style: Theme.of(context)
                                           .textTheme
                                           .titleSmall!
                                           .copyWith(
-                                              color: Theme.of(context)
-                                                  .primaryColor
-                                                  .complementaryColor,
+                                              color: RiffSurfaces.textMuted,
                                               fontWeight: FontWeight.normal),
                                     ),
                                   );
@@ -181,15 +186,9 @@ class GesturePlayer extends StatelessWidget {
                                             Icons.all_inclusive,
                                             color: playerController
                                                     .isLoopModeEnabled.value
-                                                ? Theme.of(context)
-                                                    .textTheme
-                                                    .titleLarge!
-                                                    .color
-                                                : Theme.of(context)
-                                                    .textTheme
-                                                    .titleLarge!
-                                                    .color!
-                                                    .withOpacity(0.2),
+                                                ? RiffSurfaces.textPrimary
+                                                : RiffSurfaces.textMuted
+                                                    .withOpacity(0.45),
                                           ));
                                     }),
                                     IconButton(
@@ -204,15 +203,9 @@ class GesturePlayer extends StatelessWidget {
                                           Ionicons.shuffle,
                                           color: playerController
                                                   .isShuffleModeEnabled.value
-                                              ? Theme.of(context)
-                                                  .textTheme
-                                                  .titleLarge!
-                                                  .color
-                                              : Theme.of(context)
-                                                  .textTheme
-                                                  .titleLarge!
-                                                  .color!
-                                                  .withOpacity(0.2),
+                                              ? RiffSurfaces.textPrimary
+                                              : RiffSurfaces.textMuted
+                                                  .withOpacity(0.45),
                                         ),
                                       ),
                                     ),
@@ -244,7 +237,9 @@ class GesturePlayer extends StatelessWidget {
                                   err,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodySmall,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: RiffSurfaces.textMuted,
+                                  ),
                                 ),
                               ),
                               TextButton(
@@ -259,20 +254,15 @@ class GesturePlayer extends StatelessWidget {
                         return ProgressBar(
                           thumbRadius: 6,
                           timeLabelLocation: TimeLabelLocation.sides,
-                          baseBarColor:
-                              Theme.of(context).sliderTheme.inactiveTrackColor,
-                          bufferedBarColor:
-                              Theme.of(context).sliderTheme.valueIndicatorColor,
-                          progressBarColor:
-                              Theme.of(context).sliderTheme.activeTrackColor,
-                          thumbColor: Theme.of(context).sliderTheme.thumbColor,
+                          baseBarColor: RiffSurfaces.hairline,
+                          bufferedBarColor: RiffSurfaces.elevatedSoft,
+                          progressBarColor: accent,
+                          thumbColor: RiffSurfaces.textPrimary,
                           timeLabelTextStyle: Theme.of(context)
                               .textTheme
                               .titleSmall!
                               .copyWith(
-                                  color: Theme.of(context)
-                                      .primaryColor
-                                      .complementaryColor),
+                                  color: RiffSurfaces.textMuted, fontSize: 12),
                           progress: controller.progressBarStatus.value.current,
                           total: controller.progressBarStatus.value.total,
                           buffered: controller.progressBarStatus.value.buffered,

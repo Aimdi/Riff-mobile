@@ -5,6 +5,7 @@ import 'package:widget_marquee/widget_marquee.dart';
 
 import '/ui/player/components/animated_play_button.dart';
 import '/ui/player/components/podcast_transcript_sheet.dart';
+import '/ui/utils/theme_controller.dart';
 import '../../navigator.dart';
 import '../../screens/Settings/settings_screen_controller.dart';
 import '../../widgets/discovery/player_similar_row.dart';
@@ -108,7 +109,9 @@ class PlayerControlWidget extends StatelessWidget {
                               duration: const Duration(seconds: 10),
                               id: "${song}_title",
                               child: Text(
-                                song?.title ?? "NA",
+                                (song != null && song.title.isNotEmpty)
+                                    ? song.title
+                                    : "—",
                                 textAlign: TextAlign.start,
                                 style: Theme.of(context).textTheme.labelMedium!,
                               ),
@@ -123,7 +126,10 @@ class PlayerControlWidget extends StatelessWidget {
                               duration: const Duration(seconds: 10),
                               id: "${song}_subtitle",
                               child: Text(
-                                song?.artist ?? "NA",
+                                (song?.artist != null &&
+                                        song!.artist!.isNotEmpty)
+                                    ? song.artist!
+                                    : "—",
                                 textAlign: TextAlign.start,
                                 overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context).textTheme.labelSmall,
@@ -284,8 +290,11 @@ class PlayerControlWidget extends StatelessWidget {
                 : 0.0;
             final song = controller.currentSong.value;
             final seed = (song?.id ?? song?.title ?? '').hashCode;
-            final timeStyle =
-                Theme.of(context).textTheme.titleMedium!.copyWith(fontSize: 14);
+            final timeStyle = Theme.of(context).textTheme.titleSmall!.copyWith(
+                  fontSize: 12,
+                  color: RiffSurfaces.textMuted,
+                  fontWeight: FontWeight.w500,
+                );
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6),
               child: Column(
@@ -316,8 +325,9 @@ class PlayerControlWidget extends StatelessWidget {
                             unplayedColor: (Theme.of(context)
                                         .sliderTheme
                                         .inactiveTrackColor ??
-                                    Colors.grey)
+                                    RiffSurfaces.hairline)
                                 .withOpacity(0.55),
+                            playheadColor: RiffSurfaces.textPrimary,
                           ),
                         ),
                       ),
@@ -356,20 +366,14 @@ class PlayerControlWidget extends StatelessWidget {
             icon: Obx(() => Icon(
                   Ionicons.shuffle,
                   color: playerController.isShuffleModeEnabled.value
-                      ? Theme.of(context).textTheme.titleLarge!.color
-                      : Theme.of(context)
-                          .textTheme
-                          .titleLarge!
-                          .color!
-                          .withOpacity(0.2),
+                      ? RiffSurfaces.textPrimary
+                      : RiffSurfaces.textMuted.withOpacity(0.45),
                 ))),
         _previousButton(playerController, context),
-        const CircleAvatar(
-            radius: 35, child: AnimatedPlayButton(key: Key("playButton"))),
+        const AnimatedPlayButton(key: Key("playButton")),
         _nextButton(playerController, context),
         Obx(() {
           final state = playerController.repeatState;
-          final baseColor = Theme.of(context).textTheme.titleLarge!.color!;
           return IconButton(
               tooltip: state == 2
                   ? "repeatOne".tr
@@ -380,7 +384,9 @@ class PlayerControlWidget extends StatelessWidget {
               icon: Icon(
                 // repeat_one shows the "1" badge (Spotify-style).
                 state == 2 ? Icons.repeat_one : Icons.repeat,
-                color: state == 0 ? baseColor.withOpacity(0.2) : baseColor,
+                color: state == 0
+                    ? RiffSurfaces.textMuted.withOpacity(0.45)
+                    : RiffSurfaces.textPrimary,
               ));
         }),
       ],
@@ -446,10 +452,7 @@ class PlayerControlWidget extends StatelessWidget {
             ],
           ),
         ),
-        const CircleAvatar(
-          radius: 35,
-          child: AnimatedPlayButton(key: Key('podcastPlayButton')),
-        ),
+        const AnimatedPlayButton(key: Key('podcastPlayButton')),
         side(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -665,24 +668,27 @@ String _fmtDuration(Duration d) {
 
 /// A thin SoundCloud-style waveform. Bar heights are deterministic per song
 /// (hashed from a seed) so they stay stable across rebuilds; the played portion
-/// is drawn in [playedColor], the rest in [unplayedColor].
+/// is drawn in [playedColor], the rest in [unplayedColor]. A thin playhead
+/// line marks the current position.
 class _WaveformPainter extends CustomPainter {
   _WaveformPainter({
     required this.progress,
     required this.seed,
     required this.playedColor,
     required this.unplayedColor,
+    required this.playheadColor,
   });
 
   final double progress; // 0..1
   final int seed;
   final Color playedColor;
   final Color unplayedColor;
+  final Color playheadColor;
 
   @override
   void paint(Canvas canvas, Size size) {
-    const barWidth = 2.0;
-    const gap = 2.0;
+    const barWidth = 2.5;
+    const gap = 1.5;
     const step = barWidth + gap;
     final count = (size.width / step).floor();
     if (count <= 0) return;
@@ -701,6 +707,13 @@ class _WaveformPainter extends CustomPainter {
       canvas.drawLine(
           Offset(x, midY - barH / 2), Offset(x, midY + barH / 2), paint);
     }
+    // Playhead line at the current progress position.
+    final playheadX = (size.width * progress).clamp(0.0, size.width);
+    final head = Paint()
+      ..color = playheadColor.withOpacity(0.9)
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(playheadX, 2), Offset(playheadX, size.height - 2), head);
   }
 
   @override
@@ -708,5 +721,6 @@ class _WaveformPainter extends CustomPainter {
       old.progress != progress ||
       old.seed != seed ||
       old.playedColor != playedColor ||
-      old.unplayedColor != unplayedColor;
+      old.unplayedColor != unplayedColor ||
+      old.playheadColor != playheadColor;
 }

@@ -11,6 +11,7 @@ class LyricsSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final PlayerController playerController = Get.find<PlayerController>();
+    final accent = Theme.of(context).colorScheme.secondary;
     return Obx(
       () => playerController.showLyricsflag.value
           ? Padding(
@@ -19,12 +20,12 @@ class LyricsSwitch extends StatelessWidget {
                 minWidth: 90.0,
                 cornerRadius: 20.0,
                 activeBgColors: [
-                  [Theme.of(context).primaryColor.withLightness(0.4)],
-                  [Theme.of(context).primaryColor.withLightness(0.4)]
+                  [accent],
+                  [accent],
                 ],
-                activeFgColor: Colors.white,
-                inactiveBgColor: Theme.of(context).colorScheme.secondary,
-                inactiveFgColor: Colors.white,
+                activeFgColor: RiffSurfaces.voidBlack,
+                inactiveBgColor: RiffSurfaces.elevated,
+                inactiveFgColor: RiffSurfaces.textMuted,
                 initialLabelIndex: playerController.lyricsMode.value,
                 totalSwitches: 2,
                 labels: ['synced'.tr, 'plain'.tr],
