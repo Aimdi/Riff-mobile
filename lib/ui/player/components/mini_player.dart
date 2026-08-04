@@ -165,18 +165,31 @@ class _MiniPlayerSongInfo extends StatelessWidget {
         child: Obx(() {
           final song = playerController.currentSong.value;
           final err = playerController.playbackError.value;
+          final songKey = song?.id ?? 'none';
           return Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(
                 height: 20,
-                child: Text(
-                  song != null ? song.title : "",
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: false,
-                  style: Theme.of(context).textTheme.titleMedium,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: child,
+                    );
+                  },
+                  child: Text(
+                    song != null ? song.title : "",
+                    key: ValueKey<String>('mini_title_$songKey'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: false,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                 ),
               ),
               SizedBox(
@@ -211,14 +224,26 @@ class _MiniPlayerSongInfo extends StatelessWidget {
                           ),
                         ],
                       )
-                    : Marquee(
-                        id: "${song}_mini",
-                        delay: const Duration(milliseconds: 300),
-                        duration: const Duration(seconds: 5),
-                        child: Text(
-                          song != null ? song.artist! : "",
-                          maxLines: 1,
-                          style: theme.textTheme.titleSmall,
+                    : AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        transitionBuilder: (child, animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: child,
+                          );
+                        },
+                        child: Marquee(
+                          key: ValueKey<String>('mini_artist_$songKey'),
+                          id: "${song}_mini",
+                          delay: const Duration(milliseconds: 300),
+                          duration: const Duration(seconds: 5),
+                          child: Text(
+                            song != null ? (song.artist ?? "") : "",
+                            maxLines: 1,
+                            style: theme.textTheme.titleSmall,
+                          ),
                         ),
                       ),
               ),

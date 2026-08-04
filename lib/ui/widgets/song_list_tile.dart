@@ -121,7 +121,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
             final isCurrent =
                 playerController.currentSong.value?.id == song.id;
             final theme = Theme.of(context);
-            final accent = theme.colorScheme.primary;
+            final accent = theme.colorScheme.secondary;
             final highlight = theme.brightness == Brightness.dark
                 ? RiffSurfaces.elevatedSoft
                 : accent.withOpacity(0.08);
@@ -212,7 +212,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          if (isPlaylistOrAlbum && isCurrent)
+                          if (isCurrent)
                             Icon(Icons.equalizer, color: accent, size: 18),
                           Text(
                             song.extras!['length'] ?? "",

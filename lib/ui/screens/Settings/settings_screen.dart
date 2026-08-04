@@ -217,6 +217,7 @@ class SettingsScreen extends StatelessWidget {
               CustomExpansionTile(
                 title: "settingsListening".tr,
                 icon: Icons.headphones_outlined,
+                initiallyExpanded: true,
                 children: [
                   ListTile(
                     contentPadding: const EdgeInsets.only(left: 5, right: 10),
