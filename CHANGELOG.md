@@ -1,3 +1,10 @@
+# 1.7.98
+
+**Release**
+* Re-ship with the previous release signing key so 1.7.98 installs over earlier
+  APKs (1.7.97 had fallen back to debug signing after the keystore was
+  untracked from the repo)
+
 # 1.7.97
 
 **Look & feel**
