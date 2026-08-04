@@ -119,6 +119,7 @@ class SongInfoBottomSheet extends StatelessWidget {
                 Navigator.of(context).pop();
                 showModalBottomSheet(
                   context: context,
+                  useRootNavigator: true,
                   isScrollControlled: true,
                   constraints: const BoxConstraints(maxWidth: 500),
                   shape: const RoundedRectangleBorder(

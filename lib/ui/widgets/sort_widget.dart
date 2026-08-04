@@ -133,7 +133,7 @@ class SortWidget extends StatelessWidget {
                 onPressed: () {
                   Get.find<LibraryPlaylistsController>()
                       .importPlaylistFromJson(context);
-                  Navigator.pop(context);
+                  // Close only this import dialog (not the Library route).
                   Navigator.pop(context);
                 },
               ),
