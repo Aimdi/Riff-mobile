@@ -22,16 +22,21 @@ class SearchResultScreen extends StatelessWidget {
         : Scaffold(
             body: Row(
               children: [
-                Align(
-                  alignment: Alignment.topCenter,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.only(bottom: 80),
-                    child: IntrinsicHeight(
+                // Slim left rail: put rotated labels in the icon slot so
+                // NavigationRail doesn't expand to unrotated text width.
+                SizedBox(
+                  width: 48,
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.only(bottom: 200),
                       child: Obx(
                         () => NavigationRail(
                           onDestinationSelected:
                               searchResScrController.onDestinationSelected,
-                          minWidth: 60,
+                          minWidth: 48,
+                          groupAlignment: -1,
+                          labelType: NavigationRailLabelType.none,
                           destinations: (searchResScrController
                                       .isResultContentFetced.value &&
                                   searchResScrController.railItems.isNotEmpty)
@@ -47,11 +52,15 @@ class SearchResultScreen extends StatelessWidget {
                           leading: Column(
                             children: [
                               SizedBox(
-                                height: context.isLandscape ? 20 : 45,
+                                height: context.isLandscape ? 50 : 80,
                               ),
                               IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                    minWidth: 40, minHeight: 40),
                                 icon: Icon(
                                   Icons.arrow_back_ios_new,
+                                  size: 20,
                                   color: Theme.of(context)
                                       .textTheme
                                       .titleMedium!
@@ -63,12 +72,9 @@ class SearchResultScreen extends StatelessWidget {
                                       .pop();
                                 },
                               ),
-                              const SizedBox(
-                                height: 10,
-                              ),
+                              const SizedBox(height: 8),
                             ],
                           ),
-                          labelType: NavigationRailLabelType.all,
                           selectedIndex: searchResScrController
                               .navigationRailCurrentIndex.value,
                         ),
@@ -98,11 +104,40 @@ class SearchResultScreen extends StatelessWidget {
   }
 
   NavigationRailDestination railDestination(String label) {
+    final text = label.toLowerCase().removeAllWhitespace.tr;
     return NavigationRailDestination(
-      icon: const SizedBox.shrink(),
-      label: RotatedBox(
+      icon: _RailLabel(text),
+      selectedIcon: _RailLabel(text, selected: true),
+      label: const SizedBox.shrink(),
+    );
+  }
+}
+
+class _RailLabel extends StatelessWidget {
+  const _RailLabel(this.label, {this.selected = false});
+  final String label;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final style = selected
+        ? theme.navigationRailTheme.selectedLabelTextStyle
+        : theme.navigationRailTheme.unselectedLabelTextStyle;
+    return SizedBox(
+      width: 28,
+      height: 72,
+      child: Center(
+        child: RotatedBox(
           quarterTurns: -1,
-          child: Text(label.toLowerCase().removeAllWhitespace.tr)),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: (style ?? theme.textTheme.labelSmall)?.copyWith(fontSize: 12),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -119,8 +154,15 @@ class Body extends StatelessWidget {
   Widget build(BuildContext context) {
     if (searchResScrController.navigationRailCurrentIndex.value == 0) {
       return Obx(() {
-        if (searchResScrController.isResultContentFetced.isTrue &&
-            searchResScrController.railItems.isEmpty) {
+        if (searchResScrController.isResultContentFetced.isFalse) {
+          return const Center(child: LoadingIndicator());
+        }
+        // Soulseek-only rail still means YTM returned nothing — show empty
+        // state on Results rather than a blank column.
+        final ytmRails = searchResScrController.railItems
+            .where((r) => !searchResScrController.isSoulseekRail(r))
+            .toList();
+        if (ytmRails.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -130,16 +172,26 @@ class Body extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 Text("'${searchResScrController.queryString.value}'"),
+                if (searchResScrController.railItems
+                    .any(searchResScrController.isSoulseekRail)) ...[
+                  const SizedBox(height: 16),
+                  TextButton.icon(
+                    onPressed: () {
+                      final idx = searchResScrController.railItems.indexWhere(
+                          searchResScrController.isSoulseekRail);
+                      if (idx >= 0) {
+                        searchResScrController.onDestinationSelected(idx + 1);
+                      }
+                    },
+                    icon: const Icon(Icons.search),
+                    label: Text('soulseek'.tr),
+                  ),
+                ],
               ],
             ),
           );
-        } else if (searchResScrController.isResultContentFetced.isTrue) {
-          return const ResultWidget();
-        } else {
-          return const Center(
-            child: LoadingIndicator(),
-          );
         }
+        return const ResultWidget();
       });
     } else {
       if (searchResScrController.isResultContentFetced.isTrue) {

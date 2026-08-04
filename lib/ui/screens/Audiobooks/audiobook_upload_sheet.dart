@@ -21,6 +21,7 @@ class AudiobookUploadSheet extends StatefulWidget {
         context: context,
         isScrollControlled: true,
         useSafeArea: true,
+        useRootNavigator: true,
         builder: (_) => const AudiobookUploadSheet(),
       );
 
@@ -61,12 +62,15 @@ class _AudiobookUploadSheetState extends State<AudiobookUploadSheet> {
     final res = await FilePicker.platform.pickFiles(
       allowMultiple: true,
       type: FileType.audio,
-      withData: true,
+      withData: false,
     );
     if (res == null) return;
     setState(() {
       for (final f in res.files) {
-        if (f.bytes != null) {
+        final path = f.path;
+        if (path != null && path.isNotEmpty) {
+          _files.add(AbsUploadFile(filename: f.name, path: path));
+        } else if (f.bytes != null) {
           _files.add(AbsUploadFile(filename: f.name, bytes: f.bytes!));
         }
       }

@@ -48,7 +48,15 @@ class PluginsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('plugins'.tr, style: theme.textTheme.titleLarge),
+            Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new),
+                  onPressed: () => Get.back(id: ScreenNavigationSetup.id),
+                ),
+                Text('plugins'.tr, style: theme.textTheme.titleLarge),
+              ],
+            ),
             const SizedBox(height: 6),
             Text('pluginsDes'.tr, style: theme.textTheme.bodyMedium),
             const SizedBox(height: 24),

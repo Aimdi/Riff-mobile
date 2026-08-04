@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '/utils/secure_credentials.dart';
 import 'soulseek/soulseek_client.dart';
 
 export 'soulseek/soulseek_client.dart'
@@ -31,7 +32,7 @@ class SoulseekService extends GetxController {
     if (user.isNotEmpty) {
       username.value = user;
       // Auto-reconnect with stored credentials (best-effort).
-      final pass = (_prefs.get(_passKey) ?? '').toString();
+      final pass = SecureCredentials.get(_passKey) ?? '';
       if (pass.isNotEmpty) {
         login(user: user, pass: pass).catchError((_) {});
       }
@@ -55,7 +56,7 @@ class SoulseekService extends GetxController {
       username.value = user.trim();
       isLoggedIn.value = true;
       await _prefs.put(_userKey, user.trim());
-      await _prefs.put(_passKey, pass);
+      await SecureCredentials.set(_passKey, pass);
       statusMessage.value = '';
     } on SoulseekException catch (e) {
       isLoggedIn.value = false;
@@ -74,7 +75,7 @@ class SoulseekService extends GetxController {
     await _client?.disconnect();
     _client = null;
     isLoggedIn.value = false;
-    await _prefs.delete(_passKey);
+    await SecureCredentials.delete(_passKey);
     // Keep username for convenience.
   }
 

@@ -14,6 +14,7 @@ import '/ui/widgets/podcast_follow_button.dart';
 import '/ui/widgets/snackbar.dart';
 import '/ui/widgets/sort_widget.dart';
 import 'podcast_category_screen.dart';
+import 'podcast_downloads_screen.dart';
 import 'podcast_inbox_screen.dart';
 import 'podcast_queue_screen.dart';
 import 'podcast_subs_screen.dart';
@@ -131,6 +132,11 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                             activeIcon: Icons.explore,
                             label: 'discover'.tr,
                             section: 4),
+                        _navChip(
+                            icon: Icons.download_outlined,
+                            activeIcon: Icons.download,
+                            label: 'downloads'.tr,
+                            section: 5),
                       ],
                     ),
                   ),
@@ -205,6 +211,15 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               if (_section == 4) {
                 // Discover tab: search + discovery rows + categories.
                 return _discoverView(controller, itemWidth, itemHeight);
+              }
+              if (_section == 5) {
+                return PodcastDownloadsScreen(
+                  embedded: true,
+                  onDiscover: () {
+                    _loadDiscoveryRows();
+                    setState(() => _section = 4);
+                  },
+                );
               }
 
               // ── Fallback (unused: default section is Inbox) ─────
@@ -419,7 +434,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
     final accent = Theme.of(context).colorScheme.secondary;
     final normal = Theme.of(context).textTheme.bodyMedium?.color;
     final color = active ? accent : normal;
-    return Expanded(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: () {
@@ -454,9 +470,10 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               Text(
                 label,
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                softWrap: false,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: color,
+                    fontSize: 11,
                     fontWeight: active ? FontWeight.w600 : FontWeight.w400),
               ),
             ],

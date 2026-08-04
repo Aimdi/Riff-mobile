@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../screens/Settings/settings_screen_controller.dart';
+import '../utils/riff_tokens.dart';
 import '/models/artist.dart';
 import '/models/thumbnail.dart';
 import '/services/cover_resolver.dart';
@@ -22,6 +23,7 @@ class ImageWidget extends StatelessWidget {
     this.artist,
     required this.size,
     this.isPlayerArtImage = false,
+    this.borderRadius,
   });
   final MediaItem? song;
   final Playlist? playlist;
@@ -29,6 +31,11 @@ class ImageWidget extends StatelessWidget {
   final bool isPlayerArtImage;
   final Artist? artist;
   final double size;
+  /// Override corner radius for square covers (artists stay circular).
+  final double? borderRadius;
+
+  double get _radius =>
+      borderRadius ?? (isPlayerArtImage ? RiffTokens.radiusLg : 10);
 
   String get _rawUrl {
     if (song != null) return song!.artUri?.toString() ?? "";
@@ -63,7 +70,7 @@ class ImageWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.secondary.withOpacity(0.85),
         shape: isCircle ? BoxShape.circle : BoxShape.rectangle,
-        borderRadius: isCircle ? null : BorderRadius.circular(10),
+        borderRadius: isCircle ? null : BorderRadius.circular(_radius),
       ),
       child: Image.asset(
         _fallbackAsset,
@@ -92,7 +99,7 @@ class ImageWidget extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         shape: artist != null ? BoxShape.circle : BoxShape.rectangle,
-        borderRadius: artist != null ? null : BorderRadius.circular(10),
+        borderRadius: artist != null ? null : BorderRadius.circular(_radius),
       ),
       child: offlineAvailable
           ? Image.file(
@@ -100,6 +107,7 @@ class ImageWidget extends StatelessWidget {
                   "${Get.find<SettingsScreenController>().supportDirPath}/thumbnails/${song!.id}.png"),
               height: size,
               width: size,
+              cacheWidth: decodeSide,
               fit: BoxFit.cover,
               filterQuality: FilterQuality.medium,
               errorBuilder: (_, __, ___) => _placeholder(context),
@@ -159,7 +167,7 @@ class ImageWidget extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           shape: artist != null ? BoxShape.circle : BoxShape.rectangle,
-          borderRadius: artist != null ? null : BorderRadius.circular(10),
+          borderRadius: artist != null ? null : BorderRadius.circular(_radius),
           color: Colors.white54,
         ),
       ),

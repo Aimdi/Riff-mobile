@@ -66,7 +66,7 @@ class SongInfoBottomSheet extends StatelessWidget {
                 song.title,
                 maxLines: 1,
               ),
-              subtitle: Text(song.artist!),
+              subtitle: Text(song.artist ?? ''),
               trailing: SizedBox(
                 width: 110,
                 child: Row(
@@ -119,6 +119,7 @@ class SongInfoBottomSheet extends StatelessWidget {
                 Navigator.of(context).pop();
                 showModalBottomSheet(
                   context: context,
+                  useRootNavigator: true,
                   isScrollControlled: true,
                   constraints: const BoxConstraints(maxWidth: 500),
                   shape: const RoundedRectangleBorder(

@@ -4,7 +4,7 @@ import 'package:harmonymusic/ui/player/riff_wave.dart';
 
 void main() {
   group('RiffWave.resolveSeed', () {
-    test('prefers current song over everything else', () {
+    test('prefers current song over everything else by default', () {
       final seed = RiffWave.resolveSeed(
         currentSong: const MediaItem(id: 'a', title: 'Now'),
         dailyMixSeed: const MediaItem(id: 'b', title: 'Mix'),
@@ -13,6 +13,16 @@ void main() {
         recentSongId: 'e',
       );
       expect(seed?.id, 'a');
+    });
+
+    test('preferTasteSeed skips current song for Home Wave', () {
+      final seed = RiffWave.resolveSeed(
+        preferTasteSeed: true,
+        currentSong: const MediaItem(id: 'a', title: 'Now'),
+        dailyMixSeed: const MediaItem(id: 'b', title: 'Mix'),
+        quickPick: const MediaItem(id: 'c', title: 'QP'),
+      );
+      expect(seed?.id, 'b');
     });
 
     test('falls back through mix → quick pick → stats → prefs id', () {

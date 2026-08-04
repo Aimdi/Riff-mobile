@@ -76,6 +76,9 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
         padding: widget.padding.add(const EdgeInsets.symmetric(vertical: 24)),
         controller: _scroll,
         itemCount: _lines.length,
+        itemExtent: 40,
+        addAutomaticKeepAlives: false,
+        addRepaintBoundaries: true,
         itemBuilder: (context, i) {
           final line = _lines[i];
           final isActive = i == activeLine;

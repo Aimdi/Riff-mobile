@@ -29,6 +29,7 @@ import '/services/music_service.dart';
 import '/services/sponsorblock_service.dart';
 import '/services/podcast_service.dart';
 import '/services/podcast_progress_service.dart';
+import '/services/audiobookshelf_service.dart';
 import '/ui/player/riff_wave.dart';
 import '/ui/player/play_log_gate.dart';
 import '/ui/player/progress_ui_throttle.dart';
@@ -36,7 +37,30 @@ import 'video_mode_controller.dart';
 
 class PlayerController extends GetxController
     with GetSingleTickerProviderStateMixin {
-  final _audioHandler = Get.find<AudioHandler>();
+  /// Resolved lazily so [runApp] can paint before AudioService finishes init.
+  AudioHandler? _audioHandlerOrNull;
+  AudioHandler get _audioHandler {
+    _audioHandlerOrNull ??= Get.find<AudioHandler>();
+    return _audioHandlerOrNull!;
+  }
+
+  bool get _audioReady =>
+      _audioHandlerOrNull != null || Get.isRegistered<AudioHandler>();
+
+  Future<void> _waitForAudioHandler() async {
+    if (_audioReady) {
+      _audioHandlerOrNull ??= Get.find<AudioHandler>();
+      return;
+    }
+    for (var i = 0; i < 100; i++) {
+      await Future.delayed(const Duration(milliseconds: 50));
+      if (Get.isRegistered<AudioHandler>()) {
+        _audioHandlerOrNull = Get.find<AudioHandler>();
+        return;
+      }
+    }
+  }
+
   final _musicServices = Get.find<MusicServices>();
   final currentQueue = <MediaItem>[].obs;
 
@@ -127,9 +151,14 @@ class PlayerController extends GetxController
   set podcastAutoSkipAds(bool v) =>
       Hive.box('AppPrefs').put('podcastAutoSkipAds', v);
 
-  // Podcast resume: persist position periodically and auto-seek to the saved
-  // position when a partially-played episode starts.
+  // Podcast / audiobook resume: persist position periodically and auto-seek
+  // to the saved position when a partially-played item starts.
   int _lastProgressSaveMs = 0;
+  int _lastAbsSyncMs = 0;
+  /// Wall-clock ms of the last ABS position tick (for timeListened delta).
+  int _absLastTickMs = 0;
+  /// Seconds listened since last ABS sync/close (accumulated while playing).
+  double _absTimeListenedSec = 0;
   String? _pendingResumeId;
   int _pendingResumeMs = 0;
 
@@ -146,11 +175,20 @@ class PlayerController extends GetxController
     if (GetPlatform.isWindows) {
       Get.put(WindowsAudioService());
     }
-    _restorePrevSession();
+    () async {
+      await _waitForAudioHandler();
+      if (_audioReady) await _restorePrevSession();
+    }();
     super.onReady();
   }
 
   void _init() async {
+    // Prefs / UI can initialize before AudioService; wait so listeners attach.
+    await _waitForAudioHandler();
+    if (!_audioReady) {
+      printERROR('AudioHandler not ready; player listeners skipped');
+      return;
+    }
     //_createAppDocDir();
     _listenForChangesInPlayerState();
     _listenForChangesInPosition();
@@ -304,6 +342,7 @@ class PlayerController extends GetxController
       _maybeSkipSponsorBlock(position);
       _maybeSkipAdChapter(position);
       _handlePodcastProgress(position);
+      _handleAbsProgress(position);
 
       // Progress widgets (mini player, lyrics, seek bar) only need ~10 Hz.
       if (!_progressUiThrottle.shouldUpdate(
@@ -326,6 +365,18 @@ class PlayerController extends GetxController
     final total = progressBarStatus.value.total;
 
     // Auto-resume once: a partially-played episode that just started near 0.
+    _maybeApplyPendingResume(song, position, total);
+
+    // Persist position at most every 5s.
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (nowMs - _lastProgressSaveMs >= 5000) {
+      _lastProgressSaveMs = nowMs;
+      PodcastProgressService.save(song, position, total, nowMs: nowMs);
+    }
+  }
+
+  void _maybeApplyPendingResume(
+      MediaItem song, Duration position, Duration total) {
     if (_pendingResumeId == song.id &&
         _pendingResumeMs > 5000 &&
         position.inMilliseconds < 4000) {
@@ -334,16 +385,101 @@ class PlayerController extends GetxController
       if (total <= Duration.zero ||
           target < total - const Duration(seconds: 10)) {
         seek(target);
-        return;
       }
     }
+  }
 
-    // Persist position at most every 5s.
-    final nowMs = DateTime.now().millisecondsSinceEpoch;
-    if (nowMs - _lastProgressSaveMs >= 5000) {
-      _lastProgressSaveMs = nowMs;
-      PodcastProgressService.save(song, position, total, nowMs: nowMs);
+  bool _isAbsItem(MediaItem? s) =>
+      s != null &&
+      (s.id.startsWith('abs_') ||
+          s.extras?['streamSource'] == 'audiobookshelf');
+
+  /// Arm a one-shot seek after playback starts (ABS resume / explicit offset).
+  void armResume(String id, int offsetMs) {
+    _pendingResumeId = id;
+    _pendingResumeMs = offsetMs;
+  }
+
+  void _handleAbsProgress(Duration position) {
+    final song = currentSong.value;
+    if (!_isAbsItem(song)) {
+      _absLastTickMs = 0;
+      return;
     }
+    final total = progressBarStatus.value.total;
+    _maybeApplyPendingResume(song!, position, total);
+
+    final sessionId = song.extras?['absSessionId']?.toString();
+    if (sessionId == null || sessionId.isEmpty) return;
+    if (!Get.isRegistered<AudiobookshelfService>()) return;
+
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    // Accumulate listened delta only while actively playing.
+    if (buttonState.value == PlayButtonState.playing) {
+      if (_absLastTickMs > 0) {
+        final deltaSec = (nowMs - _absLastTickMs) / 1000.0;
+        // Cap to avoid huge jumps after seek/pause/background gaps.
+        if (deltaSec > 0 && deltaSec < 30) {
+          _absTimeListenedSec += deltaSec;
+        }
+      }
+      _absLastTickMs = nowMs;
+    } else {
+      _absLastTickMs = 0;
+    }
+
+    if (nowMs - _lastAbsSyncMs < 10000) return;
+    _lastAbsSyncMs = nowMs;
+
+    final startOff =
+        (song.extras?['absStartOffsetSec'] as num?)?.toDouble() ?? 0.0;
+    final bookAbsolute = startOff + position.inMilliseconds / 1000.0;
+    final bookDuration = currentQueue.fold<double>(0, (sum, m) {
+      if (!_isAbsItem(m)) return sum;
+      return sum + (m.duration?.inMilliseconds ?? 0) / 1000.0;
+    });
+    final listened = _absTimeListenedSec;
+    _absTimeListenedSec = 0;
+
+    unawaited(Get.find<AudiobookshelfService>().syncProgress(
+      sessionId: sessionId,
+      currentTime: bookAbsolute,
+      duration: bookDuration > 0
+          ? bookDuration
+          : (total.inMilliseconds / 1000.0),
+      timeListened: listened,
+      isPaused: buttonState.value != PlayButtonState.playing,
+    ));
+  }
+
+  /// Best-effort ABS session close when leaving an ABS item.
+  void _maybeCloseAbsSession(MediaItem? previous, MediaItem? next) {
+    if (previous == null || !_isAbsItem(previous)) return;
+    if (next != null && next.id == previous.id) return;
+    final sessionId = previous.extras?['absSessionId']?.toString();
+    if (sessionId == null || sessionId.isEmpty) return;
+    if (!Get.isRegistered<AudiobookshelfService>()) return;
+
+    final startOff =
+        (previous.extras?['absStartOffsetSec'] as num?)?.toDouble() ?? 0.0;
+    final posMs = progressBarStatus.value.current.inMilliseconds;
+    final bookAbsolute = startOff + posMs / 1000.0;
+    final bookDuration = currentQueue.fold<double>(0, (sum, m) {
+      if (!_isAbsItem(m)) return sum;
+      return sum + (m.duration?.inMilliseconds ?? 0) / 1000.0;
+    });
+    final totalSec = progressBarStatus.value.total.inMilliseconds / 1000.0;
+    final listened = _absTimeListenedSec;
+    _absTimeListenedSec = 0;
+    _absLastTickMs = 0;
+    _lastAbsSyncMs = 0;
+
+    unawaited(Get.find<AudiobookshelfService>().closeSession(
+      sessionId,
+      currentTime: bookAbsolute,
+      duration: bookDuration > 0 ? bookDuration : totalSec,
+      timeListened: listened,
+    ));
   }
 
   Future<void> _loadChaptersFor(MediaItem item) async {
@@ -534,6 +670,8 @@ class PlayerController extends GetxController
         PodcastProgressService.save(currentSong.value,
             Duration(milliseconds: posMs), progressBarStatus.value.total,
             nowMs: DateTime.now().millisecondsSinceEpoch);
+        // Close ABS listening session when leaving an ABS item (best effort).
+        _maybeCloseAbsSession(currentSong.value, mediaItem);
         currentSong.value = mediaItem;
         clearPlaybackError();
         // Arm auto-resume for the incoming podcast episode (either backend).
@@ -541,6 +679,12 @@ class PlayerController extends GetxController
           _pendingResumeId = mediaItem.id;
           _pendingResumeMs =
               PodcastProgressService.positionMs(mediaItem.id) ?? 0;
+        } else if (_isAbsItem(mediaItem)) {
+          // Keep armResume() from detail screen if it targets this item.
+          if (_pendingResumeId != mediaItem.id) {
+            _pendingResumeId = null;
+            _pendingResumeMs = 0;
+          }
         } else {
           _pendingResumeId = null;
         }
@@ -860,12 +1004,14 @@ class PlayerController extends GetxController
     }
 
     final recentId = Hive.box('AppPrefs').get('recentSongId');
+    // Home Wave is taste-first; don't seed from whatever is already playing.
     return RiffWave.resolveSeed(
       currentSong: currentSong.value,
       dailyMixSeed: dailyMixSeed,
       quickPick: quickPick,
       mostRecent: StatsService.mostRecentSong(),
       recentSongId: recentId is String ? recentId : null,
+      preferTasteSeed: true,
     );
   }
 
@@ -1043,15 +1189,28 @@ class PlayerController extends GetxController
       Get.find<VideoModeController>().isActive.value;
 
   void play() {
+    if (!_audioReady) return;
+    if (_videoModeActive) {
+      final vm = Get.find<VideoModeController>();
+      if (!vm.isVideoPlaying.value) vm.playPauseVideo();
+      return;
+    }
     _audioHandler.play();
   }
 
   void pause() {
+    if (!_audioReady) return;
+    if (_videoModeActive) {
+      final vm = Get.find<VideoModeController>();
+      if (vm.isVideoPlaying.value) vm.playPauseVideo();
+      return;
+    }
     _audioHandler.pause();
   }
 
   void playPause() {
     if (initFlagForPlayer) return;
+    if (!_audioReady) return;
     if (_videoModeActive) {
       Get.find<VideoModeController>().playPauseVideo();
       return;
@@ -1083,12 +1242,24 @@ class PlayerController extends GetxController
   }
 
   /// True when the currently playing item is a podcast episode (from the
-  /// Podcasts section) — drives the podcast player transport.
+  /// Podcasts section) — drives podcast-only chrome (shownotes, autoplay).
   bool get isCurrentSongPodcast {
     final s = currentSong.value;
     if (s == null) return false;
     return (s.extras?['isPodcast'] == true) || s.id.startsWith('podcast_');
   }
+
+  /// True for Audiobookshelf streams (abs_ ids).
+  bool get isCurrentSongAudiobook {
+    final s = currentSong.value;
+    if (s == null) return false;
+    return s.id.startsWith('abs_') ||
+        s.extras?['streamSource'] == 'audiobookshelf';
+  }
+
+  /// Podcast OR audiobook — ±skip / speed transport (not podcast-only tools).
+  bool get usesLongFormTransport =>
+      isCurrentSongPodcast || isCurrentSongAudiobook;
 
   /// True when the current item can show the in-player 16:9 video surface
   /// (music videos + YouTube-sourced podcast episodes).
@@ -1397,10 +1568,22 @@ class PlayerController extends GetxController
 
   /// Force a fresh stream URL for the current queue index.
   void retryPlayback() {
+    if (!_audioReady) return;
     clearPlaybackError();
+    var posMs = progressBarStatus.value.current.inMilliseconds;
+    if (posMs <= 0) {
+      final id = currentSong.value?.id;
+      if (id != null) {
+        posMs = PodcastProgressService.positionMs(id) ?? 0;
+      }
+    }
+    if (posMs <= 0 && _pendingResumeMs > 0) {
+      posMs = _pendingResumeMs;
+    }
     _audioHandler.customAction("playByIndex", {
       "index": currentSongIndex.value,
       "newUrl": true,
+      if (posMs > 0) "position": posMs,
     });
   }
 

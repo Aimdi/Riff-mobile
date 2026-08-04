@@ -18,6 +18,7 @@ import '/models/album.dart';
 import '../models/playlist.dart';
 import '/services/equalizer.dart';
 import '/services/playlist_mix_service.dart';
+import '/services/audiobookshelf_service.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/shuffle_order.dart';
 import '/services/stream_service.dart';
@@ -69,6 +70,12 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   double _baseVolume = 1.0;
   bool _mixTransitionInProgress = false;
   bool _startMutedForMix = false;
+
+  /// Auto URL-refresh budget after stream death (PLAY-1). Reset on song change
+  /// or when playback reaches ready.
+  String? _streamRetrySongId;
+  int _streamRetryCount = 0;
+  static const int _maxStreamUrlRetries = 2;
 
   // list of shuffled queue songs ids
   List<String> shuffledQueue = [];
@@ -156,6 +163,10 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   void _notifyAudioHandlerAboutPlaybackEvents() {
     _player.playbackEventStream.listen((PlaybackEvent event) {
+      if (_player.processingState == ProcessingState.ready) {
+        final id = mediaItem.value?.id;
+        if (id != null) _resetStreamRetryBudget(songId: id);
+      }
       final playing = _player.playing;
       playbackState.add(playbackState.value.copyWith(
         controls: [
@@ -196,30 +207,67 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       if (e is PlayerException) {
         printERROR('Error code: ${e.code}');
         printERROR('Error message: ${e.message}');
-        if (Get.isRegistered<PlayerController>()) {
-          Get.find<PlayerController>().notifyPlayError("streamPlaybackFailed");
-        }
-        return;
+      } else {
+        printERROR('An error occurred: $e');
       }
-      printERROR('An error occurred: $e');
-      Duration curPos = _player.position;
-      await _player.stop();
+
+      // Capture before stop — position often resets to 0 after stop().
+      final curPos = _player.position;
+      final songId = (currentIndex != null &&
+              currentIndex! >= 0 &&
+              currentIndex! < queue.value.length)
+          ? queue.value[currentIndex!].id
+          : null;
 
       if (isPlayingUsingLockCachingSource &&
           e.toString().contains("Connection closed while receiving data")) {
+        await _player.stop();
         await _player.seek(curPos, index: 0);
         await _player.play();
         return;
       }
 
-      // Expired / blocked URL — refresh stream and tell the user we're retrying.
+      if (!_canAutoRetryUrlRefresh(songId)) {
+        if (Get.isRegistered<PlayerController>()) {
+          Get.find<PlayerController>().notifyPlayError("streamPlaybackFailed");
+        }
+        return;
+      }
+
+      await _player.stop();
+      // Expired / blocked URL — refresh stream and restore position.
       if (Get.isRegistered<PlayerController>()) {
         Get.find<PlayerController>()
             .notifyPlayError("streamRetrying", isRetrying: true);
       }
-      customAction("playByIndex", {'index': currentIndex, 'newUrl': true});
-      await _player.seek(curPos, index: 0);
+      final attempt = _streamRetryCount;
+      if (attempt > 0) {
+        await Future.delayed(Duration(milliseconds: attempt == 1 ? 800 : 2000));
+      }
+      await customAction("playByIndex", {
+        'index': currentIndex,
+        'newUrl': true,
+        'position': curPos.inMilliseconds,
+      });
     });
+  }
+
+  bool _canAutoRetryUrlRefresh(String? songId) {
+    if (songId == null || songId.isEmpty) return false;
+    if (_streamRetrySongId != songId) {
+      _streamRetrySongId = songId;
+      _streamRetryCount = 0;
+    }
+    if (_streamRetryCount >= _maxStreamUrlRetries) return false;
+    _streamRetryCount++;
+    return true;
+  }
+
+  void _resetStreamRetryBudget({String? songId}) {
+    if (songId != null && songId != _streamRetrySongId) {
+      _streamRetrySongId = songId;
+    }
+    _streamRetryCount = 0;
   }
 
   void _listenToPlaybackForNextSong() {
@@ -352,6 +400,10 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         if (rest.isNotEmpty) {
           await addQueueItems(rest);
         }
+      }
+      // Finished episode leaves the manual Up Next queue.
+      if (Get.isRegistered<PodcastQueueController>()) {
+        Get.find<PodcastQueueController>().removeById(item.id);
       }
     }
 
@@ -663,20 +715,16 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           _startMutedForMix = false;
         }
 
-        if (restoreSession) {
-          if (!GetPlatform.isDesktop) {
-            final position = extras['position'];
-            await _player.load();
-            await _player.seek(
-              Duration(
-                milliseconds: position,
-              ),
-            );
-            await _player.seek(
-              Duration(
-                milliseconds: position,
-              ),
-            );
+        final resumeMs = (extras['position'] as num?)?.toInt() ?? 0;
+        if (restoreSession || resumeMs > 0) {
+          // Desktop previously skipped restore entirely; always load+seek when
+          // we have a saved/retry position so cold start and error recovery work.
+          await _player.load();
+          if (resumeMs > 0) {
+            await _player.seek(Duration(milliseconds: resumeMs));
+          }
+          if (!restoreSession) {
+            await _player.play();
           }
         } else {
           await _player.play();
@@ -988,11 +1036,44 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
       }
       var url = item?.extras?['url'] as String?;
-      // Prefer a downloaded local copy for podcast episodes (offline playback).
-      if (songId.startsWith("podcast_") && Hive.isBoxOpen("PodcastDownloads")) {
+      // Prefer a downloaded local copy for any podcast episode (RSS podcast_*
+      // ids and YTM video-id episodes flagged isPodcast).
+      final isPodcast = songId.startsWith("podcast_") ||
+          item?.extras?['isPodcast'] == true;
+      if (isPodcast && Hive.isBoxOpen("PodcastDownloads")) {
         final local = Hive.box("PodcastDownloads").get(songId);
-        if (local is String && local.isNotEmpty && File(local).existsSync()) {
-          url = "file://$local";
+        String? path;
+        if (local is String && local.isNotEmpty) {
+          path = local;
+        } else if (local is Map && local['path'] is String) {
+          path = local['path'] as String;
+        }
+        if (path != null && path.isNotEmpty && File(path).existsSync()) {
+          url = "file://$path";
+        }
+      }
+      // Refresh ABS stream URL on retry — tokenized URLs expire.
+      if (generateNewUrl &&
+          songId.startsWith('abs_') &&
+          Get.isRegistered<AudiobookshelfService>()) {
+        final abs = Get.find<AudiobookshelfService>();
+        final itemId = item?.extras?['absItemId']?.toString();
+        final trackIndex = (item?.extras?['absTrackIndex'] as num?)?.toInt();
+        if (itemId != null && trackIndex != null) {
+          try {
+            final detail = await abs.openBook(itemId);
+            final refreshed = abs.toMediaItems(detail);
+            final match = refreshed.firstWhereOrNull(
+                (m) => (m.extras?['absTrackIndex'] as num?)?.toInt() ==
+                    trackIndex);
+            if (match != null) {
+              url = match.extras?['url'] as String?;
+              item?.extras?['url'] = url;
+              item?.extras?['absSessionId'] = match.extras?['absSessionId'];
+            }
+          } catch (e) {
+            printERROR('ABS URL refresh failed: $e');
+          }
         }
       }
       if (url != null && url.isNotEmpty) {

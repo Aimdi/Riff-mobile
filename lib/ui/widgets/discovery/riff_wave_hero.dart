@@ -19,12 +19,29 @@ class RiffWaveHero extends StatefulWidget {
   State<RiffWaveHero> createState() => _RiffWaveHeroState();
 }
 
-class _RiffWaveHeroState extends State<RiffWaveHero> {
+class _RiffWaveHeroState extends State<RiffWaveHero>
+    with SingleTickerProviderStateMixin {
   bool _starting = false;
+  late final AnimationController _playPulse;
 
   DiscoveryService? get _disc => Get.isRegistered<DiscoveryService>()
       ? Get.find<DiscoveryService>()
       : null;
+
+  @override
+  void initState() {
+    super.initState();
+    _playPulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 520),
+    );
+  }
+
+  @override
+  void dispose() {
+    _playPulse.dispose();
+    super.dispose();
+  }
 
   MediaItem? _previewArt() {
     final player = Get.find<PlayerController>();
@@ -45,6 +62,7 @@ class _RiffWaveHeroState extends State<RiffWaveHero> {
   Future<void> _playWave() async {
     if (_starting) return;
     setState(() => _starting = true);
+    _playPulse.repeat(reverse: true);
     try {
       final ok = await Get.find<PlayerController>().startRiffWave();
       if (!mounted) return;
@@ -63,6 +81,9 @@ class _RiffWaveHeroState extends State<RiffWaveHero> {
         size: SanckBarSize.MEDIUM,
       ));
     } finally {
+      _playPulse
+        ..stop()
+        ..value = 0;
       if (mounted) setState(() => _starting = false);
     }
   }
@@ -80,9 +101,10 @@ class _RiffWaveHeroState extends State<RiffWaveHero> {
     final accent = theme.colorScheme.secondary;
     final disc = _disc;
     final explore = disc?.exploration ?? 0.5;
+    const artSize = 128.0;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 0, 10, 16),
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
       child: Material(
         color: theme.cardColor,
         shape: RoundedRectangleBorder(
@@ -93,7 +115,7 @@ class _RiffWaveHeroState extends State<RiffWaveHero> {
         child: InkWell(
           onTap: _starting ? null : _playWave,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -106,21 +128,21 @@ class _RiffWaveHeroState extends State<RiffWaveHero> {
                       final art = _previewArt();
                       return ClipRRect(
                         borderRadius:
-                            BorderRadius.circular(RiffTokens.radiusSm),
+                            BorderRadius.circular(RiffTokens.radiusMd),
                         child: art != null
-                            ? ImageWidget(song: art, size: 72)
+                            ? ImageWidget(song: art, size: artSize)
                             : ColoredBox(
                                 color: accent.withOpacity(0.18),
                                 child: SizedBox(
-                                  width: 72,
-                                  height: 72,
+                                  width: artSize,
+                                  height: artSize,
                                   child: Icon(Icons.graphic_eq_rounded,
-                                      color: accent, size: 34),
+                                      color: accent, size: 48),
                                 ),
                               ),
                       );
                     }),
-                    const SizedBox(width: 14),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -128,68 +150,52 @@ class _RiffWaveHeroState extends State<RiffWaveHero> {
                           Text(
                             'riffWave'.tr,
                             style: theme.textTheme.titleLarge?.copyWith(
-                              fontSize: 20,
-                              letterSpacing: -0.35,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
+                              height: 1.1,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 6),
                           Text(
                             'riffWaveDes'.tr,
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w500,
-                              height: 1.25,
+                              height: 1.3,
+                              color: theme.textTheme.titleSmall?.color
+                                  ?.withOpacity(0.78),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Material(
-                      color: accent,
-                      shape: const CircleBorder(),
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: _starting ? null : _playWave,
-                        child: SizedBox(
-                          width: 52,
-                          height: 52,
-                          child: Center(
-                            child: _starting
-                                ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.4,
-                                      color: Colors.black,
-                                    ),
-                                  )
-                                : const Icon(
-                                    Icons.play_arrow_rounded,
-                                    color: Colors.black,
-                                    size: 32,
-                                  ),
+                          const SizedBox(height: 14),
+                          _PlayCta(
+                            accent: accent,
+                            starting: _starting,
+                            pulse: _playPulse,
+                            onTap: _playWave,
                           ),
-                        ),
+                        ],
                       ),
                     ),
                   ],
                 ),
                 if (disc != null) ...[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Text(
                     'waveMood'.tr.toUpperCase(),
                     style: theme.textTheme.labelSmall?.copyWith(
                       fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                      letterSpacing: 1.1,
+                      fontSize: 10,
+                      letterSpacing: 1.0,
+                      color: theme.textTheme.titleSmall?.color
+                          ?.withOpacity(0.55),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                    spacing: 6,
+                    runSpacing: 6,
                     children: [
                       _MoodChip(
                         label: 'familiar'.tr,
@@ -218,6 +224,76 @@ class _RiffWaveHeroState extends State<RiffWaveHero> {
   }
 }
 
+class _PlayCta extends StatelessWidget {
+  const _PlayCta({
+    required this.accent,
+    required this.starting,
+    required this.pulse,
+    required this.onTap,
+  });
+
+  final Color accent;
+  final bool starting;
+  final AnimationController pulse;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: accent,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: starting ? null : onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 9, 18, 9),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 22,
+                height: 22,
+                child: starting
+                    ? ScaleTransition(
+                        scale: Tween<double>(begin: 0.88, end: 1.08)
+                            .animate(CurvedAnimation(
+                          parent: pulse,
+                          curve: Curves.easeInOut,
+                        )),
+                        child: const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            color: Colors.black,
+                          ),
+                        ),
+                      )
+                    : const Icon(
+                        Icons.play_arrow_rounded,
+                        color: Colors.black,
+                        size: 22,
+                      ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'play'.tr,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: Colors.black,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                  letterSpacing: 0.1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _MoodChip extends StatelessWidget {
   const _MoodChip({
     required this.label,
@@ -237,21 +313,26 @@ class _MoodChip extends StatelessWidget {
       label: Text(label),
       selected: selected,
       onSelected: (_) => onTap(),
-      visualDensity: VisualDensity.compact,
-      selectedColor: accent.withOpacity(0.28),
-      backgroundColor: theme.scaffoldBackgroundColor.withOpacity(0.55),
+      visualDensity: const VisualDensity(horizontal: -3, vertical: -3),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      selectedColor: accent.withOpacity(0.18),
+      backgroundColor: theme.scaffoldBackgroundColor.withOpacity(0.35),
       side: BorderSide(
-        color: selected ? accent.withOpacity(0.55) : theme.dividerColor,
+        color: selected
+            ? accent.withOpacity(0.35)
+            : theme.dividerColor.withOpacity(0.55),
         width: RiffTokens.hairline,
       ),
       labelStyle: theme.textTheme.labelSmall?.copyWith(
-        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+        fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+        fontSize: 11,
         color: selected
-            ? theme.textTheme.titleMedium?.color
-            : theme.textTheme.titleSmall?.color,
+            ? theme.textTheme.titleMedium?.color?.withOpacity(0.92)
+            : theme.textTheme.titleSmall?.color?.withOpacity(0.62),
       ),
       shape: const StadiumBorder(),
       showCheckmark: false,
+      padding: const EdgeInsets.symmetric(horizontal: 2),
     );
   }
 }

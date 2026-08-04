@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/models/thumbnail.dart';
+import '/services/podcast_progress_service.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/podcast_follow_button.dart';
@@ -180,8 +181,9 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
     }
   }
 
-  /// Lean MediaItem for the long-press sheet — skips shownotes / HQ thumb work
-  /// so the sheet can open immediately.
+  /// Lean MediaItem for the long-press sheet — skips HQ thumb work so the
+  /// sheet can open immediately. Still carries description / feedUrl for
+  /// shownotes + open-show actions.
   MediaItem _toSheetItem(Map<String, dynamic> e) => MediaItem(
         id: e['id'],
         title: e['title'] ?? '',
@@ -197,6 +199,10 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
         extras: {
           'url': e['url'],
           'isPodcast': true,
+          'description': e['description'],
+          'date': e['date'],
+          'pubDateMs': e['pubDateMs'] ?? 0,
+          'feedUrl': widget.podcast['feedUrl'],
           if (e['chaptersUrl'] != null) 'chaptersUrl': e['chaptersUrl'],
           if (e['transcriptUrl'] != null) 'transcriptUrl': e['transcriptUrl'],
           if (e['transcriptUrl'] != null)
@@ -220,7 +226,9 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
           'url': e['url'],
           'isPodcast': true,
           'description': e['description'],
-          'date': DateTime.now().millisecondsSinceEpoch,
+          'date': e['date'],
+          'pubDateMs': e['pubDateMs'] ?? 0,
+          'feedUrl': widget.podcast['feedUrl'],
           if (e['chaptersUrl'] != null) 'chaptersUrl': e['chaptersUrl'],
           if (e['transcriptUrl'] != null) 'transcriptUrl': e['transcriptUrl'],
           if (e['transcriptUrl'] != null)
@@ -333,9 +341,25 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
 
   Widget _episodeRow(BuildContext context, int i) {
     final e = _episodes[i];
+    final id = '${e['id']}';
     final date = (e['date'] ?? '').toString();
     final size = PodcastService.formatSize(e['sizeBytes'] ?? 0);
-    final duration = PodcastService.formatDuration(e['durationSec'] ?? 0);
+    final totSec = (e['durationSec'] is int)
+        ? e['durationSec'] as int
+        : int.tryParse('${e['durationSec']}') ?? 0;
+    final left = PodcastProgressService.remainingSec(id,
+        fallbackDurationSec: totSec);
+    String timeLabel = '';
+    if (left != null && left > 0) {
+      final fmt = PodcastService.formatDuration(left);
+      final inProgress = PodcastProgressService.progress(id) != null;
+      timeLabel = inProgress && left < totSec
+          ? '$fmt ${'left'.tr}'
+          : PodcastService.formatDuration(totSec);
+    } else {
+      timeLabel = PodcastService.formatDuration(totSec);
+    }
+    final prog = PodcastProgressService.progress(id);
     final meta = [date, size].where((s) => s.isNotEmpty).join('  ·  ');
     final art =
         (e['artwork'] ?? widget.podcast['artwork'] ?? '').toString();
@@ -383,14 +407,30 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
                               .titleSmall
                               ?.copyWith(fontWeight: FontWeight.w600),
                         ),
-                        if (duration.isNotEmpty)
+                        if (timeLabel.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(top: 2),
                             child: Text(
-                              duration,
+                              timeLabel,
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
                           ),
+                        if (prog != null && prog > 0 && prog < 1) ...[
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: prog,
+                              minHeight: 3,
+                              backgroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.15),
+                              valueColor: AlwaysStoppedAnimation(
+                                  Theme.of(context).colorScheme.secondary),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

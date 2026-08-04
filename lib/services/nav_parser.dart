@@ -1124,6 +1124,7 @@ MediaItem? parseEpisodeItem(Map<String, dynamic> data,
         {'name': artistName, 'id': null}
       ],
       'date': date,
+      // MediaItemBuilder derives pubDateMs from relative "2h ago" strings.
       'description': descriptionText,
       'videoType': 'MUSIC_VIDEO_TYPE_PODCAST_EPISODE',
       // Spotify-style: YTM podcast episodes are real YouTube videos.

@@ -43,6 +43,8 @@ import 'ui/screens/Audiobooks/audiobook_library_controller.dart';
 import 'utils/system_tray.dart';
 import 'utils/update_check_flag_file.dart';
 import 'utils/helper.dart';
+import 'utils/hive_safe_open.dart';
+import 'utils/secure_credentials.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,21 +60,29 @@ Future<void> main() async {
   // isn't stuck on ~18 sequential Hive opens + discovery network work.
   await initHiveCritical();
   _setAppInitPrefs();
+  // Migrate secrets out of plaintext Hive before services restore sessions.
+  await SecureCredentials.init();
   // Load cached remote client config synchronously; refresh in background.
   unawaited(ClientConfigService.init());
   startApplicationServices();
-  Get.put<AudioHandler>(await initAudioService(), permanent: true);
   WidgetsBinding.instance.addObserver(LifecycleHandler());
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   TerminateRestart.instance.initialize();
+  // Paint the shell first — AudioService init can take hundreds of ms.
   runApp(const MyApp());
-  // Warm the rest after the first frame is scheduled.
-  unawaited(_warmAfterFirstFrame());
+  unawaited(_initAudioAndWarm());
 }
 
-/// Non-critical Hive boxes + discovery / audio-session setup.
-/// Kept off the critical path so Home can paint from cache immediately.
-Future<void> _warmAfterFirstFrame() async {
+/// AudioService + deferred Hive / discovery. Never blocks first frame.
+Future<void> _initAudioAndWarm() async {
+  try {
+    if (!Get.isRegistered<AudioHandler>()) {
+      final handler = await initAudioService();
+      Get.put<AudioHandler>(handler, permanent: true);
+    }
+  } catch (e) {
+    printERROR('AudioService init failed: $e');
+  }
   try {
     await initHiveDeferred();
     if (!Get.isRegistered<DiscoveryService>()) {
@@ -186,35 +196,40 @@ initHiveCritical() async {
   }
   await Hive.initFlutter(applicationDataDirectoryPath);
   // Needed before first paint / first play. Open in parallel.
+  // Use safeOpenBox so a corrupt .hive cannot brick cold start.
   await Future.wait([
-    Hive.openBox("SongsCache"),
-    Hive.openBox("SongDownloads"),
-    Hive.openBox('SongsUrlCache'),
+    safeOpenBox("SongsCache"),
+    safeOpenBox("SongDownloads"),
+    safeOpenBox('SongsUrlCache'),
     // Hive box names are case-insensitive (files are lowercased). Never open /
     // delete "appPrefs" separately from "AppPrefs" — that wipes prefs and can
     // black-screen the app on launch (v1.7.82 regression).
-    Hive.openBox("AppPrefs"),
+    safeOpenBox("AppPrefs"),
+    // Cached Home shelves — open before first paint so Home skips a
+    // mid-frame Hive.openBox on the UI isolate.
+    safeOpenBox("homeScreenData"),
     // Home filters touch bans as soon as network content arrives.
-    Hive.openBox("BannedSongs"),
-    Hive.openBox("BannedArtists"),
-    Hive.openBox("BannedCollections"),
+    safeOpenBox("BannedSongs"),
+    safeOpenBox("BannedArtists"),
+    safeOpenBox("BannedCollections"),
   ]);
 }
 
 /// Secondary boxes used by podcasts, stats, bans, discovery — not first paint.
 initHiveDeferred() async {
   await Future.wait([
-    Hive.openBox("PodcastSubs"),
-    Hive.openBox("SongStats"),
-    Hive.openBox("DailyStats"),
-    Hive.openBox("SquareCovers"),
-    Hive.openBox("PodcastQueue"),
-    Hive.openBox("PodcastFolders"),
-    Hive.openBox("SavedAudiobooks"),
-    Hive.openBox("PodcastDownloads"),
-    Hive.openBox("PodcastProgress"),
-    Hive.openBox("TrackAnalysisCache"),
-    Hive.openBox("PlaylistMixPrefs"),
+    safeOpenBox("PodcastSubs"),
+    safeOpenBox("SongStats"),
+    safeOpenBox("DailyStats"),
+    safeOpenBox("SquareCovers"),
+    safeOpenBox("PodcastQueue"),
+    safeOpenBox("PodcastFolders"),
+    safeOpenBox("SavedAudiobooks"),
+    safeOpenBox("PodcastDownloads"),
+    safeOpenBox("PodcastProgress"),
+    safeOpenBox("PodcastPlayed"),
+    safeOpenBox("TrackAnalysisCache"),
+    safeOpenBox("PlaylistMixPrefs"),
   ]);
 }
 
@@ -271,7 +286,9 @@ class LifecycleHandler extends WidgetsBindingObserver {
         });
       }
     } else if (state == AppLifecycleState.detached) {
-      await Get.find<AudioHandler>().customAction("saveSession");
+      if (Get.isRegistered<AudioHandler>()) {
+        await Get.find<AudioHandler>().customAction("saveSession");
+      }
     }
   }
 }

@@ -91,8 +91,8 @@ class _AudiobookCatalogDetailScreenState
               borderRadius: BorderRadius.circular(10),
               child: CachedNetworkImage(
                 imageUrl: book.cover,
-                width: 190,
-                height: 190,
+                width: 140,
+                height: 210,
                 fit: BoxFit.cover,
                 errorWidget: (_, __, ___) =>
                     const Icon(Icons.menu_book, size: 120),
@@ -222,7 +222,7 @@ class _AudiobookCatalogDetailScreenState
         Text('similarTitles'.tr, style: theme.textTheme.titleMedium),
         const SizedBox(height: 10),
         SizedBox(
-          height: 200,
+          height: 240,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -247,7 +247,7 @@ class _AudiobookCatalogDetailScreenState
                         child: CachedNetworkImage(
                           imageUrl: b.cover,
                           width: 120,
-                          height: 120,
+                          height: 180,
                           fit: BoxFit.cover,
                           errorWidget: (_, __, ___) =>
                               const Icon(Icons.menu_book, size: 48),
@@ -409,7 +409,7 @@ class _AudiobookBrowseScreenState extends State<AudiobookBrowseScreen> {
                   gridDelegate:
                       const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: 0.72,
+                    childAspectRatio: 0.56,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
                   ),

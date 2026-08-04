@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
-
-import '../../widgets/loader.dart';
+import 'package:harmonymusic/ui/utils/theme_controller.dart';
 
 /// A button that animates between a play and pause icon.
 ///
-/// It also shows a loading indicator when the audio is in a loading state.
+/// Filled secondary circle with a dark icon. Also shows a loading indicator
+/// when the audio is in a loading state.
 class AnimatedPlayButton extends StatefulWidget {
   /// size of the icon.
   final double iconSize;
 
-  const AnimatedPlayButton({super.key, this.iconSize = 40.0});
+  /// Outer diameter of the filled circle (default ~64).
+  final double size;
+
+  const AnimatedPlayButton({
+    super.key,
+    this.iconSize = 32.0,
+    this.size = 64.0,
+  });
 
   @override
   State<AnimatedPlayButton> createState() => _AnimatedPlayButtonState();
@@ -20,7 +27,7 @@ class AnimatedPlayButton extends StatefulWidget {
 class _AnimatedPlayButtonState extends State<AnimatedPlayButton>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  
+
   @override
   void initState() {
     super.initState();
@@ -38,6 +45,7 @@ class _AnimatedPlayButtonState extends State<AnimatedPlayButton>
 
   @override
   Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.secondary;
     return GetX<PlayerController>(builder: (controller) {
       final buttonState = controller.buttonState.value;
       final isPlaying = buttonState == PlayButtonState.playing;
@@ -49,19 +57,35 @@ class _AnimatedPlayButtonState extends State<AnimatedPlayButton>
         _controller.reverse();
       }
 
-      return IconButton(
-        iconSize: widget.iconSize,
-        onPressed: () {
-          isPlaying ? controller.pause() : controller.play();
-        },
-        icon: isLoading
-            ? const LoadingIndicator(
-                dimension: 20,
-              )
-            : AnimatedIcon(
-                icon: AnimatedIcons.play_pause,
-                progress: _controller,
-              ),
+      return Material(
+        color: accent,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () {
+            isPlaying ? controller.pause() : controller.play();
+          },
+          child: SizedBox(
+            width: widget.size,
+            height: widget.size,
+            child: Center(
+              child: isLoading
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: RiffSurfaces.voidBlack,
+                      ),
+                    )
+                  : AnimatedIcon(
+                      icon: AnimatedIcons.play_pause,
+                      progress: _controller,
+                      size: widget.iconSize,
+                      color: RiffSurfaces.voidBlack,
+                    ),
+            ),
+          ),
+        ),
       );
     });
   }
