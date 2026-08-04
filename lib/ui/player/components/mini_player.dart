@@ -33,37 +33,46 @@ class MiniPlayer extends StatelessWidget {
     // Built outside the opacity Obx so the same child instance is reused when
     // playerPaneOpacity / visibility / height tick — Flutter skips rebuilding
     // identical child widget instances.
-    final content = Center(
-      child: Column(
-        children: [
-          !isWideScreen
-              ? const _MiniPlayerThinProgress()
-              : const _MiniPlayerWideProgress(),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 17.0, vertical: 7),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const _MiniPlayerArt(),
-                const SizedBox(
-                  width: 10,
-                ),
-                const Expanded(
-                  child: _MiniPlayerSongInfo(),
-                ),
-                SizedBox(
-                  width: isWideScreen ? 450 : 132,
-                  child: _MiniPlayerTransport(isWideScreen: isWideScreen),
-                ),
-                if (isWideScreen)
-                  Expanded(
-                    child: _MiniPlayerWideExtras(size: size),
+    // Align top + bottom pad so the progress bar stays at the top of the
+    // panel while the system nav/home inset is reserved below the content.
+    final content = Align(
+      alignment: Alignment.topCenter,
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewPaddingOf(context).bottom,
+        ),
+        child: Column(
+          children: [
+            !isWideScreen
+                ? const _MiniPlayerThinProgress()
+                : const _MiniPlayerWideProgress(),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 17.0, vertical: 7),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const _MiniPlayerArt(),
+                  const SizedBox(
+                    width: 10,
                   ),
-              ],
+                  const Expanded(
+                    child: _MiniPlayerSongInfo(),
+                  ),
+                  SizedBox(
+                    width: isWideScreen ? 450 : 132,
+                    child: _MiniPlayerTransport(isWideScreen: isWideScreen),
+                  ),
+                  if (isWideScreen)
+                    Expanded(
+                      child: _MiniPlayerWideExtras(size: size),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
 
@@ -153,6 +162,8 @@ class _MiniPlayerSongInfo extends StatelessWidget {
                 child: Text(
                   song != null ? song.title : "",
                   maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),

@@ -279,6 +279,7 @@ class PlaylistNAlbumLibraryWidget extends StatelessWidget {
                         width: availableWidth,
                         child: GridView.builder(
                             physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.only(bottom: 200),
                             gridDelegate:
                                 SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: columns,

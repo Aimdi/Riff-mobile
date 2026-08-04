@@ -107,7 +107,7 @@ class Body extends StatelessWidget {
             : size.height < 750
                 ? 80.0
                 : 85.0;
-    const leftPadding = 5.0;
+    const leftPadding = 0.0;
     if (homeScreenController.tabIndex.value == 0) {
       return Padding(
         padding: const EdgeInsets.only(left: leftPadding),
@@ -250,7 +250,7 @@ class _HomeFeed extends StatelessWidget {
               ? const _OfflineHomeBanner()
               : const SizedBox.shrink()),
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 4, 10),
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
             child: Row(
               children: [
                 Expanded(

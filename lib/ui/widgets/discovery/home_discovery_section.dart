@@ -41,7 +41,7 @@ class HomeDiscoverySection extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: 148,
+          height: 156,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.only(left: 12, right: 12),
@@ -346,7 +346,7 @@ class HomeShortcutGrid extends StatelessWidget {
     ];
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       child: LayoutBuilder(
         builder: (context, constraints) {
           const gap = 8.0;
@@ -357,7 +357,7 @@ class HomeShortcutGrid extends StatelessWidget {
             children: items.map((e) {
               return SizedBox(
                 width: tileW,
-                height: 72,
+                height: 80,
                 child: Material(
                   color: theme.cardColor.withOpacity(
                     theme.brightness == Brightness.dark ? 0.92 : 1,
@@ -374,7 +374,7 @@ class HomeShortcutGrid extends StatelessWidget {
                     onTap: e.onTap,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 8),
+                          horizontal: 8, vertical: 8),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -384,12 +384,12 @@ class HomeShortcutGrid extends StatelessWidget {
                           const SizedBox(height: 6),
                           Text(
                             e.title,
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
                             style: theme.textTheme.labelMedium?.copyWith(
                               fontWeight: FontWeight.w600,
-                              fontSize: 11,
+                              fontSize: 12,
                               letterSpacing: -0.1,
                             ),
                           ),

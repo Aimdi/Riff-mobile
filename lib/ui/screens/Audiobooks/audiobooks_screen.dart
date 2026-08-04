@@ -218,7 +218,7 @@ class _CatalogDiscoverState extends State<_CatalogDiscover> {
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
-                        childAspectRatio: 0.72,
+                        childAspectRatio: 0.56,
                         crossAxisSpacing: 10,
                         mainAxisSpacing: 10,
                       ),
@@ -235,7 +235,8 @@ class _CatalogDiscoverState extends State<_CatalogDiscover> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(
+                              AspectRatio(
+                                aspectRatio: 2 / 3,
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(10),
                                   child: CachedNetworkImage(
@@ -330,7 +331,7 @@ class _CatalogBookGrid extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 200, right: 8),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          childAspectRatio: 0.72,
+          childAspectRatio: 0.56,
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
         ),
@@ -347,7 +348,8 @@ class _CatalogBookGrid extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
+                AspectRatio(
+                  aspectRatio: 2 / 3,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: CachedNetworkImage(
@@ -647,7 +649,7 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                                     ?.copyWith(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 8),
                             SizedBox(
-                              height: 150,
+                              height: 190,
                               child: ListView.separated(
                                 scrollDirection: Axis.horizontal,
                                 itemCount: continueBooks.length.clamp(0, 12),
@@ -673,7 +675,8 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Expanded(
+                                          AspectRatio(
+                                            aspectRatio: 2 / 3,
                                             child: ClipRRect(
                                               borderRadius:
                                                   BorderRadius.circular(10),
@@ -739,7 +742,7 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
-                        childAspectRatio: 0.72,
+                        childAspectRatio: 0.56,
                         crossAxisSpacing: 10,
                         mainAxisSpacing: 10,
                       ),
@@ -759,7 +762,8 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
+                                AspectRatio(
+                                  aspectRatio: 2 / 3,
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(10),
                                     child: Stack(

@@ -76,7 +76,7 @@ class SettingsScreen extends StatelessWidget {
           Expanded(
               child: ListView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 120, top: 18),
+            padding: const EdgeInsets.only(bottom: 200, top: 18),
             children: [
               Obx(
                 () => settingsController.isNewVersionAvailable.value

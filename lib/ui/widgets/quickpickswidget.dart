@@ -24,17 +24,20 @@ class QuickPicksWidget extends StatelessWidget {
         children: [
           Align(
               alignment: Alignment.centerLeft,
-              child: Text(
-                content.title == 'Quick picks' ||
-                        content.title.toLowerCase().removeAllWhitespace ==
-                            'quickpicks'
-                    ? 'Quick picks'
-                    : content.title.toLowerCase().removeAllWhitespace.tr,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 19,
-                      letterSpacing: -0.35,
-                    ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  content.title == 'Quick picks' ||
+                          content.title.toLowerCase().removeAllWhitespace ==
+                              'quickpicks'
+                      ? 'Quick picks'
+                      : content.title.toLowerCase().removeAllWhitespace.tr,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 19,
+                        letterSpacing: -0.35,
+                      ),
+                ),
               )),
           const SizedBox(height: 12),
           Expanded(
@@ -45,6 +48,7 @@ class QuickPicksWidget extends StatelessWidget {
                   controller: scrollController,
                   physics: const BouncingScrollPhysics(),
                   scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   itemCount: content.songList.length,
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 4,
@@ -76,7 +80,8 @@ class QuickPicksWidget extends StatelessWidget {
                         }
                       },
                       child: ListTile(
-                          contentPadding: const EdgeInsets.only(left: 5),
+                          contentPadding:
+                              const EdgeInsets.only(left: 0, right: 8),
                           leading: ImageWidget(
                             song: content.songList[item],
                             size: 55,

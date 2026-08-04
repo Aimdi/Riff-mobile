@@ -30,41 +30,39 @@ class SearchItem extends StatelessWidget {
       minLeadingWidth: 20,
       dense: true,
       title: Text(queryString),
-      trailing: SizedBox(
-        width: 80,
-        child: Row(
-          children: [
-            isHistoryString
-                ? IconButton(
-                    iconSize: 18,
-                    splashRadius: 18,
-                    visualDensity: const VisualDensity(horizontal: -2),
-                    onPressed: () {
-                      searchScreenController
-                          .removeQueryFromHistory(queryString);
-                    },
-                    icon: Icon(
-                      Icons.clear,
-                      color: Theme.of(context).textTheme.titleMedium!.color,
-                    ),
-                  )
-                : const SizedBox(
-                    width: 40,
-                  ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isHistoryString)
             IconButton(
-              iconSize: 20,
+              iconSize: 18,
               splashRadius: 18,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              padding: EdgeInsets.zero,
               visualDensity: const VisualDensity(horizontal: -2),
               onPressed: () {
-                searchScreenController.suggestionInput(queryString);
+                searchScreenController.removeQueryFromHistory(queryString);
               },
               icon: Icon(
-                Icons.north_west,
+                Icons.clear,
                 color: Theme.of(context).textTheme.titleMedium!.color,
               ),
             ),
-          ],
-        ),
+          IconButton(
+            iconSize: 20,
+            splashRadius: 18,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            padding: EdgeInsets.zero,
+            visualDensity: const VisualDensity(horizontal: -2),
+            onPressed: () {
+              searchScreenController.suggestionInput(queryString);
+            },
+            icon: Icon(
+              Icons.north_west,
+              color: Theme.of(context).textTheme.titleMedium!.color,
+            ),
+          ),
+        ],
       ),
     );
   }

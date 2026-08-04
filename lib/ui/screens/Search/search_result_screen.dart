@@ -25,7 +25,7 @@ class SearchResultScreen extends StatelessWidget {
                 Align(
                   alignment: Alignment.topCenter,
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.only(bottom: 80),
+                    padding: const EdgeInsets.only(bottom: 200),
                     child: IntrinsicHeight(
                       child: Obx(
                         () => NavigationRail(
@@ -47,7 +47,7 @@ class SearchResultScreen extends StatelessWidget {
                           leading: Column(
                             children: [
                               SizedBox(
-                                height: context.isLandscape ? 20 : 45,
+                                height: context.isLandscape ? 50 : 80,
                               ),
                               IconButton(
                                 icon: Icon(

@@ -434,7 +434,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
     final accent = Theme.of(context).colorScheme.secondary;
     final normal = Theme.of(context).textTheme.bodyMedium?.color;
     final color = active ? accent : normal;
-    return Expanded(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: () {
@@ -469,9 +470,10 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               Text(
                 label,
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                softWrap: false,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: color,
+                    fontSize: 11,
                     fontWeight: active ? FontWeight.w600 : FontWeight.w400),
               ),
             ],

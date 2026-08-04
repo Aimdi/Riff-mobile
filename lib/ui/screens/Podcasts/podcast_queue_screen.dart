@@ -277,12 +277,13 @@ class PodcastQueueScreen extends StatelessWidget {
     final art = Thumbnail(e.artUri?.toString() ?? '').medium;
     return Padding(
       key: ValueKey(e.id),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+      // Match Inbox rhythm: 16 content inset; drag handle sits in the gutter.
+      padding: const EdgeInsets.only(left: 8, right: 16),
       child: InkWell(
         onTap: () =>
             Get.find<PlayerController>().playPlayListSong(items(controller), i),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -297,11 +298,13 @@ class PodcastQueueScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(6),
                 child: CachedNetworkImage(
                   imageUrl: art,
-                  width: 52,
-                  height: 52,
+                  width: 56,
+                  height: 56,
+                  memCacheWidth:
+                      (56 * MediaQuery.devicePixelRatioOf(context)).round(),
                   fit: BoxFit.cover,
                   errorWidget: (_, __, ___) =>
-                      const Icon(Icons.podcasts, size: 36),
+                      const Icon(Icons.podcasts, size: 40),
                 ),
               ),
               const SizedBox(width: 12),

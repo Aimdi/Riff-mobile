@@ -75,10 +75,12 @@ class SearchScreen extends StatelessWidget {
                       autofocus: true,
                       cursorColor: Theme.of(context).textTheme.bodySmall!.color,
                       decoration: InputDecoration(
-                          contentPadding: const EdgeInsets.only(left: 5),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
                           focusColor: Colors.white,
                           hintText: "searchDes".tr,
-                          suffix: IconButton(
+                          suffixIcon: IconButton(
                             onPressed: searchScreenController.reset,
                             icon: const Icon(Icons.close),
                             splashRadius: 16,

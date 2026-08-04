@@ -282,14 +282,11 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
   /// Friendly empty state pointing at the Discover tab instead of a bare
   /// text line floating in a blank screen (shared layout across tabs).
   Widget _emptyState(BuildContext context) {
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.55,
-      child: PodcastEmptyState(
-        icon: Icons.podcasts,
-        message: "noInboxEpisodes".tr,
-        actionLabel: widget.onDiscover != null ? 'discover'.tr : null,
-        onAction: widget.onDiscover,
-      ),
+    return PodcastEmptyState(
+      icon: Icons.podcasts,
+      message: "noInboxEpisodes".tr,
+      actionLabel: widget.onDiscover != null ? 'discover'.tr : null,
+      onAction: widget.onDiscover,
     );
   }
 

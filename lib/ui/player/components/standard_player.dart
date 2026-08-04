@@ -116,7 +116,7 @@ class StandardPlayer extends StatelessWidget {
                           padding: EdgeInsets.only(
                               left: 10.0,
                               right: 10,
-                              bottom: Get.mediaQuery.padding.bottom),
+                              bottom: 80 + Get.mediaQuery.padding.bottom),
                           child: const PlayerControlWidget(),
                         ),
                       )

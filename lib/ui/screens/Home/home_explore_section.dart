@@ -40,7 +40,7 @@ class HomeExploreSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 18, 12, 10),
+            padding: const EdgeInsets.fromLTRB(12, 16, 12, 10),
             child: Text(
               'explore'.tr,
               style: theme.textTheme.titleLarge?.copyWith(

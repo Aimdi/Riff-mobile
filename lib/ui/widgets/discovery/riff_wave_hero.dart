@@ -82,7 +82,7 @@ class _RiffWaveHeroState extends State<RiffWaveHero> {
     final explore = disc?.exploration ?? 0.5;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 0, 10, 16),
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
       child: Material(
         color: theme.cardColor,
         shape: RoundedRectangleBorder(

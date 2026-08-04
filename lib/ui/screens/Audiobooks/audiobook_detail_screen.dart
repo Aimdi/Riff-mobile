@@ -120,11 +120,11 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
               child: CachedNetworkImage(
                 imageUrl: cover,
                 width: 120,
-                height: 120,
+                height: 180,
                 fit: BoxFit.cover,
                 errorWidget: (_, __, ___) => Container(
                   width: 120,
-                  height: 120,
+                  height: 180,
                   color: theme.primaryColorLight,
                   child: const Icon(Icons.menu_book, size: 40),
                 ),
