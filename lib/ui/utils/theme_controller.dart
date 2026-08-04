@@ -296,7 +296,7 @@ class ThemeController extends GetxController {
               shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
               )),
-          dialogTheme: const DialogTheme(
+          dialogTheme: const DialogThemeData(
             backgroundColor: RiffSurfaces.elevated,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.all(Radius.circular(16)),
@@ -402,7 +402,7 @@ class ThemeController extends GetxController {
               cursorColor: Colors.grey[500],
               selectionColor: Colors.grey[400],
               selectionHandleColor: Colors.grey[500]),
-          dialogTheme: DialogTheme(
+          dialogTheme: DialogThemeData(
               backgroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16))),

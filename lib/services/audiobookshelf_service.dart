@@ -6,6 +6,7 @@ import 'package:get/get.dart' hide FormData, MultipartFile;
 import 'package:hive/hive.dart';
 
 import '../utils/helper.dart';
+import '../utils/secure_credentials.dart';
 import 'abs_progress.dart';
 
 export 'abs_progress.dart' show mapAbsCurrentTimeToTrack, parseAbsProgress;
@@ -147,7 +148,8 @@ class AudiobookshelfService extends GetxService {
     if (cfg is! Map) return;
     host.value = (cfg['host'] ?? '').toString();
     username.value = (cfg['username'] ?? '').toString();
-    _token = cfg['token']?.toString();
+    _token = SecureCredentials.nested('audiobookshelf', 'token') ??
+        cfg['token']?.toString();
     _userId = cfg['userId']?.toString();
     selectedLibraryId.value = (cfg['libraryId'] ?? '').toString();
     if (_token != null && _token!.isNotEmpty && host.value.isNotEmpty) {
@@ -169,10 +171,11 @@ class AudiobookshelfService extends GetxService {
   }
 
   void _persist() {
+    // Token lives in secure storage; Hive keeps non-secret connection meta.
+    SecureCredentials.setNested('audiobookshelf', 'token', _token);
     _prefs.put('audiobookshelf', {
       'host': host.value,
       'username': username.value,
-      'token': _token,
       'userId': _userId,
       'libraryId': selectedLibraryId.value,
     });
@@ -256,6 +259,7 @@ class AudiobookshelfService extends GetxService {
     host.value = '';
     username.value = '';
     _prefs.delete('audiobookshelf');
+    await SecureCredentials.setNested('audiobookshelf', 'token', null);
   }
 
   Future<void> fetchLibraries() async {

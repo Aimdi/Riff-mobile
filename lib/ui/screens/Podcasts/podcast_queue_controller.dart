@@ -78,6 +78,7 @@ class PodcastQueueController extends GetxController {
         // Keep extras needed for playback, chapters, transcripts, and display.
         'url': m.extras?['url'],
         'isPodcast': m.extras?['isPodcast'] ?? true,
+        'feedUrl': m.extras?['feedUrl'],
         'date': m.extras?['date'],
         'description': m.extras?['description'],
         'length': m.extras?['length'],
@@ -99,6 +100,7 @@ class PodcastQueueController extends GetxController {
         extras: {
           'url': m['url'],
           'isPodcast': m['isPodcast'] ?? true,
+          if (m['feedUrl'] != null) 'feedUrl': m['feedUrl'],
           'date': m['date'],
           'description': m['description'],
           'length': m['length'],

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
@@ -17,6 +19,9 @@ class SearchScreenController extends GetxController with ProcessLink {
   final focusNode = FocusNode();
   final isSearchBarInFocus = false.obs;
 
+  Timer? _suggestionDebounce;
+  int _suggestionGen = 0;
+
   @override
   onInit() {
     _init();
@@ -35,18 +40,36 @@ class SearchScreenController extends GetxController with ProcessLink {
 
   Future<void> onChanged(String text) async {
     if(text.contains("https://")){
-      urlPasted.value = true; 
+      urlPasted.value = true;
+      _suggestionDebounce?.cancel();
       return;
     }
     urlPasted.value = false;
-    suggestionList.value = await musicServices.getSearchSuggestion(text);
+    _suggestionDebounce?.cancel();
+    if (text.isEmpty) {
+      suggestionList.clear();
+      return;
+    }
+    _suggestionDebounce = Timer(const Duration(milliseconds: 350), () {
+      unawaited(_fetchSuggestions(text));
+    });
+  }
+
+  Future<void> _fetchSuggestions(String text) async {
+    final gen = ++_suggestionGen;
+    final results = await musicServices.getSearchSuggestion(text);
+    if (gen != _suggestionGen) return;
+    if (textInputController.text != text) return;
+    suggestionList.value = results;
   }
 
   Future<void> suggestionInput(String txt) async {
     textInputController.text = txt;
     textInputController.selection =
         TextSelection.collapsed(offset: textInputController.text.length);
-    await onChanged(txt);
+    _suggestionDebounce?.cancel();
+    urlPasted.value = false;
+    await _fetchSuggestions(txt);
   }
 
   Future<void> addToHistryQueryList(String txt) async {
@@ -65,6 +88,7 @@ class SearchScreenController extends GetxController with ProcessLink {
   }
 
   void reset() {
+    _suggestionDebounce?.cancel();
     urlPasted.value = false;
     textInputController.text = "";
     suggestionList.clear();
@@ -78,6 +102,7 @@ class SearchScreenController extends GetxController with ProcessLink {
 
   @override
   void dispose() {
+    _suggestionDebounce?.cancel();
     focusNode.dispose();
     textInputController.dispose();
     queryBox.close();

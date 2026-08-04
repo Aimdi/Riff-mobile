@@ -60,6 +60,12 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Release signing — never commit keystores or passwords.
+# (Also listed in android/.gitignore; root rules catch tooling that ignores nested.)
+android/key.properties
+android/**/*.keystore
+android/**/*.jks
+
 # FVM Version Cache
 .fvm/
 .fvmrc

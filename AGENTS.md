@@ -37,8 +37,12 @@ with JDK 21 will fail the Gradle/AGP step.
   third-party API over the network belongs under the `live` tag.
 - Dev build: `flutter build apk --debug` → `build/app/outputs/flutter-apk/`.
   First build downloads Gradle + auto-installs extra SDK platforms (31/33).
-  Release build (`flutter build apk --release`) uses `android/key.properties`
-  + `android/riff-release.keystore` (both committed).
+  Release build (`flutter build apk --release`) uses local
+  `android/key.properties` + `android/riff-release.keystore` (gitignored —
+  copy from a secure store). If missing, Gradle falls back to debug signing.
+  **Rotation:** if those files were ever committed, treat the passwords /
+  keystore as compromised and rotate Play App Signing / upload key; do not
+  delete a local keystore copy agents may still need for existing installs.
 
 ### Running the app / GUI testing
 

@@ -2,7 +2,8 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
-import 'package:hive/hive.dart';
+
+import '/utils/secure_credentials.dart';
 
 /// Optional YouTube account connection (same cookie/SAPISID mechanism as
 /// Metrolist and RiPlay). Connecting personalizes the YT Music feed
@@ -14,7 +15,7 @@ class YtAuthService {
   static const _channel = MethodChannel('riff/newpipe');
   static const _origin = 'https://music.youtube.com';
 
-  static String? get cookie => Hive.box('AppPrefs').get('ytAuthCookie');
+  static String? get cookie => SecureCredentials.get('ytAuthCookie');
 
   static bool get isConnected =>
       cookie != null && cookie!.contains('SAPISID');
@@ -25,14 +26,14 @@ class YtAuthService {
     final cookies =
         await _channel.invokeMethod<String>('getCookies', {'url': _origin});
     if (cookies != null && cookies.contains('SAPISID')) {
-      await Hive.box('AppPrefs').put('ytAuthCookie', cookies);
+      await SecureCredentials.set('ytAuthCookie', cookies);
       return true;
     }
     return false;
   }
 
   static Future<void> disconnect() async {
-    await Hive.box('AppPrefs').delete('ytAuthCookie');
+    await SecureCredentials.delete('ytAuthCookie');
     try {
       await _channel.invokeMethod('clearCookies');
     } catch (_) {}

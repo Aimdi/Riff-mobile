@@ -1,5 +1,8 @@
 import 'package:audio_service/audio_service.dart';
+import 'package:get/get.dart';
 import 'package:hive/hive.dart';
+
+import '/ui/screens/Podcasts/podcast_queue_controller.dart';
 
 /// Tracks per-episode playback position for podcasts so episodes can be resumed
 /// ("Continue" section) and show a progress bar. Stored in the `PodcastProgress`
@@ -41,6 +44,7 @@ class PodcastProgressService {
       'artist': episode.artist,
       'artUri': episode.artUri?.toString(),
       'url': episode.extras?['url'],
+      'feedUrl': episode.extras?['feedUrl'],
       'description': episode.extras?['description'],
       'chaptersUrl': episode.extras?['chaptersUrl'],
       'transcriptUrl': episode.extras?['transcriptUrl'],
@@ -62,6 +66,10 @@ class PodcastProgressService {
     final box = _playedBox;
     if (box != null) {
       box.put(id, DateTime.now().millisecondsSinceEpoch);
+    }
+    // Idempotent: clear from Up Next when finished or manually marked played.
+    if (Get.isRegistered<PodcastQueueController>()) {
+      Get.find<PodcastQueueController>().removeById(id);
     }
   }
 
@@ -136,6 +144,7 @@ class PodcastProgressService {
         extras: {
           'url': r['url'],
           'isPodcast': true,
+          if (r['feedUrl'] != null) 'feedUrl': r['feedUrl'],
           if (r['description'] != null) 'description': r['description'],
           if (r['chaptersUrl'] != null) 'chaptersUrl': r['chaptersUrl'],
           if (r['transcriptUrl'] != null) 'transcriptUrl': r['transcriptUrl'],

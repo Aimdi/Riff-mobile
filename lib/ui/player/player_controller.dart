@@ -37,7 +37,30 @@ import 'video_mode_controller.dart';
 
 class PlayerController extends GetxController
     with GetSingleTickerProviderStateMixin {
-  final _audioHandler = Get.find<AudioHandler>();
+  /// Resolved lazily so [runApp] can paint before AudioService finishes init.
+  AudioHandler? _audioHandlerOrNull;
+  AudioHandler get _audioHandler {
+    _audioHandlerOrNull ??= Get.find<AudioHandler>();
+    return _audioHandlerOrNull!;
+  }
+
+  bool get _audioReady =>
+      _audioHandlerOrNull != null || Get.isRegistered<AudioHandler>();
+
+  Future<void> _waitForAudioHandler() async {
+    if (_audioReady) {
+      _audioHandlerOrNull ??= Get.find<AudioHandler>();
+      return;
+    }
+    for (var i = 0; i < 100; i++) {
+      await Future.delayed(const Duration(milliseconds: 50));
+      if (Get.isRegistered<AudioHandler>()) {
+        _audioHandlerOrNull = Get.find<AudioHandler>();
+        return;
+      }
+    }
+  }
+
   final _musicServices = Get.find<MusicServices>();
   final currentQueue = <MediaItem>[].obs;
 
@@ -152,11 +175,20 @@ class PlayerController extends GetxController
     if (GetPlatform.isWindows) {
       Get.put(WindowsAudioService());
     }
-    _restorePrevSession();
+    () async {
+      await _waitForAudioHandler();
+      if (_audioReady) await _restorePrevSession();
+    }();
     super.onReady();
   }
 
   void _init() async {
+    // Prefs / UI can initialize before AudioService; wait so listeners attach.
+    await _waitForAudioHandler();
+    if (!_audioReady) {
+      printERROR('AudioHandler not ready; player listeners skipped');
+      return;
+    }
     //_createAppDocDir();
     _listenForChangesInPlayerState();
     _listenForChangesInPosition();
@@ -1157,6 +1189,7 @@ class PlayerController extends GetxController
       Get.find<VideoModeController>().isActive.value;
 
   void play() {
+    if (!_audioReady) return;
     if (_videoModeActive) {
       final vm = Get.find<VideoModeController>();
       if (!vm.isVideoPlaying.value) vm.playPauseVideo();
@@ -1166,6 +1199,7 @@ class PlayerController extends GetxController
   }
 
   void pause() {
+    if (!_audioReady) return;
     if (_videoModeActive) {
       final vm = Get.find<VideoModeController>();
       if (vm.isVideoPlaying.value) vm.playPauseVideo();
@@ -1176,6 +1210,7 @@ class PlayerController extends GetxController
 
   void playPause() {
     if (initFlagForPlayer) return;
+    if (!_audioReady) return;
     if (_videoModeActive) {
       Get.find<VideoModeController>().playPauseVideo();
       return;
@@ -1533,10 +1568,22 @@ class PlayerController extends GetxController
 
   /// Force a fresh stream URL for the current queue index.
   void retryPlayback() {
+    if (!_audioReady) return;
     clearPlaybackError();
+    var posMs = progressBarStatus.value.current.inMilliseconds;
+    if (posMs <= 0) {
+      final id = currentSong.value?.id;
+      if (id != null) {
+        posMs = PodcastProgressService.positionMs(id) ?? 0;
+      }
+    }
+    if (posMs <= 0 && _pendingResumeMs > 0) {
+      posMs = _pendingResumeMs;
+    }
     _audioHandler.customAction("playByIndex", {
       "index": currentSongIndex.value,
       "newUrl": true,
+      if (posMs > 0) "position": posMs,
     });
   }
 

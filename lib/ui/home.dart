@@ -49,7 +49,9 @@ class Home extends StatelessWidget {
                 PlayButtonState.playing) {
               SystemNavigator.pop();
             } else {
-              await Get.find<AudioHandler>().customAction("saveSession");
+              if (Get.isRegistered<AudioHandler>()) {
+                await Get.find<AudioHandler>().customAction("saveSession");
+              }
               exit(0);
             }
           }
