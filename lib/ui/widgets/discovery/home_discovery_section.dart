@@ -8,6 +8,7 @@ import '../../../services/discovery/discovery_service.dart';
 import '../../../services/discovery/discovery_types.dart';
 import '../../navigator.dart';
 import '../../player/player_controller.dart';
+import '../../utils/riff_tokens.dart';
 import '../../utils/sheet_insets.dart';
 import '../image_widget.dart';
 import '../snackbar.dart';
@@ -23,6 +24,11 @@ class HomeDiscoverySection extends StatelessWidget {
     final tracks =
         section.tracks.map((m) => MediaItemBuilder.fromJson(m)).toList();
     if (tracks.isEmpty) return const SizedBox.shrink();
+
+    final isDailyMix = section.id == 'made_for_you' ||
+        tracks.any((t) =>
+            (t.extras?['dailyMixId'] ?? '').toString().trim().isNotEmpty);
+    final cardSize = isDailyMix ? 124.0 : 112.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -41,7 +47,7 @@ class HomeDiscoverySection extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: 156,
+          height: isDailyMix ? 178 : 156,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.only(left: 12, right: 12),
@@ -53,6 +59,7 @@ class HomeDiscoverySection extends StatelessWidget {
                 child: _DiscoveryCard(
                   song: song,
                   surface: section.surface,
+                  cardSize: cardSize,
                   onDismiss: () {
                     if (Get.isRegistered<DiscoveryService>()) {
                       Get.find<DiscoveryService>()
@@ -75,23 +82,49 @@ class _DiscoveryCard extends StatelessWidget {
     required this.song,
     required this.surface,
     required this.onDismiss,
+    required this.cardSize,
   });
   final MediaItem song;
   final String surface;
   final VoidCallback onDismiss;
+  final double cardSize;
+
+  List<MediaItem> _collageTracks(String mixId) {
+    if (mixId.isEmpty || !Get.isRegistered<DiscoveryService>()) return const [];
+    final mixes = Get.find<DiscoveryService>().dailyMixes;
+    for (final mix in mixes) {
+      if (mix.id != mixId) continue;
+      final out = <MediaItem>[];
+      for (final raw in mix.tracks) {
+        if (out.length >= 4) break;
+        try {
+          out.add(MediaItemBuilder.fromJson(raw));
+        } catch (_) {}
+      }
+      return out;
+    }
+    return const [];
+  }
 
   @override
   Widget build(BuildContext context) {
     final player = Get.find<PlayerController>();
     final mixTitle = (song.extras?['dailyMixTitle'] ?? '').toString().trim();
     final mixId = (song.extras?['dailyMixId'] ?? '').toString().trim();
+    final isMix = mixId.isNotEmpty;
     final reason = mixTitle.isNotEmpty
         ? mixTitle
         : (song.extras?['discoveryReason'] as String? ?? '');
+    final collage = isMix ? _collageTracks(mixId) : const <MediaItem>[];
+    final primaryTitle = isMix && mixTitle.isNotEmpty ? mixTitle : song.title;
+    final secondaryTitle = isMix
+        ? (song.artist?.isNotEmpty == true ? song.artist! : song.title)
+        : (reason.isNotEmpty ? reason : (song.artist ?? ''));
+
     return SizedBox(
-      width: 112,
+      width: cardSize,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
         onTap: () async {
           // Daily Mix cards open the full mix playlist, not one lead track.
           if (mixId.isNotEmpty && Get.isRegistered<DiscoveryService>()) {
@@ -192,12 +225,36 @@ class _DiscoveryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: ImageWidget(song: song, size: 112),
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+                  child: collage.length >= 4
+                      ? _MixCollage(tracks: collage, size: cardSize)
+                      : ImageWidget(song: song, size: cardSize),
+                ),
+                if (isMix)
+                  Positioned(
+                    right: 6,
+                    bottom: 6,
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.62),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.play_arrow_rounded,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.secondary,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 8),
-            Text(song.title,
+            Text(primaryTitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -208,7 +265,7 @@ class _DiscoveryCard extends StatelessWidget {
                     )),
             const SizedBox(height: 2),
             Text(
-              reason.isNotEmpty ? reason : (song.artist ?? ''),
+              secondaryTitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -223,6 +280,46 @@ class _DiscoveryCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _MixCollage extends StatelessWidget {
+  const _MixCollage({required this.tracks, required this.size});
+  final List<MediaItem> tracks;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final cell = size / 2;
+    Widget tile(MediaItem song) => ImageWidget(
+          song: song,
+          size: cell,
+          borderRadius: 0,
+        );
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Column(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                Expanded(child: tile(tracks[0])),
+                Expanded(child: tile(tracks[1])),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                Expanded(child: tile(tracks[2])),
+                Expanded(child: tile(tracks[3])),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -346,10 +443,11 @@ class HomeShortcutGrid extends StatelessWidget {
     ];
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+      // Tighter bottom so daily mixes rise closer under shortcuts.
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          const gap = 8.0;
+          const gap = 6.0;
           final tileW = (constraints.maxWidth - gap * 2) / 3;
           return Wrap(
             spacing: gap,
@@ -357,31 +455,31 @@ class HomeShortcutGrid extends StatelessWidget {
             children: items.map((e) {
               return SizedBox(
                 width: tileW,
-                height: 80,
+                height: 68,
                 child: Material(
                   color: theme.cardColor.withOpacity(
                     theme.brightness == Brightness.dark ? 0.92 : 1,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
                     side: BorderSide(
                       color: theme.dividerColor.withOpacity(0.7),
-                      width: 0.5,
+                      width: RiffTokens.hairline,
                     ),
                   ),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
                     onTap: e.onTap,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 8),
+                          horizontal: 6, vertical: 6),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(e.icon,
-                              size: 22,
+                              size: 20,
                               color: theme.textTheme.titleMedium?.color),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 4),
                           Text(
                             e.title,
                             maxLines: 2,
@@ -389,7 +487,7 @@ class HomeShortcutGrid extends StatelessWidget {
                             textAlign: TextAlign.center,
                             style: theme.textTheme.labelMedium?.copyWith(
                               fontWeight: FontWeight.w600,
-                              fontSize: 12,
+                              fontSize: 11,
                               letterSpacing: -0.1,
                             ),
                           ),

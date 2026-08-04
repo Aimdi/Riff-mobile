@@ -17,6 +17,7 @@ import '../../widgets/discovery/riff_wave_hero.dart';
 import '../../utils/riff_tokens.dart';
 import '../../widgets/quickpickswidget.dart';
 import '../../widgets/shimmer_widgets/home_shimmer.dart';
+import '../../widgets/snackbar.dart';
 import '../../../services/discovery/discovery_service.dart';
 import '../../../services/discovery/discovery_types.dart';
 import 'home_explore_section.dart';
@@ -275,9 +276,9 @@ class _HomeFeed extends StatelessWidget {
           ),
           const RiffWaveHero(),
           const HomeShortcutGrid(),
-          const HomeZoneDivider(),
+          const SizedBox(height: 8),
           const _HomeZoneB(),
-          const HomeZoneDivider(),
+          const SizedBox(height: 12),
           const HomeExploreSection(),
         ],
       );
@@ -311,13 +312,7 @@ class _HomeZoneB extends StatelessWidget {
         children: [
           if (Get.isRegistered<DiscoveryService>() &&
               Get.find<DiscoveryService>().mixesUpdatedPill.value)
-            Padding(
-              padding: const EdgeInsets.only(left: 12, top: 2, bottom: 4),
-              child: Chip(
-                label: Text("mixesUpdated".tr),
-                visualDensity: VisualDensity.compact,
-              ),
-            ),
+            const _MixesUpdatedBanner(),
           if (vm.dailyMixes != null)
             HomeDiscoverySection(section: vm.dailyMixes!),
           if (vm.quickPicks != null && vm.quickPicks!.songList.isNotEmpty)
@@ -337,29 +332,111 @@ class _HomeZoneB extends StatelessWidget {
   }
 }
 
-class _HomeDiscoverEmptyCard extends StatelessWidget {
-  const _HomeDiscoverEmptyCard();
+class _MixesUpdatedBanner extends StatelessWidget {
+  const _MixesUpdatedBanner();
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(top: 5, bottom: 15, right: 10),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(10),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 2),
+      child: Text(
+        'mixesUpdated'.tr,
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: theme.textTheme.titleSmall?.color?.withOpacity(0.55),
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.1,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("discover".tr,
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 6),
-            Text("discoverEmptyDes".tr,
-                style: Theme.of(context).textTheme.bodyMedium),
-          ],
+      ),
+    );
+  }
+}
+
+class _HomeDiscoverEmptyCard extends StatelessWidget {
+  const _HomeDiscoverEmptyCard();
+
+  Future<void> _startWave(BuildContext context) async {
+    try {
+      final ok = await Get.find<PlayerController>().startRiffWave();
+      if (!context.mounted) return;
+      if (!ok) {
+        ScaffoldMessenger.of(context).showSnackBar(snackbar(
+          context,
+          'riffWaveEmpty'.tr,
+          size: SanckBarSize.MEDIUM,
+        ));
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(snackbar(
+        context,
+        'networkError'.tr,
+        size: SanckBarSize.MEDIUM,
+      ));
+    }
+  }
+
+  void _openSearch() {
+    Get.toNamed(
+      ScreenNavigationSetup.searchScreen,
+      id: ScreenNavigationSetup.id,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.secondary;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+      child: Material(
+        color: theme.cardColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
+          side: RiffTokens.hairlineBorder(context),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('discover'.tr, style: theme.textTheme.titleMedium),
+              const SizedBox(height: 6),
+              Text(
+                'discoverEmptyDes'.tr,
+                style: theme.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.icon(
+                    onPressed: () => _startWave(context),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: accent,
+                      foregroundColor: Colors.black,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.graphic_eq_rounded, size: 18),
+                    label: Text('riffWave'.tr),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _openSearch,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: theme.textTheme.titleMedium?.color,
+                      side: BorderSide(
+                        color: theme.dividerColor.withOpacity(0.8),
+                      ),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.search, size: 18),
+                    label: Text('search'.tr),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
