@@ -119,8 +119,15 @@ class Body extends StatelessWidget {
   Widget build(BuildContext context) {
     if (searchResScrController.navigationRailCurrentIndex.value == 0) {
       return Obx(() {
-        if (searchResScrController.isResultContentFetced.isTrue &&
-            searchResScrController.railItems.isEmpty) {
+        if (searchResScrController.isResultContentFetced.isFalse) {
+          return const Center(child: LoadingIndicator());
+        }
+        // Soulseek-only rail still means YTM returned nothing — show empty
+        // state on Results rather than a blank column.
+        final ytmRails = searchResScrController.railItems
+            .where((r) => !searchResScrController.isSoulseekRail(r))
+            .toList();
+        if (ytmRails.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -130,16 +137,26 @@ class Body extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 Text("'${searchResScrController.queryString.value}'"),
+                if (searchResScrController.railItems
+                    .any(searchResScrController.isSoulseekRail)) ...[
+                  const SizedBox(height: 16),
+                  TextButton.icon(
+                    onPressed: () {
+                      final idx = searchResScrController.railItems.indexWhere(
+                          searchResScrController.isSoulseekRail);
+                      if (idx >= 0) {
+                        searchResScrController.onDestinationSelected(idx + 1);
+                      }
+                    },
+                    icon: const Icon(Icons.search),
+                    label: Text('soulseek'.tr),
+                  ),
+                ],
               ],
             ),
           );
-        } else if (searchResScrController.isResultContentFetced.isTrue) {
-          return const ResultWidget();
-        } else {
-          return const Center(
-            child: LoadingIndicator(),
-          );
         }
+        return const ResultWidget();
       });
     } else {
       if (searchResScrController.isResultContentFetced.isTrue) {

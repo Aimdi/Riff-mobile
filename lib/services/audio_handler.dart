@@ -18,6 +18,7 @@ import '/models/album.dart';
 import '../models/playlist.dart';
 import '/services/equalizer.dart';
 import '/services/playlist_mix_service.dart';
+import '/services/audiobookshelf_service.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/shuffle_order.dart';
 import '/services/stream_service.dart';
@@ -217,8 +218,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         Get.find<PlayerController>()
             .notifyPlayError("streamRetrying", isRetrying: true);
       }
-      customAction("playByIndex", {'index': currentIndex, 'newUrl': true});
-      await _player.seek(curPos, index: 0);
+      // Await reload and restore position via playByIndex args — a fire-and-
+      // forget + seek(index:0) raced the rebuild and often restarted at 0.
+      await customAction("playByIndex", {
+        'index': currentIndex,
+        'newUrl': true,
+        'position': curPos.inMilliseconds,
+      });
     });
   }
 
@@ -663,20 +669,16 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           _startMutedForMix = false;
         }
 
-        if (restoreSession) {
-          if (!GetPlatform.isDesktop) {
-            final position = extras['position'];
-            await _player.load();
-            await _player.seek(
-              Duration(
-                milliseconds: position,
-              ),
-            );
-            await _player.seek(
-              Duration(
-                milliseconds: position,
-              ),
-            );
+        final resumeMs = (extras['position'] as num?)?.toInt() ?? 0;
+        if (restoreSession || resumeMs > 0) {
+          // Desktop previously skipped restore entirely; always load+seek when
+          // we have a saved/retry position so cold start and error recovery work.
+          await _player.load();
+          if (resumeMs > 0) {
+            await _player.seek(Duration(milliseconds: resumeMs));
+          }
+          if (!restoreSession) {
+            await _player.play();
           }
         } else {
           await _player.play();
@@ -988,11 +990,38 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
       }
       var url = item?.extras?['url'] as String?;
-      // Prefer a downloaded local copy for podcast episodes (offline playback).
-      if (songId.startsWith("podcast_") && Hive.isBoxOpen("PodcastDownloads")) {
+      // Prefer a downloaded local copy for any podcast episode (RSS podcast_*
+      // ids and YTM video-id episodes flagged isPodcast).
+      final isPodcast = songId.startsWith("podcast_") ||
+          item?.extras?['isPodcast'] == true;
+      if (isPodcast && Hive.isBoxOpen("PodcastDownloads")) {
         final local = Hive.box("PodcastDownloads").get(songId);
         if (local is String && local.isNotEmpty && File(local).existsSync()) {
           url = "file://$local";
+        }
+      }
+      // Refresh ABS stream URL on retry — tokenized URLs expire.
+      if (generateNewUrl &&
+          songId.startsWith('abs_') &&
+          Get.isRegistered<AudiobookshelfService>()) {
+        final abs = Get.find<AudiobookshelfService>();
+        final itemId = item?.extras?['absItemId']?.toString();
+        final trackIndex = (item?.extras?['absTrackIndex'] as num?)?.toInt();
+        if (itemId != null && trackIndex != null) {
+          try {
+            final detail = await abs.openBook(itemId);
+            final refreshed = abs.toMediaItems(detail);
+            final match = refreshed.firstWhereOrNull(
+                (m) => (m.extras?['absTrackIndex'] as num?)?.toInt() ==
+                    trackIndex);
+            if (match != null) {
+              url = match.extras?['url'] as String?;
+              item?.extras?['url'] = url;
+              item?.extras?['absSessionId'] = match.extras?['absSessionId'];
+            }
+          } catch (e) {
+            printERROR('ABS URL refresh failed: $e');
+          }
         }
       }
       if (url != null && url.isNotEmpty) {

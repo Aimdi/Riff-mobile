@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '/services/soul_sync_service.dart';
+import '/ui/navigator.dart';
 import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/snackbar.dart';
 
@@ -23,7 +24,15 @@ class SoulSyncScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('soulSync'.tr, style: theme.textTheme.titleLarge),
+            Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new),
+                  onPressed: () => Get.back(id: ScreenNavigationSetup.id),
+                ),
+                Text('soulSync'.tr, style: theme.textTheme.titleLarge),
+              ],
+            ),
             const SizedBox(height: 4),
             Text('soulSyncDes'.tr, style: theme.textTheme.bodyMedium),
             const SizedBox(height: 12),

@@ -125,6 +125,7 @@ class AudiobookshelfService extends GetxService {
   final libraries = <AbsLibrary>[].obs;
   final selectedLibraryId = ''.obs;
   final books = <AbsBook>[].obs;
+  final inProgressBooks = <AbsBook>[].obs;
   final isLoading = false.obs;
   final statusMessage = ''.obs;
 
@@ -157,6 +158,8 @@ class AudiobookshelfService extends GetxService {
           await fetchLibraries();
           if (selectedLibraryId.value.isNotEmpty) {
             await fetchBooks();
+          } else {
+            await fetchInProgress();
           }
         } catch (e) {
           printERROR('ABS restore failed: $e');
@@ -225,6 +228,7 @@ class AudiobookshelfService extends GetxService {
         _persist();
         await fetchBooks();
       }
+      await fetchInProgress();
       statusMessage.value = '';
     } on DioException catch (e) {
       isConnected.value = false;
@@ -247,6 +251,7 @@ class AudiobookshelfService extends GetxService {
     isConnected.value = false;
     libraries.clear();
     books.clear();
+    inProgressBooks.clear();
     selectedLibraryId.value = '';
     host.value = '';
     username.value = '';
@@ -404,8 +409,91 @@ class AudiobookshelfService extends GetxService {
       } else {
         books.addAll(list);
       }
+      if (page == 0) await fetchInProgress();
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  /// Continue Listening shelf: GET /api/me/items-in-progress (or /api/me/progress).
+  Future<void> fetchInProgress() async {
+    if (!isConnected.value || _token == null || host.value.isEmpty) {
+      inProgressBooks.clear();
+      return;
+    }
+    try {
+      dynamic data;
+      try {
+        final res = await _dio.get(
+          '${host.value}/api/me/items-in-progress',
+          queryParameters: {'limit': 25},
+          options: _authOptions,
+        );
+        data = res.data;
+      } catch (_) {
+        final res = await _dio.get(
+          '${host.value}/api/me/progress',
+          options: _authOptions,
+        );
+        data = res.data;
+      }
+
+      final raw = <Map>[];
+      if (data is List) {
+        for (final e in data) {
+          if (e is Map) raw.add(e);
+        }
+      } else if (data is Map) {
+        final candidates =
+            data['libraryItems'] ?? data['results'] ?? data['mediaProgress'];
+        if (candidates is List) {
+          for (final e in candidates) {
+            if (e is Map) raw.add(e);
+          }
+        }
+      }
+
+      final scored = <MapEntry<AbsBook, int>>[];
+      for (final r in raw) {
+        if (r['mediaType']?.toString() == 'podcast') continue;
+        if (r['episodeId'] != null) continue;
+        if (r['isFinished'] == true) continue;
+        if (r['hideFromContinueListening'] == true) continue;
+
+        final id = (r['id'] ?? r['libraryItemId'])?.toString();
+        if (id == null || id.isEmpty) continue;
+
+        final media = (r['media'] is Map) ? r['media'] as Map : {};
+        final meta = media['metadata'] is Map
+            ? media['metadata'] as Map
+            : <String, dynamic>{};
+        final known = books.firstWhereOrNull((b) => b.id == id);
+        final title = (meta['title'] ?? known?.title)?.toString();
+        if (title == null || title.isEmpty) continue;
+
+        final progress = parseAbsProgress(r) ?? known?.progress;
+        scored.add(MapEntry(
+          AbsBook(
+            id: id,
+            title: title,
+            author: meta['authorName']?.toString() ??
+                meta['author']?.toString() ??
+                known?.author,
+            subtitle: meta['subtitle']?.toString() ?? known?.subtitle,
+            duration: (media['duration'] as num?)?.toDouble() ??
+                (r['duration'] as num?)?.toDouble() ??
+                known?.duration,
+            progress: progress,
+          ),
+          (r['progressLastUpdate'] as num?)?.toInt() ??
+              (r['lastUpdate'] as num?)?.toInt() ??
+              0,
+        ));
+      }
+      scored.sort((a, b) => b.value.compareTo(a.value));
+      inProgressBooks.assignAll(scored.map((e) => e.key));
+    } catch (_) {
+      inProgressBooks.clear();
     }
   }
 

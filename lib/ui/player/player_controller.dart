@@ -916,12 +916,14 @@ class PlayerController extends GetxController
     }
 
     final recentId = Hive.box('AppPrefs').get('recentSongId');
+    // Home Wave is taste-first; don't seed from whatever is already playing.
     return RiffWave.resolveSeed(
       currentSong: currentSong.value,
       dailyMixSeed: dailyMixSeed,
       quickPick: quickPick,
       mostRecent: StatsService.mostRecentSong(),
       recentSongId: recentId is String ? recentId : null,
+      preferTasteSeed: true,
     );
   }
 
@@ -1099,10 +1101,20 @@ class PlayerController extends GetxController
       Get.find<VideoModeController>().isActive.value;
 
   void play() {
+    if (_videoModeActive) {
+      final vm = Get.find<VideoModeController>();
+      if (!vm.isVideoPlaying.value) vm.playPauseVideo();
+      return;
+    }
     _audioHandler.play();
   }
 
   void pause() {
+    if (_videoModeActive) {
+      final vm = Get.find<VideoModeController>();
+      if (vm.isVideoPlaying.value) vm.playPauseVideo();
+      return;
+    }
     _audioHandler.pause();
   }
 

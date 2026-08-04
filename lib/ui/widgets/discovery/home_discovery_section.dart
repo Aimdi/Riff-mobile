@@ -83,12 +83,35 @@ class _DiscoveryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final player = Get.find<PlayerController>();
-    final reason = song.extras?['discoveryReason'] as String? ?? '';
+    final mixTitle = (song.extras?['dailyMixTitle'] ?? '').toString().trim();
+    final mixId = (song.extras?['dailyMixId'] ?? '').toString().trim();
+    final reason = mixTitle.isNotEmpty
+        ? mixTitle
+        : (song.extras?['discoveryReason'] as String? ?? '');
     return SizedBox(
       width: 112,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () {
+        onTap: () async {
+          // Daily Mix cards open the full mix playlist, not one lead track.
+          if (mixId.isNotEmpty && Get.isRegistered<DiscoveryService>()) {
+            final disc = Get.find<DiscoveryService>();
+            await disc.materializeMixPlaylists();
+            final playlistId = 'RIFF_$mixId';
+            final pl = Playlist(
+              title: mixTitle.isNotEmpty ? mixTitle : 'dailyMix'.tr,
+              playlistId: playlistId,
+              thumbnailUrl: song.artUri?.toString() ??
+                  Playlist.thumbPlaceholderUrl,
+              isCloudPlaylist: false,
+            );
+            Get.toNamed(
+              ScreenNavigationSetup.playlistScreen,
+              id: ScreenNavigationSetup.id,
+              arguments: [pl, playlistId],
+            );
+            return;
+          }
           final tagged = Get.isRegistered<DiscoveryService>()
               ? DiscoveryService.withSource(song, DiscoverySource.discover)
               : song;

@@ -489,6 +489,15 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
   final _search = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    final abs = Get.find<AudiobookshelfService>();
+    if (abs.isConnected.value) {
+      abs.fetchInProgress();
+    }
+  }
+
+  @override
   void dispose() {
     _search.dispose();
     super.dispose();
@@ -602,12 +611,12 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                 ),
               );
             }
-            final continueBooks = abs.books
-                .where((b) =>
-                    (b.progress ?? 0) > 0.02 && (b.progress ?? 0) < 0.98)
-                .toList();
+            final continueBooks = abs.inProgressBooks.toList();
             return RefreshIndicator(
-              onRefresh: () => abs.fetchBooks(),
+              onRefresh: () async {
+                await abs.fetchBooks();
+                await abs.fetchInProgress();
+              },
               child: CustomScrollView(
                 slivers: [
                   if (continueBooks.isNotEmpty)

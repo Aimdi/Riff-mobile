@@ -1833,6 +1833,7 @@ Map<String, Map<String, String>> get keys => {
   "shownotes": "Shownotes",
   "noShownotes": "No shownotes available for this episode.",
   "markAsPlayed": "Mark as played",
+  "markAsUnplayed": "Mark as unplayed",
   "openShow": "Open show",
   "left": "left",
   "podcastInbox": "Inbox",

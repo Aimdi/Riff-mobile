@@ -50,6 +50,7 @@ class MediaItemBuilder {
           'album': album,
           'artists': json['artists'],
           'date': json['date'],
+          'pubDateMs': json['pubDateMs'] ?? _pubDateMsFromDate(json['date']),
           'trackDetails': json['trackDetails'],
           'year': json['year'],
           'isPodcast': isPodcast,
@@ -59,7 +60,53 @@ class MediaItemBuilder {
           if (json['showVideo'] != null) 'showVideo': json['showVideo'],
           if (json['podcastSource'] != null)
             'podcastSource': json['podcastSource'],
+          if (json['discoveryReason'] != null)
+            'discoveryReason': json['discoveryReason'],
+          if (json['discoverySource'] != null)
+            'discoverySource': json['discoverySource'],
+          if (json['dailyMixId'] != null) 'dailyMixId': json['dailyMixId'],
+          if (json['dailyMixTitle'] != null)
+            'dailyMixTitle': json['dailyMixTitle'],
         });
+  }
+
+  /// Best-effort epoch ms from YTM relative dates ("2h ago", "3 days ago")
+  /// or absolute strings.
+  static int? _pubDateMsFromDate(dynamic raw) {
+    if (raw is int) return raw;
+    final s = raw?.toString().trim() ?? '';
+    if (s.isEmpty) return null;
+    final lower = s.toLowerCase();
+    final now = DateTime.now().toUtc();
+    if (lower == 'today') return now.millisecondsSinceEpoch;
+    if (lower == 'yesterday') {
+      return now.subtract(const Duration(days: 1)).millisecondsSinceEpoch;
+    }
+    final m = RegExp(
+      r'^(\d+)\s*(seconds?|minutes?|hours?|days?|weeks?|months?|years?|secs?|mins?|hrs?|[smhdwy])\s*ago$',
+    ).firstMatch(lower);
+    if (m != null) {
+      final n = int.parse(m.group(1)!);
+      final unit = m.group(2)!;
+      final d = switch (unit) {
+        's' || 'sec' || 'secs' || 'second' || 'seconds' => Duration(seconds: n),
+        'm' || 'min' || 'mins' || 'minute' || 'minutes' => Duration(minutes: n),
+        'h' || 'hr' || 'hrs' || 'hour' || 'hours' => Duration(hours: n),
+        'd' || 'day' || 'days' => Duration(days: n),
+        'w' || 'week' || 'weeks' => Duration(days: n * 7),
+        'month' || 'months' => Duration(days: n * 30),
+        'y' || 'year' || 'years' => Duration(days: n * 365),
+        _ => Duration.zero,
+      };
+      if (d > Duration.zero) {
+        return now.subtract(d).millisecondsSinceEpoch;
+      }
+    }
+    try {
+      return DateTime.parse(s).toUtc().millisecondsSinceEpoch;
+    } catch (_) {
+      return null;
+    }
   }
 
   static String _fallbackThumbUrl(dynamic json) {
@@ -128,5 +175,10 @@ class MediaItemBuilder {
         'description': mediaItem.extras?['description'],
         'showVideo': mediaItem.extras?['showVideo'],
         'podcastSource': mediaItem.extras?['podcastSource'],
+        'pubDateMs': mediaItem.extras?['pubDateMs'],
+        'discoveryReason': mediaItem.extras?['discoveryReason'],
+        'discoverySource': mediaItem.extras?['discoverySource'],
+        'dailyMixId': mediaItem.extras?['dailyMixId'],
+        'dailyMixTitle': mediaItem.extras?['dailyMixTitle'],
       };
 }

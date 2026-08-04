@@ -100,9 +100,14 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     final lists = await Future.wait([...ytFutures, ...rssFutures]);
     final merged =
         _mergeNewestFirst(lists.where((l) => l.isNotEmpty).toList());
+    // AntennaPod-style: hide finished episodes from Latest (still in Continue
+    // until cleared; mark-unplayed brings them back).
+    final inbox = merged
+        .where((e) => !PodcastProgressService.isPlayed(e.id))
+        .toList();
     if (mounted) {
       setState(() {
-        _episodes = merged;
+        _episodes = inbox;
         _loading = false;
       });
     }

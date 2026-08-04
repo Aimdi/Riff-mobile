@@ -3,11 +3,13 @@ import 'package:hive/hive.dart';
 
 /// Tracks per-episode playback position for podcasts so episodes can be resumed
 /// ("Continue" section) and show a progress bar. Stored in the `PodcastProgress`
-/// Hive box keyed by episode id. Finished episodes are removed automatically.
+/// Hive box keyed by episode id. Finished episodes move to `PodcastPlayed`.
 class PodcastProgressService {
   PodcastProgressService._();
 
   static Box get _box => Hive.box('PodcastProgress');
+  static Box? get _playedBox =>
+      Hive.isBoxOpen('PodcastPlayed') ? Hive.box('PodcastPlayed') : null;
 
   /// A podcast episode from either backend: iTunes/RSS (`podcast_` id) or
   /// YouTube Music (videoId id but flagged via extras['isPodcast']).
@@ -25,12 +27,14 @@ class PodcastProgressService {
         ? total!.inMilliseconds
         : (episode.duration?.inMilliseconds ?? 0);
     if (totMs <= 0) return;
-    // Finished (last 20s or ≥98%) → drop it.
+    // Finished (last 20s or ≥98%) → mark played + drop in-progress.
     if (posMs >= totMs - 20000 || posMs >= totMs * 0.98) {
-      _box.delete(episode.id);
+      markPlayed(episode.id);
       return;
     }
     if (posMs < 15000) return; // barely started
+    // Resuming an episode clears played state.
+    _playedBox?.delete(episode.id);
     _box.put(episode.id, {
       'id': episode.id,
       'title': episode.title,
@@ -45,6 +49,24 @@ class PodcastProgressService {
       'durationMs': totMs,
       'updatedAt': nowMs,
     });
+  }
+
+  static bool isPlayed(String id) {
+    final box = _playedBox;
+    if (box == null) return false;
+    return box.containsKey(id);
+  }
+
+  static void markPlayed(String id) {
+    if (Hive.isBoxOpen('PodcastProgress')) _box.delete(id);
+    final box = _playedBox;
+    if (box != null) {
+      box.put(id, DateTime.now().millisecondsSinceEpoch);
+    }
+  }
+
+  static void markUnplayed(String id) {
+    _playedBox?.delete(id);
   }
 
   static int? positionMs(String id) {
@@ -86,6 +108,9 @@ class PodcastProgressService {
   static void clear(String id) {
     if (Hive.isBoxOpen('PodcastProgress')) _box.delete(id);
   }
+
+  /// Mark played (AntennaPod-style) — removes resume row and flags as finished.
+  static void markAsPlayed(String id) => markPlayed(id);
 
   /// In-progress episodes, newest first, as stored maps.
   static List<Map<String, dynamic>> inProgress() {

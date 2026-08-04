@@ -101,12 +101,21 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode) {
                   },
                 ),
               ListTile(
-                leading: const Icon(Icons.check_circle_outline),
-                title: Text("markAsPlayed".tr),
+                leading: Icon(PodcastProgressService.isPlayed(episode.id)
+                    ? Icons.remove_done
+                    : Icons.check_circle_outline),
+                title: Text(PodcastProgressService.isPlayed(episode.id)
+                    ? "markAsUnplayed".tr
+                    : "markAsPlayed".tr),
                 onTap: () {
-                  PodcastProgressService.clear(episode.id);
+                  if (PodcastProgressService.isPlayed(episode.id)) {
+                    PodcastProgressService.markUnplayed(episode.id);
+                    snack("markAsUnplayed".tr);
+                  } else {
+                    PodcastProgressService.markAsPlayed(episode.id);
+                    snack("markAsPlayed".tr);
+                  }
                   Navigator.of(ctx).pop();
-                  snack("markAsPlayed".tr);
                 },
               ),
               ListTile(

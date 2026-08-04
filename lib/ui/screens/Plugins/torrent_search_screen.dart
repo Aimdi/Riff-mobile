@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '/services/torrent_extra_sources.dart';
 import '/services/torrent_search_service.dart';
+import '/ui/navigator.dart';
 import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/snackbar.dart';
 
@@ -859,6 +860,10 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
           children: [
             Row(
               children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new),
+                  onPressed: () => Get.back(id: ScreenNavigationSetup.id),
+                ),
                 Expanded(
                   child: Text('torrentSearch'.tr,
                       style: theme.textTheme.titleLarge),
