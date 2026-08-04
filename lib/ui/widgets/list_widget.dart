@@ -235,6 +235,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
         if (id == null) return;
         showModalBottomSheet(
           context: context,
+          useRootNavigator: true,
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
           ),

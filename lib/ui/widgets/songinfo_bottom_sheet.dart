@@ -66,7 +66,7 @@ class SongInfoBottomSheet extends StatelessWidget {
                 song.title,
                 maxLines: 1,
               ),
-              subtitle: Text(song.artist!),
+              subtitle: Text(song.artist ?? ''),
               trailing: SizedBox(
                 width: 110,
                 child: Row(
