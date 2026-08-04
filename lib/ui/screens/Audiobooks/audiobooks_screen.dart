@@ -180,6 +180,9 @@ class _CatalogDiscoverState extends State<_CatalogDiscover> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final cacheW =
+        ((MediaQuery.sizeOf(context).width / 2) * dpr).round().clamp(128, 800);
     return Column(
       children: [
         Padding(
@@ -223,6 +226,7 @@ class _CatalogDiscoverState extends State<_CatalogDiscover> {
                       itemBuilder: (context, i) {
                         final book = _books[i];
                         return InkWell(
+                          key: ValueKey(book.id),
                           borderRadius: BorderRadius.circular(10),
                           onTap: () => Get.to(
                             () => AudiobookCatalogDetailScreen(book: book),
@@ -238,6 +242,7 @@ class _CatalogDiscoverState extends State<_CatalogDiscover> {
                                     imageUrl: book.cover,
                                     width: double.infinity,
                                     fit: BoxFit.cover,
+                                    memCacheWidth: cacheW,
                                     errorWidget: (_, __, ___) => Container(
                                       color: theme.primaryColorLight,
                                       child: const Icon(Icons.menu_book,
@@ -318,6 +323,9 @@ class _CatalogBookGrid extends StatelessWidget {
         ),
       );
     }
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final cacheW =
+        ((MediaQuery.sizeOf(context).width / 2) * dpr).round().clamp(128, 800);
     return GridView.builder(
         padding: const EdgeInsets.only(bottom: 200, right: 8),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -330,6 +338,7 @@ class _CatalogBookGrid extends StatelessWidget {
         itemBuilder: (context, i) {
           final book = books[i];
           return InkWell(
+            key: ValueKey(book.id),
             borderRadius: BorderRadius.circular(10),
             onTap: () => Get.to(
               () => AudiobookCatalogDetailScreen(book: book),
@@ -345,6 +354,7 @@ class _CatalogBookGrid extends StatelessWidget {
                       imageUrl: book.cover,
                       width: double.infinity,
                       fit: BoxFit.cover,
+                      memCacheWidth: cacheW,
                       errorWidget: (_, __, ___) => Container(
                         color: theme.primaryColorLight,
                         child: const Icon(Icons.menu_book, size: 48),
@@ -612,6 +622,12 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
               );
             }
             final continueBooks = abs.inProgressBooks.toList();
+            final dpr = MediaQuery.devicePixelRatioOf(context);
+            final continueCacheW = (100 * dpr).round().clamp(96, 400);
+            final gridCacheW =
+                ((MediaQuery.sizeOf(context).width / 2) * dpr)
+                    .round()
+                    .clamp(128, 800);
             return RefreshIndicator(
               onRefresh: () async {
                 await abs.fetchBooks();
@@ -644,6 +660,7 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                                       book.coverUrl(abs.host.value, token);
                                   final prog = book.progress ?? 0;
                                   return SizedBox(
+                                    key: ValueKey(book.id),
                                     width: 100,
                                     child: InkWell(
                                       borderRadius: BorderRadius.circular(10),
@@ -666,6 +683,8 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                                                   CachedNetworkImage(
                                                     imageUrl: cover,
                                                     fit: BoxFit.cover,
+                                                    memCacheWidth:
+                                                        continueCacheW,
                                                     errorWidget: (_, __,
                                                             ___) =>
                                                         Container(
@@ -731,6 +750,7 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                           final cover = book.coverUrl(abs.host.value, token);
                           final prog = book.progress;
                           return InkWell(
+                            key: ValueKey(book.id),
                             borderRadius: BorderRadius.circular(10),
                             onTap: () => Get.to(
                               () => AudiobookDetailScreen(bookId: book.id),
@@ -749,6 +769,7 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                                           imageUrl: cover,
                                           width: double.infinity,
                                           fit: BoxFit.cover,
+                                          memCacheWidth: gridCacheW,
                                           errorWidget: (_, __, ___) =>
                                               Container(
                                             color: theme.primaryColorLight,

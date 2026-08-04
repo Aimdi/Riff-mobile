@@ -194,6 +194,9 @@ initHiveCritical() async {
     // delete "appPrefs" separately from "AppPrefs" — that wipes prefs and can
     // black-screen the app on launch (v1.7.82 regression).
     Hive.openBox("AppPrefs"),
+    // Cached Home shelves — open before first paint so Home skips a
+    // mid-frame Hive.openBox on the UI isolate.
+    Hive.openBox("homeScreenData"),
     // Home filters touch bans as soon as network content arrives.
     Hive.openBox("BannedSongs"),
     Hive.openBox("BannedArtists"),

@@ -94,31 +94,37 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
       addAutomaticKeepAlives: false,
       controller: sc,
       itemCount: items.length,
+      // SongListTile rows are a fixed ~75px — enables cheaper scroll layout.
+      itemExtent: 75,
       physics: isCompleteList
           ? const BouncingScrollPhysics()
           : const NeverScrollableScrollPhysics(),
-      itemBuilder: (context, index) => SongListTile(
-        song: items[index] as MediaItem,
-        onTap: () {
-          isArtistSongs
-              // if song is from artist then play from artist
-              ? playerController.playPlayListSong(
-                  List<MediaItem>.from(items), index,
-                  playfrom: PlaylingFrom(
-                      type: PlaylingFromType.ARTIST,
-                      name: artist?.name ?? "........."))
-              :
-              // if playlist is not null then play from playlist else play from album
-              playlist != null && album == null
-                  ? playerController.playPlayListSong(
-                      List<MediaItem>.from(items), index,
-                      playfrom: PlaylingFrom(
-                        type: PlaylingFromType.PLAYLIST,
-                        name: playlist.title,
-                      ))
-                  : playerController.pushSongToQueue(items[index] as MediaItem);
-        },
-      ),
+      itemBuilder: (context, index) {
+        final song = items[index] as MediaItem;
+        return SongListTile(
+          key: ValueKey(song.id),
+          song: song,
+          onTap: () {
+            isArtistSongs
+                // if song is from artist then play from artist
+                ? playerController.playPlayListSong(
+                    List<MediaItem>.from(items), index,
+                    playfrom: PlaylingFrom(
+                        type: PlaylingFromType.ARTIST,
+                        name: artist?.name ?? "........."))
+                :
+                // if playlist is not null then play from playlist else play from album
+                playlist != null && album == null
+                    ? playerController.playPlayListSong(
+                        List<MediaItem>.from(items), index,
+                        playfrom: PlaylingFrom(
+                          type: PlaylingFromType.PLAYLIST,
+                          name: playlist.title,
+                        ))
+                    : playerController.pushSongToQueue(song);
+          },
+        );
+      },
     );
   }
 

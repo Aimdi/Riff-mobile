@@ -100,6 +100,7 @@ class ImageWidget extends StatelessWidget {
                   "${Get.find<SettingsScreenController>().supportDirPath}/thumbnails/${song!.id}.png"),
               height: size,
               width: size,
+              cacheWidth: decodeSide,
               fit: BoxFit.cover,
               filterQuality: FilterQuality.medium,
               errorBuilder: (_, __, ___) => _placeholder(context),

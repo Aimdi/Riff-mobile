@@ -216,32 +216,64 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
-    final continueItems = PodcastProgressService.inProgress();
+    final continueItems =
+        PodcastProgressService.inProgress().take(8).toList();
     final empty = _episodes.isEmpty && continueItems.isEmpty;
     return RefreshIndicator(
       onRefresh: () async {
         setState(() => _loading = true);
         await _load();
       },
-      child: ListView(
-        padding: const EdgeInsets.only(bottom: 200),
-        children: [
+      // Lazy slivers — avoid building hundreds of episode rows + images
+      // up-front on every setState/refresh.
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics()),
+        slivers: [
           if (continueItems.isNotEmpty) ...[
-            _sectionHeader(context, "continueListening".tr),
-            ...continueItems
-                .take(8)
-                .map((r) => _continueRow(context, r)),
-            const SizedBox(height: 8),
+            SliverToBoxAdapter(
+              child: _sectionHeader(context, "continueListening".tr),
+            ),
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, i) => KeyedSubtree(
+                  key: ValueKey('cont_${continueItems[i]['id']}'),
+                  child: _continueRow(context, continueItems[i]),
+                ),
+                childCount: continueItems.length,
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 8)),
           ],
           if (_episodes.isNotEmpty) ...[
-            _sectionHeader(context, "latestEpisodes".tr),
-            for (int i = 0; i < _episodes.length; i++) ...[
-              _row(context, i),
-              if (i != _episodes.length - 1)
-                const Divider(height: 1, indent: 16, endIndent: 12),
-            ],
+            SliverToBoxAdapter(
+              child: _sectionHeader(context, "latestEpisodes".tr),
+            ),
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, i) {
+                  return Column(
+                    key: ValueKey(_episodes[i].id),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _row(context, i),
+                      if (i != _episodes.length - 1)
+                        const Divider(height: 1, indent: 16, endIndent: 12),
+                    ],
+                  );
+                },
+                childCount: _episodes.length,
+                addAutomaticKeepAlives: false,
+                addRepaintBoundaries: true,
+              ),
+            ),
           ],
-          if (empty) _emptyState(context),
+          if (empty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: _emptyState(context),
+            ),
+          const SliverToBoxAdapter(child: SizedBox(height: 200)),
         ],
       ),
     );
@@ -298,6 +330,9 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
                         imageUrl: art,
                         width: 64,
                         height: 64,
+                        memCacheWidth:
+                            (64 * MediaQuery.devicePixelRatioOf(context))
+                                .round(),
                         fit: BoxFit.cover,
                         errorWidget: (_, __, ___) =>
                             const Icon(Icons.podcasts, size: 44),
@@ -382,6 +417,9 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
                       imageUrl: art,
                       width: 56,
                       height: 56,
+                      memCacheWidth:
+                          (56 * MediaQuery.devicePixelRatioOf(context))
+                              .round(),
                       fit: BoxFit.cover,
                       errorWidget: (_, __, ___) =>
                           const Icon(Icons.podcasts, size: 40),

@@ -69,7 +69,11 @@ class HomeScreenController extends GetxController {
   }
 
   Future<bool> loadContentFromDb() async {
-    final homeScreenData = await Hive.openBox("homeScreenData");
+    // Prefer the already-open box from initHiveCritical (avoids a mid-frame
+    // open on the UI isolate during Home first paint).
+    final homeScreenData = Hive.isBoxOpen("homeScreenData")
+        ? Hive.box("homeScreenData")
+        : await Hive.openBox("homeScreenData");
     if (homeScreenData.keys.isNotEmpty) {
       final String quickPicksType = homeScreenData.get("quickPicksType");
       final List quickPicksData = homeScreenData.get("quickPicks");

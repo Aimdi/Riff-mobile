@@ -77,10 +77,17 @@ class ContentListWidget extends StatelessWidget {
                       : content.playlistList.length,
                   itemBuilder: (_, index) {
                     if (isAlbumContent) {
-                      return ContentListItem(content: content.albumList[index]);
+                      final album = content.albumList[index];
+                      return ContentListItem(
+                        key: ValueKey(album.browseId ?? album.title),
+                        content: album,
+                      );
                     }
+                    final playlist = content.playlistList[index];
                     return ContentListItem(
-                        content: content.playlistList[index]);
+                      key: ValueKey(playlist.playlistId ?? playlist.title),
+                      content: playlist,
+                    );
                   }),
             ),
           ),

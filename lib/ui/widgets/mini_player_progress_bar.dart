@@ -45,7 +45,9 @@ class ProgressBarPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
+  bool shouldRepaint(covariant ProgressBarPainter oldDelegate) {
+    return oldDelegate.current != current ||
+        oldDelegate.total != total ||
+        oldDelegate.progressBarColor != progressBarColor;
   }
 }
