@@ -28,6 +28,7 @@ import '/models/durationstate.dart';
 import '/services/music_service.dart';
 import '/services/sponsorblock_service.dart';
 import '/services/podcast_service.dart';
+import '/services/audiobook_progress_service.dart';
 import '/services/podcast_progress_service.dart';
 import '/ui/player/riff_wave.dart';
 import '/ui/player/play_log_gate.dart';
@@ -320,9 +321,15 @@ class PlayerController extends GetxController
     });
   }
 
+  /// Position persistence and auto-resume for long-form content: podcast
+  /// episodes and Audiobookshelf tracks. Audiobooks previously had neither, so
+  /// every chapter restarted from zero.
   void _handlePodcastProgress(Duration position) {
     final song = currentSong.value;
-    if (song == null || !PodcastProgressService.isPodcastItem(song)) return;
+    if (song == null) return;
+    final isPodcast = PodcastProgressService.isPodcastItem(song);
+    final isAudiobook = AudiobookProgressService.isAudiobookItem(song);
+    if (!isPodcast && !isAudiobook) return;
     final total = progressBarStatus.value.total;
 
     // Auto-resume once: a partially-played episode that just started near 0.
@@ -342,7 +349,11 @@ class PlayerController extends GetxController
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     if (nowMs - _lastProgressSaveMs >= 5000) {
       _lastProgressSaveMs = nowMs;
-      PodcastProgressService.save(song, position, total, nowMs: nowMs);
+      if (isAudiobook) {
+        AudiobookProgressService.save(song, position, total, nowMs: nowMs);
+      } else {
+        PodcastProgressService.save(song, position, total, nowMs: nowMs);
+      }
     }
   }
 
@@ -530,14 +541,30 @@ class PlayerController extends GetxController
         isCurrentSongBuffered.value = false;
         // Capture position before switching so DiscoveryService can score the skip.
         final posMs = progressBarStatus.value.current.inMilliseconds;
-        // Persist the outgoing podcast episode's position before switching.
-        PodcastProgressService.save(currentSong.value,
-            Duration(milliseconds: posMs), progressBarStatus.value.total,
-            nowMs: DateTime.now().millisecondsSinceEpoch);
+        // Persist the outgoing episode/track position before switching. An
+        // audiobook chapter advancing to the next one is the single most
+        // common way a position was previously lost.
+        final outgoing = currentSong.value;
+        final switchNowMs = DateTime.now().millisecondsSinceEpoch;
+        if (outgoing != null &&
+            AudiobookProgressService.isAudiobookItem(outgoing)) {
+          AudiobookProgressService.save(outgoing,
+              Duration(milliseconds: posMs), progressBarStatus.value.total,
+              nowMs: switchNowMs);
+        } else {
+          PodcastProgressService.save(outgoing, Duration(milliseconds: posMs),
+              progressBarStatus.value.total,
+              nowMs: switchNowMs);
+        }
         currentSong.value = mediaItem;
         clearPlaybackError();
-        // Arm auto-resume for the incoming podcast episode (either backend).
-        if (PodcastProgressService.isPodcastItem(mediaItem)) {
+        // Arm auto-resume for the incoming episode (either podcast backend) or
+        // Audiobookshelf track.
+        if (AudiobookProgressService.isAudiobookItem(mediaItem)) {
+          _pendingResumeId = mediaItem.id;
+          _pendingResumeMs =
+              AudiobookProgressService.positionMs(mediaItem.id) ?? 0;
+        } else if (PodcastProgressService.isPodcastItem(mediaItem)) {
           _pendingResumeId = mediaItem.id;
           _pendingResumeMs =
               PodcastProgressService.positionMs(mediaItem.id) ?? 0;

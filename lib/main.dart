@@ -213,6 +213,7 @@ initHiveDeferred() async {
     Hive.openBox("SavedAudiobooks"),
     Hive.openBox("PodcastDownloads"),
     Hive.openBox("PodcastProgress"),
+    Hive.openBox("AudiobookProgress"),
     Hive.openBox("TrackAnalysisCache"),
     Hive.openBox("PlaylistMixPrefs"),
   ]);
