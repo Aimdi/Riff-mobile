@@ -329,7 +329,7 @@ class PodcastService {
       text = text
           .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
           .replaceAll(RegExp(r'</p>', caseSensitive: false), '\n\n');
-      text = _stripHtml(text);
+      text = stripHtml(text);
     }
     return text
         .split(RegExp(r'\n{2,}'))
@@ -654,7 +654,7 @@ class PodcastService {
         episodes.add({
           'id': 'podcast_${guid.hashCode}',
           'title': title,
-          'description': _stripHtml(
+          'description': stripHtml(
               item.getElement('description')?.innerText ?? ""),
           'url': url,
           'artwork': Thumbnail(epArtRaw).extraHigh,
@@ -686,8 +686,62 @@ class PodcastService {
     return 0;
   }
 
-  static String _stripHtml(String s) =>
-      s.replaceAll(RegExp(r'<[^>]*>'), '').trim();
+  static const Map<String, String> _namedEntities = {
+    'lt': '<',
+    'gt': '>',
+    'quot': '"',
+    'apos': "'",
+    // Plain space, not U+00A0: shownotes render in a bare Text widget and a
+    // no-break space would stop long runs from wrapping.
+    'nbsp': ' ',
+    'mdash': '—',
+    'ndash': '–',
+    'hellip': '…',
+    'lsquo': '‘',
+    'rsquo': '’',
+    'ldquo': '“',
+    'rdquo': '”',
+    'bull': '•',
+    'middot': '·',
+    'copy': '©',
+    'reg': '®',
+    'trade': '™',
+    'deg': '°',
+    'laquo': '«',
+    'raquo': '»',
+    'amp': '&',
+  };
+
+  static final RegExp _entityRe =
+      RegExp(r'&(#[0-9]+|#[xX][0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);');
+
+  /// Decodes HTML character references in a single left-to-right pass.
+  ///
+  /// Single pass is deliberate: shownotes are HTML *inside* XML, so the XML
+  /// parser already undid one level of escaping. Re-scanning the output would
+  /// turn a literal, author-intended "&amp;#39;" into an apostrophe.
+  static String decodeHtmlEntities(String s) {
+    if (!s.contains('&')) return s;
+    return s.replaceAllMapped(_entityRe, (m) {
+      final ref = m.group(1)!;
+      if (ref.startsWith('#')) {
+        final isHex = ref.length > 1 && (ref[1] == 'x' || ref[1] == 'X');
+        final code = isHex
+            ? int.tryParse(ref.substring(2), radix: 16)
+            : int.tryParse(ref.substring(1));
+        if (code == null || code < 0x9 || code > 0x10ffff) return m.group(0)!;
+        // Lone surrogates are not valid scalar values.
+        if (code >= 0xd800 && code <= 0xdfff) return m.group(0)!;
+        return String.fromCharCode(code);
+      }
+      return _namedEntities[ref.toLowerCase()] ?? m.group(0)!;
+    });
+  }
+
+  /// Removes markup and decodes character references, so feed descriptions and
+  /// HTML transcripts render as text instead of raw "&amp;#8217;" codes.
+  static String stripHtml(String s) =>
+      decodeHtmlEntities(s.replaceAll(RegExp(r'<[^>]*>'), '')).trim();
 
   /// RSS pubDate → "19 Jul 2026" (drops weekday and time for a compact row).
   static String _formatDate(String? raw) {
