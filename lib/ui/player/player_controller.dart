@@ -560,18 +560,19 @@ class PlayerController extends GetxController
 
   void _listenForChangesInDuration() {
     _audioHandler.mediaItem.listen((mediaItem) async {
-      final oldState = progressBarStatus.value;
-      progressBarStatus.update((val) {
-        val!.total = mediaItem?.duration ?? Duration.zero;
-        val.current = oldState.current;
-        val.buffered = oldState.buffered;
-      });
+      // ProgressBarState is mutable and Rx.update mutates it in place, so the
+      // outgoing item's position/total must be copied out by value *before*
+      // the bar is retargeted at the incoming item — otherwise the saves below
+      // would use the incoming item's duration as the outgoing episode's.
+      final outgoingProgress =
+          retargetProgressBar(progressBarStatus.value, mediaItem?.duration);
+      progressBarStatus.refresh();
       if (mediaItem != null) {
         printINFO(mediaItem.title);
         _newSongFlag = true;
         isCurrentSongBuffered.value = false;
         // Capture position before switching so DiscoveryService can score the skip.
-        final posMs = progressBarStatus.value.current.inMilliseconds;
+        final posMs = outgoingProgress.position.inMilliseconds;
         // Persist the outgoing episode/track position before switching. An
         // audiobook chapter advancing to the next one is the single most
         // common way a position was previously lost.
@@ -580,11 +581,11 @@ class PlayerController extends GetxController
         if (outgoing != null &&
             AudiobookProgressService.isAudiobookItem(outgoing)) {
           AudiobookProgressService.save(outgoing, Duration(milliseconds: posMs),
-              progressBarStatus.value.total,
+              outgoingProgress.total,
               nowMs: switchNowMs);
         } else {
           PodcastProgressService.save(outgoing, Duration(milliseconds: posMs),
-              progressBarStatus.value.total,
+              outgoingProgress.total,
               nowMs: switchNowMs);
         }
         currentSong.value = mediaItem;
