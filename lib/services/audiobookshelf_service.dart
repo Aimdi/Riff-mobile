@@ -214,7 +214,8 @@ class AudiobookshelfService extends GetxService {
       await fetchLibraries();
       if (libraries.isNotEmpty) {
         // Prefer book libraries
-        final bookLib = libraries.firstWhereOrNull((l) => l.mediaType == 'book');
+        final bookLib =
+            libraries.firstWhereOrNull((l) => l.mediaType == 'book');
         selectedLibraryId.value = (bookLib ?? libraries.first).id;
         _persist();
         await fetchBooks();
@@ -350,7 +351,8 @@ class AudiobookshelfService extends GetxService {
       if (code == 403) {
         throw StateError('absUploadForbidden');
       }
-      throw StateError(e.response?.data?.toString() ?? e.message ?? 'upload failed');
+      throw StateError(
+          e.response?.data?.toString() ?? e.message ?? 'upload failed');
     }
     // Refresh the library so the new item shows up.
     await fetchBooks();
@@ -418,9 +420,8 @@ class AudiobookshelfService extends GetxService {
       if (bookHits is List) {
         for (final hit in bookHits) {
           if (hit is! Map) continue;
-          final item = hit['libraryItem'] is Map
-              ? hit['libraryItem'] as Map
-              : hit;
+          final item =
+              hit['libraryItem'] is Map ? hit['libraryItem'] as Map : hit;
           final meta = (item['media'] is Map)
               ? (item['media']['metadata'] as Map? ?? {})
               : <String, dynamic>{};
@@ -500,10 +501,9 @@ class AudiobookshelfService extends GetxService {
       if (t is! Map) continue;
       final contentUrl = t['contentUrl']?.toString();
       if (contentUrl == null || contentUrl.isEmpty) continue;
-      final trackTitle = (t['title'] ??
-              t['metadata']?['filename'] ??
-              'Track ${i + 1}')
-          .toString();
+      final trackTitle =
+          (t['title'] ?? t['metadata']?['filename'] ?? 'Track ${i + 1}')
+              .toString();
       tracks.add(AbsAudioTrack(
         index: (t['index'] as num?)?.toInt() ?? i,
         title: trackTitle,
@@ -567,9 +567,20 @@ class AudiobookshelfService extends GetxService {
   /// IDs use the `abs_` prefix so [MyAudioHandler.checkNGetUrl] skips YT resolve.
   List<MediaItem> toMediaItems(AbsBookDetail book) {
     final cover = coverUrl(book.id);
+    // Audiobookshelf sessions track a position within the WHOLE book, while
+    // Riff plays one MediaItem per track. The player only ever holds a single
+    // item, so it cannot know how much book preceded it — stamp the running
+    // offset and the book total here, where the full track list is in hand.
+    // Without these, a sync would report chapter 5's two-minute mark as two
+    // minutes into the book.
+    final bookDuration =
+        book.tracks.fold<double>(0, (sum, t) => sum + t.duration);
+    var startOffset = 0.0;
     return book.tracks.map((t) {
       final id = 'abs_${book.id}_${t.index}';
       final url = streamUrl(t.contentUrl);
+      final trackStart = startOffset;
+      startOffset += t.duration;
       return MediaItem(
         id: id,
         title: t.title,
@@ -585,9 +596,16 @@ class AudiobookshelfService extends GetxService {
           'absItemId': book.id,
           'absSessionId': book.sessionId,
           'absTrackIndex': t.index,
+          // Seconds of book preceding this track, and the book's total, so a
+          // per-track position can be reported to the server as a book-level one.
+          'absStartOffset': trackStart,
+          'absBookDuration': bookDuration,
           'album': {'name': book.title, 'id': book.id},
           'artists': [
-            {'name': book.author.isEmpty ? 'Audiobook' : book.author, 'id': null}
+            {
+              'name': book.author.isEmpty ? 'Audiobook' : book.author,
+              'id': null
+            }
           ],
         },
       );

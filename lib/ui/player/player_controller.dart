@@ -29,6 +29,7 @@ import '/services/music_service.dart';
 import '/services/sponsorblock_service.dart';
 import '/services/podcast_service.dart';
 import '/services/audiobook_progress_service.dart';
+import '/services/audiobookshelf_service.dart';
 import '/services/podcast_progress_service.dart';
 import '/ui/player/riff_wave.dart';
 import '/ui/player/play_log_gate.dart';
@@ -131,6 +132,8 @@ class PlayerController extends GetxController
   // Podcast resume: persist position periodically and auto-seek to the saved
   // position when a partially-played episode starts.
   int _lastProgressSaveMs = 0;
+  // Separate, slower clock for pushing position to an Audiobookshelf server.
+  int _lastAbsSyncMs = 0;
   String? _pendingResumeId;
   int _pendingResumeMs = 0;
 
@@ -351,10 +354,38 @@ class PlayerController extends GetxController
       _lastProgressSaveMs = nowMs;
       if (isAudiobook) {
         AudiobookProgressService.save(song, position, total, nowMs: nowMs);
+        _syncAudiobookToServer(song, position, nowMs);
       } else {
         PodcastProgressService.save(song, position, total, nowMs: nowMs);
       }
     }
+  }
+
+  /// Push the book-level position back to Audiobookshelf so other clients see
+  /// it. Local resume works without this; the server was simply never told.
+  ///
+  /// Fire-and-forget on purpose: playback must never wait on someone's
+  /// self-hosted box, and [AudiobookshelfService.syncProgress] already swallows
+  /// its own failures.
+  void _syncAudiobookToServer(MediaItem song, Duration position, int nowMs) {
+    if (!AudiobookProgressService.shouldSyncServer(_lastAbsSyncMs, nowMs)) {
+      return;
+    }
+    final sessionId = AudiobookProgressService.sessionIdOf(song);
+    if (sessionId == null) return;
+    // Null means the track carries no book offset, so any position we sent
+    // would point at the wrong place in the book. Skipping beats corrupting.
+    final bookPos = AudiobookProgressService.bookPositionSec(song, position);
+    if (bookPos == null) return;
+    final bookDur = AudiobookProgressService.bookDurationSec(song);
+    if (bookDur == null) return;
+    if (!Get.isRegistered<AudiobookshelfService>()) return;
+    _lastAbsSyncMs = nowMs;
+    unawaited(Get.find<AudiobookshelfService>().syncProgress(
+      sessionId: sessionId,
+      currentTime: bookPos,
+      duration: bookDur,
+    ));
   }
 
   Future<void> _loadChaptersFor(MediaItem item) async {
@@ -548,8 +579,8 @@ class PlayerController extends GetxController
         final switchNowMs = DateTime.now().millisecondsSinceEpoch;
         if (outgoing != null &&
             AudiobookProgressService.isAudiobookItem(outgoing)) {
-          AudiobookProgressService.save(outgoing,
-              Duration(milliseconds: posMs), progressBarStatus.value.total,
+          AudiobookProgressService.save(outgoing, Duration(milliseconds: posMs),
+              progressBarStatus.value.total,
               nowMs: switchNowMs);
         } else {
           PodcastProgressService.save(outgoing, Duration(milliseconds: posMs),

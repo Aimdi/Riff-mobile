@@ -12,8 +12,8 @@ MediaItem absTrack(String bookId, int index, {Map<String, dynamic>? extras}) =>
 void main() {
   group('AudiobookProgressService.isAudiobookItem', () {
     test('recognises Audiobookshelf tracks', () {
-      expect(AudiobookProgressService.isAudiobookItem(absTrack('bk1', 3)),
-          isTrue);
+      expect(
+          AudiobookProgressService.isAudiobookItem(absTrack('bk1', 3)), isTrue);
     });
 
     // Regression: before this existed, audiobooks fell through every
@@ -96,12 +96,82 @@ void main() {
   group('save without an open box', () {
     test('is a no-op rather than throwing', () {
       expect(
-        () => AudiobookProgressService.save(
-            absTrack('bk1', 1), const Duration(minutes: 5),
-            const Duration(minutes: 40),
+        () => AudiobookProgressService.save(absTrack('bk1', 1),
+            const Duration(minutes: 5), const Duration(minutes: 40),
             nowMs: 1),
         returnsNormally,
       );
+    });
+  });
+
+  group('server sync conversion', () {
+    MediaItem trackWith(Map<String, dynamic> extras) =>
+        MediaItem(id: 'abs_bk_2', title: 'Ch 3', extras: extras);
+
+    test('a per-track position becomes a book-level one', () {
+      final t =
+          trackWith({'absStartOffset': 3600.0, 'absBookDuration': 7200.0});
+      expect(
+        AudiobookProgressService.bookPositionSec(t, const Duration(minutes: 2)),
+        3720.0,
+      );
+    });
+
+    // The whole point of the offset: without it, chapter 5's two-minute mark
+    // would be reported as two minutes into the book, rewinding the listener
+    // on every other Audiobookshelf client.
+    test('an unknown offset yields null so the sync is skipped, not guessed',
+        () {
+      final t = trackWith({'absBookDuration': 7200.0});
+      expect(
+          AudiobookProgressService.bookPositionSec(
+              t, const Duration(minutes: 2)),
+          isNull);
+      expect(AudiobookProgressService.startOffsetSec(t), isNull);
+    });
+
+    test('the first track starts at zero, which is a real offset not a miss',
+        () {
+      final t = trackWith({'absStartOffset': 0, 'absBookDuration': 100.0});
+      expect(AudiobookProgressService.startOffsetSec(t), 0.0);
+      expect(
+          AudiobookProgressService.bookPositionSec(
+              t, const Duration(seconds: 5)),
+          5.0);
+    });
+
+    test('book duration is null when absent or zero', () {
+      expect(AudiobookProgressService.bookDurationSec(trackWith({})), isNull);
+      expect(
+          AudiobookProgressService.bookDurationSec(
+              trackWith({'absBookDuration': 0})),
+          isNull);
+    });
+
+    test('session id is null when absent or empty', () {
+      expect(AudiobookProgressService.sessionIdOf(trackWith({})), isNull);
+      expect(
+          AudiobookProgressService.sessionIdOf(trackWith({'absSessionId': ''})),
+          isNull);
+      expect(
+          AudiobookProgressService.sessionIdOf(
+              trackWith({'absSessionId': 's1'})),
+          's1');
+    });
+
+    test('server sync is throttled well below the local save rate', () {
+      expect(AudiobookProgressService.serverSyncIntervalMs, greaterThan(5000),
+          reason: 'must be slower than the 5s local save');
+      expect(AudiobookProgressService.shouldSyncServer(1000, 1000 + 14999),
+          isFalse);
+      expect(AudiobookProgressService.shouldSyncServer(1000, 1000 + 15000),
+          isTrue);
+      // A never-synced player has lastSync == 0 while nowMs is epoch millis,
+      // so the very first tick syncs immediately rather than waiting 15s.
+      expect(
+          AudiobookProgressService.shouldSyncServer(
+              0, DateTime.now().millisecondsSinceEpoch),
+          isTrue);
     });
   });
 }

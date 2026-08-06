@@ -49,6 +49,45 @@ class AudiobookProgressService {
   /// not overwrite a real position with ~0.
   static bool isTooEarly(int posMs) => posMs < 15000;
 
+  /// Seconds of book preceding [track], stamped by
+  /// `AudiobookshelfService.toMediaItems`. Null when unknown, which must be
+  /// treated as "cannot report a book position" rather than as offset 0 —
+  /// guessing 0 would rewind the listener to chapter 1 on the server.
+  static double? startOffsetSec(MediaItem track) {
+    final v = track.extras?['absStartOffset'];
+    return v is num ? v.toDouble() : null;
+  }
+
+  /// Total book length in seconds, or null when unknown.
+  static double? bookDurationSec(MediaItem track) {
+    final v = track.extras?['absBookDuration'];
+    return (v is num && v > 0) ? v.toDouble() : null;
+  }
+
+  /// The Audiobookshelf session id this track belongs to, if any.
+  static String? sessionIdOf(MediaItem track) {
+    final v = track.extras?['absSessionId'];
+    return (v is String && v.isNotEmpty) ? v : null;
+  }
+
+  /// Convert a position *within a track* to a position within the whole book.
+  /// Returns null when the offset is unknown, so callers skip the sync rather
+  /// than report a wrong place.
+  static double? bookPositionSec(MediaItem track, Duration positionInTrack) {
+    final offset = startOffsetSec(track);
+    if (offset == null) return null;
+    final pos = offset + (positionInTrack.inMilliseconds / 1000.0);
+    return pos < 0 ? 0 : pos;
+  }
+
+  /// Minimum gap between server syncs. Deliberately longer than the 5s local
+  /// save: these land on someone's self-hosted box, and losing at most 15s of
+  /// position on a crash is a fair trade for not hammering it.
+  static const int serverSyncIntervalMs = 15000;
+
+  static bool shouldSyncServer(int lastSyncMs, int nowMs) =>
+      nowMs - lastSyncMs >= serverSyncIntervalMs;
+
   /// Persist the position of a playing audiobook track. Drops the record once
   /// the track is (nearly) finished and ignores the first 15s.
   static void save(MediaItem? track, Duration position, Duration? total,
