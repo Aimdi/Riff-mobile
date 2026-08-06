@@ -58,18 +58,17 @@ class _AudiobookUploadSheetState extends State<AudiobookUploadSheet> {
   }
 
   Future<void> _pickFiles() async {
+    // No `withData`: an audiobook is hundreds of megabytes and the picker
+    // would decode every selected file into the heap before the upload even
+    // starts. Paths only — dio streams the bytes off disk while sending.
     final res = await FilePicker.platform.pickFiles(
       allowMultiple: true,
       type: FileType.audio,
-      withData: true,
     );
     if (res == null) return;
     setState(() {
-      for (final f in res.files) {
-        if (f.bytes != null) {
-          _files.add(AbsUploadFile(filename: f.name, bytes: f.bytes!));
-        }
-      }
+      _files.addAll(absUploadFilesFromPicked(
+          res.files.map((f) => (name: f.name, path: f.path))));
       // Default the title to the first file's name (without extension).
       if (_title.text.trim().isEmpty && _files.isNotEmpty) {
         final n = _files.first.filename;

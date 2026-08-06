@@ -31,10 +31,64 @@ class AbsFolder {
 }
 
 /// A local file staged for upload to the server.
+///
+/// Holds the file's *path*, never its contents: audiobooks routinely run to
+/// hundreds of megabytes and a multi-part book is several of those at once, so
+/// buffering them in the Dart heap gets the app OOM-killed. Uploads stream
+/// straight off disk instead — see [buildAbsUploadFormData].
 class AbsUploadFile {
-  AbsUploadFile({required this.filename, required this.bytes});
+  AbsUploadFile({required this.filename, required this.path});
   final String filename;
-  final List<int> bytes;
+  final String path;
+}
+
+/// Turn the entries a file picker returned into upload files.
+///
+/// Entries the platform gave no path for are skipped: there is nothing to
+/// stream from, and reading them into memory is exactly what we are avoiding.
+List<AbsUploadFile> absUploadFilesFromPicked(
+    Iterable<({String name, String? path})> picked) {
+  final out = <AbsUploadFile>[];
+  for (final p in picked) {
+    final path = p.path;
+    if (path == null || path.isEmpty) continue;
+    out.add(AbsUploadFile(filename: p.name, path: path));
+  }
+  return out;
+}
+
+/// Build the multipart body ABS's `POST /api/upload` expects: the metadata
+/// fields plus one file part per entry under the `0`, `1`, … keys.
+///
+/// File parts are created with [MultipartFile.fromFile] so dio reads each file
+/// lazily off disk while sending; nothing here holds the audio in RAM.
+Future<FormData> buildAbsUploadFormData({
+  required String libraryId,
+  required String folderId,
+  required String title,
+  String? author,
+  String? series,
+  required List<AbsUploadFile> files,
+}) async {
+  final form = FormData();
+  form.fields
+    ..add(MapEntry('title', title))
+    ..add(MapEntry('library', libraryId))
+    ..add(MapEntry('folder', folderId));
+  if (author != null && author.trim().isNotEmpty) {
+    form.fields.add(MapEntry('author', author.trim()));
+  }
+  if (series != null && series.trim().isNotEmpty) {
+    form.fields.add(MapEntry('series', series.trim()));
+  }
+  for (var i = 0; i < files.length; i++) {
+    final f = files[i];
+    form.files.add(MapEntry(
+      '$i',
+      await MultipartFile.fromFile(f.path, filename: f.filename),
+    ));
+  }
+  return form;
 }
 
 /// Book row in a library listing.
@@ -309,24 +363,14 @@ class AudiobookshelfService extends GetxService {
     if (files.isEmpty) {
       throw StateError('No files to upload');
     }
-    final form = FormData();
-    form.fields
-      ..add(MapEntry('title', title))
-      ..add(MapEntry('library', libraryId))
-      ..add(MapEntry('folder', folderId));
-    if (author != null && author.trim().isNotEmpty) {
-      form.fields.add(MapEntry('author', author.trim()));
-    }
-    if (series != null && series.trim().isNotEmpty) {
-      form.fields.add(MapEntry('series', series.trim()));
-    }
-    for (var i = 0; i < files.length; i++) {
-      final f = files[i];
-      form.files.add(MapEntry(
-        '$i',
-        MultipartFile.fromBytes(f.bytes, filename: f.filename),
-      ));
-    }
+    final form = await buildAbsUploadFormData(
+      libraryId: libraryId,
+      folderId: folderId,
+      title: title,
+      author: author,
+      series: series,
+      files: files,
+    );
     try {
       await _dio.post(
         '${host.value}/api/upload',
