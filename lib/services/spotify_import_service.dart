@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import '../models/media_Item_builder.dart';
 import '../utils/helper.dart';
 import 'music_service.dart';
+import 'spotify_match.dart';
 
 /// One track as listed on a public Spotify playlist / album page.
 class SpotifyTrackRef {
@@ -192,24 +193,40 @@ class SpotifyImportService extends GetxService {
           filter: 'songs',
           limit: 5,
         );
-        MediaItem? best;
+        // Collect every candidate rather than taking the first hit: YouTube
+        // routinely ranks a remix, live cut, sped-up upload or karaoke version
+        // above the actual recording, and the old code accepted whichever came
+        // back first.
+        final candidates = <MediaItem>[];
         for (final entry in res.entries) {
           if (entry.key == 'params' || entry.key == 'searchEndpoint') continue;
           final list = entry.value;
           if (list is! List) continue;
           for (final item in list) {
             if (item is MediaItem) {
-              best = item;
-              break;
-            }
-            if (item is Map && item['videoId'] != null) {
-              best = MediaItemBuilder.fromJson(item);
-              break;
+              candidates.add(item);
+            } else if (item is Map && item['videoId'] != null) {
+              candidates.add(MediaItemBuilder.fromJson(item));
             }
           }
-          if (best != null) break;
         }
-        results[index] = best;
+
+        final scored = bestMatch<MediaItem>(
+          candidates,
+          score: (c) => matchScore(
+            spotifyTitle: t.title,
+            spotifyArtists: t.artists,
+            spotifyDurationMs: t.durationMs,
+            candidateTitle: c.title,
+            candidateArtist: c.artist,
+            candidateDuration: c.duration,
+          ),
+        );
+        if (scored == null && candidates.isNotEmpty) {
+          printINFO(
+              'Spotify import: no confident match for "${t.searchQuery}", skipped');
+        }
+        results[index] = scored?.item;
       } catch (e) {
         printERROR('YTM resolve failed for "${t.searchQuery}": $e');
       } finally {
