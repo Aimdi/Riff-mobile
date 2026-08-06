@@ -9,6 +9,10 @@ class PluginIds {
   static const torrentSearch = 'torrents_digger';
   static const soulSync = 'soul_sync';
   static const seeker = 'seeker';
+
+  /// Spotify library bridge: sign in with Spotify, play the matched
+  /// recordings from Riff's existing free sources.
+  static const spotify = 'spotify_bridge';
 }
 
 /// Tracks which optional plugins the user has installed/enabled.

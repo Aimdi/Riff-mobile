@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 
 import '../models/media_Item_builder.dart';
 import '../utils/helper.dart';
+import 'deezer_metadata_service.dart';
 import 'music_service.dart';
 import 'spotify_match.dart';
 
@@ -25,8 +26,10 @@ class SpotifyTrackRef {
 
   String get searchQuery {
     // Spotify subtitles use non-breaking spaces between artists.
-    final cleanedArtists =
-        artists.replaceAll('\u00a0', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+    final cleanedArtists = artists
+        .replaceAll('\u00a0', ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
     return '$title $cleanedArtists'.trim();
   }
 }
@@ -64,6 +67,13 @@ class SpotifyImportService extends GetxService {
     },
     responseType: ResponseType.plain,
   ));
+
+  /// Metadata-only enrichment used to recover durations the Spotify embed
+  /// omits. Optional so tests and offline use can disable it outright.
+  DeezerMetadataService? _deezer = DeezerMetadataService();
+
+  /// Disable (or inject) the Deezer enrichment step.
+  set deezer(DeezerMetadataService? service) => _deezer = service;
 
   /// Parse playlist / album id from a Spotify share URL or URI.
   /// Returns `(type, id)` e.g. `('playlist', '37i9d...')`.
@@ -111,19 +121,19 @@ class SpotifyImportService extends GetxService {
       throw StateError('Could not read Spotify embed data');
     }
 
-    final entity = nextData['props']?['pageProps']?['state']?['data']
-        ?['entity'] as Map?;
+    final entity =
+        nextData['props']?['pageProps']?['state']?['data']?['entity'] as Map?;
     if (entity == null) {
       throw StateError('Spotify collection not found or private');
     }
 
-    final name = (entity['name'] ?? entity['title'] ?? 'Spotify import')
-        .toString();
+    final name =
+        (entity['name'] ?? entity['title'] ?? 'Spotify import').toString();
     String? coverUrl;
     final sources = entity['coverArt']?['sources'];
     if (sources is List && sources.isNotEmpty) {
-      coverUrl = sources.last['url']?.toString() ??
-          sources.first['url']?.toString();
+      coverUrl =
+          sources.last['url']?.toString() ?? sources.first['url']?.toString();
     }
 
     final trackList = entity['trackList'] as List? ?? const [];
@@ -138,7 +148,8 @@ class SpotifyImportService extends GetxService {
         id: trackId,
         title: title,
         artists: (t['subtitle'] ?? '').toString(),
-        durationMs: t['duration'] is num ? (t['duration'] as num).toInt() : null,
+        durationMs:
+            t['duration'] is num ? (t['duration'] as num).toInt() : null,
       ));
     }
 
@@ -188,6 +199,18 @@ class SpotifyImportService extends GetxService {
     Future<void> resolveOne(int index) async {
       final t = tracks[index];
       try {
+        // The Spotify embed page often omits duration, and duration is the
+        // strongest signal for separating a studio take from a remix, live cut
+        // or sped-up upload. Deezer's public API needs no auth and returns the
+        // canonical length, so fill the gap before scoring. Metadata only —
+        // no audio is fetched from Deezer. Skipped entirely when Spotify
+        // already gave us a duration, so the common path costs nothing.
+        var spotifyDurationMs = t.durationMs;
+        if (spotifyDurationMs == null && _deezer != null) {
+          final meta = await _deezer!.lookup(t.title, t.artists);
+          spotifyDurationMs = meta?.durationMs;
+        }
+
         final res = await music.search(
           t.searchQuery,
           filter: 'songs',
@@ -216,7 +239,7 @@ class SpotifyImportService extends GetxService {
           score: (c) => matchScore(
             spotifyTitle: t.title,
             spotifyArtists: t.artists,
-            spotifyDurationMs: t.durationMs,
+            spotifyDurationMs: spotifyDurationMs,
             candidateTitle: c.title,
             candidateArtist: c.artist,
             candidateDuration: c.duration,
