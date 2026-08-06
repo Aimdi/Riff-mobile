@@ -15,6 +15,7 @@ import 'screens/Stats/stats_screen.dart';
 import 'screens/Stats/rewind_screen.dart';
 import 'screens/Podcasts/podcasts_screen.dart';
 import 'screens/Plugins/plugins_screen.dart';
+import '/ui/screens/Plugins/spotify_bridge_screen.dart';
 import 'screens/Plugins/torrent_search_screen.dart';
 import 'screens/Plugins/soul_sync_screen.dart';
 import 'screens/Plugins/seeker_screen.dart';
@@ -36,6 +37,7 @@ class ScreenNavigationSetup {
   static const torrentSearchScreen = '/torrentSearchScreen';
   static const soulSyncScreen = '/soulSyncScreen';
   static const seekerScreen = '/seekerScreen';
+  static const spotifyBridgeScreen = '/spotifyBridgeScreen';
   static const exploreScreen = '/exploreScreen';
 }
 
@@ -50,11 +52,10 @@ class ScreenNavigation extends StatelessWidget {
         onGenerateRoute: (settings) {
           Get.routing.args = settings.arguments;
           switch (settings.name) {
-
             case ScreenNavigationSetup.homeScreen:
               return GetPageRoute(
                   page: () => const HomeScreen(), settings: settings);
-            
+
             case ScreenNavigationSetup.albumScreen:
               final id = (settings.arguments as (Album?, String)).$2;
               return GetPageRoute(
@@ -62,15 +63,15 @@ class ScreenNavigation extends StatelessWidget {
                         key: Key(id),
                       ),
                   settings: settings);
-            
+
             case ScreenNavigationSetup.playlistScreen:
-             final id = (settings.arguments as List)[1] as String;
+              final id = (settings.arguments as List)[1] as String;
               return GetPageRoute(
                   page: () => PlaylistScreen(
                         key: Key(id),
                       ),
                   settings: settings);
-            
+
             case ScreenNavigationSetup.statsScreen:
               return GetPageRoute(
                   page: () => const StatsScreen(), settings: settings);
@@ -100,6 +101,10 @@ class ScreenNavigation extends StatelessWidget {
                       ),
                   settings: settings);
 
+            case ScreenNavigationSetup.spotifyBridgeScreen:
+              return GetPageRoute(
+                  page: () => const SpotifyBridgeScreen(), settings: settings);
+
             case ScreenNavigationSetup.soulSyncScreen:
               return GetPageRoute(
                   page: () => const SoulSyncScreen(), settings: settings);
@@ -128,11 +133,11 @@ class ScreenNavigation extends StatelessWidget {
             case ScreenNavigationSetup.searchScreen:
               return GetPageRoute(
                   page: () => const SearchScreen(), settings: settings);
-            
+
             case ScreenNavigationSetup.searchResultScreen:
               return GetPageRoute(
                   page: () => const SearchResultScreen(), settings: settings);
-            
+
             case ScreenNavigationSetup.artistScreen:
               final args = settings.arguments as List;
               final id = args[0] ? args[1] : (args[1] as Artist).browseId;
@@ -141,7 +146,7 @@ class ScreenNavigation extends StatelessWidget {
                         key: Key(id),
                       ),
                   settings: settings);
-            
+
             default:
               return null;
           }

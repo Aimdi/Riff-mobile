@@ -28,6 +28,12 @@ class PluginsScreen extends StatelessWidget {
       sourceUrl: 'https://github.com/Nezreka/SoulSync',
     ),
     _PluginOffer(
+      id: PluginIds.spotify,
+      nameKey: 'spotifyBridge',
+      desKey: 'spotifyBridgePluginDes',
+      sourceUrl: 'https://developer.spotify.com/documentation/web-api',
+    ),
+    _PluginOffer(
       id: PluginIds.seeker,
       nameKey: 'soulseek',
       desKey: 'soulseekPluginDes',
@@ -189,6 +195,11 @@ class _PluginOfferTile extends StatelessWidget {
     } else if (offer.id == PluginIds.soulSync) {
       Get.toNamed(
         ScreenNavigationSetup.soulSyncScreen,
+        id: ScreenNavigationSetup.id,
+      );
+    } else if (offer.id == PluginIds.spotify) {
+      Get.toNamed(
+        ScreenNavigationSetup.spotifyBridgeScreen,
         id: ScreenNavigationSetup.id,
       );
     } else if (offer.id == PluginIds.seeker) {
