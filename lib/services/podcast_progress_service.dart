@@ -14,6 +14,26 @@ class PodcastProgressService {
   static bool isPodcastItem(MediaItem item) =>
       item.id.startsWith('podcast_') || item.extras?['isPodcast'] == true;
 
+  /// True for a URL that is only meaningful on this device — a downloaded copy
+  /// substituted at playback time.
+  static bool isLocalUrl(String? url) =>
+      url != null && (url.startsWith('file://') || url.startsWith('/'));
+
+  /// The URL worth persisting for an episode. Playing a downloaded episode
+  /// rewrites `extras['url']` to a `file://` path, which becomes a dead link as
+  /// soon as the download is removed (or after a data restore), so prefer the
+  /// stashed remote enclosure URL and never persist a local path — falling back
+  /// to whatever was stored for that episode before.
+  static String? storableUrl(
+      {String? remoteUrl, String? currentUrl, String? previousUrl}) {
+    for (final candidate in [remoteUrl, currentUrl, previousUrl]) {
+      if (candidate != null && candidate.isNotEmpty && !isLocalUrl(candidate)) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
   /// Persist the current position of a playing podcast episode. Clears the
   /// record once the episode is (nearly) finished; ignores the first 15s.
   static void save(MediaItem? episode, Duration position, Duration? total,
@@ -31,12 +51,17 @@ class PodcastProgressService {
       return;
     }
     if (posMs < 15000) return; // barely started
+    final previous = _box.get(episode.id);
     _box.put(episode.id, {
       'id': episode.id,
       'title': episode.title,
       'artist': episode.artist,
       'artUri': episode.artUri?.toString(),
-      'url': episode.extras?['url'],
+      'url': storableUrl(
+        remoteUrl: episode.extras?['remoteUrl']?.toString(),
+        currentUrl: episode.extras?['url']?.toString(),
+        previousUrl: previous is Map ? previous['url']?.toString() : null,
+      ),
       'description': episode.extras?['description'],
       'chaptersUrl': episode.extras?['chaptersUrl'],
       'transcriptUrl': episode.extras?['transcriptUrl'],
@@ -90,7 +115,10 @@ class PodcastProgressService {
             : null,
         artUri: r['artUri'] != null ? Uri.tryParse('${r['artUri']}') : null,
         extras: {
-          'url': r['url'],
+          'url': storableUrl(
+            remoteUrl: r['remoteUrl']?.toString(),
+            currentUrl: r['url']?.toString(),
+          ),
           'isPodcast': true,
           if (r['description'] != null) 'description': r['description'],
           if (r['chaptersUrl'] != null) 'chaptersUrl': r['chaptersUrl'],

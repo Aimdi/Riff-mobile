@@ -992,6 +992,14 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       if (songId.startsWith("podcast_") && Hive.isBoxOpen("PodcastDownloads")) {
         final local = Hive.box("PodcastDownloads").get(songId);
         if (local is String && local.isNotEmpty && File(local).existsSync()) {
+          // Keep the remote enclosure URL around: extras['url'] is overwritten
+          // with the resolved (local) URL once playback starts, and the saved
+          // progress record is built from these extras. Without this the
+          // "Continue" entry would point at a file that disappears with the
+          // download.
+          if (url != null && url.isNotEmpty) {
+            item?.extras?['remoteUrl'] ??= url;
+          }
           url = "file://$local";
         }
       }
