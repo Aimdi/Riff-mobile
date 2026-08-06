@@ -59,6 +59,20 @@ class MediaItemBuilder {
           if (json['showVideo'] != null) 'showVideo': json['showVideo'],
           if (json['podcastSource'] != null)
             'podcastSource': json['podcastSource'],
+          // Audiobookshelf bookkeeping. Session save/restore round-trips every
+          // queue item through this builder, and dropping these keys leaves a
+          // restored audiobook playable but permanently unable to report its
+          // position to the server (see AudiobookProgressService).
+          if (json['streamSource'] != null) 'streamSource': json['streamSource'],
+          if (json['absItemId'] != null) 'absItemId': json['absItemId'],
+          if (json['absSessionId'] != null)
+            'absSessionId': json['absSessionId'],
+          if (json['absTrackIndex'] != null)
+            'absTrackIndex': json['absTrackIndex'],
+          if (json['absStartOffset'] != null)
+            'absStartOffset': json['absStartOffset'],
+          if (json['absBookDuration'] != null)
+            'absBookDuration': json['absBookDuration'],
         });
   }
 
@@ -128,5 +142,19 @@ class MediaItemBuilder {
         'description': mediaItem.extras?['description'],
         'showVideo': mediaItem.extras?['showVideo'],
         'podcastSource': mediaItem.extras?['podcastSource'],
+        // Keep the Audiobookshelf keys through the round-trip; only emitted
+        // when present so ordinary songs serialize exactly as before.
+        if (mediaItem.extras?['streamSource'] != null)
+          'streamSource': mediaItem.extras?['streamSource'],
+        if (mediaItem.extras?['absItemId'] != null)
+          'absItemId': mediaItem.extras?['absItemId'],
+        if (mediaItem.extras?['absSessionId'] != null)
+          'absSessionId': mediaItem.extras?['absSessionId'],
+        if (mediaItem.extras?['absTrackIndex'] != null)
+          'absTrackIndex': mediaItem.extras?['absTrackIndex'],
+        if (mediaItem.extras?['absStartOffset'] != null)
+          'absStartOffset': mediaItem.extras?['absStartOffset'],
+        if (mediaItem.extras?['absBookDuration'] != null)
+          'absBookDuration': mediaItem.extras?['absBookDuration'],
       };
 }
