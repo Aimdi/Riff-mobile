@@ -1,3 +1,30 @@
+# 1.7.99
+
+**Audiobooks**
+* Audiobookshelf bookkeeping now survives an app restart — after a session
+  restore a book could still play, but could no longer refresh an expired
+  stream URL or report its position anywhere
+* Opening a book resumes where you left off, preferring the position stored on
+  this device over the server's, which lags behind
+* Uploading a book streams from disk instead of reading whole files into
+  memory, so large multi-part books no longer risk being killed mid-upload
+* The catalog and upload screens show real text instead of raw key names
+
+**Podcasts**
+* Switching away from an episode no longer measures it against the *next*
+  item's length — a long episode followed by a short track was treated as
+  finished and vanished from Continue Listening
+* Saved progress no longer points at a download you have since deleted
+* HTML entities in shownotes and transcripts are decoded
+
+**Spotify**
+* New opt-in Spotify bridge plugin: sign in with your own Spotify app and
+  import your playlists, played from Riff's existing free sources
+* Imported playlists pick the right recording instead of the first search hit,
+  so remixes, live cuts and sped-up uploads stop slipping in
+* Track lengths are filled in from Deezer's public metadata when Spotify omits
+  them, which is what makes that matching work
+
 # 1.7.98
 
 **Release**
