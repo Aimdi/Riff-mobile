@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/services/audiobook_progress_service.dart';
 import '/services/audiobookshelf_service.dart';
 import '/ui/player/player_controller.dart';
 
@@ -30,8 +31,7 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
       _error = null;
     });
     try {
-      final d =
-          await Get.find<AudiobookshelfService>().openBook(widget.bookId);
+      final d = await Get.find<AudiobookshelfService>().openBook(widget.bookId);
       if (mounted) {
         setState(() {
           _detail = d;
@@ -48,13 +48,49 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
     }
   }
 
-  Future<void> _play({int index = 0}) async {
+  /// Play the book. With no explicit [index], resume where the listener left
+  /// off instead of restarting at chapter 1 — for an hours-long book that was
+  /// the difference between picking up and starting over.
+  ///
+  /// A locally stored position wins over the server's: it is the more recent
+  /// truth on this device, and the server value can lag by up to the sync
+  /// interval. The server value still covers the case where the book was
+  /// listened to on another Audiobookshelf client.
+  Future<void> _play({int? index}) async {
     final detail = _detail;
     if (detail == null || detail.tracks.isEmpty) return;
     final abs = Get.find<AudiobookshelfService>();
     final items = abs.toMediaItems(detail);
     final player = Get.find<PlayerController>();
-    final start = index.clamp(0, items.length - 1);
+
+    if (index != null) {
+      await player.playPlayListSong(items, index.clamp(0, items.length - 1));
+      return;
+    }
+
+    var start = 0;
+    var resumeMs = 0;
+    final local = AudiobookProgressService.lastTrackForBook(detail.id);
+    if (local != null) {
+      final id = local['id']?.toString();
+      final at = items.indexWhere((m) => m.id == id);
+      if (at >= 0) {
+        start = at;
+        final pos = local['positionMs'];
+        if (pos is int) resumeMs = pos;
+      }
+    } else if (detail.currentTime > 0) {
+      final resolved = AudiobookProgressService.resolveTrackForBookPosition(
+        detail.tracks.map((t) => t.duration).toList(),
+        detail.currentTime,
+      );
+      start = resolved.index.clamp(0, items.length - 1);
+      resumeMs = (resolved.offsetSec * 1000).round();
+    }
+
+    // Arm before starting: seeking after playback begins races the source
+    // loading, whereas this is the same path the periodic saves already use.
+    if (resumeMs > 0) player.armResume(items[start].id, resumeMs);
     await player.playPlayListSong(items, start);
   }
 
@@ -131,8 +167,11 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                     ),
                   ],
                   const SizedBox(height: 10),
+                  // No index: resume where the listener left off. The chapter
+                  // rows below still pass an explicit index, because there the
+                  // user picked the chapter deliberately.
                   ElevatedButton.icon(
-                    onPressed: d.tracks.isEmpty ? null : () => _play(index: 0),
+                    onPressed: d.tracks.isEmpty ? null : () => _play(),
                     icon: const Icon(Icons.play_arrow),
                     label: Text('play'.tr),
                   ),

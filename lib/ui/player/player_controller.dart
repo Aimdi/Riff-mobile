@@ -137,6 +137,17 @@ class PlayerController extends GetxController
   String? _pendingResumeId;
   int _pendingResumeMs = 0;
 
+  /// Arm the one-shot auto-resume for [id] at [positionMs].
+  ///
+  /// Reuses the same path the periodic saves already feed, so a caller that
+  /// knows where a track should start does not have to seek after playback
+  /// begins — which races the source actually loading.
+  void armResume(String id, int positionMs) {
+    if (positionMs <= 0) return;
+    _pendingResumeId = id;
+    _pendingResumeMs = positionMs;
+  }
+
   late StreamSubscription<bool> keyboardSubscription;
 
   @override
@@ -580,12 +591,12 @@ class PlayerController extends GetxController
         final switchNowMs = DateTime.now().millisecondsSinceEpoch;
         if (outgoing != null &&
             AudiobookProgressService.isAudiobookItem(outgoing)) {
-          AudiobookProgressService.save(outgoing, Duration(milliseconds: posMs),
-              outgoingProgress.total,
+          AudiobookProgressService.save(
+              outgoing, Duration(milliseconds: posMs), outgoingProgress.total,
               nowMs: switchNowMs);
         } else {
-          PodcastProgressService.save(outgoing, Duration(milliseconds: posMs),
-              outgoingProgress.total,
+          PodcastProgressService.save(
+              outgoing, Duration(milliseconds: posMs), outgoingProgress.total,
               nowMs: switchNowMs);
         }
         currentSong.value = mediaItem;

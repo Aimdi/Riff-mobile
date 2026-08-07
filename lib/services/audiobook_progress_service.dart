@@ -80,6 +80,35 @@ class AudiobookProgressService {
     return pos < 0 ? 0 : pos;
   }
 
+  /// Which track a whole-book position falls in, and how far into it.
+  ///
+  /// The inverse of the `absStartOffset` stamping in
+  /// `AudiobookshelfService.toMediaItems`: Audiobookshelf reports one position
+  /// for the entire book, but Riff plays a queue of per-track items, so opening
+  /// a book needs that position mapped back to a track.
+  ///
+  /// Returns index 0 / offset 0 when there is nothing to resume, so callers can
+  /// use the result unconditionally. Positions past the end of the book clamp
+  /// to the last track rather than running off the list.
+  static ({int index, double offsetSec}) resolveTrackForBookPosition(
+      List<double> trackDurations, double bookPositionSec) {
+    if (trackDurations.isEmpty || bookPositionSec <= 0) {
+      return (index: 0, offsetSec: 0);
+    }
+    var remaining = bookPositionSec;
+    for (var i = 0; i < trackDurations.length; i++) {
+      final d = trackDurations[i];
+      // A zero/unknown-length track cannot contain the position; step over it
+      // rather than dividing the book at a point that does not exist.
+      if (d <= 0) continue;
+      if (remaining < d) return (index: i, offsetSec: remaining);
+      remaining -= d;
+    }
+    final lastPlayable = trackDurations.lastIndexWhere((d) => d > 0);
+    final idx = lastPlayable < 0 ? trackDurations.length - 1 : lastPlayable;
+    return (index: idx, offsetSec: 0);
+  }
+
   /// Minimum gap between server syncs. Deliberately longer than the 5s local
   /// save: these land on someone's self-hosted box, and losing at most 15s of
   /// position on a crash is a fair trade for not hammering it.

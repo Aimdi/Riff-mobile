@@ -174,4 +174,71 @@ void main() {
           isTrue);
     });
   });
+
+  group('resolveTrackForBookPosition', () {
+    // Inverse of the absStartOffset stamping: ABS reports one position for the
+    // whole book, Riff plays per-track items.
+    const tracks = <double>[600, 600, 600]; // three 10-minute chapters
+
+    test('maps a mid-book position to the right track and offset', () {
+      final r =
+          AudiobookProgressService.resolveTrackForBookPosition(tracks, 1500);
+      expect(r.index, 2);
+      expect(r.offsetSec, 300);
+    });
+
+    test('a position inside the first track stays on it', () {
+      final r =
+          AudiobookProgressService.resolveTrackForBookPosition(tracks, 90);
+      expect(r.index, 0);
+      expect(r.offsetSec, 90);
+    });
+
+    test('an exact boundary lands at the start of the next track', () {
+      final r =
+          AudiobookProgressService.resolveTrackForBookPosition(tracks, 600);
+      expect(r.index, 1);
+      expect(r.offsetSec, 0);
+    });
+
+    // The whole point of the change: never silently restart at chapter 1.
+    test('nothing to resume yields the first track', () {
+      expect(
+          AudiobookProgressService.resolveTrackForBookPosition(tracks, 0).index,
+          0);
+      expect(
+          AudiobookProgressService.resolveTrackForBookPosition(tracks, -5)
+              .index,
+          0);
+      expect(
+          AudiobookProgressService.resolveTrackForBookPosition(const [], 100)
+              .index,
+          0);
+    });
+
+    test('a position past the end clamps to the last track, not off the list',
+        () {
+      final r =
+          AudiobookProgressService.resolveTrackForBookPosition(tracks, 99999);
+      expect(r.index, 2);
+      expect(r.offsetSec, 0);
+    });
+
+    // A zero-length track cannot contain the position; stepping over it keeps
+    // the running total honest instead of dividing the book at a point that
+    // does not exist.
+    test('zero-length tracks are skipped rather than matched', () {
+      final r = AudiobookProgressService.resolveTrackForBookPosition(
+          const [600, 0, 600], 700);
+      expect(r.index, 2);
+      expect(r.offsetSec, 100);
+    });
+
+    test('all-unknown durations still return a usable first track', () {
+      final r = AudiobookProgressService.resolveTrackForBookPosition(
+          const [0, 0], 500);
+      expect(r.index, greaterThanOrEqualTo(0));
+      expect(r.index, lessThan(2));
+    });
+  });
 }
