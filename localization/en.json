@@ -549,5 +549,6 @@
     "uploading": "Uploading",
     "uploadComplete": "Upload complete",
     "uploadFailed": "Upload failed",
-    "absUploadForbidden": "This account isn't allowed to upload to the server"
+    "absUploadForbidden": "This account isn't allowed to upload to the server",
+    "continueListening": "Continue listening"
 }

@@ -21,8 +21,7 @@ MediaItem absTrack() => MediaItem(
         'absItemId': 'bk42',
         'absSessionId': 'sess-abc',
         'absTrackIndex': 2,
-        'absStartOffset': 3600.0,
-        'absBookDuration': 21600.0,
+        'absStartOffsetSec': 3600.0,
         'album': {'name': 'The Book', 'id': 'bk42'},
         'artists': [
           {'name': 'An Author', 'id': null}
@@ -45,15 +44,18 @@ void main() {
     test('keeps the keys the server sync depends on', () {
       final restored = roundTrip(absTrack());
 
-      expect(AudiobookProgressService.sessionIdOf(restored), 'sess-abc');
-      expect(AudiobookProgressService.bookDurationSec(restored), 21600.0);
-      expect(AudiobookProgressService.startOffsetSec(restored), 3600.0);
-      // Two minutes into chapter 3 is one hour two minutes into the book.
-      expect(
-        AudiobookProgressService.bookPositionSec(
-            restored, const Duration(minutes: 2)),
-        3720.0,
-      );
+      // These are the keys the merged playback path actually reads:
+      // audio_handler refreshes an expired ABS stream URL from absItemId +
+      // absTrackIndex and re-stamps absSessionId, and the resume path reads
+      // absStartOffsetSec. Dropping any of them leaves a restored audiobook
+      // playable but unable to refresh its URL or report its position — which
+      // is why the failure was invisible: `url` always survived.
+      expect(restored.extras!['absItemId'], 'bk42');
+      expect(restored.extras!['absSessionId'], 'sess-abc');
+      expect(restored.extras!['absTrackIndex'], 2);
+      expect(restored.extras!['absStartOffsetSec'], 3600.0);
+      expect(restored.extras!['streamSource'], 'audiobookshelf');
+      expect(AudiobookProgressService.isAudiobookItem(restored), isTrue);
     });
 
     test('keeps the ids used for local progress records', () {
@@ -74,20 +76,17 @@ void main() {
       final json = jsonDecode(jsonEncode(MediaItemBuilder.toJson(absTrack())));
       final restored = MediaItemBuilder.fromJson(json);
 
-      expect(AudiobookProgressService.sessionIdOf(restored), 'sess-abc');
-      expect(AudiobookProgressService.bookDurationSec(restored), 21600.0);
-      expect(
-        AudiobookProgressService.bookPositionSec(restored, Duration.zero),
-        3600.0,
-      );
+      expect(restored.extras!['absSessionId'], 'sess-abc');
+      expect(restored.extras!['absItemId'], 'bk42');
+      expect(restored.extras!['absStartOffsetSec'], 3600.0);
     });
 
     test('a second round-trip is still stable', () {
       final twice = roundTrip(roundTrip(absTrack()));
 
-      expect(AudiobookProgressService.sessionIdOf(twice), 'sess-abc');
-      expect(AudiobookProgressService.startOffsetSec(twice), 3600.0);
-      expect(AudiobookProgressService.bookDurationSec(twice), 21600.0);
+      expect(twice.extras!['absSessionId'], 'sess-abc');
+      expect(twice.extras!['absStartOffsetSec'], 3600.0);
+      expect(twice.extras!['absTrackIndex'], 2);
     });
 
     // The new keys are conditional, so ordinary songs must serialize exactly
@@ -119,8 +118,7 @@ void main() {
         'absItemId',
         'absSessionId',
         'absTrackIndex',
-        'absStartOffset',
-        'absBookDuration'
+        'absStartOffsetSec'
       ]) {
         expect(json.containsKey(k), isFalse, reason: '$k must not be emitted');
       }

@@ -6,6 +6,10 @@ import 'package:get/get.dart' hide FormData, MultipartFile;
 import 'package:hive/hive.dart';
 
 import '../utils/helper.dart';
+import '../utils/secure_credentials.dart';
+import 'abs_progress.dart';
+
+export 'abs_progress.dart' show mapAbsCurrentTimeToTrack, parseAbsProgress;
 
 /// Minimal library entry from Audiobookshelf (Lissen-style).
 class AbsLibrary {
@@ -30,65 +34,14 @@ class AbsFolder {
   final String fullPath;
 }
 
-/// A local file staged for upload to the server.
-///
-/// Holds the file's *path*, never its contents: audiobooks routinely run to
-/// hundreds of megabytes and a multi-part book is several of those at once, so
-/// buffering them in the Dart heap gets the app OOM-killed. Uploads stream
-/// straight off disk instead — see [buildAbsUploadFormData].
+/// A local file staged for upload to the server. Prefer [path] (streamed from
+/// disk) over [bytes] to avoid OOM on large audiobooks.
 class AbsUploadFile {
-  AbsUploadFile({required this.filename, required this.path});
+  AbsUploadFile({required this.filename, this.bytes, this.path})
+      : assert(bytes != null || path != null);
   final String filename;
-  final String path;
-}
-
-/// Turn the entries a file picker returned into upload files.
-///
-/// Entries the platform gave no path for are skipped: there is nothing to
-/// stream from, and reading them into memory is exactly what we are avoiding.
-List<AbsUploadFile> absUploadFilesFromPicked(
-    Iterable<({String name, String? path})> picked) {
-  final out = <AbsUploadFile>[];
-  for (final p in picked) {
-    final path = p.path;
-    if (path == null || path.isEmpty) continue;
-    out.add(AbsUploadFile(filename: p.name, path: path));
-  }
-  return out;
-}
-
-/// Build the multipart body ABS's `POST /api/upload` expects: the metadata
-/// fields plus one file part per entry under the `0`, `1`, … keys.
-///
-/// File parts are created with [MultipartFile.fromFile] so dio reads each file
-/// lazily off disk while sending; nothing here holds the audio in RAM.
-Future<FormData> buildAbsUploadFormData({
-  required String libraryId,
-  required String folderId,
-  required String title,
-  String? author,
-  String? series,
-  required List<AbsUploadFile> files,
-}) async {
-  final form = FormData();
-  form.fields
-    ..add(MapEntry('title', title))
-    ..add(MapEntry('library', libraryId))
-    ..add(MapEntry('folder', folderId));
-  if (author != null && author.trim().isNotEmpty) {
-    form.fields.add(MapEntry('author', author.trim()));
-  }
-  if (series != null && series.trim().isNotEmpty) {
-    form.fields.add(MapEntry('series', series.trim()));
-  }
-  for (var i = 0; i < files.length; i++) {
-    final f = files[i];
-    form.files.add(MapEntry(
-      '$i',
-      await MultipartFile.fromFile(f.path, filename: f.filename),
-    ));
-  }
-  return form;
+  final List<int>? bytes;
+  final String? path;
 }
 
 /// Book row in a library listing.
@@ -173,6 +126,7 @@ class AudiobookshelfService extends GetxService {
   final libraries = <AbsLibrary>[].obs;
   final selectedLibraryId = ''.obs;
   final books = <AbsBook>[].obs;
+  final inProgressBooks = <AbsBook>[].obs;
   final isLoading = false.obs;
   final statusMessage = ''.obs;
 
@@ -194,7 +148,8 @@ class AudiobookshelfService extends GetxService {
     if (cfg is! Map) return;
     host.value = (cfg['host'] ?? '').toString();
     username.value = (cfg['username'] ?? '').toString();
-    _token = cfg['token']?.toString();
+    _token = SecureCredentials.nested('audiobookshelf', 'token') ??
+        cfg['token']?.toString();
     _userId = cfg['userId']?.toString();
     selectedLibraryId.value = (cfg['libraryId'] ?? '').toString();
     if (_token != null && _token!.isNotEmpty && host.value.isNotEmpty) {
@@ -205,6 +160,8 @@ class AudiobookshelfService extends GetxService {
           await fetchLibraries();
           if (selectedLibraryId.value.isNotEmpty) {
             await fetchBooks();
+          } else {
+            await fetchInProgress();
           }
         } catch (e) {
           printERROR('ABS restore failed: $e');
@@ -214,10 +171,11 @@ class AudiobookshelfService extends GetxService {
   }
 
   void _persist() {
+    // Token lives in secure storage; Hive keeps non-secret connection meta.
+    SecureCredentials.setNested('audiobookshelf', 'token', _token);
     _prefs.put('audiobookshelf', {
       'host': host.value,
       'username': username.value,
-      'token': _token,
       'userId': _userId,
       'libraryId': selectedLibraryId.value,
     });
@@ -268,12 +226,12 @@ class AudiobookshelfService extends GetxService {
       await fetchLibraries();
       if (libraries.isNotEmpty) {
         // Prefer book libraries
-        final bookLib =
-            libraries.firstWhereOrNull((l) => l.mediaType == 'book');
+        final bookLib = libraries.firstWhereOrNull((l) => l.mediaType == 'book');
         selectedLibraryId.value = (bookLib ?? libraries.first).id;
         _persist();
         await fetchBooks();
       }
+      await fetchInProgress();
       statusMessage.value = '';
     } on DioException catch (e) {
       isConnected.value = false;
@@ -296,10 +254,12 @@ class AudiobookshelfService extends GetxService {
     isConnected.value = false;
     libraries.clear();
     books.clear();
+    inProgressBooks.clear();
     selectedLibraryId.value = '';
     host.value = '';
     username.value = '';
     _prefs.delete('audiobookshelf');
+    await SecureCredentials.setNested('audiobookshelf', 'token', null);
   }
 
   Future<void> fetchLibraries() async {
@@ -363,14 +323,24 @@ class AudiobookshelfService extends GetxService {
     if (files.isEmpty) {
       throw StateError('No files to upload');
     }
-    final form = await buildAbsUploadFormData(
-      libraryId: libraryId,
-      folderId: folderId,
-      title: title,
-      author: author,
-      series: series,
-      files: files,
-    );
+    final form = FormData();
+    form.fields
+      ..add(MapEntry('title', title))
+      ..add(MapEntry('library', libraryId))
+      ..add(MapEntry('folder', folderId));
+    if (author != null && author.trim().isNotEmpty) {
+      form.fields.add(MapEntry('author', author.trim()));
+    }
+    if (series != null && series.trim().isNotEmpty) {
+      form.fields.add(MapEntry('series', series.trim()));
+    }
+    for (var i = 0; i < files.length; i++) {
+      final f = files[i];
+      final part = (f.path != null && f.path!.isNotEmpty)
+          ? await MultipartFile.fromFile(f.path!, filename: f.filename)
+          : MultipartFile.fromBytes(f.bytes ?? const [], filename: f.filename);
+      form.files.add(MapEntry('$i', part));
+    }
     try {
       await _dio.post(
         '${host.value}/api/upload',
@@ -395,8 +365,7 @@ class AudiobookshelfService extends GetxService {
       if (code == 403) {
         throw StateError('absUploadForbidden');
       }
-      throw StateError(
-          e.response?.data?.toString() ?? e.message ?? 'upload failed');
+      throw StateError(e.response?.data?.toString() ?? e.message ?? 'upload failed');
     }
     // Refresh the library so the new item shows up.
     await fetchBooks();
@@ -424,14 +393,18 @@ class AudiobookshelfService extends GetxService {
       if (results is List) {
         for (final r in results) {
           if (r is! Map) continue;
-          final meta = (r['media'] is Map)
-              ? (r['media']['metadata'] as Map? ?? {})
+          final media = (r['media'] is Map) ? r['media'] as Map : {};
+          final meta = media['metadata'] is Map
+              ? media['metadata'] as Map
               : <String, dynamic>{};
           list.add(AbsBook(
             id: r['id'].toString(),
             title: (meta['title'] ?? 'Untitled').toString(),
             author: meta['authorName']?.toString(),
             subtitle: meta['subtitle']?.toString(),
+            duration: (media['duration'] as num?)?.toDouble() ??
+                (r['duration'] as num?)?.toDouble(),
+            progress: parseAbsProgress(r),
           ));
         }
       }
@@ -440,8 +413,91 @@ class AudiobookshelfService extends GetxService {
       } else {
         books.addAll(list);
       }
+      if (page == 0) await fetchInProgress();
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  /// Continue Listening shelf: GET /api/me/items-in-progress (or /api/me/progress).
+  Future<void> fetchInProgress() async {
+    if (!isConnected.value || _token == null || host.value.isEmpty) {
+      inProgressBooks.clear();
+      return;
+    }
+    try {
+      dynamic data;
+      try {
+        final res = await _dio.get(
+          '${host.value}/api/me/items-in-progress',
+          queryParameters: {'limit': 25},
+          options: _authOptions,
+        );
+        data = res.data;
+      } catch (_) {
+        final res = await _dio.get(
+          '${host.value}/api/me/progress',
+          options: _authOptions,
+        );
+        data = res.data;
+      }
+
+      final raw = <Map>[];
+      if (data is List) {
+        for (final e in data) {
+          if (e is Map) raw.add(e);
+        }
+      } else if (data is Map) {
+        final candidates =
+            data['libraryItems'] ?? data['results'] ?? data['mediaProgress'];
+        if (candidates is List) {
+          for (final e in candidates) {
+            if (e is Map) raw.add(e);
+          }
+        }
+      }
+
+      final scored = <MapEntry<AbsBook, int>>[];
+      for (final r in raw) {
+        if (r['mediaType']?.toString() == 'podcast') continue;
+        if (r['episodeId'] != null) continue;
+        if (r['isFinished'] == true) continue;
+        if (r['hideFromContinueListening'] == true) continue;
+
+        final id = (r['id'] ?? r['libraryItemId'])?.toString();
+        if (id == null || id.isEmpty) continue;
+
+        final media = (r['media'] is Map) ? r['media'] as Map : {};
+        final meta = media['metadata'] is Map
+            ? media['metadata'] as Map
+            : <String, dynamic>{};
+        final known = books.firstWhereOrNull((b) => b.id == id);
+        final title = (meta['title'] ?? known?.title)?.toString();
+        if (title == null || title.isEmpty) continue;
+
+        final progress = parseAbsProgress(r) ?? known?.progress;
+        scored.add(MapEntry(
+          AbsBook(
+            id: id,
+            title: title,
+            author: meta['authorName']?.toString() ??
+                meta['author']?.toString() ??
+                known?.author,
+            subtitle: meta['subtitle']?.toString() ?? known?.subtitle,
+            duration: (media['duration'] as num?)?.toDouble() ??
+                (r['duration'] as num?)?.toDouble() ??
+                known?.duration,
+            progress: progress,
+          ),
+          (r['progressLastUpdate'] as num?)?.toInt() ??
+              (r['lastUpdate'] as num?)?.toInt() ??
+              0,
+        ));
+      }
+      scored.sort((a, b) => b.value.compareTo(a.value));
+      inProgressBooks.assignAll(scored.map((e) => e.key));
+    } catch (_) {
+      inProgressBooks.clear();
     }
   }
 
@@ -464,8 +520,9 @@ class AudiobookshelfService extends GetxService {
       if (bookHits is List) {
         for (final hit in bookHits) {
           if (hit is! Map) continue;
-          final item =
-              hit['libraryItem'] is Map ? hit['libraryItem'] as Map : hit;
+          final item = hit['libraryItem'] is Map
+              ? hit['libraryItem'] as Map
+              : hit;
           final meta = (item['media'] is Map)
               ? (item['media']['metadata'] as Map? ?? {})
               : <String, dynamic>{};
@@ -478,6 +535,7 @@ class AudiobookshelfService extends GetxService {
                         ? meta['authors'][0]['name']?.toString()
                         : meta['authors'][0]?.toString())
                     : null),
+            progress: parseAbsProgress(Map<String, dynamic>.from(item)),
           ));
         }
       }
@@ -545,9 +603,10 @@ class AudiobookshelfService extends GetxService {
       if (t is! Map) continue;
       final contentUrl = t['contentUrl']?.toString();
       if (contentUrl == null || contentUrl.isEmpty) continue;
-      final trackTitle =
-          (t['title'] ?? t['metadata']?['filename'] ?? 'Track ${i + 1}')
-              .toString();
+      final trackTitle = (t['title'] ??
+              t['metadata']?['filename'] ??
+              'Track ${i + 1}')
+          .toString();
       tracks.add(AbsAudioTrack(
         index: (t['index'] as num?)?.toInt() ?? i,
         title: trackTitle,
@@ -611,20 +670,12 @@ class AudiobookshelfService extends GetxService {
   /// IDs use the `abs_` prefix so [MyAudioHandler.checkNGetUrl] skips YT resolve.
   List<MediaItem> toMediaItems(AbsBookDetail book) {
     final cover = coverUrl(book.id);
-    // Audiobookshelf sessions track a position within the WHOLE book, while
-    // Riff plays one MediaItem per track. The player only ever holds a single
-    // item, so it cannot know how much book preceded it — stamp the running
-    // offset and the book total here, where the full track list is in hand.
-    // Without these, a sync would report chapter 5's two-minute mark as two
-    // minutes into the book.
-    final bookDuration =
-        book.tracks.fold<double>(0, (sum, t) => sum + t.duration);
     var startOffset = 0.0;
     return book.tracks.map((t) {
       final id = 'abs_${book.id}_${t.index}';
       final url = streamUrl(t.contentUrl);
-      final trackStart = startOffset;
-      startOffset += t.duration;
+      final thisStart = startOffset;
+      startOffset += t.duration > 0 ? t.duration : 0;
       return MediaItem(
         id: id,
         title: t.title,
@@ -640,27 +691,29 @@ class AudiobookshelfService extends GetxService {
           'absItemId': book.id,
           'absSessionId': book.sessionId,
           'absTrackIndex': t.index,
-          // Seconds of book preceding this track, and the book's total, so a
-          // per-track position can be reported to the server as a book-level one.
-          'absStartOffset': trackStart,
-          'absBookDuration': bookDuration,
+          'absStartOffsetSec': thisStart,
           'album': {'name': book.title, 'id': book.id},
           'artists': [
-            {
-              'name': book.author.isEmpty ? 'Audiobook' : book.author,
-              'id': null
-            }
+            {'name': book.author.isEmpty ? 'Audiobook' : book.author, 'id': null}
           ],
         },
       );
     }).toList();
   }
 
+  /// Map ABS book-absolute [currentTimeSec] onto a track index + in-track offset.
+  static (int trackIndex, Duration offset) mapCurrentTimeToTrack(
+    double currentTimeSec,
+    List<double> trackDurationsSec,
+  ) =>
+      mapAbsCurrentTimeToTrack(currentTimeSec, trackDurationsSec);
+
   /// Optional progress sync (Lissen: POST /api/session/{id}/sync).
   Future<void> syncProgress({
     required String sessionId,
     required double currentTime,
     required double duration,
+    double timeListened = 0,
     bool isPaused = false,
   }) async {
     if (!isConnected.value || sessionId.isEmpty) return;
@@ -670,13 +723,36 @@ class AudiobookshelfService extends GetxService {
         data: {
           'currentTime': currentTime,
           'duration': duration,
-          'timeListened': 0,
+          'timeListened': timeListened,
           if (isPaused) 'isPaused': true,
         },
         options: _authOptions,
       );
     } catch (e) {
       printERROR('ABS progress sync failed: $e');
+    }
+  }
+
+  /// Close a listening session (Lissen: POST /api/session/{id}/close).
+  Future<void> closeSession(
+    String sessionId, {
+    required double currentTime,
+    required double duration,
+    double timeListened = 0,
+  }) async {
+    if (!isConnected.value || sessionId.isEmpty) return;
+    try {
+      await _dio.post(
+        '${host.value}/api/session/$sessionId/close',
+        data: {
+          'currentTime': currentTime,
+          'duration': duration,
+          'timeListened': timeListened,
+        },
+        options: _authOptions,
+      );
+    } catch (e) {
+      printERROR('ABS session close failed: $e');
     }
   }
 

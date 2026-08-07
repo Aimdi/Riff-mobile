@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:hive/hive.dart';
 
+import '/utils/secure_credentials.dart';
 import 'torrent_extra_sources.dart';
 
 /// Identifiers for torrent search backends (qBittorrent search-plugin style).
@@ -277,22 +278,20 @@ class MamTorrentService {
       'https://www.myanonamouse.net/tor/js/loadSearchJSONbasic.php';
   static const _prefsKey = 'mamId';
 
-  static Box get _prefs => Hive.box('AppPrefs');
-
   static String? get mamId {
-    final v = _prefs.get(_prefsKey);
-    if (v is String && v.trim().isNotEmpty) return v.trim();
+    final v = SecureCredentials.get(_prefsKey);
+    if (v != null && v.trim().isNotEmpty) return v.trim();
     return null;
   }
 
   static bool get isConfigured => mamId != null;
 
   static Future<void> saveMamId(String id) async {
-    await _prefs.put(_prefsKey, id.trim());
+    await SecureCredentials.set(_prefsKey, id.trim());
   }
 
   static Future<void> clearMamId() async {
-    await _prefs.delete(_prefsKey);
+    await SecureCredentials.delete(_prefsKey);
   }
 
   Future<void> _persistRotatedCookie(Response res) async {
@@ -463,7 +462,7 @@ class QBittorrentService {
   }
 
   static String get username => '${_prefs.get(_userKey) ?? 'admin'}';
-  static String get password => '${_prefs.get(_passKey) ?? ''}';
+  static String get password => SecureCredentials.get(_passKey) ?? '';
   static bool get isConfigured => baseUrl != null && password.isNotEmpty;
 
   static Future<void> save({
@@ -473,13 +472,13 @@ class QBittorrentService {
   }) async {
     await _prefs.put(_urlKey, url.trim());
     await _prefs.put(_userKey, username.trim());
-    await _prefs.put(_passKey, password);
+    await SecureCredentials.set(_passKey, password);
   }
 
   static Future<void> clear() async {
     await _prefs.delete(_urlKey);
     await _prefs.delete(_userKey);
-    await _prefs.delete(_passKey);
+    await SecureCredentials.delete(_passKey);
   }
 
   static String? _sidFromResponse(Response res) {

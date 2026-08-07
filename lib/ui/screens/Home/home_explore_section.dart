@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../navigator.dart';
+import '../../utils/riff_tokens.dart';
 import '../../widgets/content_list_widget.dart';
 import 'home_screen_controller.dart';
 
@@ -34,13 +35,14 @@ class HomeExploreSection extends StatelessWidget {
       if (shelves.isEmpty) return const SizedBox.shrink();
 
       final theme = Theme.of(context);
+      final accent = theme.colorScheme.secondary;
       final rotating = rotatingShelf(shelves);
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 18, 12, 10),
+            padding: const EdgeInsets.fromLTRB(12, 16, 12, 10),
             child: Text(
               'explore'.tr,
               style: theme.textTheme.titleLarge?.copyWith(
@@ -62,8 +64,19 @@ class HomeExploreSection extends StatelessWidget {
                 return ActionChip(
                   label: Text(title),
                   visualDensity: VisualDensity.compact,
+                  backgroundColor: theme.cardColor,
+                  surfaceTintColor: Colors.transparent,
                   side: BorderSide(
-                    color: theme.dividerColor.withOpacity(0.35),
+                    color: accent.withOpacity(0.28),
+                    width: RiffTokens.hairline,
+                  ),
+                  labelStyle: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: theme.textTheme.titleMedium?.color
+                        ?.withOpacity(0.9),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
                   ),
                   onPressed: () {
                     Get.toNamed(
@@ -91,19 +104,13 @@ class HomeExploreSection extends StatelessWidget {
   }
 }
 
-/// Hairline divider between Home zones (A / B / C).
+/// Soft vertical gap between Home zones (A / B / C).
+/// Kept for callers; prefer plain [SizedBox] for new code.
 class HomeZoneDivider extends StatelessWidget {
   const HomeZoneDivider({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Divider(
-        height: 1,
-        thickness: 1,
-        color: Colors.white.withOpacity(0.08),
-      ),
-    );
+    return const SizedBox(height: 10);
   }
 }

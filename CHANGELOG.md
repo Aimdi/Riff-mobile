@@ -1,3 +1,36 @@
+# 1.7.98
+
+**Release**
+* Re-ship with the previous release signing key so 1.7.98 installs over earlier
+  APKs (1.7.97 had fallen back to debug signing after the keystore was
+  untracked from the repo)
+
+# 1.7.97
+
+**Look & feel**
+* Player chrome uses Riff surfaces end-to-end: Up Next strip, accent play button,
+  art depth, quieter “Playing from”, fixed mini-player progress polarity, and a
+  snappier waveform scrub
+* Home Wave hero is larger and clearer; Daily Mixes show collage cards with the
+  mix title first; Quick Picks are denser; Explore chips match the brand
+* Library and Search show a green current-song cue, denser artist rows, Recent /
+  Suggestions headers, and tighter search chrome
+* Mini-player title crossfades on track change; Listening settings open by default
+
+**Playback & podcasts**
+* Dead streams auto-retry with a fresh URL and keep your position (manual Retry
+  does too)
+* Search suggestions are debounced; Daily Mixes appear from cache immediately
+* Podcast Downloads hub is playable with metadata; `feedUrl` survives Continue /
+  Up Next; finished episodes leave the queue
+* Cold start paints before AudioService finishes init
+
+**Security & data**
+* Sensitive credentials migrate into secure storage
+* Release keystore files are no longer tracked (copy from a secure store for
+  local release builds; CI falls back to debug signing when missing)
+* Corrupt Hive boxes recover via safe open instead of bricking launch
+
 # 1.7.96
 
 **Playback resilience**

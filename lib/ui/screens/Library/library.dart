@@ -94,7 +94,7 @@ class SongsLibraryWidget extends StatelessWidget {
                             isPlaylistOrAlbum: true,
                             playlist: Playlist(
                                 title: "Library Songs",
-                                playlistId: "SongsDownloads",
+                                playlistId: "SongDownloads",
                                 thumbnailUrl: "",
                                 isCloudPlaylist: false),
                           )
@@ -279,6 +279,7 @@ class PlaylistNAlbumLibraryWidget extends StatelessWidget {
                         width: availableWidth,
                         child: GridView.builder(
                             physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.only(bottom: 200),
                             gridDelegate:
                                 SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: columns,

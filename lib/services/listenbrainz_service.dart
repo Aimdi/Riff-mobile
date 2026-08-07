@@ -1,8 +1,8 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:dio/dio.dart';
-import 'package:hive/hive.dart';
 
 import '/utils/helper.dart';
+import '/utils/secure_credentials.dart';
 
 /// ListenBrainz scrobbling (ported from Riff desktop). Disabled unless the
 /// user saves a token in Settings; failures are logged and never surface
@@ -13,12 +13,12 @@ class ListenBrainzService {
   static const _endpoint = "https://api.listenbrainz.org/1/submit-listens";
 
   static String get token =>
-      Hive.box("AppPrefs").get("listenBrainzToken") ?? "";
+      SecureCredentials.get("listenBrainzToken") ?? "";
 
   static bool get enabled => token.isNotEmpty;
 
   static Future<void> setToken(String value) =>
-      Hive.box("AppPrefs").put("listenBrainzToken", value.trim());
+      SecureCredentials.set("listenBrainzToken", value.trim());
 
   static Future<void> submitListen(MediaItem item) async {
     if (!enabled) return;

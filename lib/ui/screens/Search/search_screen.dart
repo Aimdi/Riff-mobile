@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'components/search_item.dart';
+import '../../utils/theme_controller.dart';
 import '../../widgets/modified_text_field.dart';
 import '/ui/navigator.dart';
 import 'search_screen_controller.dart';
@@ -75,10 +76,12 @@ class SearchScreen extends StatelessWidget {
                       autofocus: true,
                       cursorColor: Theme.of(context).textTheme.bodySmall!.color,
                       decoration: InputDecoration(
-                          contentPadding: const EdgeInsets.only(left: 5),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
                           focusColor: Colors.white,
                           hintText: "searchDes".tr,
-                          suffix: IconButton(
+                          suffixIcon: IconButton(
                             onPressed: searchScreenController.reset,
                             icon: const Icon(Icons.close),
                             splashRadius: 16,
@@ -94,41 +97,81 @@ class SearchScreen extends StatelessWidget {
                         final list = isEmpty
                             ? searchScreenController.historyQuerylist.toList()
                             : searchScreenController.suggestionList.toList();
-                        return ListView(
-                            padding: const EdgeInsets.only(top: 5, bottom: 400),
+                        if (searchScreenController.urlPasted.isTrue) {
+                          return ListView(
+                            padding:
+                                const EdgeInsets.only(top: 5, bottom: 400),
                             physics: const BouncingScrollPhysics(
                                 parent: AlwaysScrollableScrollPhysics()),
-                            children: searchScreenController.urlPasted.isTrue
-                                ? [
-                                    InkWell(
-                                      onTap: () {
-                                        searchScreenController.filterLinks(
-                                            Uri.parse(searchScreenController
-                                                .textInputController.text));
-                                        searchScreenController.reset();
-                                      },
-                                      child: Padding(
+                            children: [
+                              InkWell(
+                                onTap: () {
+                                  searchScreenController.filterLinks(
+                                      Uri.parse(searchScreenController
+                                          .textInputController.text));
+                                  searchScreenController.reset();
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 10.0),
+                                  child: SizedBox(
+                                    width: double.maxFinite,
+                                    height: 60,
+                                    child: Center(
+                                        child: Text(
+                                      "urlSearchDes".tr,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium,
+                                    )),
+                                  ),
+                                ),
+                              )
+                            ],
+                          );
+                        }
+                        if (list.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
+                        return ListView(
+                          padding: const EdgeInsets.only(top: 5, bottom: 400),
+                          physics: const BouncingScrollPhysics(
+                              parent: AlwaysScrollableScrollPhysics()),
+                          children: [
+                            _SearchSectionHeader(
+                              title: isEmpty ? 'Recent' : 'suggestions'.tr,
+                              trailing: isEmpty
+                                  ? TextButton(
+                                      onPressed:
+                                          searchScreenController.clearHistory,
+                                      style: TextButton.styleFrom(
+                                        visualDensity: VisualDensity.compact,
                                         padding: const EdgeInsets.symmetric(
-                                            vertical: 10.0),
-                                        child: SizedBox(
-                                          width: double.maxFinite,
-                                          height: 60,
-                                          child: Center(
-                                              child: Text(
-                                            "urlSearchDes".tr,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .titleMedium,
-                                          )),
-                                        ),
+                                            horizontal: 8),
+                                        minimumSize: Size.zero,
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                      child: Text(
+                                        'clear'.tr,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall
+                                            ?.copyWith(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                              fontSize: 12,
+                                            ),
                                       ),
                                     )
-                                  ]
-                                : list
-                                    .map((item) => SearchItem(
-                                        queryString: item,
-                                        isHistoryString: isEmpty))
-                                    .toList());
+                                  : null,
+                            ),
+                            ...list.map((item) => SearchItem(
+                                queryString: item,
+                                isHistoryString: isEmpty)),
+                          ],
+                        );
                       }),
                     )
                   ],
@@ -137,6 +180,38 @@ class SearchScreen extends StatelessWidget {
             ),
           ],
         ),
+    );
+  }
+}
+
+class _SearchSectionHeader extends StatelessWidget {
+  const _SearchSectionHeader({required this.title, this.trailing});
+  final String title;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Theme.of(context).brightness == Brightness.dark
+        ? RiffSurfaces.textMuted
+        : Theme.of(context).textTheme.titleSmall?.color;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 10, 8, 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                  ),
+            ),
+          ),
+          if (trailing != null) trailing!,
+        ],
+      ),
     );
   }
 }

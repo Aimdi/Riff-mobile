@@ -5,6 +5,7 @@ import 'package:widget_marquee/widget_marquee.dart';
 
 import '/ui/player/components/animated_play_button.dart';
 import '/ui/player/components/podcast_transcript_sheet.dart';
+import '/ui/utils/theme_controller.dart';
 import '../../navigator.dart';
 import '../../screens/Settings/settings_screen_controller.dart';
 import '../../widgets/discovery/player_similar_row.dart';
@@ -108,7 +109,9 @@ class PlayerControlWidget extends StatelessWidget {
                               duration: const Duration(seconds: 10),
                               id: "${song}_title",
                               child: Text(
-                                song?.title ?? "NA",
+                                (song != null && song.title.isNotEmpty)
+                                    ? song.title
+                                    : "—",
                                 textAlign: TextAlign.start,
                                 style: Theme.of(context).textTheme.labelMedium!,
                               ),
@@ -123,7 +126,10 @@ class PlayerControlWidget extends StatelessWidget {
                               duration: const Duration(seconds: 10),
                               id: "${song}_subtitle",
                               child: Text(
-                                song?.artist ?? "NA",
+                                (song?.artist != null &&
+                                        song!.artist!.isNotEmpty)
+                                    ? song.artist!
+                                    : "—",
                                 textAlign: TextAlign.start,
                                 overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context).textTheme.labelSmall,
@@ -276,70 +282,12 @@ class PlayerControlWidget extends StatelessWidget {
           // The seek control IS the SoundCloud-style waveform (no separate
           // slider line): it fills with the accent colour as the track plays,
           // shows the elapsed/total time beneath, and is tap/drag seekable.
-          GetX<PlayerController>(builder: (controller) {
-            final status = controller.progressBarStatus.value;
-            final totalMs = status.total.inMilliseconds;
-            final frac = totalMs > 0
-                ? (status.current.inMilliseconds / totalMs).clamp(0.0, 1.0)
-                : 0.0;
-            final song = controller.currentSong.value;
-            final seed = (song?.id ?? song?.title ?? '').hashCode;
-            final timeStyle =
-                Theme.of(context).textTheme.titleMedium!.copyWith(fontSize: 14);
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Column(
-                children: [
-                  LayoutBuilder(builder: (context, constraints) {
-                    final width = constraints.maxWidth;
-                    void seekTo(double dx) {
-                      if (totalMs <= 0 || width <= 0) return;
-                      final f = (dx / width).clamp(0.0, 1.0);
-                      controller.seek(status.total * f);
-                    }
-
-                    return GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTapDown: (d) => seekTo(d.localPosition.dx),
-                      onHorizontalDragUpdate: (d) => seekTo(d.localPosition.dx),
-                      child: SizedBox(
-                        height: 34,
-                        width: double.infinity,
-                        child: CustomPaint(
-                          painter: _WaveformPainter(
-                            progress: frac,
-                            seed: seed,
-                            playedColor: Theme.of(context)
-                                    .sliderTheme
-                                    .activeTrackColor ??
-                                Theme.of(context).colorScheme.secondary,
-                            unplayedColor: (Theme.of(context)
-                                        .sliderTheme
-                                        .inactiveTrackColor ??
-                                    Colors.grey)
-                                .withOpacity(0.55),
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: 2),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(_fmtDuration(status.current), style: timeStyle),
-                      Text(_fmtDuration(status.total), style: timeStyle),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          }),
-          Obx(() => playerController.isCurrentSongPodcast
+          const _WaveformScrubber(),
+          Obx(() => playerController.usesLongFormTransport
               ? _podcastControls(playerController, context)
               : _musicControls(playerController, context)),
-          // Similar songs are music-only; hide for podcast episodes.
-          Obx(() => playerController.isCurrentSongPodcast
+          // Similar songs are music-only; hide for podcasts and audiobooks.
+          Obx(() => playerController.usesLongFormTransport
               ? const SizedBox.shrink()
               : const PlayerSimilarRow()),
         ]);
@@ -356,20 +304,14 @@ class PlayerControlWidget extends StatelessWidget {
             icon: Obx(() => Icon(
                   Ionicons.shuffle,
                   color: playerController.isShuffleModeEnabled.value
-                      ? Theme.of(context).textTheme.titleLarge!.color
-                      : Theme.of(context)
-                          .textTheme
-                          .titleLarge!
-                          .color!
-                          .withOpacity(0.2),
+                      ? RiffSurfaces.textPrimary
+                      : RiffSurfaces.textMuted.withOpacity(0.45),
                 ))),
         _previousButton(playerController, context),
-        const CircleAvatar(
-            radius: 35, child: AnimatedPlayButton(key: Key("playButton"))),
+        const AnimatedPlayButton(key: Key("playButton")),
         _nextButton(playerController, context),
         Obx(() {
           final state = playerController.repeatState;
-          final baseColor = Theme.of(context).textTheme.titleLarge!.color!;
           return IconButton(
               tooltip: state == 2
                   ? "repeatOne".tr
@@ -380,7 +322,9 @@ class PlayerControlWidget extends StatelessWidget {
               icon: Icon(
                 // repeat_one shows the "1" badge (Spotify-style).
                 state == 2 ? Icons.repeat_one : Icons.repeat,
-                color: state == 0 ? baseColor.withOpacity(0.2) : baseColor,
+                color: state == 0
+                    ? RiffSurfaces.textMuted.withOpacity(0.45)
+                    : RiffSurfaces.textPrimary,
               ));
         }),
       ],
@@ -446,10 +390,7 @@ class PlayerControlWidget extends StatelessWidget {
             ],
           ),
         ),
-        const CircleAvatar(
-          radius: 35,
-          child: AnimatedPlayButton(key: Key('podcastPlayButton')),
-        ),
+        const AnimatedPlayButton(key: Key('podcastPlayButton')),
         side(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -654,7 +595,9 @@ Widget _nextButton(PlayerController playerController, BuildContext context) {
 }
 
 /// Format a playback position as m:ss (or h:mm:ss for long tracks).
-String _fmtDuration(Duration d) {
+/// Unknown / unset totals render as an em dash instead of NA or 0:00.
+String _fmtDuration(Duration d, {bool allowZero = true}) {
+  if (!allowZero && d <= Duration.zero) return '—';
   final h = d.inHours;
   final m = d.inMinutes % 60;
   final s = d.inSeconds % 60;
@@ -663,26 +606,135 @@ String _fmtDuration(Duration d) {
   return '$m:$ss';
 }
 
+/// Waveform seek bar with local drag preview so scrubbing stays snappy even
+/// when progress UI updates are throttled upstream.
+class _WaveformScrubber extends StatefulWidget {
+  const _WaveformScrubber();
+
+  @override
+  State<_WaveformScrubber> createState() => _WaveformScrubberState();
+}
+
+class _WaveformScrubberState extends State<_WaveformScrubber> {
+  double? _dragFrac;
+  Duration? _dragPosition;
+
+  void _scrubTo(double dx, double width, Duration total, PlayerController c) {
+    if (total.inMilliseconds <= 0 || width <= 0) return;
+    final f = (dx / width).clamp(0.0, 1.0);
+    final pos = total * f;
+    setState(() {
+      _dragFrac = f;
+      _dragPosition = pos;
+    });
+    c.seek(pos);
+  }
+
+  void _endScrub() {
+    if (_dragFrac == null && _dragPosition == null) return;
+    setState(() {
+      _dragFrac = null;
+      _dragPosition = null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GetX<PlayerController>(builder: (controller) {
+      final status = controller.progressBarStatus.value;
+      final totalMs = status.total.inMilliseconds;
+      final liveFrac = totalMs > 0
+          ? (status.current.inMilliseconds / totalMs).clamp(0.0, 1.0)
+          : 0.0;
+      final frac = _dragFrac ?? liveFrac;
+      final song = controller.currentSong.value;
+      final seed = (song?.id ?? song?.title ?? '').hashCode;
+      final timeStyle = Theme.of(context).textTheme.titleSmall!.copyWith(
+            fontSize: 12,
+            color: RiffSurfaces.textMuted,
+            fontWeight: FontWeight.w500,
+          );
+      final currentLabel = _fmtDuration(_dragPosition ?? status.current);
+      final totalLabel = _fmtDuration(status.total, allowZero: false);
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Column(
+          children: [
+            LayoutBuilder(builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTapDown: (d) =>
+                    _scrubTo(d.localPosition.dx, width, status.total, controller),
+                onTapUp: (_) => _endScrub(),
+                onTapCancel: _endScrub,
+                onHorizontalDragStart: (d) =>
+                    _scrubTo(d.localPosition.dx, width, status.total, controller),
+                onHorizontalDragUpdate: (d) =>
+                    _scrubTo(d.localPosition.dx, width, status.total, controller),
+                onHorizontalDragEnd: (_) => _endScrub(),
+                onHorizontalDragCancel: _endScrub,
+                child: SizedBox(
+                  height: 34,
+                  width: double.infinity,
+                  child: CustomPaint(
+                    painter: _WaveformPainter(
+                      progress: frac,
+                      seed: seed,
+                      playedColor: Theme.of(context)
+                              .sliderTheme
+                              .activeTrackColor ??
+                          Theme.of(context).colorScheme.secondary,
+                      unplayedColor: (Theme.of(context)
+                                  .sliderTheme
+                                  .inactiveTrackColor ??
+                              RiffSurfaces.hairline)
+                          .withOpacity(0.55),
+                      playheadColor: RiffSurfaces.textPrimary,
+                    ),
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 2),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(currentLabel, style: timeStyle),
+                Text(totalLabel, style: timeStyle),
+              ],
+            ),
+          ],
+        ),
+      );
+    });
+  }
+}
+
 /// A thin SoundCloud-style waveform. Bar heights are deterministic per song
 /// (hashed from a seed) so they stay stable across rebuilds; the played portion
-/// is drawn in [playedColor], the rest in [unplayedColor].
+/// is drawn in [playedColor], the rest in [unplayedColor]. A thin playhead
+/// line marks the current position.
 class _WaveformPainter extends CustomPainter {
   _WaveformPainter({
     required this.progress,
     required this.seed,
     required this.playedColor,
     required this.unplayedColor,
+    required this.playheadColor,
   });
 
   final double progress; // 0..1
   final int seed;
   final Color playedColor;
   final Color unplayedColor;
+  final Color playheadColor;
 
   @override
   void paint(Canvas canvas, Size size) {
-    const barWidth = 2.0;
-    const gap = 2.0;
+    const barWidth = 2.5;
+    const gap = 1.5;
     const step = barWidth + gap;
     final count = (size.width / step).floor();
     if (count <= 0) return;
@@ -701,6 +753,13 @@ class _WaveformPainter extends CustomPainter {
       canvas.drawLine(
           Offset(x, midY - barH / 2), Offset(x, midY + barH / 2), paint);
     }
+    // Playhead line at the current progress position.
+    final playheadX = (size.width * progress).clamp(0.0, size.width);
+    final head = Paint()
+      ..color = playheadColor.withOpacity(0.9)
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(playheadX, 2), Offset(playheadX, size.height - 2), head);
   }
 
   @override
@@ -708,5 +767,6 @@ class _WaveformPainter extends CustomPainter {
       old.progress != progress ||
       old.seed != seed ||
       old.playedColor != playedColor ||
-      old.unplayedColor != unplayedColor;
+      old.unplayedColor != unplayedColor ||
+      old.playheadColor != playheadColor;
 }

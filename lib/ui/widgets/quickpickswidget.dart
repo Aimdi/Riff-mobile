@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '/models/quick_picks.dart';
 import '../player/player_controller.dart';
+import '../utils/riff_tokens.dart';
 import 'image_widget.dart';
 import 'songinfo_bottom_sheet.dart';
 
@@ -16,27 +17,32 @@ class QuickPicksWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final PlayerController playerController = Get.find<PlayerController>();
+    // 2 rows (~230) on phone; keep a bit taller on desktop for touch targets.
+    final height = GetPlatform.isDesktop ? 248.0 : 232.0;
     return SizedBox(
-      height: 340,
+      height: height,
       width: double.infinity,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Align(
               alignment: Alignment.centerLeft,
-              child: Text(
-                content.title == 'Quick picks' ||
-                        content.title.toLowerCase().removeAllWhitespace ==
-                            'quickpicks'
-                    ? 'Quick picks'
-                    : content.title.toLowerCase().removeAllWhitespace.tr,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 19,
-                      letterSpacing: -0.35,
-                    ),
+              child: Padding(
+                padding: const EdgeInsets.only(
+                    left: 12, top: 24, bottom: 10, right: 12),
+                child: Text(
+                  content.title == 'Quick picks' ||
+                          content.title.toLowerCase().removeAllWhitespace ==
+                              'quickpicks'
+                      ? 'Quick picks'
+                      : content.title.toLowerCase().removeAllWhitespace.tr,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 19,
+                        letterSpacing: -0.35,
+                      ),
+                ),
               )),
-          const SizedBox(height: 12),
           Expanded(
             child: Scrollbar(
               thickness: GetPlatform.isDesktop ? null : 0,
@@ -45,12 +51,13 @@ class QuickPicksWidget extends StatelessWidget {
                   controller: scrollController,
                   physics: const BouncingScrollPhysics(),
                   scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   itemCount: content.songList.length,
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 4,
-                    childAspectRatio: .26 / 1,
-                    crossAxisSpacing: 1,
-                    mainAxisSpacing: 5,
+                    crossAxisCount: 2,
+                    childAspectRatio: .34 / 1,
+                    crossAxisSpacing: 2,
+                    mainAxisSpacing: 8,
                   ),
                   itemBuilder: (_, item) {
                     return Listener(
@@ -76,10 +83,15 @@ class QuickPicksWidget extends StatelessWidget {
                         }
                       },
                       child: ListTile(
-                          contentPadding: const EdgeInsets.only(left: 5),
-                          leading: ImageWidget(
-                            song: content.songList[item],
-                            size: 55,
+                          contentPadding:
+                              const EdgeInsets.only(left: 0, right: 8),
+                          leading: ClipRRect(
+                            borderRadius:
+                                BorderRadius.circular(RiffTokens.radiusSm),
+                            child: ImageWidget(
+                              song: content.songList[item],
+                              size: 52,
+                            ),
                           ),
                           title: Text(
                             content.songList[item].title,
@@ -142,7 +154,7 @@ class QuickPicksWidget extends StatelessWidget {
                   }),
             ),
           ),
-          const SizedBox(height: 20)
+          const SizedBox(height: 8)
         ],
       ),
     );

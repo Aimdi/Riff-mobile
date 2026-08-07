@@ -13,7 +13,7 @@ import 'screens/Search/search_result_screen.dart';
 import 'screens/Search/search_screen.dart';
 import 'screens/Stats/stats_screen.dart';
 import 'screens/Stats/rewind_screen.dart';
-import 'screens/Podcasts/podcasts_screen.dart';
+import 'screens/Podcasts/podcasts_library.dart';
 import 'screens/Plugins/plugins_screen.dart';
 import '/ui/screens/Plugins/spotify_bridge_screen.dart';
 import 'screens/Plugins/torrent_search_screen.dart';
@@ -82,7 +82,7 @@ class ScreenNavigation extends StatelessWidget {
 
             case ScreenNavigationSetup.podcastsScreen:
               return GetPageRoute(
-                  page: () => const PodcastsScreen(), settings: settings);
+                  page: () => const PodcastsLibraryWidget(), settings: settings);
 
             case ScreenNavigationSetup.pluginsScreen:
               return GetPageRoute(

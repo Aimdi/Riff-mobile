@@ -11,6 +11,7 @@ import 'candidate_sources.dart';
 import 'discovery_engine.dart';
 import 'discovery_repository.dart';
 import 'discovery_types.dart';
+import 'home_feed_assembly.dart';
 import 'mix_generator.dart';
 import 'taste_model.dart';
 
@@ -65,6 +66,8 @@ class DiscoveryService extends GetxService {
 
     // Lazy load cached mixes for Home (no network)
     dailyMixes.assignAll(repo.mixesOfKind(MixKind.dailyMix));
+    // Seed Zone B immediately from Hive so Daily Mixes aren't blank for ~12s.
+    _seedPersonalSectionsFromCachedMixes();
 
     // Fire-and-forget regeneration well after Home/cache paint + first play.
     Future.delayed(const Duration(seconds: 12), () {
@@ -72,6 +75,24 @@ class DiscoveryService extends GetxService {
     });
 
     return this;
+  }
+
+  /// Local-only: build `made_for_you` from already-cached daily mixes.
+  void _seedPersonalSectionsFromCachedMixes() {
+    if (personalSections.any((s) => s.id == 'made_for_you')) return;
+    final mixes = dailyMixes.toList();
+    if (mixes.isEmpty) return;
+    final leads = uniqueDailyMixLeads(mixes);
+    if (leads.length < kHomeFeedDailyMixMin) return;
+    personalSections.assignAll([
+      DiscoverySection(
+        id: 'made_for_you',
+        title: 'Your daily mixes',
+        reason: '',
+        tracks: leads,
+        surface: DiscoverySurface.home,
+      ),
+    ]);
   }
 
   // ─── Settings ─────────────────────────────────────────────────────────

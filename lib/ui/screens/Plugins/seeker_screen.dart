@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '/services/soulseek/soulseek_cover_service.dart';
 import '/services/soulseek/soulseek_search.dart';
 import '/services/soulseek_service.dart';
+import '/ui/navigator.dart';
 import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/snackbar.dart';
 
@@ -29,7 +30,15 @@ class SeekerScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (!embedded) ...[
-          Text('soulseek'.tr, style: theme.textTheme.titleLarge),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new),
+                onPressed: () => Get.back(id: ScreenNavigationSetup.id),
+              ),
+              Text('soulseek'.tr, style: theme.textTheme.titleLarge),
+            ],
+          ),
           const SizedBox(height: 4),
           Text('soulseekDes'.tr, style: theme.textTheme.bodyMedium),
           const SizedBox(height: 12),

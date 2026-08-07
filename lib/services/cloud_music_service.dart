@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -8,6 +9,7 @@ import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
 import '../utils/helper.dart';
+import '../utils/secure_credentials.dart';
 
 /// A song on the self-hosted server (Subsonic `child` object).
 class CloudSong {
@@ -200,7 +202,8 @@ class CloudMusicService extends GetxService {
     if (cfg is! Map) return;
     host.value = (cfg['host'] ?? '').toString();
     username.value = (cfg['username'] ?? '').toString();
-    _password = (cfg['password'] ?? '').toString();
+    _password = SecureCredentials.nested('cloudMusic', 'password') ??
+        (cfg['password'] ?? '').toString();
     _legacyAuth = cfg['legacyAuth'] == true;
     if (host.value.isNotEmpty &&
         username.value.isNotEmpty &&
@@ -218,10 +221,11 @@ class CloudMusicService extends GetxService {
   }
 
   void _persist() {
+    // Password lives in secure storage; Hive keeps non-secret connection meta.
+    unawaited(SecureCredentials.setNested('cloudMusic', 'password', _password));
     _prefs.put('cloudMusic', {
       'host': host.value,
       'username': username.value,
-      'password': _password,
       'legacyAuth': _legacyAuth,
     });
   }
@@ -368,6 +372,7 @@ class CloudMusicService extends GetxService {
     albumsHaveMore.value = false;
     statusMessage.value = '';
     _prefs.delete('cloudMusic');
+    unawaited(SecureCredentials.setNested('cloudMusic', 'password', null));
   }
 
   /// Refresh all three library views in one go.

@@ -5151,7 +5151,8 @@ Map<String, Map<String, String>> get keys => {
     "uploading": "Uploading",
     "uploadComplete": "Upload complete",
     "uploadFailed": "Upload failed",
-    "absUploadForbidden": "This account isn't allowed to upload to the server"
+    "absUploadForbidden": "This account isn't allowed to upload to the server",
+    "continueListening": "Continue listening"
 }
 ,"pt" : {
     "renamePlaylist": "Renomear Playlist",

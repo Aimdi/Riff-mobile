@@ -19,6 +19,35 @@ class ContentListItem extends StatelessWidget {
   /// "Similar podcasts" section at the bottom.
   final bool showSimilarOnOpen;
 
+  String _subtitle(bool isAlbum) {
+    if (isAlbum) {
+      final artists = content.artists as List?;
+      final artistName = (artists != null && artists.isNotEmpty)
+          ? (artists[0]['name']?.toString() ?? '')
+          : '';
+      final year = content.year?.toString() ?? '';
+      if (isLibraryItem) {
+        return [artistName, year]
+            .where((s) => s.isNotEmpty)
+            .join(' • ');
+      }
+      return [
+        if (artistName.isNotEmpty) artistName,
+        if (year.isNotEmpty) year,
+      ].join(' | ');
+    }
+    if (isLibraryItem) {
+      final count = content.songCount?.toString();
+      if (count != null && count.isNotEmpty && count != 'null') {
+        return '$count ${"songs".tr}';
+      }
+      final desc = content.description?.toString() ?? '';
+      if (desc.isNotEmpty && desc != 'Playlist') return desc;
+      return '';
+    }
+    return content.description?.toString() ?? '';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isAlbum = content.runtimeType.toString() == "Album";
@@ -145,13 +174,7 @@ class ContentListItem extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(
-              isAlbum
-                  ? isLibraryItem
-                      ? ""
-                      : "${content.artists[0]['name'] ?? ""} | ${content.year ?? ""}"
-                  : isLibraryItem
-                      ? ""
-                      : content.description ?? "",
+              _subtitle(isAlbum),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.titleSmall?.copyWith(

@@ -296,6 +296,7 @@ class ThemeController extends GetxController {
               shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
               )),
+          // DialogTheme: CI pins Flutter 3.24.2 (DialogThemeData is newer).
           dialogTheme: const DialogTheme(
             backgroundColor: RiffSurfaces.elevated,
             shape: RoundedRectangleBorder(

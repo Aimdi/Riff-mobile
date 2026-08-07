@@ -50,4 +50,39 @@ void main() {
         'https://example.com/transcript.vtt');
     expect(reloaded.extras?['transcriptType'], 'application/x-subrip');
   });
+
+  test('queue persistence keeps feedUrl', () async {
+    final c = Get.find<PodcastQueueController>();
+    c.add(const MediaItem(
+      id: 'podcast_ep2',
+      title: 'Episode 2',
+      artist: 'Show',
+      extras: {
+        'url': 'https://example.com/ep2.mp3',
+        'isPodcast': true,
+        'feedUrl': 'https://example.com/feed.xml',
+      },
+    ));
+    Get.delete<PodcastQueueController>();
+    Get.put(PodcastQueueController());
+    final reloaded = Get.find<PodcastQueueController>().queue.single;
+    expect(reloaded.extras?['feedUrl'], 'https://example.com/feed.xml');
+  });
+
+  test('removeById dequeues finished episode', () async {
+    final c = Get.find<PodcastQueueController>();
+    c.add(const MediaItem(
+      id: 'podcast_ep3',
+      title: 'Episode 3',
+      extras: {'url': 'https://example.com/ep3.mp3', 'isPodcast': true},
+    ));
+    c.add(const MediaItem(
+      id: 'podcast_ep4',
+      title: 'Episode 4',
+      extras: {'url': 'https://example.com/ep4.mp3', 'isPodcast': true},
+    ));
+    expect(c.queue, hasLength(2));
+    c.removeById('podcast_ep3');
+    expect(c.queue.map((e) => e.id), ['podcast_ep4']);
+  });
 }

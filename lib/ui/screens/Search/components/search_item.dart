@@ -13,8 +13,9 @@ class SearchItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final searchScreenController = Get.find<SearchScreenController>();
+    final iconColor = Theme.of(context).textTheme.titleMedium!.color;
     return ListTile(
-      contentPadding: const EdgeInsets.only(left: 10, right: 20),
+      contentPadding: const EdgeInsets.only(left: 10, right: 4),
       onTap: () {
         Get.toNamed(ScreenNavigationSetup.searchResultScreen,
             id: ScreenNavigationSetup.id, arguments: queryString);
@@ -24,47 +25,43 @@ class SearchItem extends StatelessWidget {
           searchScreenController.focusNode.unfocus();
         }
       },
-      leading: isHistoryString
-          ? const Icon(Icons.history)
-          : const Icon(Icons.search),
+      leading: Icon(
+        isHistoryString ? Icons.history : Icons.search,
+        size: 20,
+        color: iconColor,
+      ),
       minLeadingWidth: 20,
+      horizontalTitleGap: 10,
       dense: true,
+      visualDensity: const VisualDensity(horizontal: 0, vertical: -2),
       title: Text(queryString),
-      trailing: SizedBox(
-        width: 80,
-        child: Row(
-          children: [
-            isHistoryString
-                ? IconButton(
-                    iconSize: 18,
-                    splashRadius: 18,
-                    visualDensity: const VisualDensity(horizontal: -2),
-                    onPressed: () {
-                      searchScreenController
-                          .removeQueryFromHistory(queryString);
-                    },
-                    icon: Icon(
-                      Icons.clear,
-                      color: Theme.of(context).textTheme.titleMedium!.color,
-                    ),
-                  )
-                : const SizedBox(
-                    width: 40,
-                  ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isHistoryString)
             IconButton(
-              iconSize: 20,
-              splashRadius: 18,
-              visualDensity: const VisualDensity(horizontal: -2),
+              iconSize: 16,
+              splashRadius: 14,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              padding: EdgeInsets.zero,
+              visualDensity: const VisualDensity(horizontal: -4, vertical: -2),
               onPressed: () {
-                searchScreenController.suggestionInput(queryString);
+                searchScreenController.removeQueryFromHistory(queryString);
               },
-              icon: Icon(
-                Icons.north_west,
-                color: Theme.of(context).textTheme.titleMedium!.color,
-              ),
+              icon: Icon(Icons.clear, color: iconColor),
             ),
-          ],
-        ),
+          IconButton(
+            iconSize: 16,
+            splashRadius: 14,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            padding: EdgeInsets.zero,
+            visualDensity: const VisualDensity(horizontal: -4, vertical: -2),
+            onPressed: () {
+              searchScreenController.suggestionInput(queryString);
+            },
+            icon: Icon(Icons.north_west, color: iconColor),
+          ),
+        ],
       ),
     );
   }

@@ -651,6 +651,7 @@ class PodcastService {
             transcriptType = tType;
           }
         }
+        final pubRaw = item.getElement('pubDate')?.innerText.trim();
         episodes.add({
           'id': 'podcast_${guid.hashCode}',
           'title': title,
@@ -658,7 +659,8 @@ class PodcastService {
               item.getElement('description')?.innerText ?? ""),
           'url': url,
           'artwork': Thumbnail(epArtRaw).extraHigh,
-          'date': _formatDate(item.getElement('pubDate')?.innerText.trim()),
+          'date': _formatDate(pubRaw),
+          'pubDateMs': _pubDateMs(pubRaw),
           'sizeBytes': sizeBytes,
           'durationSec':
               _parseDuration(item.getElement('itunes:duration')?.innerText),
@@ -752,6 +754,20 @@ class PodcastService {
       if (parts.length >= 3) return "${parts[0]} ${parts[1]} ${parts[2]}";
     } catch (_) {}
     return raw;
+  }
+
+  /// RSS pubDate → epoch ms for chronological sorting (0 when unparseable).
+  static int _pubDateMs(String? raw) {
+    if (raw == null || raw.isEmpty) return 0;
+    try {
+      return HttpDate.parse(raw).toUtc().millisecondsSinceEpoch;
+    } catch (_) {
+      try {
+        return DateTime.parse(raw).toUtc().millisecondsSinceEpoch;
+      } catch (_) {
+        return 0;
+      }
+    }
   }
 
   /// enclosure length (bytes) → "42.3 MB" / "512 KB".

@@ -37,8 +37,12 @@ with JDK 21 will fail the Gradle/AGP step.
   third-party API over the network belongs under the `live` tag.
 - Dev build: `flutter build apk --debug` → `build/app/outputs/flutter-apk/`.
   First build downloads Gradle + auto-installs extra SDK platforms (31/33).
-  Release build (`flutter build apk --release`) uses `android/key.properties`
-  + `android/riff-release.keystore` (both committed).
+  Release build (`flutter build apk --release`) uses
+  `android/key.properties` + `android/riff-release.keystore`. CI needs these
+  present for in-place APK updates; they are currently tracked for that reason
+  (also listed in `android/.gitignore` for local overrides). Prefer moving them
+  to GitHub Actions secrets when available. If missing, Gradle falls back to
+  debug signing — do **not** ship that to users who already have a release build.
 
 ### Running the app / GUI testing
 
