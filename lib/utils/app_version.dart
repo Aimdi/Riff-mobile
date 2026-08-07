@@ -5,7 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 ///
 /// MUST stay in sync with `version:` in pubspec.yaml — `test/app_version_test.dart`
 /// asserts this, so a bumped pubspec with a stale constant fails the suite.
-const String kPubspecAppVersion = '1.7.99';
+const String kPubspecAppVersion = '1.7.100';
 
 /// Splits any version-ish string into exactly three numeric parts.
 ///

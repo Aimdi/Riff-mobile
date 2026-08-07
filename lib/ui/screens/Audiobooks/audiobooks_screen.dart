@@ -47,12 +47,12 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!widget.isBottomNavActive)
-            Text('audiobooks'.tr, style: Theme.of(context).textTheme.titleLarge),
+            Text('audiobooks'.tr,
+                style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
           // Audible-style bar: icon + label items with a hairline below.
           Obx(() {
-            final hasTorrents =
-                plugins.isInstalled(PluginIds.torrentSearch);
+            final hasTorrents = plugins.isInstalled(PluginIds.torrentSearch);
             return SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Padding(
@@ -197,7 +197,8 @@ class _CatalogDiscoverState extends State<_CatalogDiscover> {
               hintText: 'searchAudiobooks'.tr,
               prefixIcon: const Icon(Icons.search, size: 20),
               isDense: true,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               suffixIcon: IconButton(
                 icon: const Icon(Icons.clear, size: 18),
                 onPressed: () {
@@ -246,8 +247,8 @@ class _CatalogDiscoverState extends State<_CatalogDiscover> {
                                     memCacheWidth: cacheW,
                                     errorWidget: (_, __, ___) => Container(
                                       color: theme.primaryColorLight,
-                                      child: const Icon(Icons.menu_book,
-                                          size: 48),
+                                      child:
+                                          const Icon(Icons.menu_book, size: 48),
                                     ),
                                   ),
                                 ),
@@ -328,57 +329,57 @@ class _CatalogBookGrid extends StatelessWidget {
     final cacheW =
         ((MediaQuery.sizeOf(context).width / 2) * dpr).round().clamp(128, 800);
     return GridView.builder(
-        padding: const EdgeInsets.only(bottom: 200, right: 8),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 0.56,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-        ),
-        itemCount: books.length,
-        itemBuilder: (context, i) {
-          final book = books[i];
-          return InkWell(
-            key: ValueKey(book.id),
-            borderRadius: BorderRadius.circular(10),
-            onTap: () => Get.to(
-              () => AudiobookCatalogDetailScreen(book: book),
-              transition: Transition.rightToLeft,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AspectRatio(
-                  aspectRatio: 2 / 3,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: CachedNetworkImage(
-                      imageUrl: book.cover,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      memCacheWidth: cacheW,
-                      errorWidget: (_, __, ___) => Container(
-                        color: theme.primaryColorLight,
-                        child: const Icon(Icons.menu_book, size: 48),
-                      ),
+      padding: const EdgeInsets.only(bottom: 200, right: 8),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.56,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+      ),
+      itemCount: books.length,
+      itemBuilder: (context, i) {
+        final book = books[i];
+        return InkWell(
+          key: ValueKey(book.id),
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => Get.to(
+            () => AudiobookCatalogDetailScreen(book: book),
+            transition: Transition.rightToLeft,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AspectRatio(
+                aspectRatio: 2 / 3,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: CachedNetworkImage(
+                    imageUrl: book.cover,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    memCacheWidth: cacheW,
+                    errorWidget: (_, __, ___) => Container(
+                      color: theme.primaryColorLight,
+                      child: const Icon(Icons.menu_book, size: 48),
                     ),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(book.title,
-                    maxLines: 2,
+              ),
+              const SizedBox(height: 6),
+              Text(book.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall),
+              if (book.author.isNotEmpty)
+                Text(book.author,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleSmall),
-                if (book.author.isNotEmpty)
-                  Text(book.author,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall),
-              ],
-            ),
-          );
-        },
-      );
+                    style: theme.textTheme.bodySmall),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -483,7 +484,8 @@ class _AbsLoginFormState extends State<_AbsLoginForm> {
         const SizedBox(height: 20),
         Text(
           'absDemoHint'.tr,
-          style: theme.textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
+          style:
+              theme.textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
         ),
       ],
     );
@@ -586,7 +588,8 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
               hintText: 'search'.tr,
               prefixIcon: const Icon(Icons.search, size: 20),
               isDense: true,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               suffixIcon: IconButton(
                 icon: const Icon(Icons.clear, size: 18),
                 onPressed: () {
@@ -602,6 +605,36 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
           child: Obx(() {
             if (abs.isLoading.value && abs.books.isEmpty) {
               return const Center(child: CircularProgressIndicator());
+            }
+            // A failed load is NOT an empty library. Saying "no books" when the
+            // token expired or the server is unreachable sends the user
+            // looking for a problem in Audiobookshelf that is not there.
+            final loadErr = abs.loadError.value;
+            if (loadErr != null && abs.books.isEmpty) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.cloud_off,
+                          size: 52,
+                          color: theme.textTheme.bodySmall?.color
+                              ?.withOpacity(0.4)),
+                      const SizedBox(height: 12),
+                      Text(loadErr,
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyMedium),
+                      const SizedBox(height: 12),
+                      TextButton.icon(
+                        icon: const Icon(Icons.refresh),
+                        label: Text('retry'.tr),
+                        onPressed: () => abs.fetchBooks(),
+                      ),
+                    ],
+                  ),
+                ),
+              );
             }
             if (abs.books.isEmpty) {
               return Center(
@@ -626,10 +659,9 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
             final continueBooks = abs.inProgressBooks.toList();
             final dpr = MediaQuery.devicePixelRatioOf(context);
             final continueCacheW = (100 * dpr).round().clamp(96, 400);
-            final gridCacheW =
-                ((MediaQuery.sizeOf(context).width / 2) * dpr)
-                    .round()
-                    .clamp(128, 800);
+            final gridCacheW = ((MediaQuery.sizeOf(context).width / 2) * dpr)
+                .round()
+                .clamp(128, 800);
             return RefreshIndicator(
               onRefresh: () async {
                 await abs.fetchBooks();
@@ -688,8 +720,7 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                                                     fit: BoxFit.cover,
                                                     memCacheWidth:
                                                         continueCacheW,
-                                                    errorWidget: (_, __,
-                                                            ___) =>
+                                                    errorWidget: (_, __, ___) =>
                                                         Container(
                                                       color: theme
                                                           .primaryColorLight,
@@ -711,8 +742,7 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                                                           .withOpacity(0.25),
                                                       valueColor:
                                                           AlwaysStoppedAnimation(
-                                                              theme
-                                                                  .colorScheme
+                                                              theme.colorScheme
                                                                   .secondary),
                                                     ),
                                                   ),

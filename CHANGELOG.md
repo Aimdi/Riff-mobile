@@ -1,3 +1,11 @@
+# 1.7.100
+
+**Audiobooks**
+* Your whole Audiobookshelf library loads, not just the first 50 titles
+* A failed load now says why — an expired session, a server error, or an
+  unreachable server — with a retry button, instead of claiming the library
+  is empty
+
 # 1.7.99
 
 **Audiobooks**

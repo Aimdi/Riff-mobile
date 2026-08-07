@@ -130,6 +130,13 @@ class AudiobookshelfService extends GetxService {
   final isLoading = false.obs;
   final statusMessage = ''.obs;
 
+  /// Why the last library load failed, or null when it succeeded.
+  ///
+  /// Without this an expired token, a wrong URL or an unreachable server all
+  /// render as "No books in this library" — the user is told their library is
+  /// empty when in fact nothing was ever fetched.
+  final loadError = RxnString();
+
   String? _token;
   String? _userId;
 
@@ -226,7 +233,8 @@ class AudiobookshelfService extends GetxService {
       await fetchLibraries();
       if (libraries.isNotEmpty) {
         // Prefer book libraries
-        final bookLib = libraries.firstWhereOrNull((l) => l.mediaType == 'book');
+        final bookLib =
+            libraries.firstWhereOrNull((l) => l.mediaType == 'book');
         selectedLibraryId.value = (bookLib ?? libraries.first).id;
         _persist();
         await fetchBooks();
@@ -365,13 +373,20 @@ class AudiobookshelfService extends GetxService {
       if (code == 403) {
         throw StateError('absUploadForbidden');
       }
-      throw StateError(e.response?.data?.toString() ?? e.message ?? 'upload failed');
+      throw StateError(
+          e.response?.data?.toString() ?? e.message ?? 'upload failed');
     }
     // Refresh the library so the new item shows up.
     await fetchBooks();
   }
 
-  Future<void> fetchBooks({int page = 0, int limit = 50}) async {
+  /// Load the library. Pages through to the end rather than stopping at the
+  /// first [limit] items: nothing ever passed `page`, so a library larger than
+  /// one page was silently truncated.
+  ///
+  /// [maxPages] is a runaway guard, not a product limit; hitting it is logged.
+  Future<void> fetchBooks(
+      {int page = 0, int limit = 50, int maxPages = 40}) async {
     _ensureConnected();
     final libId = selectedLibraryId.value;
     if (libId.isEmpty) return;
@@ -413,10 +428,46 @@ class AudiobookshelfService extends GetxService {
       } else {
         books.addAll(list);
       }
+      loadError.value = null;
       if (page == 0) await fetchInProgress();
+
+      // A full page almost certainly means there is another one. Nothing ever
+      // passed `page`, so every library past the first 50 titles appeared
+      // truncated with no indication anything was missing.
+      if (list.length >= limit) {
+        if (page + 1 < maxPages) {
+          await fetchBooks(page: page + 1, limit: limit, maxPages: maxPages);
+        } else {
+          printINFO(
+              'ABS: stopped paging at $maxPages pages; library list truncated');
+        }
+      }
+    } catch (e) {
+      // Never leave a failure looking like an empty library: the shelf would
+      // tell the user they own no books when in fact nothing was fetched.
+      if (page == 0) {
+        loadError.value = _describeLoadError(e);
+        books.clear();
+        inProgressBooks.clear();
+      }
+      printERROR('ABS library load failed: $e');
     } finally {
       isLoading.value = false;
     }
+  }
+
+  /// Turn a load failure into something a user can act on. An expired token is
+  /// the common case and is worth naming, because the fix (sign in again) is
+  /// not guessable from a generic error.
+  String _describeLoadError(Object e) {
+    if (e is DioException) {
+      final code = e.response?.statusCode;
+      if (code == 401 || code == 403) return 'absSessionExpired'.tr;
+      if (code != null && code >= 500) return 'absServerError'.tr;
+      return 'absUnreachable'.tr;
+    }
+    if (e is StateError) return e.message;
+    return 'absUnreachable'.tr;
   }
 
   /// Continue Listening shelf: GET /api/me/items-in-progress (or /api/me/progress).
@@ -520,9 +571,8 @@ class AudiobookshelfService extends GetxService {
       if (bookHits is List) {
         for (final hit in bookHits) {
           if (hit is! Map) continue;
-          final item = hit['libraryItem'] is Map
-              ? hit['libraryItem'] as Map
-              : hit;
+          final item =
+              hit['libraryItem'] is Map ? hit['libraryItem'] as Map : hit;
           final meta = (item['media'] is Map)
               ? (item['media']['metadata'] as Map? ?? {})
               : <String, dynamic>{};
@@ -603,10 +653,9 @@ class AudiobookshelfService extends GetxService {
       if (t is! Map) continue;
       final contentUrl = t['contentUrl']?.toString();
       if (contentUrl == null || contentUrl.isEmpty) continue;
-      final trackTitle = (t['title'] ??
-              t['metadata']?['filename'] ??
-              'Track ${i + 1}')
-          .toString();
+      final trackTitle =
+          (t['title'] ?? t['metadata']?['filename'] ?? 'Track ${i + 1}')
+              .toString();
       tracks.add(AbsAudioTrack(
         index: (t['index'] as num?)?.toInt() ?? i,
         title: trackTitle,
@@ -694,7 +743,10 @@ class AudiobookshelfService extends GetxService {
           'absStartOffsetSec': thisStart,
           'album': {'name': book.title, 'id': book.id},
           'artists': [
-            {'name': book.author.isEmpty ? 'Audiobook' : book.author, 'id': null}
+            {
+              'name': book.author.isEmpty ? 'Audiobook' : book.author,
+              'id': null
+            }
           ],
         },
       );

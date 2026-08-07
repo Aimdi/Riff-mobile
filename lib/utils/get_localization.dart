@@ -5152,7 +5152,10 @@ Map<String, Map<String, String>> get keys => {
     "uploadComplete": "Upload complete",
     "uploadFailed": "Upload failed",
     "absUploadForbidden": "This account isn't allowed to upload to the server",
-    "continueListening": "Continue listening"
+    "continueListening": "Continue listening",
+    "absSessionExpired": "Your Audiobookshelf session expired. Sign in again.",
+    "absServerError": "The Audiobookshelf server returned an error.",
+    "absUnreachable": "Could not reach the Audiobookshelf server."
 }
 ,"pt" : {
     "renamePlaylist": "Renomear Playlist",
