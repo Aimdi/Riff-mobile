@@ -42,18 +42,28 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
   @override
   Widget build(BuildContext context) {
     final playerController = Get.find<PlayerController>();
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.secondary;
+    final highlight = theme.brightness == Brightness.dark
+        ? RiffSurfaces.elevatedSoft
+        : accent.withOpacity(0.08);
+
     return Listener(
         onPointerDown: (PointerDownEvent event) {
           if (event.buttons == kSecondaryMouseButton) {
             //show songinfobotomsheet
+            final sheetContext =
+                playerController.homeScaffoldkey.currentContext ?? Get.context;
+            if (sheetContext == null) return;
             showModalBottomSheet(
               constraints: const BoxConstraints(maxWidth: 500),
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(RiffTokens.radiusSm)),
               ),
               isScrollControlled: true,
               useRootNavigator: true,
-              context: playerController.homeScaffoldkey.currentState!.context,
+              context: sheetContext,
               barrierColor: Colors.transparent.withAlpha(100),
               builder: (context) => SongInfoBottomSheet(
                 song,
@@ -117,27 +127,36 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
               //label: 'Play Next',
             ),
           ]),
-          child: Obx(() {
-            final isCurrent =
-                playerController.currentSong.value?.id == song.id;
-            final theme = Theme.of(context);
-            final accent = theme.colorScheme.secondary;
-            final highlight = theme.brightness == Brightness.dark
-                ? RiffSurfaces.elevatedSoft
-                : accent.withOpacity(0.08);
-            return DecoratedBox(
-              decoration: BoxDecoration(
-                color: isCurrent ? highlight : null,
-                borderRadius: BorderRadius.circular(10),
-                border: isCurrent
-                    ? Border(
-                        left: BorderSide(color: accent, width: 2.5),
-                      )
-                    : null,
+          // Art / Marquee stay outside Obx so current-song ticks only rebuild
+          // the highlight chrome + equalizer, not image decode / marquee state.
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Obx(() {
+                  final isCurrent =
+                      playerController.currentSong.value?.id == song.id;
+                  return IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: isCurrent ? highlight : null,
+                        borderRadius: BorderRadius.circular(10),
+                        border: isCurrent
+                            ? Border(
+                                left: BorderSide(color: accent, width: 2.5),
+                              )
+                            : null,
+                      ),
+                    ),
+                  );
+                }),
               ),
-              child: ListTile(
+              ListTile(
                 onTap: onTap,
                 onLongPress: () async {
+                  final sheetContext =
+                      playerController.homeScaffoldkey.currentContext ??
+                          Get.context;
+                  if (sheetContext == null) return;
                   showModalBottomSheet(
                     constraints: const BoxConstraints(maxWidth: 500),
                     shape: const RoundedRectangleBorder(
@@ -146,8 +165,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                     ),
                     isScrollControlled: true,
                     useRootNavigator: true,
-                    context:
-                        playerController.homeScaffoldkey.currentState!.context,
+                    context: sheetContext,
                     barrierColor: Colors.transparent.withAlpha(100),
                     builder: (context) => SongInfoBottomSheet(
                       song,
@@ -179,17 +197,21 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                   delay: const Duration(milliseconds: 300),
                   duration: const Duration(seconds: 5),
                   id: song.title.hashCode.toString(),
-                  child: Text(
-                    song.title.length > 50
-                        ? song.title.substring(0, 50)
-                        : song.title,
-                    maxLines: 1,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.15,
-                          color: isCurrent ? accent : null,
-                        ),
-                  ),
+                  child: Obx(() {
+                    final isCurrent =
+                        playerController.currentSong.value?.id == song.id;
+                    return Text(
+                      song.title.length > 50
+                          ? song.title.substring(0, 50)
+                          : song.title,
+                      maxLines: 1,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.15,
+                            color: isCurrent ? accent : null,
+                          ),
+                    );
+                  }),
                 ),
                 subtitle: Text(
                   "${song.artist}",
@@ -209,21 +231,29 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                         _MixMetaColumn(analysis: mixAnalysis),
                         const SizedBox(width: 6),
                       ],
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (isCurrent)
-                            Icon(Icons.equalizer, color: accent, size: 18),
-                          Text(
-                            song.extras!['length'] ?? "",
-                            style: Theme.of(context).textTheme.titleSmall,
-                          ),
-                        ],
-                      ),
+                      Obx(() {
+                        final isCurrent =
+                            playerController.currentSong.value?.id == song.id;
+                        return Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (isCurrent)
+                              Icon(Icons.equalizer, color: accent, size: 18),
+                            Text(
+                              song.extras?['length'] ?? "",
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                          ],
+                        );
+                      }),
                       if (GetPlatform.isDesktop)
                         IconButton(
                             splashRadius: 20,
                             onPressed: () {
+                              final sheetContext = playerController
+                                      .homeScaffoldkey.currentContext ??
+                                  Get.context;
+                              if (sheetContext == null) return;
                               showModalBottomSheet(
                                 useRootNavigator: true,
                                 constraints:
@@ -233,8 +263,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                                       top: Radius.circular(10.0)),
                                 ),
                                 isScrollControlled: true,
-                                context: playerController
-                                    .homeScaffoldkey.currentState!.context,
+                                context: sheetContext,
                                 barrierColor:
                                     Colors.transparent.withAlpha(100),
                                 builder: (context) => SongInfoBottomSheet(
@@ -249,8 +278,8 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                   ),
                 ),
               ),
-            );
-          }),
+            ],
+          ),
         ));
   }
 }

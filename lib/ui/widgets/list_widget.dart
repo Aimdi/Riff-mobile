@@ -35,6 +35,11 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
   final Album? album;
   final Artist? artist;
 
+  /// Search / overview sections only show a short preview (View All opens
+  /// the complete list). Capping avoids NestedScrollView height = N*extent
+  /// which forced every child to build.
+  static const int _overviewPreviewCount = 5;
+
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) {
@@ -58,20 +63,30 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
                   artist: artist,
                   sc: scrollController,
                   isArtistSongs: isArtistSongs))
+          // Search overview: cap preview rows so NestedScrollView doesn't
+          // force-build every song tile via items.length * extent height.
           : SizedBox(
-              height: items.length * 75.0,
-              child: listViewSongVid(items),
+              height: (items.length < _overviewPreviewCount
+                      ? items.length
+                      : _overviewPreviewCount) *
+                  75.0,
+              child: listViewSongVid(items,
+                  maxItems: _overviewPreviewCount),
             );
     } else if (title.contains("playlists") || title == "Podcasts") {
       return listViewPlaylists(items, sc: scrollController);
     } else if (title == "Albums" || title == "Singles") {
       return listViewAlbums(items, sc: scrollController);
-        } else if (title.contains('Artists')) {
+    } else if (title.contains('Artists')) {
       return isCompleteList
           ? Expanded(child: listViewArtists(items, sc: scrollController))
           : SizedBox(
-              height: items.length * 72.0,
-              child: listViewArtists(items),
+              height: (items.length < _overviewPreviewCount
+                      ? items.length
+                      : _overviewPreviewCount) *
+                  72.0,
+              child: listViewArtists(items,
+                  maxItems: _overviewPreviewCount),
             );
     }
     return const SizedBox.shrink();
@@ -83,17 +98,21 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
       Album? album,
       Artist? artist,
       bool isArtistSongs = false,
-      ScrollController? sc}) {
+      ScrollController? sc,
+      int? maxItems}) {
     final playerController = Get.find<PlayerController>();
+    final count = maxItems == null
+        ? items.length
+        : (items.length < maxItems ? items.length : maxItems);
     return ListView.builder(
-      padding: const EdgeInsets.only(
-        bottom: 200,
+      padding: EdgeInsets.only(
+        bottom: isCompleteList ? 200 : 0,
         top: 0,
       ),
       addRepaintBoundaries: true,
       addAutomaticKeepAlives: false,
       controller: sc,
-      itemCount: items.length,
+      itemCount: count,
       // SongListTile rows are a fixed ~75px — enables cheaper scroll layout.
       itemExtent: 75,
       physics: isCompleteList
@@ -182,14 +201,18 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
     );
   }
 
-  Widget listViewArtists(List<dynamic> artists, {ScrollController? sc}) {
+  Widget listViewArtists(List<dynamic> artists,
+      {ScrollController? sc, int? maxItems}) {
+    final count = maxItems == null
+        ? artists.length
+        : (artists.length < maxItems ? artists.length : maxItems);
     return ListView.builder(
-      padding: const EdgeInsets.only(
-        bottom: 200,
+      padding: EdgeInsets.only(
+        bottom: isCompleteList ? 200 : 0,
         top: 5,
       ),
       controller: sc,
-      itemCount: artists.length,
+      itemCount: count,
       itemExtent: 72,
       physics: isCompleteList
           ? const BouncingScrollPhysics()

@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 
@@ -48,7 +46,7 @@ class Player extends StatelessWidget {
             onTap: () {
               /// queue open in end drawer in desktop
               if (GetPlatform.isDesktop) {
-                playerController.homeScaffoldkey.currentState!.openEndDrawer();
+                playerController.homeScaffoldkey.currentState?.openEndDrawer();
               } else {
                 playerController.queuePanelController.open();
               }
@@ -110,139 +108,138 @@ class Player extends StatelessWidget {
                 ),
 
                 /// Stack second child
-                /// Bottom bar: queue loop / shuffle / clear — elevatedSoft ghosts
+                /// Bottom bar: queue loop / shuffle / clear — solid frost
+                /// (BackdropFilter blur was a queue-panel jank source).
                 Align(
                   alignment: Alignment.bottomCenter,
-                  child: ClipRRect(
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        padding: const EdgeInsets.only(
-                            top: 15, bottom: 10, left: 10, right: 10),
-                        decoration: BoxDecoration(
-                            boxShadow: const [
-                              BoxShadow(blurRadius: 5, color: Colors.black54)
-                            ],
-                            color: RiffSurfaces.elevated.withOpacity(0.92),
-                            border: const Border(
-                              top: BorderSide(
-                                color: RiffSurfaces.hairline,
-                                width: RiffTokens.hairline,
+                  child: Builder(builder: (context) {
+                    final theme = Theme.of(context);
+                    final frost = theme.cardColor.withOpacity(
+                      theme.brightness == Brightness.dark ? 0.94 : 0.97,
+                    );
+                    return Container(
+                      padding: const EdgeInsets.only(
+                          top: 15, bottom: 10, left: 10, right: 10),
+                      decoration: BoxDecoration(
+                          color: frost,
+                          border: const Border(
+                            top: BorderSide(
+                              color: RiffSurfaces.hairline,
+                              width: RiffTokens.hairline,
+                            ),
+                          )),
+                      height: 60 + Get.mediaQuery.padding.bottom,
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            /// number of songs in queue
+                            Obx(
+                              () => Text(
+                                "${playerController.currentQueue.length} ${"songs".tr}",
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleSmall!
+                                    .copyWith(
+                                        color: RiffSurfaces.textPrimary),
                               ),
-                            )),
-                        height: 60 + Get.mediaQuery.padding.bottom,
-                        child: Align(
-                          alignment: Alignment.topCenter,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              /// number of songs in queue
-                              Obx(
-                                () => Text(
-                                  "${playerController.currentQueue.length} ${"songs".tr}",
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleSmall!
-                                      .copyWith(
-                                          color: RiffSurfaces.textPrimary),
-                                ),
-                              ),
+                            ),
 
-                              /// queue loop button
-                              InkWell(
-                                onTap: () {
-                                  playerController.toggleQueueLoopMode();
-                                },
-                                child: Obx(
-                                  () {
-                                    final active = playerController
-                                        .isQueueLoopModeEnabled.isTrue;
-                                    return Container(
-                                      height: 30,
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 15),
-                                      decoration: BoxDecoration(
-                                        color: RiffSurfaces.elevatedSoft,
-                                        borderRadius: BorderRadius.circular(
-                                            RiffTokens.radiusSm),
-                                        border: Border.all(
-                                          color: active
-                                              ? accent
-                                              : Colors.transparent,
-                                          width: 1.2,
-                                        ),
+                            /// queue loop button
+                            InkWell(
+                              onTap: () {
+                                playerController.toggleQueueLoopMode();
+                              },
+                              child: Obx(
+                                () {
+                                  final active = playerController
+                                      .isQueueLoopModeEnabled.isTrue;
+                                  return Container(
+                                    height: 30,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 15),
+                                    decoration: BoxDecoration(
+                                      color: RiffSurfaces.elevatedSoft,
+                                      borderRadius: BorderRadius.circular(
+                                          RiffTokens.radiusSm),
+                                      border: Border.all(
+                                        color: active
+                                            ? accent
+                                            : Colors.transparent,
+                                        width: 1.2,
                                       ),
-                                      child: Center(
-                                          child: Text(
-                                        "queueLoop".tr,
-                                        style: TextStyle(
-                                          color: active
-                                              ? RiffSurfaces.textPrimary
-                                              : RiffSurfaces.textMuted,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      )),
-                                    );
-                                  },
-                                ),
-                              ),
-
-                              /// queue shuffle button
-                              InkWell(
-                                onTap: () {
-                                  if (playerController
-                                      .isShuffleModeEnabled.isTrue) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                        snackbar(context,
-                                            "queueShufflingDeniedMsg".tr,
-                                            size: SanckBarSize.BIG));
-                                    return;
-                                  }
-                                  playerController.shuffleQueue();
+                                    ),
+                                    child: Center(
+                                        child: Text(
+                                      "queueLoop".tr,
+                                      style: TextStyle(
+                                        color: active
+                                            ? RiffSurfaces.textPrimary
+                                            : RiffSurfaces.textMuted,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    )),
+                                  );
                                 },
-                                child: Container(
-                                  height: 30,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 15),
-                                  decoration: BoxDecoration(
-                                    color: RiffSurfaces.elevatedSoft,
-                                    borderRadius: BorderRadius.circular(
-                                        RiffTokens.radiusSm),
-                                  ),
-                                  child: const Center(
-                                      child: Icon(Icons.shuffle,
-                                          size: 18,
-                                          color: RiffSurfaces.textPrimary)),
-                                ),
                               ),
+                            ),
 
-                              /// clear queue button
-                              InkWell(
-                                onTap: () {
-                                  playerController.clearQueue();
-                                },
-                                child: Container(
-                                  height: 30,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 15),
-                                  decoration: BoxDecoration(
-                                    color: RiffSurfaces.elevatedSoft,
-                                    borderRadius: BorderRadius.circular(
-                                        RiffTokens.radiusSm),
-                                  ),
-                                  child: const Center(
-                                      child: Icon(Icons.playlist_remove,
-                                          size: 18,
-                                          color: RiffSurfaces.textPrimary)),
+                            /// queue shuffle button
+                            InkWell(
+                              onTap: () {
+                                if (playerController
+                                    .isShuffleModeEnabled.isTrue) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      snackbar(context,
+                                          "queueShufflingDeniedMsg".tr,
+                                          size: SanckBarSize.BIG));
+                                  return;
+                                }
+                                playerController.shuffleQueue();
+                              },
+                              child: Container(
+                                height: 30,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 15),
+                                decoration: BoxDecoration(
+                                  color: RiffSurfaces.elevatedSoft,
+                                  borderRadius: BorderRadius.circular(
+                                      RiffTokens.radiusSm),
                                 ),
+                                child: const Center(
+                                    child: Icon(Icons.shuffle,
+                                        size: 18,
+                                        color: RiffSurfaces.textPrimary)),
                               ),
-                            ],
-                          ),
+                            ),
+
+                            /// clear queue button
+                            InkWell(
+                              onTap: () {
+                                playerController.clearQueue();
+                              },
+                              child: Container(
+                                height: 30,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 15),
+                                decoration: BoxDecoration(
+                                  color: RiffSurfaces.elevatedSoft,
+                                  borderRadius: BorderRadius.circular(
+                                      RiffTokens.radiusSm),
+                                ),
+                                child: const Center(
+                                    child: Icon(Icons.playlist_remove,
+                                        size: 18,
+                                        color: RiffSurfaces.textPrimary)),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ),
+                    );
+                  }),
                 ),
               ],
             );

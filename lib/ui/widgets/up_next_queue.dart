@@ -41,6 +41,8 @@ class UpNextQueue extends StatelessWidget {
           onReorderStart: onReorderStart,
           onReorderEnd: onReorderEnd,
           itemCount: playerController.currentQueue.length,
+          // Fixed row height — cheaper scroll layout for long queues.
+          itemExtent: 72,
           padding: EdgeInsets.only(
               top: isQueueInSlidePanel ? 55 : 0,
               bottom: isQueueInSlidePanel ? 80 : 0),
@@ -82,6 +84,10 @@ class UpNextQueue extends StatelessWidget {
                         playerController.seekByIndex(index);
                       },
                       onLongPress: () {
+                        final sheetContext = playerController
+                                .homeScaffoldkey.currentContext ??
+                            Get.context;
+                        if (sheetContext == null) return;
                         showModalBottomSheet(
                           useRootNavigator: true,
                           constraints: const BoxConstraints(maxWidth: 500),
@@ -90,8 +96,7 @@ class UpNextQueue extends StatelessWidget {
                                 BorderRadius.vertical(top: Radius.circular(10.0)),
                           ),
                           isScrollControlled: true,
-                          context: playerController
-                              .homeScaffoldkey.currentState!.context,
+                          context: sheetContext,
                           barrierColor: Colors.transparent.withAlpha(100),
                           builder: (context) => SongInfoBottomSheet(
                             song,

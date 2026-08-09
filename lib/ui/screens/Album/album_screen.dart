@@ -36,8 +36,12 @@ class AlbumScreen extends StatelessWidget {
           final scrollOffset = scrollInfo.metrics.pixels;
 
           if (landscape) {
-            albumController.scrollOffset.value = 0;
-          } else {
+            if (albumController.scrollOffset.value != 0) {
+              albumController.scrollOffset.value = 0;
+            }
+          } else if ((albumController.scrollOffset.value - scrollOffset).abs() >
+              2) {
+            // Throttle Opacity rebuilds while the hero parallax scrolls.
             albumController.scrollOffset.value = scrollOffset;
           }
           if (scrollOffset > 270 || (landscape && scrollOffset > 225)) {
@@ -96,6 +100,18 @@ class AlbumScreen extends StatelessWidget {
                                       : BoxFit.fitWidth,
                                   width: landscape ? null : size.width,
                                   height: landscape ? size.height : null,
+                                  memCacheWidth: landscape
+                                      ? null
+                                      : (size.width *
+                                              MediaQuery.devicePixelRatioOf(
+                                                  context))
+                                          .round(),
+                                  memCacheHeight: landscape
+                                      ? (size.height *
+                                              MediaQuery.devicePixelRatioOf(
+                                                  context))
+                                          .round()
+                                      : null,
                                   errorWidget: (_, __, ___) =>
                                       CachedNetworkImage(
                                     imageUrl: albumController
@@ -105,6 +121,18 @@ class AlbumScreen extends StatelessWidget {
                                         : BoxFit.fitWidth,
                                     width: landscape ? null : size.width,
                                     height: landscape ? size.height : null,
+                                    memCacheWidth: landscape
+                                        ? null
+                                        : (size.width *
+                                                MediaQuery.devicePixelRatioOf(
+                                                    context))
+                                            .round(),
+                                    memCacheHeight: landscape
+                                        ? (size.height *
+                                                MediaQuery.devicePixelRatioOf(
+                                                    context))
+                                            .round()
+                                        : null,
                                     errorWidget: (_, __, ___) => Container(
                                       color: Theme.of(context)
                                           .colorScheme
