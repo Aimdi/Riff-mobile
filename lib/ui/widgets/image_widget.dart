@@ -8,6 +8,7 @@ import 'package:shimmer/shimmer.dart';
 
 import '../screens/Settings/settings_screen_controller.dart';
 import '../utils/riff_tokens.dart';
+import '../utils/theme_controller.dart';
 import '/models/artist.dart';
 import '/models/thumbnail.dart';
 import '/services/cover_resolver.dart';
@@ -35,7 +36,7 @@ class ImageWidget extends StatelessWidget {
   final double? borderRadius;
 
   double get _radius =>
-      borderRadius ?? (isPlayerArtImage ? RiffTokens.radiusLg : 10);
+      borderRadius ?? (isPlayerArtImage ? RiffTokens.radiusLg : RiffTokens.radiusSm);
 
   String get _rawUrl {
     if (song != null) return song!.artUri?.toString() ?? "";
@@ -63,18 +64,25 @@ class ImageWidget extends StatelessWidget {
 
   Widget _placeholder(BuildContext context) {
     final isCircle = artist != null;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fill = isDark
+        ? RiffSurfaces.elevatedSoft
+        : Theme.of(context).colorScheme.surfaceContainerHighest;
+    final iconColor = isDark
+        ? RiffSurfaces.textMuted
+        : Theme.of(context).iconTheme.color?.withOpacity(0.45);
     return Container(
       height: size,
       width: size,
       padding: EdgeInsets.all(size * 0.18),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.secondary.withOpacity(0.85),
+        color: fill,
         shape: isCircle ? BoxShape.circle : BoxShape.rectangle,
         borderRadius: isCircle ? null : BorderRadius.circular(_radius),
       ),
       child: Image.asset(
         _fallbackAsset,
-        color: Colors.white.withOpacity(0.9),
+        color: iconColor,
         colorBlendMode: BlendMode.srcATop,
       ),
     );
@@ -159,16 +167,19 @@ class ImageWidget extends StatelessWidget {
   }
 
   Widget _shimmer(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final base = isDark ? RiffSurfaces.elevated : Colors.grey[350]!;
+    final highlight = isDark ? RiffSurfaces.elevatedSoft : Colors.grey[200]!;
     return Shimmer.fromColors(
-      baseColor: Colors.grey[500]!,
-      highlightColor: Colors.grey[300]!,
+      baseColor: base,
+      highlightColor: highlight,
       enabled: true,
       direction: ShimmerDirection.ltr,
       child: Container(
         decoration: BoxDecoration(
           shape: artist != null ? BoxShape.circle : BoxShape.rectangle,
           borderRadius: artist != null ? null : BorderRadius.circular(_radius),
-          color: Colors.white54,
+          color: isDark ? RiffSurfaces.elevatedSoft : Colors.white54,
         ),
       ),
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'components/search_item.dart';
+import '../../utils/riff_tokens.dart';
 import '../../utils/theme_controller.dart';
 import '../../widgets/modified_text_field.dart';
 import '/ui/navigator.dart';
@@ -77,10 +78,29 @@ class SearchScreen extends StatelessWidget {
                       cursorColor: Theme.of(context).textTheme.bodySmall!.color,
                       decoration: InputDecoration(
                           isDense: true,
+                          filled: true,
+                          fillColor:
+                              Theme.of(context).brightness == Brightness.dark
+                                  ? RiffSurfaces.elevated
+                                  : Theme.of(context).colorScheme.surface,
                           contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 10),
-                          focusColor: Colors.white,
+                              horizontal: 14, vertical: 12),
                           hintText: "searchDes".tr,
+                          border: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(RiffTokens.radiusMd),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(RiffTokens.radiusMd),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(RiffTokens.radiusMd),
+                            borderSide: BorderSide.none,
+                          ),
                           suffixIcon: IconButton(
                             onPressed: searchScreenController.reset,
                             icon: const Icon(Icons.close),
@@ -131,7 +151,33 @@ class SearchScreen extends StatelessWidget {
                           );
                         }
                         if (list.isEmpty) {
-                          return const SizedBox.shrink();
+                          final muted =
+                              Theme.of(context).brightness == Brightness.dark
+                                  ? RiffSurfaces.textMuted
+                                  : Theme.of(context)
+                                      .textTheme
+                                      .titleSmall
+                                      ?.color
+                                      ?.withOpacity(0.55);
+                          return Center(
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(24, 24, 24, 80),
+                              child: Text(
+                                isEmpty
+                                    ? 'searchDes'.tr
+                                    : 'suggestions'.tr,
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleSmall
+                                    ?.copyWith(
+                                      color: muted,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                              ),
+                            ),
+                          );
                         }
                         return ListView(
                           padding: const EdgeInsets.only(top: 5, bottom: 400),

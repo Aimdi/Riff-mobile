@@ -9,7 +9,7 @@ import '../../../services/discovery/discovery_types.dart';
 import '../../navigator.dart';
 import '../../player/player_controller.dart';
 import '../../utils/riff_tokens.dart';
-import '../../utils/sheet_insets.dart';
+import '../../utils/theme_controller.dart';
 import '../image_widget.dart';
 import '../snackbar.dart';
 import 'similar_songs_sheet.dart';
@@ -457,13 +457,15 @@ class HomeShortcutGrid extends StatelessWidget {
                 width: tileW,
                 height: 68,
                 child: Material(
-                  color: theme.cardColor.withOpacity(
-                    theme.brightness == Brightness.dark ? 0.92 : 1,
-                  ),
+                  color: theme.brightness == Brightness.dark
+                      ? RiffSurfaces.elevatedSoft.withOpacity(0.85)
+                      : theme.cardColor.withOpacity(0.95),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
                     side: BorderSide(
-                      color: theme.dividerColor.withOpacity(0.7),
+                      color: theme.brightness == Brightness.dark
+                          ? RiffSurfaces.hairline.withOpacity(0.35)
+                          : theme.dividerColor.withOpacity(0.35),
                       width: RiffTokens.hairline,
                     ),
                   ),
