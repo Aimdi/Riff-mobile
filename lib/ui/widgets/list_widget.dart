@@ -71,6 +71,11 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
                       : _overviewPreviewCount) *
                   75.0,
               child: listViewSongVid(items,
+                  isPlaylistOrAlbum: isPlaylistOrAlbum,
+                  playlist: playlist,
+                  album: album,
+                  artist: artist,
+                  isArtistSongs: isArtistSongs,
                   maxItems: _overviewPreviewCount),
             );
     } else if (title.contains("playlists") || title == "Podcasts") {

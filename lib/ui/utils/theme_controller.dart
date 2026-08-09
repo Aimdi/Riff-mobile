@@ -252,7 +252,7 @@ class ThemeController extends GetxController {
               accentColor: accent, brightness: Brightness.dark),
           indicatorColor: accent,
           progressIndicatorTheme: ProgressIndicatorThemeData(
-              color: accent, linearTrackColor: RiffSurfaces.textPrimary),
+              color: accent, linearTrackColor: RiffSurfaces.hairline),
           textTheme: const TextTheme(
               titleLarge: TextStyle(
                 fontSize: 22,
@@ -345,14 +345,14 @@ class ThemeController extends GetxController {
           cardColor: Colors.white,
           dividerColor: const Color(0xFFEFF3F4),
           colorScheme: ColorScheme.fromSwatch(
-              accentColor: Colors.grey[500],
+              accentColor: const Color(0xFF1DB954),
               backgroundColor: const Color(0xFFF7F9F9),
               cardColor: Colors.white,
               brightness: Brightness.light),
           primaryColor: Colors.white,
           primaryColorLight: const Color(0xFFEFF3F4),
-          progressIndicatorTheme: ProgressIndicatorThemeData(
-              linearTrackColor: Colors.grey[700], color: Colors.grey[500]),
+          progressIndicatorTheme: const ProgressIndicatorThemeData(
+              color: Color(0xFF1DB954), linearTrackColor: Color(0xFFEFF3F4)),
           textTheme: TextTheme(
               titleLarge: const TextStyle(
                 fontSize: 22,
