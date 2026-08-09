@@ -228,6 +228,15 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       }
 
       if (!_canAutoRetryUrlRefresh(songId)) {
+        // Budget exhausted — stop/pause so the engine is not left stuck
+        // before surfacing the failure to the UI.
+        try {
+          await _player.stop();
+        } catch (_) {
+          try {
+            await _player.pause();
+          } catch (_) {}
+        }
         if (Get.isRegistered<PlayerController>()) {
           Get.find<PlayerController>().notifyPlayError("streamPlaybackFailed");
         }

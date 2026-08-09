@@ -202,6 +202,11 @@ class StandardPlayer extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.more_vert, size: 25),
                     onPressed: () {
+                      final sheetContext = playerController
+                              .homeScaffoldkey.currentContext ??
+                          Get.context;
+                      final song = playerController.currentSong.value;
+                      if (sheetContext == null || song == null) return;
                       showModalBottomSheet(
                         useRootNavigator: true,
                         constraints: const BoxConstraints(maxWidth: 500),
@@ -210,11 +215,10 @@ class StandardPlayer extends StatelessWidget {
                               BorderRadius.vertical(top: Radius.circular(10.0)),
                         ),
                         isScrollControlled: true,
-                        context: playerController
-                            .homeScaffoldkey.currentState!.context,
+                        context: sheetContext,
                         barrierColor: Colors.transparent.withAlpha(100),
                         builder: (context) => SongInfoBottomSheet(
-                          playerController.currentSong.value!,
+                          song,
                           calledFromPlayer: true,
                         ),
                       ).whenComplete(() => Get.delete<SongInfoController>());

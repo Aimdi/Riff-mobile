@@ -74,6 +74,10 @@ class AlbumArtNLyrics extends StatelessWidget {
               children: [
                 GestureDetector(
                   onLongPress: () {
+                    final sheetContext = playerController
+                            .homeScaffoldkey.currentContext ??
+                        Get.context;
+                    if (sheetContext == null) return;
                     showModalBottomSheet(
                       useRootNavigator: true,
                       constraints: const BoxConstraints(maxWidth: 500),
@@ -82,8 +86,7 @@ class AlbumArtNLyrics extends StatelessWidget {
                             BorderRadius.vertical(top: Radius.circular(10.0)),
                       ),
                       isScrollControlled: true,
-                      context: playerController
-                          .homeScaffoldkey.currentState!.context,
+                      context: sheetContext,
                       barrierColor: Colors.transparent.withAlpha(100),
                       builder: (context) => SongInfoBottomSheet(
                         song,
@@ -215,6 +218,10 @@ class AlbumArtNLyrics extends StatelessWidget {
                                   .withAlpha(150)),
                           child: IconButton(
                             onPressed: () {
+                              final sheetContext = playerController
+                                      .homeScaffoldkey.currentContext ??
+                                  Get.context;
+                              if (sheetContext == null) return;
                               showModalBottomSheet(
                                 constraints:
                                     const BoxConstraints(maxWidth: 500),
@@ -223,8 +230,7 @@ class AlbumArtNLyrics extends StatelessWidget {
                                       top: Radius.circular(10.0)),
                                 ),
                                 isScrollControlled: true,
-                                context: playerController
-                                    .homeScaffoldkey.currentState!.context,
+                                context: sheetContext,
                                 barrierColor: Colors.transparent.withAlpha(100),
                                 builder: (context) =>
                                     const SleepTimerBottomSheet(),

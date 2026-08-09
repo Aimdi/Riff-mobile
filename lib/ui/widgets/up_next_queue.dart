@@ -49,7 +49,7 @@ class UpNextQueue extends StatelessWidget {
           physics: const AlwaysScrollableScrollPhysics(),
           itemBuilder: (context, index) {
             final homeScaffoldContext =
-                playerController.homeScaffoldkey.currentContext!;
+                playerController.homeScaffoldkey.currentContext ?? context;
             final song = playerController.currentQueue[index];
             return Material(
               // Stable id key — index keys remount every reorder.

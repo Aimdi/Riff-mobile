@@ -442,8 +442,7 @@ class _MiniPlayerWideExtras extends StatelessWidget {
               children: [
                 IconButton(
                   onPressed: () {
-                    playerController.homeScaffoldkey.currentState!
-                        .openEndDrawer();
+                    playerController.homeScaffoldkey.currentState?.openEndDrawer();
                   },
                   icon: const Icon(Icons.queue_music),
                 ),
@@ -452,6 +451,10 @@ class _MiniPlayerWideExtras extends StatelessWidget {
                     padding: const EdgeInsets.only(left: 10.0),
                     child: Obx(() => IconButton(
                           onPressed: () {
+                            final sheetContext = playerController
+                                    .homeScaffoldkey.currentContext ??
+                                Get.context;
+                            if (sheetContext == null) return;
                             showModalBottomSheet(
                               constraints: const BoxConstraints(maxWidth: 500),
                               shape: const RoundedRectangleBorder(
@@ -459,8 +462,7 @@ class _MiniPlayerWideExtras extends StatelessWidget {
                                     top: Radius.circular(10.0)),
                               ),
                               isScrollControlled: true,
-                              context: playerController
-                                  .homeScaffoldkey.currentState!.context,
+                              context: sheetContext,
                               barrierColor: Colors.transparent.withAlpha(100),
                               builder: (context) =>
                                   const SleepTimerBottomSheet(),

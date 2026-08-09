@@ -774,6 +774,9 @@ class PlayerController extends GetxController
   ///songs into Queue
   Future<void> pushSongToQueue(MediaItem? mediaItem,
       {String? playlistid, bool radio = false}) async {
+    await _waitForAudioHandler();
+    if (!_audioReady) return;
+
     /// update playing from value
     playinfrom.value = PlaylingFrom(
         type: PlaylingFromType.SELECTION,
@@ -871,6 +874,9 @@ class PlayerController extends GetxController
 
   Future<void> playPlayListSong(List<MediaItem> mediaItems, int index,
       {PlaylingFrom? playfrom}) async {
+    await _waitForAudioHandler();
+    if (!_audioReady) return;
+
     isRadioModeOn = false;
     //open player pane,set current song and push first song into playing list,
 
@@ -913,6 +919,12 @@ class PlayerController extends GetxController
   /// Builds a queue first, then [playByIndex], and keeps radio mode on so
   /// the stream continues past the first batch.
   Future<bool> startRiffWave() async {
+    await _waitForAudioHandler();
+    if (!_audioReady) {
+      // Return false so UI can show a clear local message (not networkError).
+      return false;
+    }
+
     playinfrom.value = PlaylingFrom(
       type: PlaylingFromType.SELECTION,
       name: 'riffWave'.tr,
@@ -1059,6 +1071,7 @@ class PlayerController extends GetxController
       await playPlayListSong([mediaItem], 0);
       return;
     }
+    if (!_audioReady) return;
     //check if song is available in queue and if not add it to queue
     if (!currentQueue.contains(mediaItem)) {
       _audioHandler.addQueueItem(mediaItem);
@@ -1071,6 +1084,7 @@ class PlayerController extends GetxController
       await playPlayListSong(mediaItems, 0);
       return;
     }
+    if (!_audioReady) return;
     final listToEnqueue = <MediaItem>[];
     for (MediaItem item in mediaItems) {
       if (!currentQueue.contains(item)) {
@@ -1104,6 +1118,7 @@ class PlayerController extends GetxController
       enqueueSong(song);
       return;
     }
+    if (!_audioReady) return;
     int index = -1;
     for (int i = 0; i < currentQueue.length; i++) {
       if (song.id == (currentQueue[i]).id) {
@@ -1146,18 +1161,22 @@ class PlayerController extends GetxController
   }
 
   void removeFromQueue(MediaItem song) {
+    if (!_audioReady) return;
     _audioHandler.removeQueueItem(song);
   }
 
   void clearQueue() {
+    if (!_audioReady) return;
     _audioHandler.customAction("clearQueue");
   }
 
   void shuffleQueue() {
+    if (!_audioReady) return;
     _audioHandler.customAction("shuffleQueue");
   }
 
   Future<void> toggleShuffleMode() async {
+    if (!_audioReady) return;
     final shuffleModeEnabled = isShuffleModeEnabled.value;
     shuffleModeEnabled
         ? _audioHandler.setShuffleMode(AudioServiceShuffleMode.none)
@@ -1174,6 +1193,7 @@ class PlayerController extends GetxController
   }
 
   void onReorder(int oldIndex, int newIndex) {
+    if (!_audioReady) return;
     _audioHandler.customAction(
         "reorderQueue", {"oldIndex": oldIndex, "newIndex": newIndex});
   }
@@ -1230,10 +1250,12 @@ class PlayerController extends GetxController
   }
 
   void prev() {
+    if (!_audioReady) return;
     _audioHandler.skipToPrevious();
   }
 
   Future<void> next() async {
+    if (!_audioReady) return;
     await _audioHandler.skipToNext();
   }
 
@@ -1242,6 +1264,7 @@ class PlayerController extends GetxController
       Get.find<VideoModeController>().seekVideo(position);
       return;
     }
+    if (!_audioReady) return;
     _audioHandler.seek(position);
   }
 
@@ -1285,6 +1308,7 @@ class PlayerController extends GetxController
   }
 
   void seekByIndex(int index) {
+    if (!_audioReady) return;
     // An intentional re-tap of the row that is already playing is a genuine
     // new play, so let it through the duplicate gate.
     _playLogGate.reset();
@@ -1503,8 +1527,9 @@ class PlayerController extends GetxController
   }
 
   void changeLyricsMode(int? val) {
+    if (val == null) return;
     Hive.box("AppPrefs").put("lyricsMode", val);
-    lyricsMode.value = val!;
+    lyricsMode.value = val;
   }
 
   void sleepEndOfSong() {
