@@ -128,6 +128,8 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
           imageUrl: p['artwork'] ?? '',
           width: 52,
           height: 52,
+          memCacheWidth:
+              (52 * MediaQuery.devicePixelRatioOf(context)).round(),
           fit: BoxFit.cover,
           errorWidget: (_, __, ___) => const Icon(Icons.podcasts, size: 40),
         ),
@@ -295,6 +297,8 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
               imageUrl: art,
               width: 96,
               height: 96,
+              memCacheWidth:
+                  (96 * MediaQuery.devicePixelRatioOf(context)).round(),
               fit: BoxFit.cover,
               errorWidget: (_, __, ___) =>
                   const Icon(Icons.podcasts, size: 60),
@@ -381,6 +385,9 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
                       imageUrl: art,
                       width: 56,
                       height: 56,
+                      memCacheWidth:
+                          (56 * MediaQuery.devicePixelRatioOf(context))
+                              .round(),
                       fit: BoxFit.cover,
                       errorWidget: (_, __, ___) =>
                           const Icon(Icons.podcasts, size: 40),

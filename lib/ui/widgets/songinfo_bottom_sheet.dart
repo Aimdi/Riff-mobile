@@ -217,7 +217,7 @@ class SongInfoBottomSheet extends StatelessWidget {
                       Navigator.of(context).pop();
                     },
                   ),
-            song.extras!['album'] != null
+            song.extras?['album'] != null
                 ? ListTile(
                     visualDensity: const VisualDensity(vertical: -1),
                     leading: const Icon(Icons.album),
@@ -232,7 +232,7 @@ class SongInfoBottomSheet extends StatelessWidget {
                       }
                       Get.toNamed(ScreenNavigationSetup.albumScreen,
                           id: ScreenNavigationSetup.id,
-                          arguments: (null, song.extras!['album']['id']));
+                          arguments: (null, (song.extras?['album'] as Map?)?['id']));
                     },
                   )
                 : const SizedBox.shrink(),
@@ -265,7 +265,7 @@ class SongInfoBottomSheet extends StatelessWidget {
                     title: Text("removeFromQueue".tr),
                     onTap: () {
                       Navigator.of(context).pop();
-                      if (playerController.currentSong.value!.id == song.id) {
+                      if (playerController.currentSong.value?.id == song.id) {
                         ScaffoldMessenger.of(context).showSnackBar(snackbar(
                             context, "songRemovedfromQueueCurrSong".tr,
                             size: SanckBarSize.BIG));
@@ -349,6 +349,10 @@ class SongInfoBottomSheet extends StatelessWidget {
                 title: Text("sleepTimer".tr),
                 onTap: () {
                   Navigator.of(context).pop();
+                  final sheetContext =
+                      playerController.homeScaffoldkey.currentContext ??
+                          Get.context;
+                  if (sheetContext == null) return;
                   showModalBottomSheet(
                     constraints: const BoxConstraints(maxWidth: 500),
                     shape: const RoundedRectangleBorder(
@@ -356,8 +360,7 @@ class SongInfoBottomSheet extends StatelessWidget {
                           BorderRadius.vertical(top: Radius.circular(10.0)),
                     ),
                     isScrollControlled: true,
-                    context:
-                        playerController.homeScaffoldkey.currentState!.context,
+                    context: sheetContext,
                     barrierColor: Colors.transparent.withAlpha(100),
                     builder: (context) => const SleepTimerBottomSheet(),
                   );
@@ -380,7 +383,7 @@ class SongInfoBottomSheet extends StatelessWidget {
 
   List<Widget> artistWidgetList(MediaItem song, BuildContext context) {
     final artistList = [];
-    final artists = song.extras!['artists'];
+    final artists = song.extras?['artists'];
     if (artists != null) {
       for (dynamic each in artists) {
         if (each.containsKey("id") && each['id'] != null) artistList.add(each);
@@ -428,7 +431,7 @@ class SongInfoController extends GetxController
     isDownloaded.value = Hive.box("SongDownloads").containsKey(song.id);
     isCurrentSongFav.value =
         (await Hive.openBox("LIBFAV")).containsKey(song.id);
-    final artists = song.extras!['artists'];
+    final artists = song.extras?['artists'];
     if (artists != null) {
       for (dynamic each in artists) {
         if (each.containsKey("id") && each['id'] != null) artistList.add(each);

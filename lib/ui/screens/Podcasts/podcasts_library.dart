@@ -981,6 +981,8 @@ class _ItunesPodcastCard extends StatelessWidget {
                 imageUrl: art,
                 width: _tile,
                 height: _tile,
+                memCacheWidth:
+                    (_tile * MediaQuery.devicePixelRatioOf(context)).round(),
                 fit: BoxFit.cover,
                 errorWidget: (_, __, ___) => Container(
                   width: _tile,

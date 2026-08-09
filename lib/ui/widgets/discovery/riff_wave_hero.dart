@@ -8,6 +8,7 @@ import '/services/stats_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/screens/Home/home_screen_controller.dart';
 import '/ui/utils/riff_tokens.dart';
+import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/snackbar.dart';
 
@@ -183,13 +184,15 @@ class _RiffWaveHeroState extends State<RiffWaveHero>
                 if (disc != null) ...[
                   const SizedBox(height: 12),
                   Text(
-                    'waveMood'.tr.toUpperCase(),
+                    'waveMood'.tr,
                     style: theme.textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w500,
                       fontSize: 10,
-                      letterSpacing: 1.0,
-                      color: theme.textTheme.titleSmall?.color
-                          ?.withOpacity(0.55),
+                      letterSpacing: 0.2,
+                      color: theme.brightness == Brightness.dark
+                          ? RiffSurfaces.textMuted
+                          : theme.textTheme.titleSmall?.color
+                              ?.withOpacity(0.45),
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -309,30 +312,43 @@ class _MoodChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.secondary;
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onTap(),
-      visualDensity: const VisualDensity(horizontal: -3, vertical: -3),
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      selectedColor: accent.withOpacity(0.18),
-      backgroundColor: theme.scaffoldBackgroundColor.withOpacity(0.35),
-      side: BorderSide(
-        color: selected
-            ? accent.withOpacity(0.35)
-            : theme.dividerColor.withOpacity(0.55),
-        width: RiffTokens.hairline,
+    final isDark = theme.brightness == Brightness.dark;
+    final bg = selected
+        ? (isDark
+            ? RiffSurfaces.elevatedSoft
+            : accent.withOpacity(0.12))
+        : Colors.transparent;
+    final border = selected
+        ? accent.withOpacity(0.28)
+        : (isDark
+            ? RiffSurfaces.hairline.withOpacity(0.55)
+            : theme.dividerColor.withOpacity(0.4));
+    return Material(
+      color: selected && isDark
+          ? Color.alphaBlend(accent.withOpacity(0.14), bg)
+          : bg,
+      shape: StadiumBorder(
+        side: BorderSide(color: border, width: RiffTokens.hairline),
       ),
-      labelStyle: theme.textTheme.labelSmall?.copyWith(
-        fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-        fontSize: 11,
-        color: selected
-            ? theme.textTheme.titleMedium?.color?.withOpacity(0.92)
-            : theme.textTheme.titleSmall?.color?.withOpacity(0.62),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+              fontSize: 11,
+              color: selected
+                  ? theme.textTheme.titleMedium?.color?.withOpacity(0.92)
+                  : (isDark
+                      ? RiffSurfaces.textMuted
+                      : theme.textTheme.titleSmall?.color?.withOpacity(0.62)),
+            ),
+          ),
+        ),
       ),
-      shape: const StadiumBorder(),
-      showCheckmark: false,
-      padding: const EdgeInsets.symmetric(horizontal: 2),
     );
   }
 }

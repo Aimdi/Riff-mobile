@@ -431,6 +431,9 @@ class _RssSubTile extends StatelessWidget {
                   imageUrl: art,
                   width: _subsCoverSize,
                   height: _subsCoverSize,
+                  memCacheWidth:
+                      (_subsCoverSize * MediaQuery.devicePixelRatioOf(context))
+                          .round(),
                   fit: BoxFit.cover,
                   errorWidget: (_, __, ___) => Container(
                     width: _subsCoverSize,

@@ -73,6 +73,12 @@ class _PodcastCategoryScreenState extends State<PodcastCategoryScreen> {
                               child: CachedNetworkImage(
                                 imageUrl: art,
                                 width: double.infinity,
+                                memCacheWidth: ((MediaQuery.sizeOf(context)
+                                                .width -
+                                            30) /
+                                        2 *
+                                        MediaQuery.devicePixelRatioOf(context))
+                                    .round(),
                                 fit: BoxFit.cover,
                                 errorWidget: (_, __, ___) => Container(
                                   color: theme.colorScheme.secondary

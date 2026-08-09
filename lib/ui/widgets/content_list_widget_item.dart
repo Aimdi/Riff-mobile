@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../navigator.dart';
+import '../utils/riff_tokens.dart';
+import '../utils/theme_controller.dart';
 import 'image_widget.dart';
 
 class ContentListItem extends StatelessWidget {
@@ -26,15 +28,9 @@ class ContentListItem extends StatelessWidget {
           ? (artists[0]['name']?.toString() ?? '')
           : '';
       final year = content.year?.toString() ?? '';
-      if (isLibraryItem) {
-        return [artistName, year]
-            .where((s) => s.isNotEmpty)
-            .join(' • ');
-      }
-      return [
-        if (artistName.isNotEmpty) artistName,
-        if (year.isNotEmpty) year,
-      ].join(' | ');
+      return [artistName, year]
+          .where((s) => s.isNotEmpty)
+          .join(' • ');
     }
     if (isLibraryItem) {
       final count = content.songCount?.toString();
@@ -51,6 +47,9 @@ class ContentListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isAlbum = content.runtimeType.toString() == "Album";
+    final muted = Theme.of(context).brightness == Brightness.dark
+        ? RiffSurfaces.textMuted
+        : Theme.of(context).textTheme.titleSmall?.color?.withOpacity(0.6);
     return InkWell(
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
@@ -75,79 +74,25 @@ class ContentListItem extends StatelessWidget {
                 ? ImageWidget(
                     size: 112,
                     album: content,
+                    borderRadius: RiffTokens.radiusSm,
                   )
                 : content.isCloudPlaylist ||
                         !(content.playlistId == 'LIBRP' ||
                             content.playlistId == 'LIBFAV' ||
                             content.playlistId == 'SongsCache' ||
                             content.playlistId == 'SongDownloads')
-                    ? SizedBox.square(
-                        dimension: 112,
-                        child: Stack(
-                          children: [
-                            ImageWidget(
-                              size: 112,
-                              playlist: content,
-                            ),
-                            if (content.isPipedPlaylist)
-                              Align(
-                                alignment: Alignment.bottomRight,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Container(
-                                    height: 18,
-                                    width: 18,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(5),
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .secondary,
-                                    ),
-                                    child: Center(
-                                        child: Text(
-                                      "P",
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium!
-                                          .copyWith(fontSize: 14),
-                                    )),
-                                  ),
-                                ),
-                              ),
-                            if (!content.isCloudPlaylist)
-                              Align(
-                                alignment: Alignment.bottomRight,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Container(
-                                    height: 18,
-                                    width: 18,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(5),
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .secondary,
-                                    ),
-                                    child: Center(
-                                        child: Text(
-                                      "L",
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium!
-                                          .copyWith(fontSize: 14),
-                                    )),
-                                  ),
-                                ),
-                              )
-                          ],
-                        ),
+                    ? ImageWidget(
+                        size: 112,
+                        playlist: content,
+                        borderRadius: RiffTokens.radiusSm,
                       )
                     : Container(
                         height: 112,
                         width: 112,
                         decoration: BoxDecoration(
                             color: Theme.of(context).primaryColorLight,
-                            borderRadius: BorderRadius.circular(10)),
+                            borderRadius:
+                                BorderRadius.circular(RiffTokens.radiusSm)),
                         child: Center(
                             child: Icon(
                           content.playlistId == 'LIBRP'
@@ -180,11 +125,7 @@ class ContentListItem extends StatelessWidget {
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w400,
                     fontSize: 12,
-                    color: Theme.of(context)
-                        .textTheme
-                        .titleSmall
-                        ?.color
-                        ?.withOpacity(0.6),
+                    color: muted,
                   ),
             ),
           ],

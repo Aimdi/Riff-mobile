@@ -47,8 +47,13 @@ class PlaylistScreen extends StatelessWidget {
           final scrollOffset = scrollInfo.metrics.pixels;
 
           if (landscape) {
-            playlistController.scrollOffset.value = 0;
-          } else {
+            if (playlistController.scrollOffset.value != 0) {
+              playlistController.scrollOffset.value = 0;
+            }
+          } else if ((playlistController.scrollOffset.value - scrollOffset)
+                  .abs() >
+              2) {
+            // Throttle Opacity rebuilds while the hero parallax scrolls.
             playlistController.scrollOffset.value = scrollOffset;
           }
           if (scrollOffset > 270 || (landscape && scrollOffset > 215)) {
@@ -106,6 +111,18 @@ class PlaylistScreen extends StatelessWidget {
                               fit: landscape ? BoxFit.fitHeight : BoxFit.cover,
                               width: landscape ? null : size.width,
                               height: landscape ? size.height : size.width,
+                              memCacheWidth: landscape
+                                  ? null
+                                  : (size.width *
+                                          MediaQuery.devicePixelRatioOf(
+                                              context))
+                                      .round(),
+                              memCacheHeight: landscape
+                                  ? (size.height *
+                                          MediaQuery.devicePixelRatioOf(
+                                              context))
+                                      .round()
+                                  : null,
                               errorWidget: (_, __, ___) => CachedNetworkImage(
                                 imageUrl: playlistController
                                     .playlist.value.thumbnailUrl,
@@ -113,6 +130,18 @@ class PlaylistScreen extends StatelessWidget {
                                     landscape ? BoxFit.fitHeight : BoxFit.cover,
                                 width: landscape ? null : size.width,
                                 height: landscape ? size.height : size.width,
+                                memCacheWidth: landscape
+                                    ? null
+                                    : (size.width *
+                                            MediaQuery.devicePixelRatioOf(
+                                                context))
+                                        .round(),
+                                memCacheHeight: landscape
+                                    ? (size.height *
+                                            MediaQuery.devicePixelRatioOf(
+                                                context))
+                                        .round()
+                                    : null,
                                 errorWidget: (_, __, ___) => Container(
                                   color:
                                       Theme.of(context).colorScheme.secondary,
@@ -1086,6 +1115,9 @@ class _PodcastEpisodeTile extends StatelessWidget {
                           imageUrl: art,
                           width: 56,
                           height: 56,
+                          memCacheWidth:
+                              (56 * MediaQuery.devicePixelRatioOf(context))
+                                  .round(),
                           fit: BoxFit.cover,
                           errorWidget: (_, __, ___) =>
                               const Icon(Icons.podcasts, size: 40),
@@ -1238,6 +1270,9 @@ class _PodcastSimilarFooterState extends State<_PodcastSimilarFooter> {
                                   imageUrl: art,
                                   width: tile,
                                   height: tile,
+                                  memCacheWidth:
+                                      (tile * MediaQuery.devicePixelRatioOf(context))
+                                          .round(),
                                   fit: BoxFit.cover,
                                   errorWidget: (_, __, ___) => Container(
                                     width: tile,
