@@ -1,3 +1,27 @@
+# 1.7.101
+
+**Look & feel**
+* Quick Picks and song rows drop stock Material ListTile chrome for denser
+  Riff rows with muted artists and soft current-song highlight
+* Search loses the empty left rail; the field is filled elevated; history and
+  empty states are clearer
+* Wave mood chips are quieter; content tiles no longer stamp P/L letter badges
+* Image placeholders and shimmer use Riff elevated surfaces; light theme accent
+  is Riff green
+
+**Performance**
+* Song-tile Obx only updates highlight chrome — art and marquee no longer
+  rebuild on every skip
+* Search overview lists cap preview rows instead of force-building every tile
+* Up Next uses a fixed item extent; queue panel drops expensive backdrop blur
+* Podcast and album/playlist hero images decode at display size
+
+**Fixes**
+* Cold-start play / Wave waits for AudioService instead of crashing
+* Song / queue sheets no longer bang a null scaffold context
+* Exhausted stream auto-retry stops the broken player cleanly
+* Null-safe extras and lyrics mode toggle
+
 # 1.7.100
 
 **Audiobooks**
