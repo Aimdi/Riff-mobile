@@ -9,6 +9,7 @@ import '../../../services/discovery/discovery_types.dart';
 import '../../navigator.dart';
 import '../../player/player_controller.dart';
 import '../../utils/riff_tokens.dart';
+import '../../utils/sheet_insets.dart';
 import '../../utils/theme_controller.dart';
 import '../image_widget.dart';
 import '../snackbar.dart';
