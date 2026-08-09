@@ -23,7 +23,7 @@ class QuickPicksWidget extends StatelessWidget {
     showModalBottomSheet(
       useRootNavigator: true,
       constraints: const BoxConstraints(maxWidth: 500),
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius:
             BorderRadius.vertical(top: Radius.circular(RiffTokens.radiusSm)),
       ),

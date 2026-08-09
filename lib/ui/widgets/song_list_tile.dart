@@ -46,7 +46,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
     if (sheetContext == null) return;
     showModalBottomSheet(
       constraints: const BoxConstraints(maxWidth: 500),
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius:
             BorderRadius.vertical(top: Radius.circular(RiffTokens.radiusSm)),
       ),
