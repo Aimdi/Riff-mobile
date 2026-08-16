@@ -39,16 +39,21 @@ class SeparateTabItemWidget extends StatelessWidget {
   final ScrollController? scrollController;
 
   List<MediaItem> _tabSongs() {
+    List<dynamic>? filtered;
+    List<dynamic>? overview;
     if (isResultWidget &&
         Get.isRegistered<SearchResultScreenController>()) {
-      final raw =
-          Get.find<SearchResultScreenController>().separatedResultContent[title];
-      if (raw is List) {
-        final songs = raw.whereType<MediaItem>().toList();
-        if (songs.isNotEmpty) return songs;
-      }
+      final ctrl = Get.find<SearchResultScreenController>();
+      final raw = ctrl.separatedResultContent[title];
+      if (raw is List) filtered = raw;
+      final ov = ctrl.resultContent[title];
+      if (ov is List) overview = ov;
     }
-    return items.whereType<MediaItem>().toList();
+    return searchTabPlaySongs<MediaItem>(
+      items: items,
+      filtered: filtered,
+      overview: overview,
+    );
   }
 
   void _playTabItems({required bool shuffle}) {

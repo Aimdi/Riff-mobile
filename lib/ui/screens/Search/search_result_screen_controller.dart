@@ -5,6 +5,7 @@ import '../../../utils/helper.dart';
 import '../Home/home_screen_controller.dart';
 import '/services/music_service.dart';
 import '/services/plugin_service.dart';
+import '/ui/player/play_queue_order.dart';
 import '/ui/widgets/sort_widget.dart';
 
 class SearchResultScreenController extends GetxController
@@ -121,7 +122,8 @@ class SearchResultScreenController extends GetxController
           });
         } catch (e) {
           printERROR('Search filter "$tabName" failed: $e');
-          separatedResultContent[tabName] = [];
+          separatedResultContent[tabName] =
+              searchTabFallback(overview: resultContent[tabName]);
           isSeparatedResultContentFetced.value = true;
         }
       }

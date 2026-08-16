@@ -174,7 +174,7 @@ class SongInfoBottomSheet extends StatelessWidget {
                     title: Text("playNext".tr),
                     onTap: () {
                       Navigator.of(context).pop();
-                      playerController.playNext(song);
+                      if (!playerController.playNext(song)) return;
                       ScaffoldMessenger.of(context).showSnackBar(snackbar(
                           context, "${"playnextMsg".tr} ${song.title}",
                           size: SanckBarSize.BIG));

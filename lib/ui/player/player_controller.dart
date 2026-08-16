@@ -392,7 +392,7 @@ class PlayerController extends GetxController
   void _maybeApplyPendingResume(
       MediaItem song, Duration position, Duration total) {
     if (_pendingResumeId == song.id &&
-        _pendingResumeMs > 5000 &&
+        _pendingResumeMs > 1500 &&
         position.inMilliseconds < 4000) {
       final target = Duration(milliseconds: _pendingResumeMs);
       _pendingResumeId = null;
@@ -831,10 +831,9 @@ class PlayerController extends GetxController
       final int savedIndex = (prevSessionData.get("index") as int?) ?? 0;
       final int position = (prevSessionData.get("position") as int?) ?? 0;
       final index = savedIndex.clamp(0, songList.length - 1);
-      // Don't append a second copy if auto-restore already loaded the queue.
-      if (currentQueue.isEmpty) {
-        await _audioHandler.addQueueItems(songList);
-      }
+      // Always load the saved queue — a leftover failed session must not
+      // play at the saved index of the wrong list.
+      await _audioHandler.updateQueue(songList);
       _playerPanelCheck(restoreSession: true);
       await _audioHandler.customAction("playByIndex", {
         "index": index,
@@ -1179,7 +1178,16 @@ class PlayerController extends GetxController
   ///enqueueSongList method add song List to current queue
   Future<void> enqueueSongList(List<MediaItem> mediaItems) async {
     if (currentQueue.isEmpty) {
+      final keepRadio = shouldKeepRadioWhenEnqueueing(
+        radioOn: isRadioModeOn,
+        queueEmpty: true,
+      );
+      final initiator = radioInitiatorItem;
       await playPlayListSong(mediaItems, 0);
+      if (keepRadio) {
+        isRadioModeOn = true;
+        radioInitiatorItem = initiator;
+      }
       return;
     }
     if (!_audioReady) return;
@@ -1223,12 +1231,21 @@ class PlayerController extends GetxController
     }
   }
 
-  void playNext(MediaItem song) {
+  /// Insert [song] after the current track. Returns false when it is already
+  /// current or already next so callers can skip the "play next" snackbar.
+  bool playNext(MediaItem song) {
     if (currentQueue.isEmpty) {
       enqueueSong(song);
-      return;
+      return true;
     }
-    if (!_audioReady) return;
+    if (!_audioReady) return false;
+    if (isPlayNextNoOp(
+      songId: song.id,
+      queueIds: currentQueue.map((e) => e.id).toList(),
+      currentIndex: currentSongIndex.value,
+    )) {
+      return false;
+    }
     int index = -1;
     for (int i = 0; i < currentQueue.length; i++) {
       if (song.id == (currentQueue[i]).id) {
@@ -1237,20 +1254,41 @@ class PlayerController extends GetxController
       }
     }
     final currentIndx = currentSongIndex.value;
-    if (index == currentIndx) {
-      return;
-    }
     if (index != -1) {
-      if (currentQueue.length == 1 ||
-          (currentQueue.length == 2 && index == 1)) {
-        return;
-      }
       onReorder(index, currentSongIndex.value + 1);
     } else {
-      //Will add song just below the current song
       (currentIndx == currentQueue.length - 1)
           ? enqueueSong(song)
           : _audioHandler.customAction("addPlayNextItem", {"mediaItem": song});
+    }
+    return true;
+  }
+
+  bool _extendingRadio = false;
+
+  /// Last track ended while radio/Wave is on — fetch the next batch and play.
+  Future<void> extendRadioThenPlayNext() async {
+    if (_extendingRadio || !isRadioModeOn) return;
+    _extendingRadio = true;
+    try {
+      if (currentQueue.length > currentSongIndex.value + 1) {
+        await next();
+        return;
+      }
+      if (radioInitiatorItem == null) return;
+      if (!_radioContinuationInFlight) {
+        _radioContinuationInFlight = true;
+        try {
+          await _addRadioContinuation(radioInitiatorItem);
+        } finally {
+          _radioContinuationInFlight = false;
+        }
+      }
+      if (currentQueue.length > currentSongIndex.value + 1) {
+        await next();
+      }
+    } finally {
+      _extendingRadio = false;
     }
   }
 

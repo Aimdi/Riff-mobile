@@ -122,10 +122,11 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
             ),
             SlidableAction(
               onPressed: (context) {
-                playerController.playNext(song);
-                ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                    context, "${"playnextMsg".tr} ${(song).title}",
-                    size: SanckBarSize.BIG));
+                if (playerController.playNext(song)) {
+                  ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                      context, "${"playnextMsg".tr} ${(song).title}",
+                      size: SanckBarSize.BIG));
+                }
               },
               backgroundColor: Theme.of(context).colorScheme.secondary,
               foregroundColor: Theme.of(context).textTheme.titleMedium!.color,
@@ -259,7 +260,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                           ),
                           splashRadius: 18,
                           onPressed: () {
-                            playerController.playNext(song);
+                            if (!playerController.playNext(song)) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               snackbar(
                                 context,

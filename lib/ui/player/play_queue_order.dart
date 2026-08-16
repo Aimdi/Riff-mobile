@@ -40,3 +40,45 @@ IconData volumeIconFor(int volume) {
   return Icons.volume_up;
 }
 
+/// Play Next is a no-op when the song is current or already next.
+bool isPlayNextNoOp({
+  required String songId,
+  required List<String> queueIds,
+  required int currentIndex,
+}) {
+  if (queueIds.isEmpty) return false;
+  if (currentIndex < 0 || currentIndex >= queueIds.length) return false;
+  if (queueIds[currentIndex] == songId) return true;
+  if (currentIndex + 1 < queueIds.length &&
+      queueIds[currentIndex + 1] == songId) {
+    return true;
+  }
+  return false;
+}
+
+/// Keep radio on when a continuation lands on an empty queue.
+bool shouldKeepRadioWhenEnqueueing({
+  required bool radioOn,
+  required bool queueEmpty,
+}) =>
+    radioOn && queueEmpty;
+
+/// Search tab: prefer the filtered list, then the widget items, then overview.
+List<T> searchTabPlaySongs<T>({
+  required Iterable<dynamic> items,
+  Iterable<dynamic>? filtered,
+  Iterable<dynamic>? overview,
+}) {
+  final fromFiltered = (filtered ?? const []).whereType<T>().toList();
+  if (fromFiltered.isNotEmpty) return fromFiltered;
+  final fromItems = items.whereType<T>().toList();
+  if (fromItems.isNotEmpty) return fromItems;
+  return (overview ?? const []).whereType<T>().toList();
+}
+
+/// Filter fetch failed — reuse overview results instead of an empty tab.
+List searchTabFallback({required dynamic overview}) {
+  if (overview is List && overview.isNotEmpty) return List.from(overview);
+  return [];
+}
+

@@ -3,8 +3,50 @@ import 'package:get/get.dart';
 
 import '../../navigator.dart';
 import '../../utils/riff_tokens.dart';
+import '../../widgets/collection_play.dart';
 import '../../widgets/content_list_widget.dart';
 import 'home_screen_controller.dart';
+
+/// First album/playlist on an Explore shelf — chip tap plays this.
+dynamic firstExploreShelfItem(dynamic shelf) {
+  try {
+    if (shelf.runtimeType.toString() == 'AlbumContent') {
+      final list = shelf.albumList as List;
+      return list.isEmpty ? null : list.first;
+    }
+    final list = shelf.playlistList as List;
+    return list.isEmpty ? null : list.first;
+  } catch (_) {
+    return null;
+  }
+}
+
+void openExploreShelf(String title) {
+  Get.toNamed(
+    ScreenNavigationSetup.exploreScreen,
+    id: ScreenNavigationSetup.id,
+    arguments: title,
+  );
+}
+
+/// Chip tap plays the first album/playlist; long-press opens Explore.
+Future<void> playOrOpenExploreShelf(dynamic shelf, String title) async {
+  final first = firstExploreShelfItem(shelf);
+  if (first != null) {
+    final isAlbum = first.runtimeType.toString() == 'Album';
+    final id = isAlbum
+        ? first.browseId?.toString() ?? ''
+        : first.playlistId?.toString() ?? '';
+    final name = first.title?.toString() ?? title;
+    final ok = await playCollection(
+      isAlbum: isAlbum,
+      id: id,
+      title: name,
+    );
+    if (ok) return;
+  }
+  openExploreShelf(title);
+}
 
 /// Zone C — editorial buckets collapsed into one chip row (+ optional
 /// single rotating carousel). Full carousels live one tap away on Explore.
@@ -61,30 +103,28 @@ class HomeExploreSection extends StatelessWidget {
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
                 final title = '${shelves[index].title}';
-                return ActionChip(
-                  label: Text(title),
-                  visualDensity: VisualDensity.compact,
-                  backgroundColor: theme.cardColor,
-                  surfaceTintColor: Colors.transparent,
-                  side: BorderSide(
-                    color: accent.withOpacity(0.28),
-                    width: RiffTokens.hairline,
+                return GestureDetector(
+                  onLongPress: () => openExploreShelf(title),
+                  child: ActionChip(
+                    label: Text(title),
+                    visualDensity: VisualDensity.compact,
+                    backgroundColor: theme.cardColor,
+                    surfaceTintColor: Colors.transparent,
+                    side: BorderSide(
+                      color: accent.withOpacity(0.28),
+                      width: RiffTokens.hairline,
+                    ),
+                    labelStyle: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: theme.textTheme.titleMedium?.color
+                          ?.withOpacity(0.9),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+                    ),
+                    onPressed: () =>
+                        playOrOpenExploreShelf(shelves[index], title),
                   ),
-                  labelStyle: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: theme.textTheme.titleMedium?.color
-                        ?.withOpacity(0.9),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
-                  ),
-                  onPressed: () {
-                    Get.toNamed(
-                      ScreenNavigationSetup.exploreScreen,
-                      id: ScreenNavigationSetup.id,
-                      arguments: title,
-                    );
-                  },
                 );
               },
             ),

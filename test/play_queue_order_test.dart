@@ -61,4 +61,60 @@ void main() {
     expect(volumeIconFor(50), Icons.volume_up);
     expect(volumeIconFor(100), Icons.volume_up);
   });
+
+  test('play next is a no-op when the song is current or already next', () {
+    expect(
+      isPlayNextNoOp(
+        songId: 'a',
+        queueIds: ['a', 'b'],
+        currentIndex: 0,
+      ),
+      isTrue,
+    );
+    expect(
+      isPlayNextNoOp(
+        songId: 'b',
+        queueIds: ['a', 'b'],
+        currentIndex: 0,
+      ),
+      isTrue,
+    );
+    expect(
+      isPlayNextNoOp(
+        songId: 'c',
+        queueIds: ['a', 'b'],
+        currentIndex: 0,
+      ),
+      isFalse,
+    );
+  });
+
+  test('radio continuation keeps radio when the queue is empty', () {
+    expect(
+      shouldKeepRadioWhenEnqueueing(radioOn: true, queueEmpty: true),
+      isTrue,
+    );
+    expect(
+      shouldKeepRadioWhenEnqueueing(radioOn: true, queueEmpty: false),
+      isFalse,
+    );
+    expect(
+      shouldKeepRadioWhenEnqueueing(radioOn: false, queueEmpty: true),
+      isFalse,
+    );
+  });
+
+  test('search tab play falls back to overview when the filter is empty', () {
+    const a = MediaItem(id: 'a', title: 'A');
+    expect(
+      searchTabPlaySongs<MediaItem>(
+        items: const [],
+        filtered: const [],
+        overview: [a],
+      ).map((e) => e.id),
+      ['a'],
+    );
+    expect(searchTabFallback(overview: [a]), [a]);
+    expect(searchTabFallback(overview: const []), isEmpty);
+  });
 }

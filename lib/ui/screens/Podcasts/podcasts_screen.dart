@@ -8,6 +8,7 @@ import '/services/podcast_progress_service.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/podcast_follow_button.dart';
+import '/ui/widgets/podcast_play.dart';
 import 'podcast_queue_screen.dart';
 
 /// AntennaPod-style podcast section: discover via Apple's directory,
@@ -148,7 +149,13 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
           setState(() {});
         },
       ),
-      onTap: () => Get.to(() => PodcastEpisodesScreen(podcast: p)),
+      onTap: () async {
+        if (shouldPlayPodcastShowOnTap()) {
+          final ok = await playPodcastShow(p);
+          if (ok) return;
+        }
+        Get.to(() => PodcastEpisodesScreen(podcast: p));
+      },
     );
   }
 }
@@ -326,15 +333,27 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
                   ),
                 ],
                 const SizedBox(height: 10),
-                Obx(() {
-                  PodcastService.subsRev.value;
-                  final subscribed = PodcastService.isSubscribed(
-                      widget.podcast['feedUrl'] ?? '');
-                  return PodcastFollowButton(
-                    following: subscribed,
-                    onPressed: _toggleSubscribe,
-                  );
-                }),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (_episodes.isNotEmpty)
+                      FilledButton.icon(
+                        onPressed: () => _playFrom(0),
+                        icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                        label: Text('play'.tr),
+                      ),
+                    Obx(() {
+                      PodcastService.subsRev.value;
+                      final subscribed = PodcastService.isSubscribed(
+                          widget.podcast['feedUrl'] ?? '');
+                      return PodcastFollowButton(
+                        following: subscribed,
+                        onPressed: _toggleSubscribe,
+                      );
+                    }),
+                  ],
+                ),
               ],
             ),
           ),

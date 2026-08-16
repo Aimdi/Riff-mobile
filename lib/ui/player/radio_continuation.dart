@@ -13,3 +13,10 @@ bool radioShouldFetchContinuation({
   final remaining = queueLength - currentIndex - 1;
   return remaining <= 3;
 }
+
+/// Last track ended and radio is on — fetch the next batch instead of pausing.
+bool radioShouldExtendInsteadOfPause({
+  required bool radioOn,
+  required bool hasNext,
+}) =>
+    radioOn && !hasNext;
