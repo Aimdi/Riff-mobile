@@ -14,6 +14,7 @@ import '../utils/theme_controller.dart';
 import 'add_to_playlist.dart';
 import 'image_widget.dart';
 import 'snackbar.dart';
+import 'song_favourite.dart';
 import 'songinfo_bottom_sheet.dart';
 
 class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
@@ -263,6 +264,11 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                             Icons.playlist_add,
                             color: muted,
                           ),
+                        ),
+                        SongRowHeartButton(
+                          song: song,
+                          iconSize: 20,
+                          color: muted,
                         ),
                         if (GetPlatform.isDesktop)
                           IconButton(

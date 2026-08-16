@@ -12,6 +12,7 @@ import '../../widgets/discovery/player_similar_row.dart';
 import '../../widgets/favorite_heart_button.dart';
 import '../player_controller.dart';
 import '../player_media_nav.dart';
+import 'playback_error_actions.dart';
 
 class PlayerControlWidget extends StatelessWidget {
   const PlayerControlWidget({super.key});
@@ -244,9 +245,8 @@ class PlayerControlWidget extends StatelessWidget {
                           ),
                         ),
                       ),
-                      TextButton(
-                        onPressed: playerController.retryPlayback,
-                        child: Text("retry".tr),
+                      PlaybackErrorActions(
+                        color: theme.colorScheme.error,
                       ),
                     ],
                   ),

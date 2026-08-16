@@ -1523,18 +1523,28 @@ class PlayerController extends GetxController
   Future<void> toggleFavourite() async {
     final currMediaItem = currentSong.value;
     if (currMediaItem == null) return;
-    final adding = isCurrentSongFav.isFalse;
-    // Flip immediately so the heart paints before Hive I/O.
-    isCurrentSongFav.value = adding;
-    unawaited(_persistFavourite(currMediaItem, adding));
-    if (Get.isRegistered<DiscoveryService>()) {
-      Get.find<DiscoveryService>().onFavorite(currMediaItem, add: adding);
+    await toggleFavouriteFor(currMediaItem);
+  }
+
+  /// Like/unlike [song] in LIBFAV. Used by the now-playing heart and song rows.
+  Future<void> toggleFavouriteFor(MediaItem song, {bool? adding}) async {
+    final isCurrent = currentSong.value?.id == song.id;
+    final currentlyFav = isCurrent
+        ? isCurrentSongFav.isTrue
+        : (Hive.isBoxOpen("LIBFAV") && _libFavBoxSync().containsKey(song.id));
+    final nextAdding = adding ?? !currentlyFav;
+    if (isCurrent) {
+      isCurrentSongFav.value = nextAdding;
     }
-    if (adding &&
+    unawaited(_persistFavourite(song, nextAdding));
+    if (Get.isRegistered<DiscoveryService>()) {
+      Get.find<DiscoveryService>().onFavorite(song, add: nextAdding);
+    }
+    if (nextAdding &&
         Get.find<SettingsScreenController>()
             .autoDownloadFavoriteSongEnabled
             .isTrue) {
-      Get.find<Downloader>().download(currMediaItem);
+      Get.find<Downloader>().download(song);
     }
   }
 
@@ -1711,6 +1721,12 @@ class PlayerController extends GetxController
 
   void clearPlaybackError() {
     if (playbackError.value != null) playbackError.value = null;
+  }
+
+  /// Skip a dead stream and try the next queue item.
+  Future<void> skipFailedPlayback() async {
+    clearPlaybackError();
+    await next();
   }
 
   /// Force a fresh stream URL for the current queue index.

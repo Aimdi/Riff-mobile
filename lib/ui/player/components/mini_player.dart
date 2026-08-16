@@ -18,6 +18,7 @@ import '../../widgets/song_download_btn.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/mini_player_progress_bar.dart';
 import 'animated_play_button.dart';
+import 'playback_error_actions.dart';
 
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
@@ -214,17 +215,9 @@ class _MiniPlayerSongInfo extends StatelessWidget {
                               ),
                             ),
                           ),
-                          TextButton(
-                            onPressed: playerController.retryPlayback,
-                            style: TextButton.styleFrom(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 6),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              visualDensity: VisualDensity.compact,
-                              foregroundColor: theme.colorScheme.error,
-                            ),
-                            child: Text("retry".tr),
+                          PlaybackErrorActions(
+                            compact: true,
+                            color: theme.colorScheme.error,
                           ),
                         ],
                       )

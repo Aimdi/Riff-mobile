@@ -12,6 +12,7 @@ import '../../utils/riff_tokens.dart';
 import '../../utils/theme_controller.dart';
 import '../player_controller.dart';
 import '../player_media_nav.dart';
+import 'playback_error_actions.dart';
 
 class GesturePlayer extends StatelessWidget {
   const GesturePlayer({super.key});
@@ -266,9 +267,9 @@ class GesturePlayer extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              TextButton(
-                                onPressed: playerController.retryPlayback,
-                                child: Text("retry".tr),
+                              PlaybackErrorActions(
+                                compact: true,
+                                color: theme.colorScheme.error,
                               ),
                             ],
                           ),
