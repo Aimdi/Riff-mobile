@@ -31,6 +31,11 @@ void main() {
     expect(shouldPlaySearchItemOnTap(), isTrue);
   });
 
+  test('search play-fail does not blame the network', () {
+    expect(searchPlayFailedMessageKey(), 'searchPlayFailed');
+    expect(searchPlayFailedMessageKey(), isNot('networkError'));
+  });
+
   test('failed play is reported so the user is not left in silence', () {
     expect(shouldNotifySearchPlayFailed(played: true), isFalse);
     expect(shouldNotifySearchPlayFailed(played: false), isTrue);

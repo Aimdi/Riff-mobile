@@ -8,11 +8,13 @@ import '/ui/player/player_controller.dart';
 import '/ui/widgets/snackbar.dart';
 
 /// Snackbar when Enter or a suggestion tap could not start playback.
+String searchPlayFailedMessageKey() => 'searchPlayFailed';
+
 void showSearchPlayFailed(BuildContext context) {
   if (!context.mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(snackbar(
     context,
-    'networkError'.tr,
+    searchPlayFailedMessageKey().tr,
     size: SanckBarSize.MEDIUM,
   ));
 }

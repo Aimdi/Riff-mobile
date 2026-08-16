@@ -54,6 +54,48 @@ void main() {
     );
   });
 
+  test('shuffle miss is -1, never a valid queue index', () {
+    expect(
+      resolveShuffledQueueIndex(
+        queueIds: ['a', 'b', 'c'],
+        shuffledId: 'missing',
+      ),
+      -1,
+    );
+    expect(
+      resolveShuffledQueueIndex(
+        queueIds: ['a', 'b', 'c'],
+        shuffledId: 'b',
+      ),
+      1,
+    );
+    expect(isValidQueueIndex(-1, 3), isFalse);
+    expect(isValidQueueIndex(0, 3), isTrue);
+    expect(isValidQueueIndex(3, 3), isFalse);
+  });
+
+  test('stale playByIndex should drop the loading spinner', () {
+    expect(
+      shouldClearLoadingOnStalePlayByIndex(
+        requestedIndex: 0,
+        currentIndex: 2,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldClearLoadingOnStalePlayByIndex(
+        requestedIndex: 1,
+        currentIndex: 1,
+      ),
+      isFalse,
+    );
+  });
+
+  test('cloud server id strips the cloud_ prefix', () {
+    expect(cloudServerSongId('cloud_abc'), 'abc');
+    expect(cloudServerSongId('abc'), 'abc');
+  });
+
   test('previous restarts after 3 seconds, else skips back', () {
     expect(shouldRestartOnPrevious(Duration.zero), isFalse);
     expect(shouldRestartOnPrevious(const Duration(milliseconds: 3000)), isFalse);

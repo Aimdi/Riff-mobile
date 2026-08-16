@@ -68,8 +68,9 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode) {
                 title: Text("playNext".tr),
                 onTap: () {
                   Navigator.of(ctx).pop();
-                  Get.find<PlayerController>().playNext(episode);
-                  snack("playNext".tr);
+                  final ok =
+                      Get.find<PlayerController>().playNext(episode);
+                  snack(ok ? "playnextMsg".tr : "operationFailed".tr);
                 },
               ),
               ListTile(
