@@ -7,6 +7,8 @@ import '../utils/riff_tokens.dart';
 import '../utils/theme_controller.dart';
 import 'collection_play.dart';
 import 'image_widget.dart';
+import 'podcast_play.dart';
+import 'snackbar.dart';
 
 class ContentListItem extends StatelessWidget {
   const ContentListItem(
@@ -64,10 +66,31 @@ class ContentListItem extends StatelessWidget {
       ? (content.browseId?.toString() ?? '')
       : (content.playlistId?.toString() ?? '');
 
+  String? get _collectionKind =>
+      _isAlbum ? null : content.kind?.toString();
+
   /// Play without opening the screen when tracks are a one-liner fetch.
   /// Falls back to opening the album/playlist if that path is empty or throws.
   Future<void> _playFromOverlay({bool shuffle = false}) async {
     try {
+      if (!_isAlbum &&
+          isPodcastCollection(kind: _collectionKind, id: _collectionId)) {
+        final tracks = await loadCollectionPlayTracks(
+          isAlbum: false,
+          id: _collectionId,
+          isLibraryItem: isLibraryItem,
+          isPipedPlaylist: content.isPipedPlaylist == true,
+          isCloudPlaylist: content.isCloudPlaylist != false,
+        );
+        if (tracks.isNotEmpty) {
+          final ok = await playCollectionTracksAsPodcast(
+            tracks: tracks,
+            title: content.title?.toString() ?? '',
+            shuffle: shuffle,
+          );
+          if (ok) return;
+        }
+      }
       final ok = await playCollection(
         isAlbum: _isAlbum,
         id: _collectionId,
@@ -83,6 +106,16 @@ class ContentListItem extends StatelessWidget {
     }
   }
 
+  void _snackOperationFailed() {
+    final ctx = Get.context;
+    if (ctx == null || !ctx.mounted) return;
+    ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
+      ctx,
+      'operationFailed'.tr,
+      size: SanckBarSize.MEDIUM,
+    ));
+  }
+
   Future<void> _queueFromSheet({required bool radio}) async {
     final tracks = await loadCollectionPlayTracks(
       isAlbum: _isAlbum,
@@ -92,7 +125,7 @@ class ContentListItem extends StatelessWidget {
       isCloudPlaylist: _isAlbum || content.isCloudPlaylist != false,
     );
     if (tracks.isEmpty || !Get.isRegistered<PlayerController>()) {
-      _openContent();
+      _snackOperationFailed();
       return;
     }
     final player = Get.find<PlayerController>();

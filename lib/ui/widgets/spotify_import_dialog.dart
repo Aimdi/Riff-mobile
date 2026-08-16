@@ -119,6 +119,13 @@ class _SpotifyImportDialogState extends State<SpotifyImportDialog> {
     } catch (e) {
       _status.value = e.toString().replaceFirst('Exception: ', '');
       _progress.value = 0;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(snackbar(
+          context,
+          'operationFailed'.tr,
+          size: SanckBarSize.MEDIUM,
+        ));
+      }
     } finally {
       _busy.value = false;
     }

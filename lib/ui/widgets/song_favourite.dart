@@ -50,6 +50,12 @@ bool songIsInLibFav(String songId) {
   return Hive.box('LIBFAV').containsKey(songId);
 }
 
+/// Same window as [FavoriteHeartButton.toggleDebounce].
+const Duration songRowHeartDebounce = Duration(milliseconds: 400);
+
+bool shouldIgnoreHeartToggle(DateTime? lastToggle, DateTime now) =>
+    lastToggle != null && now.difference(lastToggle) < songRowHeartDebounce;
+
 /// Compact row heart — likes [song], not only the now-playing track.
 class SongRowHeartButton extends StatefulWidget {
   const SongRowHeartButton({
@@ -69,6 +75,7 @@ class SongRowHeartButton extends StatefulWidget {
 
 class _SongRowHeartButtonState extends State<SongRowHeartButton> {
   late bool _fav;
+  DateTime? _lastToggle;
 
   @override
   void initState() {
@@ -85,6 +92,9 @@ class _SongRowHeartButtonState extends State<SongRowHeartButton> {
   }
 
   void _toggle(PlayerController player, {required bool isCurrent}) {
+    final now = DateTime.now();
+    if (shouldIgnoreHeartToggle(_lastToggle, now)) return;
+    _lastToggle = now;
     if (isCurrent) {
       player.toggleFavourite();
       return;

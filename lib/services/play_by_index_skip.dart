@@ -49,3 +49,19 @@ String cloudServerSongId(String songId) {
   if (songId.startsWith('cloud_')) return songId.substring(6);
   return songId;
 }
+
+/// Hive / JSON may store playByIndex as a num or string.
+int coercePlayByIndex(dynamic raw) {
+  if (raw is int) return raw;
+  if (raw is num) return raw.toInt();
+  return int.tryParse('$raw') ?? -1;
+}
+
+/// Arm EOF advance once per track so position ticks cannot double-skip.
+bool shouldArmEofAdvance({
+  required String? currentId,
+  required String? lastArmedId,
+}) =>
+    currentId != null &&
+    currentId.isNotEmpty &&
+    currentId != lastArmedId;

@@ -85,6 +85,47 @@ Future<bool> playPodcastShow(Map<String, dynamic> podcast) async {
   return true;
 }
 
+/// YT channel / Apple podcast tiles (not albums).
+bool isPodcastCollection({String? kind, String? id}) {
+  if (kind == 'podcast' || kind == 'yt_channel') return true;
+  final pid = id?.trim() ?? '';
+  if (pid.startsWith('MPSP')) return true;
+  return RegExp(r'^UC[\w-]{20,}$').hasMatch(pid);
+}
+
+/// Play already-loaded episodes from the in-progress one (or first).
+Future<bool> playCollectionTracksAsPodcast({
+  required List<MediaItem> tracks,
+  required String title,
+  bool shuffle = false,
+}) async {
+  if (tracks.isEmpty || !Get.isRegistered<PlayerController>()) return false;
+  final items = List<MediaItem>.from(tracks);
+  if (shuffle) items.shuffle();
+  final inProgress = PodcastProgressService.inProgress();
+  final startId = inProgress.isNotEmpty ? '${inProgress.first['id']}' : null;
+  final index = shuffle
+      ? 0
+      : podcastShowStartIndex(
+          episodeIds: items.map((e) => e.id).toList(),
+          inProgressId: startId,
+        );
+  final player = Get.find<PlayerController>();
+  if (!shuffle) {
+    final pos = PodcastProgressService.positionMs(items[index].id) ?? 0;
+    if (pos > 0) player.armResume(items[index].id, pos);
+  }
+  await player.playPlayListSong(
+    items,
+    index,
+    playfrom: PlaylingFrom(
+      type: PlaylingFromType.SELECTION,
+      name: title,
+    ),
+  );
+  return true;
+}
+
 /// Discover genre chips play the top show; empty/failed fetch still opens browse.
 Future<bool> playFirstPodcastInGenre(String genreId) async {
   if (genreId.trim().isEmpty) return false;

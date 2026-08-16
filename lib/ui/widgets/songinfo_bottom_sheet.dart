@@ -272,14 +272,19 @@ class SongInfoBottomSheet extends StatelessWidget {
                     title: playlist!.title == "Library Songs"
                         ? Text("removeFromLib".tr)
                         : Text("removeFromPlaylist".tr),
-                    onTap: () {
+                    onTap: () async {
                       Navigator.of(context).pop();
-                      songInfoController
-                          .removeSongFromPlaylist(song, playlist!)
-                          .whenComplete(() => ScaffoldMessenger.of(Get.context!)
-                              .showSnackBar(snackbar(Get.context!,
-                                  "Removed from ${playlist!.title}",
-                                  size: SanckBarSize.MEDIUM)));
+                      final ok = await songInfoController
+                          .removeSongFromPlaylist(song, playlist!);
+                      final ctx = Get.context;
+                      if (ctx == null || !ctx.mounted) return;
+                      ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
+                        ctx,
+                        ok
+                            ? "${"songRemovedAlert".tr} ${playlist!.title}"
+                            : "operationFailed".tr,
+                        size: SanckBarSize.MEDIUM,
+                      ));
                     },
                   )
                 : const SizedBox.shrink(),
@@ -468,7 +473,7 @@ class SongInfoController extends GetxController
 }
 
 mixin RemoveSongFromPlaylistMixin {
-  Future<void> removeSongFromPlaylist(MediaItem item, Playlist playlist) async {
+  Future<bool> removeSongFromPlaylist(MediaItem item, Playlist playlist) async {
     final box = await Hive.openBox(playlist.playlistId);
     //Library songs case
     if (playlist.playlistId == "SongsCache") {
@@ -502,9 +507,10 @@ mixin RemoveSongFromPlaylistMixin {
               .removeFromPlaylist(playlist.playlistId, songIndex);
           if (res.code == 1) {
             plstCntroller.addNRemoveItemsinList(item, action: 'remove');
+            return true;
           }
         }
-        return;
+        return false;
       }
 
       try {
@@ -517,8 +523,9 @@ mixin RemoveSongFromPlaylistMixin {
 
     if (playlist.playlistId == "SongDownloads" ||
         playlist.playlistId == "SongsCache") {
-      return;
+      return true;
     }
     box.close();
+    return true;
   }
 }

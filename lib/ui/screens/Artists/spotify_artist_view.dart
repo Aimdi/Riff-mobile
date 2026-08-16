@@ -240,6 +240,12 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                   onPressed: () async {
                     if (subscribed) {
                       await lib.removeFromLibrary(id);
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                        context,
+                        'removeFromLib'.tr,
+                        size: SanckBarSize.MEDIUM,
+                      ));
                       return;
                     }
                     final pl = Playlist(
@@ -250,7 +256,16 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                           c.artist_.subscribers ?? 'YouTube channel',
                       kind: 'yt_channel',
                     );
-                    await lib.subscribeYoutubeChannel(id, seed: pl);
+                    final saved =
+                        await lib.subscribeYoutubeChannel(id, seed: pl);
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                      context,
+                      saved != null
+                          ? 'subscribedAsPodcast'.tr
+                          : 'operationFailed'.tr,
+                      size: SanckBarSize.MEDIUM,
+                    ));
                   },
                 );
               }),

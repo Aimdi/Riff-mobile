@@ -75,6 +75,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   bool _startMutedForMix = false;
   /// Song id we already near-end-prefetched, so the 45s listener fires once.
   String? _prefetchArmedForId;
+  /// Song id we already EOF-advanced, so position ticks cannot double-skip.
+  String? _eofArmedForId;
+  bool _eofAdvanceInProgress = false;
 
   /// Auto URL-refresh budget after stream death (PLAY-1). Reset on song change
   /// or when playback reaches ready.
@@ -390,7 +393,10 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       }
 
       if (posMs >= (durationMs - playerDurationOffset)) {
-        await _triggerNext();
+        final id = mediaItem.value?.id;
+        if (shouldArmEofAdvance(currentId: id, lastArmedId: _eofArmedForId)) {
+          await _triggerNext();
+        }
       }
     });
   }
@@ -436,50 +442,62 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   }
 
   Future<void> _triggerNext() async {
-    if (loopModeEnabled) {
-      await _player.seek(Duration.zero);
-      if (!_player.playing) {
-        _player.play();
-      }
-      return;
-    }
-
-    // AntennaPod-experimental: continuous podcast playback can be toggled off
-    // so an episode ends without auto-advancing.
-    final item = (currentIndex != null &&
-            currentIndex! >= 0 &&
-            currentIndex! < queue.value.length)
-        ? queue.value[currentIndex!]
-        : null;
-    if (item != null && PodcastProgressService.isPodcastItem(item)) {
-      final continuous = Hive.box('AppPrefs')
-              .get('podcastContinuousPlayback', defaultValue: true) ==
-          true;
-      if (!continuous) {
-        await pause();
+    if (_eofAdvanceInProgress) return;
+    _eofAdvanceInProgress = true;
+    try {
+      if (loopModeEnabled) {
+        // Block a second EOF tick while we seek, then clear so loop-one
+        // can arm again on the next pass of the same track.
+        _eofArmedForId = mediaItem.value?.id;
+        await _player.seek(Duration.zero);
+        if (!_player.playing) {
+          _player.play();
+        }
+        _eofArmedForId = null;
         return;
       }
-      // Playing a lone Continue item with continuous on: append the rest of
-      // the manual Podcast Queue so listening keeps going.
-      final nextIdx = _getNextSongIndex();
-      if (nextIdx == currentIndex &&
-          Get.isRegistered<PodcastQueueController>()) {
-        final pq = Get.find<PodcastQueueController>().queue;
-        final qi = pq.indexWhere((e) => e.id == item.id);
-        final rest = qi >= 0
-            ? pq.sublist(qi + 1).toList()
-            : pq.where((e) => e.id != item.id).toList();
-        if (rest.isNotEmpty) {
-          await addQueueItems(rest);
+
+      _eofArmedForId = mediaItem.value?.id;
+
+      // AntennaPod-experimental: continuous podcast playback can be toggled off
+      // so an episode ends without auto-advancing.
+      final item = (currentIndex != null &&
+              currentIndex! >= 0 &&
+              currentIndex! < queue.value.length)
+          ? queue.value[currentIndex!]
+          : null;
+      if (item != null && PodcastProgressService.isPodcastItem(item)) {
+        final continuous = Hive.box('AppPrefs')
+                .get('podcastContinuousPlayback', defaultValue: true) ==
+            true;
+        if (!continuous) {
+          await pause();
+          return;
+        }
+        // Playing a lone Continue item with continuous on: append the rest of
+        // the manual Podcast Queue so listening keeps going.
+        final nextIdx = _getNextSongIndex();
+        if (nextIdx == currentIndex &&
+            Get.isRegistered<PodcastQueueController>()) {
+          final pq = Get.find<PodcastQueueController>().queue;
+          final qi = pq.indexWhere((e) => e.id == item.id);
+          final rest = qi >= 0
+              ? pq.sublist(qi + 1).toList()
+              : pq.where((e) => e.id != item.id).toList();
+          if (rest.isNotEmpty) {
+            await addQueueItems(rest);
+          }
+        }
+        // Finished episode leaves the manual Up Next queue.
+        if (Get.isRegistered<PodcastQueueController>()) {
+          Get.find<PodcastQueueController>().removeById(item.id);
         }
       }
-      // Finished episode leaves the manual Up Next queue.
-      if (Get.isRegistered<PodcastQueueController>()) {
-        Get.find<PodcastQueueController>().removeById(item.id);
-      }
-    }
 
-    await skipToNext();
+      await skipToNext();
+    } finally {
+      _eofAdvanceInProgress = false;
+    }
   }
 
   void _listenForSequenceStateChanges() {
@@ -740,7 +758,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         break;
 
       case 'playByIndex':
-        final songIndex = extras!['index'];
+        final songIndex = coercePlayByIndex(extras!['index']);
         if (!isValidQueueIndex(songIndex, queue.value.length)) {
           isSongLoading = false;
           playbackState.add(playbackState.value.copyWith(

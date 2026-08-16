@@ -102,4 +102,35 @@ void main() {
     expect(shouldRestartOnPrevious(const Duration(milliseconds: 3001)), isTrue);
     expect(shouldRestartOnPrevious(const Duration(seconds: 5)), isTrue);
   });
+
+  test('coercePlayByIndex accepts Hive/JSON nums and strings', () {
+    expect(coercePlayByIndex(3), 3);
+    expect(coercePlayByIndex(2.0), 2);
+    expect(coercePlayByIndex('4'), 4);
+    expect(coercePlayByIndex(null), -1);
+    expect(coercePlayByIndex('nope'), -1);
+  });
+
+  test('EOF advance arms once per track id', () {
+    expect(
+      shouldArmEofAdvance(currentId: 'a', lastArmedId: null),
+      isTrue,
+    );
+    expect(
+      shouldArmEofAdvance(currentId: 'a', lastArmedId: 'a'),
+      isFalse,
+    );
+    expect(
+      shouldArmEofAdvance(currentId: 'b', lastArmedId: 'a'),
+      isTrue,
+    );
+    expect(
+      shouldArmEofAdvance(currentId: '', lastArmedId: null),
+      isFalse,
+    );
+    expect(
+      shouldArmEofAdvance(currentId: null, lastArmedId: null),
+      isFalse,
+    );
+  });
 }
