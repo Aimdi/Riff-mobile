@@ -10,6 +10,7 @@ import '../../utils/helper.dart';
 import '../widgets/snackbar.dart';
 import '../widgets/up_next_queue.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/player/upcoming_queue.dart';
 import '../widgets/sliding_up_panel.dart';
 
 /// Player screen
@@ -76,7 +77,7 @@ class Player extends StatelessWidget {
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
                           Text(
                             "upNext".tr,
                             style: Theme.of(context)
@@ -88,6 +89,30 @@ class Player extends StatelessWidget {
                                   letterSpacing: 0.2,
                                 ),
                           ),
+                          Obx(() {
+                            final upcoming = playerController.upcomingQueue;
+                            if (upcoming.isEmpty) {
+                              return const SizedBox.shrink();
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 1, 20, 0),
+                              child: Text(
+                                upcomingPreviewLabel(
+                                    upcoming.first.title, upcoming.length),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelSmall
+                                    ?.copyWith(
+                                      color: RiffSurfaces.textPrimary
+                                          .withOpacity(0.85),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                              ),
+                            );
+                          }),
                         ],
                       ),
                     ),

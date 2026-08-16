@@ -4698,6 +4698,8 @@ Map<String, Map<String, String>> get keys => {
     "queuerearrangingDeniedMsg": "Queue can't be rearranged when shuffle mode is enabled",
     "songNotPlayable": "Song is not playable due to server restriction!",
     "upNext": "Up Next",
+    "nowPlaying": "Now playing",
+    "nextUp": "Next up",
     "playingfromAlbum": "PLAYING FROM ALBUM",
     "playingfromPlaylist": "PLAYING FROM PLAYLIST",
     "playingfromSelection": "PLAYING FROM SELECTION",

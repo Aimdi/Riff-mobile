@@ -34,6 +34,7 @@ import '/ui/player/riff_wave.dart';
 import '/ui/player/play_log_gate.dart';
 import '/ui/player/progress_ui_throttle.dart';
 import '/ui/player/radio_continuation.dart';
+import 'upcoming_queue.dart';
 import 'video_mode_controller.dart';
 
 class PlayerController extends GetxController
@@ -102,6 +103,11 @@ class PlayerController extends GetxController
       .obs;
 
   final currentSongIndex = (0).obs;
+
+  /// Songs after the currently playing index — Spotify-style "Up next".
+  List<MediaItem> get upcomingQueue =>
+      upcomingAfterIndex(currentQueue, currentSongIndex.value);
+
   final isFirstSong = true;
   final isLastSong = true;
   final isQueueLoopModeEnabled = false.obs;
