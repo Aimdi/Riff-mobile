@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../navigator.dart';
 import '../utils/riff_tokens.dart';
 import '../utils/theme_controller.dart';
+import 'collection_play.dart';
 import 'image_widget.dart';
 
 class ContentListItem extends StatelessWidget {
@@ -20,6 +21,8 @@ class ContentListItem extends StatelessWidget {
   /// When true (podcast search results), the opened playlist shows a pinned
   /// "Similar podcasts" section at the bottom.
   final bool showSimilarOnOpen;
+
+  bool get _isAlbum => content.runtimeType.toString() == "Album";
 
   String _subtitle(bool isAlbum) {
     if (isAlbum) {
@@ -44,67 +47,173 @@ class ContentListItem extends StatelessWidget {
     return content.description?.toString() ?? '';
   }
 
+  void _openContent() {
+    if (_isAlbum) {
+      Get.toNamed(ScreenNavigationSetup.albumScreen,
+          id: ScreenNavigationSetup.id,
+          arguments: (content, content.browseId));
+      return;
+    }
+    Get.toNamed(ScreenNavigationSetup.playlistScreen,
+        id: ScreenNavigationSetup.id,
+        arguments: [content, content.playlistId, showSimilarOnOpen]);
+  }
+
+  String get _collectionId => _isAlbum
+      ? (content.browseId?.toString() ?? '')
+      : (content.playlistId?.toString() ?? '');
+
+  /// Play without opening the screen when tracks are a one-liner fetch.
+  /// Falls back to opening the album/playlist if that path is empty or throws.
+  Future<void> _playFromOverlay({bool shuffle = false}) async {
+    try {
+      final ok = await playCollection(
+        isAlbum: _isAlbum,
+        id: _collectionId,
+        title: content.title?.toString() ?? '',
+        shuffle: shuffle,
+        isLibraryItem: isLibraryItem,
+        isPipedPlaylist: !_isAlbum && content.isPipedPlaylist == true,
+        isCloudPlaylist: _isAlbum || content.isCloudPlaylist != false,
+      );
+      if (!ok) _openContent();
+    } catch (_) {
+      _openContent();
+    }
+  }
+
+  void _showPlaySheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.play_arrow_rounded),
+              title: Text('play'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _playFromOverlay();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.shuffle),
+              title: Text('shuffle'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _playFromOverlay(shuffle: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.open_in_new),
+              title: Text('viewAll'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _openContent();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _art(BuildContext context) {
+    final Widget child;
+    if (_isAlbum) {
+      child = ImageWidget(
+        size: 112,
+        album: content,
+        borderRadius: RiffTokens.radiusSm,
+      );
+    } else if (content.isCloudPlaylist ||
+        !(content.playlistId == 'LIBRP' ||
+            content.playlistId == 'LIBFAV' ||
+            content.playlistId == 'SongsCache' ||
+            content.playlistId == 'SongDownloads')) {
+      child = ImageWidget(
+        size: 112,
+        playlist: content,
+        borderRadius: RiffTokens.radiusSm,
+      );
+    } else {
+      child = Container(
+          height: 112,
+          width: 112,
+          decoration: BoxDecoration(
+              color: Theme.of(context).primaryColorLight,
+              borderRadius: BorderRadius.circular(RiffTokens.radiusSm)),
+          child: Center(
+              child: Icon(
+            content.playlistId == 'LIBRP'
+                ? Icons.history
+                : content.playlistId == 'LIBFAV'
+                    ? Icons.favorite
+                    : content.playlistId == 'SongsCache'
+                        ? Icons.flight
+                        : Icons.download,
+            color: Colors.white,
+            size: 36,
+          )));
+    }
+    return SizedBox(
+      width: 112,
+      height: 112,
+      child: Stack(
+        children: [
+          child,
+          Positioned(
+            right: 4,
+            bottom: 4,
+            child: Tooltip(
+              message: "play".tr,
+              child: Material(
+                color: Colors.black.withOpacity(0.5),
+                shape: const CircleBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () {
+                    _playFromOverlay();
+                  },
+                  child: const Padding(
+                    padding: EdgeInsets.all(2),
+                    child: Icon(
+                      Icons.play_circle_fill,
+                      size: 26,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isAlbum = content.runtimeType.toString() == "Album";
     final muted = Theme.of(context).brightness == Brightness.dark
         ? RiffSurfaces.textMuted
         : Theme.of(context).textTheme.titleSmall?.color?.withOpacity(0.6);
     return InkWell(
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
-      onTap: () {
-        if (isAlbum) {
-          Get.toNamed(ScreenNavigationSetup.albumScreen,
-              id: ScreenNavigationSetup.id,
-              arguments: (content, content.browseId));
-          return;
-        }
-        Get.toNamed(ScreenNavigationSetup.playlistScreen,
-            id: ScreenNavigationSetup.id,
-            arguments: [content, content.playlistId, showSimilarOnOpen]);
-      },
+      onTap: _openContent,
+      onLongPress: () => _showPlaySheet(context),
       child: SizedBox(
         width: 112,
         height: 156,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            isAlbum
-                ? ImageWidget(
-                    size: 112,
-                    album: content,
-                    borderRadius: RiffTokens.radiusSm,
-                  )
-                : content.isCloudPlaylist ||
-                        !(content.playlistId == 'LIBRP' ||
-                            content.playlistId == 'LIBFAV' ||
-                            content.playlistId == 'SongsCache' ||
-                            content.playlistId == 'SongDownloads')
-                    ? ImageWidget(
-                        size: 112,
-                        playlist: content,
-                        borderRadius: RiffTokens.radiusSm,
-                      )
-                    : Container(
-                        height: 112,
-                        width: 112,
-                        decoration: BoxDecoration(
-                            color: Theme.of(context).primaryColorLight,
-                            borderRadius:
-                                BorderRadius.circular(RiffTokens.radiusSm)),
-                        child: Center(
-                            child: Icon(
-                          content.playlistId == 'LIBRP'
-                              ? Icons.history
-                              : content.playlistId == 'LIBFAV'
-                                  ? Icons.favorite
-                                  : content.playlistId == 'SongsCache'
-                                      ? Icons.flight
-                                      : Icons.download,
-                          color: Colors.white,
-                          size: 36,
-                        ))),
+            _art(context),
             const SizedBox(height: 8),
             Text(
               content.title,
@@ -119,7 +228,7 @@ class ContentListItem extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(
-              _subtitle(isAlbum),
+              _subtitle(_isAlbum),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.titleSmall?.copyWith(

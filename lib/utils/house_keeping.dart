@@ -5,8 +5,8 @@ import '/models/media_Item_builder.dart';
 import '/ui/screens/Library/library_controller.dart';
 import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
-import '../services/utils.dart';
 import 'helper.dart';
+import 'songs_url_cache.dart';
 
 void startHouseKeeping() {
   removeExpiredSongsUrlFromDb();
@@ -19,10 +19,8 @@ Future<void> removeExpiredSongsUrlFromDb() async {
         songsUrlCacheBox.keys.whereType<String>().toList();
     for (var i = 0; i < songsUrlCacheKeysList.length; i++) {
       final songUrlKey = songsUrlCacheKeysList[i];
-      final streamData = songsUrlCacheBox.get(songUrlKey)[1];
-      if (streamData == null ||
-          streamData.runtimeType == String ||
-          (streamData != null && isExpired(url: streamData['url'] as String))) {
+      final entry = songsUrlCacheBox.get(songUrlKey);
+      if (songsUrlCacheEntryExpired(entry)) {
         await songsUrlCacheBox.delete(songUrlKey);
       }
     }

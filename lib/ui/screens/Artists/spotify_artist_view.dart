@@ -3,10 +3,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/models/artist.dart';
 import '/models/playlist.dart';
 import '/models/playling_from.dart';
 import '/models/thumbnail.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/widgets/collection_play.dart';
 import '/ui/screens/Podcasts/podcasts_library_controller.dart';
 import '/ui/widgets/podcast_follow_button.dart';
 import '/ui/widgets/songinfo_bottom_sheet.dart';
@@ -251,6 +253,27 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
               }),
               const Spacer(),
               IconButton(
+                tooltip: 'startRadio'.tr,
+                icon: const Icon(Icons.sensors),
+                onPressed: () {
+                  final radioId = c.artist_.radioId;
+                  final player = Get.find<PlayerController>();
+                  if (radioId != null && radioId.isNotEmpty) {
+                    player.startRadio(null, playlistid: radioId);
+                    return;
+                  }
+                  if (songs.isNotEmpty) {
+                    player.startRadio(songs.first);
+                    return;
+                  }
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                        context, "radioNotAvailable".tr,
+                        size: SanckBarSize.BIG));
+                  }
+                },
+              ),
+              IconButton(
                 tooltip: 'shuffle'.tr,
                 icon: const Icon(Icons.shuffle),
                 onPressed: songs.isEmpty
@@ -372,6 +395,68 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
     );
   }
 
+  void _openAlbum(dynamic album) {
+    Get.toNamed(
+      ScreenNavigationSetup.albumScreen,
+      id: ScreenNavigationSetup.id,
+      arguments: (album, album.browseId),
+    );
+  }
+
+  Future<void> _playOrOpenAlbum(dynamic album) async {
+    final ok = await playCollection(
+      isAlbum: true,
+      id: (album.browseId ?? '').toString(),
+      title: (album.title ?? '').toString(),
+    );
+    if (!ok) _openAlbum(album);
+  }
+
+  void _openPlaylist(dynamic playlist) {
+    Get.toNamed(
+      ScreenNavigationSetup.playlistScreen,
+      id: ScreenNavigationSetup.id,
+      arguments: [playlist, playlist.playlistId, false],
+    );
+  }
+
+  Future<void> _playOrOpenPlaylist(dynamic playlist) async {
+    final ok = await playCollection(
+      isAlbum: false,
+      id: (playlist.playlistId ?? '').toString(),
+      title: (playlist.title ?? '').toString(),
+      isPipedPlaylist: playlist.isPipedPlaylist == true,
+      isCloudPlaylist: playlist.isCloudPlaylist != false,
+    );
+    if (!ok) _openPlaylist(playlist);
+  }
+
+  void _openRelatedArtist(dynamic artist) {
+    Get.toNamed(
+      ScreenNavigationSetup.artistScreen,
+      id: ScreenNavigationSetup.id,
+      preventDuplicates: false,
+      arguments: [true, artist.browseId],
+    );
+  }
+
+  Future<void> _playOrOpenArtist(dynamic artist) async {
+    final model = artist is Artist
+        ? artist
+        : Artist(
+            name: (artist.name ?? '').toString(),
+            browseId: (artist.browseId ?? '').toString(),
+            radioId: artist.radioId?.toString(),
+            thumbnailUrl: (artist.thumbnailUrl ?? '').toString(),
+          );
+    if (model.browseId.isEmpty) {
+      _openRelatedArtist(artist);
+      return;
+    }
+    final ok = await playArtist(model);
+    if (!ok) _openRelatedArtist(artist);
+  }
+
   /// A safe album card (avoids ContentListItem's unguarded artists[0] access,
   /// which throws for an artist's own-page album shelf where YTM omits it).
   Widget _releaseCard(ThemeData theme, dynamic album) {
@@ -379,11 +464,8 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
     final year = (album.year ?? '').toString();
     return InkWell(
       borderRadius: BorderRadius.circular(8),
-      onTap: () => Get.toNamed(
-        ScreenNavigationSetup.albumScreen,
-        id: ScreenNavigationSetup.id,
-        arguments: (album, album.browseId),
-      ),
+      onTap: () => _playOrOpenAlbum(album),
+      onLongPress: () => _openAlbum(album),
       child: SizedBox(
         width: 124,
         child: Column(
@@ -454,11 +536,8 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
     final desc = (playlist.description ?? '').toString();
     return InkWell(
       borderRadius: BorderRadius.circular(8),
-      onTap: () => Get.toNamed(
-        ScreenNavigationSetup.playlistScreen,
-        id: ScreenNavigationSetup.id,
-        arguments: [playlist, playlist.playlistId, false],
-      ),
+      onTap: () => _playOrOpenPlaylist(playlist),
+      onLongPress: () => _openPlaylist(playlist),
       child: SizedBox(
         width: 124,
         child: Column(
@@ -528,12 +607,8 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
     final art = Thumbnail((artist.thumbnailUrl ?? '').toString()).high;
     return InkWell(
       borderRadius: BorderRadius.circular(62),
-      onTap: () => Get.toNamed(
-        ScreenNavigationSetup.artistScreen,
-        id: ScreenNavigationSetup.id,
-        preventDuplicates: false,
-        arguments: [true, artist.browseId],
-      ),
+      onTap: () => _playOrOpenArtist(artist),
+      onLongPress: () => _openRelatedArtist(artist),
       child: SizedBox(
         width: 124,
         child: Column(

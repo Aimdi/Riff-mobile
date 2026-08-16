@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '/ui/screens/Search/search_play_top.dart';
 import '/ui/screens/Search/search_screen_controller.dart';
 import '/ui/utils/theme_controller.dart';
 
@@ -38,29 +39,55 @@ class SearchItem extends StatelessWidget {
       dense: true,
       visualDensity: const VisualDensity(horizontal: 0, vertical: -2),
       title: Text(queryString),
-      trailing: isHistoryString
-          ? IconButton(
-              iconSize: 16,
-              splashRadius: 14,
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-              padding: EdgeInsets.zero,
-              visualDensity: const VisualDensity(horizontal: -4, vertical: -2),
-              onPressed: () {
-                searchScreenController.removeQueryFromHistory(queryString);
-              },
-              icon: Icon(Icons.clear, color: iconColor),
-            )
-          : IconButton(
-              iconSize: 16,
-              splashRadius: 14,
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-              padding: EdgeInsets.zero,
-              visualDensity: const VisualDensity(horizontal: -4, vertical: -2),
-              onPressed: () {
-                searchScreenController.suggestionInput(queryString);
-              },
-              icon: Icon(Icons.north_west, color: iconColor),
-            ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: 'play'.tr,
+            iconSize: 18,
+            splashRadius: 14,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            padding: EdgeInsets.zero,
+            visualDensity: const VisualDensity(horizontal: -4, vertical: -2),
+            onPressed: () async {
+              searchScreenController.addToHistryQueryList(queryString);
+              final ok = await playTopSongResult(queryString);
+              if (!ok) {
+                Get.toNamed(ScreenNavigationSetup.searchResultScreen,
+                    id: ScreenNavigationSetup.id, arguments: queryString);
+              }
+            },
+            icon: Icon(Icons.play_arrow, color: iconColor),
+          ),
+          isHistoryString
+              ? IconButton(
+                  iconSize: 16,
+                  splashRadius: 14,
+                  constraints:
+                      const BoxConstraints(minWidth: 28, minHeight: 28),
+                  padding: EdgeInsets.zero,
+                  visualDensity:
+                      const VisualDensity(horizontal: -4, vertical: -2),
+                  onPressed: () {
+                    searchScreenController.removeQueryFromHistory(queryString);
+                  },
+                  icon: Icon(Icons.clear, color: iconColor),
+                )
+              : IconButton(
+                  iconSize: 16,
+                  splashRadius: 14,
+                  constraints:
+                      const BoxConstraints(minWidth: 28, minHeight: 28),
+                  padding: EdgeInsets.zero,
+                  visualDensity:
+                      const VisualDensity(horizontal: -4, vertical: -2),
+                  onPressed: () {
+                    searchScreenController.suggestionInput(queryString);
+                  },
+                  icon: Icon(Icons.north_west, color: iconColor),
+                ),
+        ],
+      ),
     );
   }
 }

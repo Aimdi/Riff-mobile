@@ -256,11 +256,9 @@ class ArtistScreenController extends GetxController
   void performAdditionalOperation() {
     final currMode = additionalOperationMode.value;
     if (currMode == OperationMode.addToPlaylist) {
-      showDialog(
-        context: Get.context!,
-        builder: (context) => AddToPlaylist(selectedSongs()),
-      ).whenComplete(() {
-        Get.delete<AddToPlaylistController>();
+      final ctx = Get.context;
+      if (ctx == null) return;
+      showAddToPlaylistSheet(ctx, selectedSongs()).whenComplete(() {
         sortWidgetController?.setActiveMode(OperationMode.none);
         cancelAdditionalOperation();
       });

@@ -4,13 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/ui/player/components/backgroud_image.dart';
 import 'package:ionicons/ionicons.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
 import '../../widgets/favorite_heart_button.dart';
+import '../../widgets/lyrics_dialog.dart';
+import '../../widgets/sleep_timer_bottom_sheet.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
 import '../../utils/riff_tokens.dart';
 import '../../utils/theme_controller.dart';
+import '/utils/content_filters.dart';
 import '../player_controller.dart';
+import '../player_media_nav.dart';
+import 'playback_error_actions.dart';
 
 class GesturePlayer extends StatelessWidget {
   const GesturePlayer({super.key});
@@ -35,24 +41,10 @@ class GesturePlayer extends StatelessWidget {
             playerController.playPause();
           },
           onLongPress: () {
-            final sheetContext =
-                playerController.homeScaffoldkey.currentContext ?? Get.context;
-            final song = playerController.currentSong.value;
-            if (sheetContext == null || song == null) return;
-            showModalBottomSheet(
-              useRootNavigator: true,
-              constraints: const BoxConstraints(maxWidth: 500),
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
-              ),
-              isScrollControlled: true,
-              context: sheetContext,
-              barrierColor: Colors.transparent.withAlpha(100),
-              builder: (context) => SongInfoBottomSheet(
-                song,
-                calledFromPlayer: true,
-              ),
-            ).whenComplete(() => Get.delete<SongInfoController>());
+            showCurrentSongSheet(
+              song: playerController.currentSong.value,
+              context: playerController.homeScaffoldkey.currentContext,
+            );
           },
         ),
         IgnorePointer(
@@ -111,12 +103,13 @@ class GesturePlayer extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Obx(() {
-                                  final title = playerController
-                                      .currentSong.value?.title;
-                                  return Marquee(
+                                  final song =
+                                      playerController.currentSong.value;
+                                  final title = song?.title;
+                                  final titleText = Marquee(
                                     delay: const Duration(milliseconds: 300),
                                     duration: const Duration(seconds: 10),
-                                    id: "${playerController.currentSong.value}_title",
+                                    id: "${song}_title",
                                     child: Text(
                                       (title != null && title.isNotEmpty)
                                           ? title
@@ -129,17 +122,26 @@ class GesturePlayer extends StatelessWidget {
                                               color: RiffSurfaces.textPrimary),
                                     ),
                                   );
+                                  if (songAlbumId(song) == null) {
+                                    return titleText;
+                                  }
+                                  return GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () =>
+                                        openCurrentAlbum(playerController),
+                                    child: titleText,
+                                  );
                                 }),
                                 const SizedBox(
                                   height: 7,
                                 ),
                                 GetX<PlayerController>(builder: (controller) {
-                                  final artist =
-                                      controller.currentSong.value?.artist;
-                                  return Marquee(
+                                  final song = controller.currentSong.value;
+                                  final artist = song?.artist;
+                                  final artistText = Marquee(
                                     delay: const Duration(milliseconds: 300),
                                     duration: const Duration(seconds: 10),
-                                    id: "${playerController.currentSong.value}_subtitle",
+                                    id: "${song}_subtitle",
                                     child: Text(
                                       (artist != null && artist.isNotEmpty)
                                           ? artist
@@ -153,6 +155,15 @@ class GesturePlayer extends StatelessWidget {
                                               color: RiffSurfaces.textMuted,
                                               fontWeight: FontWeight.normal),
                                     ),
+                                  );
+                                  if (songArtistId(song) == null) {
+                                    return artistText;
+                                  }
+                                  return GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () =>
+                                        openCurrentArtist(playerController),
+                                    child: artistText,
                                   );
                                 }),
                               ],
@@ -224,6 +235,62 @@ class GesturePlayer extends StatelessWidget {
                         height: 5,
                       ),
                       Obx(() {
+                        final song = playerController.currentSong.value;
+                        if (song == null) return const SizedBox.shrink();
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            IconButton(
+                              tooltip: 'lyrics'.tr,
+                              iconSize: 20,
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () {
+                                playerController.showLyrics();
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => const LyricsDialog(),
+                                ).whenComplete(() {
+                                  playerController.isDesktopLyricsDialogOpen =
+                                      false;
+                                  playerController.showLyricsflag.value = false;
+                                });
+                                playerController.isDesktopLyricsDialogOpen =
+                                    true;
+                              },
+                              icon: Icon(
+                                playerController.showLyricsflag.isTrue
+                                    ? Icons.lyrics
+                                    : Icons.lyrics_outlined,
+                                color: RiffSurfaces.textPrimary,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'shareSong'.tr,
+                              iconSize: 20,
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () =>
+                                  Share.share(SongLinkShare.shareText(song)),
+                              icon: const Icon(
+                                Icons.share,
+                                color: RiffSurfaces.textPrimary,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'sleepTimer'.tr,
+                              iconSize: 20,
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () => showSleepTimerSheet(context),
+                              icon: Icon(
+                                playerController.isSleepTimerActive.isTrue
+                                    ? Icons.timer
+                                    : Icons.timer_outlined,
+                                color: RiffSurfaces.textPrimary,
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
+                      Obx(() {
                         final err = playerController.playbackError.value;
                         if (err == null || err.isEmpty) {
                           return const SizedBox.shrink();
@@ -246,9 +313,9 @@ class GesturePlayer extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              TextButton(
-                                onPressed: playerController.retryPlayback,
-                                child: Text("retry".tr),
+                              PlaybackErrorActions(
+                                compact: true,
+                                color: theme.colorScheme.error,
                               ),
                             ],
                           ),

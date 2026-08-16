@@ -282,6 +282,36 @@ class AlbumScreen extends StatelessWidget {
                                                     .titleMedium!
                                                     .color,
                                               )),
+                                          // Shuffle button
+                                          IconButton(
+                                              tooltip: "shuffle".tr,
+                                              onPressed: () {
+                                                final songsToplay =
+                                                    List<MediaItem>.from(
+                                                        albumController
+                                                            .songList);
+                                                songsToplay.shuffle();
+                                                playerController
+                                                    .playPlayListSong(
+                                                        songsToplay,
+                                                        0,
+                                                        playfrom: PlaylingFrom(
+                                                            name:
+                                                                albumController
+                                                                    .album
+                                                                    .value
+                                                                    .title,
+                                                            type:
+                                                                PlaylingFromType
+                                                                    .ALBUM));
+                                              },
+                                              icon: Icon(
+                                                Icons.shuffle,
+                                                color: Theme.of(context)
+                                                    .textTheme
+                                                    .titleMedium!
+                                                    .color,
+                                              )),
                                           // Enqueue button
                                           IconButton(
                                               tooltip: "enqueueAlbumSongs".tr,
@@ -305,6 +335,58 @@ class AlbumScreen extends StatelessWidget {
                                               },
                                               icon: Icon(
                                                 Icons.merge,
+                                                color: Theme.of(context)
+                                                    .textTheme
+                                                    .titleMedium!
+                                                    .color,
+                                              )),
+                                          // Play next
+                                          IconButton(
+                                              tooltip: "playNext".tr,
+                                              onPressed: () {
+                                                playerController.playNextList(
+                                                    albumController.songList
+                                                        .toList());
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(snackbar(
+                                                          context,
+                                                          "playnextMsg".tr,
+                                                          size: SanckBarSize
+                                                              .MEDIUM));
+                                                }
+                                              },
+                                              icon: Icon(
+                                                Icons.playlist_play,
+                                                color: Theme.of(context)
+                                                    .textTheme
+                                                    .titleMedium!
+                                                    .color,
+                                              )),
+                                          IconButton(
+                                              tooltip: "startRadio".tr,
+                                              onPressed: () {
+                                                final songs = albumController
+                                                    .songList
+                                                    .toList();
+                                                if (songs.isEmpty) {
+                                                  if (context.mounted) {
+                                                    ScaffoldMessenger.of(
+                                                            context)
+                                                        .showSnackBar(snackbar(
+                                                            context,
+                                                            "radioNotAvailable"
+                                                                .tr,
+                                                            size: SanckBarSize
+                                                                .MEDIUM));
+                                                  }
+                                                  return;
+                                                }
+                                                playerController
+                                                    .startRadio(songs.first);
+                                              },
+                                              icon: Icon(
+                                                Icons.sensors,
                                                 color: Theme.of(context)
                                                     .textTheme
                                                     .titleMedium!

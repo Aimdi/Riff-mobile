@@ -7,6 +7,7 @@ import '../../../services/discovery/discovery_service.dart';
 import '../../../services/discovery/discovery_types.dart';
 import '../../player/player_controller.dart';
 import '../image_widget.dart';
+import '../snackbar.dart';
 
 /// Horizontal "Similar" row under player controls — lazily loaded for current track.
 class PlayerSimilarRow extends StatefulWidget {
@@ -117,6 +118,25 @@ class _PlayerSimilarRowState extends State<PlayerSimilarRow> {
                                                 .labelSmall),
                                       ],
                                     ),
+                                  ),
+                                  IconButton(
+                                    tooltip: "playNext".tr,
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                        minWidth: 28, minHeight: 28),
+                                    iconSize: 20,
+                                    icon: const Icon(Icons.playlist_play),
+                                    onPressed: () {
+                                      HapticFeedback.selectionClick();
+                                      player.playNext(s);
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(snackbar(
+                                        context,
+                                        "songEnqueueAlert".tr,
+                                        size: SanckBarSize.MEDIUM,
+                                      ));
+                                    },
                                   ),
                                 ],
                               ),

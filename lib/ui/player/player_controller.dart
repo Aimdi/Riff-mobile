@@ -7,6 +7,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 
 import '../../models/playling_from.dart';
+import 'play_queue_order.dart';
 import '../../services/downloader.dart';
 import '../../services/discovery/discovery_service.dart';
 import '../../services/discovery/discovery_types.dart';
@@ -33,6 +34,8 @@ import '/services/audiobookshelf_service.dart';
 import '/ui/player/riff_wave.dart';
 import '/ui/player/play_log_gate.dart';
 import '/ui/player/progress_ui_throttle.dart';
+import '/ui/player/radio_continuation.dart';
+import 'upcoming_queue.dart';
 import 'video_mode_controller.dart';
 
 class PlayerController extends GetxController
@@ -84,6 +87,11 @@ class PlayerController extends GetxController
   bool isRadioModeOn = false;
   String? radioContinuationParam;
   dynamic radioInitiatorItem;
+  bool _radioContinuationInFlight = false;
+
+  /// Home "Continue listening" chip — saved queue exists and player is idle.
+  final showContinueListening = false.obs;
+  final continueListeningTitle = ''.obs;
   Timer? sleepTimer;
   int timerDuration = 0;
   final timerDurationLeft = 0.obs;
@@ -96,6 +104,11 @@ class PlayerController extends GetxController
       .obs;
 
   final currentSongIndex = (0).obs;
+
+  /// Songs after the currently playing index — Spotify-style "Up next".
+  List<MediaItem> get upcomingQueue =>
+      upcomingAfterIndex(currentQueue, currentSongIndex.value);
+
   final isFirstSong = true;
   final isLastSong = true;
   final isQueueLoopModeEnabled = false.obs;
@@ -178,6 +191,7 @@ class PlayerController extends GetxController
     () async {
       await _waitForAudioHandler();
       if (_audioReady) await _restorePrevSession();
+      await _refreshContinueListeningChip();
     }();
     super.onReady();
   }
@@ -677,6 +691,9 @@ class PlayerController extends GetxController
         // Close ABS listening session when leaving an ABS item (best effort).
         _maybeCloseAbsSession(currentSong.value, mediaItem);
         currentSong.value = mediaItem;
+        if (showContinueListening.isTrue) {
+          showContinueListening.value = false;
+        }
         clearPlaybackError();
         // Arm auto-resume for the incoming podcast episode (either backend).
         if (PodcastProgressService.isPodcastItem(mediaItem)) {
@@ -716,8 +733,13 @@ class PlayerController extends GetxController
                 .onMediaChanged(mediaItem, positionMs: posMs);
           }
         }
-        if (isRadioModeOn && (currentSong.value!.id == currentQueue.last.id)) {
-          await _addRadioContinuation(radioInitiatorItem!);
+        if (_shouldFetchRadioContinuation()) {
+          _radioContinuationInFlight = true;
+          try {
+            await _addRadioContinuation(radioInitiatorItem);
+          } finally {
+            _radioContinuationInFlight = false;
+          }
         }
         lyrics.value = {"synced": "", "plainLyrics": "", "ttml": ""};
         showLyricsflag.value = false;
@@ -762,6 +784,84 @@ class PlayerController extends GetxController
     }
   }
 
+  /// Peek Hive for a saved queue so Home can show a resume chip when the
+  /// player is idle (auto-restore off, or restore has not started playback).
+  Future<void> _refreshContinueListeningChip() async {
+    try {
+      if (currentSong.value != null && !initFlagForPlayer) {
+        showContinueListening.value = false;
+        return;
+      }
+      final box = Hive.isBoxOpen("prevSessionData")
+          ? Hive.box("prevSessionData")
+          : await Hive.openBox("prevSessionData");
+      final rawQueue = box.get("queue");
+      if (rawQueue is! List || rawQueue.isEmpty) {
+        showContinueListening.value = false;
+        return;
+      }
+      final index = (box.get("index") as int?) ?? 0;
+      final safe = index.clamp(0, rawQueue.length - 1);
+      final item = MediaItemBuilder.fromJson(rawQueue[safe]);
+      continueListeningTitle.value = item.title;
+      showContinueListening.value = true;
+    } catch (_) {
+      showContinueListening.value = false;
+    }
+  }
+
+  /// Hide the Home continue chip without starting playback.
+  void dismissContinueListening() {
+    showContinueListening.value = false;
+  }
+
+  /// Resume the Hive-saved queue from its stored index/position and play.
+  Future<void> resumeSavedSession() async {
+    showContinueListening.value = false;
+    await _waitForAudioHandler();
+    if (!_audioReady) return;
+    try {
+      final prevSessionData = Hive.isBoxOpen("prevSessionData")
+          ? Hive.box("prevSessionData")
+          : await Hive.openBox("prevSessionData");
+      final rawQueue = prevSessionData.get("queue");
+      if (rawQueue is! List || rawQueue.isEmpty) return;
+      final songList =
+          rawQueue.map((e) => MediaItemBuilder.fromJson(e)).toList();
+      final int savedIndex = (prevSessionData.get("index") as int?) ?? 0;
+      final int position = (prevSessionData.get("position") as int?) ?? 0;
+      final index = savedIndex.clamp(0, songList.length - 1);
+      // Don't append a second copy if auto-restore already loaded the queue.
+      if (currentQueue.isEmpty) {
+        await _audioHandler.addQueueItems(songList);
+      }
+      _playerPanelCheck(restoreSession: true);
+      await _audioHandler.customAction("playByIndex", {
+        "index": index,
+        "position": position,
+        "restoreSession": false,
+      });
+    } catch (e) {
+      printERROR("resumeSavedSession failed: $e");
+    }
+  }
+
+  /// Last track, or ≤3 songs left — fetch the next radio batch once.
+  bool _shouldFetchRadioContinuation() {
+    if (radioInitiatorItem == null || currentSong.value == null) {
+      return false;
+    }
+    final isLast = currentQueue.isNotEmpty &&
+        currentSong.value!.id == currentQueue.last.id;
+    return radioShouldFetchContinuation(
+      radioOn: isRadioModeOn,
+      inFlight: _radioContinuationInFlight,
+      queueLength: currentQueue.length,
+      currentIndex: currentSongIndex.value,
+      isLastTrack: isLast,
+    );
+  }
+
   void _listenForCustomEvents() {
     _audioHandler.customEvent.listen((event) {
       if (event['eventType'] == 'playFromMediaId') {
@@ -785,84 +885,84 @@ class PlayerController extends GetxController
     /// set global radio mode flag
     isRadioModeOn = radio;
 
-    Future.delayed(
-      Duration.zero,
-      () async {
-        List<MediaItem> tracks;
-        if (radio &&
-            mediaItem != null &&
-            Get.isRegistered<DiscoveryService>()) {
-          try {
-            tracks = await Get.find<DiscoveryService>().smartRadioBatch(
-              mediaItem,
-              sessionHistory: const [],
-              limit: 25,
-            );
-            // Ensure seed is first if missing
-            if (tracks.isEmpty || tracks.first.id != mediaItem.id) {
-              tracks = [
-                DiscoveryService.withSource(
-                    mediaItem, DiscoverySource.userClick),
-                ...tracks
-              ];
-            }
-          } catch (_) {
-            final content = await _musicServices.getWatchPlaylist(
-                videoId: mediaItem.id, radio: radio, playlistId: playlistid);
-            radioContinuationParam = content['additionalParamsForNext'];
-            tracks = DiscoveryService.tagAll(
-                List<MediaItem>.from(content['tracks']), DiscoverySource.radio);
-          }
-        } else {
-          final content = await _musicServices.getWatchPlaylist(
-              videoId: mediaItem?.id ?? "",
-              radio: radio,
-              playlistId: playlistid);
-          radioContinuationParam = content['additionalParamsForNext'];
-          final src = radio ? DiscoverySource.radio : DiscoverySource.userClick;
-          tracks = Get.isRegistered<DiscoveryService>()
-              ? DiscoveryService.tagAll(
-                  List<MediaItem>.from(content['tracks']), src)
-              : List<MediaItem>.from(content['tracks']);
+    List<MediaItem> tracks;
+    if (radio &&
+        mediaItem != null &&
+        Get.isRegistered<DiscoveryService>()) {
+      try {
+        tracks = await Get.find<DiscoveryService>().smartRadioBatch(
+          mediaItem,
+          sessionHistory: const [],
+          limit: 25,
+        );
+        // Ensure seed is first if missing
+        if (tracks.isEmpty || tracks.first.id != mediaItem.id) {
+          tracks = [
+            DiscoveryService.withSource(
+                mediaItem, DiscoverySource.userClick),
+            ...tracks
+          ];
         }
-        await _audioHandler.updateQueue(tracks);
-        if (isShuffleModeEnabled.isTrue) {
-          await _audioHandler.customAction("shuffleCmd", {"index": 0});
-        }
-
-        // added here to broadcast current mediaitem via Audio Service as list is updated
-        // if radio is started on current playing song
-        if (radio && (currentSong.value?.id == mediaItem?.id)) {
-          _audioHandler
-              .customAction("upadateMediaItemInAudioService", {"index": 0});
-        }
-      },
-    ).then((value) async {
-      if (playlistid != null) {
-        _playerPanelCheck();
-        await _audioHandler.customAction("playByIndex", {"index": 0});
-      } else {
-        if (Hive.box("AppPrefs").get("discoverContentType") == "BOLI") {
-          Get.find<HomeScreenController>()
-              .changeDiscoverContent("BOLI", songId: mediaItem!.id);
-        }
+      } catch (_) {
+        final content = await _musicServices.getWatchPlaylist(
+            videoId: mediaItem.id, radio: radio, playlistId: playlistid);
+        radioContinuationParam = content['additionalParamsForNext'];
+        tracks = DiscoveryService.tagAll(
+            List<MediaItem>.from(content['tracks']), DiscoverySource.radio);
       }
-    });
+    } else {
+      final content = await _musicServices.getWatchPlaylist(
+          videoId: mediaItem?.id ?? "",
+          radio: radio,
+          playlistId: playlistid);
+      radioContinuationParam = content['additionalParamsForNext'];
+      final src = radio ? DiscoverySource.radio : DiscoverySource.userClick;
+      tracks = Get.isRegistered<DiscoveryService>()
+          ? DiscoveryService.tagAll(
+              List<MediaItem>.from(content['tracks']), src)
+          : List<MediaItem>.from(content['tracks']);
+    }
+    if (tracks.isEmpty && mediaItem != null) {
+      tracks = [
+        Get.isRegistered<DiscoveryService>()
+            ? DiscoveryService.withSource(
+                mediaItem,
+                radio ? DiscoverySource.radio : DiscoverySource.userClick)
+            : mediaItem
+      ];
+    }
 
-    if (playlistid != null ||
-        (radio && (currentSong.value?.id == mediaItem?.id))) {
+    // Await the queue swap before play — the old fire-and-forget
+    // updateQueue raced setSourceNPlay and could drop the first track.
+    await _audioHandler.updateQueue(tracks);
+    if (isShuffleModeEnabled.isTrue) {
+      await _audioHandler.customAction("shuffleCmd", {"index": 0});
+    }
+
+    final radioOnCurrent =
+        radio && (currentSong.value?.id == mediaItem?.id);
+    // Broadcast current mediaitem via Audio Service as list is updated
+    // if radio is started on current playing song
+    if (radioOnCurrent) {
+      _audioHandler
+          .customAction("upadateMediaItemInAudioService", {"index": 0});
+    }
+
+    if (playlistid != null) {
+      _playerPanelCheck();
+      await _audioHandler.customAction("playByIndex", {"index": 0});
+      return;
+    }
+    if (radioOnCurrent) {
       return;
     }
 
-    //currentSong.value = mediaItem;
+    if (Hive.box("AppPrefs").get("discoverContentType") == "BOLI") {
+      Get.find<HomeScreenController>()
+          .changeDiscoverContent("BOLI", songId: mediaItem!.id);
+    }
     _playerPanelCheck();
-    final seed = mediaItem == null
-        ? null
-        : (Get.isRegistered<DiscoveryService>()
-            ? DiscoveryService.withSource(mediaItem,
-                radio ? DiscoverySource.radio : DiscoverySource.userClick)
-            : mediaItem);
-    await _audioHandler.customAction("setSourceNPlay", {'mediaItem': seed});
+    await _audioHandler.customAction("playByIndex", {"index": 0});
 
     // disable queue loop mode when radio is started
     if (radio &&
@@ -914,8 +1014,6 @@ class PlayerController extends GetxController
 
   /// Home "Riff Wave" — reliable personal radio.
   ///
-  /// Does **not** use [pushSongToQueue]'s racy `setSourceNPlay` + delayed
-  /// `updateQueue` path (that left Wave silent or one-track-and-done).
   /// Builds a queue first, then [playByIndex], and keeps radio mode on so
   /// the stream continues past the first batch.
   Future<bool> startRiffWave() async {
@@ -1111,6 +1209,18 @@ class PlayerController extends GetxController
         box.close();
       }
     });
+  }
+
+  /// Insert [songs] after the current track, preserving list order.
+  void playNextList(List<MediaItem> songs) {
+    if (songs.isEmpty) return;
+    if (currentQueue.isEmpty) {
+      playPlayListSong(songs, 0);
+      return;
+    }
+    for (final song in playNextBatchOrder(songs)) {
+      playNext(song);
+    }
   }
 
   void playNext(MediaItem song) {
@@ -1410,15 +1520,54 @@ class PlayerController extends GetxController
     volume.value = vol;
   }
 
+  Box _libFavBoxSync() => Hive.box("LIBFAV");
+
+  Future<Box> _libFavBox() async {
+    if (Hive.isBoxOpen("LIBFAV")) return _libFavBoxSync();
+    return Hive.openBox("LIBFAV");
+  }
+
   Future<void> _checkFav() async {
-    isCurrentSongFav.value =
-        (await Hive.openBox("LIBFAV")).containsKey(currentSong.value!.id);
+    final song = currentSong.value;
+    if (song == null) return;
+    // Fast path: LIBFAV is opened at startup and stays open.
+    if (Hive.isBoxOpen("LIBFAV")) {
+      isCurrentSongFav.value = _libFavBoxSync().containsKey(song.id);
+      return;
+    }
+    isCurrentSongFav.value = (await Hive.openBox("LIBFAV")).containsKey(song.id);
   }
 
   Future<void> toggleFavourite() async {
-    final currMediaItem = currentSong.value!;
-    final box = await Hive.openBox("LIBFAV");
-    final adding = isCurrentSongFav.isFalse;
+    final currMediaItem = currentSong.value;
+    if (currMediaItem == null) return;
+    await toggleFavouriteFor(currMediaItem);
+  }
+
+  /// Like/unlike [song] in LIBFAV. Used by the now-playing heart and song rows.
+  Future<void> toggleFavouriteFor(MediaItem song, {bool? adding}) async {
+    final isCurrent = currentSong.value?.id == song.id;
+    final currentlyFav = isCurrent
+        ? isCurrentSongFav.isTrue
+        : (Hive.isBoxOpen("LIBFAV") && _libFavBoxSync().containsKey(song.id));
+    final nextAdding = adding ?? !currentlyFav;
+    if (isCurrent) {
+      isCurrentSongFav.value = nextAdding;
+    }
+    unawaited(_persistFavourite(song, nextAdding));
+    if (Get.isRegistered<DiscoveryService>()) {
+      Get.find<DiscoveryService>().onFavorite(song, add: nextAdding);
+    }
+    if (nextAdding &&
+        Get.find<SettingsScreenController>()
+            .autoDownloadFavoriteSongEnabled
+            .isTrue) {
+      Get.find<Downloader>().download(song);
+    }
+  }
+
+  Future<void> _persistFavourite(MediaItem currMediaItem, bool adding) async {
+    final box = await _libFavBox();
     adding
         ? box.put(currMediaItem.id, MediaItemBuilder.toJson(currMediaItem))
         : box.delete(currMediaItem.id);
@@ -1430,19 +1579,8 @@ class PlayerController extends GetxController
               action: 'add', index: 0)
           : playlistController.addNRemoveItemsinList(currMediaItem,
               action: 'remove');
-
       // ignore: empty_catches
     } catch (e) {}
-    isCurrentSongFav.value = !isCurrentSongFav.value;
-    if (Get.isRegistered<DiscoveryService>()) {
-      Get.find<DiscoveryService>().onFavorite(currMediaItem, add: adding);
-    }
-    if (Get.find<SettingsScreenController>()
-            .autoDownloadFavoriteSongEnabled
-            .isTrue &&
-        isCurrentSongFav.isTrue) {
-      Get.find<Downloader>().download(currMediaItem);
-    }
   }
 
   /// Insert ~5 similar tracks after the current song (sideways exploration).
@@ -1455,6 +1593,14 @@ class PlayerController extends GetxController
     for (final s in list.reversed) {
       playNext(s);
     }
+    if (list.isEmpty) return;
+    final context = Get.context;
+    if (context == null || !context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(snackbar(
+      context,
+      "moreLikeThisAdded".tr,
+      size: SanckBarSize.MEDIUM,
+    ));
   }
 
   // ignore: prefer_typing_uninitialized_variables
@@ -1593,6 +1739,12 @@ class PlayerController extends GetxController
 
   void clearPlaybackError() {
     if (playbackError.value != null) playbackError.value = null;
+  }
+
+  /// Skip a dead stream and try the next queue item.
+  Future<void> skipFailedPlayback() async {
+    clearPlaybackError();
+    await next();
   }
 
   /// Force a fresh stream URL for the current queue index.

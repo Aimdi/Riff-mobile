@@ -14,6 +14,7 @@ import '../utils/theme_controller.dart';
 import 'add_to_playlist.dart';
 import 'image_widget.dart';
 import 'snackbar.dart';
+import 'song_favourite.dart';
 import 'songinfo_bottom_sheet.dart';
 
 class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
@@ -86,10 +87,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
           startActionPane: ActionPane(motion: const DrawerMotion(), children: [
             SlidableAction(
               onPressed: (context) {
-                showDialog(
-                  context: context,
-                  builder: (context) => AddToPlaylist([song]),
-                ).whenComplete(() => Get.delete<AddToPlaylistController>());
+                showAddToPlaylistSheet(context, [song]);
               },
               backgroundColor: Theme.of(context).colorScheme.secondary,
               foregroundColor: Theme.of(context).textTheme.titleMedium!.color,
@@ -250,12 +248,68 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                             ],
                           );
                         }),
-                        if (GetPlatform.isDesktop)
-                          IconButton(
-                            splashRadius: 20,
-                            onPressed: () => _openSheet(playerController),
-                            icon: const Icon(Icons.more_vert),
+                        IconButton(
+                          tooltip: 'playNext'.tr,
+                          iconSize: 20,
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
                           ),
+                          splashRadius: 18,
+                          onPressed: () {
+                            playerController.playNext(song);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              snackbar(
+                                context,
+                                "${"playnextMsg".tr} ${song.title}",
+                                size: SanckBarSize.MEDIUM,
+                              ),
+                            );
+                          },
+                          icon: Icon(
+                            Icons.playlist_play,
+                            color: muted,
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'addToPlaylist'.tr,
+                          iconSize: 20,
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                          splashRadius: 18,
+                          onPressed: () =>
+                              showAddToPlaylistSheet(context, [song]),
+                          icon: Icon(
+                            Icons.playlist_add,
+                            color: muted,
+                          ),
+                        ),
+                        SongRowHeartButton(
+                          song: song,
+                          iconSize: 20,
+                          color: muted,
+                        ),
+                        IconButton(
+                          iconSize: 20,
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                          splashRadius: 18,
+                          onPressed: () => _openSheet(playerController),
+                          icon: Icon(
+                            Icons.more_vert,
+                            color: muted,
+                          ),
+                        ),
                       ],
                     ),
                   ),

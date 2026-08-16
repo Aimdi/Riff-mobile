@@ -178,11 +178,9 @@ class LibrarySongsController extends GetxController {
         cancelAdditionalOperation();
       });
     } else if (currMode == OperationMode.addToPlaylist) {
-      showDialog(
-        context: Get.context!,
-        builder: (context) => AddToPlaylist(selectedSongs()),
-      ).whenComplete(() {
-        Get.delete<AddToPlaylistController>();
+      final ctx = Get.context;
+      if (ctx == null) return;
+      showAddToPlaylistSheet(ctx, selectedSongs()).whenComplete(() {
         sortWidgetController?.setActiveMode(OperationMode.none);
         cancelAdditionalOperation();
       });

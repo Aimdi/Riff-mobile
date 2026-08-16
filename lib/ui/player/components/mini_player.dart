@@ -1,3 +1,4 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -7,15 +8,18 @@ import 'package:widget_marquee/widget_marquee.dart';
 import '/ui/widgets/lyrics_dialog.dart';
 import '/ui/widgets/song_info_dialog.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/player/player_media_nav.dart';
 import '/ui/utils/riff_tokens.dart';
 import '/ui/utils/theme_controller.dart';
 import '../../widgets/add_to_playlist.dart';
 import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/sleep_timer_bottom_sheet.dart';
 import '../../widgets/song_download_btn.dart';
+import '../../widgets/songinfo_bottom_sheet.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/mini_player_progress_bar.dart';
 import 'animated_play_button.dart';
+import 'playback_error_actions.dart';
 
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
@@ -62,10 +66,12 @@ class MiniPlayer extends StatelessWidget {
                   const Expanded(
                     child: _MiniPlayerSongInfo(),
                   ),
-                  SizedBox(
-                    width: isWideScreen ? 450 : 132,
-                    child: _MiniPlayerTransport(isWideScreen: isWideScreen),
-                  ),
+                  isWideScreen
+                      ? const SizedBox(
+                          width: 450,
+                          child: _MiniPlayerTransport(isWideScreen: true),
+                        )
+                      : const _MiniPlayerTransport(isWideScreen: false),
                   if (isWideScreen)
                     Expanded(
                       child: _MiniPlayerWideExtras(size: size),
@@ -160,6 +166,12 @@ class _MiniPlayerSongInfo extends StatelessWidget {
       onTap: () {
         playerController.playerPanelController.open();
       },
+      onLongPress: () {
+        showCurrentSongSheet(
+          song: playerController.currentSong.value,
+          context: playerController.homeScaffoldkey.currentContext,
+        );
+      },
       child: ColoredBox(
         color: Colors.transparent,
         child: Obx(() {
@@ -182,13 +194,11 @@ class _MiniPlayerSongInfo extends StatelessWidget {
                       child: child,
                     );
                   },
-                  child: Text(
-                    song != null ? song.title : "",
-                    key: ValueKey<String>('mini_title_$songKey'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    softWrap: false,
-                    style: Theme.of(context).textTheme.titleMedium,
+                  child: _miniTitleLine(
+                    playerController,
+                    song,
+                    songKey,
+                    theme,
                   ),
                 ),
               ),
@@ -210,17 +220,9 @@ class _MiniPlayerSongInfo extends StatelessWidget {
                               ),
                             ),
                           ),
-                          TextButton(
-                            onPressed: playerController.retryPlayback,
-                            style: TextButton.styleFrom(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 6),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              visualDensity: VisualDensity.compact,
-                              foregroundColor: theme.colorScheme.error,
-                            ),
-                            child: Text("retry".tr),
+                          PlaybackErrorActions(
+                            compact: true,
+                            color: theme.colorScheme.error,
                           ),
                         ],
                       )
@@ -234,16 +236,11 @@ class _MiniPlayerSongInfo extends StatelessWidget {
                             child: child,
                           );
                         },
-                        child: Marquee(
-                          key: ValueKey<String>('mini_artist_$songKey'),
-                          id: "${song}_mini",
-                          delay: const Duration(milliseconds: 300),
-                          duration: const Duration(seconds: 5),
-                          child: Text(
-                            song != null ? (song.artist ?? "") : "",
-                            maxLines: 1,
-                            style: theme.textTheme.titleSmall,
-                          ),
+                        child: _miniArtistLine(
+                          playerController,
+                          song,
+                          songKey,
+                          theme,
                         ),
                       ),
               ),
@@ -251,6 +248,56 @@ class _MiniPlayerSongInfo extends StatelessWidget {
           );
         }),
       ),
+    );
+  }
+
+  /// Title: tap opens the album when extras have an id.
+  Widget _miniTitleLine(
+    PlayerController playerController,
+    MediaItem? song,
+    String songKey,
+    ThemeData theme,
+  ) {
+    final line = Text(
+      song != null ? song.title : "",
+      key: ValueKey<String>('mini_title_$songKey'),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      softWrap: false,
+      style: theme.textTheme.titleMedium,
+    );
+    if (songAlbumId(song) == null) return line;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => openCurrentAlbum(playerController),
+      child: line,
+    );
+  }
+
+  /// Artist line: tap opens the artist screen when extras have an id.
+  /// The parent row tap still expands the player for title / empty space.
+  Widget _miniArtistLine(
+    PlayerController playerController,
+    MediaItem? song,
+    String songKey,
+    ThemeData theme,
+  ) {
+    final line = Marquee(
+      key: ValueKey<String>('mini_artist_$songKey'),
+      id: "${song}_mini",
+      delay: const Duration(milliseconds: 300),
+      duration: const Duration(seconds: 5),
+      child: Text(
+        song != null ? (song.artist ?? "") : "",
+        maxLines: 1,
+        style: theme.textTheme.titleSmall,
+      ),
+    );
+    if (songArtistId(song) == null) return line;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => openCurrentArtist(playerController),
+      child: line,
     );
   }
 }
@@ -263,35 +310,39 @@ class _MiniPlayerTransport extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final playerController = Get.find<PlayerController>();
+    final skipSize = isWideScreen ? 35.0 : 24.0;
+    final skipWidth = isWideScreen ? 40.0 : 28.0;
+    const compact = BoxConstraints(minWidth: 32, minHeight: 32);
     return Row(
+      mainAxisSize: isWideScreen ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
+        FavoriteHeartButton(
+          iconSize: isWideScreen ? 20 : 18,
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: compact,
+          splashRadius: 18,
+          isFav: playerController.isCurrentSongFav,
+          onToggleFav: playerController.toggleFavourite,
+          song: () => playerController.currentSong.value,
+        ),
         if (isWideScreen)
-          Row(
-            children: [
-              FavoriteHeartButton(
-                iconSize: 20,
-                isFav: playerController.isCurrentSongFav,
-                onToggleFav: playerController.toggleFavourite,
-                song: () => playerController.currentSong.value,
-              ),
-              IconButton(
-                  iconSize: 20,
-                  onPressed: playerController.toggleShuffleMode,
-                  icon: Obx(() => Icon(
-                        Ionicons.shuffle,
-                        color: playerController.isShuffleModeEnabled.value
-                            ? Theme.of(context).textTheme.titleLarge!.color
-                            : Theme.of(context)
-                                .textTheme
-                                .titleLarge!
-                                .color!
-                                .withOpacity(0.2),
-                      ))),
-            ],
-          ),
+          IconButton(
+              iconSize: 20,
+              onPressed: playerController.toggleShuffleMode,
+              icon: Obx(() => Icon(
+                    Ionicons.shuffle,
+                    color: playerController.isShuffleModeEnabled.value
+                        ? Theme.of(context).textTheme.titleLarge!.color
+                        : Theme.of(context)
+                            .textTheme
+                            .titleLarge!
+                            .color!
+                            .withOpacity(0.2),
+                  ))),
         SizedBox(
-            width: isWideScreen ? 40 : 34,
+            width: skipWidth,
             child: Obx(() {
               final canPrev = playerController.currentQueue.isNotEmpty &&
                   (playerController.currentQueue.first.id !=
@@ -301,7 +352,7 @@ class _MiniPlayerTransport extends StatelessWidget {
                 child: Icon(
                   Icons.skip_previous_rounded,
                   color: Theme.of(context).textTheme.titleMedium!.color,
-                  size: isWideScreen ? 35 : 28,
+                  size: skipSize,
                 ),
               );
             })),
@@ -311,11 +362,11 @@ class _MiniPlayerTransport extends StatelessWidget {
                 size: 58,
               )
             : const AnimatedPlayButton(
-                iconSize: 26,
-                size: 44,
+                iconSize: 22,
+                size: 38,
               ),
         SizedBox(
-            width: isWideScreen ? 40 : 34,
+            width: skipWidth,
             child: Obx(() {
               final isLastSong = playerController.currentQueue.isEmpty ||
                   (!(playerController.isShuffleModeEnabled.isTrue ||
@@ -333,10 +384,29 @@ class _MiniPlayerTransport extends StatelessWidget {
                           .color!
                           .withOpacity(0.2)
                       : Theme.of(context).textTheme.titleMedium!.color,
-                  size: isWideScreen ? 35 : 28,
+                  size: skipSize,
                 ),
               );
             })),
+        if (!isWideScreen)
+          IconButton(
+            iconSize: 20,
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: compact,
+            splashRadius: 18,
+            tooltip: 'upNext'.tr,
+            onPressed: () {
+              final queue = playerController.queuePanelController;
+              if (queue.isAttached) {
+                queue.open();
+              }
+            },
+            icon: Icon(
+              Icons.queue_music,
+              color: Theme.of(context).textTheme.titleMedium!.color,
+            ),
+          ),
         if (isWideScreen)
           Row(
             children: [
@@ -446,27 +516,15 @@ class _MiniPlayerWideExtras extends StatelessWidget {
                   },
                   icon: const Icon(Icons.queue_music),
                 ),
-                if (size.width > 860)
-                  Padding(
+                Padding(
                     padding: const EdgeInsets.only(left: 10.0),
                     child: Obx(() => IconButton(
+                          tooltip: 'sleepTimer'.tr,
                           onPressed: () {
                             final sheetContext = playerController
                                     .homeScaffoldkey.currentContext ??
                                 Get.context;
-                            if (sheetContext == null) return;
-                            showModalBottomSheet(
-                              constraints: const BoxConstraints(maxWidth: 500),
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(
-                                    top: Radius.circular(10.0)),
-                              ),
-                              isScrollControlled: true,
-                              context: sheetContext,
-                              barrierColor: Colors.transparent.withAlpha(100),
-                              builder: (context) =>
-                                  const SleepTimerBottomSheet(),
-                            );
+                            showSleepTimerSheet(sheetContext);
                           },
                           icon: Icon(playerController.isSleepTimerActive.isTrue
                               ? Icons.timer
@@ -483,15 +541,11 @@ class _MiniPlayerWideExtras extends StatelessWidget {
                   width: 10,
                 ),
                 IconButton(
+                  tooltip: 'addToPlaylist'.tr,
                   onPressed: () {
                     final currentSong = playerController.currentSong.value;
-                    if (currentSong != null) {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AddToPlaylist([currentSong]),
-                      ).whenComplete(
-                          () => Get.delete<AddToPlaylistController>());
-                    }
+                    if (currentSong == null) return;
+                    showAddToPlaylistSheet(context, [currentSong]);
                   },
                   icon: const Icon(Icons.playlist_add),
                 ),

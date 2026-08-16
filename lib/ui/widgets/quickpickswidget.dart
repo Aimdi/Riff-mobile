@@ -98,7 +98,8 @@ class QuickPicksWidget extends StatelessWidget {
                           borderRadius:
                               BorderRadius.circular(RiffTokens.radiusSm),
                           onTap: () {
-                            playerController.pushSongToQueue(song);
+                            playerController.playPlayListSong(
+                                content.songList, item);
                           },
                           onLongPress: () {
                             _openSongSheet(context, playerController, item);
@@ -149,6 +150,12 @@ class QuickPicksWidget extends StatelessWidget {
                                       ),
                                     ],
                                   ),
+                                ),
+                                const SizedBox(width: 6),
+                                Icon(
+                                  Icons.play_circle_fill,
+                                  size: 22,
+                                  color: muted,
                                 ),
                                 if (GetPlatform.isDesktop)
                                   IconButton(

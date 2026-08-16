@@ -17,7 +17,7 @@ const int kHomeFeedZoneBCap = 3;
 const int kHomeFeedCarouselMin = 6;
 
 /// Quick picks floor.
-const int kHomeFeedQuickPicksMin = 8;
+const int kHomeFeedQuickPicksMin = 3;
 
 /// Carousel target length after dedupe.
 const int kHomeFeedCarouselTarget = 12;

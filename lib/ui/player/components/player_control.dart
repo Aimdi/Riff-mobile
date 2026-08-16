@@ -1,54 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:ionicons/ionicons.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
 import '/ui/player/components/animated_play_button.dart';
 import '/ui/player/components/podcast_transcript_sheet.dart';
 import '/ui/utils/theme_controller.dart';
-import '../../navigator.dart';
+import '/utils/content_filters.dart';
 import '../../screens/Settings/settings_screen_controller.dart';
+import '../../widgets/add_to_playlist.dart';
 import '../../widgets/discovery/player_similar_row.dart';
 import '../../widgets/favorite_heart_button.dart';
+import '../../widgets/sleep_timer_bottom_sheet.dart';
+import '../play_queue_order.dart';
 import '../player_controller.dart';
+import '../player_media_nav.dart';
+import 'playback_error_actions.dart';
 
 class PlayerControlWidget extends StatelessWidget {
   const PlayerControlWidget({super.key});
-
-  /// Open the album/single of the currently-playing song (no-op when the track
-  /// carries no album, e.g. a podcast episode).
-  void _openAlbum(PlayerController playerController) {
-    final song = playerController.currentSong.value;
-    final album = song?.extras?['album'];
-    if (album is Map && album['id'] != null) {
-      playerController.playerPanelController.close();
-      Get.toNamed(ScreenNavigationSetup.albumScreen,
-          id: ScreenNavigationSetup.id, arguments: (null, album['id']));
-    }
-  }
-
-  /// Open the artist page for the currently-playing song. Uses the first
-  /// artist that has a browse id (no-op when none is available).
-  void _openArtist(PlayerController playerController) {
-    final song = playerController.currentSong.value;
-    final artists = song?.extras?['artists'];
-    String? artistId;
-    if (artists is List) {
-      for (final a in artists) {
-        if (a is Map && a['id'] != null) {
-          artistId = '${a['id']}';
-          break;
-        }
-      }
-    }
-    if (artistId != null) {
-      playerController.playerPanelController.close();
-      Get.toNamed(ScreenNavigationSetup.artistScreen,
-          id: ScreenNavigationSetup.id,
-          preventDuplicates: true,
-          arguments: [true, artistId]);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -103,7 +74,7 @@ class PlayerControlWidget extends StatelessWidget {
                         children: [
                           GestureDetector(
                             behavior: HitTestBehavior.opaque,
-                            onTap: () => _openAlbum(playerController),
+                            onTap: () => openCurrentAlbum(playerController),
                             child: Marquee(
                               delay: const Duration(milliseconds: 300),
                               duration: const Duration(seconds: 10),
@@ -120,7 +91,7 @@ class PlayerControlWidget extends StatelessWidget {
                           const SizedBox(height: 5),
                           GestureDetector(
                             behavior: HitTestBehavior.opaque,
-                            onTap: () => _openArtist(playerController),
+                            onTap: () => openCurrentArtist(playerController),
                             child: Marquee(
                               delay: const Duration(milliseconds: 300),
                               duration: const Duration(seconds: 10),
@@ -142,13 +113,22 @@ class PlayerControlWidget extends StatelessWidget {
                   }),
                 ),
               ),
-              SizedBox(
-                width: 45,
-                child: FavoriteHeartButton(
-                  isFav: playerController.isCurrentSongFav,
-                  onToggleFav: playerController.toggleFavourite,
-                  song: () => playerController.currentSong.value,
+              FavoriteHeartButton(
+                isFav: playerController.isCurrentSongFav,
+                onToggleFav: playerController.toggleFavourite,
+                song: () => playerController.currentSong.value,
+              ),
+              IconButton(
+                tooltip: 'addToPlaylist'.tr,
+                icon: Icon(
+                  Icons.playlist_add,
+                  color: Theme.of(context).textTheme.titleMedium?.color,
                 ),
+                onPressed: () {
+                  final song = playerController.currentSong.value;
+                  if (song == null) return;
+                  showAddToPlaylistSheet(context, [song]);
+                },
               ),
             ],
           ),
@@ -269,9 +249,8 @@ class PlayerControlWidget extends StatelessWidget {
                           ),
                         ),
                       ),
-                      TextButton(
-                        onPressed: playerController.retryPlayback,
-                        child: Text("retry".tr),
+                      PlaybackErrorActions(
+                        color: theme.colorScheme.error,
                       ),
                     ],
                   ),
@@ -283,14 +262,123 @@ class PlayerControlWidget extends StatelessWidget {
           // slider line): it fills with the accent colour as the track plays,
           // shows the elapsed/total time beneath, and is tap/drag seekable.
           const _WaveformScrubber(),
+          if (GetPlatform.isMobile)
+            _mobileVolume(playerController, context),
           Obx(() => playerController.usesLongFormTransport
               ? _podcastControls(playerController, context)
               : _musicControls(playerController, context)),
+          _nowPlayingActions(playerController, context),
           // Similar songs are music-only; hide for podcasts and audiobooks.
           Obx(() => playerController.usesLongFormTransport
               ? const SizedBox.shrink()
               : const PlayerSimilarRow()),
         ]);
+  }
+
+  Widget _mobileVolume(
+      PlayerController playerController, BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 2),
+      child: Obx(() {
+        final volume = playerController.volume.value;
+        return Row(
+          children: [
+            InkWell(
+              onTap: playerController.mute,
+              child: Icon(
+                volumeIconFor(volume),
+                size: 20,
+                color: Theme.of(context).textTheme.titleMedium?.color,
+              ),
+            ),
+            Expanded(
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  trackHeight: 2,
+                  thumbShape:
+                      const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+                  overlayShape:
+                      const RoundSliderOverlayShape(overlayRadius: 10.0),
+                ),
+                child: Slider(
+                  value: (volume / 100).clamp(0.0, 1.0),
+                  onChanged: (value) {
+                    playerController.setVolume((value * 100).toInt());
+                  },
+                ),
+              ),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
+  Widget _nowPlayingActions(
+      PlayerController playerController, BuildContext context) {
+    return Obx(() {
+      if (playerController.usesLongFormTransport) {
+        return const SizedBox.shrink();
+      }
+      final song = playerController.currentSong.value;
+      if (song == null) return const SizedBox.shrink();
+      final size = MediaQuery.sizeOf(context);
+      // Hide on landscape / very short viewports; portrait phones keep the row
+      // and Wrap handles narrow widths.
+      if (size.height < 480) return const SizedBox.shrink();
+
+      final labelStyle = Theme.of(context).textTheme.labelSmall;
+      final color = Theme.of(context).textTheme.titleMedium?.color;
+      final style = TextButton.styleFrom(
+        foregroundColor: color,
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        minimumSize: Size.zero,
+      );
+
+      return Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 4,
+          runSpacing: 0,
+          children: [
+            TextButton.icon(
+              onPressed: () => playerController.startRadio(song),
+              icon: const Icon(Icons.sensors, size: 18),
+              label: Text("startRadio".tr, style: labelStyle),
+              style: style,
+            ),
+            TextButton.icon(
+              onPressed: () => playerController.moreLikeThisPlayNext(song),
+              icon: const Icon(Icons.playlist_play, size: 18),
+              label: Text("playNext".tr, style: labelStyle),
+              style: style,
+            ),
+            TextButton.icon(
+              onPressed: () => showSleepTimerSheet(context),
+              icon: Icon(
+                playerController.isSleepTimerActive.isTrue
+                    ? Icons.timer
+                    : Icons.timer_outlined,
+                size: 18,
+              ),
+              label: Text("sleepTimer".tr, style: labelStyle),
+              style: style,
+            ),
+            TextButton.icon(
+              onPressed: () {
+                Share.share(SongLinkShare.shareText(song));
+              },
+              icon: const Icon(Icons.share, size: 18),
+              label: Text("shareSong".tr, style: labelStyle),
+              style: style,
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   Widget _musicControls(

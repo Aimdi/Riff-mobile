@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
-import '/services/discovery/discovery_service.dart';
 import '/ui/widgets/add_to_playlist.dart';
 
 /// Heart control: tap toggles Likes/Favorites; a short hold opens Add to playlist.
@@ -87,23 +86,11 @@ class _FavoriteHeartButtonState extends State<FavoriteHeartButton> {
   void _openAddToPlaylist() {
     final song = widget.song();
     if (song == null || !mounted) return;
-    showDialog(
-      context: context,
-      builder: (context) => AddToPlaylist([song]),
-    ).whenComplete(() {
-      if (Get.isRegistered<DiscoveryService>()) {
-        Get.find<DiscoveryService>().onPlaylistAdd(song);
-      }
-      if (Get.isRegistered<AddToPlaylistController>()) {
-        Get.delete<AddToPlaylistController>();
-      }
-    });
+    showAddToPlaylistSheet(context, [song]);
   }
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        widget.color ?? Theme.of(context).textTheme.titleMedium!.color;
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: _onPointerDown,
@@ -117,11 +104,17 @@ class _FavoriteHeartButtonState extends State<FavoriteHeartButton> {
         padding: widget.padding,
         onPressed: _onPressed,
         icon: Obx(
-          () => Icon(
-            widget.isFav.isFalse ? Icons.favorite_border : Icons.favorite,
-            color: color,
-            size: widget.iconSize,
-          ),
+          () {
+            final fav = widget.isFav.isTrue;
+            final scheme = Theme.of(context).colorScheme;
+            final filled = scheme.secondary;
+            final muted = (widget.color ?? scheme.onSurface).withOpacity(0.45);
+            return Icon(
+              fav ? Icons.favorite : Icons.favorite_border,
+              color: fav ? filled : muted,
+              size: widget.iconSize,
+            );
+          },
         ),
       ),
     );

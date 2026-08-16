@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../screens/Settings/settings_screen_controller.dart';
 import '../../utils/theme_controller.dart';
+import '../../widgets/sleep_timer_bottom_sheet.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
 import '../player_controller.dart';
 import 'albumart_lyrics.dart';
@@ -199,6 +200,31 @@ class StandardPlayer extends StatelessWidget {
                       ),
                     ),
                   ),
+                  Obx(() => IconButton(
+                    tooltip: 'lyrics'.tr,
+                    icon: Icon(
+                      playerController.showLyricsflag.isTrue
+                          ? Icons.lyrics
+                          : Icons.lyrics_outlined,
+                      size: 22,
+                    ),
+                    onPressed: playerController.showLyrics,
+                  )),
+                  Obx(() => IconButton(
+                    tooltip: 'sleepTimer'.tr,
+                    icon: Icon(
+                      playerController.isSleepTimerActive.isTrue
+                          ? Icons.timer
+                          : Icons.timer_outlined,
+                      size: 22,
+                    ),
+                    onPressed: () {
+                      final sheetContext = playerController
+                              .homeScaffoldkey.currentContext ??
+                          Get.context;
+                      showSleepTimerSheet(sheetContext);
+                    },
+                  )),
                   IconButton(
                     icon: const Icon(Icons.more_vert, size: 25),
                     onPressed: () {

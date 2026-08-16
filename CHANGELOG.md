@@ -1,3 +1,14 @@
+# 1.7.102
+
+**Playback**
+* Home, Library, and Search play on tap — Jump back in, shortcuts, Daily Mix,
+  Quick Picks, discovery shelves, Downloads, and Songs Play all / Shuffle
+* Artist albums, playlists, and related artists play on tap; long-press opens
+* Podcast discovery episodes play the shelf; Search Enter plays the top song
+* Cloud random mix plays after fetch; Play all on the loaded slice
+* Previous restarts the current track after three seconds
+* Mini-player long-press opens the current-song sheet
+
 # 1.7.101
 
 **Look & feel**

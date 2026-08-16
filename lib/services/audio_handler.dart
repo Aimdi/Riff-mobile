@@ -30,6 +30,7 @@ import '../ui/screens/Home/home_screen_controller.dart';
 import '/services/background_task.dart';
 import '/services/client_config_service.dart';
 import '/services/permission_service.dart';
+import '/services/play_by_index_skip.dart';
 import '../utils/helper.dart';
 import '/models/media_Item_builder.dart';
 import '/services/utils.dart';
@@ -70,12 +71,19 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   double _baseVolume = 1.0;
   bool _mixTransitionInProgress = false;
   bool _startMutedForMix = false;
+  /// Song id we already near-end-prefetched, so the 45s listener fires once.
+  String? _prefetchArmedForId;
 
   /// Auto URL-refresh budget after stream death (PLAY-1). Reset on song change
   /// or when playback reaches ready.
   String? _streamRetrySongId;
   int _streamRetryCount = 0;
   static const int _maxStreamUrlRetries = 2;
+
+  /// Consecutive playByIndex resolve failures. Reset when playback is ready
+  /// so a later dead track can still skip once without looping the queue.
+  int _consecutiveResolveFails = 0;
+  static const int _maxConsecutiveResolveFails = 1;
 
   // list of shuffled queue songs ids
   List<String> shuffledQueue = [];
@@ -166,6 +174,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       if (_player.processingState == ProcessingState.ready) {
         final id = mediaItem.value?.id;
         if (id != null) _resetStreamRetryBudget(songId: id);
+        _consecutiveResolveFails = 0;
       }
       final playing = _player.playing;
       playbackState.add(playbackState.value.copyWith(
@@ -240,6 +249,17 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         if (Get.isRegistered<PlayerController>()) {
           Get.find<PlayerController>().notifyPlayError("streamPlaybackFailed");
         }
+        _consecutiveResolveFails++;
+        final next = _getNextSongIndex();
+        if (shouldSkipAfterUnresolvableTrack(
+          consecutiveFails: _consecutiveResolveFails,
+          maxConsecutiveFails: _maxConsecutiveResolveFails,
+          currentIndex: currentIndex is int ? currentIndex as int : 0,
+          nextIndex: next,
+          loopOne: loopModeEnabled,
+        )) {
+          await skipToNext();
+        }
         return;
       }
 
@@ -277,6 +297,38 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       _streamRetrySongId = songId;
     }
     _streamRetryCount = 0;
+  }
+
+  /// After generateNewUrl retry still fails: skip to next once when allowed.
+  Future<void> _onPlayByIndexUnresolvable({
+    required int songIndex,
+    required String errorMessage,
+    required int errorCode,
+  }) async {
+    if (songIndex != currentIndex) return;
+    _consecutiveResolveFails++;
+    final next = _getNextSongIndex();
+    if (shouldSkipAfterUnresolvableTrack(
+      consecutiveFails: _consecutiveResolveFails,
+      maxConsecutiveFails: _maxConsecutiveResolveFails,
+      currentIndex: currentIndex is int ? currentIndex as int : songIndex,
+      nextIndex: next,
+      loopOne: loopModeEnabled,
+    )) {
+      printINFO(
+          'playByIndex: track will not resolve, skipping to next (fail $_consecutiveResolveFails)');
+      await skipToNext();
+      return;
+    }
+    currentSongUrl = null;
+    isSongLoading = false;
+    if (Get.isRegistered<PlayerController>()) {
+      Get.find<PlayerController>().notifyPlayError(errorMessage);
+    }
+    playbackState.add(playbackState.value.copyWith(
+        processingState: AudioProcessingState.error,
+        errorCode: errorCode,
+        errorMessage: errorMessage));
   }
 
   void _listenToPlaybackForNextSong() {
@@ -325,6 +377,15 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       }
 
       if (_mixTransitionInProgress) return;
+
+      final remainingMs = durationMs - posMs;
+      if (remainingMs > 0 && remainingMs < 45000) {
+        final id = mediaItem.value?.id;
+        if (id != null && _prefetchArmedForId != id) {
+          _prefetchArmedForId = id;
+          prefetchNextInQueue();
+        }
+      }
 
       if (posMs >= (durationMs - playerDurationOffset)) {
         await _triggerNext();
@@ -616,7 +677,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   @override
   Future<void> skipToPrevious() async {
-    if (_player.position.inMilliseconds > 5000) {
+    if (shouldRestartOnPrevious(_player.position)) {
       _player.seek(Duration.zero);
       return;
     }
@@ -680,33 +741,49 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
 
         mediaItem.add(currentSong);
-        late final HMStreamingData streamInfo;
+        late HMStreamingData streamInfo;
+        var resolveFailed = false;
         try {
           streamInfo = await futureStreamInfo;
+          if (!streamInfo.playable && isNewUrlReq != true) {
+            printINFO(
+                'playByIndex: first resolve not playable, retrying with new URL');
+            streamInfo =
+                await checkNGetUrl(currentSong.id, generateNewUrl: true);
+          }
         } catch (e) {
           printERROR('playByIndex stream resolve failed: $e');
-          if (songIndex != currentIndex) return;
-          currentSongUrl = null;
-          isSongLoading = false;
-          Get.find<PlayerController>().notifyPlayError("streamLoadFailed");
-          playbackState.add(playbackState.value.copyWith(
-              processingState: AudioProcessingState.error,
-              errorCode: 500,
-              errorMessage: "streamLoadFailed"));
+          if (isNewUrlReq != true) {
+            try {
+              streamInfo =
+                  await checkNGetUrl(currentSong.id, generateNewUrl: true);
+            } catch (e2) {
+              printERROR('playByIndex stream resolve retry failed: $e2');
+              resolveFailed = true;
+            }
+          } else {
+            resolveFailed = true;
+          }
+        }
+        if (resolveFailed) {
+          await _onPlayByIndexUnresolvable(
+            songIndex: songIndex,
+            errorMessage: "streamLoadFailed",
+            errorCode: 500,
+          );
           return;
         }
         if (songIndex != currentIndex) {
           return;
         } else if (!streamInfo.playable) {
-          currentSongUrl = null;
-          isSongLoading = false;
-          Get.find<PlayerController>().notifyPlayError(streamInfo.statusMSG);
-          playbackState.add(playbackState.value.copyWith(
-              processingState: AudioProcessingState.error,
-              errorCode: 404,
-              errorMessage: streamInfo.statusMSG));
+          await _onPlayByIndexUnresolvable(
+            songIndex: songIndex,
+            errorMessage: streamInfo.statusMSG,
+            errorCode: 404,
+          );
           return;
         }
+        _consecutiveResolveFails = 0;
         currentSongUrl = currentSong.extras!['url'] = streamInfo.audio!.url;
         playbackState
             .add(playbackState.value.copyWith(queueIndex: currentIndex));
@@ -966,22 +1043,22 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   }
 
   Future<void> saveSessionData() async {
-    if (Get.find<SettingsScreenController>().restorePlaybackSession.isFalse) {
+    final currQueue = queue.value;
+    // Persist whenever the queue is non-empty so Home can offer
+    // "Continue listening" even if auto-restore is turned off.
+    if (currQueue.isEmpty) {
       return;
     }
-    final currQueue = queue.value;
-    if (currQueue.isNotEmpty) {
-      final queueData =
-          currQueue.map((e) => MediaItemBuilder.toJson(e)).toList();
-      final currIndex = currentIndex ?? 0;
-      final position = _player.position.inMilliseconds;
-      final prevSessionData = await Hive.openBox("prevSessionData");
-      await prevSessionData.clear();
-      await prevSessionData.putAll(
-          {"queue": queueData, "position": position, "index": currIndex});
-      await prevSessionData.close();
-      printINFO("Saved session data");
-    }
+    final queueData =
+        currQueue.map((e) => MediaItemBuilder.toJson(e)).toList();
+    final currIndex = currentIndex ?? 0;
+    final position = _player.position.inMilliseconds;
+    final prevSessionData = await Hive.openBox("prevSessionData");
+    await prevSessionData.clear();
+    await prevSessionData.putAll(
+        {"queue": queueData, "position": position, "index": currIndex});
+    await prevSessionData.close();
+    printINFO("Saved session data");
   }
 
   /// Android Auto

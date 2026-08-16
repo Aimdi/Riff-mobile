@@ -9,10 +9,23 @@ import '../../models/playlist.dart';
 import '/services/ban_service.dart';
 import '../navigator.dart';
 import '../player/player_controller.dart';
+import 'collection_play.dart';
 import 'image_widget.dart';
 import 'snackbar.dart';
 import 'song_list_tile.dart';
 import 'songinfo_bottom_sheet.dart';
+
+/// Search overview rows and Songs lists play the visible MediaItems as a
+/// queue. Playlist/album/artist complete lists keep their own play-from path.
+bool shouldPlaySearchRowsAsQueue({
+  required bool isCompleteList,
+  required String title,
+}) =>
+    !isCompleteList || title.contains('Songs');
+
+/// Search album/playlist long-press play actions (plus Ban).
+List<String> wideCollectionLongPressPlayKeys() =>
+    const ['play', 'shuffle', 'playNext', 'startRadio'];
 
 class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
   const ListWidget(this.items, this.title, this.isCompleteList,
@@ -131,23 +144,33 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           playlist: playlist,
           isPlaylistOrAlbum: isPlaylistOrAlbum,
           onTap: () {
-            isArtistSongs
-                // if song is from artist then play from artist
-                ? playerController.playPlayListSong(
-                    List<MediaItem>.from(items), index,
-                    playfrom: PlaylingFrom(
-                        type: PlaylingFromType.ARTIST,
-                        name: artist?.name ?? "........."))
-                :
-                // if playlist is not null then play from playlist else play from album
-                playlist != null && album == null
-                    ? playerController.playPlayListSong(
-                        List<MediaItem>.from(items), index,
-                        playfrom: PlaylingFrom(
-                          type: PlaylingFromType.PLAYLIST,
-                          name: playlist.title,
-                        ))
-                    : playerController.pushSongToQueue(song);
+            if (isArtistSongs) {
+              playerController.playPlayListSong(
+                  List<MediaItem>.from(items), index,
+                  playfrom: PlaylingFrom(
+                      type: PlaylingFromType.ARTIST,
+                      name: artist?.name ?? "........."));
+              return;
+            }
+            // Playlist/album complete lists already play from context.
+            if (playlist != null && album == null) {
+              playerController.playPlayListSong(
+                  List<MediaItem>.from(items), index,
+                  playfrom: PlaylingFrom(
+                    type: PlaylingFromType.PLAYLIST,
+                    name: playlist.title,
+                  ));
+              return;
+            }
+            if (shouldPlaySearchRowsAsQueue(
+                    isCompleteList: isCompleteList, title: title) &&
+                items.isNotEmpty &&
+                items.first is MediaItem) {
+              playerController.playPlayListSong(
+                  List<MediaItem>.from(items), index);
+              return;
+            }
+            playerController.pushSongToQueue(song);
           },
         );
       },
@@ -222,29 +245,188 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
       physics: isCompleteList
           ? const BouncingScrollPhysics()
           : const NeverScrollableScrollPhysics(),
-      itemBuilder: (context, index) => ListTile(
-        visualDensity: const VisualDensity(horizontal: -2, vertical: 0),
-        onTap: () {
-          Get.toNamed(ScreenNavigationSetup.artistScreen,
-              id: ScreenNavigationSetup.id, arguments: [false, artists[index]]);
-        },
-        contentPadding: const EdgeInsets.only(top: 0, bottom: 0, left: 5),
-        leading: ImageWidget(
-          size: 56,
-          artist: artists[index],
-        ),
-        title: Text(
-          artists[index].name,
-          maxLines: 1,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        subtitle: Text(
-          artists[index].subscribers,
-          maxLines: 1,
-          style: Theme.of(context).textTheme.titleSmall,
+      itemBuilder: (context, index) {
+        final artist = artists[index];
+        return ListTile(
+          visualDensity: const VisualDensity(horizontal: -2, vertical: 0),
+          onTap: () => _openArtist(artist),
+          onLongPress: () => _showArtistActions(context, artist),
+          contentPadding: const EdgeInsets.only(top: 0, bottom: 0, left: 5),
+          leading: SizedBox(
+            width: 56,
+            height: 56,
+            child: Stack(
+              children: [
+                ImageWidget(
+                  size: 56,
+                  artist: artist,
+                ),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Tooltip(
+                    message: 'play'.tr,
+                    child: Material(
+                      color: Colors.black.withOpacity(0.5),
+                      shape: const CircleBorder(),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () => _playArtistRow(artist),
+                        child: const Padding(
+                          padding: EdgeInsets.all(1),
+                          child: Icon(
+                            Icons.play_circle_fill,
+                            size: 22,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          title: Text(
+            artist.name,
+            maxLines: 1,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          subtitle: Text(
+            artist.subscribers ?? '',
+            maxLines: 1,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+        );
+      },
+    );
+  }
+
+  void _openArtist(dynamic artist) {
+    Get.toNamed(ScreenNavigationSetup.artistScreen,
+        id: ScreenNavigationSetup.id, arguments: [false, artist]);
+  }
+
+  Future<void> _playArtistRow(
+    dynamic artist, {
+    bool shuffle = false,
+    bool radio = false,
+  }) async {
+    if (artist is! Artist) {
+      _openArtist(artist);
+      return;
+    }
+    final ok =
+        await playArtist(artist, shuffle: shuffle, radio: radio);
+    if (!ok) _openArtist(artist);
+  }
+
+  void _showArtistActions(BuildContext context, dynamic artist) {
+    showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.play_arrow_rounded),
+              title: Text('play'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _playArtistRow(artist);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.shuffle),
+              title: Text('shuffle'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _playArtistRow(artist, shuffle: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.sensors),
+              title: Text('startRadio'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _playArtistRow(artist, radio: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.open_in_new),
+              title: Text('viewAll'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _openArtist(artist);
+              },
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  void _openWideTile({dynamic album, dynamic playlist}) {
+    if (album != null) {
+      Get.toNamed(ScreenNavigationSetup.albumScreen,
+          id: ScreenNavigationSetup.id, arguments: (album, album.browseId));
+      return;
+    }
+    Get.toNamed(ScreenNavigationSetup.playlistScreen,
+        id: ScreenNavigationSetup.id,
+        arguments: [playlist, playlist.playlistId]);
+  }
+
+  Future<void> _playWideTile({
+    dynamic album,
+    dynamic playlist,
+    required bool shuffle,
+  }) async {
+    final isAlbum = album != null;
+    final id = isAlbum
+        ? album.browseId?.toString() ?? ''
+        : playlist.playlistId?.toString() ?? '';
+    final name = isAlbum ? album.title : playlist.title;
+    final ok = await playCollection(
+      isAlbum: isAlbum,
+      id: id,
+      title: name?.toString() ?? '',
+      shuffle: shuffle,
+      isPipedPlaylist: !isAlbum && playlist.isPipedPlaylist == true,
+      isCloudPlaylist: isAlbum || playlist.isCloudPlaylist != false,
+    );
+    if (!ok) _openWideTile(album: album, playlist: playlist);
+  }
+
+  Future<void> _queueWideTile({
+    dynamic album,
+    dynamic playlist,
+    required bool radio,
+  }) async {
+    final isAlbum = album != null;
+    final id = isAlbum
+        ? album.browseId?.toString() ?? ''
+        : playlist.playlistId?.toString() ?? '';
+    final tracks = await loadCollectionPlayTracks(
+      isAlbum: isAlbum,
+      id: id,
+      isPipedPlaylist: !isAlbum && playlist.isPipedPlaylist == true,
+      isCloudPlaylist: isAlbum || playlist.isCloudPlaylist != false,
+    );
+    if (tracks.isEmpty || !Get.isRegistered<PlayerController>()) {
+      _openWideTile(album: album, playlist: playlist);
+      return;
+    }
+    final player = Get.find<PlayerController>();
+    if (radio) {
+      await player.startRadio(tracks.first);
+      return;
+    }
+    player.playNextList(tracks);
   }
 
   Widget wideListTile(BuildContext context,
@@ -254,16 +436,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
       required String subtitle,
       required String subtitle2}) {
     return InkWell(
-      onTap: () {
-        if (album != null) {
-          Get.toNamed(ScreenNavigationSetup.albumScreen,
-              id: ScreenNavigationSetup.id, arguments: (album, album.browseId));
-        } else {
-          Get.toNamed(ScreenNavigationSetup.playlistScreen,
-              id: ScreenNavigationSetup.id,
-              arguments: [playlist, playlist.playlistId]);
-        }
-      },
+      onTap: () => _openWideTile(album: album, playlist: playlist),
       onLongPress: () {
         final isAlbum = album != null;
         final id = isAlbum ? album.browseId : playlist.playlistId;
@@ -276,6 +449,42 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
             borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
           ),
           builder: (ctx) => Wrap(children: [
+            ListTile(
+              leading: const Icon(Icons.play_arrow_rounded),
+              title: Text('play'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _playWideTile(
+                    album: album, playlist: playlist, shuffle: false);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.shuffle),
+              title: Text('shuffle'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _playWideTile(
+                    album: album, playlist: playlist, shuffle: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.playlist_play),
+              title: Text('playNext'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _queueWideTile(
+                    album: album, playlist: playlist, radio: false);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.sensors),
+              title: Text('startRadio'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _queueWideTile(
+                    album: album, playlist: playlist, radio: true);
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.block),
               title:
@@ -298,10 +507,47 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           padding: const EdgeInsets.only(top: 10.0, bottom: 10),
           child: Row(
             children: [
-              ImageWidget(
-                size: 100,
-                album: album,
-                playlist: playlist,
+              SizedBox(
+                width: 100,
+                height: 100,
+                child: Stack(
+                  children: [
+                    ImageWidget(
+                      size: 100,
+                      album: album,
+                      playlist: playlist,
+                    ),
+                    Positioned(
+                      right: 4,
+                      bottom: 4,
+                      child: Tooltip(
+                        message: 'play'.tr,
+                        child: Material(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: const CircleBorder(),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: () {
+                              _playWideTile(
+                                  album: album,
+                                  playlist: playlist,
+                                  shuffle: false);
+                            },
+                            child: const Padding(
+                              padding: EdgeInsets.all(2),
+                              child: Icon(
+                                Icons.play_circle_fill,
+                                size: 26,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(
                 width: 20,

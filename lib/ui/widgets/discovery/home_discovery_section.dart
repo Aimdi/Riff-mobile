@@ -1,12 +1,14 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hive/hive.dart';
 
 import '../../../models/media_Item_builder.dart';
 import '../../../models/playlist.dart';
 import '../../../services/discovery/discovery_service.dart';
 import '../../../services/discovery/discovery_types.dart';
 import '../../navigator.dart';
+import '../../player/play_queue_order.dart';
 import '../../player/player_controller.dart';
 import '../../utils/riff_tokens.dart';
 import '../../utils/sheet_insets.dart';
@@ -36,15 +38,38 @@ class HomeDiscoverySection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 12, top: 24, bottom: 10, right: 12),
-          child: Text(
-            section.title,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 19,
-                  letterSpacing: -0.35,
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  section.title,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 19,
+                        letterSpacing: -0.35,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+              ),
+              if (!isDailyMix && shouldPlayDiscoveryShelfAsQueue(tracks.length))
+                IconButton(
+                  tooltip: 'playAll'.tr,
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(
+                    Icons.play_circle_fill_rounded,
+                    color: Theme.of(context).colorScheme.secondary,
+                  ),
+                  onPressed: () {
+                    if (!Get.isRegistered<PlayerController>()) return;
+                    final tagged = Get.isRegistered<DiscoveryService>()
+                        ? DiscoveryService.tagAll(
+                            tracks, DiscoverySource.discover)
+                        : tracks;
+                    Get.find<PlayerController>().playPlayListSong(tagged, 0);
+                  },
+                ),
+            ],
           ),
         ),
         SizedBox(
@@ -59,6 +84,8 @@ class HomeDiscoverySection extends StatelessWidget {
                 padding: EdgeInsets.only(right: i == tracks.length - 1 ? 0 : 12),
                 child: _DiscoveryCard(
                   song: song,
+                  shelfTracks: tracks,
+                  shelfIndex: i,
                   surface: section.surface,
                   cardSize: cardSize,
                   onDismiss: () {
@@ -81,14 +108,78 @@ class HomeDiscoverySection extends StatelessWidget {
 class _DiscoveryCard extends StatelessWidget {
   const _DiscoveryCard({
     required this.song,
+    required this.shelfTracks,
+    required this.shelfIndex,
     required this.surface,
     required this.onDismiss,
     required this.cardSize,
   });
   final MediaItem song;
+  final List<MediaItem> shelfTracks;
+  final int shelfIndex;
   final String surface;
   final VoidCallback onDismiss;
   final double cardSize;
+
+  String get _mixId =>
+      (song.extras?['dailyMixId'] ?? '').toString().trim();
+
+  String get _mixTitle =>
+      (song.extras?['dailyMixTitle'] ?? '').toString().trim();
+
+  Future<void> _playMix(PlayerController player) async {
+    final id = _mixId;
+    if (id.isEmpty || !Get.isRegistered<DiscoveryService>()) {
+      await _openMix();
+      return;
+    }
+    final disc = Get.find<DiscoveryService>();
+    GeneratedMix? mix;
+    for (final m in disc.dailyMixes) {
+      if (m.id == id) {
+        mix = m;
+        break;
+      }
+    }
+    if (mix == null || mix.tracks.isEmpty) {
+      await _openMix();
+      return;
+    }
+    final tracks = <MediaItem>[];
+    for (final raw in mix.tracks) {
+      try {
+        final item = MediaItemBuilder.fromJson(raw);
+        if (item.id.isNotEmpty) tracks.add(item);
+      } catch (_) {}
+    }
+    if (tracks.isEmpty) {
+      await _openMix();
+      return;
+    }
+    tracks.shuffle();
+    final tagged = DiscoveryService.tagAll(tracks, DiscoverySource.dailyMix);
+    await player.playPlayListSong(tagged, 0);
+  }
+
+  Future<void> _openMix() async {
+    final id = _mixId;
+    if (id.isEmpty || !Get.isRegistered<DiscoveryService>()) return;
+    final disc = Get.find<DiscoveryService>();
+    await disc.materializeMixPlaylists();
+    final playlistId = 'RIFF_$id';
+    final title = _mixTitle;
+    final pl = Playlist(
+      title: title.isNotEmpty ? title : 'dailyMix'.tr,
+      playlistId: playlistId,
+      thumbnailUrl: song.artUri?.toString() ?? Playlist.thumbPlaceholderUrl,
+      isCloudPlaylist: false,
+    );
+    Get.toNamed(
+      ScreenNavigationSetup.playlistScreen,
+      id: ScreenNavigationSetup.id,
+      arguments: [pl, playlistId],
+    );
+  }
 
   List<MediaItem> _collageTracks(String mixId) {
     if (mixId.isEmpty || !Get.isRegistered<DiscoveryService>()) return const [];
@@ -127,23 +218,18 @@ class _DiscoveryCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
         onTap: () async {
-          // Daily Mix cards open the full mix playlist, not one lead track.
-          if (mixId.isNotEmpty && Get.isRegistered<DiscoveryService>()) {
-            final disc = Get.find<DiscoveryService>();
-            await disc.materializeMixPlaylists();
-            final playlistId = 'RIFF_$mixId';
-            final pl = Playlist(
-              title: mixTitle.isNotEmpty ? mixTitle : 'dailyMix'.tr,
-              playlistId: playlistId,
-              thumbnailUrl: song.artUri?.toString() ??
-                  Playlist.thumbPlaceholderUrl,
-              isCloudPlaylist: false,
-            );
-            Get.toNamed(
-              ScreenNavigationSetup.playlistScreen,
-              id: ScreenNavigationSetup.id,
-              arguments: [pl, playlistId],
-            );
+          // Daily Mix cards play the shuffled mix immediately.
+          if (mixId.isNotEmpty) {
+            await _playMix(player);
+            return;
+          }
+          if (shouldPlayDiscoveryShelfAsQueue(shelfTracks.length)) {
+            final tagged = Get.isRegistered<DiscoveryService>()
+                ? DiscoveryService.tagAll(
+                    shelfTracks, DiscoverySource.discover)
+                : shelfTracks;
+            final index = shelfIndex.clamp(0, tagged.length - 1);
+            await player.playPlayListSong(tagged, index);
             return;
           }
           final tagged = Get.isRegistered<DiscoveryService>()
@@ -172,6 +258,33 @@ class _DiscoveryCard extends StatelessWidget {
                       leading: ImageWidget(song: song, size: 48),
                       title: Text(song.title, maxLines: 1),
                       subtitle: Text(song.artist ?? '', maxLines: 1),
+                    ),
+                    if (isMix)
+                      ListTile(
+                        leading: const Icon(Icons.queue_music),
+                        title: Text(mixTitle.isNotEmpty
+                            ? mixTitle
+                            : 'dailyMix'.tr),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _openMix();
+                        },
+                      ),
+                    ListTile(
+                      leading: const Icon(Icons.playlist_play),
+                      title: Text('playNext'.tr),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        player.playNext(song);
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.sensors),
+                      title: Text('startRadio'.tr),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        player.startRadio(song);
+                      },
                     ),
                     ListTile(
                       leading: const Icon(Icons.thumb_up_outlined),
@@ -345,6 +458,39 @@ class HomeShortcutGrid extends StatelessWidget {
     );
   }
 
+  Future<void> _playLibraryBox(
+    BuildContext context, {
+    required String id,
+    required String title,
+    bool shuffle = false,
+    bool mostRecentFirst = false,
+  }) async {
+    try {
+      final box = Hive.isBoxOpen(id) ? Hive.box(id) : await Hive.openBox(id);
+      var tracks = <MediaItem>[];
+      for (final raw in box.values) {
+        try {
+          final item = MediaItemBuilder.fromJson(raw);
+          if (item.id.isNotEmpty) tracks.add(item);
+        } catch (_) {}
+      }
+      if (mostRecentFirst) {
+        tracks = tracks.reversed.toList();
+      }
+      if (tracks.isEmpty) {
+        _openLibraryPlaylist(id, title);
+        return;
+      }
+      if (shuffle) {
+        tracks.shuffle();
+      }
+      await Get.find<PlayerController>().playPlayListSong(tracks, 0);
+    } catch (_) {
+      if (!context.mounted) return;
+      _openLibraryPlaylist(id, title);
+    }
+  }
+
   Future<void> _playTracks(
     BuildContext context,
     Future<List<MediaItem>> Function() load,
@@ -393,12 +539,25 @@ class HomeShortcutGrid extends StatelessWidget {
       _ShortcutItem(
         title: 'favorites'.tr,
         icon: Icons.favorite_outline,
-        onTap: () => _openLibraryPlaylist('LIBFAV', 'favorites'.tr),
+        onTap: () => _playLibraryBox(
+          context,
+          id: 'LIBFAV',
+          title: 'favorites'.tr,
+          shuffle: true,
+        ),
+        onLongPress: () => _openLibraryPlaylist('LIBFAV', 'favorites'.tr),
       ),
       _ShortcutItem(
         title: 'recentlyPlayed'.tr,
         icon: Icons.history,
-        onTap: () => _openLibraryPlaylist('LIBRP', 'recentlyPlayed'.tr),
+        onTap: () => _playLibraryBox(
+          context,
+          id: 'LIBRP',
+          title: 'recentlyPlayed'.tr,
+          mostRecentFirst: true,
+        ),
+        onLongPress: () =>
+            _openLibraryPlaylist('LIBRP', 'recentlyPlayed'.tr),
       ),
       _ShortcutItem(
         title: 'freshFinds'.tr,
@@ -439,7 +598,13 @@ class HomeShortcutGrid extends StatelessWidget {
       _ShortcutItem(
         title: 'downloads'.tr,
         icon: Icons.download_outlined,
-        onTap: () => _openLibraryPlaylist('SongDownloads', 'downloads'.tr),
+        onTap: () => _playLibraryBox(
+          context,
+          id: 'SongDownloads',
+          title: 'downloads'.tr,
+        ),
+        onLongPress: () =>
+            _openLibraryPlaylist('SongDownloads', 'downloads'.tr),
       ),
     ];
 
@@ -473,6 +638,7 @@ class HomeShortcutGrid extends StatelessWidget {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
                     onTap: e.onTap,
+                    onLongPress: e.onLongPress,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 6),
@@ -513,8 +679,10 @@ class _ShortcutItem {
     required this.title,
     required this.icon,
     required this.onTap,
+    this.onLongPress,
   });
   final String title;
   final IconData icon;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 }

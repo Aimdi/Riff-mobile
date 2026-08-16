@@ -1,13 +1,23 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hive/hive.dart';
 
+import '/models/media_Item_builder.dart';
 import '/models/playlist.dart';
+import '/models/playling_from.dart';
 import '/services/cloud_music_service.dart';
+import '../../navigator.dart';
+import '../../player/play_queue_order.dart';
+import '../../player/player_controller.dart';
+import '../../utils/riff_tokens.dart';
+import '../../utils/theme_controller.dart';
 import '../../widgets/modification_list.dart';
 import '../../widgets/piped_sync_widget.dart';
 import '../../widgets/content_list_widget_item.dart';
 import '../../widgets/list_widget.dart';
 import '../../widgets/sort_widget.dart';
+import '../Cloud/cloud_play.dart';
 import '../Cloud/cloud_screen.dart';
 import '../Settings/settings_screen_controller.dart';
 import 'library_controller.dart';
@@ -41,6 +51,7 @@ class SongsLibraryWidget extends StatelessWidget {
                     );
                   }),
                 ),
+          if (!isBottomNavActive) const _LibraryPinnedRow(),
           Obx(() {
             final cloudMode = libSongsController.showCloudSongs.value;
             final cloud = Get.find<CloudMusicService>();
@@ -77,6 +88,15 @@ class SongsLibraryWidget extends StatelessWidget {
               cancelAdditionalOperation:
                   libSongsController.cancelAdditionalOperation,
             );
+          }),
+          Obx(() {
+            if (!shouldShowLibrarySongsPlayBar(
+              cloudMode: libSongsController.showCloudSongs.value,
+              songCount: libSongsController.librarySongsList.length,
+            )) {
+              return const SizedBox.shrink();
+            }
+            return const _LibrarySongsPlayBar();
           }),
           Expanded(
             child: Obx(() {
@@ -116,6 +136,60 @@ class SongsLibraryWidget extends StatelessWidget {
   }
 }
 
+/// Play all / Shuffle for the offline Songs tab (Spotify library chrome).
+class _LibrarySongsPlayBar extends StatelessWidget {
+  const _LibrarySongsPlayBar();
+
+  Future<void> _play({required bool shuffle}) async {
+    if (!Get.isRegistered<LibrarySongsController>() ||
+        !Get.isRegistered<PlayerController>()) {
+      return;
+    }
+    final songs = Get.find<LibrarySongsController>().librarySongsList;
+    if (songs.isEmpty) return;
+    final queue = playQueueFrom(songs, shuffle: shuffle);
+    await Get.find<PlayerController>().playPlayListSong(
+      queue,
+      0,
+      playfrom: PlaylingFrom(
+        type: PlaylingFromType.PLAYLIST,
+        name: 'libSongs'.tr,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = theme.textTheme.titleMedium?.color;
+    final style = TextButton.styleFrom(
+      foregroundColor: color,
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 0, 12, 4),
+      child: Row(
+        children: [
+          TextButton.icon(
+            onPressed: () => _play(shuffle: false),
+            icon: const Icon(Icons.play_arrow_rounded, size: 20),
+            label: Text('playAll'.tr),
+            style: style,
+          ),
+          TextButton.icon(
+            onPressed: () => _play(shuffle: true),
+            icon: const Icon(Icons.shuffle, size: 18),
+            label: Text('shuffle'.tr),
+            style: style,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Cloud songs (or connect form) shown when the Songs toolbar cloud toggle is on.
 class _CloudSongsPane extends StatelessWidget {
   const _CloudSongsPane();
@@ -139,7 +213,7 @@ class _CloudSongsPane extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 12),
               TextButton.icon(
-                onPressed: () => cloud.fetchRandomSongs(),
+                onPressed: () => fetchAndPlayCloudRandomMix(cloud),
                 icon: const Icon(Icons.casino_outlined),
                 label: Text('cloudRandomMix'.tr),
               ),
@@ -161,10 +235,22 @@ class _CloudSongsPane extends StatelessWidget {
                     child: Text('cloudRandomMix'.tr,
                         style: Theme.of(context).textTheme.titleSmall),
                   ),
+                  if (shouldShowCloudSongsPlayBar(
+                    connected: cloud.isConnected.isTrue,
+                    songCount: list.length,
+                  ))
+                    IconButton(
+                      tooltip: 'playAll'.tr,
+                      icon: const Icon(Icons.play_arrow_rounded, size: 22),
+                      onPressed: () => playCloudSongs(
+                        cloud.toMediaItems(list),
+                        shuffle: false,
+                      ),
+                    ),
                   IconButton(
                     tooltip: 'shuffle'.tr,
                     icon: const Icon(Icons.casino_outlined, size: 20),
-                    onPressed: () => cloud.fetchRandomSongs(),
+                    onPressed: () => fetchAndPlayCloudRandomMix(cloud),
                   ),
                   TextButton(
                     onPressed: () => cloud.logout(),
@@ -362,6 +448,198 @@ class LibraryArtistWidget extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium,
                 ))))
         ],
+      ),
+    );
+  }
+}
+
+/// Spotify-like pinned tiles: Liked Songs + Recently played (play on tap).
+class _LibraryPinnedRow extends StatelessWidget {
+  const _LibraryPinnedRow();
+
+  int _count(String boxName) {
+    if (!Hive.isBoxOpen(boxName)) return 0;
+    return Hive.box(boxName).length;
+  }
+
+  void _open(String id, String title) {
+    final pl = Playlist(
+      title: title,
+      playlistId: id,
+      thumbnailUrl: Playlist.thumbPlaceholderUrl,
+      isCloudPlaylist: false,
+    );
+    Get.toNamed(
+      ScreenNavigationSetup.playlistScreen,
+      id: ScreenNavigationSetup.id,
+      arguments: [pl, id],
+    );
+  }
+
+  Future<void> _play(String id, String title, {bool shuffle = false}) async {
+    if (!Hive.isBoxOpen(id) || Hive.box(id).isEmpty) {
+      _open(id, title);
+      return;
+    }
+    final tracks = <MediaItem>[];
+    for (final raw in Hive.box(id).values) {
+      try {
+        final item = MediaItemBuilder.fromJson(raw);
+        if (item.id.isNotEmpty) tracks.add(item);
+      } catch (_) {}
+    }
+    if (tracks.isEmpty) {
+      _open(id, title);
+      return;
+    }
+    if (shuffle) {
+      tracks.shuffle();
+    } else if (id == 'LIBRP') {
+      await Get.find<PlayerController>()
+          .playPlayListSong(tracks.reversed.toList(), 0);
+      return;
+    }
+    await Get.find<PlayerController>().playPlayListSong(tracks, 0);
+  }
+
+  void _showRecentsActions(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.shuffle),
+              title: Text('shuffle'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _play('LIBRP', 'recentlyPlayed'.tr, shuffle: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.open_in_new),
+              title: Text('viewAll'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _open('LIBRP', 'recentlyPlayed'.tr);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = theme.brightness == Brightness.dark
+        ? RiffSurfaces.textMuted
+        : theme.textTheme.bodySmall?.color;
+    final liked = _count('LIBFAV');
+    final recent = _count('LIBRP');
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 10, 12, 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: _PinnedTile(
+              icon: Icons.favorite,
+              title: 'favorites'.tr,
+              subtitle: liked > 0 ? '$liked' : null,
+              accent: theme.colorScheme.secondary,
+              muted: muted,
+              onTap: () => _play('LIBFAV', 'favorites'.tr, shuffle: true),
+              onLongPress: () => _open('LIBFAV', 'favorites'.tr),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _PinnedTile(
+              icon: Icons.history,
+              title: 'recentlyPlayed'.tr,
+              subtitle: recent > 0 ? '$recent' : null,
+              accent: theme.colorScheme.secondary,
+              muted: muted,
+              onTap: () => _play('LIBRP', 'recentlyPlayed'.tr),
+              onLongPress: () => _showRecentsActions(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PinnedTile extends StatelessWidget {
+  const _PinnedTile({
+    required this.icon,
+    required this.title,
+    required this.accent,
+    required this.onTap,
+    required this.onLongPress,
+    this.subtitle,
+    this.muted,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final Color accent;
+  final Color? muted;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+
+  @override
+  Widget build(BuildContext context) {
+    final fill = Theme.of(context).brightness == Brightness.dark
+        ? RiffSurfaces.elevatedSoft
+        : Theme.of(context).cardColor;
+    return Material(
+      color: fill,
+      borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          child: Row(
+            children: [
+              Icon(icon, color: accent, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    if (subtitle != null)
+                      Text(
+                        subtitle!,
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelSmall
+                            ?.copyWith(color: muted, fontSize: 11),
+                      ),
+                  ],
+                ),
+              ),
+              Icon(Icons.play_circle_fill, color: accent, size: 22),
+            ],
+          ),
+        ),
       ),
     );
   }

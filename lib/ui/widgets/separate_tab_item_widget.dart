@@ -1,12 +1,20 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/ui/widgets/modification_list.dart';
 
+import '../../models/playling_from.dart';
+import '../player/play_queue_order.dart';
+import '../player/player_controller.dart';
 import '../screens/Artists/artist_screen_controller.dart';
 import '../screens/Search/search_result_screen_controller.dart';
 import 'list_widget.dart';
 import 'loader.dart';
 import 'sort_widget.dart';
+
+/// Songs / Videos / Episodes tabs expose Play all (overview and full list).
+bool shouldShowTabPlayAllHeader(String title) =>
+    title == 'Songs' || title == 'Videos' || title == 'Episodes';
 
 class SeparateTabItemWidget extends StatelessWidget {
   const SeparateTabItemWidget(
@@ -30,6 +38,32 @@ class SeparateTabItemWidget extends StatelessWidget {
   final bool hideTitle;
   final ScrollController? scrollController;
 
+  List<MediaItem> _tabSongs() {
+    if (isResultWidget &&
+        Get.isRegistered<SearchResultScreenController>()) {
+      final raw =
+          Get.find<SearchResultScreenController>().separatedResultContent[title];
+      if (raw is List) {
+        final songs = raw.whereType<MediaItem>().toList();
+        if (songs.isNotEmpty) return songs;
+      }
+    }
+    return items.whereType<MediaItem>().toList();
+  }
+
+  void _playTabItems({required bool shuffle}) {
+    final songs = _tabSongs();
+    if (songs.isEmpty || !Get.isRegistered<PlayerController>()) return;
+    Get.find<PlayerController>().playPlayListSong(
+      playQueueFrom(songs, shuffle: shuffle),
+      0,
+      playfrom: PlaylingFrom(
+        type: PlaylingFromType.SELECTION,
+        name: title.tr,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final artistController =
@@ -49,19 +83,35 @@ class SeparateTabItemWidget extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    title.toLowerCase().removeAllWhitespace.tr,
-                    style: Theme.of(context).textTheme.titleLarge,
+                  Expanded(
+                    child: Text(
+                      title.toLowerCase().removeAllWhitespace.tr,
+                      style: Theme.of(context).textTheme.titleLarge,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  isCompleteList
-                      ? const SizedBox.shrink()
-                      : TextButton(
-                          onPressed: () {
-                            searchResController!.viewAllCallback(title);
-                          },
-                          child: Text("viewAll".tr,
-                              style:
-                                  Theme.of(Get.context!).textTheme.titleSmall))
+                  if (shouldShowTabPlayAllHeader(title))
+                    TextButton(
+                      onPressed: () => _playTabItems(shuffle: false),
+                      child: Text("playAll".tr,
+                          style: Theme.of(context).textTheme.titleSmall),
+                    ),
+                  if (isCompleteList && shouldShowTabPlayAllHeader(title))
+                    TextButton(
+                      onPressed: () => _playTabItems(shuffle: true),
+                      child: Text("shuffle".tr,
+                          style: Theme.of(context).textTheme.titleSmall),
+                    ),
+                  if (!isCompleteList)
+                    TextButton(
+                        onPressed: () {
+                          searchResController!.viewAllCallback(title);
+                        },
+                        child: Text("viewAll".tr,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall)),
                 ],
               ),
             ),

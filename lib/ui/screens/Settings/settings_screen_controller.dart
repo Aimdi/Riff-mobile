@@ -174,7 +174,7 @@ class SettingsScreenController extends GetxController {
     virtualizer.value = _asInt(setBox.get("virtualizer"), 0);
     autoOpenPlayer.value = setBox.get("autoOpenPlayer") ?? true;
     restorePlaybackSession.value =
-        setBox.get("restrorePlaybackSession") ?? false;
+        setBox.get("restrorePlaybackSession") ?? true;
     cacheHomeScreenData.value = setBox.get("cacheHomeScreenData") ?? true;
     developerMode.value = setBox.get("developerMode") ?? false;
     // Hive may lack this key when AppPrefs is non-empty (partial prefs /

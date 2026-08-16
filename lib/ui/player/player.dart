@@ -7,9 +7,11 @@ import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/utils/riff_tokens.dart';
 import '/ui/utils/theme_controller.dart';
 import '../../utils/helper.dart';
+import '../widgets/add_to_playlist.dart';
 import '../widgets/snackbar.dart';
 import '../widgets/up_next_queue.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/player/upcoming_queue.dart';
 import '../widgets/sliding_up_panel.dart';
 
 /// Player screen
@@ -76,7 +78,7 @@ class Player extends StatelessWidget {
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
                           Text(
                             "upNext".tr,
                             style: Theme.of(context)
@@ -88,6 +90,30 @@ class Player extends StatelessWidget {
                                   letterSpacing: 0.2,
                                 ),
                           ),
+                          Obx(() {
+                            final upcoming = playerController.upcomingQueue;
+                            if (upcoming.isEmpty) {
+                              return const SizedBox.shrink();
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 1, 20, 0),
+                              child: Text(
+                                upcomingPreviewLabel(
+                                    upcoming.first.title, upcoming.length),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelSmall
+                                    ?.copyWith(
+                                      color: RiffSurfaces.textPrimary
+                                          .withOpacity(0.85),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                              ),
+                            );
+                          }),
                         ],
                       ),
                     ),
@@ -210,6 +236,30 @@ class Player extends StatelessWidget {
                                 ),
                                 child: const Center(
                                     child: Icon(Icons.shuffle,
+                                        size: 18,
+                                        color: RiffSurfaces.textPrimary)),
+                              ),
+                            ),
+
+                            /// save queue as playlist
+                            InkWell(
+                              onTap: () {
+                                final queue =
+                                    playerController.currentQueue.toList();
+                                if (queue.isEmpty) return;
+                                showAddToPlaylistSheet(context, queue);
+                              },
+                              child: Container(
+                                height: 30,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 15),
+                                decoration: BoxDecoration(
+                                  color: RiffSurfaces.elevatedSoft,
+                                  borderRadius: BorderRadius.circular(
+                                      RiffTokens.radiusSm),
+                                ),
+                                child: const Center(
+                                    child: Icon(Icons.playlist_add,
                                         size: 18,
                                         color: RiffSurfaces.textPrimary)),
                               ),
