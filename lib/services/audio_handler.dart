@@ -70,6 +70,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   double _baseVolume = 1.0;
   bool _mixTransitionInProgress = false;
   bool _startMutedForMix = false;
+  /// Song id we already near-end-prefetched, so the 45s listener fires once.
+  String? _prefetchArmedForId;
 
   /// Auto URL-refresh budget after stream death (PLAY-1). Reset on song change
   /// or when playback reaches ready.
@@ -325,6 +327,15 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       }
 
       if (_mixTransitionInProgress) return;
+
+      final remainingMs = durationMs - posMs;
+      if (remainingMs > 0 && remainingMs < 45000) {
+        final id = mediaItem.value?.id;
+        if (id != null && _prefetchArmedForId != id) {
+          _prefetchArmedForId = id;
+          prefetchNextInQueue();
+        }
+      }
 
       if (posMs >= (durationMs - playerDurationOffset)) {
         await _triggerNext();
@@ -680,11 +691,31 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
 
         mediaItem.add(currentSong);
-        late final HMStreamingData streamInfo;
+        late HMStreamingData streamInfo;
+        var resolveFailed = false;
         try {
           streamInfo = await futureStreamInfo;
+          if (!streamInfo.playable && isNewUrlReq != true) {
+            printINFO(
+                'playByIndex: first resolve not playable, retrying with new URL');
+            streamInfo =
+                await checkNGetUrl(currentSong.id, generateNewUrl: true);
+          }
         } catch (e) {
           printERROR('playByIndex stream resolve failed: $e');
+          if (isNewUrlReq != true) {
+            try {
+              streamInfo =
+                  await checkNGetUrl(currentSong.id, generateNewUrl: true);
+            } catch (e2) {
+              printERROR('playByIndex stream resolve retry failed: $e2');
+              resolveFailed = true;
+            }
+          } else {
+            resolveFailed = true;
+          }
+        }
+        if (resolveFailed) {
           if (songIndex != currentIndex) return;
           currentSongUrl = null;
           isSongLoading = false;
@@ -966,22 +997,22 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   }
 
   Future<void> saveSessionData() async {
-    if (Get.find<SettingsScreenController>().restorePlaybackSession.isFalse) {
+    final currQueue = queue.value;
+    // Persist whenever the queue is non-empty so Home can offer
+    // "Continue listening" even if auto-restore is turned off.
+    if (currQueue.isEmpty) {
       return;
     }
-    final currQueue = queue.value;
-    if (currQueue.isNotEmpty) {
-      final queueData =
-          currQueue.map((e) => MediaItemBuilder.toJson(e)).toList();
-      final currIndex = currentIndex ?? 0;
-      final position = _player.position.inMilliseconds;
-      final prevSessionData = await Hive.openBox("prevSessionData");
-      await prevSessionData.clear();
-      await prevSessionData.putAll(
-          {"queue": queueData, "position": position, "index": currIndex});
-      await prevSessionData.close();
-      printINFO("Saved session data");
-    }
+    final queueData =
+        currQueue.map((e) => MediaItemBuilder.toJson(e)).toList();
+    final currIndex = currentIndex ?? 0;
+    final position = _player.position.inMilliseconds;
+    final prevSessionData = await Hive.openBox("prevSessionData");
+    await prevSessionData.clear();
+    await prevSessionData.putAll(
+        {"queue": queueData, "position": position, "index": currIndex});
+    await prevSessionData.close();
+    printINFO("Saved session data");
   }
 
   /// Android Auto

@@ -85,6 +85,11 @@ class PlayerController extends GetxController
   bool isRadioModeOn = false;
   String? radioContinuationParam;
   dynamic radioInitiatorItem;
+  bool _radioContinuationInFlight = false;
+
+  /// Home "Continue listening" chip — saved queue exists and player is idle.
+  final showContinueListening = false.obs;
+  final continueListeningTitle = ''.obs;
   Timer? sleepTimer;
   int timerDuration = 0;
   final timerDurationLeft = 0.obs;
@@ -179,6 +184,7 @@ class PlayerController extends GetxController
     () async {
       await _waitForAudioHandler();
       if (_audioReady) await _restorePrevSession();
+      await _refreshContinueListeningChip();
     }();
     super.onReady();
   }
@@ -678,6 +684,9 @@ class PlayerController extends GetxController
         // Close ABS listening session when leaving an ABS item (best effort).
         _maybeCloseAbsSession(currentSong.value, mediaItem);
         currentSong.value = mediaItem;
+        if (showContinueListening.isTrue) {
+          showContinueListening.value = false;
+        }
         clearPlaybackError();
         // Arm auto-resume for the incoming podcast episode (either backend).
         if (PodcastProgressService.isPodcastItem(mediaItem)) {
@@ -717,8 +726,13 @@ class PlayerController extends GetxController
                 .onMediaChanged(mediaItem, positionMs: posMs);
           }
         }
-        if (isRadioModeOn && (currentSong.value!.id == currentQueue.last.id)) {
-          await _addRadioContinuation(radioInitiatorItem!);
+        if (_shouldFetchRadioContinuation()) {
+          _radioContinuationInFlight = true;
+          try {
+            await _addRadioContinuation(radioInitiatorItem);
+          } finally {
+            _radioContinuationInFlight = false;
+          }
         }
         lyrics.value = {"synced": "", "plainLyrics": "", "ttml": ""};
         showLyricsflag.value = false;
@@ -761,6 +775,79 @@ class PlayerController extends GetxController
         });
       }
     }
+  }
+
+  /// Peek Hive for a saved queue so Home can show a resume chip when the
+  /// player is idle (auto-restore off, or restore has not started playback).
+  Future<void> _refreshContinueListeningChip() async {
+    try {
+      if (currentSong.value != null && !initFlagForPlayer) {
+        showContinueListening.value = false;
+        return;
+      }
+      final box = Hive.isBoxOpen("prevSessionData")
+          ? Hive.box("prevSessionData")
+          : await Hive.openBox("prevSessionData");
+      final rawQueue = box.get("queue");
+      if (rawQueue is! List || rawQueue.isEmpty) {
+        showContinueListening.value = false;
+        return;
+      }
+      final index = (box.get("index") as int?) ?? 0;
+      final safe = index.clamp(0, rawQueue.length - 1);
+      final item = MediaItemBuilder.fromJson(rawQueue[safe]);
+      continueListeningTitle.value = item.title;
+      showContinueListening.value = true;
+    } catch (_) {
+      showContinueListening.value = false;
+    }
+  }
+
+  /// Resume the Hive-saved queue from its stored index/position and play.
+  Future<void> resumeSavedSession() async {
+    showContinueListening.value = false;
+    await _waitForAudioHandler();
+    if (!_audioReady) return;
+    try {
+      final prevSessionData = Hive.isBoxOpen("prevSessionData")
+          ? Hive.box("prevSessionData")
+          : await Hive.openBox("prevSessionData");
+      final rawQueue = prevSessionData.get("queue");
+      if (rawQueue is! List || rawQueue.isEmpty) return;
+      final songList =
+          rawQueue.map((e) => MediaItemBuilder.fromJson(e)).toList();
+      final int savedIndex = (prevSessionData.get("index") as int?) ?? 0;
+      final int position = (prevSessionData.get("position") as int?) ?? 0;
+      final index = savedIndex.clamp(0, songList.length - 1);
+      // Don't append a second copy if auto-restore already loaded the queue.
+      if (currentQueue.isEmpty) {
+        await _audioHandler.addQueueItems(songList);
+      }
+      _playerPanelCheck(restoreSession: true);
+      await _audioHandler.customAction("playByIndex", {
+        "index": index,
+        "position": position,
+        "restoreSession": false,
+      });
+    } catch (e) {
+      printERROR("resumeSavedSession failed: $e");
+    }
+  }
+
+  /// Last track, or ≤3 songs left — fetch the next radio batch once.
+  bool _shouldFetchRadioContinuation() {
+    if (radioInitiatorItem == null || currentSong.value == null) {
+      return false;
+    }
+    final isLast = currentQueue.isNotEmpty &&
+        currentSong.value!.id == currentQueue.last.id;
+    return radioShouldFetchContinuation(
+      radioOn: isRadioModeOn,
+      inFlight: _radioContinuationInFlight,
+      queueLength: currentQueue.length,
+      currentIndex: currentSongIndex.value,
+      isLastTrack: isLast,
+    );
   }
 
   void _listenForCustomEvents() {

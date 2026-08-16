@@ -286,7 +286,8 @@ class LifecycleHandler extends WidgetsBindingObserver {
           }
         });
       }
-    } else if (state == AppLifecycleState.detached) {
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
       if (Get.isRegistered<AudioHandler>()) {
         await Get.find<AudioHandler>().customAction("saveSession");
       }

@@ -275,6 +275,7 @@ class _HomeFeed extends StatelessWidget {
               ],
             ),
           ),
+          const _ContinueListeningChip(),
           const JumpBackInRow(),
           const RiffWaveHero(),
           const HomeShortcutGrid(),
@@ -442,6 +443,77 @@ class _HomeDiscoverEmptyCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Resume the last saved queue when the player is idle.
+class _ContinueListeningChip extends StatelessWidget {
+  const _ContinueListeningChip();
+
+  @override
+  Widget build(BuildContext context) {
+    if (!Get.isRegistered<PlayerController>()) {
+      return const SizedBox.shrink();
+    }
+    final player = Get.find<PlayerController>();
+    return Obx(() {
+      final idle =
+          player.currentSong.value == null || player.initFlagForPlayer;
+      if (player.showContinueListening.isFalse || !idle) {
+        return const SizedBox.shrink();
+      }
+      final theme = Theme.of(context);
+      final title = player.continueListeningTitle.value;
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+        child: Material(
+          color: theme.cardColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+            side: RiffTokens.hairlineBorder(context),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+            onTap: () => player.resumeSavedSession(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(Icons.play_circle_fill_rounded,
+                      size: 22, color: theme.colorScheme.secondary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'continueListening'.tr,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (title.isNotEmpty)
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.textTheme.bodySmall?.color
+                                  ?.withOpacity(0.7),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right,
+                      size: 20, color: theme.colorScheme.secondary),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    });
   }
 }
 
