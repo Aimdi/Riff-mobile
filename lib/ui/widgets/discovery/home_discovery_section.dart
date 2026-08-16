@@ -10,9 +10,9 @@ import '../../../services/discovery/discovery_types.dart';
 import '../../navigator.dart';
 import '../../player/play_queue_order.dart';
 import '../../player/player_controller.dart';
+import '../../screens/Home/home_greeting.dart';
 import '../../utils/riff_tokens.dart';
 import '../../utils/sheet_insets.dart';
-import '../../utils/theme_controller.dart';
 import '../image_widget.dart';
 import '../snackbar.dart';
 import 'similar_songs_sheet.dart';
@@ -31,7 +31,7 @@ class HomeDiscoverySection extends StatelessWidget {
     final isDailyMix = section.id == 'made_for_you' ||
         tracks.any((t) =>
             (t.extras?['dailyMixId'] ?? '').toString().trim().isNotEmpty);
-    final cardSize = isDailyMix ? 124.0 : 112.0;
+    final cardSize = discoveryShelfCardSize(isDailyMix: isDailyMix);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -43,11 +43,7 @@ class HomeDiscoverySection extends StatelessWidget {
               Expanded(
                 child: Text(
                   section.title,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 19,
-                        letterSpacing: -0.35,
-                      ),
+                  style: homeSectionTitleStyle(Theme.of(context).textTheme),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -73,7 +69,7 @@ class HomeDiscoverySection extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: isDailyMix ? 178 : 156,
+          height: discoveryShelfRowHeight(isDailyMix: isDailyMix),
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.only(left: 12, right: 12),
@@ -326,29 +322,41 @@ class _DiscoveryCard extends StatelessWidget {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+                  borderRadius: BorderRadius.circular(RiffTokens.radiusArt),
                   child: collage.length >= 4
                       ? _MixCollage(tracks: collage, size: cardSize)
-                      : ImageWidget(song: song, size: cardSize),
+                      : ImageWidget(
+                          song: song,
+                          size: cardSize,
+                          borderRadius: RiffTokens.radiusArt,
+                        ),
                 ),
-                if (isMix)
-                  Positioned(
-                    right: 6,
-                    bottom: 6,
-                    child: Container(
-                      width: 26,
-                      height: 26,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.62),
-                        shape: BoxShape.circle,
-                      ),
+                Positioned(
+                  right: 8,
+                  bottom: 8,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.secondary,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.38),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: const SizedBox(
+                      width: 36,
+                      height: 36,
                       child: Icon(
                         Icons.play_arrow_rounded,
-                        size: 18,
-                        color: Theme.of(context).colorScheme.secondary,
+                        size: 22,
+                        color: Colors.black,
                       ),
                     ),
                   ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -357,9 +365,10 @@ class _DiscoveryCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       color: Theme.of(context).textTheme.titleMedium?.color,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      height: 1.15,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      height: 1.2,
+                      letterSpacing: -0.2,
                     )),
             const SizedBox(height: 2),
             Text(
@@ -373,7 +382,7 @@ class _DiscoveryCard extends StatelessWidget {
                         .textTheme
                         .bodySmall
                         ?.color
-                        ?.withOpacity(0.6),
+                        ?.withOpacity(0.62),
                   ),
             ),
           ],
@@ -570,65 +579,43 @@ class HomeShortcutGrid extends StatelessWidget {
       ),
     ];
 
-    return Padding(
-      // Tighter bottom so daily mixes rise closer under shortcuts.
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          const gap = 6.0;
-          final tileW = (constraints.maxWidth - gap * 2) / 3;
-          return Wrap(
-            spacing: gap,
-            runSpacing: gap,
-            children: items.map((e) {
-              return SizedBox(
-                width: tileW,
-                height: 68,
-                child: Material(
-                  color: theme.brightness == Brightness.dark
-                      ? RiffSurfaces.elevatedSoft.withOpacity(0.85)
-                      : theme.cardColor.withOpacity(0.95),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
-                    side: BorderSide(
-                      color: theme.brightness == Brightness.dark
-                          ? RiffSurfaces.hairline.withOpacity(0.35)
-                          : theme.dividerColor.withOpacity(0.35),
-                      width: RiffTokens.hairline,
-                    ),
-                  ),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
-                    onTap: e.onTap,
-                    onLongPress: e.onLongPress,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 6),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(e.icon,
-                              size: 20,
-                              color: theme.textTheme.titleMedium?.color),
-                          const SizedBox(height: 4),
-                          Text(
-                            e.title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 11,
-                              letterSpacing: -0.1,
-                            ),
-                          ),
-                        ],
+    final accent = theme.colorScheme.secondary;
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final e = items[i];
+          return Material(
+            color: homeTileFill(context),
+            borderRadius: BorderRadius.circular(999),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(999),
+              onTap: e.onTap,
+              onLongPress: e.onLongPress,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(e.icon, size: 16, color: accent),
+                    const SizedBox(width: 6),
+                    Text(
+                      e.title,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        letterSpacing: -0.1,
+                        color: theme.textTheme.titleMedium?.color,
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              );
-            }).toList(),
+              ),
+            ),
           );
         },
       ),

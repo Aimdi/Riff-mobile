@@ -25,4 +25,24 @@ void main() {
       85,
     );
   });
+
+  test('homeGreetingFontSize is large on phones and larger on desktop', () {
+    expect(homeGreetingFontSize(isDesktop: false), 28);
+    expect(homeGreetingFontSize(isDesktop: true), 32);
+  });
+
+  test('jumpBackInGridCount caps at six recents', () {
+    expect(jumpBackInGridCount(0), 0);
+    expect(jumpBackInGridCount(1), 1);
+    expect(jumpBackInGridCount(5), 5);
+    expect(jumpBackInGridCount(6), 6);
+    expect(jumpBackInGridCount(20), 6);
+  });
+
+  test('discovery shelf cards are large enough to read as covers', () {
+    expect(discoveryShelfCardSize(isDailyMix: true), 148);
+    expect(discoveryShelfCardSize(isDailyMix: false), 136);
+    expect(discoveryShelfRowHeight(isDailyMix: true), 200);
+    expect(discoveryShelfRowHeight(isDailyMix: false), 186);
+  });
 }

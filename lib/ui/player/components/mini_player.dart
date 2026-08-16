@@ -123,23 +123,14 @@ class _MiniPlayerArt extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
           song != null
-              ? Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: RiffSurfaces.hairline,
-                      width: RiffTokens.hairline,
-                    ),
-                  ),
-                  child: ImageWidget(
-                    size: 50,
-                    song: song,
-                    borderRadius: 8,
-                  ),
+              ? ImageWidget(
+                  size: 52,
+                  song: song,
+                  borderRadius: RiffTokens.radiusArt,
                 )
               : const SizedBox(
-                  height: 50,
-                  width: 50,
+                  height: 52,
+                  width: 52,
                 ),
         ],
       );
@@ -257,7 +248,10 @@ class _MiniPlayerSongInfo extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       softWrap: false,
-      style: theme.textTheme.titleMedium,
+      style: theme.textTheme.titleMedium?.copyWith(
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.2,
+      ),
     );
     if (songAlbumId(song) == null) return line;
     return GestureDetector(

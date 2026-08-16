@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '/models/quick_picks.dart';
 import '../player/player_controller.dart';
+import '../screens/Home/home_greeting.dart';
 import '../utils/riff_tokens.dart';
 import '../utils/theme_controller.dart';
 import 'image_widget.dart';
@@ -40,7 +41,7 @@ class QuickPicksWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final PlayerController playerController = Get.find<PlayerController>();
     // 2 rows (~230) on phone; keep a bit taller on desktop for touch targets.
-    final height = GetPlatform.isDesktop ? 248.0 : 232.0;
+    final height = GetPlatform.isDesktop ? 256.0 : 244.0;
     final muted = Theme.of(context).brightness == Brightness.dark
         ? RiffSurfaces.textMuted
         : Theme.of(context).textTheme.titleSmall?.color?.withOpacity(0.65);
@@ -61,11 +62,7 @@ class QuickPicksWidget extends StatelessWidget {
                               'quickpicks'
                       ? 'Quick picks'
                       : content.title.toLowerCase().removeAllWhitespace.tr,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 19,
-                        letterSpacing: -0.35,
-                      ),
+                  style: homeSectionTitleStyle(Theme.of(context).textTheme),
                 ),
               )),
           Expanded(
@@ -108,13 +105,10 @@ class QuickPicksWidget extends StatelessWidget {
                             padding: const EdgeInsets.only(right: 8),
                             child: Row(
                               children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(
-                                      RiffTokens.radiusSm),
-                                  child: ImageWidget(
-                                    song: song,
-                                    size: 52,
-                                  ),
+                                ImageWidget(
+                                  song: song,
+                                  size: 56,
+                                  borderRadius: RiffTokens.radiusArt,
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(
@@ -154,8 +148,8 @@ class QuickPicksWidget extends StatelessWidget {
                                 const SizedBox(width: 6),
                                 Icon(
                                   Icons.play_circle_fill,
-                                  size: 22,
-                                  color: muted,
+                                  size: 26,
+                                  color: Theme.of(context).colorScheme.secondary,
                                 ),
                                 if (GetPlatform.isDesktop)
                                   IconButton(

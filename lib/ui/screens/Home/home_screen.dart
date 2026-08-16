@@ -259,7 +259,12 @@ class _HomeFeed extends StatelessWidget {
                   child: Text(
                     homeGreetingKey(DateTime.now()).tr,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          letterSpacing: -0.35,
+                          fontWeight: FontWeight.w800,
+                          fontSize: homeGreetingFontSize(
+                            isDesktop: GetPlatform.isDesktop,
+                          ),
+                          letterSpacing: -0.8,
+                          height: 1.1,
                         ),
                   ),
                 ),
@@ -468,20 +473,17 @@ class _ContinueListeningChip extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
         child: Material(
-          color: theme.cardColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
-            side: RiffTokens.hairlineBorder(context),
-          ),
+          color: homeTileFill(context),
+          borderRadius: BorderRadius.circular(RiffTokens.radiusTile),
+          clipBehavior: Clip.antiAlias,
           child: InkWell(
-            borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
             onTap: () => player.resumeSavedSession(),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Row(
                 children: [
                   Icon(Icons.play_circle_fill_rounded,
-                      size: 22, color: theme.colorScheme.secondary),
+                      size: 28, color: theme.colorScheme.secondary),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -556,13 +558,10 @@ class _PodcastContinueChip extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
         child: Material(
-          color: theme.cardColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
-            side: RiffTokens.hairlineBorder(context),
-          ),
+          color: homeTileFill(context),
+          borderRadius: BorderRadius.circular(RiffTokens.radiusTile),
+          clipBehavior: Clip.antiAlias,
           child: InkWell(
-            borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
             onTap: () {
               final queue = podcastContinueQueue(rows);
               if (queue.isEmpty) return;
@@ -573,7 +572,7 @@ class _PodcastContinueChip extends StatelessWidget {
               child: Row(
                 children: [
                   Icon(Icons.podcasts,
-                      size: 22, color: theme.colorScheme.secondary),
+                      size: 26, color: theme.colorScheme.secondary),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -598,7 +597,7 @@ class _PodcastContinueChip extends StatelessWidget {
                     ),
                   ),
                   Icon(Icons.play_circle_fill_rounded,
-                      size: 22, color: theme.colorScheme.secondary),
+                      size: 28, color: theme.colorScheme.secondary),
                 ],
               ),
             ),
@@ -618,16 +617,13 @@ class _OfflineHomeBanner extends StatelessWidget {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-      child: Material(
-        color: theme.cardColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
-          side: RiffTokens.hairlineBorder(context),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
-          onTap: () =>
-              Get.find<HomeScreenController>().loadContentFromNetwork(),
+        child: Material(
+          color: homeTileFill(context),
+          borderRadius: BorderRadius.circular(RiffTokens.radiusTile),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () =>
+                Get.find<HomeScreenController>().loadContentFromNetwork(),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(

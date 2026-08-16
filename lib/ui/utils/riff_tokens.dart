@@ -8,6 +8,11 @@ class RiffTokens {
   static const double radiusSm = 10;
   static const double radiusMd = 14;
   static const double radiusLg = 18;
+  /// Album-art corners — tight, like Spotify covers (not pill-soft).
+  static const double radiusArt = 6;
+  static const double radiusTile = 8;
+  static const double homeGreetingSize = 28;
+  static const double homeSectionSize = 22;
   static const double hairline = 0.5;
 
   static const Duration quick = Duration(milliseconds: 180);

@@ -80,7 +80,15 @@ class PlayerControlWidget extends StatelessWidget {
                                     ? song.title
                                     : "—",
                                 textAlign: TextAlign.start,
-                                style: Theme.of(context).textTheme.labelMedium!,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelMedium!
+                                    .copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 22,
+                                      letterSpacing: -0.45,
+                                      height: 1.15,
+                                    ),
                               ),
                             ),
                           ),
@@ -99,7 +107,14 @@ class PlayerControlWidget extends StatelessWidget {
                                     : "—",
                                 textAlign: TextAlign.start,
                                 overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.labelSmall,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelSmall!
+                                    .copyWith(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 14,
+                                      color: RiffSurfaces.textMuted,
+                                    ),
                               ),
                             ),
                           )
@@ -247,8 +262,8 @@ class PlayerControlWidget extends StatelessWidget {
             child: GetX<PlayerController>(builder: (controller) {
               final accent = Theme.of(context).colorScheme.secondary;
               return ProgressBar(
-                thumbRadius: 5,
-                barHeight: 3,
+                thumbRadius: 6,
+                barHeight: 4,
                 timeLabelPadding: 4,
                 timeLabelLocation: TimeLabelLocation.sides,
                 baseBarColor: RiffSurfaces.hairline,
@@ -292,7 +307,11 @@ class PlayerControlWidget extends StatelessWidget {
                       : RiffSurfaces.textMuted.withOpacity(0.45),
                 ))),
         _previousButton(playerController, context),
-        const AnimatedPlayButton(key: Key("playButton")),
+        const AnimatedPlayButton(
+          key: Key("playButton"),
+          iconSize: 36,
+          size: 72,
+        ),
         _nextButton(playerController, context),
         Obx(() {
           final state = playerController.repeatState;

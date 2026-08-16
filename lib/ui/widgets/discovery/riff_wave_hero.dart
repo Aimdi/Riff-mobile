@@ -6,12 +6,13 @@ import '/models/media_Item_builder.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/stats_service.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/screens/Home/home_greeting.dart';
 import '/ui/screens/Home/home_screen_controller.dart';
 import '/ui/utils/riff_tokens.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/snackbar.dart';
 
-/// Home personal-radio card — compact, left-aligned with the rest of Home.
+/// Home personal-radio card — featured row with a green play control.
 class RiffWaveHero extends StatefulWidget {
   const RiffWaveHero({super.key});
 
@@ -72,21 +73,19 @@ class _RiffWaveHeroState extends State<RiffWaveHero> {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.secondary;
     final disc = _disc;
-    const artSize = 56.0;
+    const artSize = 72.0;
+    final fill = Color.alphaBlend(accent.withOpacity(0.14), homeTileFill(context));
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
       child: Material(
-        color: theme.cardColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
-          side: RiffTokens.hairlineBorder(context),
-        ),
+        color: fill,
+        borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: _starting ? null : _playWave,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
             child: Row(
               children: [
                 Obx(() {
@@ -95,21 +94,25 @@ class _RiffWaveHeroState extends State<RiffWaveHero> {
                   Get.find<HomeScreenController>().quickPicks.value;
                   final art = _previewArt();
                   return ClipRRect(
-                    borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+                    borderRadius: BorderRadius.circular(RiffTokens.radiusArt),
                     child: art != null
-                        ? ImageWidget(song: art, size: artSize)
+                        ? ImageWidget(
+                            song: art,
+                            size: artSize,
+                            borderRadius: RiffTokens.radiusArt,
+                          )
                         : ColoredBox(
-                            color: accent.withOpacity(0.18),
+                            color: accent.withOpacity(0.22),
                             child: SizedBox(
                               width: artSize,
                               height: artSize,
                               child: Icon(Icons.graphic_eq_rounded,
-                                  color: accent, size: 28),
+                                  color: accent, size: 32),
                             ),
                           ),
                   );
                 }),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -117,10 +120,13 @@ class _RiffWaveHeroState extends State<RiffWaveHero> {
                       Text(
                         'riffWave'.tr,
                         style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.2,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                          letterSpacing: -0.4,
+                          height: 1.15,
                         ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         'riffWaveDes'.tr,
                         maxLines: 1,
@@ -133,18 +139,37 @@ class _RiffWaveHeroState extends State<RiffWaveHero> {
                     ],
                   ),
                 ),
-                if (_starting)
-                  SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.2,
-                      color: accent,
-                    ),
-                  )
-                else
-                  Icon(Icons.play_circle_fill_rounded,
-                      size: 32, color: accent),
+                const SizedBox(width: 8),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: accent,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.32),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: _starting
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              color: Colors.black,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.play_arrow_rounded,
+                            size: 30,
+                            color: Colors.black,
+                          ),
+                  ),
+                ),
               ],
             ),
           ),

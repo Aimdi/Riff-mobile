@@ -158,13 +158,13 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                   onTap: onTap,
                   onLongPress: () => _openSheet(playerController),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 6, 12, 6),
+                    padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
                     child: Row(
                       children: [
                         thumbReplacementWithIndex
                             ? SizedBox(
-                                width: 27.5,
-                                height: 52,
+                                width: 28,
+                                height: 56,
                                 child: Center(
                                   child: Text(
                                     "$index.",
@@ -173,11 +173,11 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                                 ),
                               )
                             : ImageWidget(
-                                size: 52,
+                                size: 56,
                                 song: song,
-                                borderRadius: RiffTokens.radiusSm,
+                                borderRadius: RiffTokens.radiusArt,
                               ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,20 +198,22 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                                     maxLines: 1,
                                     style: theme.textTheme.titleMedium
                                         ?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: -0.15,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                      letterSpacing: -0.2,
                                       color: isCurrent ? accent : null,
                                     ),
                                   );
                                 }),
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 3),
                               Text(
                                 "${song.artist}",
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.w400,
+                                  fontSize: 13,
                                   color: muted,
                                 ),
                               ),
