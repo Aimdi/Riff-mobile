@@ -115,8 +115,10 @@ mixin ProcessLink {
     final result = await Get.find<MusicServices>().getSongWithId(songId);
     Navigator.of(Get.context!).pop();
     if (result[0]) {
-      Get.find<PlayerController>().playPlayListSong(List.from(result[1]), 0,
+      final ok = await Get.find<PlayerController>().playPlayListSong(
+          List.from(result[1]), 0,
           playfrom: PlaylingFrom(type: PlaylingFromType.SELECTION));
+      if (!ok) snackOperationFailed();
     } else {
       ScaffoldMessenger.of(Get.context!).showSnackBar(snackbar(
           Get.context!, "notaSongVideo".tr,

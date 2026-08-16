@@ -79,12 +79,13 @@ class _PlayerSimilarRowState extends State<PlayerSimilarRow> {
                         itemBuilder: (context, i) {
                           final s = _songs[i];
                           return InkWell(
-                            onTap: () {
+                            onTap: () async {
                               HapticFeedback.selectionClick();
                               final list = List<MediaItem>.from(_songs);
                               list[i] = DiscoveryService.withSource(
                                   s, DiscoverySource.similar);
-                              player.playPlayListSong(list, i);
+                              final ok = await player.playPlayListSong(list, i);
+                              if (!ok) snackOperationFailed();
                             },
                             borderRadius: BorderRadius.circular(8),
                             child: Padding(

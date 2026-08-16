@@ -1,8 +1,18 @@
 // ignore_for_file: constant_identifier_names
 
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 enum SanckBarSize { BIG, MEDIUM, SMALL }
+
+/// Play / save failed — tell the user instead of staying silent.
+void snackOperationFailed([BuildContext? context]) {
+  final ctx = context ?? Get.context;
+  if (ctx == null || !ctx.mounted) return;
+  ScaffoldMessenger.of(ctx).showSnackBar(
+    snackbar(ctx, 'operationFailed'.tr, size: SanckBarSize.MEDIUM),
+  );
+}
 
 SnackBar snackbar(BuildContext context, String text,
     {SanckBarSize size = SanckBarSize.MEDIUM,

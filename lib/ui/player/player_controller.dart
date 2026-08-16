@@ -1229,7 +1229,7 @@ class PlayerController extends GetxController
   }
 
   void _playViaAndroidAuto(String songId, String libraryId) {
-    Hive.openBox(libraryId).then((box) {
+    Hive.openBox(libraryId).then((box) async {
       List<MediaItem> songList = [];
       final songJson = box.values.toList();
       int songIndex = 0;
@@ -1240,7 +1240,7 @@ class PlayerController extends GetxController
         }
         songList.add(song);
       }
-      playPlayListSong(songList, songIndex);
+      await playPlayListSong(songList, songIndex);
       if (libraryId != "SongDownloads") {
         box.close();
       }
