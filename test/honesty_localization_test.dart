@@ -60,6 +60,16 @@ void main() {
     'songRemovedAlert',
     'operationFailed',
     'removedFromQueue',
+    'enqueueSongs',
+    'downloadPlaylist',
+    'syncPlaylistSongs',
+    'blacklistPipedPlaylist',
+    'sharePlaylist',
+    'mixSmartOrder',
+    'mixSmartOrderDone',
+    'permissionDenied',
+    'newFolder',
+    'folderEmpty',
   ];
 
   test('honesty keys exist in generated translations', () {

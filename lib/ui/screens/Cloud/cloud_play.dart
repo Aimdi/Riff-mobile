@@ -1,10 +1,12 @@
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/models/playling_from.dart';
 import '/services/cloud_music_service.dart';
 import '/ui/player/play_queue_order.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/widgets/snackbar.dart';
 
 /// Cloud Songs tab can play when connected and a slice is loaded.
 bool shouldShowCloudSongsPlayBar({
@@ -21,7 +23,7 @@ Future<bool> playCloudSongs(
   PlaylingFromType type = PlaylingFromType.PLAYLIST,
 }) async {
   if (songs.isEmpty || !Get.isRegistered<PlayerController>()) return false;
-  await Get.find<PlayerController>().playPlayListSong(
+  return Get.find<PlayerController>().playPlayListSong(
     playQueueFrom(songs, shuffle: shuffle),
     0,
     playfrom: PlaylingFrom(
@@ -29,7 +31,33 @@ Future<bool> playCloudSongs(
       name: name ?? 'cloudRandomMix'.tr,
     ),
   );
-  return true;
+}
+
+void notifyCloudPlayFailed() {
+  final ctx = Get.context;
+  if (ctx == null || !ctx.mounted) return;
+  ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
+    ctx,
+    'operationFailed'.tr,
+    size: SanckBarSize.MEDIUM,
+  ));
+}
+
+/// Play cloud songs and snack when playback does not start.
+Future<bool> playCloudSongsOrNotify(
+  List<MediaItem> songs, {
+  required bool shuffle,
+  String? name,
+  PlaylingFromType type = PlaylingFromType.PLAYLIST,
+}) async {
+  final ok = await playCloudSongs(
+    songs,
+    shuffle: shuffle,
+    name: name,
+    type: type,
+  );
+  if (!ok) notifyCloudPlayFailed();
+  return ok;
 }
 
 /// Fetch a cloud album/playlist and play it. Returns false so the caller
@@ -59,7 +87,7 @@ Future<bool> playCloudCollection({
 /// Re-roll the server mix and start it.
 Future<bool> fetchAndPlayCloudRandomMix(CloudMusicService cloud) async {
   await cloud.fetchRandomSongs();
-  return playCloudSongs(
+  return playCloudSongsOrNotify(
     cloud.toMediaItems(cloud.songs.toList()),
     shuffle: true,
   );

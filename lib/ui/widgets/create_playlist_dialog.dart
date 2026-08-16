@@ -139,11 +139,15 @@ class CreateNRenamePlaylistPopup extends StatelessWidget {
                             librPlstCntrller
                                 .renamePlaylist(playlist!)
                                 .then((value) {
+                              if (!context.mounted) return;
                               if (value) {
-                                if (!context.mounted) return;
                                 Navigator.of(context).pop();
                                 ScaffoldMessenger.of(context).showSnackBar(
                                     snackbar(context, "playlistRenameAlert".tr,
+                                        size: SanckBarSize.MEDIUM));
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    snackbar(context, "operationFailed".tr,
                                         size: SanckBarSize.MEDIUM));
                               }
                             });

@@ -239,7 +239,7 @@ class _CloudSongsPane extends StatelessWidget {
                     IconButton(
                       tooltip: 'playAll'.tr,
                       icon: const Icon(Icons.play_arrow_rounded, size: 22),
-                      onPressed: () => playCloudSongs(
+                      onPressed: () => playCloudSongsOrNotify(
                         cloud.toMediaItems(list),
                         shuffle: false,
                       ),

@@ -547,8 +547,13 @@ class SettingsScreenController extends GetxController {
     box.close();
   }
 
-  Future<void> resetAppSettingsToDefault() async {
-    await setBox.clear();
+  Future<bool> resetAppSettingsToDefault() async {
+    try {
+      await setBox.clear();
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Returns `true`/`false` when developer mode toggled after 7 taps; else null.

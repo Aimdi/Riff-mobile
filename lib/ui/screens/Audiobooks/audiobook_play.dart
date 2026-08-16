@@ -51,8 +51,7 @@ Future<bool> playAudiobook({
     if (resumeMs > 1500) {
       player.armResume(items[start].id, resumeMs);
     }
-    await player.playPlayListSong(items, start);
-    return true;
+    return player.playPlayListSong(items, start);
   } catch (_) {
     return false;
   }

@@ -57,6 +57,13 @@ bool canStartPlayback({
 }) =>
     audioReady && itemCount > 0;
 
+/// Home continue chip needs a live handler and a non-empty saved queue.
+bool canResumeSavedSession({
+  required bool audioReady,
+  required int savedQueueLength,
+}) =>
+    audioReady && savedQueueLength > 0;
+
 /// Play Next is a no-op when the song is current or already next.
 bool isPlayNextNoOp({
   required String songId,
