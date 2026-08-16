@@ -282,6 +282,36 @@ class AlbumScreen extends StatelessWidget {
                                                     .titleMedium!
                                                     .color,
                                               )),
+                                          // Shuffle button
+                                          IconButton(
+                                              tooltip: "shuffle".tr,
+                                              onPressed: () {
+                                                final songsToplay =
+                                                    List<MediaItem>.from(
+                                                        albumController
+                                                            .songList);
+                                                songsToplay.shuffle();
+                                                playerController
+                                                    .playPlayListSong(
+                                                        songsToplay,
+                                                        0,
+                                                        playfrom: PlaylingFrom(
+                                                            name:
+                                                                albumController
+                                                                    .album
+                                                                    .value
+                                                                    .title,
+                                                            type:
+                                                                PlaylingFromType
+                                                                    .ALBUM));
+                                              },
+                                              icon: Icon(
+                                                Icons.shuffle,
+                                                color: Theme.of(context)
+                                                    .textTheme
+                                                    .titleMedium!
+                                                    .color,
+                                              )),
                                           // Enqueue button
                                           IconButton(
                                               tooltip: "enqueueAlbumSongs".tr,

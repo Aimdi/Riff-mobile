@@ -5,8 +5,10 @@ import 'package:hive/hive.dart';
 
 import '/models/media_Item_builder.dart';
 import '/models/playlist.dart';
+import '/models/playling_from.dart';
 import '/services/cloud_music_service.dart';
 import '../../navigator.dart';
+import '../../player/play_queue_order.dart';
 import '../../player/player_controller.dart';
 import '../../utils/riff_tokens.dart';
 import '../../utils/theme_controller.dart';
@@ -86,6 +88,15 @@ class SongsLibraryWidget extends StatelessWidget {
                   libSongsController.cancelAdditionalOperation,
             );
           }),
+          Obx(() {
+            if (!shouldShowLibrarySongsPlayBar(
+              cloudMode: libSongsController.showCloudSongs.value,
+              songCount: libSongsController.librarySongsList.length,
+            )) {
+              return const SizedBox.shrink();
+            }
+            return const _LibrarySongsPlayBar();
+          }),
           Expanded(
             child: Obx(() {
               if (libSongsController.showCloudSongs.value) {
@@ -117,6 +128,60 @@ class SongsLibraryWidget extends StatelessWidget {
                       ));
               });
             }),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Play all / Shuffle for the offline Songs tab (Spotify library chrome).
+class _LibrarySongsPlayBar extends StatelessWidget {
+  const _LibrarySongsPlayBar();
+
+  Future<void> _play({required bool shuffle}) async {
+    if (!Get.isRegistered<LibrarySongsController>() ||
+        !Get.isRegistered<PlayerController>()) {
+      return;
+    }
+    final songs = Get.find<LibrarySongsController>().librarySongsList;
+    if (songs.isEmpty) return;
+    final queue = playQueueFrom(songs, shuffle: shuffle);
+    await Get.find<PlayerController>().playPlayListSong(
+      queue,
+      0,
+      playfrom: PlaylingFrom(
+        type: PlaylingFromType.PLAYLIST,
+        name: 'libSongs'.tr,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = theme.textTheme.titleMedium?.color;
+    final style = TextButton.styleFrom(
+      foregroundColor: color,
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 0, 12, 4),
+      child: Row(
+        children: [
+          TextButton.icon(
+            onPressed: () => _play(shuffle: false),
+            icon: const Icon(Icons.play_arrow_rounded, size: 20),
+            label: Text('playAll'.tr),
+            style: style,
+          ),
+          TextButton.icon(
+            onPressed: () => _play(shuffle: true),
+            icon: const Icon(Icons.shuffle, size: 18),
+            label: Text('shuffle'.tr),
+            style: style,
           ),
         ],
       ),

@@ -10,6 +10,7 @@ import '../../screens/Settings/settings_screen_controller.dart';
 import '../../widgets/add_to_playlist.dart';
 import '../../widgets/discovery/player_similar_row.dart';
 import '../../widgets/favorite_heart_button.dart';
+import '../../widgets/sleep_timer_bottom_sheet.dart';
 import '../player_controller.dart';
 import '../player_media_nav.dart';
 import 'playback_error_actions.dart';
@@ -311,6 +312,17 @@ class PlayerControlWidget extends StatelessWidget {
               onPressed: () => playerController.moreLikeThisPlayNext(song),
               icon: const Icon(Icons.playlist_play, size: 18),
               label: Text("playNext".tr, style: labelStyle),
+              style: style,
+            ),
+            TextButton.icon(
+              onPressed: () => showSleepTimerSheet(context),
+              icon: Icon(
+                playerController.isSleepTimerActive.isTrue
+                    ? Icons.timer
+                    : Icons.timer_outlined,
+                size: 18,
+              ),
+              label: Text("sleepTimer".tr, style: labelStyle),
               style: style,
             ),
           ],

@@ -8,6 +8,7 @@ import '../../../models/playlist.dart';
 import '../../../services/discovery/discovery_service.dart';
 import '../../../services/discovery/discovery_types.dart';
 import '../../navigator.dart';
+import '../../player/play_queue_order.dart';
 import '../../player/player_controller.dart';
 import '../../utils/riff_tokens.dart';
 import '../../utils/sheet_insets.dart';
@@ -37,15 +38,38 @@ class HomeDiscoverySection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 12, top: 24, bottom: 10, right: 12),
-          child: Text(
-            section.title,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 19,
-                  letterSpacing: -0.35,
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  section.title,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 19,
+                        letterSpacing: -0.35,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+              ),
+              if (!isDailyMix && shouldPlayDiscoveryShelfAsQueue(tracks.length))
+                IconButton(
+                  tooltip: 'playAll'.tr,
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(
+                    Icons.play_circle_fill_rounded,
+                    color: Theme.of(context).colorScheme.secondary,
+                  ),
+                  onPressed: () {
+                    if (!Get.isRegistered<PlayerController>()) return;
+                    final tagged = Get.isRegistered<DiscoveryService>()
+                        ? DiscoveryService.tagAll(
+                            tracks, DiscoverySource.discover)
+                        : tracks;
+                    Get.find<PlayerController>().playPlayListSong(tagged, 0);
+                  },
+                ),
+            ],
           ),
         ),
         SizedBox(
@@ -60,6 +84,8 @@ class HomeDiscoverySection extends StatelessWidget {
                 padding: EdgeInsets.only(right: i == tracks.length - 1 ? 0 : 12),
                 child: _DiscoveryCard(
                   song: song,
+                  shelfTracks: tracks,
+                  shelfIndex: i,
                   surface: section.surface,
                   cardSize: cardSize,
                   onDismiss: () {
@@ -82,11 +108,15 @@ class HomeDiscoverySection extends StatelessWidget {
 class _DiscoveryCard extends StatelessWidget {
   const _DiscoveryCard({
     required this.song,
+    required this.shelfTracks,
+    required this.shelfIndex,
     required this.surface,
     required this.onDismiss,
     required this.cardSize,
   });
   final MediaItem song;
+  final List<MediaItem> shelfTracks;
+  final int shelfIndex;
   final String surface;
   final VoidCallback onDismiss;
   final double cardSize;
@@ -191,6 +221,15 @@ class _DiscoveryCard extends StatelessWidget {
           // Daily Mix cards play the shuffled mix immediately.
           if (mixId.isNotEmpty) {
             await _playMix(player);
+            return;
+          }
+          if (shouldPlayDiscoveryShelfAsQueue(shelfTracks.length)) {
+            final tagged = Get.isRegistered<DiscoveryService>()
+                ? DiscoveryService.tagAll(
+                    shelfTracks, DiscoverySource.discover)
+                : shelfTracks;
+            final index = shelfIndex.clamp(0, tagged.length - 1);
+            await player.playPlayListSong(tagged, index);
             return;
           }
           final tagged = Get.isRegistered<DiscoveryService>()

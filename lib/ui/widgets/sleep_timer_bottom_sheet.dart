@@ -4,6 +4,22 @@ import 'package:get/get.dart';
 import '/ui/player/player_controller.dart';
 import 'snackbar.dart';
 
+/// Opens the sleep-timer sheet from the full player, mini player, or song menu.
+Future<void> showSleepTimerSheet(BuildContext? context) async {
+  final sheetContext = context ?? Get.context;
+  if (sheetContext == null) return;
+  await showModalBottomSheet<void>(
+    constraints: const BoxConstraints(maxWidth: 500),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
+    ),
+    isScrollControlled: true,
+    context: sheetContext,
+    barrierColor: Colors.transparent.withAlpha(100),
+    builder: (context) => const SleepTimerBottomSheet(),
+  );
+}
+
 class SleepTimerBottomSheet extends StatelessWidget {
   const SleepTimerBottomSheet({super.key});
 

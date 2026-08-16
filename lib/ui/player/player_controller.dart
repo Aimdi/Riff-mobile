@@ -809,6 +809,11 @@ class PlayerController extends GetxController
     }
   }
 
+  /// Hide the Home continue chip without starting playback.
+  void dismissContinueListening() {
+    showContinueListening.value = false;
+  }
+
   /// Resume the Hive-saved queue from its stored index/position and play.
   Future<void> resumeSavedSession() async {
     showContinueListening.value = false;

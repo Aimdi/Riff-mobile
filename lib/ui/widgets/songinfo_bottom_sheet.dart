@@ -330,8 +330,7 @@ class SongInfoBottomSheet extends StatelessWidget {
                 ),
               ),
             ),
-            if (calledFromPlayer)
-              ListTile(
+            ListTile(
                 contentPadding: const EdgeInsets.only(left: 15),
                 visualDensity: const VisualDensity(vertical: -1),
                 leading: const Icon(Icons.timer),
@@ -341,18 +340,7 @@ class SongInfoBottomSheet extends StatelessWidget {
                   final sheetContext =
                       playerController.homeScaffoldkey.currentContext ??
                           Get.context;
-                  if (sheetContext == null) return;
-                  showModalBottomSheet(
-                    constraints: const BoxConstraints(maxWidth: 500),
-                    shape: const RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(10.0)),
-                    ),
-                    isScrollControlled: true,
-                    context: sheetContext,
-                    barrierColor: Colors.transparent.withAlpha(100),
-                    builder: (context) => const SleepTimerBottomSheet(),
-                  );
+                  showSleepTimerSheet(sheetContext);
                 },
               ),
             ListTile(

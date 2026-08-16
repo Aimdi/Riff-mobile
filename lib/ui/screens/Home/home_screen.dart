@@ -21,9 +21,11 @@ import '../../widgets/shimmer_widgets/home_shimmer.dart';
 import '../../widgets/snackbar.dart';
 import '../../../services/discovery/discovery_service.dart';
 import '../../../services/discovery/discovery_types.dart';
+import '../../../services/podcast_progress_service.dart';
 import 'home_explore_section.dart';
 import 'home_feed_view_model.dart';
 import 'home_screen_controller.dart';
+import 'podcast_continue.dart';
 import '../Settings/settings_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -276,6 +278,7 @@ class _HomeFeed extends StatelessWidget {
             ),
           ),
           const _ContinueListeningChip(),
+          const _PodcastContinueChip(),
           const JumpBackInRow(),
           const RiffWaveHero(),
           const HomeShortcutGrid(),
@@ -505,8 +508,99 @@ class _ContinueListeningChip extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Icon(Icons.chevron_right,
-                      size: 20, color: theme.colorScheme.secondary),
+                  IconButton(
+                    tooltip: 'close'.tr,
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    icon: Icon(Icons.close,
+                        size: 18, color: theme.textTheme.bodySmall?.color),
+                    onPressed: player.dismissContinueListening,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+}
+
+/// Resume the newest in-progress podcast episode from Home.
+class _PodcastContinueChip extends StatelessWidget {
+  const _PodcastContinueChip();
+
+  @override
+  Widget build(BuildContext context) {
+    if (!Get.isRegistered<PlayerController>()) {
+      return const SizedBox.shrink();
+    }
+    final player = Get.find<PlayerController>();
+    return Obx(() {
+      final rows = PodcastProgressService.inProgress();
+      final latest = latestPodcastContinue(rows);
+      final episode = latest == null
+          ? null
+          : PodcastProgressService.toMediaItem(latest);
+      if (episode == null ||
+          !shouldShowPodcastContinueChip(
+            hasEpisode: true,
+            currentSongId: player.currentSong.value?.id,
+            continueEpisodeId: episode.id,
+          )) {
+        return const SizedBox.shrink();
+      }
+      final theme = Theme.of(context);
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+        child: Material(
+          color: theme.cardColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+            side: RiffTokens.hairlineBorder(context),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+            onTap: () {
+              final queue = podcastContinueQueue(rows);
+              if (queue.isEmpty) return;
+              player.playPlayListSong(queue, 0);
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(Icons.podcasts,
+                      size: 22, color: theme.colorScheme.secondary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'continueListening'.tr,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          episode.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.textTheme.bodySmall?.color
+                                ?.withOpacity(0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.play_circle_fill_rounded,
+                      size: 22, color: theme.colorScheme.secondary),
                 ],
               ),
             ),
