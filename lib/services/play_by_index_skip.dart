@@ -22,3 +22,30 @@ bool shouldSkipAfterUnresolvableTrack({
   if (consecutiveFails > maxConsecutiveFails) return false;
   return nextIndex != currentIndex;
 }
+
+/// Shuffle cursor → queue index. Missing IDs are -1 (never Dart's last item).
+int resolveShuffledQueueIndex({
+  required List<String> queueIds,
+  required String? shuffledId,
+}) {
+  if (shuffledId == null || shuffledId.isEmpty || queueIds.isEmpty) {
+    return -1;
+  }
+  return queueIds.indexWhere((id) => id == shuffledId);
+}
+
+bool isValidQueueIndex(int index, int length) =>
+    index >= 0 && index < length;
+
+/// A superseded playByIndex must drop the loading spinner.
+bool shouldClearLoadingOnStalePlayByIndex({
+  required int requestedIndex,
+  required int currentIndex,
+}) =>
+    requestedIndex != currentIndex;
+
+/// Cloud items store `cloud_{serverId}` — refresh uses the server id.
+String cloudServerSongId(String songId) {
+  if (songId.startsWith('cloud_')) return songId.substring(6);
+  return songId;
+}

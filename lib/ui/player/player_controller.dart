@@ -303,9 +303,9 @@ class PlayerController extends GetxController
         buttonState.value = PlayButtonState.playing;
         if (playbackError.value != null) clearPlaybackError();
       } else {
-        // Use seek() so the muted video surface gets videoSeekSignal.
-        seek(Duration.zero);
-        _audioHandler.pause();
+        // Handler already advances via _triggerNext. Do not seek+pause
+        // the next source or the play icon will lie.
+        buttonState.value = PlayButtonState.paused;
       }
 
       final settings = Get.find<SettingsScreenController>();
@@ -344,7 +344,7 @@ class PlayerController extends GetxController
       final oldState = progressBarStatus.value;
       if (isSleepEndOfSongActive.isTrue) {
         timerDurationLeft.value = oldState.total.inSeconds - position.inSeconds;
-        if (timerDurationLeft.value == 1) {
+        if (timerDurationLeft.value <= 1) {
           pause();
           cancelSleepTimer();
         }
@@ -1392,11 +1392,11 @@ class PlayerController extends GetxController
       Get.find<VideoModeController>().playPauseVideo();
       return;
     }
-    _audioHandler.playbackState.value.playing ? pause() : play();
+    final wasPlaying = _audioHandler.playbackState.value.playing;
+    wasPlaying ? pause() : play();
     // for gesture player
     if (Get.find<SettingsScreenController>().playerUi.value == 1) {
-      gesturePlayerVisibleState.value =
-          _audioHandler.playbackState.value.playing ? 0 : 1;
+      gesturePlayerVisibleState.value = wasPlaying ? 1 : 0;
       gesturePlayerStateAnimationController?.reset();
       gesturePlayerStateAnimationController?.forward();
     }

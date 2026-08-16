@@ -896,8 +896,7 @@ class PlaylistScreen extends StatelessWidget {
                                                                 add: add)
                                                             .then((value) {
                                                           if (!context
-                                                                  .mounted ||
-                                                              !value) {
+                                                              .mounted) {
                                                             return;
                                                           }
                                                           ScaffoldMessenger.of(
@@ -905,11 +904,14 @@ class PlaylistScreen extends StatelessWidget {
                                                               .showSnackBar(
                                                                   snackbar(
                                                             context,
-                                                            add
-                                                                ? 'subscribedAsPodcast'
+                                                            !value
+                                                                ? 'operationFailed'
                                                                     .tr
-                                                                : 'removeFromLib'
-                                                                    .tr,
+                                                                : add
+                                                                    ? 'subscribedAsPodcast'
+                                                                        .tr
+                                                                    : 'removeFromLib'
+                                                                        .tr,
                                                             size: SanckBarSize
                                                                 .MEDIUM,
                                                           ));

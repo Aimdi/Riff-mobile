@@ -82,6 +82,18 @@ class SongInfoBottomSheet extends StatelessWidget {
             ListTile(
               contentPadding:
                   const EdgeInsets.only(left: 15, top: 7, right: 10, bottom: 0),
+              onTap: () {
+                if (Get.isRegistered<PlayerController>() &&
+                    playerController.currentSong.value?.id != song.id) {
+                  playerController.playPlayListSong([song], 0);
+                  Navigator.of(context).maybePop();
+                  return;
+                }
+                showDialog(
+                  context: context,
+                  builder: (context) => SongInfoDialog(song: song),
+                );
+              },
               leading: ImageWidget(
                 song: song,
                 size: 50,

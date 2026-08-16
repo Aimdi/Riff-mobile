@@ -19,6 +19,7 @@ import '../models/playlist.dart';
 import '/services/equalizer.dart';
 import '/services/playlist_mix_service.dart';
 import '/services/audiobookshelf_service.dart';
+import '/services/cloud_music_service.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/shuffle_order.dart';
 import '/services/stream_service.dart';
@@ -632,8 +633,11 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       } else {
         currentShuffleIndex += 1;
       }
-      return queue.value
-          .indexWhere((item) => item.id == shuffledQueue[currentShuffleIndex]);
+      final at = resolveShuffledQueueIndex(
+        queueIds: queue.value.map((e) => e.id).toList(),
+        shuffledId: shuffledQueue[currentShuffleIndex],
+      );
+      return isValidQueueIndex(at, queue.value.length) ? at : currentIndex;
     }
 
     if (queue.value.length > currentIndex + 1) {
@@ -653,8 +657,11 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       } else {
         currentShuffleIndex -= 1;
       }
-      return queue.value
-          .indexWhere((item) => item.id == shuffledQueue[currentShuffleIndex]);
+      final at = resolveShuffledQueueIndex(
+        queueIds: queue.value.map((e) => e.id).toList(),
+        shuffledId: shuffledQueue[currentShuffleIndex],
+      );
+      return isValidQueueIndex(at, queue.value.length) ? at : currentIndex;
     }
 
     if (currentIndex - 1 >= 0) {
@@ -734,6 +741,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
       case 'playByIndex':
         final songIndex = extras!['index'];
+        if (!isValidQueueIndex(songIndex, queue.value.length)) {
+          isSongLoading = false;
+          playbackState.add(playbackState.value.copyWith(
+            processingState: AudioProcessingState.idle,
+          ));
+          return;
+        }
         currentIndex = songIndex;
         final isNewUrlReq = extras['newUrl'] ?? false;
         final currentSong = queue.value[currentIndex];
@@ -780,7 +794,11 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           );
           return;
         }
-        if (songIndex != currentIndex) {
+        if (shouldClearLoadingOnStalePlayByIndex(
+          requestedIndex: songIndex,
+          currentIndex: currentIndex,
+        )) {
+          isSongLoading = false;
           return;
         } else if (!streamInfo.playable) {
           await _onPlayByIndexUnresolvable(
@@ -1175,6 +1193,19 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           } catch (e) {
             printERROR('ABS URL refresh failed: $e');
           }
+        }
+      }
+      if (generateNewUrl &&
+          songId.startsWith('cloud_') &&
+          Get.isRegistered<CloudMusicService>()) {
+        try {
+          final serverId = cloudServerSongId(songId);
+          if (serverId.isNotEmpty) {
+            url = Get.find<CloudMusicService>().streamUrl(serverId);
+            item?.extras?['url'] = url;
+          }
+        } catch (e) {
+          printERROR('Cloud URL refresh failed: $e');
         }
       }
       if (url != null && url.isNotEmpty) {

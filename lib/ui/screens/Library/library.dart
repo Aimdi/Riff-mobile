@@ -383,7 +383,10 @@ class PlaylistNAlbumLibraryWidget extends StatelessWidget {
                             }),
                       );
                     })
-                  : EmptyPlayHint(message: "noBookmarks".tr),
+                  : EmptyPlayHint(
+                      message: isAlbumContent
+                          ? "noLibAlbums".tr
+                          : "noLibPlaylist".tr),
             ),
           )
         ],
@@ -435,7 +438,7 @@ class LibraryArtistWidget extends StatelessWidget {
           Obx(() => cntrller.libraryArtists.isNotEmpty
               ? ListWidget(cntrller.libraryArtists, "Library Artists", true)
               : Expanded(
-                  child: EmptyPlayHint(message: "noBookmarks".tr)))
+                  child: EmptyPlayHint(message: "noLibArtists".tr)))
         ],
       ),
     );
