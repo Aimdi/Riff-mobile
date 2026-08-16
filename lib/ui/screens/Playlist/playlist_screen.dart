@@ -807,12 +807,25 @@ class PlaylistScreen extends StatelessWidget {
                                         // Explicit cover so the title row always
                                         // shows art (not a generic icon) even when
                                         // the blurred hero background fails.
-                                        ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          child: ImageWidget(
-                                            size: 64,
-                                            playlist: pl,
+                                        InkWell(
+                                          onTap: () {
+                                            if (playlistController
+                                                .songList.isEmpty) {
+                                              return;
+                                            }
+                                            _playPlaylistFrom(
+                                              playerController,
+                                              playlistController,
+                                              0,
+                                            );
+                                          },
+                                          child: ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            child: ImageWidget(
+                                              size: 64,
+                                              playlist: pl,
+                                            ),
                                           ),
                                         ),
                                         const SizedBox(width: 14),

@@ -57,5 +57,6 @@ void main() {
     expect(emptyListLabelKey('Episodes'), 'emptyPlaylist');
     expect(emptyListLabelKey('Albums'), 'noBookmarks');
     expect(emptyListLabelKey('Artists'), 'noBookmarks');
+    expect(emptyListLabelKey('Albums', searchContext: true), 'noResults');
   });
 }

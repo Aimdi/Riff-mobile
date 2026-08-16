@@ -106,7 +106,9 @@ class _CloudCollectionScreenState extends State<CloudCollectionScreen> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
+            InkWell(
+              onTap: d.songs.isEmpty ? null : () => _playAll(),
+              child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: cover.isEmpty
                   ? Container(
@@ -135,6 +137,7 @@ class _CloudCollectionScreenState extends State<CloudCollectionScreen> {
                             size: 40),
                       ),
                     ),
+            ),
             ),
             const SizedBox(width: 14),
             Expanded(

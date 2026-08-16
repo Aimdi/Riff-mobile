@@ -9,6 +9,7 @@ import '/ui/widgets/lyrics_dialog.dart';
 import '/ui/widgets/song_info_dialog.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/player/player_media_nav.dart';
+import '/ui/player/radio_continuation.dart';
 import '/ui/utils/riff_tokens.dart';
 import '/ui/utils/theme_controller.dart';
 import '../../widgets/add_to_playlist.dart';
@@ -352,9 +353,9 @@ class _MiniPlayerTransport extends StatelessWidget {
         SizedBox(
             width: skipWidth,
             child: Obx(() {
-              final canPrev = playerController.currentQueue.isNotEmpty &&
-                  (playerController.currentQueue.first.id !=
-                      playerController.currentSong.value?.id);
+              final canPrev = canSkipPrevious(
+                hasQueue: playerController.currentQueue.isNotEmpty,
+              );
               return InkWell(
                 onTap: canPrev ? playerController.prev : null,
                 child: Icon(
@@ -376,16 +377,20 @@ class _MiniPlayerTransport extends StatelessWidget {
         SizedBox(
             width: skipWidth,
             child: Obx(() {
-              final isLastSong = playerController.currentQueue.isEmpty ||
-                  (!(playerController.isShuffleModeEnabled.isTrue ||
-                          playerController.isQueueLoopModeEnabled.isTrue) &&
-                      (playerController.currentQueue.last.id ==
-                          playerController.currentSong.value?.id));
+              final canNext = canSkipNext(
+                queueEmpty: playerController.currentQueue.isEmpty,
+                isLast: playerController.currentQueue.isNotEmpty &&
+                    playerController.currentQueue.last.id ==
+                        playerController.currentSong.value?.id,
+                shuffleOn: playerController.isShuffleModeEnabled.isTrue,
+                queueLoopOn: playerController.isQueueLoopModeEnabled.isTrue,
+                radioOn: playerController.isRadioModeOn,
+              );
               return InkWell(
-                onTap: isLastSong ? null : playerController.next,
+                onTap: canNext ? playerController.next : null,
                 child: Icon(
                   Icons.skip_next_rounded,
-                  color: isLastSong
+                  color: !canNext
                       ? Theme.of(context)
                           .textTheme
                           .titleLarge!

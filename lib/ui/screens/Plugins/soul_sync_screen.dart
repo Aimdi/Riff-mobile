@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '/services/soul_sync_service.dart';
 import '/ui/navigator.dart';
+import '/ui/screens/Search/search_play_top.dart';
 import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/snackbar.dart';
 
@@ -205,6 +206,12 @@ class _SoulSyncConnectedViewState extends State<_SoulSyncConnectedView> {
     }
   }
 
+  Future<void> _playThenRequest(SoulSyncTrack track) async {
+    final played = await playTopSongResult(track.requestQuery);
+    if (played) return;
+    await _request(track);
+  }
+
   Future<void> _request(SoulSyncTrack track) async {
     try {
       await Get.find<SoulSyncService>().requestDownload(track.requestQuery);
@@ -296,6 +303,7 @@ class _SoulSyncConnectedViewState extends State<_SoulSyncConnectedView> {
                                 final t = _results[i];
                                 return ListTile(
                                   contentPadding: EdgeInsets.zero,
+                                  onTap: () => _playThenRequest(t),
                                   leading: t.imageUrl != null &&
                                           t.imageUrl!.isNotEmpty
                                       ? ClipRRect(

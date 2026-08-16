@@ -327,6 +327,7 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
   Future<void> _downloadAlbum(SoulseekAlbumFolder folder) async {
     final files = folder.files;
     if (files.isEmpty) return;
+    var ok = 0;
     for (var i = 0; i < files.length; i++) {
       if (!mounted) return;
       setState(() {
@@ -335,6 +336,7 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
       });
       try {
         await Get.find<SoulseekService>().download(files[i]);
+        ok++;
       } catch (_) {
         // Continue remaining tracks; surface one failure snackbar at end if all fail.
       }
@@ -347,10 +349,12 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
     ScaffoldMessenger.of(context).showSnackBar(
       snackbar(
         context,
-        'soulseekAlbumDownloadDone'.trParams({
-          'count': '${files.length}',
-          'name': folder.folderName,
-        }),
+        ok == 0
+            ? 'soulseekDownloadFailed'.tr
+            : 'soulseekAlbumDownloadDone'.trParams({
+                'count': '$ok',
+                'name': folder.folderName,
+              }),
         size: SanckBarSize.MEDIUM,
       ),
     );

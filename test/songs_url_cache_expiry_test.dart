@@ -96,4 +96,18 @@ void main() {
       expect(songsUrlCacheEntryExpired(42), isFalse);
     });
   });
+
+  group('songsUrlCacheQualityUsable', () {
+    test('high quality miss when only low is fresh', () {
+      final entry = _cacheEntry(lowUrl: fresh, highUrl: stale);
+      expect(
+        songsUrlCacheQualityUsable(entry, qualityIndex: 0),
+        isTrue,
+      );
+      expect(
+        songsUrlCacheQualityUsable(entry, qualityIndex: 1),
+        isFalse,
+      );
+    });
+  });
 }

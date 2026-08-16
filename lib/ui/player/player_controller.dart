@@ -1275,7 +1275,10 @@ class PlayerController extends GetxController
         await next();
         return;
       }
-      if (radioInitiatorItem == null) return;
+      if (radioInitiatorItem == null) {
+        notifyPlayError('radioContinuationFailed');
+        return;
+      }
       if (!_radioContinuationInFlight) {
         _radioContinuationInFlight = true;
         try {
@@ -1286,6 +1289,8 @@ class PlayerController extends GetxController
       }
       if (currentQueue.length > currentSongIndex.value + 1) {
         await next();
+      } else {
+        notifyPlayError('radioContinuationFailed');
       }
     } finally {
       _extendingRadio = false;
@@ -1772,12 +1777,12 @@ class PlayerController extends GetxController
   /// fails, or playback hits a runtime error. [isRetrying] shows a softer
   /// “retrying…” snackbar instead of a hard failure.
   void notifyPlayError(String message, {bool isRetrying = false}) {
-    final context = Get.context;
-    if (context == null) return;
     final text = isRetrying ? "streamRetrying".tr : _localizePlayError(message);
     if (!isRetrying) {
       playbackError.value = text;
     }
+    final context = Get.context;
+    if (context == null || !context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(snackbar(
       context,
       text,
@@ -1847,6 +1852,8 @@ class PlayerController extends GetxController
         return "streamLoadFailed".tr;
       case "streamBotBlocked":
         return "streamBotBlocked".tr;
+      case "radioContinuationFailed":
+        return "radioContinuationFailed".tr;
       default:
         if (message.isEmpty) return "streamLoadFailed".tr;
         final lower = message.toLowerCase();

@@ -40,6 +40,17 @@ bool songsUrlCacheEntryExpired(dynamic entry) {
   return false;
 }
 
+/// Playback must use the selected quality URL, not "any quality is fresh".
+bool songsUrlCacheQualityUsable(dynamic entry, {required int qualityIndex}) {
+  if (entry is! Map) return false;
+  final key = qualityIndex <= 0 ? 'lowQualityAudio' : 'highQualityAudio';
+  final quality = entry[key];
+  if (quality is! Map) return false;
+  final url = quality['url']?.toString();
+  if (url == null || url.isEmpty) return false;
+  return !isExpired(url: url);
+}
+
 List<String> _qualityUrlsFromMap(Map entry) {
   final urls = <String>[];
   for (final key in _qualityKeys) {

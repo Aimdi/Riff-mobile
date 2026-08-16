@@ -10,6 +10,7 @@ import '../screens/Artists/artist_screen_controller.dart';
 import '../screens/Search/search_result_screen_controller.dart';
 import 'list_widget.dart';
 import 'loader.dart';
+import 'snackbar.dart';
 import 'sort_widget.dart';
 
 /// Songs / Videos / Episodes tabs expose Play all (overview and full list).
@@ -58,7 +59,17 @@ class SeparateTabItemWidget extends StatelessWidget {
 
   void _playTabItems({required bool shuffle}) {
     final songs = _tabSongs();
-    if (songs.isEmpty || !Get.isRegistered<PlayerController>()) return;
+    if (songs.isEmpty || !Get.isRegistered<PlayerController>()) {
+      final context = Get.context;
+      if (context != null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(snackbar(
+          context,
+          'noResults'.tr,
+          size: SanckBarSize.MEDIUM,
+        ));
+      }
+      return;
+    }
     Get.find<PlayerController>().playPlayListSong(
       playQueueFrom(songs, shuffle: shuffle),
       0,
@@ -160,6 +171,7 @@ class SeparateTabItemWidget extends StatelessWidget {
                           controller.separatedResultContent[title],
                           title,
                           isCompleteList,
+                          searchContext: true,
                           scrollController: scrollController,
                         );
                       } else {
@@ -190,6 +202,7 @@ class SeparateTabItemWidget extends StatelessWidget {
                   items,
                   title,
                   isCompleteList,
+                  searchContext: isResultWidget,
                   scrollController: scrollController,
                 ),
         ],

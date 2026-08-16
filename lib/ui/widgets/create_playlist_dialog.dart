@@ -127,6 +127,14 @@ class CreateNRenamePlaylistPopup extends StatelessWidget {
                           ),
                         ),
                         onTap: () async {
+                          if (librPlstCntrller.textInputController.text
+                              .trim()
+                              .isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                snackbar(context, "playlistNameRequired".tr,
+                                    size: SanckBarSize.MEDIUM));
+                            return;
+                          }
                           if (renamePlaylist) {
                             librPlstCntrller
                                 .renamePlaylist(playlist!)

@@ -34,7 +34,7 @@ import '/services/permission_service.dart';
 import '/services/play_by_index_skip.dart';
 import '../utils/helper.dart';
 import '/models/media_Item_builder.dart';
-import '/services/utils.dart';
+import '/utils/songs_url_cache.dart';
 import '../ui/screens/Settings/settings_screen_controller.dart';
 import '../ui/screens/Library/library_controller.dart';
 // ignore: unused_import, implementation_imports, depend_on_referenced_packages
@@ -1267,15 +1267,11 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       if (songsUrlCacheBox.containsKey(songId) && !generateNewUrl) {
         try {
           final streamInfoJson = songsUrlCacheBox.get(songId);
-          final low = streamInfoJson is Map
-              ? streamInfoJson['lowQualityAudio']
-              : null;
-          final cachedUrl =
-              low is Map ? low['url']?.toString() : null;
           if (streamInfoJson is Map &&
-              cachedUrl != null &&
-              cachedUrl.isNotEmpty &&
-              !isExpired(url: cachedUrl)) {
+              songsUrlCacheQualityUsable(
+                streamInfoJson,
+                qualityIndex: qualityIndex,
+              )) {
             printINFO("Got cached Url ($songId)");
             streamInfo = HMStreamingData.fromJson(streamInfoJson);
           }
