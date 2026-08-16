@@ -4662,6 +4662,7 @@ Map<String, Map<String, String>> get keys => {
     "retry": "Retry!",
     "noOfflineSong": "No offline songs!",
     "recentlyPlayed": "Recently played",
+    "jumpBackIn": "Jump back in",
     "favorites": "Favorites",
     "cachedOrOffline": "Cached/Offline",
     "downloads": "Downloads",

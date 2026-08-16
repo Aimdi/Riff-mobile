@@ -13,6 +13,7 @@ import '/ui/player/player_controller.dart';
 import '/ui/widgets/create_playlist_dialog.dart';
 import '../../navigator.dart';
 import '../../widgets/discovery/home_discovery_section.dart';
+import '../../widgets/discovery/jump_back_in_row.dart';
 import '../../widgets/discovery/riff_wave_hero.dart';
 import '../../utils/riff_tokens.dart';
 import '../../widgets/quickpickswidget.dart';
@@ -246,7 +247,7 @@ class _HomeFeed extends StatelessWidget {
       return ListView(
         padding: EdgeInsets.only(bottom: 200, top: topPadding),
         children: [
-          // Hierarchy: offline → title → Wave → shortcuts → Zone B → Explore.
+          // Hierarchy: offline → title → continue → Jump back in → Wave → shortcuts.
           Obx(() => home.showingCachedWhileOffline.isTrue
               ? const _OfflineHomeBanner()
               : const SizedBox.shrink()),
@@ -274,6 +275,7 @@ class _HomeFeed extends StatelessWidget {
               ],
             ),
           ),
+          const JumpBackInRow(),
           const RiffWaveHero(),
           const HomeShortcutGrid(),
           const SizedBox(height: 8),
