@@ -420,8 +420,12 @@ class LibraryPlaylistsController extends GetxController
       } else if ((createPlaylistNaddSong &&
           playlistCreationMode.value == "piped")) {
         final songIds = songItems!.map((e) => e.id).toList();
-        await Get.find<PipedServices>()
+        final added = await Get.find<PipedServices>()
             .addToPlaylist(newplst.playlistId, songIds);
+        if (added.code != 1) {
+          creationInProgress.value = false;
+          return false;
+        }
       }
       creationInProgress.value = false;
       return true;

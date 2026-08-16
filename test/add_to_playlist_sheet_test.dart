@@ -19,7 +19,7 @@ void main() {
     );
     expect(
       playlistAddMessageKey(PlaylistAddOutcome.failed),
-      'networkError',
+      'operationFailed',
     );
   });
 

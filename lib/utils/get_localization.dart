@@ -5237,7 +5237,8 @@ Map<String, Map<String, String>> get keys => {
     "soulseekTracks": "tracks",
     "soulseekDownloadAlbum": "Download album",
     "soulseekDownload": "Download",
-    "soulseekNotLoggedIn": "Sign in to Soulseek first"
+    "soulseekNotLoggedIn": "Sign in to Soulseek first",
+    "removedFromQueue": "Removed from queue"
 }
 ,"pt" : {
     "renamePlaylist": "Renomear Playlist",

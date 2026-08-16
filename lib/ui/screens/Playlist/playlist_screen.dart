@@ -454,7 +454,7 @@ class PlaylistScreen extends StatelessWidget {
                                               )),
                                           IconButton(
                                               tooltip: "startRadio".tr,
-                                              onPressed: () {
+                                              onPressed: () async {
                                                 final songs =
                                                     playlistController.songList
                                                         .toList();
@@ -471,8 +471,18 @@ class PlaylistScreen extends StatelessWidget {
                                                   }
                                                   return;
                                                 }
-                                                playerController
+                                                final ok = await playerController
                                                     .startRadio(songs.first);
+                                                if (!context.mounted || ok) {
+                                                  return;
+                                                }
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(snackbar(
+                                                        context,
+                                                        "radioNotAvailable"
+                                                            .tr,
+                                                        size: SanckBarSize
+                                                            .MEDIUM));
                                               },
                                               icon: Icon(
                                                 Icons.sensors,
@@ -674,9 +684,21 @@ class PlaylistScreen extends StatelessWidget {
                                               .isAddedToLibrary.isTrue)
                                             IconButton(
                                                 tooltip: "syncPlaylistSongs".tr,
-                                                onPressed: () {
-                                                  playlistController
-                                                      .syncPlaylistSongs();
+                                                onPressed: () async {
+                                                  final ok =
+                                                      await playlistController
+                                                          .syncPlaylistSongs();
+                                                  if (!context.mounted) return;
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(snackbar(
+                                                    context,
+                                                    ok
+                                                        ? "pipedplstSyncAlert"
+                                                            .tr
+                                                        : "errorOccuredAlert"
+                                                            .tr,
+                                                    size: SanckBarSize.MEDIUM,
+                                                  ));
                                                 },
                                                 icon: const Icon(
                                                     Icons.cloud_sync)),

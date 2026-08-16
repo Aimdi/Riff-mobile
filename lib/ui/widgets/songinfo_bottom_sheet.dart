@@ -142,9 +142,13 @@ class SongInfoBottomSheet extends StatelessWidget {
               visualDensity: const VisualDensity(vertical: -1),
               leading: const Icon(Icons.sensors),
               title: Text("startRadio".tr),
-              onTap: () {
+              onTap: () async {
                 Navigator.of(context).pop();
-                playerController.startRadio(song);
+                final ok = await playerController.startRadio(song);
+                if (!context.mounted || ok) return;
+                ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                    context, "radioNotAvailable".tr,
+                    size: SanckBarSize.MEDIUM));
               },
             ),
             ListTile(
@@ -181,11 +185,15 @@ class SongInfoBottomSheet extends StatelessWidget {
                     visualDensity: const VisualDensity(vertical: -1),
                     leading: const Icon(Icons.playlist_play),
                     title: Text("playNext".tr),
-                    onTap: () {
+                    onTap: () async {
                       Navigator.of(context).pop();
-                      if (!playerController.playNext(song)) return;
+                      final ok = await playerController.playNext(song);
+                      if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                          context, "${"playnextMsg".tr} ${song.title}",
+                          context,
+                          ok
+                              ? "${"playnextMsg".tr} ${song.title}"
+                              : "operationFailed".tr,
                           size: SanckBarSize.BIG));
                     },
                   ),
@@ -193,14 +201,18 @@ class SongInfoBottomSheet extends StatelessWidget {
               visualDensity: const VisualDensity(vertical: -1),
               leading: const Icon(Icons.block),
               title: Text("neverPlayThis".tr),
-              onTap: () {
+              onTap: () async {
                 Navigator.of(context).pop();
-                BanService.ban(song);
-                if (Get.isRegistered<DiscoveryService>()) {
+                final ok = await BanService.ban(song);
+                if (ok && Get.isRegistered<DiscoveryService>()) {
                   Get.find<DiscoveryService>().onNeverPlay(song);
                 }
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                    context, "${"songBannedMsg".tr} ${song.title}",
+                    context,
+                    ok
+                        ? "${"songBannedMsg".tr} ${song.title}"
+                        : "operationFailed".tr,
                     size: SanckBarSize.BIG));
               },
             ),

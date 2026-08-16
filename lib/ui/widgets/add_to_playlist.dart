@@ -99,7 +99,7 @@ String playlistAddMessageKey(PlaylistAddOutcome outcome) {
     case PlaylistAddOutcome.alreadyIn:
       return 'songAlreadyExists';
     case PlaylistAddOutcome.failed:
-      return 'networkError';
+      return 'operationFailed';
   }
 }
 

@@ -66,10 +66,10 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode) {
               ListTile(
                 leading: const Icon(Icons.playlist_play),
                 title: Text("playNext".tr),
-                onTap: () {
+                onTap: () async {
                   Navigator.of(ctx).pop();
                   final ok =
-                      Get.find<PlayerController>().playNext(episode);
+                      await Get.find<PlayerController>().playNext(episode);
                   snack(ok ? "playnextMsg".tr : "operationFailed".tr);
                 },
               ),

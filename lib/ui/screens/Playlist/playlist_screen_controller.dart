@@ -329,11 +329,15 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
   }
 
   @override
-  void syncPlaylistSongs() {
-    _fetchSongOnline(playlist.value.playlistId, false, false).then((value) {
-      updateSongsIntoDb();
+  Future<bool> syncPlaylistSongs() async {
+    try {
+      await _fetchSongOnline(playlist.value.playlistId, false, false);
+      await updateSongsIntoDb();
       isContentFetched.value = true;
-    });
+      return songList.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
   }
 
   bool _isPodcastContent(dynamic content) {

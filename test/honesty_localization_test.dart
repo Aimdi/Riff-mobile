@@ -59,6 +59,7 @@ void main() {
     'soulseekNotLoggedIn',
     'songRemovedAlert',
     'operationFailed',
+    'removedFromQueue',
   ];
 
   test('honesty keys exist in generated translations', () {
