@@ -251,6 +251,27 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
               }),
               const Spacer(),
               IconButton(
+                tooltip: 'startRadio'.tr,
+                icon: const Icon(Icons.sensors),
+                onPressed: () {
+                  final radioId = c.artist_.radioId;
+                  final player = Get.find<PlayerController>();
+                  if (radioId != null && radioId.isNotEmpty) {
+                    player.startRadio(null, playlistid: radioId);
+                    return;
+                  }
+                  if (songs.isNotEmpty) {
+                    player.startRadio(songs.first);
+                    return;
+                  }
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                        context, "radioNotAvailable".tr,
+                        size: SanckBarSize.BIG));
+                  }
+                },
+              ),
+              IconButton(
                 tooltip: 'shuffle'.tr,
                 icon: const Icon(Icons.shuffle),
                 onPressed: songs.isEmpty

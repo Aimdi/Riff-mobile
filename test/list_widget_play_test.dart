@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/ui/widgets/list_widget.dart';
+import 'package:harmonymusic/ui/widgets/separate_tab_item_widget.dart';
 
 void main() {
   test('search overview rows play as a queue', () {
@@ -22,6 +23,14 @@ void main() {
       shouldPlaySearchRowsAsQueue(isCompleteList: true, title: 'library Songs'),
       isTrue,
     );
+  });
+
+  test('Play all header shows on Songs/Videos/Episodes tabs', () {
+    expect(shouldShowTabPlayAllHeader('Songs'), isTrue);
+    expect(shouldShowTabPlayAllHeader('Videos'), isTrue);
+    expect(shouldShowTabPlayAllHeader('Episodes'), isTrue);
+    expect(shouldShowTabPlayAllHeader('Albums'), isFalse);
+    expect(shouldShowTabPlayAllHeader('Artists'), isFalse);
   });
 
   test('complete non-Songs lists keep radio/single-tap path', () {

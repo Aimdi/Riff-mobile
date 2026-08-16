@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/models/album.dart';
+import 'package:harmonymusic/models/artist.dart';
 import 'package:harmonymusic/models/playlist.dart';
 import 'package:harmonymusic/ui/widgets/content_list_widget_item.dart';
 import 'package:harmonymusic/ui/widgets/list_widget.dart';
@@ -59,6 +60,34 @@ void main() {
     );
 
     expect(find.text('LP'), findsOneWidget);
+    expect(find.byIcon(Icons.play_circle_fill), findsOneWidget);
+  });
+
+  testWidgets('artist rows show a play overlay on the avatar', (tester) async {
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              ListWidget(
+                [
+                  Artist(
+                    name: 'Ada',
+                    browseId: 'UCtest',
+                    thumbnailUrl: Playlist.thumbPlaceholderUrl,
+                    subscribers: '1M',
+                  ),
+                ],
+                'Artists',
+                true,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Ada'), findsOneWidget);
     expect(find.byIcon(Icons.play_circle_fill), findsOneWidget);
   });
 }

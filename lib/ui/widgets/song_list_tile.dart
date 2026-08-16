@@ -249,6 +249,31 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                           );
                         }),
                         IconButton(
+                          tooltip: 'playNext'.tr,
+                          iconSize: 20,
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                          splashRadius: 18,
+                          onPressed: () {
+                            playerController.playNext(song);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              snackbar(
+                                context,
+                                "${"playnextMsg".tr} ${song.title}",
+                                size: SanckBarSize.MEDIUM,
+                              ),
+                            );
+                          },
+                          icon: Icon(
+                            Icons.playlist_play,
+                            color: muted,
+                          ),
+                        ),
+                        IconButton(
                           tooltip: 'addToPlaylist'.tr,
                           iconSize: 20,
                           visualDensity: VisualDensity.compact,
@@ -270,12 +295,21 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                           iconSize: 20,
                           color: muted,
                         ),
-                        if (GetPlatform.isDesktop)
-                          IconButton(
-                            splashRadius: 20,
-                            onPressed: () => _openSheet(playerController),
-                            icon: const Icon(Icons.more_vert),
+                        IconButton(
+                          iconSize: 20,
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
                           ),
+                          splashRadius: 18,
+                          onPressed: () => _openSheet(playerController),
+                          icon: Icon(
+                            Icons.more_vert,
+                            color: muted,
+                          ),
+                        ),
                       ],
                     ),
                   ),

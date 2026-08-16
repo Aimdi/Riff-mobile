@@ -7,6 +7,7 @@ import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/utils/riff_tokens.dart';
 import '/ui/utils/theme_controller.dart';
 import '../../utils/helper.dart';
+import '../widgets/add_to_playlist.dart';
 import '../widgets/snackbar.dart';
 import '../widgets/up_next_queue.dart';
 import '/ui/player/player_controller.dart';
@@ -235,6 +236,30 @@ class Player extends StatelessWidget {
                                 ),
                                 child: const Center(
                                     child: Icon(Icons.shuffle,
+                                        size: 18,
+                                        color: RiffSurfaces.textPrimary)),
+                              ),
+                            ),
+
+                            /// save queue as playlist
+                            InkWell(
+                              onTap: () {
+                                final queue =
+                                    playerController.currentQueue.toList();
+                                if (queue.isEmpty) return;
+                                showAddToPlaylistSheet(context, queue);
+                              },
+                              child: Container(
+                                height: 30,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 15),
+                                decoration: BoxDecoration(
+                                  color: RiffSurfaces.elevatedSoft,
+                                  borderRadius: BorderRadius.circular(
+                                      RiffTokens.radiusSm),
+                                ),
+                                child: const Center(
+                                    child: Icon(Icons.playlist_add,
                                         size: 18,
                                         color: RiffSurfaces.textPrimary)),
                               ),

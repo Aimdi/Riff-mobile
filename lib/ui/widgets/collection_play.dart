@@ -2,6 +2,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
+import '../../models/artist.dart';
 import '../../models/media_Item_builder.dart';
 import '../../models/playling_from.dart';
 import '../../services/music_service.dart';
@@ -105,6 +106,55 @@ Future<bool> playCollection({
     playfrom: PlaylingFrom(
       name: title,
       type: isAlbum ? PlaylingFromType.ALBUM : PlaylingFromType.PLAYLIST,
+    ),
+  );
+  return true;
+}
+
+/// Top tracks from [MusicServices.getArtist] (or the remapped Songs key).
+List<MediaItem> artistTopSongsFromResponse(Map<String, dynamic> artist) {
+  final section = artist['Top songs'] ?? artist['Songs'];
+  if (section is Map && section['content'] is List) {
+    return (section['content'] as List).whereType<MediaItem>().toList();
+  }
+  if (section is List) {
+    return section.whereType<MediaItem>().toList();
+  }
+  return const [];
+}
+
+/// Play an artist's top songs, or start their radio. Returns false when the
+/// caller should open the artist screen instead.
+Future<bool> playArtist(
+  Artist artist, {
+  bool shuffle = false,
+  bool radio = false,
+}) async {
+  if (!Get.isRegistered<PlayerController>()) return false;
+  final player = Get.find<PlayerController>();
+  final radioId = artist.radioId?.trim() ?? '';
+
+  if (radio && radioId.isNotEmpty) {
+    await player.startRadio(null, playlistid: radioId);
+    return true;
+  }
+
+  if (!Get.isRegistered<MusicServices>()) return false;
+  final data = await Get.find<MusicServices>().getArtist(artist.browseId);
+  final songs = artistTopSongsFromResponse(data);
+  if (songs.isEmpty) return false;
+
+  if (radio) {
+    await player.startRadio(songs.first);
+    return true;
+  }
+
+  await player.playPlayListSong(
+    playQueueFrom(songs, shuffle: shuffle),
+    0,
+    playfrom: PlaylingFrom(
+      name: artist.name,
+      type: PlaylingFromType.ARTIST,
     ),
   );
   return true;

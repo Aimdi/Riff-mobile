@@ -241,26 +241,126 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
       physics: isCompleteList
           ? const BouncingScrollPhysics()
           : const NeverScrollableScrollPhysics(),
-      itemBuilder: (context, index) => ListTile(
-        visualDensity: const VisualDensity(horizontal: -2, vertical: 0),
-        onTap: () {
-          Get.toNamed(ScreenNavigationSetup.artistScreen,
-              id: ScreenNavigationSetup.id, arguments: [false, artists[index]]);
-        },
-        contentPadding: const EdgeInsets.only(top: 0, bottom: 0, left: 5),
-        leading: ImageWidget(
-          size: 56,
-          artist: artists[index],
-        ),
-        title: Text(
-          artists[index].name,
-          maxLines: 1,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        subtitle: Text(
-          artists[index].subscribers,
-          maxLines: 1,
-          style: Theme.of(context).textTheme.titleSmall,
+      itemBuilder: (context, index) {
+        final artist = artists[index];
+        return ListTile(
+          visualDensity: const VisualDensity(horizontal: -2, vertical: 0),
+          onTap: () => _openArtist(artist),
+          onLongPress: () => _showArtistActions(context, artist),
+          contentPadding: const EdgeInsets.only(top: 0, bottom: 0, left: 5),
+          leading: SizedBox(
+            width: 56,
+            height: 56,
+            child: Stack(
+              children: [
+                ImageWidget(
+                  size: 56,
+                  artist: artist,
+                ),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Tooltip(
+                    message: 'play'.tr,
+                    child: Material(
+                      color: Colors.black.withOpacity(0.5),
+                      shape: const CircleBorder(),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () => _playArtistRow(artist),
+                        child: const Padding(
+                          padding: EdgeInsets.all(1),
+                          child: Icon(
+                            Icons.play_circle_fill,
+                            size: 22,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          title: Text(
+            artist.name,
+            maxLines: 1,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          subtitle: Text(
+            artist.subscribers ?? '',
+            maxLines: 1,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+        );
+      },
+    );
+  }
+
+  void _openArtist(dynamic artist) {
+    Get.toNamed(ScreenNavigationSetup.artistScreen,
+        id: ScreenNavigationSetup.id, arguments: [false, artist]);
+  }
+
+  Future<void> _playArtistRow(
+    dynamic artist, {
+    bool shuffle = false,
+    bool radio = false,
+  }) async {
+    if (artist is! Artist) {
+      _openArtist(artist);
+      return;
+    }
+    final ok =
+        await playArtist(artist, shuffle: shuffle, radio: radio);
+    if (!ok) _openArtist(artist);
+  }
+
+  void _showArtistActions(BuildContext context, dynamic artist) {
+    showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.play_arrow_rounded),
+              title: Text('play'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _playArtistRow(artist);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.shuffle),
+              title: Text('shuffle'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _playArtistRow(artist, shuffle: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.sensors),
+              title: Text('startRadio'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _playArtistRow(artist, radio: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.open_in_new),
+              title: Text('viewAll'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _openArtist(artist);
+              },
+            ),
+          ],
         ),
       ),
     );
