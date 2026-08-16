@@ -21,6 +21,7 @@ import '../../widgets/loader.dart';
 import '../../widgets/mix_transition_chip.dart';
 import '../../widgets/playlist_export_dialog.dart';
 import '../../widgets/podcast_follow_button.dart';
+import '../../widgets/podcast_play.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/song_list_tile.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
@@ -1309,8 +1310,13 @@ class _PodcastSimilarFooterState extends State<_PodcastSimilarFooter> {
                       const tile = 64.0;
                       return InkWell(
                         borderRadius: BorderRadius.circular(8),
-                        onTap: () =>
-                            Get.to(() => PodcastEpisodesScreen(podcast: p)),
+                        onTap: () async {
+                          if (shouldPlayPodcastShowOnTap()) {
+                            final ok = await playPodcastShow(p);
+                            if (ok) return;
+                          }
+                          Get.to(() => PodcastEpisodesScreen(podcast: p));
+                        },
                         child: SizedBox(
                           width: tile,
                           child: Column(

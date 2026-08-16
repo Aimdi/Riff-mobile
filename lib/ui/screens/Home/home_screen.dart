@@ -569,6 +569,9 @@ class _PodcastContinueChip extends StatelessWidget {
             onTap: () {
               final queue = podcastContinueQueue(rows);
               if (queue.isEmpty) return;
+              final pos =
+                  PodcastProgressService.positionMs(queue.first.id) ?? 0;
+              if (pos > 0) player.armResume(queue.first.id, pos);
               player.playPlayListSong(queue, 0);
             },
             child: Padding(

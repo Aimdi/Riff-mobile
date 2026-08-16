@@ -25,6 +25,7 @@ import '/services/stream_service.dart';
 import '/ui/screens/Podcasts/podcast_queue_controller.dart';
 import '/models/hm_streaming_data.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/player/radio_continuation.dart';
 import '/ui/player/video_mode_controller.dart';
 import '../ui/screens/Home/home_screen_controller.dart';
 import '/services/background_task.dart';
@@ -669,10 +670,16 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     if (index != currentIndex) {
       if (_player.position != Duration.zero) _player.seek(Duration.zero);
       await customAction("playByIndex", {'index': index});
-    } else {
-      _player.seek(Duration.zero);
-      _player.pause();
+      return;
     }
+    final radioOn = Get.isRegistered<PlayerController>() &&
+        Get.find<PlayerController>().isRadioModeOn;
+    if (radioShouldExtendInsteadOfPause(radioOn: radioOn, hasNext: false)) {
+      await Get.find<PlayerController>().extendRadioThenPlayNext();
+      return;
+    }
+    _player.seek(Duration.zero);
+    _player.pause();
   }
 
   @override

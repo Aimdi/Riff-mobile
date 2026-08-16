@@ -11,6 +11,7 @@ import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/widgets/content_list_widget_item.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/podcast_follow_button.dart';
+import '/ui/widgets/podcast_play.dart';
 import '/ui/widgets/snackbar.dart';
 import '/ui/widgets/sort_widget.dart';
 import 'podcast_category_screen.dart';
@@ -971,7 +972,13 @@ class _ItunesPodcastCard extends StatelessWidget {
       width: _tile,
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
-        onTap: () => Get.to(() => PodcastEpisodesScreen(podcast: podcast)),
+        onTap: () async {
+          if (shouldPlayPodcastShowOnTap()) {
+            final ok = await playPodcastShow(podcast);
+            if (ok) return;
+          }
+          Get.to(() => PodcastEpisodesScreen(podcast: podcast));
+        },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

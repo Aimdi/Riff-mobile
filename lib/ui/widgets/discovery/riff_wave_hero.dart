@@ -89,11 +89,12 @@ class _RiffWaveHeroState extends State<RiffWaveHero>
     }
   }
 
-  void _setExploration(double v) {
+  Future<void> _setExploration(double v) async {
     final disc = _disc;
     if (disc == null) return;
     disc.exploration = v;
     setState(() {});
+    if (!_starting) await _playWave();
   }
 
   @override

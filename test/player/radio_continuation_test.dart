@@ -65,6 +65,22 @@ void main() {
       );
     });
 
+    test('extends instead of pausing when radio is on and there is no next',
+        () {
+      expect(
+        radioShouldExtendInsteadOfPause(radioOn: true, hasNext: false),
+        isTrue,
+      );
+      expect(
+        radioShouldExtendInsteadOfPause(radioOn: true, hasNext: true),
+        isFalse,
+      );
+      expect(
+        radioShouldExtendInsteadOfPause(radioOn: false, hasNext: false),
+        isFalse,
+      );
+    });
+
     test('does not fire when more than 3 songs remain', () {
       expect(
         radioShouldFetchContinuation(
