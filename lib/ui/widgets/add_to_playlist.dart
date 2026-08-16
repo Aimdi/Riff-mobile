@@ -245,7 +245,6 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
               color: theme.colorScheme.secondary,
             ),
             title: 'favorites'.tr,
-            muted: muted,
             onTap: _addToLiked,
           ),
           _SheetRow(
@@ -254,7 +253,6 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
               color: theme.colorScheme.onSurface,
             ),
             title: 'CreateNewPlaylist'.tr,
-            muted: muted,
             onTap: _createPlaylist,
           ),
           ConstrainedBox(
@@ -318,7 +316,6 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
             color: Theme.of(context).colorScheme.onSurface,
           ),
           title: playlist.title,
-          muted: muted,
           onTap: () => _addToPlaylist(playlist),
         );
       },
@@ -331,14 +328,10 @@ class _SheetRow extends StatelessWidget {
     required this.leading,
     required this.title,
     required this.onTap,
-    this.subtitle,
-    this.muted,
   });
 
   final Widget leading;
   final String title;
-  final String? subtitle;
-  final Color? muted;
   final VoidCallback onTap;
 
   @override
@@ -354,14 +347,6 @@ class _SheetRow extends StatelessWidget {
               letterSpacing: -0.15,
             ),
       ),
-      subtitle: subtitle == null
-          ? null
-          : Text(
-              subtitle!,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: muted,
-                  ),
-            ),
       onTap: onTap,
     );
   }
