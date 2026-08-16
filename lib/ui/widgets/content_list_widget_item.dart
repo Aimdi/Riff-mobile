@@ -110,15 +110,7 @@ class ContentListItem extends StatelessWidget {
     }
   }
 
-  void _snackOperationFailed() {
-    final ctx = Get.context;
-    if (ctx == null || !ctx.mounted) return;
-    ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
-      ctx,
-      'operationFailed'.tr,
-      size: SanckBarSize.MEDIUM,
-    ));
-  }
+  void _snackOperationFailed() => snackOperationFailed();
 
   Future<void> _queueFromSheet({required bool radio}) async {
     final tracks = await loadCollectionPlayTracks(

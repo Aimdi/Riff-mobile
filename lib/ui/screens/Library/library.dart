@@ -642,12 +642,4 @@ class _PinnedTile extends StatelessWidget {
   }
 }
 
-void _snackPlayFailed() {
-  final ctx = Get.context;
-  if (ctx == null || !ctx.mounted) return;
-  ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
-    ctx,
-    'operationFailed'.tr,
-    size: SanckBarSize.MEDIUM,
-  ));
-}
+void _snackPlayFailed() => snackOperationFailed();

@@ -305,12 +305,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   }
 
   /// After generateNewUrl retry still fails: skip to next once when allowed.
-  Future<void> _onPlayByIndexUnresolvable({
+  /// Returns true when skip-to-next was started, false when playback stopped.
+  Future<bool> _onPlayByIndexUnresolvable({
     required int songIndex,
     required String errorMessage,
     required int errorCode,
   }) async {
-    if (songIndex != currentIndex) return;
+    if (songIndex != currentIndex) return false;
     _consecutiveResolveFails++;
     final next = _getNextSongIndex();
     if (shouldSkipAfterUnresolvableTrack(
@@ -323,7 +324,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       printINFO(
           'playByIndex: track will not resolve, skipping to next (fail $_consecutiveResolveFails)');
       await skipToNext();
-      return;
+      return true;
     }
     currentSongUrl = null;
     isSongLoading = false;
@@ -334,6 +335,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         processingState: AudioProcessingState.error,
         errorCode: errorCode,
         errorMessage: errorMessage));
+    return false;
   }
 
   void _listenToPlaybackForNextSong() {
@@ -741,7 +743,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   }
 
   @override
-  Future<void> customAction(String name, [Map<String, dynamic>? extras]) async {
+  Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) async {
     switch (name) {
       case 'dispose':
         await _player.dispose();
@@ -764,7 +766,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           playbackState.add(playbackState.value.copyWith(
             processingState: AudioProcessingState.idle,
           ));
-          return;
+          return false;
         }
         currentIndex = songIndex;
         final isNewUrlReq = extras['newUrl'] ?? false;
@@ -805,26 +807,24 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           }
         }
         if (resolveFailed) {
-          await _onPlayByIndexUnresolvable(
+          return _onPlayByIndexUnresolvable(
             songIndex: songIndex,
             errorMessage: "streamLoadFailed",
             errorCode: 500,
           );
-          return;
         }
         if (shouldClearLoadingOnStalePlayByIndex(
           requestedIndex: songIndex,
           currentIndex: currentIndex,
         )) {
           isSongLoading = false;
-          return;
+          return null;
         } else if (!streamInfo.playable) {
-          await _onPlayByIndexUnresolvable(
+          return _onPlayByIndexUnresolvable(
             songIndex: songIndex,
             errorMessage: streamInfo.statusMSG,
             errorCode: 404,
           );
-          return;
         }
         _consecutiveResolveFails = 0;
         currentSongUrl = currentSong.extras!['url'] = streamInfo.audio!.url;
@@ -859,7 +859,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           await _player.play();
         }
         prefetchNextInQueue();
-        break;
+        return true;
 
       case 'checkWithCacheDb':
         if (isPlayingUsingLockCachingSource) {

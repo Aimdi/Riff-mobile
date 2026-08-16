@@ -8,6 +8,7 @@ import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 
 import '../../models/playling_from.dart';
 import 'play_queue_order.dart';
+import '../../services/play_by_index_skip.dart';
 import '../../services/downloader.dart';
 import '../../services/discovery/discovery_service.dart';
 import '../../services/discovery/discovery_types.dart';
@@ -840,12 +841,12 @@ class PlayerController extends GetxController
       // play at the saved index of the wrong list.
       await _audioHandler.updateQueue(songList);
       _playerPanelCheck(restoreSession: true);
-      await _audioHandler.customAction("playByIndex", {
+      final result = await _audioHandler.customAction("playByIndex", {
         "index": index,
         "position": position,
         "restoreSession": false,
       });
-      return true;
+      return !playByIndexHardFailed(result);
     } catch (e) {
       printERROR("resumeSavedSession failed: $e");
       return false;
@@ -958,8 +959,9 @@ class PlayerController extends GetxController
 
     if (playlistid != null) {
       _playerPanelCheck();
-      await _audioHandler.customAction("playByIndex", {"index": 0});
-      return true;
+      final result =
+          await _audioHandler.customAction("playByIndex", {"index": 0});
+      return !playByIndexHardFailed(result);
     }
     if (radioOnCurrent) {
       return true;
@@ -970,7 +972,8 @@ class PlayerController extends GetxController
           .changeDiscoverContent("BOLI", songId: mediaItem!.id);
     }
     _playerPanelCheck();
-    await _audioHandler.customAction("playByIndex", {"index": 0});
+    final result =
+        await _audioHandler.customAction("playByIndex", {"index": 0});
 
     // disable queue loop mode when radio is started
     if (radio &&
@@ -978,7 +981,7 @@ class PlayerController extends GetxController
         isShuffleModeEnabled.isFalse) {
       toggleQueueLoopMode();
     }
-    return true;
+    return !playByIndexHardFailed(result);
     } catch (_) {
       return false;
     }
@@ -1022,8 +1025,9 @@ class PlayerController extends GetxController
     if (isShuffleModeEnabled.value) {
       await _audioHandler.customAction("shuffleCmd", {"index": index});
     }
-    await _audioHandler.customAction("playByIndex", {"index": index});
-    return true;
+    final result =
+        await _audioHandler.customAction("playByIndex", {"index": index});
+    return !playByIndexHardFailed(result);
   }
 
   Future<bool> startRadio(MediaItem? mediaItem, {String? playlistid}) async {
@@ -1111,12 +1115,13 @@ class PlayerController extends GetxController
     if (isShuffleModeEnabled.isTrue) {
       await _audioHandler.customAction('shuffleCmd', {'index': 0});
     }
-    await _audioHandler.customAction('playByIndex', {'index': 0});
+    final result =
+        await _audioHandler.customAction('playByIndex', {'index': 0});
 
     if (isQueueLoopModeEnabled.isTrue && isShuffleModeEnabled.isFalse) {
       toggleQueueLoopMode();
     }
-    return true;
+    return !playByIndexHardFailed(result);
   }
 
   MediaItem? _resolveRiffWaveSeed() {

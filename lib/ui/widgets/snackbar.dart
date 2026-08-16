@@ -3,10 +3,18 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/player/play_queue_order.dart';
+import '/ui/player/player_controller.dart';
+
 enum SanckBarSize { BIG, MEDIUM, SMALL }
 
 /// Play / save failed — tell the user instead of staying silent.
+/// Skips when [notifyPlayError] already snacked the stream failure.
 void snackOperationFailed([BuildContext? context]) {
+  if (Get.isRegistered<PlayerController>()) {
+    final err = Get.find<PlayerController>().playbackError.value;
+    if (!shouldSnackGenericPlayFailed(err)) return;
+  }
   final ctx = context ?? Get.context;
   if (ctx == null || !ctx.mounted) return;
   ScaffoldMessenger.of(ctx).showSnackBar(
