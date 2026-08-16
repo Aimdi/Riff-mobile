@@ -1,9 +1,21 @@
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/models/playling_from.dart';
 import '/services/music_service.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/widgets/snackbar.dart';
+
+/// Snackbar when Enter or a suggestion tap could not start playback.
+void showSearchPlayFailed(BuildContext context) {
+  if (!context.mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(snackbar(
+    context,
+    'networkError'.tr,
+    size: SanckBarSize.MEDIUM,
+  ));
+}
 
 /// Songs bucket from [MusicServices.search] (filter: songs).
 List<MediaItem> songsFromSearchResult(Map<String, dynamic> result) {
@@ -18,6 +30,12 @@ bool shouldPlaySearchSubmit(String query) {
   return q.isNotEmpty && !q.contains('https://');
 }
 
+/// History and suggestion rows use the same play-first path as Enter.
+bool shouldPlaySearchItemOnTap() => true;
+
+/// Tell the user when Enter / row-tap could not start a song.
+bool shouldNotifySearchPlayFailed({required bool played}) => !played;
+
 /// Search-bar submit: play the top song, or open results if nothing plays.
 Future<bool> submitSearchQuery(
   String val, {
@@ -25,6 +43,7 @@ Future<bool> submitSearchQuery(
   required void Function(String query) onOpenResults,
   required void Function(String query) onRemember,
   void Function()? onAfterSubmit,
+  void Function()? onPlayFailed,
 }) async {
   final q = val.trim();
   if (q.contains('https://')) {
@@ -36,7 +55,12 @@ Future<bool> submitSearchQuery(
   onRemember(q);
   onAfterSubmit?.call();
   final ok = await playTopSongResult(q);
-  if (!ok) onOpenResults(q);
+  if (!ok) {
+    if (shouldNotifySearchPlayFailed(played: ok)) {
+      onPlayFailed?.call();
+    }
+    onOpenResults(q);
+  }
   return ok;
 }
 

@@ -17,6 +17,10 @@ bool isSystemLibraryPlaylistId(String id) =>
     id == 'SongsCache' ||
     id == 'SongDownloads';
 
+/// Album, playlist, and artist tiles play on the body tap.
+/// Long-press still opens Play / Shuffle / View.
+bool shouldPlayCollectionOnTap() => true;
+
 /// Load album/playlist tracks from Hive, Piped, or MusicServices.
 Future<List<MediaItem>> loadCollectionPlayTracks({
   required bool isAlbum,

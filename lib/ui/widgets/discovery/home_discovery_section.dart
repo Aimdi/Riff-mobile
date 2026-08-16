@@ -223,19 +223,12 @@ class _DiscoveryCard extends StatelessWidget {
             await _playMix(player);
             return;
           }
-          if (shouldPlayDiscoveryShelfAsQueue(shelfTracks.length)) {
-            final tagged = Get.isRegistered<DiscoveryService>()
-                ? DiscoveryService.tagAll(
-                    shelfTracks, DiscoverySource.discover)
-                : shelfTracks;
-            final index = shelfIndex.clamp(0, tagged.length - 1);
-            await player.playPlayListSong(tagged, index);
-            return;
-          }
           final tagged = Get.isRegistered<DiscoveryService>()
-              ? DiscoveryService.withSource(song, DiscoverySource.discover)
-              : song;
-          player.pushSongToQueue(tagged);
+              ? DiscoveryService.tagAll(
+                  shelfTracks, DiscoverySource.discover)
+              : shelfTracks;
+          final index = shelfIndex.clamp(0, tagged.length - 1);
+          await player.playPlayListSong(tagged, index);
         },
         onLongPress: () {
           showModalBottomSheet(

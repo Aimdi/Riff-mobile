@@ -26,4 +26,28 @@ void main() {
     expect(shouldPlaySearchSubmit('https://youtube.com/watch?v=x'), isFalse);
     expect(shouldPlaySearchSubmit('radiohead'), isTrue);
   });
+
+  test('suggestion rows play on tap, same as Enter', () {
+    expect(shouldPlaySearchItemOnTap(), isTrue);
+  });
+
+  test('failed play is reported so the user is not left in silence', () {
+    expect(shouldNotifySearchPlayFailed(played: true), isFalse);
+    expect(shouldNotifySearchPlayFailed(played: false), isTrue);
+  });
+
+  test('submit opens results and reports failure when nothing plays', () async {
+    var opened = '';
+    var failed = false;
+    final ok = await submitSearchQuery(
+      'radiohead',
+      onLink: (_) {},
+      onOpenResults: (q) => opened = q,
+      onRemember: (_) {},
+      onPlayFailed: () => failed = true,
+    );
+    expect(ok, isFalse);
+    expect(opened, 'radiohead');
+    expect(failed, isTrue);
+  });
 }

@@ -15,6 +15,7 @@ import '../../utils/theme_controller.dart';
 import '../../widgets/modification_list.dart';
 import '../../widgets/piped_sync_widget.dart';
 import '../../widgets/content_list_widget_item.dart';
+import '../../widgets/empty_play_hint.dart';
 import '../../widgets/list_widget.dart';
 import '../../widgets/sort_widget.dart';
 import '../Cloud/cloud_play.dart';
@@ -122,11 +123,7 @@ class SongsLibraryWidget extends StatelessWidget {
                             mode: controller.additionalOperationMode.value,
                             screenController: controller,
                           ))
-                    : Center(
-                        child: Text(
-                        "noOfflineSong".tr,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ));
+                    : EmptyPlayHint(message: "noOfflineSong".tr);
               });
             }),
           ),
@@ -386,11 +383,7 @@ class PlaylistNAlbumLibraryWidget extends StatelessWidget {
                             }),
                       );
                     })
-                  : Center(
-                      child: Text(
-                      "noBookmarks".tr,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    )),
+                  : EmptyPlayHint(message: "noBookmarks".tr),
             ),
           )
         ],
@@ -442,11 +435,7 @@ class LibraryArtistWidget extends StatelessWidget {
           Obx(() => cntrller.libraryArtists.isNotEmpty
               ? ListWidget(cntrller.libraryArtists, "Library Artists", true)
               : Expanded(
-                  child: Center(
-                      child: Text(
-                  "noBookmarks".tr,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ))))
+                  child: EmptyPlayHint(message: "noBookmarks".tr)))
         ],
       ),
     );

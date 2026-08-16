@@ -10,18 +10,32 @@ import '/services/ban_service.dart';
 import '../navigator.dart';
 import '../player/player_controller.dart';
 import 'collection_play.dart';
+import 'empty_play_hint.dart';
 import 'image_widget.dart';
 import 'snackbar.dart';
 import 'song_list_tile.dart';
 import 'songinfo_bottom_sheet.dart';
 
-/// Search overview rows and Songs lists play the visible MediaItems as a
-/// queue. Playlist/album/artist complete lists keep their own play-from path.
+/// Search overview rows and Songs/Videos/Episodes lists play as a queue.
+/// Playlist/album/artist complete lists keep their own play-from path.
 bool shouldPlaySearchRowsAsQueue({
   required bool isCompleteList,
   required String title,
 }) =>
-    !isCompleteList || title.contains('Songs');
+    !isCompleteList ||
+    title.contains('Songs') ||
+    title == 'Videos' ||
+    title == 'Episodes';
+
+/// Empty list copy — never the raw "No ${title}!" template.
+String emptyListLabelKey(String title) {
+  if (title == 'Videos' ||
+      title.contains('Songs') ||
+      title == 'Episodes') {
+    return 'emptyPlaylist';
+  }
+  return 'noBookmarks';
+}
 
 /// Search album/playlist long-press play actions (plus Ban).
 List<String> wideCollectionLongPressPlayKeys() =>
@@ -57,12 +71,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
   Widget build(BuildContext context) {
     if (items.isEmpty) {
       return Expanded(
-        child: Center(
-          child: Text(
-            "No ${title.toLowerCase().tr}!",
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-        ),
+        child: EmptyPlayHint(message: emptyListLabelKey(title).tr),
       );
     } else if (title == "Videos" ||
         title.contains("Songs") ||
@@ -249,7 +258,9 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
         final artist = artists[index];
         return ListTile(
           visualDensity: const VisualDensity(horizontal: -2, vertical: 0),
-          onTap: () => _openArtist(artist),
+          onTap: () => shouldPlayCollectionOnTap()
+              ? _playArtistRow(artist)
+              : _openArtist(artist),
           onLongPress: () => _showArtistActions(context, artist),
           contentPadding: const EdgeInsets.only(top: 0, bottom: 0, left: 5),
           leading: SizedBox(
@@ -436,7 +447,9 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
       required String subtitle,
       required String subtitle2}) {
     return InkWell(
-      onTap: () => _openWideTile(album: album, playlist: playlist),
+      onTap: () => shouldPlayCollectionOnTap()
+          ? _playWideTile(album: album, playlist: playlist, shuffle: false)
+          : _openWideTile(album: album, playlist: playlist),
       onLongPress: () {
         final isAlbum = album != null;
         final id = isAlbum ? album.browseId : playlist.playlistId;
