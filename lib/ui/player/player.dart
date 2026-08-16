@@ -10,6 +10,7 @@ import '../../utils/helper.dart';
 import '../widgets/add_to_playlist.dart';
 import '../widgets/snackbar.dart';
 import '../widgets/up_next_queue.dart';
+import '/ui/player/play_queue_order.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/player/upcoming_queue.dart';
 import '../widgets/sliding_up_panel.dart';
@@ -246,7 +247,16 @@ class Player extends StatelessWidget {
                               onTap: () {
                                 final queue =
                                     playerController.currentQueue.toList();
-                                if (queue.isEmpty) return;
+                                if (!canSaveQueueAsPlaylist(queue.length)) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    snackbar(
+                                      context,
+                                      'emptyPlaylist'.tr,
+                                      size: SanckBarSize.MEDIUM,
+                                    ),
+                                  );
+                                  return;
+                                }
                                 showAddToPlaylistSheet(context, queue);
                               },
                               child: Container(

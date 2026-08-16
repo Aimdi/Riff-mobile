@@ -42,6 +42,9 @@ class FavoriteHeartButton extends StatefulWidget {
   /// Hold duration that opens the playlist picker (not tap, not a long hold).
   static const Duration mediumPress = Duration(milliseconds: 350);
 
+  /// Ignore a second tap that would immediately unlike.
+  static const Duration toggleDebounce = Duration(milliseconds: 400);
+
   @override
   State<FavoriteHeartButton> createState() => _FavoriteHeartButtonState();
 }
@@ -49,6 +52,7 @@ class FavoriteHeartButton extends StatefulWidget {
 class _FavoriteHeartButtonState extends State<FavoriteHeartButton> {
   Timer? _holdTimer;
   bool _openedPlaylist = false;
+  DateTime? _lastToggle;
 
   @override
   void dispose() {
@@ -80,6 +84,12 @@ class _FavoriteHeartButtonState extends State<FavoriteHeartButton> {
       _openedPlaylist = false;
       return;
     }
+    final now = DateTime.now();
+    if (_lastToggle != null &&
+        now.difference(_lastToggle!) < FavoriteHeartButton.toggleDebounce) {
+      return;
+    }
+    _lastToggle = now;
     widget.onToggleFav();
   }
 

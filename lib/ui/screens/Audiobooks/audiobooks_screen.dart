@@ -9,7 +9,19 @@ import '/ui/navigator.dart';
 import 'audiobook_catalog_detail_screen.dart';
 import 'audiobook_detail_screen.dart';
 import 'audiobook_library_controller.dart';
+import 'audiobook_play.dart';
 import 'audiobook_upload_sheet.dart';
+
+Future<void> _playOrOpenAudiobook(String bookId) async {
+  if (shouldPlayAudiobookOnTap()) {
+    final ok = await playAudiobook(bookId: bookId);
+    if (ok) return;
+  }
+  Get.to(
+    () => AudiobookDetailScreen(bookId: bookId),
+    transition: Transition.rightToLeft,
+  );
+}
 
 /// Audiobooks: a free LibriVox "Discover" browser plus the Audiobookshelf
 /// (Lissen-inspired) server view for those who self-host.
@@ -698,7 +710,9 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                                     width: 100,
                                     child: InkWell(
                                       borderRadius: BorderRadius.circular(10),
-                                      onTap: () => Get.to(
+                                      onTap: () =>
+                                          _playOrOpenAudiobook(book.id),
+                                      onLongPress: () => Get.to(
                                         () => AudiobookDetailScreen(
                                             bookId: book.id),
                                         transition: Transition.rightToLeft,
@@ -785,7 +799,8 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                           return InkWell(
                             key: ValueKey(book.id),
                             borderRadius: BorderRadius.circular(10),
-                            onTap: () => Get.to(
+                            onTap: () => _playOrOpenAudiobook(book.id),
+                            onLongPress: () => Get.to(
                               () => AudiobookDetailScreen(bookId: book.id),
                               transition: Transition.rightToLeft,
                             ),
