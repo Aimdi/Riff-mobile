@@ -11,6 +11,7 @@ import '../../widgets/songinfo_bottom_sheet.dart';
 import '../../utils/riff_tokens.dart';
 import '../../utils/theme_controller.dart';
 import '../player_controller.dart';
+import '../player_media_nav.dart';
 
 class GesturePlayer extends StatelessWidget {
   const GesturePlayer({super.key});
@@ -111,12 +112,13 @@ class GesturePlayer extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Obx(() {
-                                  final title = playerController
-                                      .currentSong.value?.title;
-                                  return Marquee(
+                                  final song =
+                                      playerController.currentSong.value;
+                                  final title = song?.title;
+                                  final titleText = Marquee(
                                     delay: const Duration(milliseconds: 300),
                                     duration: const Duration(seconds: 10),
-                                    id: "${playerController.currentSong.value}_title",
+                                    id: "${song}_title",
                                     child: Text(
                                       (title != null && title.isNotEmpty)
                                           ? title
@@ -129,17 +131,26 @@ class GesturePlayer extends StatelessWidget {
                                               color: RiffSurfaces.textPrimary),
                                     ),
                                   );
+                                  if (songAlbumId(song) == null) {
+                                    return titleText;
+                                  }
+                                  return GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () =>
+                                        openCurrentAlbum(playerController),
+                                    child: titleText,
+                                  );
                                 }),
                                 const SizedBox(
                                   height: 7,
                                 ),
                                 GetX<PlayerController>(builder: (controller) {
-                                  final artist =
-                                      controller.currentSong.value?.artist;
-                                  return Marquee(
+                                  final song = controller.currentSong.value;
+                                  final artist = song?.artist;
+                                  final artistText = Marquee(
                                     delay: const Duration(milliseconds: 300),
                                     duration: const Duration(seconds: 10),
-                                    id: "${playerController.currentSong.value}_subtitle",
+                                    id: "${song}_subtitle",
                                     child: Text(
                                       (artist != null && artist.isNotEmpty)
                                           ? artist
@@ -153,6 +164,15 @@ class GesturePlayer extends StatelessWidget {
                                               color: RiffSurfaces.textMuted,
                                               fontWeight: FontWeight.normal),
                                     ),
+                                  );
+                                  if (songArtistId(song) == null) {
+                                    return artistText;
+                                  }
+                                  return GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () =>
+                                        openCurrentArtist(playerController),
+                                    child: artistText,
                                   );
                                 }),
                               ],

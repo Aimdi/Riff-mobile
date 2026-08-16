@@ -142,7 +142,7 @@ class SongInfoBottomSheet extends StatelessWidget {
                     size: SanckBarSize.MEDIUM));
               },
             ),
-            (calledFromPlayer || calledFromQueue)
+            calledFromQueue
                 ? const SizedBox.shrink()
                 : ListTile(
                     visualDensity: const VisualDensity(vertical: -1),

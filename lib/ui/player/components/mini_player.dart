@@ -1,3 +1,4 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -7,6 +8,7 @@ import 'package:widget_marquee/widget_marquee.dart';
 import '/ui/widgets/lyrics_dialog.dart';
 import '/ui/widgets/song_info_dialog.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/player/player_media_nav.dart';
 import '/ui/utils/riff_tokens.dart';
 import '/ui/utils/theme_controller.dart';
 import '../../widgets/add_to_playlist.dart';
@@ -236,16 +238,11 @@ class _MiniPlayerSongInfo extends StatelessWidget {
                             child: child,
                           );
                         },
-                        child: Marquee(
-                          key: ValueKey<String>('mini_artist_$songKey'),
-                          id: "${song}_mini",
-                          delay: const Duration(milliseconds: 300),
-                          duration: const Duration(seconds: 5),
-                          child: Text(
-                            song != null ? (song.artist ?? "") : "",
-                            maxLines: 1,
-                            style: theme.textTheme.titleSmall,
-                          ),
+                        child: _miniArtistLine(
+                          playerController,
+                          song,
+                          songKey,
+                          theme,
                         ),
                       ),
               ),
@@ -253,6 +250,33 @@ class _MiniPlayerSongInfo extends StatelessWidget {
           );
         }),
       ),
+    );
+  }
+
+  /// Artist line: tap opens the artist screen when extras have an id.
+  /// The parent row tap still expands the player for title / empty space.
+  Widget _miniArtistLine(
+    PlayerController playerController,
+    MediaItem? song,
+    String songKey,
+    ThemeData theme,
+  ) {
+    final line = Marquee(
+      key: ValueKey<String>('mini_artist_$songKey'),
+      id: "${song}_mini",
+      delay: const Duration(milliseconds: 300),
+      duration: const Duration(seconds: 5),
+      child: Text(
+        song != null ? (song.artist ?? "") : "",
+        maxLines: 1,
+        style: theme.textTheme.titleSmall,
+      ),
+    );
+    if (songArtistId(song) == null) return line;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => openCurrentArtist(playerController),
+      child: line,
     );
   }
 }
