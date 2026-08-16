@@ -8,6 +8,7 @@ import '/services/podcast_progress_service.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/podcast_follow_button.dart';
+import '/ui/widgets/snackbar.dart';
 import '/ui/widgets/podcast_play.dart';
 import 'podcast_queue_screen.dart';
 
@@ -245,9 +246,11 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
         },
       );
 
-  void _playFrom(int index) {
+  Future<void> _playFrom(int index) async {
     final items = _episodes.map(_toMediaItem).toList();
-    Get.find<PlayerController>().playPlayListSong(items, index);
+    final ok =
+        await Get.find<PlayerController>().playPlayListSong(items, index);
+    if (!ok) snackOperationFailed();
   }
 
   Future<void> _toggleSubscribe() async {

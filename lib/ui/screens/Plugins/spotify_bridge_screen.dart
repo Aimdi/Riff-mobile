@@ -137,7 +137,7 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
     try {
       final items = await _resolvePlaylist(summary);
       if (!Get.isRegistered<PlayerController>()) return;
-      await Get.find<PlayerController>().playPlayListSong(
+      final ok = await Get.find<PlayerController>().playPlayListSong(
         items,
         0,
         playfrom: PlaylingFrom(
@@ -145,6 +145,11 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
           name: summary.name,
         ),
       );
+      if (!ok) {
+        _status.value = 'operationFailed'.tr;
+        if (mounted) snackOperationFailed(context);
+        return;
+      }
       _progress.value = 1.0;
       _status.value = '${'play'.tr} · ${items.length} ${'songs'.tr}';
     } catch (e) {

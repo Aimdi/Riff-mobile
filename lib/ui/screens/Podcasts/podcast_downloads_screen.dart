@@ -7,6 +7,7 @@ import '/models/thumbnail.dart';
 import '/services/podcast_download_service.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/widgets/snackbar.dart';
 import 'podcast_empty_state.dart';
 import 'podcast_queue_screen.dart' show showAddToQueueSheet;
 
@@ -38,9 +39,11 @@ class _PodcastDownloadsScreenState extends State<PodcastDownloadsScreen> {
     setState(() => _items = PodcastDownloadService.downloadedItems());
   }
 
-  void _play(MediaItem item) {
+  Future<void> _play(MediaItem item) async {
     if (!Get.isRegistered<PlayerController>()) return;
-    Get.find<PlayerController>().playPlayListSong([item], 0);
+    final ok =
+        await Get.find<PlayerController>().playPlayListSong([item], 0);
+    if (!ok) snackOperationFailed();
   }
 
   @override

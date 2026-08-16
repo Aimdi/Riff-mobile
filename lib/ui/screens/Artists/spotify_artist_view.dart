@@ -42,7 +42,8 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
   List<MediaItem> _songs() =>
       _content(c.artistData['Songs']).whereType<MediaItem>().toList();
 
-  void _playSongs(List<MediaItem> songs, int index, {bool shuffle = false}) {
+  Future<void> _playSongs(List<MediaItem> songs, int index,
+      {bool shuffle = false}) async {
     if (songs.isEmpty) return;
     final player = Get.find<PlayerController>();
     final list = List<MediaItem>.from(songs);
@@ -50,12 +51,13 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
       list.shuffle();
       index = 0;
     }
-    player.playPlayListSong(
+    final ok = await player.playPlayListSong(
       list,
       index,
       playfrom: PlaylingFrom(
           name: c.artist_.name, type: PlaylingFromType.PLAYLIST),
     );
+    if (!ok) snackOperationFailed();
   }
 
   @override

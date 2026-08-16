@@ -94,13 +94,18 @@ class _SimilarSongsSheetState extends State<SimilarSongsSheet> {
                           final song = songs[i];
                           return SongListTile(
                             song: song,
-                            onTap: () {
+                            onTap: () async {
                               if (!Get.isRegistered<PlayerController>()) {
                                 return;
                               }
-                              Get.find<PlayerController>()
+                              final ok = await Get.find<PlayerController>()
                                   .playPlayListSong(songs, i);
-                              Navigator.pop(context);
+                              if (!context.mounted) return;
+                              if (ok) {
+                                Navigator.pop(context);
+                              } else {
+                                snackOperationFailed(context);
+                              }
                             },
                           );
                         },

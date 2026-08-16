@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '/services/cloud_music_service.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/widgets/snackbar.dart';
 import 'cloud_screen.dart';
 
 /// An album or playlist from the self-hosted server, with playable tracks.
@@ -63,8 +64,9 @@ class _CloudCollectionScreenState extends State<CloudCollectionScreen> {
     if (d == null || d.songs.isEmpty) return;
     final cloud = Get.find<CloudMusicService>();
     final list = shuffle ? (d.songs.toList()..shuffle()) : d.songs;
-    await Get.find<PlayerController>()
+    final ok = await Get.find<PlayerController>()
         .playPlayListSong(cloud.toMediaItems(list), 0);
+    if (!ok) snackOperationFailed();
   }
 
   @override

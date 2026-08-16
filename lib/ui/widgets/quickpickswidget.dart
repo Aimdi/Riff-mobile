@@ -7,6 +7,7 @@ import '../player/player_controller.dart';
 import '../utils/riff_tokens.dart';
 import '../utils/theme_controller.dart';
 import 'image_widget.dart';
+import 'snackbar.dart';
 import 'songinfo_bottom_sheet.dart';
 
 class QuickPicksWidget extends StatelessWidget {
@@ -97,9 +98,10 @@ class QuickPicksWidget extends StatelessWidget {
                         child: InkWell(
                           borderRadius:
                               BorderRadius.circular(RiffTokens.radiusSm),
-                          onTap: () {
-                            playerController.playPlayListSong(
+                          onTap: () async {
+                            final ok = await playerController.playPlayListSong(
                                 content.songList, item);
+                            if (!ok) snackOperationFailed();
                           },
                           onLongPress: () {
                             _openSongSheet(context, playerController, item);

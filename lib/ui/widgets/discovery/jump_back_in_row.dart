@@ -102,9 +102,10 @@ class _JumpBackInRowState extends State<JumpBackInRow> {
                   width: cardSize,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
-                    onTap: () {
-                      Get.find<PlayerController>()
+                    onTap: () async {
+                      final ok = await Get.find<PlayerController>()
                           .playPlayListSong(tracks, i);
+                      if (!ok) snackOperationFailed();
                     },
                     onLongPress: () {
                       final player = Get.find<PlayerController>();
@@ -121,9 +122,11 @@ class _JumpBackInRowState extends State<JumpBackInRow> {
                               ListTile(
                                 leading: const Icon(Icons.play_arrow_rounded),
                                 title: Text('play'.tr),
-                                onTap: () {
+                                onTap: () async {
                                   Navigator.pop(ctx);
-                                  player.playPlayListSong(tracks, i);
+                                  final ok =
+                                      await player.playPlayListSong(tracks, i);
+                                  if (!ok) snackOperationFailed();
                                 },
                               ),
                               ListTile(

@@ -8,6 +8,7 @@ import '/services/music_service.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/widgets/snackbar.dart';
 import 'podcast_empty_state.dart';
 import 'podcast_queue_screen.dart';
 import 'podcasts_library_controller.dart';
@@ -157,13 +158,15 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     return all;
   }
 
-  void _play(int index) {
-    Get.find<PlayerController>().playPlayListSong(_episodes, index);
+  Future<void> _play(int index) async {
+    final ok =
+        await Get.find<PlayerController>().playPlayListSong(_episodes, index);
+    if (!ok) snackOperationFailed();
   }
 
   /// Resume an in-progress episode and queue the rest of that show (or the
   /// inbox from that point) so continuous playback doesn't stop after one.
-  void _playContinue(MediaItem item) {
+  Future<void> _playContinue(MediaItem item) async {
     final pc = Get.find<PlayerController>();
     final show = (item.artist ?? '').trim();
 
@@ -172,18 +175,22 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
           _episodes.where((e) => (e.artist ?? '').trim() == show).toList();
       final i = same.indexWhere((e) => e.id == item.id);
       if (i >= 0) {
-        pc.playPlayListSong(same, i);
+        final ok = await pc.playPlayListSong(same, i);
+        if (!ok) snackOperationFailed();
         return;
       }
       if (same.isNotEmpty) {
-        pc.playPlayListSong(
+        final ok = await pc.playPlayListSong(
             [item, ...same.where((e) => e.id != item.id)], 0);
+        if (!ok) snackOperationFailed();
         return;
       }
     }
 
     final idx = _episodes.indexWhere((e) => e.id == item.id);
-    pc.playPlayListSong(idx >= 0 ? _episodes : [item], idx >= 0 ? idx : 0);
+    final ok = await pc.playPlayListSong(
+        idx >= 0 ? _episodes : [item], idx >= 0 ? idx : 0);
+    if (!ok) snackOperationFailed();
   }
 
   String _remainingLabel(MediaItem e) {

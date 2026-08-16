@@ -281,8 +281,11 @@ class PodcastQueueScreen extends StatelessWidget {
       // Match Inbox rhythm: 16 content inset; drag handle sits in the gutter.
       padding: const EdgeInsets.only(left: 8, right: 16),
       child: InkWell(
-        onTap: () =>
-            Get.find<PlayerController>().playPlayListSong(items(controller), i),
+        onTap: () async {
+          final ok = await Get.find<PlayerController>()
+              .playPlayListSong(items(controller), i);
+          if (!ok) snackOperationFailed();
+        },
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: Row(

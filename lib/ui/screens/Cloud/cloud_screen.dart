@@ -622,8 +622,11 @@ class CloudSongTile extends StatelessWidget {
           ));
         },
       ),
-      onTap: () => Get.find<PlayerController>()
-          .playPlayListSong(cloud.toMediaItems(songs), index),
+      onTap: () async {
+        final ok = await Get.find<PlayerController>()
+            .playPlayListSong(cloud.toMediaItems(songs), index);
+        if (!ok) snackOperationFailed();
+      },
     );
   }
 }
