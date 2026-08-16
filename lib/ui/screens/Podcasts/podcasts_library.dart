@@ -788,7 +788,14 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
     final color = _categoryColors[i % _categoryColors.length];
     return InkWell(
       borderRadius: BorderRadius.circular(22),
-      onTap: () => Get.to(
+      onTap: () async {
+        if (shouldPlayPodcastShowOnTap()) {
+          final ok = await playFirstPodcastInGenre(genreId);
+          if (ok) return;
+        }
+        Get.to(() => PodcastCategoryScreen(genreId: genreId, name: name));
+      },
+      onLongPress: () => Get.to(
           () => PodcastCategoryScreen(genreId: genreId, name: name)),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14),

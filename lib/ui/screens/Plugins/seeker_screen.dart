@@ -7,6 +7,7 @@ import '/services/soulseek/soulseek_cover_service.dart';
 import '/services/soulseek/soulseek_search.dart';
 import '/services/soulseek_service.dart';
 import '/ui/navigator.dart';
+import '/ui/screens/Plugins/soulseek_play.dart';
 import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/snackbar.dart';
 
@@ -286,7 +287,7 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
     }
   }
 
-  Future<void> _download(SoulseekFile hit) async {
+  Future<void> _download(SoulseekFile hit, {bool play = false}) async {
     final key = '${hit.username}|${hit.filename}';
     setState(() {
       _downloadingKey = key;
@@ -295,6 +296,11 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
     try {
       // Progress not plumbed through service yet — keep indeterminate-ish.
       final file = await Get.find<SoulseekService>().download(hit);
+      if (!mounted) return;
+      if (play && shouldPlaySoulseekOnTap()) {
+        final ok = await playSoulseekFile(hit, file);
+        if (ok || !mounted) return;
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         snackbar(
@@ -560,6 +566,7 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
           accent: accent,
           busy: busy,
           onDownload: () => _download(hit),
+          onPlay: () => _download(hit, play: true),
         );
       },
     );
@@ -582,7 +589,10 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
             ListTile(
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              onTap: () => setState(() {
+              onTap: folder.files.isEmpty
+                  ? null
+                  : () => _download(folder.files.first, play: true),
+              onLongPress: () => setState(() {
                 if (expanded) {
                   _expandedAlbums.remove(id);
                 } else {
@@ -636,8 +646,18 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
                           )
                         : Icon(Icons.download_outlined, color: accent),
                   ),
-                  Icon(
-                    expanded ? Icons.expand_less : Icons.expand_more,
+                  IconButton(
+                    tooltip: expanded ? 'showLess'.tr : 'seeMore'.tr,
+                    onPressed: () => setState(() {
+                      if (expanded) {
+                        _expandedAlbums.remove(id);
+                      } else {
+                        _expandedAlbums.add(id);
+                      }
+                    }),
+                    icon: Icon(
+                      expanded ? Icons.expand_less : Icons.expand_more,
+                    ),
                   ),
                 ],
               ),
@@ -654,6 +674,7 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
                       accent: accent,
                       busy: _downloadingKey == key,
                       onDownload: () => _download(hit),
+                      onPlay: () => _download(hit, play: true),
                       compact: true,
                     ),
                   );
@@ -674,6 +695,7 @@ class _SongResultTile extends StatelessWidget {
     required this.accent,
     required this.busy,
     required this.onDownload,
+    required this.onPlay,
     this.compact = false,
   });
 
@@ -682,6 +704,7 @@ class _SongResultTile extends StatelessWidget {
   final Color accent;
   final bool busy;
   final VoidCallback onDownload;
+  final VoidCallback onPlay;
   final bool compact;
 
   @override
@@ -699,6 +722,7 @@ class _SongResultTile extends StatelessWidget {
 
     return ListTile(
       dense: compact,
+      onTap: busy ? null : onPlay,
       contentPadding: EdgeInsets.symmetric(
         horizontal: compact ? 4 : 4,
         vertical: compact ? 0 : 4,

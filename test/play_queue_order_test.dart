@@ -137,4 +137,43 @@ void main() {
     expect(canSaveQueueAsPlaylist(0), isFalse);
     expect(canSaveQueueAsPlaylist(3), isTrue);
   });
+
+  test('new playlist name uses the lead track and date for a queue', () {
+    expect(defaultNewPlaylistName(songItems: const []), isEmpty);
+    expect(
+      defaultNewPlaylistName(songItems: [song('only')]),
+      'only',
+    );
+    expect(
+      defaultNewPlaylistName(
+        songItems: [song('First'), song('Second')],
+        now: DateTime(2026, 8, 16),
+      ),
+      'First · 2026-08-16',
+    );
+  });
+
+  test('optimistic fav is kept while the same song is writing', () {
+    expect(
+      shouldKeepOptimisticFav(
+        currentSongId: 'a',
+        persistSongId: 'a',
+      ),
+      isTrue,
+    );
+    expect(
+      shouldKeepOptimisticFav(
+        currentSongId: 'a',
+        persistSongId: 'b',
+      ),
+      isFalse,
+    );
+    expect(
+      shouldKeepOptimisticFav(
+        currentSongId: 'a',
+        persistSongId: null,
+      ),
+      isFalse,
+    );
+  });
 }

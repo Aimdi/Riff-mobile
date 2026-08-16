@@ -1565,9 +1565,17 @@ class PlayerController extends GetxController
     return Hive.openBox("LIBFAV");
   }
 
+  String? _favPersistSongId;
+
   Future<void> _checkFav() async {
     final song = currentSong.value;
     if (song == null) return;
+    if (shouldKeepOptimisticFav(
+      currentSongId: song.id,
+      persistSongId: _favPersistSongId,
+    )) {
+      return;
+    }
     // Fast path: LIBFAV is opened at startup and stays open.
     if (Hive.isBoxOpen("LIBFAV")) {
       isCurrentSongFav.value = _libFavBoxSync().containsKey(song.id);
@@ -1591,8 +1599,11 @@ class PlayerController extends GetxController
     final nextAdding = adding ?? !currentlyFav;
     if (isCurrent) {
       isCurrentSongFav.value = nextAdding;
+      _favPersistSongId = song.id;
     }
-    unawaited(_persistFavourite(song, nextAdding));
+    unawaited(_persistFavourite(song, nextAdding).whenComplete(() {
+      if (_favPersistSongId == song.id) _favPersistSongId = null;
+    }));
     if (Get.isRegistered<DiscoveryService>()) {
       Get.find<DiscoveryService>().onFavorite(song, add: nextAdding);
     }

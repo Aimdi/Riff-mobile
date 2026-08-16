@@ -5,6 +5,7 @@ import 'package:widget_marquee/widget_marquee.dart';
 
 import '/services/piped_service.dart';
 import '../screens/Library/library_controller.dart';
+import '/ui/player/play_queue_order.dart';
 import '/ui/widgets/snackbar.dart';
 import '../../models/playlist.dart';
 import 'common_dialog_widget.dart';
@@ -26,7 +27,9 @@ class CreateNRenamePlaylistPopup extends StatelessWidget {
   Widget build(BuildContext context) {
     final librPlstCntrller = Get.find<LibraryPlaylistsController>();
     librPlstCntrller.changeCreationMode("local");
-    librPlstCntrller.textInputController.text = "";
+    librPlstCntrller.textInputController.text = renamePlaylist
+        ? ""
+        : defaultNewPlaylistName(songItems: songItems);
     final isPipedLinked = Get.find<PipedServices>().isLoggedIn;
     return CommonDialog(
       child: Container(
