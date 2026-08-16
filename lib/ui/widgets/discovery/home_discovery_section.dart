@@ -271,6 +271,22 @@ class _DiscoveryCard extends StatelessWidget {
                         },
                       ),
                     ListTile(
+                      leading: const Icon(Icons.playlist_play),
+                      title: Text('playNext'.tr),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        player.playNext(song);
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.sensors),
+                      title: Text('startRadio'.tr),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        player.startRadio(song);
+                      },
+                    ),
+                    ListTile(
                       leading: const Icon(Icons.thumb_up_outlined),
                       title: Text("thumbsUp".tr),
                       onTap: () {
@@ -582,7 +598,13 @@ class HomeShortcutGrid extends StatelessWidget {
       _ShortcutItem(
         title: 'downloads'.tr,
         icon: Icons.download_outlined,
-        onTap: () => _openLibraryPlaylist('SongDownloads', 'downloads'.tr),
+        onTap: () => _playLibraryBox(
+          context,
+          id: 'SongDownloads',
+          title: 'downloads'.tr,
+        ),
+        onLongPress: () =>
+            _openLibraryPlaylist('SongDownloads', 'downloads'.tr),
       ),
     ];
 

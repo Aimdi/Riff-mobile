@@ -677,7 +677,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   @override
   Future<void> skipToPrevious() async {
-    if (_player.position.inMilliseconds > 5000) {
+    if (shouldRestartOnPrevious(_player.position)) {
       _player.seek(Duration.zero);
       return;
     }

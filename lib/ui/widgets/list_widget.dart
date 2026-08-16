@@ -23,6 +23,10 @@ bool shouldPlaySearchRowsAsQueue({
 }) =>
     !isCompleteList || title.contains('Songs');
 
+/// Search album/playlist long-press play actions (plus Ban).
+List<String> wideCollectionLongPressPlayKeys() =>
+    const ['play', 'shuffle', 'playNext', 'startRadio'];
+
 class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
   const ListWidget(this.items, this.title, this.isCompleteList,
       {super.key,
@@ -398,6 +402,33 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
     if (!ok) _openWideTile(album: album, playlist: playlist);
   }
 
+  Future<void> _queueWideTile({
+    dynamic album,
+    dynamic playlist,
+    required bool radio,
+  }) async {
+    final isAlbum = album != null;
+    final id = isAlbum
+        ? album.browseId?.toString() ?? ''
+        : playlist.playlistId?.toString() ?? '';
+    final tracks = await loadCollectionPlayTracks(
+      isAlbum: isAlbum,
+      id: id,
+      isPipedPlaylist: !isAlbum && playlist.isPipedPlaylist == true,
+      isCloudPlaylist: isAlbum || playlist.isCloudPlaylist != false,
+    );
+    if (tracks.isEmpty || !Get.isRegistered<PlayerController>()) {
+      _openWideTile(album: album, playlist: playlist);
+      return;
+    }
+    final player = Get.find<PlayerController>();
+    if (radio) {
+      await player.startRadio(tracks.first);
+      return;
+    }
+    player.playNextList(tracks);
+  }
+
   Widget wideListTile(BuildContext context,
       {dynamic album,
       dynamic playlist,
@@ -434,6 +465,24 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
                 Navigator.of(ctx).pop();
                 _playWideTile(
                     album: album, playlist: playlist, shuffle: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.playlist_play),
+              title: Text('playNext'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _queueWideTile(
+                    album: album, playlist: playlist, radio: false);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.sensors),
+              title: Text('startRadio'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _queueWideTile(
+                    album: album, playlist: playlist, radio: true);
               },
             ),
             ListTile(

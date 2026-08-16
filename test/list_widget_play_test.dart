@@ -33,6 +33,13 @@ void main() {
     expect(shouldShowTabPlayAllHeader('Artists'), isFalse);
   });
 
+  test('search album/playlist long-press offers play next and radio', () {
+    expect(
+      wideCollectionLongPressPlayKeys(),
+      ['play', 'shuffle', 'playNext', 'startRadio'],
+    );
+  });
+
   test('complete non-Songs lists keep radio/single-tap path', () {
     expect(
       shouldPlaySearchRowsAsQueue(isCompleteList: true, title: 'Videos'),

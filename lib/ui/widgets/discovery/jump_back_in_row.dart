@@ -105,6 +105,47 @@ class _JumpBackInRowState extends State<JumpBackInRow> {
                       Get.find<PlayerController>()
                           .playPlayListSong(tracks, i);
                     },
+                    onLongPress: () {
+                      final player = Get.find<PlayerController>();
+                      showModalBottomSheet<void>(
+                        context: context,
+                        useRootNavigator: true,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.vertical(top: Radius.circular(10)),
+                        ),
+                        builder: (ctx) => SafeArea(
+                          child: Wrap(
+                            children: [
+                              ListTile(
+                                leading: const Icon(Icons.play_arrow_rounded),
+                                title: Text('play'.tr),
+                                onTap: () {
+                                  Navigator.pop(ctx);
+                                  player.playPlayListSong(tracks, i);
+                                },
+                              ),
+                              ListTile(
+                                leading: const Icon(Icons.playlist_play),
+                                title: Text('playNext'.tr),
+                                onTap: () {
+                                  Navigator.pop(ctx);
+                                  player.playNext(song);
+                                },
+                              ),
+                              ListTile(
+                                leading: const Icon(Icons.sensors),
+                                title: Text('startRadio'.tr),
+                                onTap: () {
+                                  Navigator.pop(ctx);
+                                  player.startRadio(song);
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

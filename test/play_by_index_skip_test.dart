@@ -53,4 +53,11 @@ void main() {
       isFalse,
     );
   });
+
+  test('previous restarts after 3 seconds, else skips back', () {
+    expect(shouldRestartOnPrevious(Duration.zero), isFalse);
+    expect(shouldRestartOnPrevious(const Duration(milliseconds: 3000)), isFalse);
+    expect(shouldRestartOnPrevious(const Duration(milliseconds: 3001)), isTrue);
+    expect(shouldRestartOnPrevious(const Duration(seconds: 5)), isTrue);
+  });
 }

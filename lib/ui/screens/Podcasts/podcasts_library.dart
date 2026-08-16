@@ -884,7 +884,7 @@ class _EpisodeDiscoveryRow extends StatelessWidget {
                 width: 130,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(8),
-                  onTap: () => player.pushSongToQueue(ep),
+                  onTap: () => player.playPlayListSong(episodes, i),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
