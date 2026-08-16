@@ -67,6 +67,7 @@ class SearchScreen extends StatelessWidget {
                     Get.toNamed(ScreenNavigationSetup.searchResultScreen,
                         id: ScreenNavigationSetup.id, arguments: q);
                   },
+                  onPlayFailed: () => showSearchPlayFailed(context),
                 );
               },
               autofocus: true,

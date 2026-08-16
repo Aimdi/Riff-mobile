@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/ui/widgets/content_list_widget.dart';
+import '/ui/widgets/empty_play_hint.dart';
 import 'home_screen_controller.dart';
 
 /// Full-page browse destination for Home's former editorial carousels
@@ -64,7 +65,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         ),
       ),
       body: shelves.isEmpty
-          ? Center(child: Text('discoverEmptyDes'.tr))
+          ? EmptyPlayHint(message: 'discoverEmptyDes'.tr)
           : ListView.builder(
               controller: _scroll,
               padding: const EdgeInsets.only(left: 12, right: 12, bottom: 200),

@@ -40,14 +40,22 @@ void main() {
     );
   });
 
-  test('complete non-Songs lists keep radio/single-tap path', () {
+  test('complete Videos and Episodes lists play as a queue', () {
     expect(
       shouldPlaySearchRowsAsQueue(isCompleteList: true, title: 'Videos'),
-      isFalse,
+      isTrue,
     );
     expect(
       shouldPlaySearchRowsAsQueue(isCompleteList: true, title: 'Episodes'),
-      isFalse,
+      isTrue,
     );
+  });
+
+  test('empty list copy uses existing localization keys', () {
+    expect(emptyListLabelKey('Songs'), 'emptyPlaylist');
+    expect(emptyListLabelKey('Videos'), 'emptyPlaylist');
+    expect(emptyListLabelKey('Episodes'), 'emptyPlaylist');
+    expect(emptyListLabelKey('Albums'), 'noBookmarks');
+    expect(emptyListLabelKey('Artists'), 'noBookmarks');
   });
 }

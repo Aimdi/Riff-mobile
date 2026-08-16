@@ -124,18 +124,26 @@ class _MiniPlayerArt extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
           song != null
-              ? Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: RiffSurfaces.hairline,
-                      width: RiffTokens.hairline,
+              ? GestureDetector(
+                  onLongPress: () {
+                    showCurrentSongSheet(
+                      song: song,
+                      context: playerController.homeScaffoldkey.currentContext,
+                    );
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: RiffSurfaces.hairline,
+                        width: RiffTokens.hairline,
+                      ),
                     ),
-                  ),
-                  child: ImageWidget(
-                    size: 50,
-                    song: song,
-                    borderRadius: 8,
+                    child: ImageWidget(
+                      size: 50,
+                      song: song,
+                      borderRadius: 8,
+                    ),
                   ),
                 )
               : const SizedBox(

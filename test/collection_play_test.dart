@@ -3,6 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/ui/widgets/collection_play.dart';
 
 void main() {
+  test('collection cards play on the body tap', () {
+    expect(shouldPlayCollectionOnTap(), isTrue);
+  });
+
   test('system library playlist ids', () {
     expect(isSystemLibraryPlaylistId('LIBFAV'), isTrue);
     expect(isSystemLibraryPlaylistId('LIBRP'), isTrue);

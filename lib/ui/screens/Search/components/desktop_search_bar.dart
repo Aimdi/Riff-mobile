@@ -38,6 +38,7 @@ class DesktopSearchBar extends StatelessWidget {
                       id: ScreenNavigationSetup.id, arguments: q);
                 },
                 onAfterSubmit: searchScreenController.focusNode.unfocus,
+                onPlayFailed: () => showSearchPlayFailed(context),
               );
             },
             focusNode: searchScreenController.focusNode,

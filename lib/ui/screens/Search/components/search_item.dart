@@ -21,13 +21,31 @@ class SearchItem extends StatelessWidget {
     return ListTile(
       contentPadding: const EdgeInsets.only(left: 10, right: 4),
       onTap: () {
-        Get.toNamed(ScreenNavigationSetup.searchResultScreen,
-            id: ScreenNavigationSetup.id, arguments: queryString);
-        searchScreenController.addToHistryQueryList(queryString);
-        // for Desktop searchbar
-        if (GetPlatform.isDesktop) {
-          searchScreenController.focusNode.unfocus();
+        if (!shouldPlaySearchItemOnTap()) {
+          Get.toNamed(ScreenNavigationSetup.searchResultScreen,
+              id: ScreenNavigationSetup.id, arguments: queryString);
+          searchScreenController.addToHistryQueryList(queryString);
+          if (GetPlatform.isDesktop) {
+            searchScreenController.focusNode.unfocus();
+          }
+          return;
         }
+        submitSearchQuery(
+          queryString,
+          onLink: (_) {
+            Get.toNamed(ScreenNavigationSetup.searchResultScreen,
+                id: ScreenNavigationSetup.id, arguments: queryString);
+          },
+          onRemember: searchScreenController.addToHistryQueryList,
+          onOpenResults: (q) {
+            Get.toNamed(ScreenNavigationSetup.searchResultScreen,
+                id: ScreenNavigationSetup.id, arguments: q);
+          },
+          onAfterSubmit: GetPlatform.isDesktop
+              ? searchScreenController.focusNode.unfocus
+              : null,
+          onPlayFailed: () => showSearchPlayFailed(context),
+        );
       },
       leading: Icon(
         isHistoryString ? Icons.history : Icons.search,
@@ -49,13 +67,20 @@ class SearchItem extends StatelessWidget {
             constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
             padding: EdgeInsets.zero,
             visualDensity: const VisualDensity(horizontal: -4, vertical: -2),
-            onPressed: () async {
-              searchScreenController.addToHistryQueryList(queryString);
-              final ok = await playTopSongResult(queryString);
-              if (!ok) {
-                Get.toNamed(ScreenNavigationSetup.searchResultScreen,
-                    id: ScreenNavigationSetup.id, arguments: queryString);
-              }
+            onPressed: () {
+              submitSearchQuery(
+                queryString,
+                onLink: (_) {
+                  Get.toNamed(ScreenNavigationSetup.searchResultScreen,
+                      id: ScreenNavigationSetup.id, arguments: queryString);
+                },
+                onRemember: searchScreenController.addToHistryQueryList,
+                onOpenResults: (q) {
+                  Get.toNamed(ScreenNavigationSetup.searchResultScreen,
+                      id: ScreenNavigationSetup.id, arguments: q);
+                },
+                onPlayFailed: () => showSearchPlayFailed(context),
+              );
             },
             icon: Icon(Icons.play_arrow, color: iconColor),
           ),

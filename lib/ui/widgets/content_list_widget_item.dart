@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../navigator.dart';
+import '../player/player_controller.dart';
 import '../utils/riff_tokens.dart';
 import '../utils/theme_controller.dart';
 import 'collection_play.dart';
@@ -82,6 +83,26 @@ class ContentListItem extends StatelessWidget {
     }
   }
 
+  Future<void> _queueFromSheet({required bool radio}) async {
+    final tracks = await loadCollectionPlayTracks(
+      isAlbum: _isAlbum,
+      id: _collectionId,
+      isLibraryItem: isLibraryItem,
+      isPipedPlaylist: !_isAlbum && content.isPipedPlaylist == true,
+      isCloudPlaylist: _isAlbum || content.isCloudPlaylist != false,
+    );
+    if (tracks.isEmpty || !Get.isRegistered<PlayerController>()) {
+      _openContent();
+      return;
+    }
+    final player = Get.find<PlayerController>();
+    if (radio) {
+      await player.startRadio(tracks.first);
+      return;
+    }
+    player.playNextList(tracks);
+  }
+
   void _showPlaySheet(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
@@ -106,6 +127,22 @@ class ContentListItem extends StatelessWidget {
               onTap: () {
                 Navigator.of(ctx).pop();
                 _playFromOverlay(shuffle: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.playlist_play),
+              title: Text('playNext'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _queueFromSheet(radio: false);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.sensors),
+              title: Text('startRadio'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _queueFromSheet(radio: true);
               },
             ),
             ListTile(
@@ -205,7 +242,7 @@ class ContentListItem extends StatelessWidget {
     return InkWell(
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
-      onTap: _openContent,
+      onTap: shouldPlayCollectionOnTap() ? _playFromOverlay : _openContent,
       onLongPress: () => _showPlaySheet(context),
       child: SizedBox(
         width: 112,
