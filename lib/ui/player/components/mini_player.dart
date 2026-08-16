@@ -532,15 +532,11 @@ class _MiniPlayerWideExtras extends StatelessWidget {
                   width: 10,
                 ),
                 IconButton(
+                  tooltip: 'addToPlaylist'.tr,
                   onPressed: () {
                     final currentSong = playerController.currentSong.value;
-                    if (currentSong != null) {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AddToPlaylist([currentSong]),
-                      ).whenComplete(
-                          () => Get.delete<AddToPlaylistController>());
-                    }
+                    if (currentSong == null) return;
+                    showAddToPlaylistSheet(context, [currentSong]);
                   },
                   icon: const Icon(Icons.playlist_add),
                 ),

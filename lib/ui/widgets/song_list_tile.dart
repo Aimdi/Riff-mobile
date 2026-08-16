@@ -86,10 +86,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
           startActionPane: ActionPane(motion: const DrawerMotion(), children: [
             SlidableAction(
               onPressed: (context) {
-                showDialog(
-                  context: context,
-                  builder: (context) => AddToPlaylist([song]),
-                ).whenComplete(() => Get.delete<AddToPlaylistController>());
+                showAddToPlaylistSheet(context, [song]);
               },
               backgroundColor: Theme.of(context).colorScheme.secondary,
               foregroundColor: Theme.of(context).textTheme.titleMedium!.color,
@@ -250,6 +247,23 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                             ],
                           );
                         }),
+                        IconButton(
+                          tooltip: 'addToPlaylist'.tr,
+                          iconSize: 20,
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                          splashRadius: 18,
+                          onPressed: () =>
+                              showAddToPlaylistSheet(context, [song]),
+                          icon: Icon(
+                            Icons.playlist_add,
+                            color: muted,
+                          ),
+                        ),
                         if (GetPlatform.isDesktop)
                           IconButton(
                             splashRadius: 20,

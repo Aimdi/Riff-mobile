@@ -190,15 +190,7 @@ class SongInfoBottomSheet extends StatelessWidget {
               title: Text("addToPlaylist".tr),
               onTap: () {
                 Navigator.of(context).pop();
-                showDialog(
-                  context: context,
-                  builder: (context) => AddToPlaylist([song]),
-                ).whenComplete(() {
-                  if (Get.isRegistered<DiscoveryService>()) {
-                    Get.find<DiscoveryService>().onPlaylistAdd(song);
-                  }
-                  Get.delete<AddToPlaylistController>();
-                });
+                showAddToPlaylistSheet(context, [song]);
               },
             ),
             (calledFromPlayer || calledFromQueue)

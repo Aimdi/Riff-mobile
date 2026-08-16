@@ -7,6 +7,7 @@ import '/ui/player/components/animated_play_button.dart';
 import '/ui/player/components/podcast_transcript_sheet.dart';
 import '/ui/utils/theme_controller.dart';
 import '../../screens/Settings/settings_screen_controller.dart';
+import '../../widgets/add_to_playlist.dart';
 import '../../widgets/discovery/player_similar_row.dart';
 import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/snackbar.dart';
@@ -108,13 +109,22 @@ class PlayerControlWidget extends StatelessWidget {
                   }),
                 ),
               ),
-              SizedBox(
-                width: 45,
-                child: FavoriteHeartButton(
-                  isFav: playerController.isCurrentSongFav,
-                  onToggleFav: playerController.toggleFavourite,
-                  song: () => playerController.currentSong.value,
+              FavoriteHeartButton(
+                isFav: playerController.isCurrentSongFav,
+                onToggleFav: playerController.toggleFavourite,
+                song: () => playerController.currentSong.value,
+              ),
+              IconButton(
+                tooltip: 'addToPlaylist'.tr,
+                icon: Icon(
+                  Icons.playlist_add,
+                  color: Theme.of(context).textTheme.titleMedium?.color,
                 ),
+                onPressed: () {
+                  final song = playerController.currentSong.value;
+                  if (song == null) return;
+                  showAddToPlaylistSheet(context, [song]);
+                },
               ),
             ],
           ),
