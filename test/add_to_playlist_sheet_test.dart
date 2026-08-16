@@ -8,6 +8,38 @@ import 'package:harmonymusic/ui/widgets/add_to_playlist.dart';
 void main() {
   tearDown(Get.reset);
 
+  test('playlist add copy matches the outcome', () {
+    expect(
+      playlistAddMessageKey(PlaylistAddOutcome.added),
+      'songAddedToPlaylistAlert',
+    );
+    expect(
+      playlistAddMessageKey(PlaylistAddOutcome.alreadyIn),
+      'songAlreadyExists',
+    );
+    expect(
+      playlistAddMessageKey(PlaylistAddOutcome.failed),
+      'networkError',
+    );
+  });
+
+  test('countNewPlaylistSongs only counts ids that are not already there', () {
+    expect(
+      countNewPlaylistSongs(
+        existingIds: ['a', 'b'],
+        incomingIds: ['b', 'c', 'd'],
+      ),
+      2,
+    );
+    expect(
+      countNewPlaylistSongs(
+        existingIds: ['a'],
+        incomingIds: ['a'],
+      ),
+      0,
+    );
+  });
+
   test('system library ids include Liked Songs and recents', () {
     expect(isSystemLibraryPlaylistId('LIBFAV'), isTrue);
     expect(isSystemLibraryPlaylistId('LIBRP'), isTrue);

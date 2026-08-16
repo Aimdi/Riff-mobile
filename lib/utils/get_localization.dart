@@ -4666,6 +4666,7 @@ Map<String, Map<String, String>> get keys => {
     "items": "items",
     "networkError1": "Oops network error!",
     "retry": "Retry!",
+    "skip": "Skip",
     "noOfflineSong": "No offline songs!",
     "recentlyPlayed": "Recently played",
     "jumpBackIn": "Jump back in",

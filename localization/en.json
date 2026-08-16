@@ -64,6 +64,7 @@
     "items": "items",
     "networkError1": "Oops network error!",
     "retry": "Retry!",
+    "skip": "Skip",
     "noOfflineSong": "No offline songs!",
     "recentlyPlayed": "Recently played",
     "jumpBackIn": "Jump back in",

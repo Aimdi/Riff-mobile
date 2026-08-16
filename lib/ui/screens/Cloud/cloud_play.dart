@@ -17,17 +17,43 @@ bool shouldShowCloudSongsPlayBar({
 Future<bool> playCloudSongs(
   List<MediaItem> songs, {
   required bool shuffle,
+  String? name,
+  PlaylingFromType type = PlaylingFromType.PLAYLIST,
 }) async {
   if (songs.isEmpty || !Get.isRegistered<PlayerController>()) return false;
   await Get.find<PlayerController>().playPlayListSong(
     playQueueFrom(songs, shuffle: shuffle),
     0,
     playfrom: PlaylingFrom(
-      type: PlaylingFromType.PLAYLIST,
-      name: 'cloudRandomMix'.tr,
+      type: type,
+      name: name ?? 'cloudRandomMix'.tr,
     ),
   );
   return true;
+}
+
+/// Fetch a cloud album/playlist and play it. Returns false so the caller
+/// can open the collection screen instead.
+Future<bool> playCloudCollection({
+  required CloudMusicService cloud,
+  required String id,
+  required bool isPlaylist,
+  required String title,
+}) async {
+  if (!Get.isRegistered<PlayerController>()) return false;
+  try {
+    final detail =
+        isPlaylist ? await cloud.fetchPlaylist(id) : await cloud.fetchAlbum(id);
+    if (detail.songs.isEmpty) return false;
+    return playCloudSongs(
+      cloud.toMediaItems(detail.songs),
+      shuffle: false,
+      name: title,
+      type: isPlaylist ? PlaylingFromType.PLAYLIST : PlaylingFromType.ALBUM,
+    );
+  } catch (_) {
+    return false;
+  }
 }
 
 /// Re-roll the server mix and start it.

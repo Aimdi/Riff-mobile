@@ -35,7 +35,7 @@ class PlaybackErrorActions extends StatelessWidget {
         TextButton(
           onPressed: playerController.skipFailedPlayback,
           style: style,
-          child: const Text('Skip'),
+          child: Text('skip'.tr),
         ),
       ],
     );
