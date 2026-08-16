@@ -4,12 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/ui/player/components/backgroud_image.dart';
 import 'package:ionicons/ionicons.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
 import '../../widgets/favorite_heart_button.dart';
+import '../../widgets/lyrics_dialog.dart';
+import '../../widgets/sleep_timer_bottom_sheet.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
 import '../../utils/riff_tokens.dart';
 import '../../utils/theme_controller.dart';
+import '/utils/content_filters.dart';
 import '../player_controller.dart';
 import '../player_media_nav.dart';
 import 'playback_error_actions.dart';
@@ -244,6 +248,62 @@ class GesturePlayer extends StatelessWidget {
                       const SizedBox(
                         height: 5,
                       ),
+                      Obx(() {
+                        final song = playerController.currentSong.value;
+                        if (song == null) return const SizedBox.shrink();
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            IconButton(
+                              tooltip: 'lyrics'.tr,
+                              iconSize: 20,
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () {
+                                playerController.showLyrics();
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => const LyricsDialog(),
+                                ).whenComplete(() {
+                                  playerController.isDesktopLyricsDialogOpen =
+                                      false;
+                                  playerController.showLyricsflag.value = false;
+                                });
+                                playerController.isDesktopLyricsDialogOpen =
+                                    true;
+                              },
+                              icon: Icon(
+                                playerController.showLyricsflag.isTrue
+                                    ? Icons.lyrics
+                                    : Icons.lyrics_outlined,
+                                color: RiffSurfaces.textPrimary,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'shareSong'.tr,
+                              iconSize: 20,
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () =>
+                                  Share.share(SongLinkShare.shareText(song)),
+                              icon: const Icon(
+                                Icons.share,
+                                color: RiffSurfaces.textPrimary,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'sleepTimer'.tr,
+                              iconSize: 20,
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () => showSleepTimerSheet(context),
+                              icon: Icon(
+                                playerController.isSleepTimerActive.isTrue
+                                    ? Icons.timer
+                                    : Icons.timer_outlined,
+                                color: RiffSurfaces.textPrimary,
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
                       Obx(() {
                         final err = playerController.playbackError.value;
                         if (err == null || err.isEmpty) {

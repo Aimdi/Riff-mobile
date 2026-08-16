@@ -1,5 +1,8 @@
 {
     "home": "Home",
+    "goodMorning": "Good morning",
+    "goodAfternoon": "Good afternoon",
+    "goodEvening": "Good evening",
     "songs": "Songs",
     "podcasts": "Podcasts",
     "audiobooks": "Audiobooks",

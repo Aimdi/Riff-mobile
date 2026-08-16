@@ -1,4 +1,5 @@
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/material.dart';
 
 /// Copy [songs] into a playable queue. When [shuffle] is true the copy is
 /// shuffled in place so the original list (Hive / controller) stays stable.
@@ -31,3 +32,11 @@ List<MediaItem> playNextBatchOrder(Iterable<MediaItem> songs) =>
 /// Sleep-timer "stop after this track" copy — episode for long-form.
 String sleepEndLabelKey({required bool longForm}) =>
     longForm ? 'endOfThisEpisode' : 'endOfThisSong';
+
+/// Volume icon for the 0–100 slider (mute / low / high).
+IconData volumeIconFor(int volume) {
+  if (volume <= 0) return Icons.volume_off;
+  if (volume < 50) return Icons.volume_down;
+  return Icons.volume_up;
+}
+

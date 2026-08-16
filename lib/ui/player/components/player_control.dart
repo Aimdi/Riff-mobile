@@ -13,6 +13,7 @@ import '../../widgets/add_to_playlist.dart';
 import '../../widgets/discovery/player_similar_row.dart';
 import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/sleep_timer_bottom_sheet.dart';
+import '../play_queue_order.dart';
 import '../player_controller.dart';
 import '../player_media_nav.dart';
 import 'playback_error_actions.dart';
@@ -261,6 +262,8 @@ class PlayerControlWidget extends StatelessWidget {
           // slider line): it fills with the accent colour as the track plays,
           // shows the elapsed/total time beneath, and is tap/drag seekable.
           const _WaveformScrubber(),
+          if (GetPlatform.isMobile)
+            _mobileVolume(playerController, context),
           Obx(() => playerController.usesLongFormTransport
               ? _podcastControls(playerController, context)
               : _musicControls(playerController, context)),
@@ -272,8 +275,45 @@ class PlayerControlWidget extends StatelessWidget {
         ]);
   }
 
-  /// Compact Radio / Play-next row under transport. Hidden on short screens
-  /// and for podcasts/audiobooks so the panel does not overflow.
+  Widget _mobileVolume(
+      PlayerController playerController, BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 2),
+      child: Obx(() {
+        final volume = playerController.volume.value;
+        return Row(
+          children: [
+            InkWell(
+              onTap: playerController.mute,
+              child: Icon(
+                volumeIconFor(volume),
+                size: 20,
+                color: Theme.of(context).textTheme.titleMedium?.color,
+              ),
+            ),
+            Expanded(
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  trackHeight: 2,
+                  thumbShape:
+                      const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+                  overlayShape:
+                      const RoundSliderOverlayShape(overlayRadius: 10.0),
+                ),
+                child: Slider(
+                  value: (volume / 100).clamp(0.0, 1.0),
+                  onChanged: (value) {
+                    playerController.setVolume((value * 100).toInt());
+                  },
+                ),
+              ),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
   Widget _nowPlayingActions(
       PlayerController playerController, BuildContext context) {
     return Obx(() {
@@ -285,7 +325,7 @@ class PlayerControlWidget extends StatelessWidget {
       final size = MediaQuery.sizeOf(context);
       // Hide on landscape / very short viewports; portrait phones keep the row
       // and Wrap handles narrow widths.
-      if (size.height < 560) return const SizedBox.shrink();
+      if (size.height < 480) return const SizedBox.shrink();
 
       final labelStyle = Theme.of(context).textTheme.labelSmall;
       final color = Theme.of(context).textTheme.titleMedium?.color;

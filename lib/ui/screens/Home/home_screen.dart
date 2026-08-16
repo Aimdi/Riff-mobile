@@ -24,6 +24,7 @@ import '../../../services/discovery/discovery_types.dart';
 import '../../../services/podcast_progress_service.dart';
 import 'home_explore_section.dart';
 import 'home_feed_view_model.dart';
+import 'home_greeting.dart';
 import 'home_screen_controller.dart';
 import 'podcast_continue.dart';
 import '../Settings/settings_screen.dart';
@@ -259,7 +260,7 @@ class _HomeFeed extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'home'.tr,
+                    homeGreetingKey(DateTime.now()).tr,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           letterSpacing: -0.35,
                         ),

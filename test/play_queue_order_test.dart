@@ -1,4 +1,5 @@
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/ui/player/play_queue_order.dart';
 
@@ -52,5 +53,12 @@ void main() {
   test('sleepEndLabelKey switches for long-form', () {
     expect(sleepEndLabelKey(longForm: false), 'endOfThisSong');
     expect(sleepEndLabelKey(longForm: true), 'endOfThisEpisode');
+  });
+
+  test('volumeIconFor maps mute / low / high', () {
+    expect(volumeIconFor(0), Icons.volume_off);
+    expect(volumeIconFor(20), Icons.volume_down);
+    expect(volumeIconFor(50), Icons.volume_up);
+    expect(volumeIconFor(100), Icons.volume_up);
   });
 }

@@ -4602,6 +4602,9 @@ Map<String, Map<String, String>> get keys => {
     "keepScreenOnWhilePlayingDes": "ဖွင့်ထားပါက အသံလှည့်နေစဉ် စက်ပစ္စည်း၏ မျက်နှာပြင် မအိပ်ဘဲ ပွင့်နေပါလိမ့်မည်"
 },"en" : {
     "home": "Home",
+    "goodMorning": "Good morning",
+    "goodAfternoon": "Good afternoon",
+    "goodEvening": "Good evening",
     "songs": "Songs",
     "podcasts": "Podcasts",
     "audiobooks": "Audiobooks",
