@@ -1,3 +1,25 @@
+# 1.7.103
+
+**Playback**
+* Album, playlist, search, Soulseek, torrent, audiobook, Spotify, cloud, and
+  subscription rows play on tap instead of only the overflow play button
+* Play next waits for the song to land in the queue before claiming success
+* Radio skip keeps the station going instead of dying at the last cached track
+* Previous / next report whether the skip actually started
+
+**Honesty**
+* A tap that never resolved a stream, died after the URL was handed off, or
+  failed a video handoff no longer pretends play started
+* Failed video enable resumes the audio track instead of leaving silence
+* Enqueue, play next, ban, playlist add, sleep timer, cache clear, download
+  delete, continue, cloud play, and settings reset snack when they no-op
+* English strings cover Soulseek, podcasts, torrents, mix, and video settings
+
+**Fixes**
+* End-of-track no longer double-skips
+* Shuffle miss and a stale play-by-index no longer leave the player spinning
+* Heart like no longer flips back after a successful save
+
 # 1.7.102
 
 **Playback**
