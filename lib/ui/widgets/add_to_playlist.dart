@@ -89,6 +89,28 @@ Future<void> showAddToPlaylistSheet(
   }
 }
 
+/// What happened when songs were written to a playlist.
+enum PlaylistAddOutcome { added, alreadyIn, failed }
+
+String playlistAddMessageKey(PlaylistAddOutcome outcome) {
+  switch (outcome) {
+    case PlaylistAddOutcome.added:
+      return 'songAddedToPlaylistAlert';
+    case PlaylistAddOutcome.alreadyIn:
+      return 'songAlreadyExists';
+    case PlaylistAddOutcome.failed:
+      return 'networkError';
+  }
+}
+
+int countNewPlaylistSongs({
+  required Iterable<String> existingIds,
+  required Iterable<String> incomingIds,
+}) {
+  final have = existingIds.toSet();
+  return incomingIds.where((id) => !have.contains(id)).length;
+}
+
 Future<bool> addSongsToLikedSongs(List<MediaItem> songs) async {
   final box = Hive.isBoxOpen('LIBFAV')
       ? Hive.box('LIBFAV')
@@ -156,11 +178,12 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
     );
   }
 
-  Future<void> _finish(bool added) async {
+  Future<void> _finish(PlaylistAddOutcome outcome) async {
     if (!mounted) return;
     Navigator.of(context).pop();
-    _snack(added ? 'songAddedToPlaylistAlert'.tr : 'songAlreadyExists'.tr);
-    if (added && Get.isRegistered<DiscoveryService>()) {
+    _snack(playlistAddMessageKey(outcome).tr);
+    if (outcome == PlaylistAddOutcome.added &&
+        Get.isRegistered<DiscoveryService>()) {
       for (final song in widget.songItems) {
         Get.find<DiscoveryService>().onPlaylistAdd(song);
       }
@@ -171,7 +194,9 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
     if (_busy) return;
     setState(() => _busy = true);
     final added = await addSongsToLikedSongs(widget.songItems);
-    await _finish(added);
+    await _finish(
+      added ? PlaylistAddOutcome.added : PlaylistAddOutcome.alreadyIn,
+    );
   }
 
   Future<void> _addToPlaylist(Playlist playlist) async {
@@ -180,12 +205,12 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
     final controller = _controller();
     controller.playlistType.value =
         playlist.isPipedPlaylist ? 'piped' : 'local';
-    final added = await controller.addSongsToPlaylist(
+    final outcome = await controller.addSongsToPlaylist(
       widget.songItems,
       playlist.playlistId,
       context,
     );
-    await _finish(added);
+    await _finish(outcome);
   }
 
   void _createPlaylist() {
@@ -477,20 +502,14 @@ class AddToPlaylist extends StatelessWidget {
                                       (addToPlaylistController.playlists[index])
                                           .playlistId,
                                       context)
-                                  .then((value) {
+                                  .then((outcome) {
                                 if (!context.mounted) return;
-                                if (value) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      snackbar(context,
-                                          "songAddedToPlaylistAlert".tr,
-                                          size: SanckBarSize.MEDIUM));
-                                  Navigator.of(context).pop();
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      snackbar(context, "songAlreadyExists".tr,
-                                          size: SanckBarSize.MEDIUM));
-                                  Navigator.of(context).pop();
-                                }
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    snackbar(
+                                        context,
+                                        playlistAddMessageKey(outcome).tr,
+                                        size: SanckBarSize.MEDIUM));
+                                Navigator.of(context).pop();
                               });
                             },
                           ),
@@ -561,12 +580,19 @@ class AddToPlaylistController extends GetxController {
     playlists.value = val == "piped" ? pipedPlaylists : localPlaylists;
   }
 
-  Future<bool> addSongsToPlaylist(
+  Future<PlaylistAddOutcome> addSongsToPlaylist(
       List<MediaItem> songs, String playlistId, BuildContext context) async {
     additionInProgress.value = true;
     if (playlistType.value == "local") {
       final plstBox = await Hive.openBox(playlistId);
-      final playlistSongIds = plstBox.values.map((item) => item['videoId']);
+      final playlistSongIds = plstBox.values
+          .map((item) => '${item['videoId']}')
+          .toList();
+      final incoming = songs.map((e) => e.id);
+      final newCount = countNewPlaylistSongs(
+        existingIds: playlistSongIds,
+        incomingIds: incoming,
+      );
       for (MediaItem element in songs) {
         if (!playlistSongIds.contains(element.id)) {
           await plstBox.add(MediaItemBuilder.toJson(element));
@@ -574,13 +600,22 @@ class AddToPlaylistController extends GetxController {
       }
       await plstBox.close();
       additionInProgress.value = false;
-      return true;
+      return newCount > 0
+          ? PlaylistAddOutcome.added
+          : PlaylistAddOutcome.alreadyIn;
     } else {
       final videosId = songs.map((e) => e.id).toList();
-      final res =
-          await Get.find<PipedServices>().addToPlaylist(playlistId, videosId);
-      additionInProgress.value = false;
-      return (res.code == 1);
+      try {
+        final res =
+            await Get.find<PipedServices>().addToPlaylist(playlistId, videosId);
+        additionInProgress.value = false;
+        return (res.code == 1)
+            ? PlaylistAddOutcome.added
+            : PlaylistAddOutcome.failed;
+      } catch (_) {
+        additionInProgress.value = false;
+        return PlaylistAddOutcome.failed;
+      }
     }
   }
 

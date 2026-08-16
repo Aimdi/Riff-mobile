@@ -6,6 +6,7 @@ import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/podcast_service.dart';
 import '/ui/widgets/content_list_widget_item.dart';
+import '/ui/widgets/podcast_play.dart';
 import 'podcast_empty_state.dart';
 import 'podcast_folder_controller.dart';
 import 'podcast_folder_screen.dart';
@@ -420,7 +421,11 @@ class _RssSubTile extends StatelessWidget {
         padding: _subsTilePadding,
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
-          onTap: () => Get.to(() => PodcastEpisodesScreen(podcast: podcast)),
+          onTap: () async {
+            final ok = await playPodcastShow(podcast);
+            if (ok) return;
+            Get.to(() => PodcastEpisodesScreen(podcast: podcast));
+          },
           onLongPress: () => _confirmUnfollow(context),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

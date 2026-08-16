@@ -365,7 +365,21 @@ class _AlbumCard extends StatelessWidget {
     final cover = cloud.coverUrl(album.coverArt);
     return InkWell(
       borderRadius: BorderRadius.circular(10),
-      onTap: () => Get.to(
+      onTap: () async {
+        final ok = await playCloudCollection(
+          cloud: cloud,
+          id: album.id,
+          isPlaylist: false,
+          title: album.name,
+        );
+        if (ok) return;
+        Get.to(
+          () => CloudCollectionScreen(
+              collectionId: album.id, isPlaylist: false, title: album.name),
+          transition: Transition.rightToLeft,
+        );
+      },
+      onLongPress: () => Get.to(
         () => CloudCollectionScreen(
             collectionId: album.id, isPlaylist: false, title: album.name),
         transition: Transition.rightToLeft,
@@ -439,7 +453,21 @@ class _PlaylistsView extends StatelessWidget {
             subtitle: count != null
                 ? Text('$count ${'items'.tr}', style: theme.textTheme.bodySmall)
                 : null,
-            onTap: () => Get.to(
+            onTap: () async {
+              final ok = await playCloudCollection(
+                cloud: cloud,
+                id: p.id,
+                isPlaylist: true,
+                title: p.name,
+              );
+              if (ok) return;
+              Get.to(
+                () => CloudCollectionScreen(
+                    collectionId: p.id, isPlaylist: true, title: p.name),
+                transition: Transition.rightToLeft,
+              );
+            },
+            onLongPress: () => Get.to(
               () => CloudCollectionScreen(
                   collectionId: p.id, isPlaylist: true, title: p.name),
               transition: Transition.rightToLeft,
