@@ -7,4 +7,11 @@ void main() {
     expect(ms, greaterThan(200));
     expect(ms, lessThan(500));
   });
+
+  test('heart toggle debounce is longer than a double-tap gap', () {
+    expect(
+      FavoriteHeartButton.toggleDebounce.inMilliseconds,
+      greaterThanOrEqualTo(300),
+    );
+  });
 }

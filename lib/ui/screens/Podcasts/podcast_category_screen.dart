@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '/models/thumbnail.dart';
 import '/services/podcast_service.dart';
+import '/ui/widgets/podcast_play.dart';
 import 'podcasts_screen.dart';
 
 /// Browse the top podcasts in an Apple Podcasts category (genre). Tapping a
@@ -62,8 +63,13 @@ class _PodcastCategoryScreenState extends State<PodcastCategoryScreen> {
                     final art = Thumbnail((p['artwork'] ?? '').toString()).high;
                     return InkWell(
                       borderRadius: BorderRadius.circular(10),
-                      onTap: () =>
-                          Get.to(() => PodcastEpisodesScreen(podcast: p)),
+                      onTap: () async {
+                        if (shouldPlayPodcastShowOnTap()) {
+                          final ok = await playPodcastShow(p);
+                          if (ok) return;
+                        }
+                        Get.to(() => PodcastEpisodesScreen(podcast: p));
+                      },
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

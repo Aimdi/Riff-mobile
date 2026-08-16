@@ -1781,12 +1781,21 @@ class PlayerController extends GetxController
 
   /// Skip a dead stream and try the next queue item.
   Future<void> skipFailedPlayback() async {
+    final hasNext = currentQueue.length > currentSongIndex.value + 1;
+    if (shouldRetryInsteadOfSkip(
+      hasNext: hasNext,
+      radioOn: isRadioModeOn,
+    )) {
+      await retryPlayback();
+      return;
+    }
     clearPlaybackError();
     await next();
   }
 
   /// Force a fresh stream URL for the current queue index.
-  void retryPlayback() {
+  Future<void> retryPlayback() async {
+    await _waitForAudioHandler();
     if (!_audioReady) return;
     clearPlaybackError();
     var posMs = progressBarStatus.value.current.inMilliseconds;

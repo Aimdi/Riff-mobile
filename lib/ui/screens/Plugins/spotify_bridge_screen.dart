@@ -1,3 +1,4 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
@@ -5,9 +6,11 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '/models/media_Item_builder.dart';
 import '/models/playlist.dart';
+import '/models/playling_from.dart';
 import '/services/spotify_api_service.dart';
 import '/services/spotify_auth_service.dart';
 import '/services/spotify_import_service.dart';
+import '/ui/player/player_controller.dart';
 import '/ui/screens/Library/library_controller.dart';
 import '/ui/screens/Settings/spotify_login_screen.dart';
 import '/ui/utils/theme_controller.dart';
@@ -97,39 +100,70 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
     }
   }
 
-  Future<void> _import(SpotifyPlaylistSummary summary) async {
+  Future<List<MediaItem>> _resolvePlaylist(
+      SpotifyPlaylistSummary summary) async {
     if (!Get.isRegistered<SpotifyImportService>()) {
       Get.put(SpotifyImportService(), permanent: false);
     }
     final importer = Get.find<SpotifyImportService>();
+    final collection = await _api.fetchPlaylistAsImport(summary);
+    if (collection.tracks.isEmpty) {
+      throw StateError('spotifyImportNoMatches'.tr);
+    }
+    _progress.value = 0.15;
+    final items = await importer.resolveTracksToYtm(
+      collection.tracks,
+      onProgress: (done, total) {
+        _progress.value = 0.15 + 0.75 * (done / total);
+        _status.value = '${'spotifyImportResolving'.tr} $done / $total';
+      },
+    );
+    if (items.isEmpty) throw StateError('spotifyImportNoMatches'.tr);
+    return items;
+  }
 
+  Future<void> _play(SpotifyPlaylistSummary summary) async {
+    if (_loading.value) return;
     _loading.value = true;
     _progress.value = 0.05;
     _status.value = 'spotifyImportFetching'.tr;
     try {
-      final collection = await _api.fetchPlaylistAsImport(summary);
-      if (collection.tracks.isEmpty) {
-        throw StateError('spotifyImportNoMatches'.tr);
-      }
-      _progress.value = 0.15;
-
-      final items = await importer.resolveTracksToYtm(
-        collection.tracks,
-        onProgress: (done, total) {
-          _progress.value = 0.15 + 0.75 * (done / total);
-          _status.value = '${'spotifyImportResolving'.tr} $done / $total';
-        },
+      final items = await _resolvePlaylist(summary);
+      if (!Get.isRegistered<PlayerController>()) return;
+      await Get.find<PlayerController>().playPlayListSong(
+        items,
+        0,
+        playfrom: PlaylingFrom(
+          type: PlaylingFromType.PLAYLIST,
+          name: summary.name,
+        ),
       );
-      if (items.isEmpty) throw StateError('spotifyImportNoMatches'.tr);
+      _progress.value = 1.0;
+      _status.value = '${'play'.tr} · ${items.length} ${'songs'.tr}';
+    } catch (e) {
+      _status.value = e.toString().replaceFirst('Exception: ', '');
+      _progress.value = 0;
+    } finally {
+      _loading.value = false;
+    }
+  }
+
+  Future<void> _import(SpotifyPlaylistSummary summary) async {
+    if (_loading.value) return;
+    _loading.value = true;
+    _progress.value = 0.05;
+    _status.value = 'spotifyImportFetching'.tr;
+    try {
+      final items = await _resolvePlaylist(summary);
 
       _status.value = 'spotifyImportSaving'.tr;
       _progress.value = 0.95;
 
       final playlistId = 'LIBSP${DateTime.now().millisecondsSinceEpoch}';
       final playlist = Playlist(
-        title: '${collection.name} (Spotify)',
+        title: '${summary.name} (Spotify)',
         playlistId: playlistId,
-        thumbnailUrl: collection.coverUrl ??
+        thumbnailUrl: summary.coverUrl ??
             items.first.artUri?.toString() ??
             Playlist.thumbPlaceholderUrl,
         description: 'importedFromSpotify'.tr,
@@ -149,7 +183,7 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
 
       _progress.value = 1.0;
       _status.value =
-          '${'spotifyImportDone'.tr} (${items.length}/${collection.tracks.length})';
+          '${'spotifyImportDone'.tr} (${items.length}/${summary.trackCount})';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(snackbar(
           context,
@@ -265,6 +299,7 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
               const SizedBox(height: 8),
               ..._playlists.map((p) => ListTile(
                     contentPadding: EdgeInsets.zero,
+                    onTap: _loading.value ? null : () => _play(p),
                     leading: p.coverUrl != null
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(6),

@@ -82,3 +82,13 @@ List searchTabFallback({required dynamic overview}) {
   return [];
 }
 
+/// Last track and radio is off — Skip should retry, not pause and hide the error.
+bool shouldRetryInsteadOfSkip({
+  required bool hasNext,
+  required bool radioOn,
+}) =>
+    !hasNext && !radioOn;
+
+/// Save-queue button is a no-op when nothing is playing.
+bool canSaveQueueAsPlaylist(int queueLength) => queueLength > 0;
+

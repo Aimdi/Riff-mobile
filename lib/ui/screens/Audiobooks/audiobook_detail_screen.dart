@@ -2,9 +2,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '/services/audiobook_progress_service.dart';
 import '/services/audiobookshelf_service.dart';
-import '/ui/player/player_controller.dart';
+import 'audiobook_play.dart';
 
 class AudiobookDetailScreen extends StatefulWidget {
   const AudiobookDetailScreen({super.key, required this.bookId});
@@ -56,39 +55,8 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
   /// interval. The ABS session position still covers a book that was listened
   /// to on another Audiobookshelf client.
   Future<void> _play({int? index}) async {
-    final detail = _detail;
-    if (detail == null || detail.tracks.isEmpty) return;
-    final abs = Get.find<AudiobookshelfService>();
-    final items = abs.toMediaItems(detail);
-    final player = Get.find<PlayerController>();
-
-    var start = 0;
-    var resumeMs = 0;
-    if (index != null) {
-      start = index.clamp(0, items.length - 1);
-    } else {
-      final local = AudiobookProgressService.lastTrackForBook(detail.id);
-      final at = local == null
-          ? -1
-          : items.indexWhere((m) => m.id == local['id']?.toString());
-      if (at >= 0) {
-        start = at;
-        final pos = local!['positionMs'];
-        if (pos is int) resumeMs = pos;
-      } else {
-        final mapped = AudiobookshelfService.mapCurrentTimeToTrack(
-          detail.currentTime,
-          detail.tracks.map((t) => t.duration).toList(),
-        );
-        start = mapped.$1.clamp(0, items.length - 1);
-        resumeMs = mapped.$2.inMilliseconds;
-      }
-    }
-
-    if (resumeMs > 5000) {
-      player.armResume(items[start].id, resumeMs);
-    }
-    await player.playPlayListSong(items, start);
+    if (_detail == null) return;
+    await playAudiobook(bookId: widget.bookId, index: index);
   }
 
   @override

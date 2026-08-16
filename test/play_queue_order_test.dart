@@ -117,4 +117,24 @@ void main() {
     expect(searchTabFallback(overview: [a]), [a]);
     expect(searchTabFallback(overview: const []), isEmpty);
   });
+
+  test('skip on the last track retries instead of pausing', () {
+    expect(
+      shouldRetryInsteadOfSkip(hasNext: false, radioOn: false),
+      isTrue,
+    );
+    expect(
+      shouldRetryInsteadOfSkip(hasNext: true, radioOn: false),
+      isFalse,
+    );
+    expect(
+      shouldRetryInsteadOfSkip(hasNext: false, radioOn: true),
+      isFalse,
+    );
+  });
+
+  test('save queue is disabled when empty', () {
+    expect(canSaveQueueAsPlaylist(0), isFalse);
+    expect(canSaveQueueAsPlaylist(3), isTrue);
+  });
 }
