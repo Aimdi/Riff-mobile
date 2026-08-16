@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/player/play_queue_order.dart';
 import '/ui/player/player_controller.dart';
 import 'snackbar.dart';
 
@@ -153,7 +154,9 @@ class SleepTimerBottomSheet extends StatelessWidget {
       leading: Padding(
         padding: const EdgeInsets.only(left: 10.0),
         child: Text(
-          "endOfThisSong".tr,
+          sleepEndLabelKey(
+                  longForm: playerController.usesLongFormTransport)
+              .tr,
           style: Theme.of(context).textTheme.titleMedium,
         ),
       ),

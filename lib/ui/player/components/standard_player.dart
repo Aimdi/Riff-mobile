@@ -201,6 +201,16 @@ class StandardPlayer extends StatelessWidget {
                     ),
                   ),
                   Obx(() => IconButton(
+                    tooltip: 'lyrics'.tr,
+                    icon: Icon(
+                      playerController.showLyricsflag.isTrue
+                          ? Icons.lyrics
+                          : Icons.lyrics_outlined,
+                      size: 22,
+                    ),
+                    onPressed: playerController.showLyrics,
+                  )),
+                  Obx(() => IconButton(
                     tooltip: 'sleepTimer'.tr,
                     icon: Icon(
                       playerController.isSleepTimerActive.isTrue

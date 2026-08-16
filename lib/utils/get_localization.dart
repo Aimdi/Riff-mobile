@@ -4718,6 +4718,8 @@ Map<String, Map<String, String>> get keys => {
     "deleteDownloadData": "Remove from downloads",
     "minutes": "minutes",
     "endOfThisSong": "End of this song",
+    "endOfThisEpisode": "End of this episode",
+    "lyrics": "Lyrics",
     "appInfo": "App Info",
     "download": "Download",
     "misc": "Misc",

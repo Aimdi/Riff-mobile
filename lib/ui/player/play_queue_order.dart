@@ -22,3 +22,12 @@ bool shouldShowLibrarySongsPlayBar({
 
 /// Home discovery shelves play as a queue when more than one card is visible.
 bool shouldPlayDiscoveryShelfAsQueue(int shelfLength) => shelfLength > 1;
+
+/// Insert play-next items in reverse so they keep [songs] order after the
+/// current track (each insert sits immediately after now-playing).
+List<MediaItem> playNextBatchOrder(Iterable<MediaItem> songs) =>
+    List<MediaItem>.from(songs).reversed.toList();
+
+/// Sleep-timer "stop after this track" copy — episode for long-form.
+String sleepEndLabelKey({required bool longForm}) =>
+    longForm ? 'endOfThisEpisode' : 'endOfThisSong';

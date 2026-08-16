@@ -1,24 +1,11 @@
-import 'package:audio_service/audio_service.dart' show MediaItem;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:hive/hive.dart';
 
-import '../../models/media_Item_builder.dart';
-import '../../models/playling_from.dart';
-import '../../services/music_service.dart';
-import '../../services/piped_service.dart';
-import '../../services/playlist_mix_service.dart';
 import '../navigator.dart';
-import '../player/player_controller.dart';
 import '../utils/riff_tokens.dart';
 import '../utils/theme_controller.dart';
+import 'collection_play.dart';
 import 'image_widget.dart';
-
-bool _isSystemLibraryPlaylistId(String id) =>
-    id == 'LIBRP' ||
-    id == 'LIBFAV' ||
-    id == 'SongsCache' ||
-    id == 'SongDownloads';
 
 class ContentListItem extends StatelessWidget {
   const ContentListItem(
@@ -72,88 +59,67 @@ class ContentListItem extends StatelessWidget {
         arguments: [content, content.playlistId, showSimilarOnOpen]);
   }
 
-  /// Play without opening the screen when tracks are a one-liner fetch
-  /// ([MusicServices.getPlaylistOrAlbumSongs] / Hive / Piped). Falls back to
-  /// opening the album/playlist if that path is empty or throws.
-  Future<void> _playFromOverlay() async {
+  String get _collectionId => _isAlbum
+      ? (content.browseId?.toString() ?? '')
+      : (content.playlistId?.toString() ?? '');
+
+  /// Play without opening the screen when tracks are a one-liner fetch.
+  /// Falls back to opening the album/playlist if that path is empty or throws.
+  Future<void> _playFromOverlay({bool shuffle = false}) async {
     try {
-      final tracks = await _loadPlayTracks();
-      if (tracks.isEmpty || !Get.isRegistered<PlayerController>()) {
-        _openContent();
-        return;
-      }
-      if (Get.isRegistered<PlaylistMixService>()) {
-        Get.find<PlaylistMixService>().deactivatePlayback();
-      }
-      await Get.find<PlayerController>().playPlayListSong(
-        tracks,
-        0,
-        playfrom: PlaylingFrom(
-          name: content.title?.toString() ?? '',
-          type: _isAlbum ? PlaylingFromType.ALBUM : PlaylingFromType.PLAYLIST,
-        ),
+      final ok = await playCollection(
+        isAlbum: _isAlbum,
+        id: _collectionId,
+        title: content.title?.toString() ?? '',
+        shuffle: shuffle,
+        isLibraryItem: isLibraryItem,
+        isPipedPlaylist: !_isAlbum && content.isPipedPlaylist == true,
+        isCloudPlaylist: _isAlbum || content.isCloudPlaylist != false,
       );
+      if (!ok) _openContent();
     } catch (_) {
       _openContent();
     }
   }
 
-  Future<List<MediaItem>> _loadPlayTracks() async {
-    if (_isAlbum) {
-      final id = content.browseId?.toString() ?? '';
-      if (isLibraryItem && id.isNotEmpty) {
-        final local = await _tracksFromOpenBox(id);
-        if (local.isNotEmpty) return local;
-      }
-      if (id.isEmpty || !Get.isRegistered<MusicServices>()) return const [];
-      final result =
-          await Get.find<MusicServices>().getPlaylistOrAlbumSongs(albumId: id);
-      return List<MediaItem>.from(result['tracks'] ?? const []);
-    }
-
-    final id = content.playlistId?.toString() ?? '';
-    if (id.isEmpty) return const [];
-
-    if (content.isPipedPlaylist == true && Get.isRegistered<PipedServices>()) {
-      return Get.find<PipedServices>().getPlaylistSongs(id);
-    }
-
-    final tryLocal = isLibraryItem ||
-        content.isCloudPlaylist == false ||
-        _isSystemLibraryPlaylistId(id);
-    if (tryLocal) {
-      final local = await _tracksFromOpenBox(id);
-      if (local.isNotEmpty) {
-        return id == 'LIBRP' ? local.reversed.toList() : local;
-      }
-      if (_isSystemLibraryPlaylistId(id) || content.isCloudPlaylist == false) {
-        return const [];
-      }
-    }
-
-    if (!Get.isRegistered<MusicServices>()) return const [];
-    final result =
-        await Get.find<MusicServices>().getPlaylistOrAlbumSongs(playlistId: id);
-    return List<MediaItem>.from(result['tracks'] ?? const []);
-  }
-
-  /// Reads a local Hive song box. Callers only pass library / system ids.
-  Future<List<MediaItem>> _tracksFromOpenBox(String id) async {
-    try {
-      if (!Hive.isBoxOpen(id)) {
-        await Hive.openBox(id);
-      }
-      final tracks = <MediaItem>[];
-      for (final raw in Hive.box(id).values) {
-        try {
-          final item = MediaItemBuilder.fromJson(raw);
-          if (item.id.isNotEmpty) tracks.add(item);
-        } catch (_) {}
-      }
-      return tracks;
-    } catch (_) {
-      return const [];
-    }
+  void _showPlaySheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.play_arrow_rounded),
+              title: Text('play'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _playFromOverlay();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.shuffle),
+              title: Text('shuffle'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _playFromOverlay(shuffle: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.open_in_new),
+              title: Text('viewAll'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _openContent();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _art(BuildContext context) {
@@ -240,6 +206,7 @@ class ContentListItem extends StatelessWidget {
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
       onTap: _openContent,
+      onLongPress: () => _showPlaySheet(context),
       child: SizedBox(
         width: 112,
         height: 156,

@@ -187,13 +187,11 @@ class _MiniPlayerSongInfo extends StatelessWidget {
                       child: child,
                     );
                   },
-                  child: Text(
-                    song != null ? song.title : "",
-                    key: ValueKey<String>('mini_title_$songKey'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    softWrap: false,
-                    style: Theme.of(context).textTheme.titleMedium,
+                  child: _miniTitleLine(
+                    playerController,
+                    song,
+                    songKey,
+                    theme,
                   ),
                 ),
               ),
@@ -243,6 +241,29 @@ class _MiniPlayerSongInfo extends StatelessWidget {
           );
         }),
       ),
+    );
+  }
+
+  /// Title: tap opens the album when extras have an id.
+  Widget _miniTitleLine(
+    PlayerController playerController,
+    MediaItem? song,
+    String songKey,
+    ThemeData theme,
+  ) {
+    final line = Text(
+      song != null ? song.title : "",
+      key: ValueKey<String>('mini_title_$songKey'),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      softWrap: false,
+      style: theme.textTheme.titleMedium,
+    );
+    if (songAlbumId(song) == null) return line;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => openCurrentAlbum(playerController),
+      child: line,
     );
   }
 

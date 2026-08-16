@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:ionicons/ionicons.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
 import '/ui/player/components/animated_play_button.dart';
 import '/ui/player/components/podcast_transcript_sheet.dart';
 import '/ui/utils/theme_controller.dart';
+import '/utils/content_filters.dart';
 import '../../screens/Settings/settings_screen_controller.dart';
 import '../../widgets/add_to_playlist.dart';
 import '../../widgets/discovery/player_similar_row.dart';
@@ -323,6 +325,14 @@ class PlayerControlWidget extends StatelessWidget {
                 size: 18,
               ),
               label: Text("sleepTimer".tr, style: labelStyle),
+              style: style,
+            ),
+            TextButton.icon(
+              onPressed: () {
+                Share.share(SongLinkShare.shareText(song));
+              },
+              icon: const Icon(Icons.share, size: 18),
+              label: Text("shareSong".tr, style: labelStyle),
               style: style,
             ),
           ],

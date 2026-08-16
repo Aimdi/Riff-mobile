@@ -489,6 +489,38 @@ class _LibraryPinnedRow extends StatelessWidget {
     await Get.find<PlayerController>().playPlayListSong(tracks, 0);
   }
 
+  void _showRecentsActions(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.shuffle),
+              title: Text('shuffle'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _play('LIBRP', 'recentlyPlayed'.tr, shuffle: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.open_in_new),
+              title: Text('viewAll'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _open('LIBRP', 'recentlyPlayed'.tr);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -521,7 +553,7 @@ class _LibraryPinnedRow extends StatelessWidget {
               accent: theme.colorScheme.secondary,
               muted: muted,
               onTap: () => _play('LIBRP', 'recentlyPlayed'.tr),
-              onLongPress: () => _open('LIBRP', 'recentlyPlayed'.tr),
+              onLongPress: () => _showRecentsActions(context),
             ),
           ),
         ],

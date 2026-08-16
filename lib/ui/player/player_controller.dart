@@ -7,6 +7,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 
 import '../../models/playling_from.dart';
+import 'play_queue_order.dart';
 import '../../services/downloader.dart';
 import '../../services/discovery/discovery_service.dart';
 import '../../services/discovery/discovery_types.dart';
@@ -1208,6 +1209,18 @@ class PlayerController extends GetxController
         box.close();
       }
     });
+  }
+
+  /// Insert [songs] after the current track, preserving list order.
+  void playNextList(List<MediaItem> songs) {
+    if (songs.isEmpty) return;
+    if (currentQueue.isEmpty) {
+      playPlayListSong(songs, 0);
+      return;
+    }
+    for (final song in playNextBatchOrder(songs)) {
+      playNext(song);
+    }
   }
 
   void playNext(MediaItem song) {

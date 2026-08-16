@@ -423,6 +423,29 @@ class PlaylistScreen extends StatelessWidget {
                                                     .titleMedium!
                                                     .color,
                                               )),
+                                          // Play next
+                                          IconButton(
+                                              tooltip: "playNext".tr,
+                                              onPressed: () {
+                                                playerController.playNextList(
+                                                    playlistController.songList
+                                                        .toList());
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(snackbar(
+                                                          context,
+                                                          "playnextMsg".tr,
+                                                          size: SanckBarSize
+                                                              .MEDIUM));
+                                                }
+                                              },
+                                              icon: Icon(
+                                                Icons.playlist_play,
+                                                color: Theme.of(context)
+                                                    .textTheme
+                                                    .titleMedium!
+                                                    .color,
+                                              )),
 
                                           // Shuffle button
                                           IconButton(

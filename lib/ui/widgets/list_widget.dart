@@ -9,6 +9,7 @@ import '../../models/playlist.dart';
 import '/services/ban_service.dart';
 import '../navigator.dart';
 import '../player/player_controller.dart';
+import 'collection_play.dart';
 import 'image_widget.dart';
 import 'snackbar.dart';
 import 'song_list_tile.dart';
@@ -265,6 +266,38 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
     );
   }
 
+  void _openWideTile({dynamic album, dynamic playlist}) {
+    if (album != null) {
+      Get.toNamed(ScreenNavigationSetup.albumScreen,
+          id: ScreenNavigationSetup.id, arguments: (album, album.browseId));
+      return;
+    }
+    Get.toNamed(ScreenNavigationSetup.playlistScreen,
+        id: ScreenNavigationSetup.id,
+        arguments: [playlist, playlist.playlistId]);
+  }
+
+  Future<void> _playWideTile({
+    dynamic album,
+    dynamic playlist,
+    required bool shuffle,
+  }) async {
+    final isAlbum = album != null;
+    final id = isAlbum
+        ? album.browseId?.toString() ?? ''
+        : playlist.playlistId?.toString() ?? '';
+    final name = isAlbum ? album.title : playlist.title;
+    final ok = await playCollection(
+      isAlbum: isAlbum,
+      id: id,
+      title: name?.toString() ?? '',
+      shuffle: shuffle,
+      isPipedPlaylist: !isAlbum && playlist.isPipedPlaylist == true,
+      isCloudPlaylist: isAlbum || playlist.isCloudPlaylist != false,
+    );
+    if (!ok) _openWideTile(album: album, playlist: playlist);
+  }
+
   Widget wideListTile(BuildContext context,
       {dynamic album,
       dynamic playlist,
@@ -272,16 +305,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
       required String subtitle,
       required String subtitle2}) {
     return InkWell(
-      onTap: () {
-        if (album != null) {
-          Get.toNamed(ScreenNavigationSetup.albumScreen,
-              id: ScreenNavigationSetup.id, arguments: (album, album.browseId));
-        } else {
-          Get.toNamed(ScreenNavigationSetup.playlistScreen,
-              id: ScreenNavigationSetup.id,
-              arguments: [playlist, playlist.playlistId]);
-        }
-      },
+      onTap: () => _openWideTile(album: album, playlist: playlist),
       onLongPress: () {
         final isAlbum = album != null;
         final id = isAlbum ? album.browseId : playlist.playlistId;
@@ -294,6 +318,24 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
             borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
           ),
           builder: (ctx) => Wrap(children: [
+            ListTile(
+              leading: const Icon(Icons.play_arrow_rounded),
+              title: Text('play'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _playWideTile(
+                    album: album, playlist: playlist, shuffle: false);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.shuffle),
+              title: Text('shuffle'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _playWideTile(
+                    album: album, playlist: playlist, shuffle: true);
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.block),
               title:
@@ -316,10 +358,47 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           padding: const EdgeInsets.only(top: 10.0, bottom: 10),
           child: Row(
             children: [
-              ImageWidget(
-                size: 100,
-                album: album,
-                playlist: playlist,
+              SizedBox(
+                width: 100,
+                height: 100,
+                child: Stack(
+                  children: [
+                    ImageWidget(
+                      size: 100,
+                      album: album,
+                      playlist: playlist,
+                    ),
+                    Positioned(
+                      right: 4,
+                      bottom: 4,
+                      child: Tooltip(
+                        message: 'play'.tr,
+                        child: Material(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: const CircleBorder(),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: () {
+                              _playWideTile(
+                                  album: album,
+                                  playlist: playlist,
+                                  shuffle: false);
+                            },
+                            child: const Padding(
+                              padding: EdgeInsets.all(2),
+                              child: Icon(
+                                Icons.play_circle_fill,
+                                size: 26,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(
                 width: 20,

@@ -41,4 +41,16 @@ void main() {
     expect(shouldPlayDiscoveryShelfAsQueue(1), isFalse);
     expect(shouldPlayDiscoveryShelfAsQueue(2), isTrue);
   });
+
+  test('playNextBatchOrder reverses so inserts keep original order', () {
+    expect(
+      playNextBatchOrder([song('a'), song('b'), song('c')]).map((e) => e.id),
+      ['c', 'b', 'a'],
+    );
+  });
+
+  test('sleepEndLabelKey switches for long-form', () {
+    expect(sleepEndLabelKey(longForm: false), 'endOfThisSong');
+    expect(sleepEndLabelKey(longForm: true), 'endOfThisEpisode');
+  });
 }
