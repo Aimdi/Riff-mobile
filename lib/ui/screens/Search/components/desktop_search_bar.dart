@@ -5,6 +5,7 @@ import 'search_item.dart';
 import '/ui/screens/Search/search_screen_controller.dart';
 
 import '../../../navigator.dart';
+import '../search_play_top.dart';
 
 class DesktopSearchBar extends StatelessWidget {
   const DesktopSearchBar({super.key});
@@ -25,15 +26,19 @@ class DesktopSearchBar extends StatelessWidget {
             onTapOutside: (event) {},
             onChanged: searchScreenController.onChanged,
             onSubmitted: (val) {
-              if (val.contains("https://")) {
-                searchScreenController.filterLinks(Uri.parse(val));
-                searchScreenController.reset();
-                return;
-              }
-              Get.toNamed(ScreenNavigationSetup.searchResultScreen,
-                  id: ScreenNavigationSetup.id, arguments: val);
-              searchScreenController.addToHistryQueryList(val);
-              searchScreenController.focusNode.unfocus();
+              submitSearchQuery(
+                val,
+                onLink: (uri) {
+                  searchScreenController.filterLinks(uri);
+                  searchScreenController.reset();
+                },
+                onRemember: searchScreenController.addToHistryQueryList,
+                onOpenResults: (q) {
+                  Get.toNamed(ScreenNavigationSetup.searchResultScreen,
+                      id: ScreenNavigationSetup.id, arguments: q);
+                },
+                onAfterSubmit: searchScreenController.focusNode.unfocus,
+              );
             },
             focusNode: searchScreenController.focusNode,
             backgroundColor: WidgetStatePropertyAll<Color>(

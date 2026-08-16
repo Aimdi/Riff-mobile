@@ -29,6 +29,33 @@ import 'song_download_btn.dart';
 import 'image_widget.dart';
 import 'song_info_dialog.dart';
 
+/// Player / mini-player long-press — same sheet as the full player.
+void showCurrentSongSheet({
+  required MediaItem? song,
+  BuildContext? context,
+}) {
+  final player = Get.isRegistered<PlayerController>()
+      ? Get.find<PlayerController>()
+      : null;
+  final sheetContext =
+      context ?? player?.homeScaffoldkey.currentContext ?? Get.context;
+  if (sheetContext == null || song == null) return;
+  showModalBottomSheet(
+    useRootNavigator: true,
+    constraints: const BoxConstraints(maxWidth: 500),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
+    ),
+    isScrollControlled: true,
+    context: sheetContext,
+    barrierColor: Colors.transparent.withAlpha(100),
+    builder: (context) => SongInfoBottomSheet(
+      song,
+      calledFromPlayer: true,
+    ),
+  ).whenComplete(() => Get.delete<SongInfoController>());
+}
+
 class SongInfoBottomSheet extends StatelessWidget {
   const SongInfoBottomSheet(this.song,
       {super.key,

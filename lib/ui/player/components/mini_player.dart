@@ -15,6 +15,7 @@ import '../../widgets/add_to_playlist.dart';
 import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/sleep_timer_bottom_sheet.dart';
 import '../../widgets/song_download_btn.dart';
+import '../../widgets/songinfo_bottom_sheet.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/mini_player_progress_bar.dart';
 import 'animated_play_button.dart';
@@ -164,6 +165,12 @@ class _MiniPlayerSongInfo extends StatelessWidget {
       },
       onTap: () {
         playerController.playerPanelController.open();
+      },
+      onLongPress: () {
+        showCurrentSongSheet(
+          song: playerController.currentSong.value,
+          context: playerController.homeScaffoldkey.currentContext,
+        );
       },
       child: ColoredBox(
         color: Colors.transparent,

@@ -12,6 +12,34 @@ List<MediaItem> songsFromSearchResult(Map<String, dynamic> result) {
   return const [];
 }
 
+/// Keyboard submit plays the top hit unless the query is a pasted URL.
+bool shouldPlaySearchSubmit(String query) {
+  final q = query.trim();
+  return q.isNotEmpty && !q.contains('https://');
+}
+
+/// Search-bar submit: play the top song, or open results if nothing plays.
+Future<bool> submitSearchQuery(
+  String val, {
+  required void Function(Uri uri) onLink,
+  required void Function(String query) onOpenResults,
+  required void Function(String query) onRemember,
+  void Function()? onAfterSubmit,
+}) async {
+  final q = val.trim();
+  if (q.contains('https://')) {
+    onLink(Uri.parse(q));
+    onAfterSubmit?.call();
+    return false;
+  }
+  if (q.isEmpty) return false;
+  onRemember(q);
+  onAfterSubmit?.call();
+  final ok = await playTopSongResult(q);
+  if (!ok) onOpenResults(q);
+  return ok;
+}
+
 /// Play the top song hit for [query]. Returns false when nothing playable.
 Future<bool> playTopSongResult(String query) async {
   final q = query.trim();

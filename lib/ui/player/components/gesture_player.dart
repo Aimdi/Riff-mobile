@@ -41,24 +41,10 @@ class GesturePlayer extends StatelessWidget {
             playerController.playPause();
           },
           onLongPress: () {
-            final sheetContext =
-                playerController.homeScaffoldkey.currentContext ?? Get.context;
-            final song = playerController.currentSong.value;
-            if (sheetContext == null || song == null) return;
-            showModalBottomSheet(
-              useRootNavigator: true,
-              constraints: const BoxConstraints(maxWidth: 500),
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
-              ),
-              isScrollControlled: true,
-              context: sheetContext,
-              barrierColor: Colors.transparent.withAlpha(100),
-              builder: (context) => SongInfoBottomSheet(
-                song,
-                calledFromPlayer: true,
-              ),
-            ).whenComplete(() => Get.delete<SongInfoController>());
+            showCurrentSongSheet(
+              song: playerController.currentSong.value,
+              context: playerController.homeScaffoldkey.currentContext,
+            );
           },
         ),
         IgnorePointer(

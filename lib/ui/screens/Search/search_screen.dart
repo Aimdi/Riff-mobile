@@ -6,6 +6,7 @@ import '../../utils/riff_tokens.dart';
 import '../../utils/theme_controller.dart';
 import '../../widgets/modified_text_field.dart';
 import '/ui/navigator.dart';
+import 'search_play_top.dart';
 import 'search_screen_controller.dart';
 
 class SearchScreen extends StatelessWidget {
@@ -55,14 +56,18 @@ class SearchScreen extends StatelessWidget {
               textInputAction: TextInputAction.search,
               onChanged: searchScreenController.onChanged,
               onSubmitted: (val) {
-                if (val.contains("https://")) {
-                  searchScreenController.filterLinks(Uri.parse(val));
-                  searchScreenController.reset();
-                  return;
-                }
-                Get.toNamed(ScreenNavigationSetup.searchResultScreen,
-                    id: ScreenNavigationSetup.id, arguments: val);
-                searchScreenController.addToHistryQueryList(val);
+                submitSearchQuery(
+                  val,
+                  onLink: (uri) {
+                    searchScreenController.filterLinks(uri);
+                    searchScreenController.reset();
+                  },
+                  onRemember: searchScreenController.addToHistryQueryList,
+                  onOpenResults: (q) {
+                    Get.toNamed(ScreenNavigationSetup.searchResultScreen,
+                        id: ScreenNavigationSetup.id, arguments: q);
+                  },
+                );
               },
               autofocus: true,
               cursorColor: Theme.of(context).textTheme.bodySmall!.color,

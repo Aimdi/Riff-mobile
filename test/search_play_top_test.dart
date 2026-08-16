@@ -19,4 +19,11 @@ void main() {
       isEmpty,
     );
   });
+
+  test('search submit plays typed queries, not pasted URLs', () {
+    expect(shouldPlaySearchSubmit(''), isFalse);
+    expect(shouldPlaySearchSubmit('   '), isFalse);
+    expect(shouldPlaySearchSubmit('https://youtube.com/watch?v=x'), isFalse);
+    expect(shouldPlaySearchSubmit('radiohead'), isTrue);
+  });
 }

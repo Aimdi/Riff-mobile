@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '/services/cloud_music_service.dart';
 import '/ui/player/player_controller.dart';
 import 'cloud_collection_screen.dart';
+import 'cloud_play.dart';
 
 /// Cloud: stream your own library from a self-hosted Subsonic-compatible
 /// server (Navidrome, OpenSubsonic, Airsonic, Gonic, Ampache…) — the
@@ -477,9 +478,17 @@ class _SongsView extends StatelessWidget {
                         style: theme.textTheme.titleSmall),
                   ),
                   IconButton(
+                    tooltip: 'playAll'.tr,
+                    icon: const Icon(Icons.play_arrow_rounded, size: 22),
+                    onPressed: () => playCloudSongs(
+                      cloud.toMediaItems(cloud.songs.toList()),
+                      shuffle: false,
+                    ),
+                  ),
+                  IconButton(
                     tooltip: 'shuffle'.tr,
                     icon: const Icon(Icons.casino_outlined, size: 20),
-                    onPressed: () => cloud.fetchRandomSongs(),
+                    onPressed: () => fetchAndPlayCloudRandomMix(cloud),
                   ),
                 ],
               ),

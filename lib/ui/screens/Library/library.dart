@@ -17,6 +17,7 @@ import '../../widgets/piped_sync_widget.dart';
 import '../../widgets/content_list_widget_item.dart';
 import '../../widgets/list_widget.dart';
 import '../../widgets/sort_widget.dart';
+import '../Cloud/cloud_play.dart';
 import '../Cloud/cloud_screen.dart';
 import '../Settings/settings_screen_controller.dart';
 import 'library_controller.dart';
@@ -212,7 +213,7 @@ class _CloudSongsPane extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 12),
               TextButton.icon(
-                onPressed: () => cloud.fetchRandomSongs(),
+                onPressed: () => fetchAndPlayCloudRandomMix(cloud),
                 icon: const Icon(Icons.casino_outlined),
                 label: Text('cloudRandomMix'.tr),
               ),
@@ -234,10 +235,22 @@ class _CloudSongsPane extends StatelessWidget {
                     child: Text('cloudRandomMix'.tr,
                         style: Theme.of(context).textTheme.titleSmall),
                   ),
+                  if (shouldShowCloudSongsPlayBar(
+                    connected: cloud.isConnected.isTrue,
+                    songCount: list.length,
+                  ))
+                    IconButton(
+                      tooltip: 'playAll'.tr,
+                      icon: const Icon(Icons.play_arrow_rounded, size: 22),
+                      onPressed: () => playCloudSongs(
+                        cloud.toMediaItems(list),
+                        shuffle: false,
+                      ),
+                    ),
                   IconButton(
                     tooltip: 'shuffle'.tr,
                     icon: const Icon(Icons.casino_outlined, size: 20),
-                    onPressed: () => cloud.fetchRandomSongs(),
+                    onPressed: () => fetchAndPlayCloudRandomMix(cloud),
                   ),
                   TextButton(
                     onPressed: () => cloud.logout(),
