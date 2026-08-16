@@ -405,7 +405,7 @@ class SettingsScreenController extends GetxController {
     isTransitionAnimationDisabled.value = val;
   }
 
-  Future<void> clearImagesCache() async {
+  Future<bool> clearImagesCache() async {
     final tempImgDirPath =
         "${(await getApplicationCacheDirectory()).path}/libCachedImageData";
     final tempImgDir = Directory(tempImgDirPath);
@@ -413,8 +413,10 @@ class SettingsScreenController extends GetxController {
       if (await tempImgDir.exists()) {
         await tempImgDir.delete(recursive: true);
       }
-      // ignore: empty_catches
-    } catch (e) {}
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   void resetDownloadLocation() {

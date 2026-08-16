@@ -495,7 +495,7 @@ class PlaylistScreen extends StatelessWidget {
                                           // Shuffle button
                                           IconButton(
                                               tooltip: "shuffle".tr,
-                                              onPressed: () {
+                                              onPressed: () async {
                                                 final songsToplay =
                                                     List<MediaItem>.from(
                                                         playlistController
@@ -507,15 +507,29 @@ class PlaylistScreen extends StatelessWidget {
                                                   Get.find<PlaylistMixService>()
                                                       .deactivatePlayback();
                                                 }
-                                                playerController.playPlayListSong(
-                                                    songsToplay, 0,
-                                                    playfrom: PlaylingFrom(
-                                                        name: playlistController
-                                                            .playlist
-                                                            .value
-                                                            .title,
-                                                        type: PlaylingFromType
-                                                            .PLAYLIST));
+                                                final ok = await playerController
+                                                    .playPlayListSong(
+                                                        songsToplay, 0,
+                                                        playfrom: PlaylingFrom(
+                                                            name: playlistController
+                                                                .playlist
+                                                                .value
+                                                                .title,
+                                                            type: PlaylingFromType
+                                                                .PLAYLIST));
+                                                if (!ok) {
+                                                  final ctx = Get.context;
+                                                  if (ctx == null ||
+                                                      !ctx.mounted) {
+                                                    return;
+                                                  }
+                                                  ScaffoldMessenger.of(ctx)
+                                                      .showSnackBar(snackbar(
+                                                    ctx,
+                                                    'operationFailed'.tr,
+                                                    size: SanckBarSize.MEDIUM,
+                                                  ));
+                                                }
                                               },
                                               icon: Icon(
                                                 Icons.shuffle,
@@ -1147,11 +1161,11 @@ class PlaylistScreen extends StatelessWidget {
   }
 }
 
-void _playPlaylistFrom(
+Future<void> _playPlaylistFrom(
   PlayerController playerController,
   PlaylistScreenController playlistController,
   int index,
-) {
+) async {
   final pl = playlistController.playlist.value;
   final mixOn = playlistController.isMixMode.isTrue;
   if (Get.isRegistered<PlaylistMixService>()) {
@@ -1167,7 +1181,7 @@ void _playPlaylistFrom(
       mix.deactivatePlayback();
     }
   }
-  playerController.playPlayListSong(
+  final ok = await playerController.playPlayListSong(
     List<MediaItem>.from(playlistController.songList),
     index,
     playfrom: PlaylingFrom(
@@ -1175,6 +1189,15 @@ void _playPlaylistFrom(
       type: PlaylingFromType.PLAYLIST,
     ),
   );
+  if (!ok) {
+    final ctx = Get.context;
+    if (ctx == null || !ctx.mounted) return;
+    ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
+      ctx,
+      'operationFailed'.tr,
+      size: SanckBarSize.MEDIUM,
+    ));
+  }
 }
 
 /// AntennaPod-style episode row: 56×56 art, a publish-date meta line, a 2-line

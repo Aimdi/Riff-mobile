@@ -341,7 +341,15 @@ class SongInfoBottomSheet extends StatelessWidget {
                         Get.find<LibrarySongsController>()
                             .removeSong(song, true,
                                 url: box.get(song.id)['url'])
-                            .then((value) async {
+                            .then((ok) async {
+                          if (!ok) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  snackbar(context, "operationFailed".tr,
+                                      size: SanckBarSize.BIG));
+                            }
+                            return;
+                          }
                           box.delete(song.id).then((value) {
                             if (playlist != null) {
                               Get.find<PlaylistScreenController>(

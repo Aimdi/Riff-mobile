@@ -84,6 +84,12 @@ void main() {
     expect(canStartPlayback(audioReady: false, itemCount: 3), isFalse);
   });
 
+  test('sleep timer needs a positive duration', () {
+    expect(canArmSleepTimer(0), isFalse);
+    expect(canArmSleepTimer(-5), isFalse);
+    expect(canArmSleepTimer(5), isTrue);
+  });
+
   test('saved session resume needs a live handler and a queue', () {
     expect(
       canResumeSavedSession(audioReady: true, savedQueueLength: 3),

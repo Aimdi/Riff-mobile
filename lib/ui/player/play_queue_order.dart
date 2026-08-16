@@ -64,6 +64,9 @@ bool canResumeSavedSession({
 }) =>
     audioReady && savedQueueLength > 0;
 
+/// Sleep timer needs a positive duration.
+bool canArmSleepTimer(int minutes) => minutes > 0;
+
 /// Play Next is a no-op when the song is current or already next.
 bool isPlayNextNoOp({
   required String songId,

@@ -118,28 +118,33 @@ class LibrarySongsController extends GetxController {
   }
 
   /// remove song from library list and from storage only, not from database
-  Future<void> removeSong(MediaItem item, bool isDownloaded,
+  Future<bool> removeSong(MediaItem item, bool isDownloaded,
       {String? url}) async {
-    if (tempListContainer.isNotEmpty) {
-      tempListContainer.remove(item);
-    }
-    librarySongsList.remove(item);
-    String filePath = "";
-    if (isDownloaded) {
-      filePath = item.extras!['url'] ?? url;
-    } else {
-      final cacheDir = (await getTemporaryDirectory()).path;
-      filePath = "$cacheDir/cachedSongs/${item.id}.mp3";
-    }
+    try {
+      if (tempListContainer.isNotEmpty) {
+        tempListContainer.remove(item);
+      }
+      librarySongsList.remove(item);
+      String filePath = "";
+      if (isDownloaded) {
+        filePath = '${item.extras?['url'] ?? url ?? ''}';
+      } else {
+        final cacheDir = (await getTemporaryDirectory()).path;
+        filePath = "$cacheDir/cachedSongs/${item.id}.mp3";
+      }
 
-    if (await (File(filePath)).exists()) {
-      await (File(filePath)).delete();
-    }
+      if (filePath.isNotEmpty && await (File(filePath)).exists()) {
+        await (File(filePath)).delete();
+      }
 
-    final thumbFile = File(
-        "${Get.find<SettingsScreenController>().supportDirPath}/thumbnails/${item.id}.png");
-    if (await thumbFile.exists()) {
-      await thumbFile.delete();
+      final thumbFile = File(
+          "${Get.find<SettingsScreenController>().supportDirPath}/thumbnails/${item.id}.png");
+      if (await thumbFile.exists()) {
+        await thumbFile.delete();
+      }
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -193,10 +198,10 @@ class LibrarySongsController extends GetxController {
     for (MediaItem element in songs) {
       if (downloadsBox.containsKey(element.id)) {
         await downloadsBox.delete(element.id);
-        removeSong(element, true);
+        await removeSong(element, true);
       } else {
         await cacheBox.delete(element.id);
-        removeSong(element, false);
+        await removeSong(element, false);
       }
     }
   }

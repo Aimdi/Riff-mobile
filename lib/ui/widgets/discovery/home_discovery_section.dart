@@ -60,13 +60,15 @@ class HomeDiscoverySection extends StatelessWidget {
                     Icons.play_circle_fill_rounded,
                     color: Theme.of(context).colorScheme.secondary,
                   ),
-                  onPressed: () {
+                  onPressed: () async {
                     if (!Get.isRegistered<PlayerController>()) return;
                     final tagged = Get.isRegistered<DiscoveryService>()
                         ? DiscoveryService.tagAll(
                             tracks, DiscoverySource.discover)
                         : tracks;
-                    Get.find<PlayerController>().playPlayListSong(tagged, 0);
+                    final ok = await Get.find<PlayerController>()
+                        .playPlayListSong(tagged, 0);
+                    if (!ok) _snackDiscoveryPlayFailed();
                   },
                 ),
             ],
@@ -158,7 +160,8 @@ class _DiscoveryCard extends StatelessWidget {
     }
     tracks.shuffle();
     final tagged = DiscoveryService.tagAll(tracks, DiscoverySource.dailyMix);
-    await player.playPlayListSong(tagged, 0);
+    final ok = await player.playPlayListSong(tagged, 0);
+    if (!ok) _snackDiscoveryPlayFailed();
   }
 
   Future<void> _openMix() async {
@@ -228,7 +231,8 @@ class _DiscoveryCard extends StatelessWidget {
                   shelfTracks, DiscoverySource.discover)
               : shelfTracks;
           final index = shelfIndex.clamp(0, tagged.length - 1);
-          await player.playPlayListSong(tagged, index);
+          final ok = await player.playPlayListSong(tagged, index);
+          if (!ok) _snackDiscoveryPlayFailed();
         },
         onLongPress: () {
           showModalBottomSheet(
@@ -491,7 +495,9 @@ class HomeShortcutGrid extends StatelessWidget {
       if (shuffle) {
         tracks.shuffle();
       }
-      await Get.find<PlayerController>().playPlayListSong(tracks, 0);
+      final ok =
+          await Get.find<PlayerController>().playPlayListSong(tracks, 0);
+      if (!ok) _snackDiscoveryPlayFailed();
     } catch (_) {
       if (!context.mounted) return;
       _openLibraryPlaylist(id, title);
@@ -523,7 +529,9 @@ class HomeShortcutGrid extends StatelessWidget {
       final tagged = Get.isRegistered<DiscoveryService>()
           ? DiscoveryService.tagAll(tracks, source)
           : tracks;
-      await Get.find<PlayerController>().playPlayListSong(tagged, 0);
+      final ok =
+          await Get.find<PlayerController>().playPlayListSong(tagged, 0);
+      if (!ok) _snackDiscoveryPlayFailed();
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -692,4 +700,14 @@ class _ShortcutItem {
   final IconData icon;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
+}
+
+void _snackDiscoveryPlayFailed() {
+  final ctx = Get.context;
+  if (ctx == null || !ctx.mounted) return;
+  ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
+    ctx,
+    'operationFailed'.tr,
+    size: SanckBarSize.MEDIUM,
+  ));
 }

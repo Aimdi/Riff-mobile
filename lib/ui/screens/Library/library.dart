@@ -17,6 +17,7 @@ import '../../widgets/piped_sync_widget.dart';
 import '../../widgets/content_list_widget_item.dart';
 import '../../widgets/empty_play_hint.dart';
 import '../../widgets/list_widget.dart';
+import '../../widgets/snackbar.dart';
 import '../../widgets/sort_widget.dart';
 import '../Cloud/cloud_play.dart';
 import '../Cloud/cloud_screen.dart';
@@ -145,7 +146,7 @@ class _LibrarySongsPlayBar extends StatelessWidget {
     final songs = Get.find<LibrarySongsController>().librarySongsList;
     if (songs.isEmpty) return;
     final queue = playQueueFrom(songs, shuffle: shuffle);
-    await Get.find<PlayerController>().playPlayListSong(
+    final ok = await Get.find<PlayerController>().playPlayListSong(
       queue,
       0,
       playfrom: PlaylingFrom(
@@ -153,6 +154,7 @@ class _LibrarySongsPlayBar extends StatelessWidget {
         name: 'libSongs'.tr,
       ),
     );
+    if (!ok) _snackPlayFailed();
   }
 
   @override
@@ -487,11 +489,14 @@ class _LibraryPinnedRow extends StatelessWidget {
     if (shuffle) {
       tracks.shuffle();
     } else if (id == 'LIBRP') {
-      await Get.find<PlayerController>()
+      final ok = await Get.find<PlayerController>()
           .playPlayListSong(tracks.reversed.toList(), 0);
+      if (!ok) _snackPlayFailed();
       return;
     }
-    await Get.find<PlayerController>().playPlayListSong(tracks, 0);
+    final ok =
+        await Get.find<PlayerController>().playPlayListSong(tracks, 0);
+    if (!ok) _snackPlayFailed();
   }
 
   void _showRecentsActions(BuildContext context) {
@@ -635,4 +640,14 @@ class _PinnedTile extends StatelessWidget {
       ),
     );
   }
+}
+
+void _snackPlayFailed() {
+  final ctx = Get.context;
+  if (ctx == null || !ctx.mounted) return;
+  ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
+    ctx,
+    'operationFailed'.tr,
+    size: SanckBarSize.MEDIUM,
+  ));
 }

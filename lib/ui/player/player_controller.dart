@@ -1786,7 +1786,8 @@ class PlayerController extends GetxController
     isSleepEndOfSongActive.value = true;
   }
 
-  void startSleepTimer(int minutes) {
+  bool startSleepTimer(int minutes) {
+    if (!canArmSleepTimer(minutes)) return false;
     timerDuration = minutes * 60;
     isSleepTimerActive.value = true;
     if ((sleepTimer != null && !sleepTimer!.isActive) || sleepTimer == null) {
@@ -1802,6 +1803,7 @@ class PlayerController extends GetxController
         }
       });
     }
+    return true;
   }
 
   void addFiveMinutes() {

@@ -259,21 +259,11 @@ class AlbumScreen extends StatelessWidget {
                                           IconButton(
                                               tooltip: "play".tr,
                                               onPressed: () {
-                                                playerController
-                                                    .playPlayListSong(
-                                                        List<MediaItem>.from(
-                                                            albumController
-                                                                .songList),
-                                                        0,
-                                                        playfrom: PlaylingFrom(
-                                                            name:
-                                                                albumController
-                                                                    .album
-                                                                    .value
-                                                                    .title,
-                                                            type:
-                                                                PlaylingFromType
-                                                                    .ALBUM));
+                                                _playAlbumFrom(
+                                                  playerController,
+                                                  albumController,
+                                                  0,
+                                                );
                                               },
                                               icon: Icon(
                                                 Icons.play_circle,
@@ -286,24 +276,12 @@ class AlbumScreen extends StatelessWidget {
                                           IconButton(
                                               tooltip: "shuffle".tr,
                                               onPressed: () {
-                                                final songsToplay =
-                                                    List<MediaItem>.from(
-                                                        albumController
-                                                            .songList);
-                                                songsToplay.shuffle();
-                                                playerController
-                                                    .playPlayListSong(
-                                                        songsToplay,
-                                                        0,
-                                                        playfrom: PlaylingFrom(
-                                                            name:
-                                                                albumController
-                                                                    .album
-                                                                    .value
-                                                                    .title,
-                                                            type:
-                                                                PlaylingFromType
-                                                                    .ALBUM));
+                                                _playAlbumFrom(
+                                                  playerController,
+                                                  albumController,
+                                                  0,
+                                                  shuffle: true,
+                                                );
                                               },
                                               icon: Icon(
                                                 Icons.shuffle,
@@ -572,14 +550,11 @@ class AlbumScreen extends StatelessWidget {
                                     const EdgeInsets.only(left: 20.0, right: 5),
                                 child: SongListTile(
                                     onTap: () {
-                                      playerController.playPlayListSong(
-                                          List<MediaItem>.from(
-                                              albumController.songList),
-                                          index - 3,
-                                          playfrom: PlaylingFrom(
-                                              name: albumController
-                                                  .album.value.title,
-                                              type: PlaylingFromType.ALBUM));
+                                      _playAlbumFrom(
+                                        playerController,
+                                        albumController,
+                                        index - 3,
+                                      );
                                     },
                                     song: albumController.songList[index - 3],
                                     isPlaylistOrAlbum: true,
@@ -622,17 +597,14 @@ class AlbumScreen extends StatelessWidget {
           children: [
             InkWell(
               onTap: () {
-                final songs = List<MediaItem>.from(albumController.songList);
-                if (songs.isEmpty || !Get.isRegistered<PlayerController>()) {
+                if (albumController.songList.isEmpty ||
+                    !Get.isRegistered<PlayerController>()) {
                   return;
                 }
-                Get.find<PlayerController>().playPlayListSong(
-                  songs,
+                _playAlbumFrom(
+                  Get.find<PlayerController>(),
+                  albumController,
                   0,
-                  playfrom: PlaylingFrom(
-                    name: album.title,
-                    type: PlaylingFromType.ALBUM,
-                  ),
                 );
               },
               child: ClipRRect(
@@ -699,5 +671,32 @@ class AlbumScreen extends StatelessWidget {
       barrierColor: Colors.transparent.withAlpha(100),
       builder: (context) => SongInfoBottomSheet(song),
     ).whenComplete(() => Get.delete<SongInfoController>());
+  }
+}
+
+Future<void> _playAlbumFrom(
+  PlayerController playerController,
+  AlbumScreenController albumController,
+  int index, {
+  bool shuffle = false,
+}) async {
+  final songs = List<MediaItem>.from(albumController.songList);
+  if (shuffle) songs.shuffle();
+  final ok = await playerController.playPlayListSong(
+    songs,
+    index,
+    playfrom: PlaylingFrom(
+      name: albumController.album.value.title,
+      type: PlaylingFromType.ALBUM,
+    ),
+  );
+  if (!ok) {
+    final ctx = Get.context;
+    if (ctx == null || !ctx.mounted) return;
+    ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
+      ctx,
+      'operationFailed'.tr,
+      size: SanckBarSize.MEDIUM,
+    ));
   }
 }
