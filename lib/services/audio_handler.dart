@@ -34,6 +34,7 @@ import '/services/client_config_service.dart';
 import '/services/permission_service.dart';
 import '/services/play_by_index_skip.dart';
 import '/services/play_runtime_error.dart';
+import '/ui/player/video_handoff.dart';
 import '../utils/helper.dart';
 import '/models/media_Item_builder.dart';
 import '/utils/songs_url_cache.dart';
@@ -722,33 +723,47 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   @override
   Future<void> skipToNext() async {
+    await skipToNextResult();
+  }
+
+  /// True when skip started another track (or radio extend). Last-track pause is false.
+  Future<bool> skipToNextResult() async {
+    final from = currentIndex is int ? currentIndex as int : -1;
     final index = _getNextSongIndex();
-    if (index != currentIndex) {
+    if (skipNextDidAdvance(fromIndex: from, toIndex: index)) {
       if (_player.position != Duration.zero) _player.seek(Duration.zero);
-      await customAction("playByIndex", {'index': index});
-      return;
+      final result = await customAction("playByIndex", {'index': index});
+      return !playByIndexHardFailed(result);
     }
     final radioOn = Get.isRegistered<PlayerController>() &&
         Get.find<PlayerController>().isRadioModeOn;
     if (radioShouldExtendInsteadOfPause(radioOn: radioOn, hasNext: false)) {
-      await Get.find<PlayerController>().extendRadioThenPlayNext();
-      return;
+      return Get.find<PlayerController>().extendRadioThenPlayNext();
     }
     _player.seek(Duration.zero);
     _player.pause();
+    return false;
   }
 
   @override
   Future<void> skipToPrevious() async {
+    await skipToPreviousResult();
+  }
+
+  /// True when previous restarted the track or started the prior item.
+  Future<bool> skipToPreviousResult() async {
     if (shouldRestartOnPrevious(_player.position)) {
       _player.seek(Duration.zero);
-      return;
+      return true;
     }
     _player.seek(Duration.zero);
+    final from = currentIndex is int ? currentIndex as int : -1;
     final index = _getPrevSongIndex();
-    if (index != currentIndex) {
-      await customAction("playByIndex", {'index': index});
+    if (!skipNextDidAdvance(fromIndex: from, toIndex: index)) {
+      return true;
     }
+    final result = await customAction("playByIndex", {'index': index});
+    return !playByIndexHardFailed(result);
   }
 
   @override
@@ -787,6 +802,12 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       case 'setAudioFx':
         _applyAudioFx();
         break;
+
+      case 'skipToNext':
+        return skipToNextResult();
+
+      case 'skipToPrevious':
+        return skipToPreviousResult();
 
       case 'playByIndex':
         final songIndex = coercePlayByIndex(extras!['index']);

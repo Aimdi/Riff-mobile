@@ -16,6 +16,7 @@ import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/utils/helper.dart';
 import '/utils/media_item_video.dart';
 import 'player_controller.dart';
+import 'video_handoff.dart';
 
 /// Video mode: plays the current YouTube track as real video, the way a
 /// video player does it — ONE mpv engine is given the video-only stream
@@ -58,7 +59,8 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
       // The audio pipeline moved to another item under an active video —
       // close stale video; the surface widget re-enables for the new song.
       if (isActive.value && song != null && song.id != _activeSongId) {
-        disable(resume: false);
+        // Resume audio so a slow/failed re-enable cannot leave silence.
+        disable(resume: true);
       }
     });
   }
@@ -93,28 +95,46 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
 
   /// Switch the current track to video. Returns false when no video (or
   /// no audio url) could be resolved — the caller shows the error state.
-  Future<bool> enable() async {
+  ///
+  /// [wasPlayingBeforeHandoff] covers a prior `disable(resume: false)` that
+  /// already paused a playing session — early failures must still resume.
+  Future<bool> enable({bool wasPlayingBeforeHandoff = false}) async {
     final song = _pc.currentSong.value;
-    if (!availableFor(song) || isLoading.value) return false;
+    if (isLoading.value) return false;
+    if (!availableFor(song)) {
+      _resumeAudioIfVideoEnableFailed(
+        wasPlayingBeforeAttempt: wasPlayingBeforeHandoff,
+      );
+      return false;
+    }
     if (isActive.value && song!.id == _activeSongId) return true;
     isLoading.value = true;
-    var pausedAudioForVideo = false;
+    final wasPlaying = wasPlayingBeforeHandoff ||
+        _pc.buttonState.value == PlayButtonState.playing ||
+        isVideoPlaying.value;
     try {
       final quality = Get.isRegistered<SettingsScreenController>()
           ? Get.find<SettingsScreenController>().videoQuality.value
           : VideoQuality.high;
       final video = await VideoStreamService.resolve(song!.id,
           quality: quality);
-      if (video == null) return false;
+      if (video == null) {
+        _resumeAudioIfVideoEnableFailed(wasPlayingBeforeAttempt: wasPlaying);
+        return false;
+      }
       // Same audio stream the music pipeline plays — quality unchanged.
       final audioUrl = await _audioUrlFor(song.id);
-      if (audioUrl == null) return false;
-      if (_pc.currentSong.value?.id != song.id) return false;
+      if (audioUrl == null) {
+        _resumeAudioIfVideoEnableFailed(wasPlayingBeforeAttempt: wasPlaying);
+        return false;
+      }
+      if (_pc.currentSong.value?.id != song.id) {
+        _resumeAudioIfVideoEnableFailed(wasPlayingBeforeAttempt: wasPlaying);
+        return false;
+      }
 
-      final wasPlaying = _pc.buttonState.value == PlayButtonState.playing;
       final position = _pc.progressBarStatus.value.current;
       _pc.pause();
-      pausedAudioForVideo = wasPlaying;
 
       _player ??= Player(
           configuration: const PlayerConfiguration(title: 'Riff video'));
@@ -139,12 +159,21 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
     } catch (e) {
       printERROR('Video mode enable failed: $e');
       await disable(resume: false);
-      // We paused the music to switch engines; a failed switch must not
-      // leave the app stuck in silence — resume the audio pipeline.
-      if (pausedAudioForVideo) _pc.play();
+      _resumeAudioIfVideoEnableFailed(wasPlayingBeforeAttempt: wasPlaying);
       return false;
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  void _resumeAudioIfVideoEnableFailed({
+    required bool wasPlayingBeforeAttempt,
+  }) {
+    if (shouldResumeAudioAfterVideoEnableFailed(
+      videoActive: isActive.value,
+      wasPlayingBeforeAttempt: wasPlayingBeforeAttempt,
+    )) {
+      _pc.play();
     }
   }
 
@@ -252,7 +281,8 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
       if (!done || !isActive.value) return;
       // Video finished — hand back and advance the queue naturally.
       await disable(resume: false);
-      _pc.next();
+      final ok = await _pc.next();
+      if (!ok) _pc.notifyPlayError('streamPlaybackFailed');
     }));
   }
 
