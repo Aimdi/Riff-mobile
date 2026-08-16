@@ -1,7 +1,10 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/ui/widgets/modification_list.dart';
 
+import '../../models/playling_from.dart';
+import '../player/player_controller.dart';
 import '../screens/Artists/artist_screen_controller.dart';
 import '../screens/Search/search_result_screen_controller.dart';
 import 'list_widget.dart';
@@ -55,13 +58,43 @@ class SeparateTabItemWidget extends StatelessWidget {
                   ),
                   isCompleteList
                       ? const SizedBox.shrink()
-                      : TextButton(
-                          onPressed: () {
-                            searchResController!.viewAllCallback(title);
-                          },
-                          child: Text("viewAll".tr,
-                              style:
-                                  Theme.of(Get.context!).textTheme.titleSmall))
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (title == 'Songs' ||
+                                title == 'Videos' ||
+                                title == 'Episodes')
+                              TextButton(
+                                onPressed: () {
+                                  final songs = items.whereType<MediaItem>().toList();
+                                  if (songs.isEmpty ||
+                                      !Get.isRegistered<PlayerController>()) {
+                                    return;
+                                  }
+                                  Get.find<PlayerController>().playPlayListSong(
+                                    songs,
+                                    0,
+                                    playfrom: PlaylingFrom(
+                                      type: PlaylingFromType.SELECTION,
+                                      name: title.tr,
+                                    ),
+                                  );
+                                },
+                                child: Text("playAll".tr,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall),
+                              ),
+                            TextButton(
+                                onPressed: () {
+                                  searchResController!.viewAllCallback(title);
+                                },
+                                child: Text("viewAll".tr,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall)),
+                          ],
+                        )
                 ],
               ),
             ),
