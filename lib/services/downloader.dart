@@ -39,16 +39,32 @@ class Downloader extends GetxService {
 
     if (!settingsScreenController.isCurrentPathsupportDownDir &&
         !await PermissionService.getExtStoragePermission()) {
+      _notifyDownloadSetupFailed();
       return false;
     }
 
     final dirPath =
         Get.find<SettingsScreenController>().downloadLocationPath.string;
     final directory = Directory(dirPath);
-    if (!await directory.exists()) {
-      await directory.create(recursive: true);
+    try {
+      if (!await directory.exists()) {
+        await directory.create(recursive: true);
+      }
+    } catch (_) {
+      _notifyDownloadSetupFailed();
+      return false;
     }
     return true;
+  }
+
+  void _notifyDownloadSetupFailed() {
+    final ctx = Get.context;
+    if (ctx == null || !ctx.mounted) return;
+    ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
+      ctx,
+      'downloadSetupFailed'.tr,
+      size: SanckBarSize.MEDIUM,
+    ));
   }
 
   Future<void> downloadPlaylist(

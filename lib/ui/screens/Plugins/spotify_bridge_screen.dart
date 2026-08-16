@@ -95,6 +95,13 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
       _status.value = list.isEmpty ? 'spotifyNoPlaylists'.tr : '';
     } catch (e) {
       _status.value = e.toString().replaceFirst('Exception: ', '');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(snackbar(
+          context,
+          'operationFailed'.tr,
+          size: SanckBarSize.MEDIUM,
+        ));
+      }
     } finally {
       _loading.value = false;
     }
@@ -143,6 +150,13 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
     } catch (e) {
       _status.value = e.toString().replaceFirst('Exception: ', '');
       _progress.value = 0;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(snackbar(
+          context,
+          'operationFailed'.tr,
+          size: SanckBarSize.MEDIUM,
+        ));
+      }
     } finally {
       _loading.value = false;
     }
@@ -194,6 +208,13 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
     } catch (e) {
       _status.value = e.toString().replaceFirst('Exception: ', '');
       _progress.value = 0;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(snackbar(
+          context,
+          'operationFailed'.tr,
+          size: SanckBarSize.MEDIUM,
+        ));
+      }
     } finally {
       _loading.value = false;
     }

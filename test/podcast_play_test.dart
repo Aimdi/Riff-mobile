@@ -52,4 +52,13 @@ void main() {
     expect(await playFirstPodcastInGenre(''), isFalse);
     expect(await playFirstPodcastInGenre('   '), isFalse);
   });
+
+  test('isPodcastCollection matches show and YouTube channel tiles', () {
+    expect(isPodcastCollection(kind: 'podcast'), isTrue);
+    expect(isPodcastCollection(kind: 'yt_channel'), isTrue);
+    expect(isPodcastCollection(id: 'MPSP123'), isTrue);
+    expect(isPodcastCollection(id: 'UCabcdefghijklmnopqrstuv'), isTrue);
+    expect(isPodcastCollection(kind: 'album', id: 'MPREb_abc'), isFalse);
+    expect(isPodcastCollection(id: 'VLPL123'), isFalse);
+  });
 }

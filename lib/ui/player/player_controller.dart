@@ -1402,14 +1402,22 @@ class PlayerController extends GetxController
     }
   }
 
+  /// Video mode owns a paused audio pipeline — skip must hand off first.
+  Future<void> _handoffVideoThen(Future<void> Function() action) async {
+    if (_videoModeActive) {
+      await Get.find<VideoModeController>().disable(resume: false);
+    }
+    await action();
+  }
+
   void prev() {
     if (!_audioReady) return;
-    _audioHandler.skipToPrevious();
+    unawaited(_handoffVideoThen(() => _audioHandler.skipToPrevious()));
   }
 
   Future<void> next() async {
     if (!_audioReady) return;
-    await _audioHandler.skipToNext();
+    await _handoffVideoThen(() => _audioHandler.skipToNext());
   }
 
   void seek(Duration position) {
