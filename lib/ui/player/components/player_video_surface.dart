@@ -100,8 +100,10 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
   }
 
   Future<void> _engage({bool reload = false}) async {
+    final wasPlaying = _player.buttonState.value == PlayButtonState.playing ||
+        _vm.isVideoPlaying.value;
     if (reload) await _vm.disableIfActiveFor(widget.song.id, resume: false);
-    final ok = await _vm.enable();
+    final ok = await _vm.enable(wasPlayingBeforeHandoff: wasPlaying);
     if (mounted && !ok) {
       setState(() => _failed = true);
     } else if (mounted && _failed) {

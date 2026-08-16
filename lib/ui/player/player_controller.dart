@@ -8,6 +8,7 @@ import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 
 import '../../models/playling_from.dart';
 import 'play_queue_order.dart';
+import 'video_handoff.dart';
 import '../../services/play_by_index_skip.dart';
 import '../../services/play_runtime_error.dart';
 import '../../services/downloader.dart';
@@ -1302,17 +1303,16 @@ class PlayerController extends GetxController
   bool _extendingRadio = false;
 
   /// Last track ended while radio/Wave is on — fetch the next batch and play.
-  Future<void> extendRadioThenPlayNext() async {
-    if (_extendingRadio || !isRadioModeOn) return;
+  Future<bool> extendRadioThenPlayNext() async {
+    if (_extendingRadio || !isRadioModeOn) return false;
     _extendingRadio = true;
     try {
       if (currentQueue.length > currentSongIndex.value + 1) {
-        await next();
-        return;
+        return next();
       }
       if (radioInitiatorItem == null) {
         notifyPlayError('radioContinuationFailed');
-        return;
+        return false;
       }
       if (!_radioContinuationInFlight) {
         _radioContinuationInFlight = true;
@@ -1323,10 +1323,10 @@ class PlayerController extends GetxController
         }
       }
       if (currentQueue.length > currentSongIndex.value + 1) {
-        await next();
-      } else {
-        notifyPlayError('radioContinuationFailed');
+        return next();
       }
+      notifyPlayError('radioContinuationFailed');
+      return false;
     } finally {
       _extendingRadio = false;
     }
@@ -1439,21 +1439,27 @@ class PlayerController extends GetxController
   }
 
   /// Video mode owns a paused audio pipeline — skip must hand off first.
-  Future<void> _handoffVideoThen(Future<void> Function() action) async {
-    if (_videoModeActive) {
+  Future<bool> _handoffVideoThen(Future<bool> Function() action) async {
+    if (shouldHandoffVideoBeforeSkip(_videoModeActive)) {
       await Get.find<VideoModeController>().disable(resume: false);
     }
-    await action();
+    return action();
   }
 
-  void prev() {
-    if (!_audioReady) return;
-    unawaited(_handoffVideoThen(() => _audioHandler.skipToPrevious()));
+  Future<bool> prev() async {
+    if (!_audioReady) return false;
+    return _handoffVideoThen(() async {
+      final result = await _audioHandler.customAction('skipToPrevious');
+      return playByIndexDidStart(result);
+    });
   }
 
-  Future<void> next() async {
-    if (!_audioReady) return;
-    await _handoffVideoThen(() => _audioHandler.skipToNext());
+  Future<bool> next() async {
+    if (!_audioReady) return false;
+    return _handoffVideoThen(() async {
+      final result = await _audioHandler.customAction('skipToNext');
+      return playByIndexDidStart(result);
+    });
   }
 
   void seek(Duration position) {
@@ -1869,8 +1875,7 @@ class PlayerController extends GetxController
       return false;
     }
     clearPlaybackError();
-    await next();
-    return shouldSnackGenericPlayFailed(playbackError.value);
+    return next();
   }
 
   /// Force a fresh stream URL for the current queue index.
