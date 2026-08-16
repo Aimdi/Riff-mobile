@@ -76,7 +76,7 @@ class _JumpBackInRowState extends State<JumpBackInRow> {
           padding:
               const EdgeInsets.only(left: 12, top: 8, bottom: 10, right: 12),
           child: Text(
-            title == 'jumpBackIn' ? 'Jump back in' : title,
+            title,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                   fontSize: 19,

@@ -447,7 +447,6 @@ class HomeShortcutGrid extends StatelessWidget {
     required String id,
     required String title,
     bool shuffle = false,
-    bool mostRecentFirst = false,
   }) async {
     try {
       final box = Hive.isBoxOpen(id) ? Hive.box(id) : await Hive.openBox(id);
@@ -457,9 +456,6 @@ class HomeShortcutGrid extends StatelessWidget {
           final item = MediaItemBuilder.fromJson(raw);
           if (item.id.isNotEmpty) tracks.add(item);
         } catch (_) {}
-      }
-      if (mostRecentFirst) {
-        tracks = tracks.reversed.toList();
       }
       if (tracks.isEmpty) {
         _openLibraryPlaylist(id, title);
@@ -530,18 +526,6 @@ class HomeShortcutGrid extends StatelessWidget {
           shuffle: true,
         ),
         onLongPress: () => _openLibraryPlaylist('LIBFAV', 'favorites'.tr),
-      ),
-      _ShortcutItem(
-        title: 'recentlyPlayed'.tr,
-        icon: Icons.history,
-        onTap: () => _playLibraryBox(
-          context,
-          id: 'LIBRP',
-          title: 'recentlyPlayed'.tr,
-          mostRecentFirst: true,
-        ),
-        onLongPress: () =>
-            _openLibraryPlaylist('LIBRP', 'recentlyPlayed'.tr),
       ),
       _ShortcutItem(
         title: 'freshFinds'.tr,

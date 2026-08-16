@@ -310,16 +310,17 @@ class _MiniPlayerTransport extends StatelessWidget {
       mainAxisSize: isWideScreen ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        FavoriteHeartButton(
-          iconSize: isWideScreen ? 20 : 18,
-          visualDensity: VisualDensity.compact,
-          padding: EdgeInsets.zero,
-          constraints: compact,
-          splashRadius: 18,
-          isFav: playerController.isCurrentSongFav,
-          onToggleFav: playerController.toggleFavourite,
-          song: () => playerController.currentSong.value,
-        ),
+        if (isWideScreen)
+          FavoriteHeartButton(
+            iconSize: 20,
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: compact,
+            splashRadius: 18,
+            isFav: playerController.isCurrentSongFav,
+            onToggleFav: playerController.toggleFavourite,
+            song: () => playerController.currentSong.value,
+          ),
         if (isWideScreen)
           IconButton(
               iconSize: 20,
@@ -381,25 +382,6 @@ class _MiniPlayerTransport extends StatelessWidget {
                 ),
               );
             })),
-        if (!isWideScreen)
-          IconButton(
-            iconSize: 20,
-            visualDensity: VisualDensity.compact,
-            padding: EdgeInsets.zero,
-            constraints: compact,
-            splashRadius: 18,
-            tooltip: 'upNext'.tr,
-            onPressed: () {
-              final queue = playerController.queuePanelController;
-              if (queue.isAttached) {
-                queue.open();
-              }
-            },
-            icon: Icon(
-              Icons.queue_music,
-              color: Theme.of(context).textTheme.titleMedium!.color,
-            ),
-          ),
         if (isWideScreen)
           Row(
             children: [

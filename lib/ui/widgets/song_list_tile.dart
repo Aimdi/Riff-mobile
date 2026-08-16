@@ -146,12 +146,6 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                       decoration: BoxDecoration(
                         color: isCurrent ? highlight : null,
                         borderRadius: radius,
-                        // Soft elevated fill + thin secondary cue (not a thick rail).
-                        border: isCurrent
-                            ? Border(
-                                left: BorderSide(color: accent, width: 2),
-                              )
-                            : null,
                       ),
                     ),
                   );
@@ -248,48 +242,6 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                             ],
                           );
                         }),
-                        IconButton(
-                          tooltip: 'playNext'.tr,
-                          iconSize: 20,
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
-                          ),
-                          splashRadius: 18,
-                          onPressed: () {
-                            playerController.playNext(song);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              snackbar(
-                                context,
-                                "${"playnextMsg".tr} ${song.title}",
-                                size: SanckBarSize.MEDIUM,
-                              ),
-                            );
-                          },
-                          icon: Icon(
-                            Icons.playlist_play,
-                            color: muted,
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'addToPlaylist'.tr,
-                          iconSize: 20,
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
-                          ),
-                          splashRadius: 18,
-                          onPressed: () =>
-                              showAddToPlaylistSheet(context, [song]),
-                          icon: Icon(
-                            Icons.playlist_add,
-                            color: muted,
-                          ),
-                        ),
                         SongRowHeartButton(
                           song: song,
                           iconSize: 20,

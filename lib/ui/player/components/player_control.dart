@@ -1,19 +1,15 @@
+import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:ionicons/ionicons.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
 import '/ui/player/components/animated_play_button.dart';
 import '/ui/player/components/podcast_transcript_sheet.dart';
 import '/ui/utils/theme_controller.dart';
-import '/utils/content_filters.dart';
 import '../../screens/Settings/settings_screen_controller.dart';
-import '../../widgets/add_to_playlist.dart';
 import '../../widgets/discovery/player_similar_row.dart';
 import '../../widgets/favorite_heart_button.dart';
-import '../../widgets/sleep_timer_bottom_sheet.dart';
-import '../play_queue_order.dart';
 import '../player_controller.dart';
 import '../player_media_nav.dart';
 import 'playback_error_actions.dart';
@@ -117,18 +113,6 @@ class PlayerControlWidget extends StatelessWidget {
                 isFav: playerController.isCurrentSongFav,
                 onToggleFav: playerController.toggleFavourite,
                 song: () => playerController.currentSong.value,
-              ),
-              IconButton(
-                tooltip: 'addToPlaylist'.tr,
-                icon: Icon(
-                  Icons.playlist_add,
-                  color: Theme.of(context).textTheme.titleMedium?.color,
-                ),
-                onPressed: () {
-                  final song = playerController.currentSong.value;
-                  if (song == null) return;
-                  showAddToPlaylistSheet(context, [song]);
-                },
               ),
             ],
           ),
@@ -258,127 +242,39 @@ class PlayerControlWidget extends StatelessWidget {
               ),
             );
           }),
-          // The seek control IS the SoundCloud-style waveform (no separate
-          // slider line): it fills with the accent colour as the track plays,
-          // shows the elapsed/total time beneath, and is tap/drag seekable.
-          const _WaveformScrubber(),
-          if (GetPlatform.isMobile)
-            _mobileVolume(playerController, context),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: GetX<PlayerController>(builder: (controller) {
+              final accent = Theme.of(context).colorScheme.secondary;
+              return ProgressBar(
+                thumbRadius: 5,
+                barHeight: 3,
+                timeLabelPadding: 4,
+                timeLabelLocation: TimeLabelLocation.sides,
+                baseBarColor: RiffSurfaces.hairline,
+                bufferedBarColor: RiffSurfaces.elevatedSoft,
+                progressBarColor: accent,
+                thumbColor: RiffSurfaces.textPrimary,
+                timeLabelTextStyle:
+                    Theme.of(context).textTheme.titleSmall!.copyWith(
+                          color: RiffSurfaces.textMuted,
+                          fontSize: 12,
+                        ),
+                progress: controller.progressBarStatus.value.current,
+                total: controller.progressBarStatus.value.total,
+                buffered: controller.progressBarStatus.value.buffered,
+                onSeek: controller.seek,
+              );
+            }),
+          ),
           Obx(() => playerController.usesLongFormTransport
               ? _podcastControls(playerController, context)
               : _musicControls(playerController, context)),
-          _nowPlayingActions(playerController, context),
           // Similar songs are music-only; hide for podcasts and audiobooks.
           Obx(() => playerController.usesLongFormTransport
               ? const SizedBox.shrink()
               : const PlayerSimilarRow()),
         ]);
-  }
-
-  Widget _mobileVolume(
-      PlayerController playerController, BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 2),
-      child: Obx(() {
-        final volume = playerController.volume.value;
-        return Row(
-          children: [
-            InkWell(
-              onTap: playerController.mute,
-              child: Icon(
-                volumeIconFor(volume),
-                size: 20,
-                color: Theme.of(context).textTheme.titleMedium?.color,
-              ),
-            ),
-            Expanded(
-              child: SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  trackHeight: 2,
-                  thumbShape:
-                      const RoundSliderThumbShape(enabledThumbRadius: 6.0),
-                  overlayShape:
-                      const RoundSliderOverlayShape(overlayRadius: 10.0),
-                ),
-                child: Slider(
-                  value: (volume / 100).clamp(0.0, 1.0),
-                  onChanged: (value) {
-                    playerController.setVolume((value * 100).toInt());
-                  },
-                ),
-              ),
-            ),
-          ],
-        );
-      }),
-    );
-  }
-
-  Widget _nowPlayingActions(
-      PlayerController playerController, BuildContext context) {
-    return Obx(() {
-      if (playerController.usesLongFormTransport) {
-        return const SizedBox.shrink();
-      }
-      final song = playerController.currentSong.value;
-      if (song == null) return const SizedBox.shrink();
-      final size = MediaQuery.sizeOf(context);
-      // Hide on landscape / very short viewports; portrait phones keep the row
-      // and Wrap handles narrow widths.
-      if (size.height < 480) return const SizedBox.shrink();
-
-      final labelStyle = Theme.of(context).textTheme.labelSmall;
-      final color = Theme.of(context).textTheme.titleMedium?.color;
-      final style = TextButton.styleFrom(
-        foregroundColor: color,
-        visualDensity: VisualDensity.compact,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        minimumSize: Size.zero,
-      );
-
-      return Padding(
-        padding: const EdgeInsets.only(top: 2),
-        child: Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 4,
-          runSpacing: 0,
-          children: [
-            TextButton.icon(
-              onPressed: () => playerController.startRadio(song),
-              icon: const Icon(Icons.sensors, size: 18),
-              label: Text("startRadio".tr, style: labelStyle),
-              style: style,
-            ),
-            TextButton.icon(
-              onPressed: () => playerController.moreLikeThisPlayNext(song),
-              icon: const Icon(Icons.playlist_play, size: 18),
-              label: Text("playNext".tr, style: labelStyle),
-              style: style,
-            ),
-            TextButton.icon(
-              onPressed: () => showSleepTimerSheet(context),
-              icon: Icon(
-                playerController.isSleepTimerActive.isTrue
-                    ? Icons.timer
-                    : Icons.timer_outlined,
-                size: 18,
-              ),
-              label: Text("sleepTimer".tr, style: labelStyle),
-              style: style,
-            ),
-            TextButton.icon(
-              onPressed: () {
-                Share.share(SongLinkShare.shareText(song));
-              },
-              icon: const Icon(Icons.share, size: 18),
-              label: Text("shareSong".tr, style: labelStyle),
-              style: style,
-            ),
-          ],
-        ),
-      );
-    });
   }
 
   Widget _musicControls(
@@ -680,181 +576,4 @@ Widget _nextButton(PlayerController playerController, BuildContext context) {
         iconSize: 30,
         onPressed: isLastSong ? null : playerController.next);
   });
-}
-
-/// Format a playback position as m:ss (or h:mm:ss for long tracks).
-/// Unknown / unset totals render as an em dash instead of NA or 0:00.
-String _fmtDuration(Duration d, {bool allowZero = true}) {
-  if (!allowZero && d <= Duration.zero) return '—';
-  final h = d.inHours;
-  final m = d.inMinutes % 60;
-  final s = d.inSeconds % 60;
-  final ss = s.toString().padLeft(2, '0');
-  if (h > 0) return '$h:${m.toString().padLeft(2, '0')}:$ss';
-  return '$m:$ss';
-}
-
-/// Waveform seek bar with local drag preview so scrubbing stays snappy even
-/// when progress UI updates are throttled upstream.
-class _WaveformScrubber extends StatefulWidget {
-  const _WaveformScrubber();
-
-  @override
-  State<_WaveformScrubber> createState() => _WaveformScrubberState();
-}
-
-class _WaveformScrubberState extends State<_WaveformScrubber> {
-  double? _dragFrac;
-  Duration? _dragPosition;
-
-  void _scrubTo(double dx, double width, Duration total, PlayerController c) {
-    if (total.inMilliseconds <= 0 || width <= 0) return;
-    final f = (dx / width).clamp(0.0, 1.0);
-    final pos = total * f;
-    setState(() {
-      _dragFrac = f;
-      _dragPosition = pos;
-    });
-    c.seek(pos);
-  }
-
-  void _endScrub() {
-    if (_dragFrac == null && _dragPosition == null) return;
-    setState(() {
-      _dragFrac = null;
-      _dragPosition = null;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GetX<PlayerController>(builder: (controller) {
-      final status = controller.progressBarStatus.value;
-      final totalMs = status.total.inMilliseconds;
-      final liveFrac = totalMs > 0
-          ? (status.current.inMilliseconds / totalMs).clamp(0.0, 1.0)
-          : 0.0;
-      final frac = _dragFrac ?? liveFrac;
-      final song = controller.currentSong.value;
-      final seed = (song?.id ?? song?.title ?? '').hashCode;
-      final timeStyle = Theme.of(context).textTheme.titleSmall!.copyWith(
-            fontSize: 12,
-            color: RiffSurfaces.textMuted,
-            fontWeight: FontWeight.w500,
-          );
-      final currentLabel = _fmtDuration(_dragPosition ?? status.current);
-      final totalLabel = _fmtDuration(status.total, allowZero: false);
-
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: Column(
-          children: [
-            LayoutBuilder(builder: (context, constraints) {
-              final width = constraints.maxWidth;
-              return GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTapDown: (d) =>
-                    _scrubTo(d.localPosition.dx, width, status.total, controller),
-                onTapUp: (_) => _endScrub(),
-                onTapCancel: _endScrub,
-                onHorizontalDragStart: (d) =>
-                    _scrubTo(d.localPosition.dx, width, status.total, controller),
-                onHorizontalDragUpdate: (d) =>
-                    _scrubTo(d.localPosition.dx, width, status.total, controller),
-                onHorizontalDragEnd: (_) => _endScrub(),
-                onHorizontalDragCancel: _endScrub,
-                child: SizedBox(
-                  height: 34,
-                  width: double.infinity,
-                  child: CustomPaint(
-                    painter: _WaveformPainter(
-                      progress: frac,
-                      seed: seed,
-                      playedColor: Theme.of(context)
-                              .sliderTheme
-                              .activeTrackColor ??
-                          Theme.of(context).colorScheme.secondary,
-                      unplayedColor: (Theme.of(context)
-                                  .sliderTheme
-                                  .inactiveTrackColor ??
-                              RiffSurfaces.hairline)
-                          .withOpacity(0.55),
-                      playheadColor: RiffSurfaces.textPrimary,
-                    ),
-                  ),
-                ),
-              );
-            }),
-            const SizedBox(height: 2),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(currentLabel, style: timeStyle),
-                Text(totalLabel, style: timeStyle),
-              ],
-            ),
-          ],
-        ),
-      );
-    });
-  }
-}
-
-/// A thin SoundCloud-style waveform. Bar heights are deterministic per song
-/// (hashed from a seed) so they stay stable across rebuilds; the played portion
-/// is drawn in [playedColor], the rest in [unplayedColor]. A thin playhead
-/// line marks the current position.
-class _WaveformPainter extends CustomPainter {
-  _WaveformPainter({
-    required this.progress,
-    required this.seed,
-    required this.playedColor,
-    required this.unplayedColor,
-    required this.playheadColor,
-  });
-
-  final double progress; // 0..1
-  final int seed;
-  final Color playedColor;
-  final Color unplayedColor;
-  final Color playheadColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const barWidth = 2.5;
-    const gap = 1.5;
-    const step = barWidth + gap;
-    final count = (size.width / step).floor();
-    if (count <= 0) return;
-    final midY = size.height / 2;
-    final playedBars = (count * progress).round();
-    final paint = Paint()
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = barWidth;
-    for (int i = 0; i < count; i++) {
-      // Deterministic pseudo-random amplitude in [0.30, 1.0].
-      final n = (seed ^ (i * 2654435761)) & 0x7fffffff;
-      final amp = 0.30 + (n % 1000) / 1000.0 * 0.70;
-      final barH = size.height * amp;
-      final x = i * step + barWidth / 2;
-      paint.color = i < playedBars ? playedColor : unplayedColor;
-      canvas.drawLine(
-          Offset(x, midY - barH / 2), Offset(x, midY + barH / 2), paint);
-    }
-    // Playhead line at the current progress position.
-    final playheadX = (size.width * progress).clamp(0.0, size.width);
-    final head = Paint()
-      ..color = playheadColor.withOpacity(0.9)
-      ..strokeWidth = 1.5
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(Offset(playheadX, 2), Offset(playheadX, size.height - 2), head);
-  }
-
-  @override
-  bool shouldRepaint(covariant _WaveformPainter old) =>
-      old.progress != progress ||
-      old.seed != seed ||
-      old.playedColor != playedColor ||
-      old.unplayedColor != unplayedColor ||
-      old.playheadColor != playheadColor;
 }

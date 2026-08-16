@@ -559,6 +559,7 @@
     "uploadFailed": "Upload failed",
     "absUploadForbidden": "This account isn't allowed to upload to the server",
     "continueListening": "Continue listening",
+    "continuePodcast": "Continue podcast",
     "absSessionExpired": "Your Audiobookshelf session expired. Sign in again.",
     "absServerError": "The Audiobookshelf server returned an error.",
     "absUnreachable": "Could not reach the Audiobookshelf server."

@@ -104,14 +104,11 @@ class Body extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final homeScreenController = Get.find<HomeScreenController>();
-    final size = MediaQuery.of(context).size;
-    final topPadding = GetPlatform.isDesktop
-        ? 85.0
-        : context.isLandscape
-            ? 50.0
-            : size.height < 750
-                ? 80.0
-                : 85.0;
+    final topPadding = homeFeedTopPadding(
+      isDesktop: GetPlatform.isDesktop,
+      isLandscape: context.isLandscape,
+      statusBar: MediaQuery.paddingOf(context).top,
+    );
     const leftPadding = 0.0;
     if (homeScreenController.tabIndex.value == 0) {
       return Padding(
@@ -250,7 +247,7 @@ class _HomeFeed extends StatelessWidget {
       return ListView(
         padding: EdgeInsets.only(bottom: 200, top: topPadding),
         children: [
-          // Hierarchy: offline → title → continue → Jump back in → Wave → shortcuts.
+          // Greeting → continue → recents → shortcuts → mixes → Wave.
           Obx(() => home.showingCachedWhileOffline.isTrue
               ? const _OfflineHomeBanner()
               : const SizedBox.shrink()),
@@ -281,10 +278,10 @@ class _HomeFeed extends StatelessWidget {
           const _ContinueListeningChip(),
           const _PodcastContinueChip(),
           const JumpBackInRow(),
-          const RiffWaveHero(),
           const HomeShortcutGrid(),
           const SizedBox(height: 8),
           const _HomeZoneB(),
+          const RiffWaveHero(),
           const SizedBox(height: 12),
           const HomeExploreSection(),
         ],
@@ -583,7 +580,7 @@ class _PodcastContinueChip extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'continueListening'.tr,
+                          'continuePodcast'.tr,
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),

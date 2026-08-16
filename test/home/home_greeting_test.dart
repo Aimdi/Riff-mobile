@@ -10,4 +10,19 @@ void main() {
     expect(homeGreetingKey(DateTime(2026, 8, 16, 17)), 'goodEvening');
     expect(homeGreetingKey(DateTime(2026, 8, 16, 23)), 'goodEvening');
   });
+
+  test('homeFeedTopPadding stays tight on phones', () {
+    expect(
+      homeFeedTopPadding(isDesktop: false, isLandscape: false, statusBar: 48),
+      60,
+    );
+    expect(
+      homeFeedTopPadding(isDesktop: false, isLandscape: true, statusBar: 24),
+      32,
+    );
+    expect(
+      homeFeedTopPadding(isDesktop: true, isLandscape: false, statusBar: 0),
+      85,
+    );
+  });
 }
