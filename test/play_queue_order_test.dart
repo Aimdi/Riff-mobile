@@ -78,6 +78,12 @@ void main() {
     expect(canMutateQueue(false), isFalse);
   });
 
+  test('generic play snack is skipped when a stream error already showed', () {
+    expect(shouldSnackGenericPlayFailed(null), isTrue);
+    expect(shouldSnackGenericPlayFailed(''), isTrue);
+    expect(shouldSnackGenericPlayFailed("Couldn't load this stream"), isFalse);
+  });
+
   test('playback needs a live handler and at least one item', () {
     expect(canStartPlayback(audioReady: true, itemCount: 1), isTrue);
     expect(canStartPlayback(audioReady: true, itemCount: 0), isFalse);

@@ -50,6 +50,13 @@ String cloudServerSongId(String songId) {
   return songId;
 }
 
+/// playByIndex customAction result: true started, false hard-failed,
+/// null superseded by a newer playByIndex.
+bool playByIndexDidStart(dynamic result) => result == true;
+
+/// Hard fail only — a stale/superseded result is not a user-facing failure.
+bool playByIndexHardFailed(dynamic result) => result == false;
+
 /// Hive / JSON may store playByIndex as a num or string.
 int coercePlayByIndex(dynamic raw) {
   if (raw is int) return raw;

@@ -57,6 +57,10 @@ bool canStartPlayback({
 }) =>
     audioReady && itemCount > 0;
 
+/// Generic play-failed snack is redundant when the stream error already snacked.
+bool shouldSnackGenericPlayFailed(String? playbackError) =>
+    playbackError == null || playbackError.isEmpty;
+
 /// Home continue chip needs a live handler and a non-empty saved queue.
 bool canResumeSavedSession({
   required bool audioReady,

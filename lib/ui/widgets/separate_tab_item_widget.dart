@@ -78,15 +78,7 @@ class SeparateTabItemWidget extends StatelessWidget {
         name: title.tr,
       ),
     );
-    if (!ok) {
-      final context = Get.context;
-      if (context == null || !context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(snackbar(
-        context,
-        'operationFailed'.tr,
-        size: SanckBarSize.MEDIUM,
-      ));
-    }
+    if (!ok) snackOperationFailed();
   }
 
   @override

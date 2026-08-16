@@ -690,13 +690,5 @@ Future<void> _playAlbumFrom(
       type: PlaylingFromType.ALBUM,
     ),
   );
-  if (!ok) {
-    final ctx = Get.context;
-    if (ctx == null || !ctx.mounted) return;
-    ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
-      ctx,
-      'operationFailed'.tr,
-      size: SanckBarSize.MEDIUM,
-    ));
-  }
+  if (!ok) snackOperationFailed();
 }

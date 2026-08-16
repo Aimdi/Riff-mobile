@@ -146,11 +146,10 @@ class _SimilarSongsSheetState extends State<SimilarSongsSheet> {
                               final ok = await Get.find<PlayerController>()
                                   .playPlayListSong(songs, 0);
                               if (!context.mounted) return;
-                              Navigator.pop(context);
-                              if (!ok) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    snackbar(context, "operationFailed".tr,
-                                        size: SanckBarSize.MEDIUM));
+                              if (ok) {
+                                Navigator.pop(context);
+                              } else {
+                                snackOperationFailed(context);
                               }
                             },
                       icon: const Icon(Icons.play_arrow),

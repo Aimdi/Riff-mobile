@@ -103,6 +103,15 @@ void main() {
     expect(shouldRestartOnPrevious(const Duration(seconds: 5)), isTrue);
   });
 
+  test('playByIndex result is start, hard-fail, or superseded', () {
+    expect(playByIndexDidStart(true), isTrue);
+    expect(playByIndexDidStart(false), isFalse);
+    expect(playByIndexDidStart(null), isFalse);
+    expect(playByIndexHardFailed(true), isFalse);
+    expect(playByIndexHardFailed(false), isTrue);
+    expect(playByIndexHardFailed(null), isFalse);
+  });
+
   test('coercePlayByIndex accepts Hive/JSON nums and strings', () {
     expect(coercePlayByIndex(3), 3);
     expect(coercePlayByIndex(2.0), 2);

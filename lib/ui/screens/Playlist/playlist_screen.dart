@@ -517,19 +517,7 @@ class PlaylistScreen extends StatelessWidget {
                                                                 .title,
                                                             type: PlaylingFromType
                                                                 .PLAYLIST));
-                                                if (!ok) {
-                                                  final ctx = Get.context;
-                                                  if (ctx == null ||
-                                                      !ctx.mounted) {
-                                                    return;
-                                                  }
-                                                  ScaffoldMessenger.of(ctx)
-                                                      .showSnackBar(snackbar(
-                                                    ctx,
-                                                    'operationFailed'.tr,
-                                                    size: SanckBarSize.MEDIUM,
-                                                  ));
-                                                }
+                                                if (!ok) snackOperationFailed();
                                               },
                                               icon: Icon(
                                                 Icons.shuffle,
@@ -1189,15 +1177,7 @@ Future<void> _playPlaylistFrom(
       type: PlaylingFromType.PLAYLIST,
     ),
   );
-  if (!ok) {
-    final ctx = Get.context;
-    if (ctx == null || !ctx.mounted) return;
-    ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
-      ctx,
-      'operationFailed'.tr,
-      size: SanckBarSize.MEDIUM,
-    ));
-  }
+  if (!ok) snackOperationFailed();
 }
 
 /// AntennaPod-style episode row: 56×56 art, a publish-date meta line, a 2-line

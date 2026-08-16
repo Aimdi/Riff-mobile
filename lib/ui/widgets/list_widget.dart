@@ -42,15 +42,7 @@ String emptyListLabelKey(String title, {bool searchContext = false}) {
 List<String> wideCollectionLongPressPlayKeys() =>
     const ['play', 'shuffle', 'playNext', 'startRadio'];
 
-void _snackPlayFailed() {
-  final ctx = Get.context;
-  if (ctx == null || !ctx.mounted) return;
-  ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
-    ctx,
-    'operationFailed'.tr,
-    size: SanckBarSize.MEDIUM,
-  ));
-}
+void _snackPlayFailed() => snackOperationFailed();
 
 class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
   const ListWidget(this.items, this.title, this.isCompleteList,
