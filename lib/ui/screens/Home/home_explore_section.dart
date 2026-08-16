@@ -5,6 +5,7 @@ import '../../navigator.dart';
 import '../../utils/riff_tokens.dart';
 import '../../widgets/collection_play.dart';
 import '../../widgets/content_list_widget.dart';
+import '../../widgets/snackbar.dart';
 import 'home_screen_controller.dart';
 
 /// First album/playlist on an Explore shelf — chip tap plays this.
@@ -44,6 +45,15 @@ Future<void> playOrOpenExploreShelf(dynamic shelf, String title) async {
       title: name,
     );
     if (ok) return;
+    final ctx = Get.context;
+    if (ctx != null && ctx.mounted) {
+      ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
+        ctx,
+        'operationFailed'.tr,
+        size: SanckBarSize.MEDIUM,
+      ));
+    }
+    return;
   }
   openExploreShelf(title);
 }

@@ -84,6 +84,21 @@ void main() {
     expect(canStartPlayback(audioReady: false, itemCount: 3), isFalse);
   });
 
+  test('saved session resume needs a live handler and a queue', () {
+    expect(
+      canResumeSavedSession(audioReady: true, savedQueueLength: 3),
+      isTrue,
+    );
+    expect(
+      canResumeSavedSession(audioReady: true, savedQueueLength: 0),
+      isFalse,
+    );
+    expect(
+      canResumeSavedSession(audioReady: false, savedQueueLength: 4),
+      isFalse,
+    );
+  });
+
   test('play next is a no-op when the song is current or already next', () {
     expect(
       isPlayNextNoOp(

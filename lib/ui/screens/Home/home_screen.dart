@@ -478,7 +478,15 @@ class _ContinueListeningChip extends StatelessWidget {
           ),
           child: InkWell(
             borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
-            onTap: () => player.resumeSavedSession(),
+            onTap: () async {
+              final ok = await player.resumeSavedSession();
+              if (!context.mounted || ok) return;
+              ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                context,
+                'operationFailed'.tr,
+                size: SanckBarSize.MEDIUM,
+              ));
+            },
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Row(
@@ -566,13 +574,19 @@ class _PodcastContinueChip extends StatelessWidget {
           ),
           child: InkWell(
             borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
-            onTap: () {
+            onTap: () async {
               final queue = podcastContinueQueue(rows);
               if (queue.isEmpty) return;
               final pos =
                   PodcastProgressService.positionMs(queue.first.id) ?? 0;
               if (pos > 0) player.armResume(queue.first.id, pos);
-              player.playPlayListSong(queue, 0);
+              final ok = await player.playPlayListSong(queue, 0);
+              if (!context.mounted || ok) return;
+              ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                context,
+                'operationFailed'.tr,
+                size: SanckBarSize.MEDIUM,
+              ));
             },
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

@@ -509,7 +509,7 @@ class _SongsView extends StatelessWidget {
                   IconButton(
                     tooltip: 'playAll'.tr,
                     icon: const Icon(Icons.play_arrow_rounded, size: 22),
-                    onPressed: () => playCloudSongs(
+                    onPressed: () => playCloudSongsOrNotify(
                       cloud.toMediaItems(cloud.songs.toList()),
                       shuffle: false,
                     ),

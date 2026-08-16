@@ -689,11 +689,15 @@ class SettingsScreen extends StatelessWidget {
                                       .copyWith(fontSize: 15),
                                 ),
                                 onPressed: () async {
-                                  await Get.find<LibraryPlaylistsController>()
+                                  final ok = await Get.find<
+                                          LibraryPlaylistsController>()
                                       .resetBlacklistedPlaylist();
                                   ScaffoldMessenger.of(Get.context!)
-                                      .showSnackBar(snackbar(Get.context!,
-                                          "blacklistPlstResetAlert".tr,
+                                      .showSnackBar(snackbar(
+                                          Get.context!,
+                                          ok
+                                              ? "blacklistPlstResetAlert".tr
+                                              : "operationFailed".tr,
                                           size: SanckBarSize.MEDIUM));
                                 }),
                           )
@@ -1015,15 +1019,17 @@ class SettingsScreen extends StatelessWidget {
                         "resetToDefaultDes".tr,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
-                      onTap: () {
-                        settingsController
-                            .resetAppSettingsToDefault()
-                            .then((_) {
-                          ScaffoldMessenger.of(Get.context!).showSnackBar(
-                              snackbar(Get.context!, "resetToDefaultMsg".tr,
-                                  size: SanckBarSize.BIG,
-                                  duration: const Duration(seconds: 2)));
-                        });
+                      onTap: () async {
+                        final ok = await settingsController
+                            .resetAppSettingsToDefault();
+                        ScaffoldMessenger.of(Get.context!).showSnackBar(
+                            snackbar(
+                                Get.context!,
+                                ok
+                                    ? "resetToDefaultMsg".tr
+                                    : "operationFailed".tr,
+                                size: SanckBarSize.BIG,
+                                duration: const Duration(seconds: 2)));
                       },
                     ),
                     Obx(() {
@@ -1380,9 +1386,10 @@ class _BannedSongsDialogState extends State<BannedSongsDialog> {
                             style: Theme.of(context).textTheme.bodyMedium),
                         trailing: IconButton(
                           icon: const Icon(Icons.close),
-                          onPressed: () {
-                            BanService.unbanCollection(c["id"]);
-                            setState(() {});
+                          onPressed: () async {
+                            final ok =
+                                await BanService.unbanCollection(c["id"]);
+                            if (ok) setState(() {});
                           },
                         ),
                       )),
@@ -1394,9 +1401,10 @@ class _BannedSongsDialogState extends State<BannedSongsDialog> {
                             style: Theme.of(context).textTheme.bodyMedium),
                         trailing: IconButton(
                           icon: const Icon(Icons.close),
-                          onPressed: () {
-                            BanService.unbanArtist(artist["key"]);
-                            setState(() {});
+                          onPressed: () async {
+                            final ok =
+                                await BanService.unbanArtist(artist["key"]);
+                            if (ok) setState(() {});
                           },
                         ),
                       )),
@@ -1406,9 +1414,9 @@ class _BannedSongsDialogState extends State<BannedSongsDialog> {
                         subtitle: Text(song["artist"], maxLines: 1),
                         trailing: IconButton(
                           icon: const Icon(Icons.close),
-                          onPressed: () {
-                            BanService.unban(song["id"]);
-                            setState(() {});
+                          onPressed: () async {
+                            final ok = await BanService.unban(song["id"]);
+                            if (ok) setState(() {});
                           },
                         ),
                       )),

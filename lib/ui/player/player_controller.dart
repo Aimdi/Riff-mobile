@@ -816,16 +816,21 @@ class PlayerController extends GetxController
   }
 
   /// Resume the Hive-saved queue from its stored index/position and play.
-  Future<void> resumeSavedSession() async {
+  Future<bool> resumeSavedSession() async {
     showContinueListening.value = false;
     await _waitForAudioHandler();
-    if (!_audioReady) return;
     try {
       final prevSessionData = Hive.isBoxOpen("prevSessionData")
           ? Hive.box("prevSessionData")
           : await Hive.openBox("prevSessionData");
       final rawQueue = prevSessionData.get("queue");
-      if (rawQueue is! List || rawQueue.isEmpty) return;
+      if (rawQueue is! List ||
+          !canResumeSavedSession(
+            audioReady: _audioReady,
+            savedQueueLength: rawQueue.length,
+          )) {
+        return false;
+      }
       final songList =
           rawQueue.map((e) => MediaItemBuilder.fromJson(e)).toList();
       final int savedIndex = (prevSessionData.get("index") as int?) ?? 0;
@@ -840,8 +845,10 @@ class PlayerController extends GetxController
         "position": position,
         "restoreSession": false,
       });
+      return true;
     } catch (e) {
       printERROR("resumeSavedSession failed: $e");
+      return false;
     }
   }
 

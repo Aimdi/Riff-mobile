@@ -187,8 +187,9 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
   }
 
   /// Reorder tracks for smoother Mix flow (BPM + Camelot greedy path).
-  Future<void> smartOrderForMix() async {
-    if (songList.length < 2) return;
+  Future<bool> smartOrderForMix() async {
+    if (songList.length < 2) return false;
+    try {
     final analyses = Map<String, TrackAnalysis>.from(mixAnalyses);
     final remaining = songList.toList();
     final ordered = <MediaItem>[];
@@ -234,6 +235,10 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
       await updateSongsIntoDb();
     }
     _loadTransitionMap();
+    return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   ///Fetches playlist details from the service

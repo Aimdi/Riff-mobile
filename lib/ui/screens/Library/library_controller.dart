@@ -433,17 +433,27 @@ class LibraryPlaylistsController extends GetxController
     return false;
   }
 
-  Future<void> blacklistPipedPlaylist(Playlist playlist) async {
-    final box = await Hive.openBox('blacklistedPlaylist');
-    box.add(playlist.playlistId);
-    libraryPlaylists.remove(playlist);
-    box.close();
+  Future<bool> blacklistPipedPlaylist(Playlist playlist) async {
+    try {
+      final box = await Hive.openBox('blacklistedPlaylist');
+      await box.add(playlist.playlistId);
+      libraryPlaylists.remove(playlist);
+      await box.close();
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
-  Future<void> resetBlacklistedPlaylist() async {
-    final box = await Hive.openBox('blacklistedPlaylist');
-    box.clear();
-    syncPipedPlaylist();
+  Future<bool> resetBlacklistedPlaylist() async {
+    try {
+      final box = await Hive.openBox('blacklistedPlaylist');
+      await box.clear();
+      await box.close();
+      return syncPipedPlaylist();
+    } catch (_) {
+      return false;
+    }
   }
 
   void onSort(SortType sortType, bool isAscending) {

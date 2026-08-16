@@ -32,7 +32,11 @@ class BanService {
     return true;
   }
 
-  static Future<void> unban(String songId) => _box.delete(songId);
+  static Future<bool> unban(String songId) async {
+    if (!Hive.isBoxOpen("BannedSongs")) return false;
+    await _box.delete(songId);
+    return true;
+  }
 
   // --- Artist-level ban (RiPlay-style) ---
 
@@ -61,8 +65,12 @@ class BanService {
     return true;
   }
 
-  static Future<void> unbanArtist(String key) async =>
-      _artistBox?.delete(key);
+  static Future<bool> unbanArtist(String key) async {
+    final box = _artistBox;
+    if (!canWriteBan(box)) return false;
+    await box!.delete(key);
+    return true;
+  }
 
   /// [{key, name}] of all banned artists.
   static List<Map<String, dynamic>> get allArtists =>
@@ -86,8 +94,12 @@ class BanService {
     return true;
   }
 
-  static Future<void> unbanCollection(String id) async =>
-      _collectionBox?.delete(id);
+  static Future<bool> unbanCollection(String id) async {
+    final box = _collectionBox;
+    if (!canWriteBan(box)) return false;
+    await box!.delete(id);
+    return true;
+  }
 
   /// [{id, title, type}] of all banned albums/playlists.
   static List<Map<String, dynamic>> get allCollections =>

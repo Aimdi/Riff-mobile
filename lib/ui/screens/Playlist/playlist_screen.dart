@@ -593,17 +593,20 @@ class PlaylistScreen extends StatelessWidget {
                                             return IconButton(
                                               tooltip: 'mixSmartOrder'.tr,
                                               onPressed: () async {
-                                                await playlistController
-                                                    .smartOrderForMix();
-                                                if (context.mounted) {
-                                                  ScaffoldMessenger.of(context)
-                                                      .showSnackBar(snackbar(
-                                                          context,
-                                                          'mixSmartOrderDone'
-                                                              .tr,
-                                                          size: SanckBarSize
-                                                              .MEDIUM));
-                                                }
+                                                final ok =
+                                                    await playlistController
+                                                        .smartOrderForMix();
+                                                if (!context.mounted) return;
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(snackbar(
+                                                        context,
+                                                        ok
+                                                            ? 'mixSmartOrderDone'
+                                                                .tr
+                                                            : 'operationFailed'
+                                                                .tr,
+                                                        size: SanckBarSize
+                                                            .MEDIUM));
                                               },
                                               icon: const Icon(
                                                   Icons.auto_awesome),
@@ -712,13 +715,13 @@ class PlaylistScreen extends StatelessWidget {
                                                   size: 20,
                                                 ),
                                                 splashRadius: 10,
-                                                onPressed: () {
+                                                onPressed: () async {
                                                   Get.nestedKey(
                                                           ScreenNavigationSetup
                                                               .id)!
                                                       .currentState!
                                                       .pop();
-                                                  Get.find<
+                                                  final ok = await Get.find<
                                                           LibraryPlaylistsController>()
                                                       .blacklistPipedPlaylist(
                                                           playlistController
@@ -727,8 +730,11 @@ class PlaylistScreen extends StatelessWidget {
                                                           Get.context!)
                                                       .showSnackBar(snackbar(
                                                           Get.context!,
-                                                          "playlistBlacklistAlert"
-                                                              .tr,
+                                                          ok
+                                                              ? "playlistBlacklistAlert"
+                                                                  .tr
+                                                              : "operationFailed"
+                                                                  .tr,
                                                           size: SanckBarSize
                                                               .MEDIUM));
                                                 }),
