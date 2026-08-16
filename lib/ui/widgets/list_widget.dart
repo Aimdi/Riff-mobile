@@ -14,6 +14,14 @@ import 'snackbar.dart';
 import 'song_list_tile.dart';
 import 'songinfo_bottom_sheet.dart';
 
+/// Search overview rows and Songs lists play the visible MediaItems as a
+/// queue. Playlist/album/artist complete lists keep their own play-from path.
+bool shouldPlaySearchRowsAsQueue({
+  required bool isCompleteList,
+  required String title,
+}) =>
+    !isCompleteList || title.contains('Songs');
+
 class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
   const ListWidget(this.items, this.title, this.isCompleteList,
       {super.key,
@@ -131,23 +139,33 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           playlist: playlist,
           isPlaylistOrAlbum: isPlaylistOrAlbum,
           onTap: () {
-            isArtistSongs
-                // if song is from artist then play from artist
-                ? playerController.playPlayListSong(
-                    List<MediaItem>.from(items), index,
-                    playfrom: PlaylingFrom(
-                        type: PlaylingFromType.ARTIST,
-                        name: artist?.name ?? "........."))
-                :
-                // if playlist is not null then play from playlist else play from album
-                playlist != null && album == null
-                    ? playerController.playPlayListSong(
-                        List<MediaItem>.from(items), index,
-                        playfrom: PlaylingFrom(
-                          type: PlaylingFromType.PLAYLIST,
-                          name: playlist.title,
-                        ))
-                    : playerController.pushSongToQueue(song);
+            if (isArtistSongs) {
+              playerController.playPlayListSong(
+                  List<MediaItem>.from(items), index,
+                  playfrom: PlaylingFrom(
+                      type: PlaylingFromType.ARTIST,
+                      name: artist?.name ?? "........."));
+              return;
+            }
+            // Playlist/album complete lists already play from context.
+            if (playlist != null && album == null) {
+              playerController.playPlayListSong(
+                  List<MediaItem>.from(items), index,
+                  playfrom: PlaylingFrom(
+                    type: PlaylingFromType.PLAYLIST,
+                    name: playlist.title,
+                  ));
+              return;
+            }
+            if (shouldPlaySearchRowsAsQueue(
+                    isCompleteList: isCompleteList, title: title) &&
+                items.isNotEmpty &&
+                items.first is MediaItem) {
+              playerController.playPlayListSong(
+                  List<MediaItem>.from(items), index);
+              return;
+            }
+            playerController.pushSongToQueue(song);
           },
         );
       },

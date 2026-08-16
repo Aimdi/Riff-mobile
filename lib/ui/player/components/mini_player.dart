@@ -62,10 +62,12 @@ class MiniPlayer extends StatelessWidget {
                   const Expanded(
                     child: _MiniPlayerSongInfo(),
                   ),
-                  SizedBox(
-                    width: isWideScreen ? 450 : 132,
-                    child: _MiniPlayerTransport(isWideScreen: isWideScreen),
-                  ),
+                  isWideScreen
+                      ? const SizedBox(
+                          width: 450,
+                          child: _MiniPlayerTransport(isWideScreen: true),
+                        )
+                      : const _MiniPlayerTransport(isWideScreen: false),
                   if (isWideScreen)
                     Expanded(
                       child: _MiniPlayerWideExtras(size: size),
@@ -263,35 +265,39 @@ class _MiniPlayerTransport extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final playerController = Get.find<PlayerController>();
+    final skipSize = isWideScreen ? 35.0 : 24.0;
+    final skipWidth = isWideScreen ? 40.0 : 28.0;
+    const compact = BoxConstraints(minWidth: 32, minHeight: 32);
     return Row(
+      mainAxisSize: isWideScreen ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
+        FavoriteHeartButton(
+          iconSize: isWideScreen ? 20 : 18,
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: compact,
+          splashRadius: 18,
+          isFav: playerController.isCurrentSongFav,
+          onToggleFav: playerController.toggleFavourite,
+          song: () => playerController.currentSong.value,
+        ),
         if (isWideScreen)
-          Row(
-            children: [
-              FavoriteHeartButton(
-                iconSize: 20,
-                isFav: playerController.isCurrentSongFav,
-                onToggleFav: playerController.toggleFavourite,
-                song: () => playerController.currentSong.value,
-              ),
-              IconButton(
-                  iconSize: 20,
-                  onPressed: playerController.toggleShuffleMode,
-                  icon: Obx(() => Icon(
-                        Ionicons.shuffle,
-                        color: playerController.isShuffleModeEnabled.value
-                            ? Theme.of(context).textTheme.titleLarge!.color
-                            : Theme.of(context)
-                                .textTheme
-                                .titleLarge!
-                                .color!
-                                .withOpacity(0.2),
-                      ))),
-            ],
-          ),
+          IconButton(
+              iconSize: 20,
+              onPressed: playerController.toggleShuffleMode,
+              icon: Obx(() => Icon(
+                    Ionicons.shuffle,
+                    color: playerController.isShuffleModeEnabled.value
+                        ? Theme.of(context).textTheme.titleLarge!.color
+                        : Theme.of(context)
+                            .textTheme
+                            .titleLarge!
+                            .color!
+                            .withOpacity(0.2),
+                  ))),
         SizedBox(
-            width: isWideScreen ? 40 : 34,
+            width: skipWidth,
             child: Obx(() {
               final canPrev = playerController.currentQueue.isNotEmpty &&
                   (playerController.currentQueue.first.id !=
@@ -301,7 +307,7 @@ class _MiniPlayerTransport extends StatelessWidget {
                 child: Icon(
                   Icons.skip_previous_rounded,
                   color: Theme.of(context).textTheme.titleMedium!.color,
-                  size: isWideScreen ? 35 : 28,
+                  size: skipSize,
                 ),
               );
             })),
@@ -311,11 +317,11 @@ class _MiniPlayerTransport extends StatelessWidget {
                 size: 58,
               )
             : const AnimatedPlayButton(
-                iconSize: 26,
-                size: 44,
+                iconSize: 22,
+                size: 38,
               ),
         SizedBox(
-            width: isWideScreen ? 40 : 34,
+            width: skipWidth,
             child: Obx(() {
               final isLastSong = playerController.currentQueue.isEmpty ||
                   (!(playerController.isShuffleModeEnabled.isTrue ||
@@ -333,10 +339,29 @@ class _MiniPlayerTransport extends StatelessWidget {
                           .color!
                           .withOpacity(0.2)
                       : Theme.of(context).textTheme.titleMedium!.color,
-                  size: isWideScreen ? 35 : 28,
+                  size: skipSize,
                 ),
               );
             })),
+        if (!isWideScreen)
+          IconButton(
+            iconSize: 20,
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: compact,
+            splashRadius: 18,
+            tooltip: 'upNext'.tr,
+            onPressed: () {
+              final queue = playerController.queuePanelController;
+              if (queue.isAttached) {
+                queue.open();
+              }
+            },
+            icon: Icon(
+              Icons.queue_music,
+              color: Theme.of(context).textTheme.titleMedium!.color,
+            ),
+          ),
         if (isWideScreen)
           Row(
             children: [

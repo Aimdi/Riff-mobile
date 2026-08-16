@@ -102,8 +102,6 @@ class _FavoriteHeartButtonState extends State<FavoriteHeartButton> {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        widget.color ?? Theme.of(context).textTheme.titleMedium!.color;
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: _onPointerDown,
@@ -117,11 +115,17 @@ class _FavoriteHeartButtonState extends State<FavoriteHeartButton> {
         padding: widget.padding,
         onPressed: _onPressed,
         icon: Obx(
-          () => Icon(
-            widget.isFav.isFalse ? Icons.favorite_border : Icons.favorite,
-            color: color,
-            size: widget.iconSize,
-          ),
+          () {
+            final fav = widget.isFav.isTrue;
+            final scheme = Theme.of(context).colorScheme;
+            final filled = scheme.secondary;
+            final muted = (widget.color ?? scheme.onSurface).withOpacity(0.45);
+            return Icon(
+              fav ? Icons.favorite : Icons.favorite_border,
+              color: fav ? filled : muted,
+              size: widget.iconSize,
+            );
+          },
         ),
       ),
     );
