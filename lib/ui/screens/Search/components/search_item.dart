@@ -59,18 +59,33 @@ class SearchItem extends StatelessWidget {
             },
             icon: Icon(Icons.play_arrow, color: iconColor),
           ),
-          if (isHistoryString)
-            IconButton(
-              iconSize: 16,
-              splashRadius: 14,
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-              padding: EdgeInsets.zero,
-              visualDensity: const VisualDensity(horizontal: -4, vertical: -2),
-              onPressed: () {
-                searchScreenController.removeQueryFromHistory(queryString);
-              },
-              icon: Icon(Icons.clear, color: iconColor),
-            ),
+          isHistoryString
+              ? IconButton(
+                  iconSize: 16,
+                  splashRadius: 14,
+                  constraints:
+                      const BoxConstraints(minWidth: 28, minHeight: 28),
+                  padding: EdgeInsets.zero,
+                  visualDensity:
+                      const VisualDensity(horizontal: -4, vertical: -2),
+                  onPressed: () {
+                    searchScreenController.removeQueryFromHistory(queryString);
+                  },
+                  icon: Icon(Icons.clear, color: iconColor),
+                )
+              : IconButton(
+                  iconSize: 16,
+                  splashRadius: 14,
+                  constraints:
+                      const BoxConstraints(minWidth: 28, minHeight: 28),
+                  padding: EdgeInsets.zero,
+                  visualDensity:
+                      const VisualDensity(horizontal: -4, vertical: -2),
+                  onPressed: () {
+                    searchScreenController.suggestionInput(queryString);
+                  },
+                  icon: Icon(Icons.north_west, color: iconColor),
+                ),
         ],
       ),
     );

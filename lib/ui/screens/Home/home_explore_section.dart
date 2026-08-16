@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 
 import '../../navigator.dart';
 import '../../utils/riff_tokens.dart';
-import 'home_greeting.dart';
 import '../../widgets/content_list_widget.dart';
 import 'home_screen_controller.dart';
 
@@ -46,7 +45,11 @@ class HomeExploreSection extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(12, 16, 12, 10),
             child: Text(
               'explore'.tr,
-              style: homeSectionTitleStyle(theme.textTheme),
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: 19,
+                letterSpacing: -0.35,
+              ),
             ),
           ),
           SizedBox(

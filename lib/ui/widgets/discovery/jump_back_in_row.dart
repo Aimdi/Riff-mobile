@@ -5,11 +5,11 @@ import 'package:hive/hive.dart';
 
 import '../../../models/media_Item_builder.dart';
 import '../../player/player_controller.dart';
-import '../../screens/Home/home_greeting.dart';
 import '../../utils/riff_tokens.dart';
+import '../../utils/theme_controller.dart';
 import '../image_widget.dart';
 
-/// Spotify-like Home recents — 2-column art + title tiles from Hive `LIBRP`.
+/// Spotify-like "Jump back in" — recently played songs from Hive `LIBRP`.
 class JumpBackInRow extends StatefulWidget {
   const JumpBackInRow({super.key});
 
@@ -62,68 +62,95 @@ class _JumpBackInRowState extends State<JumpBackInRow> {
             : const <MediaItem>[]);
     if (tracks.isEmpty) return const SizedBox.shrink();
 
-    final count = jumpBackInGridCount(tracks.length);
-    final visible = tracks.sublist(0, count);
-    final theme = Theme.of(context);
-    final fill = homeTileFill(context);
+    final visible = tracks.length > 10 ? tracks.sublist(0, 10) : tracks;
+    const cardSize = 112.0;
+    final title = 'jumpBackIn'.tr;
+    final muted = Theme.of(context).brightness == Brightness.dark
+        ? RiffSurfaces.textMuted
+        : Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 2, 12, 14),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          const gap = 8.0;
-          final tileW = (constraints.maxWidth - gap) / 2;
-          return Wrap(
-            spacing: gap,
-            runSpacing: gap,
-            children: [
-              for (var i = 0; i < visible.length; i++)
-                SizedBox(
-                  width: tileW,
-                  height: 56,
-                  child: Material(
-                    color: fill,
-                    borderRadius: BorderRadius.circular(RiffTokens.radiusTile),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: () {
-                        Get.find<PlayerController>()
-                            .playPlayListSong(tracks, i);
-                      },
-                      child: Row(
-                        children: [
-                          ImageWidget(
-                            song: visible[i],
-                            size: 56,
-                            borderRadius: 0,
-                          ),
-                          Expanded(
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 10),
-                              child: Text(
-                                visible[i].title,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  color: theme.textTheme.titleMedium?.color,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                  height: 1.2,
-                                  letterSpacing: -0.2,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding:
+              const EdgeInsets.only(left: 12, top: 8, bottom: 10, right: 12),
+          child: Text(
+            title == 'jumpBackIn' ? 'Jump back in' : title,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 19,
+                  letterSpacing: -0.35,
+                ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        SizedBox(
+          height: 156,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(left: 12, right: 12),
+            itemCount: visible.length,
+            itemBuilder: (context, i) {
+              final song = visible[i];
+              return Padding(
+                padding:
+                    EdgeInsets.only(right: i == visible.length - 1 ? 0 : 12),
+                child: SizedBox(
+                  width: cardSize,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
+                    onTap: () {
+                      Get.find<PlayerController>()
+                          .playPlayListSong(tracks, i);
+                    },
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ClipRRect(
+                          borderRadius:
+                              BorderRadius.circular(RiffTokens.radiusSm),
+                          child: ImageWidget(song: song, size: cardSize),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          song.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.color,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                    height: 1.15,
+                                  ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          song.artist ?? '',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w400,
+                                    fontSize: 12,
+                                    color: muted,
+                                  ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-            ],
-          );
-        },
-      ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 6),
+      ],
     );
   }
 }

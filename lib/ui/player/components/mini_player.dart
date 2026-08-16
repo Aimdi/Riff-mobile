@@ -123,14 +123,23 @@ class _MiniPlayerArt extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
           song != null
-              ? ImageWidget(
-                  size: 52,
-                  song: song,
-                  borderRadius: RiffTokens.radiusArt,
+              ? Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: RiffSurfaces.hairline,
+                      width: RiffTokens.hairline,
+                    ),
+                  ),
+                  child: ImageWidget(
+                    size: 50,
+                    song: song,
+                    borderRadius: 8,
+                  ),
                 )
               : const SizedBox(
-                  height: 52,
-                  width: 52,
+                  height: 50,
+                  width: 50,
                 ),
         ],
       );
@@ -248,10 +257,7 @@ class _MiniPlayerSongInfo extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       softWrap: false,
-      style: theme.textTheme.titleMedium?.copyWith(
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.2,
-      ),
+      style: theme.textTheme.titleMedium,
     );
     if (songAlbumId(song) == null) return line;
     return GestureDetector(
@@ -304,17 +310,16 @@ class _MiniPlayerTransport extends StatelessWidget {
       mainAxisSize: isWideScreen ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        if (isWideScreen)
-          FavoriteHeartButton(
-            iconSize: 20,
-            visualDensity: VisualDensity.compact,
-            padding: EdgeInsets.zero,
-            constraints: compact,
-            splashRadius: 18,
-            isFav: playerController.isCurrentSongFav,
-            onToggleFav: playerController.toggleFavourite,
-            song: () => playerController.currentSong.value,
-          ),
+        FavoriteHeartButton(
+          iconSize: isWideScreen ? 20 : 18,
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: compact,
+          splashRadius: 18,
+          isFav: playerController.isCurrentSongFav,
+          onToggleFav: playerController.toggleFavourite,
+          song: () => playerController.currentSong.value,
+        ),
         if (isWideScreen)
           IconButton(
               iconSize: 20,
@@ -376,6 +381,25 @@ class _MiniPlayerTransport extends StatelessWidget {
                 ),
               );
             })),
+        if (!isWideScreen)
+          IconButton(
+            iconSize: 20,
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: compact,
+            splashRadius: 18,
+            tooltip: 'upNext'.tr,
+            onPressed: () {
+              final queue = playerController.queuePanelController;
+              if (queue.isAttached) {
+                queue.open();
+              }
+            },
+            icon: Icon(
+              Icons.queue_music,
+              color: Theme.of(context).textTheme.titleMedium!.color,
+            ),
+          ),
         if (isWideScreen)
           Row(
             children: [

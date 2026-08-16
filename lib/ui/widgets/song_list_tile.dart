@@ -146,6 +146,12 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                       decoration: BoxDecoration(
                         color: isCurrent ? highlight : null,
                         borderRadius: radius,
+                        // Soft elevated fill + thin secondary cue (not a thick rail).
+                        border: isCurrent
+                            ? Border(
+                                left: BorderSide(color: accent, width: 2),
+                              )
+                            : null,
                       ),
                     ),
                   );
@@ -158,13 +164,13 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                   onTap: onTap,
                   onLongPress: () => _openSheet(playerController),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+                    padding: const EdgeInsets.fromLTRB(8, 6, 12, 6),
                     child: Row(
                       children: [
                         thumbReplacementWithIndex
                             ? SizedBox(
-                                width: 28,
-                                height: 56,
+                                width: 27.5,
+                                height: 52,
                                 child: Center(
                                   child: Text(
                                     "$index.",
@@ -173,11 +179,11 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                                 ),
                               )
                             : ImageWidget(
-                                size: 56,
+                                size: 52,
                                 song: song,
-                                borderRadius: RiffTokens.radiusArt,
+                                borderRadius: RiffTokens.radiusSm,
                               ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,22 +204,20 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                                     maxLines: 1,
                                     style: theme.textTheme.titleMedium
                                         ?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 15,
-                                      letterSpacing: -0.2,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: -0.15,
                                       color: isCurrent ? accent : null,
                                     ),
                                   );
                                 }),
                               ),
-                              const SizedBox(height: 3),
+                              const SizedBox(height: 2),
                               Text(
                                 "${song.artist}",
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.w400,
-                                  fontSize: 13,
                                   color: muted,
                                 ),
                               ),
@@ -244,6 +248,48 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                             ],
                           );
                         }),
+                        IconButton(
+                          tooltip: 'playNext'.tr,
+                          iconSize: 20,
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                          splashRadius: 18,
+                          onPressed: () {
+                            playerController.playNext(song);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              snackbar(
+                                context,
+                                "${"playnextMsg".tr} ${song.title}",
+                                size: SanckBarSize.MEDIUM,
+                              ),
+                            );
+                          },
+                          icon: Icon(
+                            Icons.playlist_play,
+                            color: muted,
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'addToPlaylist'.tr,
+                          iconSize: 20,
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                          splashRadius: 18,
+                          onPressed: () =>
+                              showAddToPlaylistSheet(context, [song]),
+                          icon: Icon(
+                            Icons.playlist_add,
+                            color: muted,
+                          ),
+                        ),
                         SongRowHeartButton(
                           song: song,
                           iconSize: 20,

@@ -104,11 +104,14 @@ class Body extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final homeScreenController = Get.find<HomeScreenController>();
-    final topPadding = homeFeedTopPadding(
-      isDesktop: GetPlatform.isDesktop,
-      isLandscape: context.isLandscape,
-      statusBar: MediaQuery.paddingOf(context).top,
-    );
+    final size = MediaQuery.of(context).size;
+    final topPadding = GetPlatform.isDesktop
+        ? 85.0
+        : context.isLandscape
+            ? 50.0
+            : size.height < 750
+                ? 80.0
+                : 85.0;
     const leftPadding = 0.0;
     if (homeScreenController.tabIndex.value == 0) {
       return Padding(
@@ -247,7 +250,7 @@ class _HomeFeed extends StatelessWidget {
       return ListView(
         padding: EdgeInsets.only(bottom: 200, top: topPadding),
         children: [
-          // Greeting → continue → recents → shortcuts → mixes → Wave.
+          // Hierarchy: offline → title → continue → Jump back in → Wave → shortcuts.
           Obx(() => home.showingCachedWhileOffline.isTrue
               ? const _OfflineHomeBanner()
               : const SizedBox.shrink()),
@@ -259,12 +262,7 @@ class _HomeFeed extends StatelessWidget {
                   child: Text(
                     homeGreetingKey(DateTime.now()).tr,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          fontSize: homeGreetingFontSize(
-                            isDesktop: GetPlatform.isDesktop,
-                          ),
-                          letterSpacing: -0.8,
-                          height: 1.1,
+                          letterSpacing: -0.35,
                         ),
                   ),
                 ),
@@ -283,10 +281,10 @@ class _HomeFeed extends StatelessWidget {
           const _ContinueListeningChip(),
           const _PodcastContinueChip(),
           const JumpBackInRow(),
+          const RiffWaveHero(),
           const HomeShortcutGrid(),
           const SizedBox(height: 8),
           const _HomeZoneB(),
-          const RiffWaveHero(),
           const SizedBox(height: 12),
           const HomeExploreSection(),
         ],
@@ -473,17 +471,20 @@ class _ContinueListeningChip extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
         child: Material(
-          color: homeTileFill(context),
-          borderRadius: BorderRadius.circular(RiffTokens.radiusTile),
-          clipBehavior: Clip.antiAlias,
+          color: theme.cardColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+            side: RiffTokens.hairlineBorder(context),
+          ),
           child: InkWell(
+            borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
             onTap: () => player.resumeSavedSession(),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Row(
                 children: [
                   Icon(Icons.play_circle_fill_rounded,
-                      size: 28, color: theme.colorScheme.secondary),
+                      size: 22, color: theme.colorScheme.secondary),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -558,10 +559,13 @@ class _PodcastContinueChip extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
         child: Material(
-          color: homeTileFill(context),
-          borderRadius: BorderRadius.circular(RiffTokens.radiusTile),
-          clipBehavior: Clip.antiAlias,
+          color: theme.cardColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+            side: RiffTokens.hairlineBorder(context),
+          ),
           child: InkWell(
+            borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
             onTap: () {
               final queue = podcastContinueQueue(rows);
               if (queue.isEmpty) return;
@@ -572,14 +576,14 @@ class _PodcastContinueChip extends StatelessWidget {
               child: Row(
                 children: [
                   Icon(Icons.podcasts,
-                      size: 26, color: theme.colorScheme.secondary),
+                      size: 22, color: theme.colorScheme.secondary),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'continuePodcast'.tr,
+                          'continueListening'.tr,
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
@@ -597,7 +601,7 @@ class _PodcastContinueChip extends StatelessWidget {
                     ),
                   ),
                   Icon(Icons.play_circle_fill_rounded,
-                      size: 28, color: theme.colorScheme.secondary),
+                      size: 22, color: theme.colorScheme.secondary),
                 ],
               ),
             ),
@@ -617,13 +621,16 @@ class _OfflineHomeBanner extends StatelessWidget {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-        child: Material(
-          color: homeTileFill(context),
-          borderRadius: BorderRadius.circular(RiffTokens.radiusTile),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: () =>
-                Get.find<HomeScreenController>().loadContentFromNetwork(),
+      child: Material(
+        color: theme.cardColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+          side: RiffTokens.hairlineBorder(context),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+          onTap: () =>
+              Get.find<HomeScreenController>().loadContentFromNetwork(),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
