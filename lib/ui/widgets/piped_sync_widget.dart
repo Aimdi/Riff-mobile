@@ -28,11 +28,12 @@ class PipedSyncWidget extends StatelessWidget {
                 //printINFO(librplstCntrller.controller.status);
                 librplstCntrller.controller.forward();
                 librplstCntrller.controller.repeat();
-                await librplstCntrller.syncPipedPlaylist();
+                final ok = await librplstCntrller.syncPipedPlaylist();
                 librplstCntrller.controller.stop();
                 librplstCntrller.controller.reset();
                 ScaffoldMessenger.of(Get.context!).showSnackBar(snackbar(
-                    Get.context!, "pipedplstSyncAlert".tr,
+                    Get.context!,
+                    ok ? "pipedplstSyncAlert".tr : "errorOccuredAlert".tr,
                     size: SanckBarSize.MEDIUM));
               } catch (e) {
                 ScaffoldMessenger.of(Get.context!).showSnackBar(snackbar(

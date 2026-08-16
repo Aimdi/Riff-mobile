@@ -605,9 +605,25 @@ class AlbumScreen extends StatelessWidget {
         padding: const EdgeInsets.only(left: 20.0, bottom: 10, right: 20),
         child: Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: ImageWidget(size: 72, album: album),
+            InkWell(
+              onTap: () {
+                final songs = List<MediaItem>.from(albumController.songList);
+                if (songs.isEmpty || !Get.isRegistered<PlayerController>()) {
+                  return;
+                }
+                Get.find<PlayerController>().playPlayListSong(
+                  songs,
+                  0,
+                  playfrom: PlaylingFrom(
+                    name: album.title,
+                    type: PlaylingFromType.ALBUM,
+                  ),
+                );
+              },
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: ImageWidget(size: 72, album: album),
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(

@@ -299,7 +299,7 @@ class LibraryPlaylistsController extends GetxController
     }
   }
 
-  Future<void> syncPipedPlaylist() async {
+  Future<bool> syncPipedPlaylist() async {
     final res = await Get.find<PipedServices>().getAllPlaylists();
     final box = await Hive.openBox('blacklistedPlaylist');
     final blacklistedPlaylist = box.values.whereType<String>().toList();
@@ -345,6 +345,7 @@ class LibraryPlaylistsController extends GetxController
       }
     }
     box.close();
+    return res.code == 1;
   }
 
   Future<bool> renamePlaylist(Playlist playlist) async {

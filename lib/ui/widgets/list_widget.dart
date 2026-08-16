@@ -28,12 +28,13 @@ bool shouldPlaySearchRowsAsQueue({
     title == 'Episodes';
 
 /// Empty list copy — never the raw "No ${title}!" template.
-String emptyListLabelKey(String title) {
+String emptyListLabelKey(String title, {bool searchContext = false}) {
   if (title == 'Videos' ||
       title.contains('Songs') ||
       title == 'Episodes') {
     return 'emptyPlaylist';
   }
+  if (searchContext) return 'noResults';
   return 'noBookmarks';
 }
 
@@ -49,11 +50,13 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
       this.playlist,
       this.album,
       this.artist,
+      this.searchContext = false,
       this.scrollController});
   final List<dynamic> items;
   final String title;
   final bool isCompleteList;
   final ScrollController? scrollController;
+  final bool searchContext;
 
   /// Valid for songlist
   final bool isArtistSongs;
@@ -71,7 +74,8 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
   Widget build(BuildContext context) {
     if (items.isEmpty) {
       return Expanded(
-        child: EmptyPlayHint(message: emptyListLabelKey(title).tr),
+        child: EmptyPlayHint(
+            message: emptyListLabelKey(title, searchContext: searchContext).tr),
       );
     } else if (title == "Videos" ||
         title.contains("Songs") ||

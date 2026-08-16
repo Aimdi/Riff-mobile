@@ -15,6 +15,7 @@ import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/sleep_timer_bottom_sheet.dart';
 import '../play_queue_order.dart';
 import '../player_controller.dart';
+import '../radio_continuation.dart';
 import '../player_media_nav.dart';
 import 'playback_error_actions.dart';
 
@@ -665,20 +666,24 @@ class _SpeedButton extends StatelessWidget {
 
 Widget _nextButton(PlayerController playerController, BuildContext context) {
   return Obx(() {
-    final isLastSong = playerController.currentQueue.isEmpty ||
-        (!(playerController.isShuffleModeEnabled.isTrue ||
-                playerController.isQueueLoopModeEnabled.isTrue) &&
-            (playerController.currentQueue.last.id ==
-                playerController.currentSong.value?.id));
+    final canNext = canSkipNext(
+      queueEmpty: playerController.currentQueue.isEmpty,
+      isLast: playerController.currentQueue.isNotEmpty &&
+          playerController.currentQueue.last.id ==
+              playerController.currentSong.value?.id,
+      shuffleOn: playerController.isShuffleModeEnabled.isTrue,
+      queueLoopOn: playerController.isQueueLoopModeEnabled.isTrue,
+      radioOn: playerController.isRadioModeOn,
+    );
     return IconButton(
         icon: Icon(
           Icons.skip_next,
-          color: isLastSong
+          color: !canNext
               ? Theme.of(context).textTheme.titleLarge!.color!.withOpacity(0.2)
               : Theme.of(context).textTheme.titleMedium!.color,
         ),
         iconSize: 30,
-        onPressed: isLastSong ? null : playerController.next);
+        onPressed: canNext ? playerController.next : null);
   });
 }
 

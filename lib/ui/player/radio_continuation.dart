@@ -20,3 +20,21 @@ bool radioShouldExtendInsteadOfPause({
   required bool hasNext,
 }) =>
     radioOn && !hasNext;
+
+/// Next stays enabled on the last track when shuffle, queue-loop, or radio
+/// can still advance.
+bool canSkipNext({
+  required bool queueEmpty,
+  required bool isLast,
+  required bool shuffleOn,
+  required bool queueLoopOn,
+  required bool radioOn,
+}) {
+  if (queueEmpty) return false;
+  if (shuffleOn || queueLoopOn || radioOn) return true;
+  return !isLast;
+}
+
+/// Previous is always available while something is queued — first-track
+/// press restarts via the 3s rule.
+bool canSkipPrevious({required bool hasQueue}) => hasQueue;

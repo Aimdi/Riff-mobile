@@ -159,7 +159,9 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
           style: const TextStyle(
               fontWeight: FontWeight.w800, fontSize: 20, color: Colors.white),
         ),
-        background: Stack(
+        background: GestureDetector(
+          onTap: () => _playSongs(_songs(), 0),
+          child: Stack(
           fit: StackFit.expand,
           children: [
             CachedNetworkImage(
@@ -188,6 +190,7 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

@@ -81,6 +81,31 @@ void main() {
       );
     });
 
+    test('next stays enabled on the last track when radio is on', () {
+      expect(
+        canSkipNext(
+          queueEmpty: false,
+          isLast: true,
+          shuffleOn: false,
+          queueLoopOn: false,
+          radioOn: true,
+        ),
+        isTrue,
+      );
+      expect(
+        canSkipNext(
+          queueEmpty: false,
+          isLast: true,
+          shuffleOn: false,
+          queueLoopOn: false,
+          radioOn: false,
+        ),
+        isFalse,
+      );
+      expect(canSkipPrevious(hasQueue: true), isTrue);
+      expect(canSkipPrevious(hasQueue: false), isFalse);
+    });
+
     test('does not fire when more than 3 songs remain', () {
       expect(
         radioShouldFetchContinuation(
