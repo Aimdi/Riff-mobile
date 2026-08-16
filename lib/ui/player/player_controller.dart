@@ -1565,6 +1565,14 @@ class PlayerController extends GetxController
     for (final s in list.reversed) {
       playNext(s);
     }
+    if (list.isEmpty) return;
+    final context = Get.context;
+    if (context == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(snackbar(
+      context,
+      "moreLikeThisAdded".tr,
+      size: SanckBarSize.MEDIUM,
+    ));
   }
 
   // ignore: prefer_typing_uninitialized_variables

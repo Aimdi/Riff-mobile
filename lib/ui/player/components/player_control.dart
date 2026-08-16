@@ -10,7 +10,6 @@ import '../../screens/Settings/settings_screen_controller.dart';
 import '../../widgets/add_to_playlist.dart';
 import '../../widgets/discovery/player_similar_row.dart';
 import '../../widgets/favorite_heart_button.dart';
-import '../../widgets/snackbar.dart';
 import '../player_controller.dart';
 import '../player_media_nav.dart';
 
@@ -309,12 +308,7 @@ class PlayerControlWidget extends StatelessWidget {
               style: style,
             ),
             TextButton.icon(
-              onPressed: () {
-                playerController.moreLikeThisPlayNext(song);
-                ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                    context, "moreLikeThisAdded".tr,
-                    size: SanckBarSize.MEDIUM));
-              },
+              onPressed: () => playerController.moreLikeThisPlayNext(song),
               icon: const Icon(Icons.playlist_play, size: 18),
               label: Text("playNext".tr, style: labelStyle),
               style: style,

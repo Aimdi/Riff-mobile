@@ -137,9 +137,6 @@ class SongInfoBottomSheet extends StatelessWidget {
               onTap: () {
                 Navigator.of(context).pop();
                 playerController.moreLikeThisPlayNext(song);
-                ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                    context, "moreLikeThisAdded".tr,
-                    size: SanckBarSize.MEDIUM));
               },
             ),
             calledFromQueue
