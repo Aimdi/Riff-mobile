@@ -1038,6 +1038,7 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
         return ListTile(
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          onTap: () => _openHit(hit),
           title: Text(hit.name, maxLines: 2, overflow: TextOverflow.ellipsis),
           subtitle: Text(
             '${_sourceLabel(hit.source)} · ${hit.sizeLabel} · ${hit.dateLabel} · '

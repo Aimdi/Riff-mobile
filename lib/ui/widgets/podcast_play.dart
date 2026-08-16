@@ -84,3 +84,15 @@ Future<bool> playPodcastShow(Map<String, dynamic> podcast) async {
   );
   return true;
 }
+
+/// Discover genre chips play the top show; empty/failed fetch still opens browse.
+Future<bool> playFirstPodcastInGenre(String genreId) async {
+  if (genreId.trim().isEmpty) return false;
+  try {
+    final res = await PodcastService.topByGenre(genreId);
+    if (res.isEmpty) return false;
+    return playPodcastShow(res.first);
+  } catch (_) {
+    return false;
+  }
+}

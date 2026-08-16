@@ -47,4 +47,9 @@ void main() {
     expect(item.extras?['isPodcast'], isTrue);
     expect(item.extras?['feedUrl'], 'https://example.com/feed');
   });
+
+  test('playFirstPodcastInGenre no-ops on an empty genre', () async {
+    expect(await playFirstPodcastInGenre(''), isFalse);
+    expect(await playFirstPodcastInGenre('   '), isFalse);
+  });
 }

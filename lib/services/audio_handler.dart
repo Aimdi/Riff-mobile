@@ -1120,7 +1120,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     // needed (same pattern Lissen uses for ABS).
     if (songId.startsWith("podcast_") ||
         songId.startsWith("abs_") ||
-        songId.startsWith("cloud_")) {
+        songId.startsWith("cloud_") ||
+        songId.startsWith("slsk_")) {
       MediaItem? item;
       for (final e in queue.value) {
         if (e.id == songId) {
@@ -1362,7 +1363,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     if (songId.isEmpty ||
         songId.startsWith('podcast_') ||
         songId.startsWith('abs_') ||
-        songId.startsWith('cloud_')) {
+        songId.startsWith('cloud_') ||
+        songId.startsWith('slsk_')) {
       return;
     }
     unawaited(() async {

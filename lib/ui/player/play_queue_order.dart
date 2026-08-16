@@ -92,3 +92,27 @@ bool shouldRetryInsteadOfSkip({
 /// Save-queue button is a no-op when nothing is playing.
 bool canSaveQueueAsPlaylist(int queueLength) => queueLength > 0;
 
+/// Prefill when saving the queue (or adding many songs) to a new playlist.
+String defaultNewPlaylistName({
+  required List<MediaItem>? songItems,
+  DateTime? now,
+}) {
+  if (songItems == null || songItems.isEmpty) return '';
+  if (songItems.length == 1) return songItems.first.title;
+  final d = now ?? DateTime.now();
+  final mm = d.month.toString().padLeft(2, '0');
+  final dd = d.day.toString().padLeft(2, '0');
+  final lead = songItems.first.title.trim();
+  if (lead.isEmpty) return '${d.year}-$mm-$dd';
+  return '$lead · ${d.year}-$mm-$dd';
+}
+
+/// Hive has not finished the like/unlike write — keep the optimistic heart.
+bool shouldKeepOptimisticFav({
+  required String? currentSongId,
+  required String? persistSongId,
+}) =>
+    currentSongId != null &&
+    currentSongId.isNotEmpty &&
+    currentSongId == persistSongId;
+

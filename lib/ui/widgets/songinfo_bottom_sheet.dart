@@ -8,9 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/ban_service.dart';
 import '../../services/discovery/discovery_service.dart';
-import '../../services/downloader.dart';
 import '../screens/Playlist/playlist_screen_controller.dart';
-import '../screens/Settings/settings_screen_controller.dart';
 import '/utils/helper.dart';
 import '/services/piped_service.dart';
 import '/ui/widgets/sleep_timer_bottom_sheet.dart';
@@ -21,7 +19,6 @@ import '/ui/widgets/favorite_heart_button.dart';
 import '/ui/widgets/snackbar.dart';
 import '/ui/utils/sheet_insets.dart';
 import '/utils/content_filters.dart';
-import '../../models/media_Item_builder.dart';
 import '../../models/playlist.dart';
 import '../navigator.dart';
 import 'discovery/similar_songs_sheet.dart';
@@ -451,29 +448,10 @@ class SongInfoController extends GetxController
   }
 
   Future<void> toggleFav() async {
-    if (calledFromPlayer) {
-      final cntrl = Get.find<PlayerController>();
-      if (cntrl.currentSong.value == song) {
-        cntrl.toggleFavourite();
-        isCurrentSongFav.value = !isCurrentSongFav.value;
-        return;
-      }
-    }
-    final box = await Hive.openBox("LIBFAV");
+    if (!Get.isRegistered<PlayerController>()) return;
     final adding = isCurrentSongFav.isFalse;
-    adding
-        ? box.put(song.id, MediaItemBuilder.toJson(song))
-        : box.delete(song.id);
-    isCurrentSongFav.value = !isCurrentSongFav.value;
-    if (Get.isRegistered<DiscoveryService>()) {
-      Get.find<DiscoveryService>().onFavorite(song, add: adding);
-    }
-    if (Get.find<SettingsScreenController>()
-            .autoDownloadFavoriteSongEnabled
-            .isTrue &&
-        isCurrentSongFav.isTrue) {
-      Get.find<Downloader>().download(song);
-    }
+    await Get.find<PlayerController>().toggleFavouriteFor(song, adding: adding);
+    isCurrentSongFav.value = adding;
   }
 }
 
