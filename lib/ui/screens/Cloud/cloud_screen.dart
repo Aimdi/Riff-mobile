@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '/services/cloud_music_service.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/widgets/snackbar.dart';
 import 'cloud_collection_screen.dart';
 import 'cloud_play.dart';
 
@@ -610,8 +611,16 @@ class CloudSongTile extends StatelessWidget {
       trailing: IconButton(
         tooltip: 'enqueueSong'.tr,
         icon: const Icon(Icons.playlist_add, size: 22),
-        onPressed: () =>
-            Get.find<PlayerController>().enqueueSong(cloud.toMediaItem(song)),
+        onPressed: () async {
+          final ok = await Get.find<PlayerController>()
+              .enqueueSong(cloud.toMediaItem(song));
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(snackbar(
+            context,
+            ok ? 'songEnqueueAlert'.tr : 'operationFailed'.tr,
+            size: SanckBarSize.MEDIUM,
+          ));
+        },
       ),
       onTap: () => Get.find<PlayerController>()
           .playPlayListSong(cloud.toMediaItems(songs), index),

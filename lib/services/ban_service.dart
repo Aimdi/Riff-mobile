@@ -47,8 +47,15 @@ class BanService {
     return false;
   }
 
-  static Future<void> banArtist(String artist) async =>
-      _artistBox?.put(_artistKey(artist), {"name": artist.trim()});
+  /// Hive box is open and can accept a ban write.
+  static bool canWriteBan(Box? box) => box != null;
+
+  static Future<bool> banArtist(String artist) async {
+    final box = _artistBox;
+    if (!canWriteBan(box)) return false;
+    await box!.put(_artistKey(artist), {"name": artist.trim()});
+    return true;
+  }
 
   static Future<void> unbanArtist(String key) async =>
       _artistBox?.delete(key);
@@ -67,8 +74,13 @@ class BanService {
   static bool isCollectionBanned(String? id) =>
       id != null && (_collectionBox?.containsKey(id) ?? false);
 
-  static Future<void> banCollection(String id, String title, String type) async =>
-      _collectionBox?.put(id, {"title": title, "type": type});
+  static Future<bool> banCollection(
+      String id, String title, String type) async {
+    final box = _collectionBox;
+    if (!canWriteBan(box)) return false;
+    await box!.put(id, {"title": title, "type": type});
+    return true;
+  }
 
   static Future<void> unbanCollection(String id) async =>
       _collectionBox?.delete(id);

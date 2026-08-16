@@ -115,12 +115,17 @@ class _SimilarSongsSheetState extends State<SimilarSongsSheet> {
                     child: OutlinedButton.icon(
                       onPressed: songs.isEmpty
                           ? null
-                          : () {
-                              Get.find<PlayerController>()
+                          : () async {
+                              final ok = await Get.find<PlayerController>()
                                   .enqueueSongList(songs);
+                              if (!context.mounted) return;
                               Navigator.pop(context);
                               ScaffoldMessenger.of(context).showSnackBar(
-                                  snackbar(context, "songEnqueueAlert".tr,
+                                  snackbar(
+                                      context,
+                                      ok
+                                          ? "songEnqueueAlert".tr
+                                          : "operationFailed".tr,
                                       size: SanckBarSize.MEDIUM));
                             },
                       icon: const Icon(Icons.queue_music),

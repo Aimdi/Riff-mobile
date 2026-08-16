@@ -209,11 +209,15 @@ class SongInfoBottomSheet extends StatelessWidget {
                 visualDensity: const VisualDensity(vertical: -1),
                 leading: const Icon(Icons.person_off),
                 title: Text("neverPlayArtist".tr),
-                onTap: () {
+                onTap: () async {
                   Navigator.of(context).pop();
-                  BanService.banArtist(song.artist!);
+                  final ok = await BanService.banArtist(song.artist!);
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                      context, "${"artistBannedMsg".tr} ${song.artist}",
+                      context,
+                      ok
+                          ? "${"artistBannedMsg".tr} ${song.artist}"
+                          : "operationFailed".tr,
                       size: SanckBarSize.BIG));
                 },
               ),
@@ -232,14 +236,14 @@ class SongInfoBottomSheet extends StatelessWidget {
                     visualDensity: const VisualDensity(vertical: -1),
                     leading: const Icon(Icons.merge),
                     title: Text("enqueueSong".tr),
-                    onTap: () {
-                      playerController.enqueueSong(song).whenComplete(() {
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                            context, "songEnqueueAlert".tr,
-                            size: SanckBarSize.MEDIUM));
-                      });
+                    onTap: () async {
                       Navigator.of(context).pop();
+                      final ok = await playerController.enqueueSong(song);
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                          context,
+                          ok ? "songEnqueueAlert".tr : "operationFailed".tr,
+                          size: SanckBarSize.MEDIUM));
                     },
                   ),
             song.extras?['album'] != null
@@ -300,9 +304,12 @@ class SongInfoBottomSheet extends StatelessWidget {
                             context, "songRemovedfromQueueCurrSong".tr,
                             size: SanckBarSize.BIG));
                       } else {
-                        playerController.removeFromQueue(song);
+                        final ok = playerController.removeFromQueue(song);
                         ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                            context, "songRemovedfromQueue".tr,
+                            context,
+                            ok
+                                ? "songRemovedfromQueue".tr
+                                : "operationFailed".tr,
                             size: SanckBarSize.MEDIUM));
                       }
                     })

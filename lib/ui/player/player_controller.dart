@@ -1163,20 +1163,25 @@ class PlayerController extends GetxController
 
   ///enqueueSong   append a song to current queue
   ///if current queue is empty, push the song into Queue and play that song
-  Future<void> enqueueSong(MediaItem mediaItem) async {
+  Future<bool> enqueueSong(MediaItem mediaItem) async {
     if (currentQueue.isEmpty) {
       await playPlayListSong([mediaItem], 0);
-      return;
+      return true;
     }
-    if (!_audioReady) return;
-    //check if song is available in queue and if not add it to queue
-    if (!currentQueue.contains(mediaItem)) {
-      _audioHandler.addQueueItem(mediaItem);
+    if (!canMutateQueue(_audioReady)) return false;
+    if (isAlreadyQueued(
+      songId: mediaItem.id,
+      queueIds: currentQueue.map((e) => e.id),
+    )) {
+      return true;
     }
+    _audioHandler.addQueueItem(mediaItem);
+    return true;
   }
 
   ///enqueueSongList method add song List to current queue
-  Future<void> enqueueSongList(List<MediaItem> mediaItems) async {
+  Future<bool> enqueueSongList(List<MediaItem> mediaItems) async {
+    if (mediaItems.isEmpty) return false;
     if (currentQueue.isEmpty) {
       final keepRadio = shouldKeepRadioWhenEnqueueing(
         radioOn: isRadioModeOn,
@@ -1188,16 +1193,20 @@ class PlayerController extends GetxController
         isRadioModeOn = true;
         radioInitiatorItem = initiator;
       }
-      return;
+      return true;
     }
-    if (!_audioReady) return;
+    if (!canMutateQueue(_audioReady)) return false;
+    final queuedIds = currentQueue.map((e) => e.id).toSet();
     final listToEnqueue = <MediaItem>[];
     for (MediaItem item in mediaItems) {
-      if (!currentQueue.contains(item)) {
+      if (!queuedIds.contains(item.id)) {
         listToEnqueue.add(item);
+        queuedIds.add(item.id);
       }
     }
+    if (listToEnqueue.isEmpty) return true;
     _audioHandler.addQueueItems(listToEnqueue);
+    return true;
   }
 
   void _playViaAndroidAuto(String songId, String libraryId) {
@@ -1220,15 +1229,17 @@ class PlayerController extends GetxController
   }
 
   /// Insert [songs] after the current track, preserving list order.
-  void playNextList(List<MediaItem> songs) {
-    if (songs.isEmpty) return;
+  Future<bool> playNextList(List<MediaItem> songs) async {
+    if (songs.isEmpty) return false;
     if (currentQueue.isEmpty) {
-      playPlayListSong(songs, 0);
-      return;
+      await playPlayListSong(songs, 0);
+      return true;
     }
+    var inserted = false;
     for (final song in playNextBatchOrder(songs)) {
-      playNext(song);
+      if (playNext(song)) inserted = true;
     }
+    return inserted;
   }
 
   /// Insert [song] after the current track. Returns false when it is already
@@ -1313,9 +1324,10 @@ class PlayerController extends GetxController
     }
   }
 
-  void removeFromQueue(MediaItem song) {
-    if (!_audioReady) return;
+  bool removeFromQueue(MediaItem song) {
+    if (!canMutateQueue(_audioReady)) return false;
     _audioHandler.removeQueueItem(song);
+    return true;
   }
 
   void clearQueue() {
@@ -1646,21 +1658,32 @@ class PlayerController extends GetxController
   }
 
   /// Insert ~5 similar tracks after the current song (sideways exploration).
-  Future<void> moreLikeThisPlayNext([MediaItem? seed]) async {
+  Future<bool> moreLikeThisPlayNext([MediaItem? seed]) async {
     final song = seed ?? currentSong.value;
-    if (song == null || !Get.isRegistered<DiscoveryService>()) return;
+    if (song == null || !Get.isRegistered<DiscoveryService>()) {
+      _snackQueueResult('operationFailed');
+      return false;
+    }
     final list =
         await Get.find<DiscoveryService>().moreLikeThisPlayNext(song, limit: 5);
-    // Insert in reverse so first similar ends up right after current.
-    for (final s in list.reversed) {
-      playNext(s);
+    if (list.isEmpty) {
+      _snackQueueResult('noSimilarSongs');
+      return false;
     }
-    if (list.isEmpty) return;
+    var inserted = false;
+    for (final s in list.reversed) {
+      if (playNext(s)) inserted = true;
+    }
+    _snackQueueResult(inserted ? 'moreLikeThisAdded' : 'operationFailed');
+    return inserted;
+  }
+
+  void _snackQueueResult(String key) {
     final context = Get.context;
     if (context == null || !context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(snackbar(
       context,
-      "moreLikeThisAdded".tr,
+      key.tr,
       size: SanckBarSize.MEDIUM,
     ));
   }

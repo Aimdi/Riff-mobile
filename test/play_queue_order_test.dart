@@ -62,6 +62,22 @@ void main() {
     expect(volumeIconFor(100), Icons.volume_up);
   });
 
+  test('already queued matches by song id', () {
+    expect(
+      isAlreadyQueued(songId: 'a', queueIds: ['a', 'b']),
+      isTrue,
+    );
+    expect(
+      isAlreadyQueued(songId: 'c', queueIds: ['a', 'b']),
+      isFalse,
+    );
+  });
+
+  test('queue mutations require a live audio handler', () {
+    expect(canMutateQueue(true), isTrue);
+    expect(canMutateQueue(false), isFalse);
+  });
+
   test('play next is a no-op when the song is current or already next', () {
     expect(
       isPlayNextNoOp(

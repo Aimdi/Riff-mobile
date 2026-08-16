@@ -129,11 +129,11 @@ class _PlayerSimilarRowState extends State<PlayerSimilarRow> {
                                     icon: const Icon(Icons.playlist_play),
                                     onPressed: () {
                                       HapticFeedback.selectionClick();
-                                      player.playNext(s);
+                                      if (!player.playNext(s)) return;
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(snackbar(
                                         context,
-                                        "songEnqueueAlert".tr,
+                                        "${"playnextMsg".tr} ${s.title}",
                                         size: SanckBarSize.MEDIUM,
                                       ));
                                     },

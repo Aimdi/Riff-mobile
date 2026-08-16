@@ -433,7 +433,14 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
       isCloudPlaylist: isAlbum || playlist.isCloudPlaylist != false,
     );
     if (tracks.isEmpty || !Get.isRegistered<PlayerController>()) {
-      _openWideTile(album: album, playlist: playlist);
+      final ctx = Get.context;
+      if (ctx != null && ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
+          ctx,
+          'operationFailed'.tr,
+          size: SanckBarSize.MEDIUM,
+        ));
+      }
       return;
     }
     final player = Get.find<PlayerController>();
@@ -441,7 +448,17 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
       await player.startRadio(tracks.first);
       return;
     }
-    player.playNextList(tracks);
+    final queued = await player.playNextList(tracks);
+    if (!queued) {
+      final ctx = Get.context;
+      if (ctx != null && ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
+          ctx,
+          'operationFailed'.tr,
+          size: SanckBarSize.MEDIUM,
+        ));
+      }
+    }
   }
 
   Widget wideListTile(BuildContext context,
@@ -506,12 +523,16 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
               leading: const Icon(Icons.block),
               title:
                   Text(isAlbum ? "neverPlayAlbum".tr : "neverPlayPlaylist".tr),
-              onTap: () {
-                BanService.banCollection(
-                    id, name, isAlbum ? "album" : "playlist");
+              onTap: () async {
                 Navigator.of(ctx).pop();
+                final ok = await BanService.banCollection(
+                    id, name, isAlbum ? "album" : "playlist");
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                    context, "${"collectionBannedMsg".tr} $name",
+                    context,
+                    ok
+                        ? "${"collectionBannedMsg".tr} $name"
+                        : "operationFailed".tr,
                     size: SanckBarSize.BIG));
               },
             ),
