@@ -40,6 +40,16 @@ IconData volumeIconFor(int volume) {
   return Icons.volume_up;
 }
 
+/// Enqueue is a no-op when the song is already in the queue.
+bool isAlreadyQueued({
+  required String songId,
+  required Iterable<String> queueIds,
+}) =>
+    queueIds.contains(songId);
+
+/// Queue mutations need a live audio handler.
+bool canMutateQueue(bool audioReady) => audioReady;
+
 /// Play Next is a no-op when the song is current or already next.
 bool isPlayNextNoOp({
   required String songId,

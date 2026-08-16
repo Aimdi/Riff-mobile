@@ -133,7 +133,8 @@ class ContentListItem extends StatelessWidget {
       await player.startRadio(tracks.first);
       return;
     }
-    player.playNextList(tracks);
+    final queued = await player.playNextList(tracks);
+    if (!queued) _snackOperationFailed();
   }
 
   void _showPlaySheet(BuildContext context) {

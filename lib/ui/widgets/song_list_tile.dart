@@ -107,13 +107,13 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
           ]),
           endActionPane: ActionPane(motion: const DrawerMotion(), children: [
             SlidableAction(
-              onPressed: (context) {
-                playerController.enqueueSong(song).whenComplete(() {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                      context, "songEnqueueAlert".tr,
-                      size: SanckBarSize.MEDIUM));
-                });
+              onPressed: (context) async {
+                final ok = await playerController.enqueueSong(song);
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                    context,
+                    ok ? "songEnqueueAlert".tr : "operationFailed".tr,
+                    size: SanckBarSize.MEDIUM));
               },
               backgroundColor: Theme.of(context).colorScheme.secondary,
               foregroundColor: Theme.of(context).textTheme.titleMedium!.color,

@@ -315,23 +315,25 @@ class AlbumScreen extends StatelessWidget {
                                           // Enqueue button
                                           IconButton(
                                               tooltip: "enqueueAlbumSongs".tr,
-                                              onPressed: () {
-                                                Get.find<PlayerController>()
-                                                    .enqueueSongList(
-                                                        albumController.songList
-                                                            .toList())
-                                                    .whenComplete(() {
-                                                  if (context.mounted) {
-                                                    ScaffoldMessenger.of(
-                                                            context)
-                                                        .showSnackBar(snackbar(
-                                                            context,
-                                                            "songEnqueueAlert"
+                                              onPressed: () async {
+                                                final ok =
+                                                    await Get.find<
+                                                            PlayerController>()
+                                                        .enqueueSongList(
+                                                            albumController
+                                                                .songList
+                                                                .toList());
+                                                if (!context.mounted) return;
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(snackbar(
+                                                        context,
+                                                        ok
+                                                            ? "songEnqueueAlert"
+                                                                .tr
+                                                            : "operationFailed"
                                                                 .tr,
-                                                            size: SanckBarSize
-                                                                .MEDIUM));
-                                                  }
-                                                });
+                                                        size: SanckBarSize
+                                                            .MEDIUM));
                                               },
                                               icon: Icon(
                                                 Icons.merge,
@@ -343,18 +345,21 @@ class AlbumScreen extends StatelessWidget {
                                           // Play next
                                           IconButton(
                                               tooltip: "playNext".tr,
-                                              onPressed: () {
-                                                playerController.playNextList(
-                                                    albumController.songList
-                                                        .toList());
-                                                if (context.mounted) {
-                                                  ScaffoldMessenger.of(context)
-                                                      .showSnackBar(snackbar(
-                                                          context,
-                                                          "playnextMsg".tr,
-                                                          size: SanckBarSize
-                                                              .MEDIUM));
-                                                }
+                                              onPressed: () async {
+                                                final ok = await playerController
+                                                    .playNextList(
+                                                        albumController.songList
+                                                            .toList());
+                                                if (!context.mounted) return;
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(snackbar(
+                                                        context,
+                                                        ok
+                                                            ? "playnextMsg".tr
+                                                            : "operationFailed"
+                                                                .tr,
+                                                        size: SanckBarSize
+                                                            .MEDIUM));
                                               },
                                               icon: Icon(
                                                 Icons.playlist_play,
