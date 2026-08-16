@@ -100,8 +100,12 @@ class ContentListItem extends StatelessWidget {
         isPipedPlaylist: !_isAlbum && content.isPipedPlaylist == true,
         isCloudPlaylist: _isAlbum || content.isCloudPlaylist != false,
       );
-      if (!ok) _openContent();
+      if (!ok) {
+        _snackOperationFailed();
+        _openContent();
+      }
     } catch (_) {
+      _snackOperationFailed();
       _openContent();
     }
   }

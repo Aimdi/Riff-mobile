@@ -42,6 +42,16 @@ String emptyListLabelKey(String title, {bool searchContext = false}) {
 List<String> wideCollectionLongPressPlayKeys() =>
     const ['play', 'shuffle', 'playNext', 'startRadio'];
 
+void _snackPlayFailed() {
+  final ctx = Get.context;
+  if (ctx == null || !ctx.mounted) return;
+  ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
+    ctx,
+    'operationFailed'.tr,
+    size: SanckBarSize.MEDIUM,
+  ));
+}
+
 class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
   const ListWidget(this.items, this.title, this.isCompleteList,
       {super.key,
@@ -156,34 +166,31 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           song: song,
           playlist: playlist,
           isPlaylistOrAlbum: isPlaylistOrAlbum,
-          onTap: () {
+          onTap: () async {
+            final bool ok;
             if (isArtistSongs) {
-              playerController.playPlayListSong(
+              ok = await playerController.playPlayListSong(
                   List<MediaItem>.from(items), index,
                   playfrom: PlaylingFrom(
                       type: PlaylingFromType.ARTIST,
                       name: artist?.name ?? "........."));
-              return;
-            }
-            // Playlist/album complete lists already play from context.
-            if (playlist != null && album == null) {
-              playerController.playPlayListSong(
+            } else if (playlist != null && album == null) {
+              ok = await playerController.playPlayListSong(
                   List<MediaItem>.from(items), index,
                   playfrom: PlaylingFrom(
                     type: PlaylingFromType.PLAYLIST,
                     name: playlist.title,
                   ));
-              return;
-            }
-            if (shouldPlaySearchRowsAsQueue(
+            } else if (shouldPlaySearchRowsAsQueue(
                     isCompleteList: isCompleteList, title: title) &&
                 items.isNotEmpty &&
                 items.first is MediaItem) {
-              playerController.playPlayListSong(
+              ok = await playerController.playPlayListSong(
                   List<MediaItem>.from(items), index);
-              return;
+            } else {
+              ok = await playerController.pushSongToQueue(song);
             }
-            playerController.pushSongToQueue(song);
+            if (!ok) _snackPlayFailed();
           },
         );
       },
@@ -334,7 +341,10 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
     }
     final ok =
         await playArtist(artist, shuffle: shuffle, radio: radio);
-    if (!ok) _openArtist(artist);
+    if (!ok) {
+      _snackPlayFailed();
+      _openArtist(artist);
+    }
   }
 
   void _showArtistActions(BuildContext context, dynamic artist) {
@@ -414,7 +424,10 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
       isPipedPlaylist: !isAlbum && playlist.isPipedPlaylist == true,
       isCloudPlaylist: isAlbum || playlist.isCloudPlaylist != false,
     );
-    if (!ok) _openWideTile(album: album, playlist: playlist);
+    if (!ok) {
+      _snackPlayFailed();
+      _openWideTile(album: album, playlist: playlist);
+    }
   }
 
   Future<void> _queueWideTile({

@@ -57,7 +57,7 @@ class SeparateTabItemWidget extends StatelessWidget {
     );
   }
 
-  void _playTabItems({required bool shuffle}) {
+  Future<void> _playTabItems({required bool shuffle}) async {
     final songs = _tabSongs();
     if (songs.isEmpty || !Get.isRegistered<PlayerController>()) {
       final context = Get.context;
@@ -70,7 +70,7 @@ class SeparateTabItemWidget extends StatelessWidget {
       }
       return;
     }
-    Get.find<PlayerController>().playPlayListSong(
+    final ok = await Get.find<PlayerController>().playPlayListSong(
       playQueueFrom(songs, shuffle: shuffle),
       0,
       playfrom: PlaylingFrom(
@@ -78,6 +78,15 @@ class SeparateTabItemWidget extends StatelessWidget {
         name: title.tr,
       ),
     );
+    if (!ok) {
+      final context = Get.context;
+      if (context == null || !context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(snackbar(
+        context,
+        'operationFailed'.tr,
+        size: SanckBarSize.MEDIUM,
+      ));
+    }
   }
 
   @override

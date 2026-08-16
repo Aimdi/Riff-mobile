@@ -749,10 +749,16 @@ class SettingsScreen extends StatelessWidget {
                       ),
                       isThreeLine: true,
                       onTap: () {
-                        settingsController.clearImagesCache().then((value) =>
-                            ScaffoldMessenger.of(Get.context!).showSnackBar(
-                                snackbar(Get.context!, "clearImgCacheAlert".tr,
-                                    size: SanckBarSize.BIG)));
+                        settingsController.clearImagesCache().then((ok) {
+                          final ctx = Get.context;
+                          if (ctx == null || !ctx.mounted) return;
+                          ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
+                              ctx,
+                              ok
+                                  ? "clearImgCacheAlert".tr
+                                  : "operationFailed".tr,
+                              size: SanckBarSize.BIG));
+                        });
                       },
                     ),
                   ]),
