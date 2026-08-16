@@ -62,7 +62,9 @@ void main() {
       // Old sweeper did `box.get(id)[1]`. On a Map that is null, so every
       // good SongsUrlCache entry was deleted.
       final entry = _cacheEntry(lowUrl: fresh, highUrl: fresh);
-      expect(entry[1], isNull);
+      // Hive used to index cache values as lists (`box.get(id)[1]`).
+      // On a Map that lookup is null — do not treat the map as expired.
+      expect(Map<Object?, Object?>.from(entry)[1], isNull);
       expect(songsUrlCacheEntryExpired(entry), isFalse);
     });
 

@@ -1595,7 +1595,7 @@ class PlayerController extends GetxController
     }
     if (list.isEmpty) return;
     final context = Get.context;
-    if (context == null) return;
+    if (context == null || !context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(snackbar(
       context,
       "moreLikeThisAdded".tr,
