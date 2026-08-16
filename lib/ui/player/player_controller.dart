@@ -9,6 +9,7 @@ import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import '../../models/playling_from.dart';
 import 'play_queue_order.dart';
 import '../../services/play_by_index_skip.dart';
+import '../../services/play_runtime_error.dart';
 import '../../services/downloader.dart';
 import '../../services/discovery/discovery_service.dart';
 import '../../services/discovery/discovery_types.dart';
@@ -1852,23 +1853,36 @@ class PlayerController extends GetxController
   }
 
   /// Skip a dead stream and try the next queue item.
-  Future<void> skipFailedPlayback() async {
+  Future<bool> skipFailedPlayback() async {
     final hasNext = currentQueue.length > currentSongIndex.value + 1;
     if (shouldRetryInsteadOfSkip(
       hasNext: hasNext,
       radioOn: isRadioModeOn,
     )) {
-      await retryPlayback();
-      return;
+      return retryPlayback();
+    }
+    if (!canRetryOrSkipPlayback(
+      audioReady: _audioReady,
+      queueLength: currentQueue.length,
+      index: currentSongIndex.value,
+    )) {
+      return false;
     }
     clearPlaybackError();
     await next();
+    return shouldSnackGenericPlayFailed(playbackError.value);
   }
 
   /// Force a fresh stream URL for the current queue index.
-  Future<void> retryPlayback() async {
+  Future<bool> retryPlayback() async {
     await _waitForAudioHandler();
-    if (!_audioReady) return;
+    if (!canRetryOrSkipPlayback(
+      audioReady: _audioReady,
+      queueLength: currentQueue.length,
+      index: currentSongIndex.value,
+    )) {
+      return false;
+    }
     clearPlaybackError();
     var posMs = progressBarStatus.value.current.inMilliseconds;
     if (posMs <= 0) {
@@ -1880,11 +1894,12 @@ class PlayerController extends GetxController
     if (posMs <= 0 && _pendingResumeMs > 0) {
       posMs = _pendingResumeMs;
     }
-    _audioHandler.customAction("playByIndex", {
+    final result = await _audioHandler.customAction("playByIndex", {
       "index": currentSongIndex.value,
       "newUrl": true,
       if (posMs > 0) "position": posMs,
     });
+    return !playByIndexHardFailed(result);
   }
 
   static String _localizePlayError(String message) {

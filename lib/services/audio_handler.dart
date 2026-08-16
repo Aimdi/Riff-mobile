@@ -33,6 +33,7 @@ import '/services/background_task.dart';
 import '/services/client_config_service.dart';
 import '/services/permission_service.dart';
 import '/services/play_by_index_skip.dart';
+import '/services/play_runtime_error.dart';
 import '../utils/helper.dart';
 import '/models/media_Item_builder.dart';
 import '/utils/songs_url_cache.dart';
@@ -84,6 +85,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   String? _streamRetrySongId;
   int _streamRetryCount = 0;
   static const int _maxStreamUrlRetries = 2;
+  bool _runtimeErrorInFlight = false;
 
   /// Consecutive playByIndex resolve failures. Reset when playback is ready
   /// so a later dead track can still skip once without looping the queue.
@@ -224,75 +226,97 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       } else {
         printERROR('An error occurred: $e');
       }
-
-      // Capture before stop — position often resets to 0 after stop().
-      final curPos = _player.position;
-      final songId = (currentIndex != null &&
-              currentIndex! >= 0 &&
-              currentIndex! < queue.value.length)
-          ? queue.value[currentIndex!].id
-          : null;
-
-      if (isPlayingUsingLockCachingSource &&
-          e.toString().contains("Connection closed while receiving data")) {
-        await _player.stop();
-        await _player.seek(curPos, index: 0);
-        await _player.play();
-        return;
-      }
-
-      if (!_canAutoRetryUrlRefresh(songId)) {
-        // Budget exhausted — stop/pause so the engine is not left stuck
-        // before surfacing the failure to the UI.
-        try {
-          await _player.stop();
-        } catch (_) {
-          try {
-            await _player.pause();
-          } catch (_) {}
-        }
-        if (Get.isRegistered<PlayerController>()) {
-          Get.find<PlayerController>().notifyPlayError("streamPlaybackFailed");
-        }
-        _consecutiveResolveFails++;
-        final next = _getNextSongIndex();
-        if (shouldSkipAfterUnresolvableTrack(
-          consecutiveFails: _consecutiveResolveFails,
-          maxConsecutiveFails: _maxConsecutiveResolveFails,
-          currentIndex: currentIndex is int ? currentIndex as int : 0,
-          nextIndex: next,
-          loopOne: loopModeEnabled,
-        )) {
-          await skipToNext();
-        }
-        return;
-      }
-
-      await _player.stop();
-      // Expired / blocked URL — refresh stream and restore position.
-      if (Get.isRegistered<PlayerController>()) {
-        Get.find<PlayerController>()
-            .notifyPlayError("streamRetrying", isRetrying: true);
-      }
-      final attempt = _streamRetryCount;
-      if (attempt > 0) {
-        await Future.delayed(Duration(milliseconds: attempt == 1 ? 800 : 2000));
-      }
-      await customAction("playByIndex", {
-        'index': currentIndex,
-        'newUrl': true,
-        'position': curPos.inMilliseconds,
-      });
+      await _handleRuntimePlaybackError(e, position: _player.position);
     });
   }
 
+  String? _currentQueueSongId() {
+    if (currentIndex is! int) return null;
+    final i = currentIndex as int;
+    if (i < 0 || i >= queue.value.length) return null;
+    return queue.value[i].id;
+  }
+
+  /// Runtime just_audio failure after a URL was handed off (403, drop, decode).
+  /// Returns true when playback was restarted or skip-to-next began.
+  Future<bool> _handleRuntimePlaybackError(
+    Object e, {
+    required Duration position,
+  }) async {
+    if (_runtimeErrorInFlight) return false;
+    _runtimeErrorInFlight = true;
+    final songId = _currentQueueSongId();
+    try {
+      if (isPlayingUsingLockCachingSource &&
+          isCacheConnectionClosedError(e)) {
+        await _player.stop();
+        await _player.seek(position, index: 0);
+        await _player.play();
+        return true;
+      }
+
+      if (shouldRefreshUrlOnRuntimeError(e) &&
+          _canAutoRetryUrlRefresh(songId)) {
+        await _player.stop();
+        if (Get.isRegistered<PlayerController>()) {
+          Get.find<PlayerController>()
+              .notifyPlayError("streamRetrying", isRetrying: true);
+        }
+        final attempt = _streamRetryCount;
+        if (attempt > 0) {
+          await Future.delayed(
+              Duration(milliseconds: attempt == 1 ? 800 : 2000));
+        }
+        _runtimeErrorInFlight = false;
+        final result = await customAction("playByIndex", {
+          'index': currentIndex,
+          'newUrl': true,
+          'position': position.inMilliseconds,
+        });
+        return !playByIndexHardFailed(result);
+      }
+
+      try {
+        await _player.stop();
+      } catch (_) {
+        try {
+          await _player.pause();
+        } catch (_) {}
+      }
+      if (Get.isRegistered<PlayerController>()) {
+        Get.find<PlayerController>().notifyPlayError("streamPlaybackFailed");
+      }
+      _consecutiveResolveFails++;
+      final next = _getNextSongIndex();
+      if (shouldSkipAfterUnresolvableTrack(
+        consecutiveFails: _consecutiveResolveFails,
+        maxConsecutiveFails: _maxConsecutiveResolveFails,
+        currentIndex: currentIndex is int ? currentIndex as int : 0,
+        nextIndex: next,
+        loopOne: loopModeEnabled,
+      )) {
+        await skipToNext();
+        return true;
+      }
+      return false;
+    } finally {
+      _runtimeErrorInFlight = false;
+    }
+  }
+
   bool _canAutoRetryUrlRefresh(String? songId) {
-    if (songId == null || songId.isEmpty) return false;
+    if (!canAutoRetryUrlRefresh(
+      songId: songId,
+      budgetSongId: _streamRetrySongId,
+      retryCount: _streamRetryCount,
+      maxRetries: _maxStreamUrlRetries,
+    )) {
+      return false;
+    }
     if (_streamRetrySongId != songId) {
       _streamRetrySongId = songId;
       _streamRetryCount = 0;
     }
-    if (_streamRetryCount >= _maxStreamUrlRetries) return false;
     _streamRetryCount++;
     return true;
   }
@@ -624,7 +648,12 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     //   await _player.play();
     //   return;
     // }
-    await _player.play();
+    try {
+      await _player.play();
+    } catch (e) {
+      printERROR('play() player start failed: $e');
+      await _handleRuntimePlaybackError(e, position: _player.position);
+    }
   }
 
   @override
@@ -845,18 +874,26 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
 
         final resumeMs = (extras['position'] as num?)?.toInt() ?? 0;
-        if (restoreSession || resumeMs > 0) {
-          // Desktop previously skipped restore entirely; always load+seek when
-          // we have a saved/retry position so cold start and error recovery work.
-          await _player.load();
-          if (resumeMs > 0) {
-            await _player.seek(Duration(milliseconds: resumeMs));
-          }
-          if (!restoreSession) {
+        try {
+          if (restoreSession || resumeMs > 0) {
+            // Desktop previously skipped restore entirely; always load+seek when
+            // we have a saved/retry position so cold start and error recovery work.
+            await _player.load();
+            if (resumeMs > 0) {
+              await _player.seek(Duration(milliseconds: resumeMs));
+            }
+            if (!restoreSession) {
+              await _player.play();
+            }
+          } else {
             await _player.play();
           }
-        } else {
-          await _player.play();
+        } catch (e) {
+          printERROR('playByIndex player start failed: $e');
+          return _handleRuntimePlaybackError(
+            e,
+            position: Duration(milliseconds: resumeMs),
+          );
         }
         prefetchNextInQueue();
         return true;
@@ -932,7 +969,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           _normalizeVolume(streamInfo.audio!.loudnessDb);
         }
 
-        await _player.play();
+        try {
+          await _player.play();
+        } catch (e) {
+          printERROR('setSourceNPlay player start failed: $e');
+          await _handleRuntimePlaybackError(e, position: Duration.zero);
+          return false;
+        }
         prefetchNextInQueue();
         break;
 

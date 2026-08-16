@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../widgets/snackbar.dart';
 import '../player_controller.dart';
 
 /// Retry the current stream or skip to the next queue item.
@@ -28,12 +29,18 @@ class PlaybackErrorActions extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         TextButton(
-          onPressed: playerController.retryPlayback,
+          onPressed: () async {
+            final ok = await playerController.retryPlayback();
+            if (!ok) snackOperationFailed();
+          },
           style: style,
           child: Text('retry'.tr),
         ),
         TextButton(
-          onPressed: playerController.skipFailedPlayback,
+          onPressed: () async {
+            final ok = await playerController.skipFailedPlayback();
+            if (!ok) snackOperationFailed();
+          },
           style: style,
           child: Text('skip'.tr),
         ),
