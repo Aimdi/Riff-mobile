@@ -278,13 +278,15 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
     if (Get.isRegistered<LibraryPlaylistsController>()) {
       return Obx(() => _playlistTiles(userPlaylistsForAddSheet(), muted));
     }
-    _controller();
-    return Obx(
-      () => _playlistTiles(
-        Get.find<AddToPlaylistController>().playlists.toList(),
-        muted,
-      ),
-    );
+    if (Get.isRegistered<AddToPlaylistController>()) {
+      return Obx(
+        () => _playlistTiles(
+          Get.find<AddToPlaylistController>().playlists.toList(),
+          muted,
+        ),
+      );
+    }
+    return _playlistTiles(const [], muted);
   }
 
   Widget _playlistTiles(List<Playlist> playlists, Color? muted) {
