@@ -370,7 +370,7 @@ class AlbumScreen extends StatelessWidget {
                                               )),
                                           IconButton(
                                               tooltip: "startRadio".tr,
-                                              onPressed: () {
+                                              onPressed: () async {
                                                 final songs = albumController
                                                     .songList
                                                     .toList();
@@ -387,8 +387,18 @@ class AlbumScreen extends StatelessWidget {
                                                   }
                                                   return;
                                                 }
-                                                playerController
+                                                final ok = await playerController
                                                     .startRadio(songs.first);
+                                                if (!context.mounted || ok) {
+                                                  return;
+                                                }
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(snackbar(
+                                                        context,
+                                                        "radioNotAvailable"
+                                                            .tr,
+                                                        size: SanckBarSize
+                                                            .MEDIUM));
                                               },
                                               icon: Icon(
                                                 Icons.sensors,

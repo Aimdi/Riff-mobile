@@ -78,6 +78,12 @@ void main() {
     expect(canMutateQueue(false), isFalse);
   });
 
+  test('playback needs a live handler and at least one item', () {
+    expect(canStartPlayback(audioReady: true, itemCount: 1), isTrue);
+    expect(canStartPlayback(audioReady: true, itemCount: 0), isFalse);
+    expect(canStartPlayback(audioReady: false, itemCount: 3), isFalse);
+  });
+
   test('play next is a no-op when the song is current or already next', () {
     expect(
       isPlayNextNoOp(

@@ -871,10 +871,11 @@ class PlayerController extends GetxController
 
   ///pushSongToPlaylist method clear previous song queue, plays the tapped song and push related
   ///songs into Queue
-  Future<void> pushSongToQueue(MediaItem? mediaItem,
+  Future<bool> pushSongToQueue(MediaItem? mediaItem,
       {String? playlistid, bool radio = false}) async {
     await _waitForAudioHandler();
-    if (!_audioReady) return;
+    if (!_audioReady) return false;
+    try {
 
     /// update playing from value
     playinfrom.value = PlaylingFrom(
@@ -930,6 +931,7 @@ class PlayerController extends GetxController
             : mediaItem
       ];
     }
+    if (tracks.isEmpty) return false;
 
     // Await the queue swap before play — the old fire-and-forget
     // updateQueue raced setSourceNPlay and could drop the first track.
@@ -950,10 +952,10 @@ class PlayerController extends GetxController
     if (playlistid != null) {
       _playerPanelCheck();
       await _audioHandler.customAction("playByIndex", {"index": 0});
-      return;
+      return true;
     }
     if (radioOnCurrent) {
-      return;
+      return true;
     }
 
     if (Hive.box("AppPrefs").get("discoverContentType") == "BOLI") {
@@ -969,12 +971,22 @@ class PlayerController extends GetxController
         isShuffleModeEnabled.isFalse) {
       toggleQueueLoopMode();
     }
+    return true;
+    } catch (_) {
+      return false;
+    }
   }
 
-  Future<void> playPlayListSong(List<MediaItem> mediaItems, int index,
+  Future<bool> playPlayListSong(List<MediaItem> mediaItems, int index,
       {PlaylingFrom? playfrom}) async {
     await _waitForAudioHandler();
-    if (!_audioReady) return;
+    if (!canStartPlayback(
+      audioReady: _audioReady,
+      itemCount: mediaItems.length,
+    )) {
+      return false;
+    }
+    if (index < 0 || index >= mediaItems.length) return false;
 
     isRadioModeOn = false;
     //open player pane,set current song and push first song into playing list,
@@ -1004,11 +1016,12 @@ class PlayerController extends GetxController
       await _audioHandler.customAction("shuffleCmd", {"index": index});
     }
     await _audioHandler.customAction("playByIndex", {"index": index});
+    return true;
   }
 
-  Future<void> startRadio(MediaItem? mediaItem, {String? playlistid}) async {
+  Future<bool> startRadio(MediaItem? mediaItem, {String? playlistid}) async {
     radioInitiatorItem = mediaItem ?? playlistid;
-    await pushSongToQueue(mediaItem, playlistid: playlistid, radio: true);
+    return pushSongToQueue(mediaItem, playlistid: playlistid, radio: true);
   }
 
   /// Home "Riff Wave" — reliable personal radio.
@@ -1165,8 +1178,7 @@ class PlayerController extends GetxController
   ///if current queue is empty, push the song into Queue and play that song
   Future<bool> enqueueSong(MediaItem mediaItem) async {
     if (currentQueue.isEmpty) {
-      await playPlayListSong([mediaItem], 0);
-      return true;
+      return playPlayListSong([mediaItem], 0);
     }
     if (!canMutateQueue(_audioReady)) return false;
     if (isAlreadyQueued(
@@ -1188,12 +1200,12 @@ class PlayerController extends GetxController
         queueEmpty: true,
       );
       final initiator = radioInitiatorItem;
-      await playPlayListSong(mediaItems, 0);
+      final started = await playPlayListSong(mediaItems, 0);
       if (keepRadio) {
         isRadioModeOn = true;
         radioInitiatorItem = initiator;
       }
-      return true;
+      return started;
     }
     if (!canMutateQueue(_audioReady)) return false;
     final queuedIds = currentQueue.map((e) => e.id).toSet();
@@ -1232,22 +1244,20 @@ class PlayerController extends GetxController
   Future<bool> playNextList(List<MediaItem> songs) async {
     if (songs.isEmpty) return false;
     if (currentQueue.isEmpty) {
-      await playPlayListSong(songs, 0);
-      return true;
+      return playPlayListSong(songs, 0);
     }
     var inserted = false;
     for (final song in playNextBatchOrder(songs)) {
-      if (playNext(song)) inserted = true;
+      if (await playNext(song)) inserted = true;
     }
     return inserted;
   }
 
   /// Insert [song] after the current track. Returns false when it is already
   /// current or already next so callers can skip the "play next" snackbar.
-  bool playNext(MediaItem song) {
+  Future<bool> playNext(MediaItem song) async {
     if (currentQueue.isEmpty) {
-      enqueueSong(song);
-      return true;
+      return enqueueSong(song);
     }
     if (!_audioReady) return false;
     if (isPlayNextNoOp(
@@ -1268,9 +1278,10 @@ class PlayerController extends GetxController
     if (index != -1) {
       onReorder(index, currentSongIndex.value + 1);
     } else {
-      (currentIndx == currentQueue.length - 1)
-          ? enqueueSong(song)
-          : _audioHandler.customAction("addPlayNextItem", {"mediaItem": song});
+      if (currentIndx == currentQueue.length - 1) {
+        return enqueueSong(song);
+      }
+      _audioHandler.customAction("addPlayNextItem", {"mediaItem": song});
     }
     return true;
   }
@@ -1672,7 +1683,7 @@ class PlayerController extends GetxController
     }
     var inserted = false;
     for (final s in list.reversed) {
-      if (playNext(s)) inserted = true;
+      if (await playNext(s)) inserted = true;
     }
     _snackQueueResult(inserted ? 'moreLikeThisAdded' : 'operationFailed');
     return inserted;

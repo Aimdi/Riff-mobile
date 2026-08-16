@@ -79,7 +79,7 @@ Future<bool> playTopSongResult(String query) async {
         await Get.find<MusicServices>().search(q, filter: 'songs', limit: 5);
     final songs = songsFromSearchResult(result);
     if (songs.isEmpty) return false;
-    await Get.find<PlayerController>().playPlayListSong(
+    return Get.find<PlayerController>().playPlayListSong(
       songs,
       0,
       playfrom: PlaylingFrom(
@@ -87,7 +87,6 @@ Future<bool> playTopSongResult(String query) async {
         name: q,
       ),
     );
-    return true;
   } catch (_) {
     return false;
   }

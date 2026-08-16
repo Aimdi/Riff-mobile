@@ -99,7 +99,7 @@ abstract class PlaylistAlbumScreenControllerBase extends GetxController {
   ///
   /// only applicable for playlist.
   @protected
-  void syncPlaylistSongs();
+  Future<bool> syncPlaylistSongs();
 
   /// Updates the songs into the database.
   ///

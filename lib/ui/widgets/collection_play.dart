@@ -104,7 +104,7 @@ Future<bool> playCollection({
   if (Get.isRegistered<PlaylistMixService>()) {
     Get.find<PlaylistMixService>().deactivatePlayback();
   }
-  await Get.find<PlayerController>().playPlayListSong(
+  return Get.find<PlayerController>().playPlayListSong(
     playQueueFrom(tracks, shuffle: shuffle),
     0,
     playfrom: PlaylingFrom(
@@ -112,7 +112,6 @@ Future<bool> playCollection({
       type: isAlbum ? PlaylingFromType.ALBUM : PlaylingFromType.PLAYLIST,
     ),
   );
-  return true;
 }
 
 /// Top tracks from [MusicServices.getArtist] (or the remapped Songs key).
@@ -139,8 +138,7 @@ Future<bool> playArtist(
   final radioId = artist.radioId?.trim() ?? '';
 
   if (radio && radioId.isNotEmpty) {
-    await player.startRadio(null, playlistid: radioId);
-    return true;
+    return player.startRadio(null, playlistid: radioId);
   }
 
   if (!Get.isRegistered<MusicServices>()) return false;
@@ -149,11 +147,10 @@ Future<bool> playArtist(
   if (songs.isEmpty) return false;
 
   if (radio) {
-    await player.startRadio(songs.first);
-    return true;
+    return player.startRadio(songs.first);
   }
 
-  await player.playPlayListSong(
+  return player.playPlayListSong(
     playQueueFrom(songs, shuffle: shuffle),
     0,
     playfrom: PlaylingFrom(
@@ -161,5 +158,4 @@ Future<bool> playArtist(
       type: PlaylingFromType.ARTIST,
     ),
   );
-  return true;
 }

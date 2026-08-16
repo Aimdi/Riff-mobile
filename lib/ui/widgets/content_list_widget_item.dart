@@ -130,7 +130,8 @@ class ContentListItem extends StatelessWidget {
     }
     final player = Get.find<PlayerController>();
     if (radio) {
-      await player.startRadio(tracks.first);
+      final ok = await player.startRadio(tracks.first);
+      if (!ok) _snackOperationFailed();
       return;
     }
     final queued = await player.playNextList(tracks);

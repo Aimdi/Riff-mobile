@@ -74,7 +74,7 @@ Future<bool> playPodcastShow(Map<String, dynamic> podcast) async {
   final player = Get.find<PlayerController>();
   final pos = PodcastProgressService.positionMs(items[index].id) ?? 0;
   if (pos > 0) player.armResume(items[index].id, pos);
-  await player.playPlayListSong(
+  return player.playPlayListSong(
     items,
     index,
     playfrom: PlaylingFrom(
@@ -82,7 +82,6 @@ Future<bool> playPodcastShow(Map<String, dynamic> podcast) async {
       name: title,
     ),
   );
-  return true;
 }
 
 /// YT channel / Apple podcast tiles (not albums).
@@ -115,7 +114,7 @@ Future<bool> playCollectionTracksAsPodcast({
     final pos = PodcastProgressService.positionMs(items[index].id) ?? 0;
     if (pos > 0) player.armResume(items[index].id, pos);
   }
-  await player.playPlayListSong(
+  return player.playPlayListSong(
     items,
     index,
     playfrom: PlaylingFrom(
@@ -123,7 +122,6 @@ Future<bool> playCollectionTracksAsPodcast({
       name: title,
     ),
   );
-  return true;
 }
 
 /// Discover genre chips play the top show; empty/failed fetch still opens browse.

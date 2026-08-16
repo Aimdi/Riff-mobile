@@ -13,6 +13,7 @@ import '../../widgets/add_to_playlist.dart';
 import '../../widgets/discovery/player_similar_row.dart';
 import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/sleep_timer_bottom_sheet.dart';
+import '../../widgets/snackbar.dart';
 import '../play_queue_order.dart';
 import '../player_controller.dart';
 import '../radio_continuation.dart';
@@ -346,7 +347,15 @@ class PlayerControlWidget extends StatelessWidget {
           runSpacing: 0,
           children: [
             TextButton.icon(
-              onPressed: () => playerController.startRadio(song),
+              onPressed: () async {
+                final ok = await playerController.startRadio(song);
+                if (!context.mounted || ok) return;
+                ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                  context,
+                  "radioNotAvailable".tr,
+                  size: SanckBarSize.MEDIUM,
+                ));
+              },
               icon: const Icon(Icons.sensors, size: 18),
               label: Text("startRadio".tr, style: labelStyle),
               style: style,

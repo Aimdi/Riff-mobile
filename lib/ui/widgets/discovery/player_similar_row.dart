@@ -127,13 +127,16 @@ class _PlayerSimilarRowState extends State<PlayerSimilarRow> {
                                         minWidth: 28, minHeight: 28),
                                     iconSize: 20,
                                     icon: const Icon(Icons.playlist_play),
-                                    onPressed: () {
+                                    onPressed: () async {
                                       HapticFeedback.selectionClick();
-                                      if (!player.playNext(s)) return;
+                                      final ok = await player.playNext(s);
+                                      if (!context.mounted) return;
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(snackbar(
                                         context,
-                                        "${"playnextMsg".tr} ${s.title}",
+                                        ok
+                                            ? "${"playnextMsg".tr} ${s.title}"
+                                            : "operationFailed".tr,
                                         size: SanckBarSize.MEDIUM,
                                       ));
                                     },

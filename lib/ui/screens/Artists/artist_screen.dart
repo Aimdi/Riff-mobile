@@ -47,8 +47,12 @@ class ArtistScreen extends StatelessWidget {
                           size: SanckBarSize.BIG));
                       return;
                     }
-                    playerController.startRadio(null,
-                        playlistid: artistScreenController.artist_.radioId);
+                    final ok = await playerController.startRadio(null,
+                        playlistid: radioId);
+                    if (!context.mounted || ok) return;
+                    ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                        context, "radioNotAvailable".tr,
+                        size: SanckBarSize.BIG));
                   },
                   child: const Icon(Icons.sensors)),
             ),

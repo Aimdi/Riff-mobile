@@ -50,6 +50,13 @@ bool isAlreadyQueued({
 /// Queue mutations need a live audio handler.
 bool canMutateQueue(bool audioReady) => audioReady;
 
+/// Play / radio needs a live handler and at least one item.
+bool canStartPlayback({
+  required bool audioReady,
+  required int itemCount,
+}) =>
+    audioReady && itemCount > 0;
+
 /// Play Next is a no-op when the song is current or already next.
 bool isPlayNextNoOp({
   required String songId,

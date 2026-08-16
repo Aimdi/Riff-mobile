@@ -145,5 +145,5 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
   void fetchPlaylistDetails(Playlist? playlist_, String playlistId) {}
 
   @override
-  void syncPlaylistSongs() {}
+  Future<bool> syncPlaylistSongs() async => false;
 }

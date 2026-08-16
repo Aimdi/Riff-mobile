@@ -445,7 +445,17 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
     }
     final player = Get.find<PlayerController>();
     if (radio) {
-      await player.startRadio(tracks.first);
+      final ok = await player.startRadio(tracks.first);
+      if (!ok) {
+        final ctx = Get.context;
+        if (ctx != null && ctx.mounted) {
+          ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
+            ctx,
+            'operationFailed'.tr,
+            size: SanckBarSize.MEDIUM,
+          ));
+        }
+      }
       return;
     }
     final queued = await player.playNextList(tracks);

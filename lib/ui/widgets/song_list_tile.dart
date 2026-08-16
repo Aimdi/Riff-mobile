@@ -121,12 +121,15 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
               //label: 'Enqueue',
             ),
             SlidableAction(
-              onPressed: (context) {
-                if (playerController.playNext(song)) {
-                  ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                      context, "${"playnextMsg".tr} ${(song).title}",
-                      size: SanckBarSize.BIG));
-                }
+              onPressed: (context) async {
+                final ok = await playerController.playNext(song);
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                    context,
+                    ok
+                        ? "${"playnextMsg".tr} ${(song).title}"
+                        : "operationFailed".tr,
+                    size: SanckBarSize.BIG));
               },
               backgroundColor: Theme.of(context).colorScheme.secondary,
               foregroundColor: Theme.of(context).textTheme.titleMedium!.color,
@@ -259,12 +262,15 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                             minHeight: 32,
                           ),
                           splashRadius: 18,
-                          onPressed: () {
-                            if (!playerController.playNext(song)) return;
+                          onPressed: () async {
+                            final ok = await playerController.playNext(song);
+                            if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               snackbar(
                                 context,
-                                "${"playnextMsg".tr} ${song.title}",
+                                ok
+                                    ? "${"playnextMsg".tr} ${song.title}"
+                                    : "operationFailed".tr,
                                 size: SanckBarSize.MEDIUM,
                               ),
                             );

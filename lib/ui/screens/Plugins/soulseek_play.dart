@@ -64,7 +64,7 @@ Future<bool> playSoulseekFile(SoulseekFile hit, File file) async {
   if (!Get.isRegistered<PlayerController>()) return false;
   if (!file.existsSync()) return false;
   final item = soulseekFileToMediaItem(hit, filePath: file.path);
-  await Get.find<PlayerController>().playPlayListSong(
+  return Get.find<PlayerController>().playPlayListSong(
     [item],
     0,
     playfrom: PlaylingFrom(
@@ -72,5 +72,4 @@ Future<bool> playSoulseekFile(SoulseekFile hit, File file) async {
       name: item.title,
     ),
   );
-  return true;
 }

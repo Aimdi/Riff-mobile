@@ -23,10 +23,14 @@ class BanService {
   static bool isBanned(String songId) =>
       Hive.isBoxOpen("BannedSongs") && _box.containsKey(songId);
 
-  static Future<void> ban(MediaItem song) => _box.put(song.id, {
-        "title": song.title,
-        "artist": song.artist ?? "",
-      });
+  static Future<bool> ban(MediaItem song) async {
+    if (!Hive.isBoxOpen("BannedSongs")) return false;
+    await _box.put(song.id, {
+      "title": song.title,
+      "artist": song.artist ?? "",
+    });
+    return true;
+  }
 
   static Future<void> unban(String songId) => _box.delete(songId);
 

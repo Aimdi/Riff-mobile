@@ -8,6 +8,7 @@ import '../../player/player_controller.dart';
 import '../../utils/riff_tokens.dart';
 import '../../utils/theme_controller.dart';
 import '../image_widget.dart';
+import '../snackbar.dart';
 
 /// Spotify-like "Jump back in" — recently played songs from Hive `LIBRP`.
 class JumpBackInRow extends StatefulWidget {
@@ -128,17 +129,33 @@ class _JumpBackInRowState extends State<JumpBackInRow> {
                               ListTile(
                                 leading: const Icon(Icons.playlist_play),
                                 title: Text('playNext'.tr),
-                                onTap: () {
+                                onTap: () async {
                                   Navigator.pop(ctx);
-                                  player.playNext(song);
+                                  final ok = await player.playNext(song);
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      snackbar(
+                                    context,
+                                    ok
+                                        ? "${"playnextMsg".tr} ${song.title}"
+                                        : "operationFailed".tr,
+                                    size: SanckBarSize.MEDIUM,
+                                  ));
                                 },
                               ),
                               ListTile(
                                 leading: const Icon(Icons.sensors),
                                 title: Text('startRadio'.tr),
-                                onTap: () {
+                                onTap: () async {
                                   Navigator.pop(ctx);
-                                  player.startRadio(song);
+                                  final ok = await player.startRadio(song);
+                                  if (!context.mounted || ok) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      snackbar(
+                                    context,
+                                    "radioNotAvailable".tr,
+                                    size: SanckBarSize.MEDIUM,
+                                  ));
                                 },
                               ),
                             ],
