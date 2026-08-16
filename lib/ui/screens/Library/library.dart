@@ -1,8 +1,15 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hive/hive.dart';
 
+import '/models/media_Item_builder.dart';
 import '/models/playlist.dart';
 import '/services/cloud_music_service.dart';
+import '../../navigator.dart';
+import '../../player/player_controller.dart';
+import '../../utils/riff_tokens.dart';
+import '../../utils/theme_controller.dart';
 import '../../widgets/modification_list.dart';
 import '../../widgets/piped_sync_widget.dart';
 import '../../widgets/content_list_widget_item.dart';
@@ -41,6 +48,7 @@ class SongsLibraryWidget extends StatelessWidget {
                     );
                   }),
                 ),
+          if (!isBottomNavActive) const _LibraryPinnedRow(),
           Obx(() {
             final cloudMode = libSongsController.showCloudSongs.value;
             final cloud = Get.find<CloudMusicService>();
@@ -362,6 +370,166 @@ class LibraryArtistWidget extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium,
                 ))))
         ],
+      ),
+    );
+  }
+}
+
+/// Spotify-like pinned tiles: Liked Songs + Recently played (play on tap).
+class _LibraryPinnedRow extends StatelessWidget {
+  const _LibraryPinnedRow();
+
+  int _count(String boxName) {
+    if (!Hive.isBoxOpen(boxName)) return 0;
+    return Hive.box(boxName).length;
+  }
+
+  void _open(String id, String title) {
+    final pl = Playlist(
+      title: title,
+      playlistId: id,
+      thumbnailUrl: Playlist.thumbPlaceholderUrl,
+      isCloudPlaylist: false,
+    );
+    Get.toNamed(
+      ScreenNavigationSetup.playlistScreen,
+      id: ScreenNavigationSetup.id,
+      arguments: [pl, id],
+    );
+  }
+
+  Future<void> _play(String id, String title, {bool shuffle = false}) async {
+    if (!Hive.isBoxOpen(id) || Hive.box(id).isEmpty) {
+      _open(id, title);
+      return;
+    }
+    final tracks = <MediaItem>[];
+    for (final raw in Hive.box(id).values) {
+      try {
+        final item = MediaItemBuilder.fromJson(raw);
+        if (item.id.isNotEmpty) tracks.add(item);
+      } catch (_) {}
+    }
+    if (tracks.isEmpty) {
+      _open(id, title);
+      return;
+    }
+    if (shuffle) {
+      tracks.shuffle();
+    } else if (id == 'LIBRP') {
+      await Get.find<PlayerController>()
+          .playPlayListSong(tracks.reversed.toList(), 0);
+      return;
+    }
+    await Get.find<PlayerController>().playPlayListSong(tracks, 0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = theme.brightness == Brightness.dark
+        ? RiffSurfaces.textMuted
+        : theme.textTheme.bodySmall?.color;
+    final liked = _count('LIBFAV');
+    final recent = _count('LIBRP');
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 10, 12, 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: _PinnedTile(
+              icon: Icons.favorite,
+              title: 'favorites'.tr,
+              subtitle: liked > 0 ? '$liked' : null,
+              accent: theme.colorScheme.secondary,
+              muted: muted,
+              onTap: () => _play('LIBFAV', 'favorites'.tr, shuffle: true),
+              onLongPress: () => _open('LIBFAV', 'favorites'.tr),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _PinnedTile(
+              icon: Icons.history,
+              title: 'recentlyPlayed'.tr,
+              subtitle: recent > 0 ? '$recent' : null,
+              accent: theme.colorScheme.secondary,
+              muted: muted,
+              onTap: () => _play('LIBRP', 'recentlyPlayed'.tr),
+              onLongPress: () => _open('LIBRP', 'recentlyPlayed'.tr),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PinnedTile extends StatelessWidget {
+  const _PinnedTile({
+    required this.icon,
+    required this.title,
+    required this.accent,
+    required this.onTap,
+    required this.onLongPress,
+    this.subtitle,
+    this.muted,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final Color accent;
+  final Color? muted;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+
+  @override
+  Widget build(BuildContext context) {
+    final fill = Theme.of(context).brightness == Brightness.dark
+        ? RiffSurfaces.elevatedSoft
+        : Theme.of(context).cardColor;
+    return Material(
+      color: fill,
+      borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          child: Row(
+            children: [
+              Icon(icon, color: accent, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    if (subtitle != null)
+                      Text(
+                        subtitle!,
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelSmall
+                            ?.copyWith(color: muted, fontSize: 11),
+                      ),
+                  ],
+                ),
+              ),
+              Icon(Icons.play_circle_fill, color: accent, size: 22),
+            ],
+          ),
+        ),
       ),
     );
   }
