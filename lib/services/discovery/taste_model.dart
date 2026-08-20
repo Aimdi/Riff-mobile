@@ -85,8 +85,7 @@ class TasteModel {
       switch (quality) {
         case ListenQuality.strongPositive:
           kind = DiscoveryEventKind.playEnded;
-          affinityDelta = source == DiscoverySource.userClick ||
-                  source == DiscoverySource.queue
+          affinityDelta = source.isUserInitiated
               ? AffinityWeights.fullListenUserInitiated
               : AffinityWeights.fullListen;
           break;

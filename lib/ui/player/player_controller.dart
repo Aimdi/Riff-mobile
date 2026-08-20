@@ -13,6 +13,7 @@ import '../../services/play_by_index_skip.dart';
 import '../../services/play_runtime_error.dart';
 import '../../services/downloader.dart';
 import '../../services/discovery/discovery_service.dart';
+import '../../services/discovery/discovery_tag.dart';
 import '../../services/discovery/discovery_types.dart';
 import '../../services/smart_queue_service.dart';
 import '../screens/Playlist/playlist_screen_controller.dart';
@@ -731,6 +732,10 @@ class PlayerController extends GetxController
           await _addToRP(currentSong.value!);
           StatsService.recordPlay(currentSong.value!);
           ListenBrainzService.submitListen(currentSong.value!);
+          if (Get.isRegistered<SettingsScreenController>()) {
+            unawaited(Get.find<SettingsScreenController>()
+                .maybePromptBatteryOptimization());
+          }
           if (Get.isRegistered<DiscoveryService>()) {
             await Get.find<DiscoveryService>()
                 .onMediaChanged(mediaItem, positionMs: posMs);
@@ -990,7 +995,7 @@ class PlayerController extends GetxController
   }
 
   Future<bool> playPlayListSong(List<MediaItem> mediaItems, int index,
-      {PlaylingFrom? playfrom}) async {
+      {PlaylingFrom? playfrom, DiscoverySource? source}) async {
     await _waitForAudioHandler();
     if (!canStartPlayback(
       audioReady: _audioReady,
@@ -1016,13 +1021,8 @@ class PlayerController extends GetxController
     });
 
     _playerPanelCheck();
-    final tagged = Get.isRegistered<DiscoveryService>()
-        ? mediaItems
-            .map((m) => m.extras?['discoverySource'] != null
-                ? m
-                : DiscoveryService.withSource(m, DiscoverySource.userClick))
-            .toList()
-        : mediaItems;
+    final fallback = source ?? sourceFromPlaylingFrom(playfrom);
+    final tagged = ensureDiscoverySources(mediaItems, fallback);
     await _audioHandler.updateQueue(tagged);
     if (isShuffleModeEnabled.value) {
       await _audioHandler.customAction("shuffleCmd", {"index": index});
@@ -1201,7 +1201,7 @@ class PlayerController extends GetxController
     )) {
       return true;
     }
-    _audioHandler.addQueueItem(mediaItem);
+    _audioHandler.addQueueItem(ensureDiscoverySource(mediaItem, DiscoverySource.queue));
     return true;
   }
 
@@ -1231,7 +1231,8 @@ class PlayerController extends GetxController
       }
     }
     if (listToEnqueue.isEmpty) return true;
-    _audioHandler.addQueueItems(listToEnqueue);
+    _audioHandler.addQueueItems(
+        ensureDiscoverySources(listToEnqueue, DiscoverySource.queue));
     return true;
   }
 
@@ -1247,7 +1248,11 @@ class PlayerController extends GetxController
         }
         songList.add(song);
       }
-      await playPlayListSong(songList, songIndex);
+      await playPlayListSong(
+        songList,
+        songIndex,
+        source: DiscoverySource.androidAuto,
+      );
       if (libraryId != "SongDownloads") {
         box.close();
       }
@@ -1295,7 +1300,9 @@ class PlayerController extends GetxController
       if (currentIndx == currentQueue.length - 1) {
         return enqueueSong(song);
       }
-      _audioHandler.customAction("addPlayNextItem", {"mediaItem": song});
+      _audioHandler.customAction("addPlayNextItem", {
+        "mediaItem": ensureDiscoverySource(song, DiscoverySource.queue),
+      });
     }
     return true;
   }

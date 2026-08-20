@@ -7,6 +7,7 @@ import '../../models/artist.dart';
 import '../../models/playling_from.dart';
 import '../../models/playlist.dart';
 import '/services/ban_service.dart';
+import '/services/discovery/discovery_types.dart';
 import '../navigator.dart';
 import '../player/player_controller.dart';
 import 'collection_play.dart';
@@ -178,7 +179,8 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
                 items.isNotEmpty &&
                 items.first is MediaItem) {
               ok = await playerController.playPlayListSong(
-                  List<MediaItem>.from(items), index);
+                  List<MediaItem>.from(items), index,
+                  source: DiscoverySource.search);
             } else {
               ok = await playerController.pushSongToQueue(song);
             }

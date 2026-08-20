@@ -1,3 +1,16 @@
+# 1.7.104
+
+**Discovery**
+* Play paths stamp a discovery source (home, search, album, playlist,
+  artist, cloud, podcast, downloads, Soulseek, radio, mixes)
+* Stats record listen fraction, skips, and last source instead of assuming
+  every play was heard in full
+* Fresh Finds shortcut and Android Auto library songs keep the right source
+
+**Reliability**
+* First play can prompt to disable battery optimization so background
+  radio is not killed
+
 # 1.7.103
 
 **Playback**

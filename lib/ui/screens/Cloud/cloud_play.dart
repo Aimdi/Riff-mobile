@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '/models/playling_from.dart';
 import '/services/cloud_music_service.dart';
+import '/services/discovery/discovery_types.dart';
 import '/ui/player/play_queue_order.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/snackbar.dart';
@@ -30,6 +31,7 @@ Future<bool> playCloudSongs(
       type: type,
       name: name ?? 'cloudRandomMix'.tr,
     ),
+    source: DiscoverySource.cloud,
   );
 }
 

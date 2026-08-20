@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/services/cloud_music_service.dart';
+import '/services/discovery/discovery_types.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/snackbar.dart';
 import 'cloud_collection_screen.dart';
@@ -624,7 +625,8 @@ class CloudSongTile extends StatelessWidget {
       ),
       onTap: () async {
         final ok = await Get.find<PlayerController>()
-            .playPlayListSong(cloud.toMediaItems(songs), index);
+            .playPlayListSong(cloud.toMediaItems(songs), index,
+                source: DiscoverySource.cloud);
         if (!ok) snackOperationFailed();
       },
     );

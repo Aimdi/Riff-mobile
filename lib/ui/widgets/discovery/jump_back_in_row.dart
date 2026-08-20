@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
 import '../../../models/media_Item_builder.dart';
+import '../../../services/discovery/discovery_types.dart';
 import '../../player/player_controller.dart';
 import '../../utils/riff_tokens.dart';
 import '../../utils/theme_controller.dart';
@@ -104,7 +105,8 @@ class _JumpBackInRowState extends State<JumpBackInRow> {
                     borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
                     onTap: () async {
                       final ok = await Get.find<PlayerController>()
-                          .playPlayListSong(tracks, i);
+                          .playPlayListSong(tracks, i,
+                              source: DiscoverySource.home);
                       if (!ok) snackOperationFailed();
                     },
                     onLongPress: () {
@@ -125,7 +127,8 @@ class _JumpBackInRowState extends State<JumpBackInRow> {
                                 onTap: () async {
                                   Navigator.pop(ctx);
                                   final ok =
-                                      await player.playPlayListSong(tracks, i);
+                                      await player.playPlayListSong(tracks, i,
+                                          source: DiscoverySource.home);
                                   if (!ok) snackOperationFailed();
                                 },
                               ),

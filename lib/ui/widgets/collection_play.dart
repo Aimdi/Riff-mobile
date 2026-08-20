@@ -5,6 +5,8 @@ import 'package:hive/hive.dart';
 import '../../models/artist.dart';
 import '../../models/media_Item_builder.dart';
 import '../../models/playling_from.dart';
+import '../../services/discovery/discovery_tag.dart';
+import '../../services/discovery/discovery_types.dart';
 import '../../services/music_service.dart';
 import '../../services/piped_service.dart';
 import '../../services/playlist_mix_service.dart';
@@ -111,6 +113,7 @@ Future<bool> playCollection({
       name: title,
       type: isAlbum ? PlaylingFromType.ALBUM : PlaylingFromType.PLAYLIST,
     ),
+    source: isAlbum ? DiscoverySource.album : sourceFromPlaylistId(id),
   );
 }
 
@@ -157,5 +160,6 @@ Future<bool> playArtist(
       name: artist.name,
       type: PlaylingFromType.ARTIST,
     ),
+    source: DiscoverySource.artist,
   );
 }

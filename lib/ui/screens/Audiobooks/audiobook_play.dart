@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 
 import '/services/audiobook_progress_service.dart';
 import '/services/audiobookshelf_service.dart';
+import '/services/discovery/discovery_types.dart';
 import '/ui/player/player_controller.dart';
 
 /// Library tiles play the book; long-press still opens detail.
@@ -51,7 +52,11 @@ Future<bool> playAudiobook({
     if (resumeMs > 1500) {
       player.armResume(items[start].id, resumeMs);
     }
-    return player.playPlayListSong(items, start);
+    return player.playPlayListSong(
+      items,
+      start,
+      source: DiscoverySource.audiobook,
+    );
   } catch (_) {
     return false;
   }

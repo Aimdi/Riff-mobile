@@ -2,28 +2,64 @@
 // Pure Dart — no Flutter imports.
 
 /// How a track entered the queue / was started.
+///
+/// Stored on [MediaItem.extras] as `discoverySource` using [wireName].
+/// Allowed wire values:
+/// `user_click`, `home`, `search`, `playlist`, `album`, `artist`,
+/// `radio`, `daily_mix`, `fresh_finds`, `discover`, `related`, `similar`,
+/// `queue`, `shuffle`, `smart_shuffle`, `android_auto`, `cloud`,
+/// `podcast`, `audiobook`, `downloads`, `soulseek`, `torrent`, `unknown`.
 enum DiscoverySource {
   userClick,
+  home,
+  search,
+  playlist,
+  album,
+  artist,
   radio,
   dailyMix,
+  freshFinds,
   discover,
+  related,
+  similar,
   queue,
   shuffle,
   androidAuto,
   smartShuffle,
-  similar,
+  cloud,
+  podcast,
+  audiobook,
+  downloads,
+  soulseek,
+  torrent,
   unknown;
 
   String get wireName {
     switch (this) {
       case DiscoverySource.userClick:
         return 'user_click';
+      case DiscoverySource.home:
+        return 'home';
+      case DiscoverySource.search:
+        return 'search';
+      case DiscoverySource.playlist:
+        return 'playlist';
+      case DiscoverySource.album:
+        return 'album';
+      case DiscoverySource.artist:
+        return 'artist';
       case DiscoverySource.radio:
         return 'radio';
       case DiscoverySource.dailyMix:
         return 'daily_mix';
+      case DiscoverySource.freshFinds:
+        return 'fresh_finds';
       case DiscoverySource.discover:
         return 'discover';
+      case DiscoverySource.related:
+        return 'related';
+      case DiscoverySource.similar:
+        return 'similar';
       case DiscoverySource.queue:
         return 'queue';
       case DiscoverySource.shuffle:
@@ -32,8 +68,18 @@ enum DiscoverySource {
         return 'android_auto';
       case DiscoverySource.smartShuffle:
         return 'smart_shuffle';
-      case DiscoverySource.similar:
-        return 'similar';
+      case DiscoverySource.cloud:
+        return 'cloud';
+      case DiscoverySource.podcast:
+        return 'podcast';
+      case DiscoverySource.audiobook:
+        return 'audiobook';
+      case DiscoverySource.downloads:
+        return 'downloads';
+      case DiscoverySource.soulseek:
+        return 'soulseek';
+      case DiscoverySource.torrent:
+        return 'torrent';
       case DiscoverySource.unknown:
         return 'unknown';
     }
@@ -43,12 +89,28 @@ enum DiscoverySource {
     switch (s) {
       case 'user_click':
         return DiscoverySource.userClick;
+      case 'home':
+        return DiscoverySource.home;
+      case 'search':
+        return DiscoverySource.search;
+      case 'playlist':
+        return DiscoverySource.playlist;
+      case 'album':
+        return DiscoverySource.album;
+      case 'artist':
+        return DiscoverySource.artist;
       case 'radio':
         return DiscoverySource.radio;
       case 'daily_mix':
         return DiscoverySource.dailyMix;
+      case 'fresh_finds':
+        return DiscoverySource.freshFinds;
       case 'discover':
         return DiscoverySource.discover;
+      case 'related':
+        return DiscoverySource.related;
+      case 'similar':
+        return DiscoverySource.similar;
       case 'queue':
         return DiscoverySource.queue;
       case 'shuffle':
@@ -57,10 +119,51 @@ enum DiscoverySource {
         return DiscoverySource.androidAuto;
       case 'smart_shuffle':
         return DiscoverySource.smartShuffle;
-      case 'similar':
-        return DiscoverySource.similar;
+      case 'cloud':
+        return DiscoverySource.cloud;
+      case 'podcast':
+        return DiscoverySource.podcast;
+      case 'audiobook':
+        return DiscoverySource.audiobook;
+      case 'downloads':
+        return DiscoverySource.downloads;
+      case 'soulseek':
+        return DiscoverySource.soulseek;
+      case 'torrent':
+        return DiscoverySource.torrent;
       default:
         return DiscoverySource.unknown;
+    }
+  }
+
+  /// Intentional start (search, album tap, enqueue) vs engine-picked radio.
+  bool get isUserInitiated {
+    switch (this) {
+      case DiscoverySource.userClick:
+      case DiscoverySource.home:
+      case DiscoverySource.search:
+      case DiscoverySource.playlist:
+      case DiscoverySource.album:
+      case DiscoverySource.artist:
+      case DiscoverySource.queue:
+      case DiscoverySource.downloads:
+      case DiscoverySource.cloud:
+      case DiscoverySource.podcast:
+      case DiscoverySource.audiobook:
+      case DiscoverySource.soulseek:
+      case DiscoverySource.torrent:
+        return true;
+      case DiscoverySource.radio:
+      case DiscoverySource.dailyMix:
+      case DiscoverySource.freshFinds:
+      case DiscoverySource.discover:
+      case DiscoverySource.related:
+      case DiscoverySource.similar:
+      case DiscoverySource.shuffle:
+      case DiscoverySource.androidAuto:
+      case DiscoverySource.smartShuffle:
+      case DiscoverySource.unknown:
+        return false;
     }
   }
 }

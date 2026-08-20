@@ -7,9 +7,11 @@ import 'package:hive/hive.dart';
 import '../../models/thumbnail.dart';
 import '../ban_service.dart';
 import '../music_service.dart';
+import '../stats_service.dart';
 import 'candidate_sources.dart';
 import 'discovery_engine.dart';
 import 'discovery_repository.dart';
+import 'discovery_tag.dart';
 import 'discovery_types.dart';
 import 'home_feed_assembly.dart';
 import 'mix_generator.dart';
@@ -154,14 +156,19 @@ class DiscoveryService extends GetxService {
         // stay 0 so TasteModel scores it as unknown instead of a 100% listen.
         totalMs: totalMs,
       );
+      await StatsService.recordListenEnd(
+        _prevMedia!,
+        listenedMs: listened,
+        totalMs: totalMs,
+        source: _prevSource,
+      );
     }
 
     _prevMedia = next;
     _prevPositionMs = 0;
     _songStartedAtMs = DateTime.now().millisecondsSinceEpoch;
     if (next != null) {
-      _prevSource =
-          DiscoverySource.fromWire(next.extras?['discoverySource'] as String?);
+      _prevSource = sourceFromMediaItem(next);
       await taste.logPlayStarted(
         videoId: next.id,
         artist: next.artist,
@@ -320,13 +327,9 @@ class DiscoveryService extends GetxService {
   }
 
   /// Tag a MediaItem with discovery source.
-  static MediaItem withSource(MediaItem item, DiscoverySource source) {
-    final extras = Map<String, dynamic>.from(item.extras ?? {});
-    extras['discoverySource'] = source.wireName;
-    return item.copyWith(extras: extras);
-  }
+  static MediaItem withSource(MediaItem item, DiscoverySource source) =>
+      withDiscoverySource(item, source);
 
-  static List<MediaItem> tagAll(List<MediaItem> items, DiscoverySource source) {
-    return items.map((e) => withSource(e, source)).toList();
-  }
+  static List<MediaItem> tagAll(List<MediaItem> items, DiscoverySource source) =>
+      withDiscoverySources(items, source);
 }

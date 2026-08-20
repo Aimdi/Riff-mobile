@@ -580,7 +580,8 @@ class _PodcastContinueChip extends StatelessWidget {
               final pos =
                   PodcastProgressService.positionMs(queue.first.id) ?? 0;
               if (pos > 0) player.armResume(queue.first.id, pos);
-              final ok = await player.playPlayListSong(queue, 0);
+              final ok = await player.playPlayListSong(queue, 0,
+                  source: DiscoverySource.podcast);
               if (!context.mounted || ok) return;
               ScaffoldMessenger.of(context).showSnackBar(snackbar(
                 context,

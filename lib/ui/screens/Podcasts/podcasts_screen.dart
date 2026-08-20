@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/models/thumbnail.dart';
+import '/services/discovery/discovery_types.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
@@ -249,7 +250,8 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
   Future<void> _playFrom(int index) async {
     final items = _episodes.map(_toMediaItem).toList();
     final ok =
-        await Get.find<PlayerController>().playPlayListSong(items, index);
+        await Get.find<PlayerController>().playPlayListSong(items, index,
+            source: DiscoverySource.podcast);
     if (!ok) snackOperationFailed();
   }
 

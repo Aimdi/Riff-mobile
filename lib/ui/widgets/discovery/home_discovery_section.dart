@@ -6,6 +6,7 @@ import 'package:hive/hive.dart';
 import '../../../models/media_Item_builder.dart';
 import '../../../models/playlist.dart';
 import '../../../services/discovery/discovery_service.dart';
+import '../../../services/discovery/discovery_tag.dart';
 import '../../../services/discovery/discovery_types.dart';
 import '../../navigator.dart';
 import '../../player/play_queue_order.dart';
@@ -496,7 +497,8 @@ class HomeShortcutGrid extends StatelessWidget {
         tracks.shuffle();
       }
       final ok =
-          await Get.find<PlayerController>().playPlayListSong(tracks, 0);
+          await Get.find<PlayerController>().playPlayListSong(tracks, 0,
+              source: sourceFromPlaylistId(id));
       if (!ok) _snackDiscoveryPlayFailed();
     } catch (_) {
       if (!context.mounted) return;
@@ -582,7 +584,7 @@ class HomeShortcutGrid extends StatelessWidget {
           _playTracks(
             context,
             () => disc.engine.freshFinds(),
-            DiscoverySource.discover,
+            DiscoverySource.freshFinds,
           );
         },
       ),

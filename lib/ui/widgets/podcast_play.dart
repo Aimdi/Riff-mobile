@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../models/playling_from.dart';
 import '../../models/thumbnail.dart';
+import '../../services/discovery/discovery_types.dart';
 import '../../services/podcast_progress_service.dart';
 import '../../services/podcast_service.dart';
 import '../player/player_controller.dart';
@@ -81,6 +82,7 @@ Future<bool> playPodcastShow(Map<String, dynamic> podcast) async {
       type: PlaylingFromType.SELECTION,
       name: title,
     ),
+    source: DiscoverySource.podcast,
   );
 }
 
@@ -121,6 +123,7 @@ Future<bool> playCollectionTracksAsPodcast({
       type: PlaylingFromType.SELECTION,
       name: title,
     ),
+    source: DiscoverySource.podcast,
   );
 }
 

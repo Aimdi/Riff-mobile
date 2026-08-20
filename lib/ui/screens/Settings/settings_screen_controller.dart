@@ -23,6 +23,7 @@ import '/ui/player/player_controller.dart';
 import '../Home/home_screen_controller.dart';
 import '/ui/utils/theme_controller.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'battery_opt_prompt.dart';
 
 class SettingsScreenController extends GetxController {
   late String _supportDir;
@@ -531,6 +532,39 @@ class SettingsScreenController extends GetxController {
     await Permission.ignoreBatteryOptimizations.request();
     isIgnoringBatteryOptimizations.value =
         await Permission.ignoreBatteryOptimizations.isGranted;
+  }
+
+  /// After the first real play, ask once to disable battery optimization.
+  Future<void> maybePromptBatteryOptimization() async {
+    if (!shouldPromptBatteryOptimization(
+      isAndroid: GetPlatform.isAndroid,
+      alreadyGranted: isIgnoringBatteryOptimizations.isTrue,
+      alreadyShown: setBox.get('batteryOptPromptShown') == true,
+    )) {
+      return;
+    }
+    await setBox.put('batteryOptPromptShown', true);
+    final ctx = Get.context;
+    if (ctx == null || !ctx.mounted) return;
+    await Get.dialog<void>(
+      AlertDialog(
+        title: Text('batteryOptPromptTitle'.tr),
+        content: Text('batteryOptPromptDes'.tr),
+        actions: [
+          TextButton(
+            onPressed: Get.back,
+            child: Text('cancel'.tr),
+          ),
+          TextButton(
+            onPressed: () async {
+              Get.back();
+              await enableIgnoringBatteryOptimizations();
+            },
+            child: Text('batteryOptPromptAction'.tr),
+          ),
+        ],
+      ),
+    );
   }
 
   void toggleAutoOpenPlayer(bool val) {

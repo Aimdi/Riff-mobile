@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/models/playling_from.dart';
+import '/services/discovery/discovery_types.dart';
 import '/services/music_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/snackbar.dart';
@@ -86,6 +87,7 @@ Future<bool> playTopSongResult(String query) async {
         type: PlaylingFromType.SELECTION,
         name: q,
       ),
+      source: DiscoverySource.search,
     );
   } catch (_) {
     return false;

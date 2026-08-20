@@ -10,9 +10,10 @@ class SongListShimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
+      baseColor: scheme.surfaceContainerHighest.withOpacity(0.45),
+      highlightColor: scheme.surface.withOpacity(0.75),
       child: ListView.builder(
           itemCount: itemCount,
           padding: EdgeInsets.only(top: topPadding, left: 0),

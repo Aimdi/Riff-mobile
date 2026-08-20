@@ -4,6 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
 
 import '/models/playling_from.dart';
+import '/services/discovery/discovery_types.dart';
 import '/services/soulseek/soulseek_client.dart';
 import '/ui/player/player_controller.dart';
 
@@ -71,5 +72,6 @@ Future<bool> playSoulseekFile(SoulseekFile hit, File file) async {
       type: PlaylingFromType.SELECTION,
       name: item.title,
     ),
+    source: DiscoverySource.soulseek,
   );
 }
