@@ -14,7 +14,7 @@ Playlist-
 * Favourite
 * [In_Progress] Offline
     * [Done] <s>cache imlementation</s>
-    * <s>Handle Song</s> & image expiry
+    * [Done] <s>Handle Song & image expiry</s> (LRU song cache + Settings clear)
 
 * [Done] <s>Theme based on thumbnail</s>
 * [Done] <s>Background playing</s>

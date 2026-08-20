@@ -44,6 +44,7 @@ import 'utils/system_tray.dart';
 import 'utils/update_check_flag_file.dart';
 import 'utils/helper.dart';
 import 'utils/hive_safe_open.dart';
+import 'utils/house_keeping.dart';
 import 'utils/secure_credentials.dart';
 
 Future<void> main() async {
@@ -286,6 +287,9 @@ class LifecycleHandler extends WidgetsBindingObserver {
           }
         });
       }
+      Future<void>.delayed(const Duration(seconds: 8), () {
+        unawaited(evictSongCacheInBackground());
+      });
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       if (Get.isRegistered<AudioHandler>()) {

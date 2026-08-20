@@ -80,9 +80,23 @@ Settings tile + one-time prompt after the first play
 (`shouldPromptBatteryOptimization` / `maybePromptBatteryOptimization`).
 Manifest: `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`.
 
+## Hive + extras helpers
+
+- `lib/utils/hive_boxes.dart` — named boxes and `open` / `favContains`
+- `lib/models/media_item_extras.dart` — typed extras (`isPodcastEpisode`,
+  `isAudiobookshelf`, `discoverySourceWire`, ABS session fields)
+
+## Song cache
+
+- Auto-cache only: `SongsCache` + `cachedSongs/*.mp3`
+- Policy in `lib/services/cache_eviction.dart` (pure, unit-tested)
+- IO in `lib/services/song_cache_service.dart`
+- Runs from housekeeping and app resume (10 min cooldown)
+- Never deletes `SongDownloads` or the current / queued ids
+- Settings: size display, max-size dropdown, clear cached songs
+
 ## Remaining follow-ups
 
-- GetX controller sprawl (queue / favorites / library duplication)
-- Stronger typing around `MediaItem.extras` maps
-- Adopt `SongListShimmer` on remaining list screens
-- Gapless / crossfade and cache/image expiry
+- Further GetX controller thinning (queue / library duplication)
+- Gapless / crossfade
+- Home-screen widget and accessibility polish

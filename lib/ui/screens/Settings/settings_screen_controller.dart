@@ -8,6 +8,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../services/cache_eviction.dart';
+import '../../../services/song_cache_service.dart';
 import '../../../utils/app_version.dart';
 import '../../../utils/update_check_flag_file.dart';
 import '/services/piped_service.dart';
@@ -86,6 +88,12 @@ class SettingsScreenController extends GetxController {
   final keepScreenAwake = false.obs;
   final restorePlaybackSession = false.obs;
   final cacheHomeScreenData = true.obs;
+  /// Auto-cached songs cap. `0` = unlimited. Downloads are never evicted.
+  final songsCacheMaxBytes = SongCacheLimits.defaultMaxBytes.obs;
+  final songsCacheBytes = 0.obs;
+  final downloadsBytes = 0.obs;
+  final imageCacheBytes = 0.obs;
+  final cacheSizesReady = false.obs;
   /// Unlocks Advanced developer tools (tap About version 7×).
   final developerMode = false.obs;
   /// App version sourced from the installed package (see [AppVersion]);
@@ -147,6 +155,9 @@ class SettingsScreenController extends GetxController {
     isTransitionAnimationDisabled.value =
         setBox.get("isTransitionAnimationDisabled") ?? false;
     cacheSongs.value = setBox.get('cacheSongs') ?? false;
+    songsCacheMaxBytes.value =
+        SongCacheLimits.coerce(setBox.get('songsCacheMaxBytes'));
+    refreshCacheSizes();
     final themeModeIndex = setBox.get('themeModeType') ?? 2;
     themeModetype.value = (themeModeIndex is int &&
             themeModeIndex >= 0 &&
@@ -406,6 +417,57 @@ class SettingsScreenController extends GetxController {
     isTransitionAnimationDisabled.value = val;
   }
 
+  Future<void> refreshCacheSizes() async {
+    try {
+      final cache = SongCacheService();
+      final songs = await cache.songsCacheBytes();
+      final downloads = await cache.downloadsBytes();
+      final images = await cache.imageCacheBytes();
+      songsCacheBytes.value = songs;
+      downloadsBytes.value = downloads;
+      imageCacheBytes.value = images;
+      cacheSizesReady.value = true;
+    } catch (e) {
+      printERROR('refreshCacheSizes: $e');
+    }
+  }
+
+  void setSongsCacheMaxBytes(int? val) {
+    if (val == null) return;
+    final coerced = SongCacheLimits.coerce(val);
+    setBox.put('songsCacheMaxBytes', coerced);
+    songsCacheMaxBytes.value = coerced;
+    Future<void>(() async {
+      final decision = await SongCacheService().evictIfNeeded(force: true);
+      if (decision != null &&
+          decision.idsToDelete.isNotEmpty &&
+          Get.isRegistered<LibrarySongsController>()) {
+        final ids = decision.idsToDelete.toSet();
+        Get.find<LibrarySongsController>()
+            .librarySongsList
+            .removeWhere((s) => ids.contains(s.id));
+      }
+      await refreshCacheSizes();
+    });
+  }
+
+  Future<bool> clearCachedSongs() async {
+    try {
+      final removed = await SongCacheService().clearCachedSongs();
+      if (removed.isNotEmpty && Get.isRegistered<LibrarySongsController>()) {
+        final ids = removed.toSet();
+        Get.find<LibrarySongsController>()
+            .librarySongsList
+            .removeWhere((s) => ids.contains(s.id));
+      }
+      await refreshCacheSizes();
+      return true;
+    } catch (e) {
+      printERROR('clearCachedSongs: $e');
+      return false;
+    }
+  }
+
   Future<bool> clearImagesCache() async {
     final tempImgDirPath =
         "${(await getApplicationCacheDirectory()).path}/libCachedImageData";
@@ -414,6 +476,7 @@ class SettingsScreenController extends GetxController {
       if (await tempImgDir.exists()) {
         await tempImgDir.delete(recursive: true);
       }
+      await refreshCacheSizes();
       return true;
     } catch (_) {
       return false;

@@ -22,6 +22,7 @@ import '/services/yt_auth_service.dart';
 import 'yt_login_screen.dart';
 import '../Home/home_screen_controller.dart';
 import '../../navigator.dart';
+import '/services/cache_eviction.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/utils/theme_controller.dart';
 import 'components/custom_expansion_tile.dart';
@@ -445,6 +446,78 @@ class SettingsScreen extends StatelessWidget {
                                   settingsController.toggleCachingSongsValue),
                         )),
                   if (!isDesktop)
+                    Obx(() {
+                      if (!settingsController.settingsMatch(
+                          'songsCacheLimit'.tr, 'songsCacheLimitDes'.tr)) {
+                        return const SizedBox.shrink();
+                      }
+                      final sizeLabel = settingsController.cacheSizesReady.isTrue
+                          ? formatCacheBytes(
+                              settingsController.songsCacheBytes.value)
+                          : '…';
+                      final downloadsLabel =
+                          settingsController.cacheSizesReady.isTrue
+                              ? formatCacheBytes(
+                                  settingsController.downloadsBytes.value)
+                              : '…';
+                      return Column(
+                        children: [
+                          ListTile(
+                            contentPadding:
+                                const EdgeInsets.only(left: 5, right: 10),
+                            title: Text('songsCacheLimit'.tr),
+                            subtitle: Text(
+                              '${'songsCacheLimitDes'.tr}\n'
+                              '${'songsCacheSize'.tr}: $sizeLabel · '
+                              '${'downloadsSize'.tr}: $downloadsLabel',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            isThreeLine: true,
+                            trailing: DropdownButton<int>(
+                              dropdownColor: Theme.of(context).cardColor,
+                              underline: const SizedBox.shrink(),
+                              value:
+                                  settingsController.songsCacheMaxBytes.value,
+                              items: SongCacheLimits.options
+                                  .map((bytes) => DropdownMenuItem(
+                                        value: bytes,
+                                        child: Text(
+                                            songCacheLimitLabel(bytes).tr),
+                                      ))
+                                  .toList(),
+                              onChanged:
+                                  settingsController.setSongsCacheMaxBytes,
+                            ),
+                          ),
+                          ListTile(
+                            contentPadding:
+                                const EdgeInsets.only(left: 5, right: 10),
+                            title: Text('clearSongsCache'.tr),
+                            subtitle: Text(
+                              'clearSongsCacheDes'.tr,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            isThreeLine: true,
+                            onTap: () {
+                              settingsController
+                                  .clearCachedSongs()
+                                  .then((ok) {
+                                final ctx = Get.context;
+                                if (ctx == null || !ctx.mounted) return;
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                    snackbar(
+                                        ctx,
+                                        ok
+                                            ? 'clearSongsCacheAlert'.tr
+                                            : 'operationFailed'.tr,
+                                        size: SanckBarSize.BIG));
+                              });
+                            },
+                          ),
+                        ],
+                      );
+                    }),
+                  if (!isDesktop)
                     ListTile(
                         contentPadding:
                             const EdgeInsets.only(left: 5, right: 10),
@@ -740,27 +813,34 @@ class SettingsScreen extends StatelessWidget {
                     onTap: () => Get.toNamed(ScreenNavigationSetup.rewindScreen,
                         id: ScreenNavigationSetup.id),
                   ),
-                    ListTile(
-                      contentPadding: const EdgeInsets.only(left: 5, right: 10),
-                      title: Text("clearImgCache".tr),
-                      subtitle: Text(
-                        "clearImgCacheDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      isThreeLine: true,
-                      onTap: () {
-                        settingsController.clearImagesCache().then((ok) {
-                          final ctx = Get.context;
-                          if (ctx == null || !ctx.mounted) return;
-                          ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
-                              ctx,
-                              ok
-                                  ? "clearImgCacheAlert".tr
-                                  : "operationFailed".tr,
-                              size: SanckBarSize.BIG));
-                        });
-                      },
-                    ),
+                    Obx(() {
+                      final imgSize = settingsController.cacheSizesReady.isTrue
+                          ? formatCacheBytes(
+                              settingsController.imageCacheBytes.value)
+                          : '…';
+                      return ListTile(
+                        contentPadding:
+                            const EdgeInsets.only(left: 5, right: 10),
+                        title: Text("clearImgCache".tr),
+                        subtitle: Text(
+                          "${"clearImgCacheDes".tr}\n${"imageCacheSize".tr}: $imgSize",
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        isThreeLine: true,
+                        onTap: () {
+                          settingsController.clearImagesCache().then((ok) {
+                            final ctx = Get.context;
+                            if (ctx == null || !ctx.mounted) return;
+                            ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
+                                ctx,
+                                ok
+                                    ? "clearImgCacheAlert".tr
+                                    : "operationFailed".tr,
+                                size: SanckBarSize.BIG));
+                          });
+                        },
+                      );
+                    }),
                   ]),
 
               // Podcasts — first-class, not buried under Riff
