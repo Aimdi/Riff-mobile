@@ -2,6 +2,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
+import '/models/media_item_extras.dart';
 import '/ui/screens/Podcasts/podcast_queue_controller.dart';
 
 /// Tracks per-episode playback position for podcasts so episodes can be resumed
@@ -16,8 +17,7 @@ class PodcastProgressService {
 
   /// A podcast episode from either backend: iTunes/RSS (`podcast_` id) or
   /// YouTube Music (videoId id but flagged via extras['isPodcast']).
-  static bool isPodcastItem(MediaItem item) =>
-      item.id.startsWith('podcast_') || item.extras?['isPodcast'] == true;
+  static bool isPodcastItem(MediaItem item) => item.isPodcastEpisode;
 
   /// True for a URL that is only meaningful on this device — a downloaded copy
   /// substituted at playback time.
