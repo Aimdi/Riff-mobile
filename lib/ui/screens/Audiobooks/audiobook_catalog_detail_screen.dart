@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '/services/audiobook_catalog_service.dart';
 import '/services/plugin_service.dart';
 import '/ui/screens/Plugins/torrent_search_screen.dart';
+import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import 'audiobook_library_controller.dart';
 
 /// Details for a commercial audiobook. Browse-only: it can't play in Riff
@@ -401,7 +402,7 @@ class _AudiobookBrowseScreenState extends State<AudiobookBrowseScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(widget.title, maxLines: 1)),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SongListShimmer(itemCount: 8, topPadding: 12)
           : _books.isEmpty
               ? Center(child: Text('noResults'.tr))
               : GridView.builder(

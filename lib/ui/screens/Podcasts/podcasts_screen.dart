@@ -11,6 +11,7 @@ import '/ui/player/player_controller.dart';
 import '/ui/widgets/podcast_follow_button.dart';
 import '/ui/widgets/snackbar.dart';
 import '/ui/widgets/podcast_play.dart';
+import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import 'podcast_queue_screen.dart';
 
 /// AntennaPod-style podcast section: discover via Apple's directory,
@@ -75,7 +76,7 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
             const SizedBox(height: 12),
             Expanded(
               child: _loading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const SongListShimmer(itemCount: 8, topPadding: 8)
                   : _searched
                       ? _resultsList(_results, subscribeMode: true)
                       : _subscriptionsView(subs),
@@ -271,7 +272,7 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
         title: Text(widget.podcast['title'] ?? '', maxLines: 1),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SongListShimmer(itemCount: 8, topPadding: 8)
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

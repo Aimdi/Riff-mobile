@@ -46,9 +46,12 @@ songs keep extras and force `android_auto`.
 - The same close path calls `StatsService.recordListenEnd`.
 - `StatsService.recordPlay` increments play count + `lastSource` only.
   Seconds, skips, and partials are written on end:
-  - skip: &lt; 30% (or &lt; 10s when duration unknown)
-  - partial: 30–85%
-  - complete: ≥ 85%
+  - skip: under 30% (or under 10s when duration unknown)
+  - partial: 30-85%
+  - complete: 85% or more
+- `riff_track_stats` also stores skip count, listen sums, and last source.
+  `TasteModel.scoreCandidate` adds `statsRankingBonus` so smart radio,
+  similar songs, and mixes prefer completed high-signal plays.
 - Hive: `SongStats` / `DailyStats` (legacy) plus `riff_*` boxes via
   `DiscoveryRepository`.
 

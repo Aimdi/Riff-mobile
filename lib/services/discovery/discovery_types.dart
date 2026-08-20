@@ -283,6 +283,44 @@ class MixKind {
   static const String rediscover = 'rediscover';
 }
 
+/// Per-track listen stats stored in `riff_track_stats`.
+class TrackListenStats {
+  TrackListenStats({
+    required this.plays,
+    required this.skips,
+    required this.listenedMsSum,
+    required this.totalMsSum,
+    this.lastSource,
+    this.lastFraction,
+  });
+
+  final int plays;
+  final int skips;
+  final int listenedMsSum;
+  final int totalMsSum;
+  final DiscoverySource? lastSource;
+  final double? lastFraction;
+
+  double get skipRate => plays <= 0 ? 0 : skips / plays;
+
+  double? get meanFraction =>
+      totalMsSum <= 0 ? null : (listenedMsSum / totalMsSum).clamp(0.0, 1.0);
+
+  factory TrackListenStats.fromMap(Map<String, dynamic> map) {
+    final source = map['lastSource'] as String?;
+    return TrackListenStats(
+      plays: map['lifetimePlays'] as int? ?? 0,
+      skips: map['skips'] as int? ?? 0,
+      listenedMsSum: map['listenedMsSum'] as int? ?? 0,
+      totalMsSum: map['totalMsSum'] as int? ?? 0,
+      lastSource: source == null || source.isEmpty
+          ? null
+          : DiscoverySource.fromWire(source),
+      lastFraction: (map['lastFraction'] as num?)?.toDouble(),
+    );
+  }
+}
+
 /// Lightweight event record (serialized to Hive).
 class DiscoveryEvent {
   DiscoveryEvent({

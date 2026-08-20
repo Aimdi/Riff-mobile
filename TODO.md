@@ -24,7 +24,7 @@ Playlist-
 
 
 ui
-[Partialy_completed]Shimmer effect on loading (Home + SongListShimmer on library cloud; remaining list screens still spin)
+[Partialy_completed]Shimmer effect on loading (Home + list screens; leftover are tiny inline button spinners)
 
 Fix Required:
 * [Done] <s>Pushing song to playlist</s>

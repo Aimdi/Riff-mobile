@@ -5,7 +5,14 @@
   artist, cloud, podcast, downloads, Soulseek, radio, mixes)
 * Stats record listen fraction, skips, and last source instead of assuming
   every play was heard in full
+* Daily Mix, smart radio, and similar songs rank by listen fraction, skip
+  rate, and source — downloads and playlists beat radio noise
+* Home shelves play with the matching source; Fresh Finds stays tagged
 * Fresh Finds shortcut and Android Auto library songs keep the right source
+
+**Look & feel**
+* Search, artist, album, playlist, podcast, audiobook, cloud, and similar
+  lists use themed song-row shimmer instead of a spinner
 
 **Reliability**
 * First play can prompt to disable battery optimization so background

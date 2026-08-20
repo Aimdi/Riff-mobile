@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/services/audiobookshelf_service.dart';
+import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import 'audiobook_play.dart';
 
 class AudiobookDetailScreen extends StatefulWidget {
@@ -71,7 +72,7 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
         elevation: 0,
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SongListShimmer(itemCount: 8, topPadding: 12)
           : _error != null
               ? Center(
                   child: Padding(

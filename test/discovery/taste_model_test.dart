@@ -140,6 +140,50 @@ void main() {
     expect(repo.shownRecently('vid2'), isFalse);
   });
 
+  test('scoreCandidate boosts completed high-signal tracks over skipped radio',
+      () async {
+    await taste.logPlayStarted(
+      videoId: 'keep',
+      artist: 'Good',
+      title: 'Keep',
+      source: DiscoverySource.downloads,
+    );
+    await taste.logPlayEnded(
+      videoId: 'keep',
+      artist: 'Good',
+      title: 'Keep',
+      source: DiscoverySource.downloads,
+      listenedMs: 190000,
+      totalMs: 200000,
+    );
+    await taste.logPlayStarted(
+      videoId: 'skip',
+      artist: 'Good',
+      title: 'Skip',
+      source: DiscoverySource.radio,
+    );
+    await taste.logPlayEnded(
+      videoId: 'skip',
+      artist: 'Good',
+      title: 'Skip',
+      source: DiscoverySource.radio,
+      listenedMs: 4000,
+      totalMs: 200000,
+    );
+    // Same artist so affinity cancels; track stats decide.
+    final keep = taste.scoreCandidate(
+      videoId: 'keep',
+      artistKey: normalizeArtistKey('Good'),
+      sourceConfidence: 1,
+    );
+    final skip = taste.scoreCandidate(
+      videoId: 'skip',
+      artistKey: normalizeArtistKey('Good'),
+      sourceConfidence: 1,
+    );
+    expect(keep, greaterThan(skip));
+  });
+
   test('scoreCandidate hard-drops banned via negative infinity flag', () {
     final s = taste.scoreCandidate(
       videoId: 'x',

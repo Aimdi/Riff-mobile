@@ -6,6 +6,7 @@ import '/services/audiobook_catalog_service.dart';
 import '/services/audiobookshelf_service.dart';
 import '/services/plugin_service.dart';
 import '/ui/navigator.dart';
+import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import 'audiobook_catalog_detail_screen.dart';
 import 'audiobook_detail_screen.dart';
 import 'audiobook_library_controller.dart';
@@ -223,7 +224,7 @@ class _CatalogDiscoverState extends State<_CatalogDiscover> {
         ),
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator())
+              ? const SongListShimmer(itemCount: 8, topPadding: 8)
               : _books.isEmpty
                   ? Center(child: Text('noResults'.tr))
                   : GridView.builder(
@@ -616,7 +617,7 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
         Expanded(
           child: Obx(() {
             if (abs.isLoading.value && abs.books.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
+              return const SongListShimmer(itemCount: 8, topPadding: 8);
             }
             // A failed load is NOT an empty library. Saying "no books" when the
             // token expired or the server is unreachable sends the user

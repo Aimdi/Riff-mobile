@@ -12,6 +12,7 @@ import '../../../services/downloader.dart';
 import '../../player/player_controller.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/loader.dart';
+import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/song_list_tile.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
@@ -531,17 +532,18 @@ class AlbumScreen extends StatelessWidget {
                                   albumController.songList.isEmpty) {
                                 return SizedBox(
                                   height: 300,
-                                  child: Center(
-                                    child:
-                                        albumController.isContentFetched.isFalse
-                                            ? const LoadingIndicator()
-                                            : Text(
+                                  child:
+                                      albumController.isContentFetched.isFalse
+                                          ? const SongListShimmer(
+                                              itemCount: 6, topPadding: 8)
+                                          : Center(
+                                              child: Text(
                                                 "emptyPlaylist".tr,
                                                 style: Theme.of(context)
                                                     .textTheme
                                                     .titleSmall,
                                               ),
-                                  ),
+                                            ),
                                 );
                               }
 

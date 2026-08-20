@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '/services/cloud_music_service.dart';
 import '/services/discovery/discovery_types.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import '/ui/widgets/snackbar.dart';
 import 'cloud_screen.dart';
 
@@ -81,7 +82,7 @@ class _CloudCollectionScreenState extends State<CloudCollectionScreen> {
         elevation: 0,
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SongListShimmer(itemCount: 8, topPadding: 12)
           : _error != null
               ? Center(
                   child: Padding(

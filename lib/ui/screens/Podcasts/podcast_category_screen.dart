@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '/models/thumbnail.dart';
 import '/services/podcast_service.dart';
 import '/ui/widgets/podcast_play.dart';
+import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import 'podcasts_screen.dart';
 
 /// Browse the top podcasts in an Apple Podcasts category (genre). Tapping a
@@ -45,7 +46,7 @@ class _PodcastCategoryScreenState extends State<PodcastCategoryScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(widget.name, maxLines: 1)),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SongListShimmer(itemCount: 8, topPadding: 8)
           : _podcasts.isEmpty
               ? Center(child: Text('noResults'.tr))
               : GridView.builder(

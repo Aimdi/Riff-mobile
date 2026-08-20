@@ -13,6 +13,7 @@ import '/ui/screens/Podcasts/podcasts_library_controller.dart';
 import '/ui/widgets/podcast_follow_button.dart';
 import '/ui/widgets/songinfo_bottom_sheet.dart';
 import '../../navigator.dart';
+import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
 import '../../widgets/snackbar.dart';
 import 'artist_screen_controller.dart';
 
@@ -64,7 +65,7 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
   Widget build(BuildContext context) {
     return Obx(() {
       if (c.isArtistContentFetced.isFalse) {
-        return const Center(child: CircularProgressIndicator());
+        return const SongListShimmer(itemCount: 8, topPadding: 12);
       }
       final theme = Theme.of(context);
       final songs = _songs();
