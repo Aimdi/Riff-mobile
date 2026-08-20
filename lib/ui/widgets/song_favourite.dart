@@ -1,10 +1,10 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:hive/hive.dart';
 
 import '/models/media_Item_builder.dart';
 import '/ui/player/player_controller.dart';
+import '/utils/hive_boxes.dart';
 
 /// Planned LIBFAV write for a like/unlike tap (same shape as Hive).
 class FavouriteTogglePlan {
@@ -45,10 +45,7 @@ void applyFavouriteToggle(
   }
 }
 
-bool songIsInLibFav(String songId) {
-  if (!Hive.isBoxOpen('LIBFAV')) return false;
-  return Hive.box('LIBFAV').containsKey(songId);
-}
+bool songIsInLibFav(String songId) => HiveBoxes.favContains(songId);
 
 /// Same window as [FavoriteHeartButton.toggleDebounce].
 const Duration songRowHeartDebounce = Duration(milliseconds: 400);

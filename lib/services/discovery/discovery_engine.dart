@@ -93,7 +93,7 @@ class DiscoveryEngine {
 
   Future<List<MediaItem>> freshFinds({int limit = 30}) async {
     final mix = await mixGenerator.ensureFreshFinds(limit: limit);
-    return _mixToMedia(mix, DiscoverySource.discover);
+    return _mixToMedia(mix, DiscoverySource.freshFinds);
   }
 
   Future<List<MediaItem>> releaseRadar({int limit = 30}) async {
@@ -168,13 +168,13 @@ class DiscoveryEngine {
     final freshOnly =
         freshMix.where((e) => !usedIds.contains(e.id)).take(16).toList();
     if (freshOnly.isNotEmpty) {
-      sections.add(DiscoverySection(
-        id: 'fresh_finds',
-        title: 'Fresh finds',
-        reason: '',
-        tracks: freshOnly.map(MediaItemBuilder.toJson).toList(),
-        surface: DiscoverySurface.home,
-      ));
+        sections.add(DiscoverySection(
+          id: 'fresh_finds',
+          title: 'Fresh finds',
+          reason: '',
+          tracks: freshOnly.map(MediaItemBuilder.toJson).toList(),
+          surface: DiscoverySurface.freshFinds,
+        ));
     }
 
     return sections;

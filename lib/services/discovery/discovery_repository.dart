@@ -197,7 +197,7 @@ class DiscoveryRepository {
   // ─── Track familiarity ────────────────────────────────────────────────
 
   Future<void> recordTrackPlay(String videoId,
-      {DateTime? now, double weight = 1.0}) async {
+      {DateTime? now, double weight = 1.0, DiscoverySource? source}) async {
     final n = now ?? DateTime.now();
     final prev = _trackStats.get(videoId);
     double decayedPlays = 0;
@@ -213,11 +213,47 @@ class DiscoveryRepository {
     }
     decayedPlays += weight;
     lifetime += 1;
+    final kept = prev is Map ? Map<String, dynamic>.from(prev) : <String, dynamic>{};
     await _trackStats.put(videoId, {
+      ...kept,
       'decayedPlays': decayedPlays,
       'lastPlayedTs': n.millisecondsSinceEpoch,
       'lifetimePlays': lifetime,
+      if (source != null) 'lastSource': source.wireName,
     });
+  }
+
+  /// Persist listen fraction / skip after a track ends so ranking can use it.
+  Future<void> recordTrackListenEnd(
+    String videoId, {
+    required int listenedMs,
+    required int totalMs,
+    DiscoverySource? source,
+    DateTime? now,
+  }) async {
+    if (videoId.isEmpty) return;
+    final n = now ?? DateTime.now();
+    final prev = _trackStats.get(videoId);
+    final kept = prev is Map ? Map<String, dynamic>.from(prev) : <String, dynamic>{};
+    final double? fraction =
+        totalMs > 0 ? (listenedMs / totalMs).clamp(0.0, 1.0) : null;
+    final isSkip = (listenedMs < 10000 && (fraction ?? 0.0) < 0.30) ||
+        (fraction != null && fraction < 0.30);
+    await _trackStats.put(videoId, {
+      ...kept,
+      'skips': (kept['skips'] as int? ?? 0) + (isSkip ? 1 : 0),
+      'listenedMsSum': (kept['listenedMsSum'] as int? ?? 0) + listenedMs,
+      'totalMsSum': (kept['totalMsSum'] as int? ?? 0) + (totalMs > 0 ? totalMs : 0),
+      if (fraction != null) 'lastFraction': fraction,
+      if (source != null) 'lastSource': source.wireName,
+      'lastPlayedTs': kept['lastPlayedTs'] ?? n.millisecondsSinceEpoch,
+    });
+  }
+
+  TrackListenStats? trackListenStats(String videoId) {
+    final prev = _trackStats.get(videoId);
+    if (prev is! Map) return null;
+    return TrackListenStats.fromMap(Map<String, dynamic>.from(prev));
   }
 
   double familiarityOf(String videoId, {DateTime? now}) {

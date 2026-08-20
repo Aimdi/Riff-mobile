@@ -7,24 +7,24 @@
 * [Done] Artist Screen
 * [Partialy_completed] App Settings
 * Housekeeping work
-* Battery optimization disable option
+* [Done] <s>Battery optimization disable option</s> (Settings tile + first-play prompt)
 * Album/Playlist Screen Modification (Bookmark, other playlist/Album details)
 
 Playlist-
 * Favourite
 * [In_Progress] Offline
     * [Done] <s>cache imlementation</s>
-    * <s>Handle Song</s> & image expiry
+    * [Done] <s>Handle Song & image expiry</s> (LRU song cache + Settings clear)
 
 * [Done] <s>Theme based on thumbnail</s>
 * [Done] <s>Background playing</s>
 * [Done] <s>Notification Controls</s>
-* Local Playlist Manangement
+* [Done] <s>Local Playlist Manangement</s> (create / rename / delete / song reorder)
 
 
 
 ui
-[Partialy_completed]Shimmer effect on loading
+[Partialy_completed]Shimmer effect on loading (Home + list screens; leftover are tiny inline button spinners)
 
 Fix Required:
 * [Done] <s>Pushing song to playlist</s>

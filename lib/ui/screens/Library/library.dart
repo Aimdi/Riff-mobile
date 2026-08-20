@@ -7,6 +7,8 @@ import '/models/media_Item_builder.dart';
 import '/models/playlist.dart';
 import '/models/playling_from.dart';
 import '/services/cloud_music_service.dart';
+import '/services/discovery/discovery_tag.dart';
+import '/services/discovery/discovery_types.dart';
 import '../../navigator.dart';
 import '../../player/play_queue_order.dart';
 import '../../player/player_controller.dart';
@@ -17,6 +19,7 @@ import '../../widgets/piped_sync_widget.dart';
 import '../../widgets/content_list_widget_item.dart';
 import '../../widgets/empty_play_hint.dart';
 import '../../widgets/list_widget.dart';
+import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/sort_widget.dart';
 import '../Cloud/cloud_play.dart';
@@ -153,6 +156,7 @@ class _LibrarySongsPlayBar extends StatelessWidget {
         type: PlaylingFromType.PLAYLIST,
         name: 'libSongs'.tr,
       ),
+      source: DiscoverySource.downloads,
     );
     if (!ok) _snackPlayFailed();
   }
@@ -201,7 +205,7 @@ class _CloudSongsPane extends StatelessWidget {
         return const CloudLoginForm();
       }
       if (cloud.isLoading.value && cloud.songs.isEmpty) {
-        return const Center(child: CircularProgressIndicator());
+        return const SongListShimmer(itemCount: 8, topPadding: 12);
       }
       if (cloud.songs.isEmpty) {
         return Center(
@@ -490,12 +494,14 @@ class _LibraryPinnedRow extends StatelessWidget {
       tracks.shuffle();
     } else if (id == 'LIBRP') {
       final ok = await Get.find<PlayerController>()
-          .playPlayListSong(tracks.reversed.toList(), 0);
+          .playPlayListSong(tracks.reversed.toList(), 0,
+              source: sourceFromPlaylistId(id));
       if (!ok) _snackPlayFailed();
       return;
     }
     final ok =
-        await Get.find<PlayerController>().playPlayListSong(tracks, 0);
+        await Get.find<PlayerController>().playPlayListSong(tracks, 0,
+            source: sourceFromPlaylistId(id));
     if (!ok) _snackPlayFailed();
   }
 

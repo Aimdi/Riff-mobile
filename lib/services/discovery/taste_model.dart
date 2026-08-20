@@ -1,5 +1,6 @@
 import 'discovery_math.dart';
 import 'discovery_repository.dart';
+import 'discovery_score.dart';
 import 'discovery_types.dart';
 
 /// Local private taste model: event ingestion + derived scores.
@@ -35,7 +36,7 @@ class TasteModel {
       artist: artist,
       surface: surface,
     ));
-    await repo.recordTrackPlay(videoId, now: now);
+    await repo.recordTrackPlay(videoId, now: now, source: source);
 
     // Session co-occurrence
     final cutoff = now.subtract(sessionWindow).millisecondsSinceEpoch;
@@ -85,8 +86,7 @@ class TasteModel {
       switch (quality) {
         case ListenQuality.strongPositive:
           kind = DiscoveryEventKind.playEnded;
-          affinityDelta = source == DiscoverySource.userClick ||
-                  source == DiscoverySource.queue
+          affinityDelta = source.isUserInitiated
               ? AffinityWeights.fullListenUserInitiated
               : AffinityWeights.fullListen;
           break;
@@ -112,6 +112,13 @@ class TasteModel {
       artist: artist,
       surface: surface,
     ));
+    await repo.recordTrackListenEnd(
+      videoId,
+      listenedMs: listenedMs,
+      totalMs: totalMs,
+      source: source,
+      now: now,
+    );
     await repo.bumpAffinity(artistKey, affinityDelta,
         now: now, displayName: artist);
   }
@@ -286,6 +293,16 @@ class TasteModel {
     } else if (noveltyBonus) {
       // mild penalty for already-known on exploration surfaces
       score -= 0.3;
+    }
+
+    final stats = repo.trackListenStats(videoId);
+    if (stats != null) {
+      score += statsRankingBonus(
+        meanFraction: stats.meanFraction,
+        trackSkipRate: stats.skipRate,
+        plays: stats.plays,
+        lastSource: stats.lastSource,
+      );
     }
 
     return score;

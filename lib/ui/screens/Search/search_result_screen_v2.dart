@@ -1,8 +1,8 @@
 import 'package:buttons_tabbar/buttons_tabbar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:harmonymusic/ui/widgets/loader.dart';
 import 'package:harmonymusic/ui/widgets/search_related_widgets.dart';
+import 'package:harmonymusic/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 
 import '../../navigator.dart';
 import '../../widgets/separate_tab_item_widget.dart';
@@ -64,7 +64,7 @@ class SearchResultScreenBN extends StatelessWidget {
                 child: Obx(
                   () {
                     if (searchResScrController.isResultContentFetced.isFalse) {
-                      return const Center(child: LoadingIndicator());
+                      return const SongListShimmer(itemCount: 8, topPadding: 12);
                     }
                     final ytmRails = searchResScrController.railItems
                         .where((r) =>

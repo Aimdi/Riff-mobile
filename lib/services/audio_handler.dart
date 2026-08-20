@@ -1672,7 +1672,11 @@ class MediaLibrary {
         title: song.title,
         artist: song.artist,
         artUri: song.artUri,
-        extras: {"libraryId": libId},
+        extras: {
+          ...?song.extras,
+          "libraryId": libId,
+          "discoverySource": "android_auto",
+        },
         playable: true,
       );
     }).toList();

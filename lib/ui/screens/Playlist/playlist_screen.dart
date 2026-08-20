@@ -18,6 +18,7 @@ import '../../player/player_controller.dart';
 import '../../widgets/create_playlist_dialog.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/loader.dart';
+import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
 import '../../widgets/mix_transition_chip.dart';
 import '../../widgets/playlist_export_dialog.dart';
 import '../../widgets/podcast_follow_button.dart';
@@ -1023,17 +1024,18 @@ class PlaylistScreen extends StatelessWidget {
                                   playlistController.songList.isEmpty) {
                                 return SizedBox(
                                   height: 300,
-                                  child: Center(
-                                    child: playlistController
-                                            .isContentFetched.isFalse
-                                        ? const LoadingIndicator()
-                                        : Text(
+                                  child: playlistController
+                                          .isContentFetched.isFalse
+                                      ? const SongListShimmer(
+                                          itemCount: 6, topPadding: 8)
+                                      : Center(
+                                          child: Text(
                                             "emptyPlaylist".tr,
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .titleSmall,
                                           ),
-                                  ),
+                                        ),
                                 );
                               }
 

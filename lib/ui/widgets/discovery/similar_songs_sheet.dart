@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '../../../services/discovery/discovery_service.dart';
 import '../../player/player_controller.dart';
+import '../shimmer_widgets/song_list_shimmer.dart';
 import '../snackbar.dart';
 import '../song_list_tile.dart';
 
@@ -85,7 +86,7 @@ class _SimilarSongsSheetState extends State<SimilarSongsSheet> {
           const Divider(height: 1),
           Expanded(
             child: loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const SongListShimmer(itemCount: 8, topPadding: 8)
                 : songs.isEmpty
                     ? Center(child: Text("noSimilarSongs".tr))
                     : ListView.builder(

@@ -73,6 +73,17 @@ class StatsScreen extends StatelessWidget {
                     "hours".tr),
               ],
             ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _statCard(context, "${StatsService.totalSkips}", "skips".tr),
+                const SizedBox(width: 10),
+                _statCard(
+                    context,
+                    "${StatsService.uniqueArtists}",
+                    "topArtists".tr),
+              ],
+            ),
             if (Get.isRegistered<DiscoveryService>()) ...[
               const SizedBox(height: 10),
               Row(

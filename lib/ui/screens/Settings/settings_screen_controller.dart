@@ -8,6 +8,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../services/cache_eviction.dart';
+import '../../../services/song_cache_service.dart';
 import '../../../utils/app_version.dart';
 import '../../../utils/update_check_flag_file.dart';
 import '/services/piped_service.dart';
@@ -23,6 +25,7 @@ import '/ui/player/player_controller.dart';
 import '../Home/home_screen_controller.dart';
 import '/ui/utils/theme_controller.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'battery_opt_prompt.dart';
 
 class SettingsScreenController extends GetxController {
   late String _supportDir;
@@ -85,6 +88,12 @@ class SettingsScreenController extends GetxController {
   final keepScreenAwake = false.obs;
   final restorePlaybackSession = false.obs;
   final cacheHomeScreenData = true.obs;
+  /// Auto-cached songs cap. `0` = unlimited. Downloads are never evicted.
+  final songsCacheMaxBytes = SongCacheLimits.defaultMaxBytes.obs;
+  final songsCacheBytes = 0.obs;
+  final downloadsBytes = 0.obs;
+  final imageCacheBytes = 0.obs;
+  final cacheSizesReady = false.obs;
   /// Unlocks Advanced developer tools (tap About version 7×).
   final developerMode = false.obs;
   /// App version sourced from the installed package (see [AppVersion]);
@@ -146,6 +155,9 @@ class SettingsScreenController extends GetxController {
     isTransitionAnimationDisabled.value =
         setBox.get("isTransitionAnimationDisabled") ?? false;
     cacheSongs.value = setBox.get('cacheSongs') ?? false;
+    songsCacheMaxBytes.value =
+        SongCacheLimits.coerce(setBox.get('songsCacheMaxBytes'));
+    refreshCacheSizes();
     final themeModeIndex = setBox.get('themeModeType') ?? 2;
     themeModetype.value = (themeModeIndex is int &&
             themeModeIndex >= 0 &&
@@ -405,6 +417,57 @@ class SettingsScreenController extends GetxController {
     isTransitionAnimationDisabled.value = val;
   }
 
+  Future<void> refreshCacheSizes() async {
+    try {
+      final cache = SongCacheService();
+      final songs = await cache.songsCacheBytes();
+      final downloads = await cache.downloadsBytes();
+      final images = await cache.imageCacheBytes();
+      songsCacheBytes.value = songs;
+      downloadsBytes.value = downloads;
+      imageCacheBytes.value = images;
+      cacheSizesReady.value = true;
+    } catch (e) {
+      printERROR('refreshCacheSizes: $e');
+    }
+  }
+
+  void setSongsCacheMaxBytes(int? val) {
+    if (val == null) return;
+    final coerced = SongCacheLimits.coerce(val);
+    setBox.put('songsCacheMaxBytes', coerced);
+    songsCacheMaxBytes.value = coerced;
+    Future<void>(() async {
+      final decision = await SongCacheService().evictIfNeeded(force: true);
+      if (decision != null &&
+          decision.idsToDelete.isNotEmpty &&
+          Get.isRegistered<LibrarySongsController>()) {
+        final ids = decision.idsToDelete.toSet();
+        Get.find<LibrarySongsController>()
+            .librarySongsList
+            .removeWhere((s) => ids.contains(s.id));
+      }
+      await refreshCacheSizes();
+    });
+  }
+
+  Future<bool> clearCachedSongs() async {
+    try {
+      final removed = await SongCacheService().clearCachedSongs();
+      if (removed.isNotEmpty && Get.isRegistered<LibrarySongsController>()) {
+        final ids = removed.toSet();
+        Get.find<LibrarySongsController>()
+            .librarySongsList
+            .removeWhere((s) => ids.contains(s.id));
+      }
+      await refreshCacheSizes();
+      return true;
+    } catch (e) {
+      printERROR('clearCachedSongs: $e');
+      return false;
+    }
+  }
+
   Future<bool> clearImagesCache() async {
     final tempImgDirPath =
         "${(await getApplicationCacheDirectory()).path}/libCachedImageData";
@@ -413,6 +476,7 @@ class SettingsScreenController extends GetxController {
       if (await tempImgDir.exists()) {
         await tempImgDir.delete(recursive: true);
       }
+      await refreshCacheSizes();
       return true;
     } catch (_) {
       return false;
@@ -531,6 +595,39 @@ class SettingsScreenController extends GetxController {
     await Permission.ignoreBatteryOptimizations.request();
     isIgnoringBatteryOptimizations.value =
         await Permission.ignoreBatteryOptimizations.isGranted;
+  }
+
+  /// After the first real play, ask once to disable battery optimization.
+  Future<void> maybePromptBatteryOptimization() async {
+    if (!shouldPromptBatteryOptimization(
+      isAndroid: GetPlatform.isAndroid,
+      alreadyGranted: isIgnoringBatteryOptimizations.isTrue,
+      alreadyShown: setBox.get('batteryOptPromptShown') == true,
+    )) {
+      return;
+    }
+    await setBox.put('batteryOptPromptShown', true);
+    final ctx = Get.context;
+    if (ctx == null || !ctx.mounted) return;
+    await Get.dialog<void>(
+      AlertDialog(
+        title: Text('batteryOptPromptTitle'.tr),
+        content: Text('batteryOptPromptDes'.tr),
+        actions: [
+          TextButton(
+            onPressed: Get.back,
+            child: Text('cancel'.tr),
+          ),
+          TextButton(
+            onPressed: () async {
+              Get.back();
+              await enableIgnoringBatteryOptimizations();
+            },
+            child: Text('batteryOptPromptAction'.tr),
+          ),
+        ],
+      ),
+    );
   }
 
   void toggleAutoOpenPlayer(bool val) {

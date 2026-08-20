@@ -8,7 +8,7 @@ import '/ui/screens/Artists/artist_screen_v2.dart';
 import '/ui/screens/Podcasts/podcasts_library_controller.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/podcast_follow_button.dart';
-import '../../widgets/loader.dart';
+import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
 import '../../widgets/separate_tab_item_widget.dart';
 import '../../widgets/snackbar.dart';
 import 'artist_screen_controller.dart';
@@ -94,9 +94,7 @@ class Body extends StatelessWidget {
           ? AboutArtist(
               artistScreenController: artistScreenController,
             )
-          : const Center(
-              child: LoadingIndicator(),
-            ));
+          : const SongListShimmer(itemCount: 6, topPadding: 12));
     } else {
       final separatedContent = artistScreenController.sepataredContent;
       final currentTabName =
@@ -104,7 +102,7 @@ class Body extends StatelessWidget {
       return Obx(() {
         if (artistScreenController.isSeparatedArtistContentFetced.isFalse &&
             artistScreenController.navigationRailCurrentIndex.value != 0) {
-          return const Center(child: LoadingIndicator());
+          return const SongListShimmer(itemCount: 8, topPadding: 12);
         }
         return SeparateTabItemWidget(
           artistControllerTag: tag,

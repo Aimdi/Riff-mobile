@@ -15,14 +15,17 @@ void main() {
       'discoveryReason': 'Because you like jazz',
       'dailyMixId': 'mix1',
       'dailyMixTitle': 'Daily Mix 1',
+      'discoverySource': 'search',
     });
     expect(item.extras?['discoveryReason'], 'Because you like jazz');
     expect(item.extras?['dailyMixId'], 'mix1');
     expect(item.extras?['dailyMixTitle'], 'Daily Mix 1');
+    expect(item.extras?['discoverySource'], 'search');
 
     final json = MediaItemBuilder.toJson(item);
     expect(json['discoveryReason'], 'Because you like jazz');
     expect(json['dailyMixId'], 'mix1');
+    expect(json['discoverySource'], 'search');
   });
 
   test('parses relative podcast dates into pubDateMs', () {

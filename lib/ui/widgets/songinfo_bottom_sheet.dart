@@ -6,8 +6,10 @@ import 'package:ionicons/ionicons.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../models/media_item_extras.dart';
 import '../../services/ban_service.dart';
 import '../../services/discovery/discovery_service.dart';
+import '../../utils/hive_boxes.dart';
 import '../screens/Playlist/playlist_screen_controller.dart';
 import '/utils/helper.dart';
 import '/services/piped_service.dart';
@@ -479,14 +481,11 @@ class SongInfoController extends GetxController
     _setInitStatus(song);
   }
   _setInitStatus(MediaItem song) async {
-    isDownloaded.value = Hive.box("SongDownloads").containsKey(song.id);
-    isCurrentSongFav.value =
-        (await Hive.openBox("LIBFAV")).containsKey(song.id);
-    final artists = song.extras?['artists'];
-    if (artists != null) {
-      for (dynamic each in artists) {
-        if (each.containsKey("id") && each['id'] != null) artistList.add(each);
-      }
+    isDownloaded.value =
+        HiveBoxes.songDownloadsSync()?.containsKey(song.id) ?? false;
+    isCurrentSongFav.value = (await HiveBoxes.fav()).containsKey(song.id);
+    for (final each in song.extrasArtists) {
+      if (each['id'] != null) artistList.add(each);
     }
   }
 

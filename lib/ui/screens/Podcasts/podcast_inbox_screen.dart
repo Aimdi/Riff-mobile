@@ -8,6 +8,7 @@ import '/services/music_service.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import '/ui/widgets/snackbar.dart';
 import 'podcast_empty_state.dart';
 import 'podcast_queue_screen.dart';
@@ -221,7 +222,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
 
   Widget _body(BuildContext context) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SongListShimmer(itemCount: 8, topPadding: 8);
     }
     final continueItems =
         PodcastProgressService.inProgress().take(8).toList();

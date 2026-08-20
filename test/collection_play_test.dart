@@ -1,5 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:harmonymusic/services/discovery/discovery_tag.dart';
+import 'package:harmonymusic/services/discovery/discovery_types.dart';
 import 'package:harmonymusic/ui/widgets/collection_play.dart';
 
 void main() {
@@ -32,5 +34,10 @@ void main() {
       ['a'],
     );
     expect(artistTopSongsFromResponse(const {}), isEmpty);
+  });
+
+  test('collection play maps system ids to a discovery source', () {
+    expect(sourceFromPlaylistId('LIBFAV'), DiscoverySource.downloads);
+    expect(sourceFromPlaylistId('PLuser'), DiscoverySource.playlist);
   });
 }

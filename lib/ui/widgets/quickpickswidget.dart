@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/models/quick_picks.dart';
+import '/services/discovery/discovery_types.dart';
 import '../player/player_controller.dart';
 import '../utils/riff_tokens.dart';
 import '../utils/theme_controller.dart';
@@ -100,7 +101,8 @@ class QuickPicksWidget extends StatelessWidget {
                               BorderRadius.circular(RiffTokens.radiusSm),
                           onTap: () async {
                             final ok = await playerController.playPlayListSong(
-                                content.songList, item);
+                                content.songList, item,
+                                source: DiscoverySource.home);
                             if (!ok) snackOperationFailed();
                           },
                           onLongPress: () {

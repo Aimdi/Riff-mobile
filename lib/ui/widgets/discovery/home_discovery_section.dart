@@ -6,6 +6,8 @@ import 'package:hive/hive.dart';
 import '../../../models/media_Item_builder.dart';
 import '../../../models/playlist.dart';
 import '../../../services/discovery/discovery_service.dart';
+import '../../../services/discovery/discovery_score.dart';
+import '../../../services/discovery/discovery_tag.dart';
 import '../../../services/discovery/discovery_types.dart';
 import '../../navigator.dart';
 import '../../player/play_queue_order.dart';
@@ -64,7 +66,7 @@ class HomeDiscoverySection extends StatelessWidget {
                     if (!Get.isRegistered<PlayerController>()) return;
                     final tagged = Get.isRegistered<DiscoveryService>()
                         ? DiscoveryService.tagAll(
-                            tracks, DiscoverySource.discover)
+                            tracks, sourceForSurface(section.surface))
                         : tracks;
                     final ok = await Get.find<PlayerController>()
                         .playPlayListSong(tagged, 0);
@@ -228,7 +230,7 @@ class _DiscoveryCard extends StatelessWidget {
           }
           final tagged = Get.isRegistered<DiscoveryService>()
               ? DiscoveryService.tagAll(
-                  shelfTracks, DiscoverySource.discover)
+                  shelfTracks, sourceForSurface(surface))
               : shelfTracks;
           final index = shelfIndex.clamp(0, tagged.length - 1);
           final ok = await player.playPlayListSong(tagged, index);
@@ -496,7 +498,8 @@ class HomeShortcutGrid extends StatelessWidget {
         tracks.shuffle();
       }
       final ok =
-          await Get.find<PlayerController>().playPlayListSong(tracks, 0);
+          await Get.find<PlayerController>().playPlayListSong(tracks, 0,
+              source: sourceFromPlaylistId(id));
       if (!ok) _snackDiscoveryPlayFailed();
     } catch (_) {
       if (!context.mounted) return;
@@ -582,7 +585,7 @@ class HomeShortcutGrid extends StatelessWidget {
           _playTracks(
             context,
             () => disc.engine.freshFinds(),
-            DiscoverySource.discover,
+            DiscoverySource.freshFinds,
           );
         },
       ),

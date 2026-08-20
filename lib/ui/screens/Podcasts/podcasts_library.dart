@@ -12,6 +12,7 @@ import '/ui/widgets/content_list_widget_item.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/podcast_follow_button.dart';
 import '/ui/widgets/podcast_play.dart';
+import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import '/ui/widgets/snackbar.dart';
 import '/ui/widgets/sort_widget.dart';
 import 'podcast_category_screen.dart';
@@ -530,7 +531,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
         Expanded(
           child: Obx(() {
             if (controller.isSearching.isTrue) {
-              return const Center(child: CircularProgressIndicator());
+              return const SongListShimmer(itemCount: 8, topPadding: 8);
             }
             final items = controller.searchResults;
             final channels = controller.channelSearchResults;

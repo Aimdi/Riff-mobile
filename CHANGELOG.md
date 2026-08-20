@@ -1,3 +1,35 @@
+# 1.7.104
+
+**Discovery**
+* Play paths stamp a discovery source (home, search, album, playlist,
+  artist, cloud, podcast, downloads, Soulseek, radio, mixes)
+* Stats record listen fraction, skips, and last source instead of assuming
+  every play was heard in full
+* Daily Mix, smart radio, and similar songs rank by listen fraction, skip
+  rate, and source — downloads and playlists beat radio noise
+* Home shelves play with the matching source; Fresh Finds stays tagged
+* Fresh Finds shortcut and Android Auto library songs keep the right source
+
+**Look & feel**
+* Search, artist, album, playlist, podcast, audiobook, cloud, and similar
+  lists use themed song-row shimmer instead of a spinner
+
+**Maintainability**
+* Shared Hive box accessors and typed `MediaItem.extras` helpers
+  (favorites, podcast / audiobook flags, discovery source)
+
+**Cache**
+* Auto-cached songs expire by LRU / least-recently-played against a
+  1 GB default (500 MB–5 GB or unlimited) and a 30-day age cap
+* Now-playing and queued tracks are never evicted; downloads are never
+  auto-deleted
+* Settings shows cache / download / image sizes and can clear cached
+  songs or images
+
+**Reliability**
+* First play can prompt to disable battery optimization so background
+  radio is not killed
+
 # 1.7.103
 
 **Playback**

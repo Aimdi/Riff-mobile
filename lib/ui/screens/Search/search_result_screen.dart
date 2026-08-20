@@ -6,7 +6,7 @@ import '/ui/screens/Search/search_result_screen_v2.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import '../../navigator.dart';
 import '../../widgets/animated_screen_transition.dart';
-import '../../widgets/loader.dart';
+import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
 import '../../widgets/search_related_widgets.dart';
 import '../../widgets/separate_tab_item_widget.dart';
 import 'search_result_screen_controller.dart';
@@ -155,7 +155,7 @@ class Body extends StatelessWidget {
     if (searchResScrController.navigationRailCurrentIndex.value == 0) {
       return Obx(() {
         if (searchResScrController.isResultContentFetced.isFalse) {
-          return const Center(child: LoadingIndicator());
+          return const SongListShimmer(itemCount: 8, topPadding: 12);
         }
         // Soulseek-only rail still means YTM returned nothing — show empty
         // state on Results rather than a blank column.
