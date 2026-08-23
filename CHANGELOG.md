@@ -1,3 +1,9 @@
+# 1.7.106
+
+**Podcasts**
+* Subs covers retry the stored artwork when the upscaled CDN URL 404s, so
+  followed shows keep their real thumbnails instead of the Riff note
+
 # 1.7.105
 
 **Player**
