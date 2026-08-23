@@ -301,10 +301,13 @@ class PlayerController extends GetxController
       if (_videoModeActive) return;
       final isPlaying = playerState.playing;
       final processingState = playerState.processingState;
-      if (processingState == AudioProcessingState.loading) {
-        buttonState.value = PlayButtonState.loading;
-      } else if (processingState == AudioProcessingState.buffering) {
-        buttonState.value = PlayButtonState.loading;
+      if (processingState == AudioProcessingState.loading ||
+          processingState == AudioProcessingState.buffering) {
+        // Keep play/pause — YouTube videos rebuffer for seconds and the
+        // old spinner made the button look stuck until the song started.
+        if (isPlaying) {
+          buttonState.value = PlayButtonState.playing;
+        }
       } else if (!isPlaying || processingState == AudioProcessingState.error) {
         buttonState.value = PlayButtonState.paused;
       } else if (processingState != AudioProcessingState.completed) {

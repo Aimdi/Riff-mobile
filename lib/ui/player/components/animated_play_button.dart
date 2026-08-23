@@ -5,8 +5,8 @@ import 'package:harmonymusic/ui/utils/theme_controller.dart';
 
 /// A button that animates between a play and pause icon.
 ///
-/// Filled secondary circle with a dark icon. Also shows a loading indicator
-/// when the audio is in a loading state.
+/// Filled secondary circle with a dark icon. Buffering never replaces
+/// play/pause — a faint ring can appear, but the button stays tappable.
 class AnimatedPlayButton extends StatefulWidget {
   /// size of the icon.
   final double iconSize;
@@ -53,7 +53,7 @@ class _AnimatedPlayButtonState extends State<AnimatedPlayButton>
 
       if (isPlaying) {
         _controller.forward();
-      } else if (!isLoading) {
+      } else {
         _controller.reverse();
       }
 
@@ -69,20 +69,25 @@ class _AnimatedPlayButtonState extends State<AnimatedPlayButton>
             width: widget.size,
             height: widget.size,
             child: Center(
-              child: isLoading
-                  ? const SizedBox.square(
-                      dimension: 20,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  AnimatedIcon(
+                    icon: AnimatedIcons.play_pause,
+                    progress: _controller,
+                    size: widget.iconSize,
+                    color: RiffSurfaces.voidBlack,
+                  ),
+                  if (isLoading)
+                    SizedBox.square(
+                      dimension: widget.size - 10,
                       child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: RiffSurfaces.voidBlack,
+                        strokeWidth: 2,
+                        color: RiffSurfaces.voidBlack.withOpacity(0.35),
                       ),
-                    )
-                  : AnimatedIcon(
-                      icon: AnimatedIcons.play_pause,
-                      progress: _controller,
-                      size: widget.iconSize,
-                      color: RiffSurfaces.voidBlack,
                     ),
+                ],
+              ),
             ),
           ),
         ),

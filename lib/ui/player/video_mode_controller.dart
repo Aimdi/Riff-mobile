@@ -134,8 +134,6 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
       }
 
       final position = _pc.progressBarStatus.value.current;
-      _pc.pause();
-
       _player ??= Player(
           configuration: const PlayerConfiguration(title: 'Riff video'));
       videoController ??= VideoController(_player!);
@@ -152,7 +150,10 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
       _armSilenceGuard(p, song.id, audioUrl);
       _activeSongId = song.id;
       isActive.value = true;
+      // Pause audio only now that video can take over — otherwise the
+      // play button sits on a spinner in silence while the stream resolves.
       if (wasPlaying) {
+        _pc.pause();
         await p.play();
       }
       return true;
@@ -270,7 +271,11 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
     }));
     _subs.add(p.stream.buffering.listen((buffering) {
       if (!isActive.value) return;
-      if (buffering) _pc.buttonState.value = PlayButtonState.loading;
+      // Don't swap the transport to a spinner. Video streams rebuffer
+      // often; the playing stream already drives play/pause.
+      if (!buffering && isVideoPlaying.value) {
+        _pc.buttonState.value = PlayButtonState.playing;
+      }
     }));
     _subs.add(p.stream.videoParams.listen((params) {
       final w = params.dw ?? 0;
