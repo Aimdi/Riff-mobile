@@ -1,4 +1,20 @@
+# 1.7.105
+
+**Player**
+* Audio keeps playing while a YouTube video stream is still loading
+* Play/pause stays tappable — buffering no longer replaces the green button
+  with a spinner
+
+**Podcasts**
+* Subs uses a 2-column large-cover grid with play overlays
+* Discover similar-show rows are 148px tiles, three “Because you follow”
+  shelves, and a short kicker instead of cramped 64px chips
+
+**Settings**
+* Listening starts collapsed, like Appearance and the other groups
+
 # 1.7.104
+
 
 **Discovery**
 * Play paths stamp a discovery source (home, search, album, playlist,
