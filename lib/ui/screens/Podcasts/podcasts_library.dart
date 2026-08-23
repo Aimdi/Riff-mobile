@@ -59,7 +59,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
         PodcastService.subscriptions.map((s) => '${s['title'] ?? ''}').toList();
     _discoverySeeds = {...ytTitles, ...rssTitles}
         .where((t) => t.trim().isNotEmpty)
-        .take(8)
+        .take(3)
         .toList();
     await Future.wait(_discoverySeeds.map((title) async {
       try {
@@ -326,9 +326,10 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                       final seed = controller.similarSeedTitle.value;
                       final title = seed.isEmpty
                           ? 'similarPodcasts'.tr
-                          : '${'popularWithListenersOf'.tr} $seed';
+                          : seed;
                       return SliverToBoxAdapter(
                         child: _SimilarPodcastsRow(
+                          kicker: seed.isEmpty ? null : 'Because you follow',
                           title: title,
                           podcasts: controller.similarPodcasts.toList(),
                         ),
@@ -736,7 +737,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               (context, i) {
                 final seed = discoverySeeds[i];
                 return _SimilarPodcastsRow(
-                  title: '${'popularWithListenersOf'.tr} $seed',
+                  kicker: 'Because you follow',
+                  title: seed,
                   podcasts: _discoveryRows[seed]!,
                 );
               },
@@ -933,33 +935,53 @@ class _EpisodeDiscoveryRow extends StatelessWidget {
 /// the RSS enclosure.
 /// Compact "Similar podcasts" strip (smaller than featured carousel cards).
 class _SimilarPodcastsRow extends StatelessWidget {
-  const _SimilarPodcastsRow({required this.title, required this.podcasts});
+  const _SimilarPodcastsRow({
+    required this.title,
+    required this.podcasts,
+    this.kicker,
+  });
   final String title;
+  final String? kicker;
   final List<Map<String, dynamic>> podcasts;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 12, top: 10, bottom: 4, right: 8),
-          child: Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
+          padding: const EdgeInsets.only(left: 16, top: 18, bottom: 10, right: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (kicker != null)
+                Text(
+                  kicker!,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                    letterSpacing: 0.6,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
         ),
         SizedBox(
-          height: 100,
+          height: 214,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             physics: const BouncingScrollPhysics(),
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
             itemCount: podcasts.length,
             itemBuilder: (_, i) => _ItunesPodcastCard(podcast: podcasts[i]),
           ),
@@ -974,7 +996,7 @@ class _ItunesPodcastCard extends StatelessWidget {
   const _ItunesPodcastCard({required this.podcast});
   final Map<String, dynamic> podcast;
 
-  static const double _tile = 64;
+  static const double _tile = 148;
 
   @override
   Widget build(BuildContext context) {
@@ -1013,11 +1035,11 @@ class _ItunesPodcastCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               (podcast['title'] ?? '').toString(),
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    height: 1.1,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    height: 1.2,
                   ),
             ),
           ],
