@@ -137,7 +137,6 @@ class PodcastCoverTile extends StatelessWidget {
 
   Widget _art(BuildContext context) {
     final theme = Theme.of(context);
-    final url = imageUrl ?? '';
     final fallback = ColoredBox(
       color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.45),
       child: Center(
@@ -155,18 +154,35 @@ class PodcastCoverTile extends StatelessWidget {
         ),
       ),
     );
-    if (url.isEmpty) return fallback;
-    return CachedNetworkImage(
-      imageUrl: url,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
-      memCacheWidth: (420 * MediaQuery.devicePixelRatioOf(context)).round(),
-      errorWidget: (_, __, ___) => fallback,
-      placeholder: (_, __) => ColoredBox(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.35),
-      ),
+    final urls = Thumbnail.coverUrls(imageUrl ?? '');
+    if (urls.isEmpty) return fallback;
+    final waiting = ColoredBox(
+      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.35),
     );
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+
+    return LayoutBuilder(builder: (context, constraints) {
+      final side = constraints.biggest.shortestSide;
+      final decodeSide =
+          ((side.isFinite && side > 0 ? side : 220) * dpr).round().clamp(64, 1600);
+
+      Widget layer(int i) {
+        return CachedNetworkImage(
+          imageUrl: urls[i],
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          memCacheWidth: decodeSide,
+          filterQuality: FilterQuality.medium,
+          alignment: Alignment.center,
+          placeholder: (_, __) => waiting,
+          errorWidget: (_, __, ___) =>
+              i + 1 < urls.length ? layer(i + 1) : fallback,
+        );
+      }
+
+      return layer(0);
+    });
   }
 }
 
@@ -272,5 +288,6 @@ Future<void> playOrOpenRssPodcast(Map<String, dynamic> podcast) async {
 }
 
 String rssArtworkUrl(Map<String, dynamic> podcast) {
-  return Thumbnail((podcast['artwork'] ?? '').toString()).high;
+  // Stored artwork; [PodcastCoverTile] upgrades and falls back itself.
+  return (podcast['artwork'] ?? '').toString();
 }
