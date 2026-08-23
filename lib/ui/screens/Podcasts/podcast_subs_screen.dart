@@ -1,25 +1,14 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/podcast_service.dart';
-import '/ui/widgets/content_list_widget_item.dart';
-import '/ui/widgets/podcast_play.dart';
+import 'podcast_cover_tile.dart';
 import 'podcast_empty_state.dart';
 import 'podcast_folder_controller.dart';
 import 'podcast_folder_screen.dart';
 import 'podcasts_library_controller.dart';
-import 'podcasts_screen.dart';
-
-/// Shared tile footprint so folders, library shows, and RSS subs line up
-/// in the Subs grid (matches [ContentListItem]: 130×180 with a 120 cover).
-const double _subsTileWidth = 130;
-const double _subsTileHeight = 180;
-const double _subsCoverSize = 120;
-const EdgeInsets _subsTilePadding =
-    EdgeInsets.symmetric(horizontal: 5);
 
 /// Long-press a podcast show anywhere it's listed to file it into folders.
 /// Reused by the Subscriptions screen and the main Podcasts library grid.
@@ -173,9 +162,9 @@ class _FolderColorPicker extends StatelessWidget {
   }
 }
 
-/// Subscriptions ("Abonnements"): a grid of every podcast you follow, with
-/// Spotify-style folders. Folder tiles come first; long-press a show to file
-/// it into a folder, long-press a folder to delete it.
+/// Subscriptions ("Abonnements"): a 2-column grid of large covers with a
+/// play button on each tile (AntennaPod-style). Folders come first;
+/// long-press a show to file it, long-press a folder to delete it.
 class PodcastSubsScreen extends StatelessWidget {
   const PodcastSubsScreen({super.key, this.embedded = false, this.onDiscover});
 
@@ -205,57 +194,40 @@ class PodcastSubsScreen extends StatelessWidget {
           );
         }
         return LayoutBuilder(builder: (context, constraints) {
-          final columns =
-              (constraints.maxWidth / _subsTileWidth).floor().clamp(2, 6);
           final total = folderList.length + subs.length + rssSubs.length;
           return GridView.builder(
-            padding: const EdgeInsets.fromLTRB(8, 12, 8, 200),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: columns,
-              childAspectRatio: _subsTileWidth / _subsTileHeight,
-            ),
+            padding: kPodcastSubsGridPadding,
+            gridDelegate: podcastSubsGridDelegate(constraints.maxWidth),
             itemCount: total,
             itemBuilder: (context, index) {
               if (index < folderList.length) {
-                return Center(
-                    child: _folderTile(context, folders, folderList[index]));
+                return _folderTile(context, folders, folderList[index]);
               }
               final subIndex = index - folderList.length;
               if (subIndex < subs.length) {
                 final podcast = subs[subIndex];
-                return Center(
-                  child: GestureDetector(
-                    onLongPress: () => showPodcastFolderSheet(context, podcast),
-                    child: Stack(
-                      children: [
-                        ContentListItem(
-                          content: podcast,
-                          isLibraryItem: true,
-                        ),
-                        if (podcast.kind == 'yt_channel' ||
-                            RegExp(r'^UC[\w-]{20,}$')
-                                .hasMatch(podcast.playlistId))
-                          Positioned(
-                            left: 8,
-                            top: 8,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.65),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: const Icon(Icons.ondemand_video,
-                                  size: 14, color: Colors.white),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
+                return PodcastCoverTile(
+                  title: podcast.title,
+                  subtitle: libraryPodcastSubtitle(podcast),
+                  imageUrl: Thumbnail(podcast.thumbnailUrl).high,
+                  badge: isYoutubeChannelPodcast(podcast)
+                      ? youtubeChannelBadge()
+                      : null,
+                  onTap: () => playLibraryPodcast(podcast),
+                  onPlay: () => playLibraryPodcast(podcast),
+                  onLongPress: () =>
+                      showPodcastFolderSheet(context, podcast),
                 );
               }
               final rss = rssSubs[subIndex - subs.length];
-              return Center(child: _RssSubTile(podcast: rss));
+              return PodcastCoverTile(
+                title: (rss['title'] ?? '').toString(),
+                subtitle: (rss['author'] ?? '').toString(),
+                imageUrl: rssArtworkUrl(rss),
+                onTap: () => playOrOpenRssPodcast(rss),
+                onPlay: () => playOrOpenRssPodcast(rss),
+                onLongPress: () => _confirmUnfollowRss(context, rss),
+              );
             },
           );
         });
@@ -302,61 +274,26 @@ class PodcastSubsScreen extends StatelessWidget {
 
   Widget _folderTile(
       BuildContext context, PodcastFolderController fc, PodcastFolder folder) {
-    final theme = Theme.of(context);
-    return SizedBox(
-      width: _subsTileWidth,
-      height: _subsTileHeight,
-      child: Padding(
-        padding: _subsTilePadding,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(10),
-          onTap: () => Get.to(() => PodcastFolderScreen(folderId: folder.id)),
-          onLongPress: () => _folderOptions(context, fc, folder),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox.square(
-                dimension: _subsCoverSize,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: folder.color.withOpacity(0.22),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: folder.color.withOpacity(0.55),
-                      width: 1.2,
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.folder_rounded,
-                    size: 48,
-                    color: folder.color,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 5),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      folder.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium,
-                    ),
-                    Text(
-                      "${folder.podcastIds.length} ${'items'.tr}",
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+    return PodcastCoverTile(
+      title: folder.name,
+      subtitle: "${folder.podcastIds.length} ${'items'.tr}",
+      showPlay: false,
+      cover: Container(
+        decoration: BoxDecoration(
+          color: folder.color.withOpacity(0.22),
+          border: Border.all(
+            color: folder.color.withOpacity(0.55),
+            width: 1.2,
           ),
         ),
+        child: Icon(
+          Icons.folder_rounded,
+          size: 64,
+          color: folder.color,
+        ),
       ),
+      onTap: () => Get.to(() => PodcastFolderScreen(folderId: folder.id)),
+      onLongPress: () => _folderOptions(context, fc, folder),
     );
   }
 
@@ -404,84 +341,23 @@ class PodcastSubsScreen extends StatelessWidget {
   }
 }
 
-/// Tile for an iTunes/RSS subscription in the Subs grid. Tapping opens the
-/// episode list; long-press offers to unfollow.
-class _RssSubTile extends StatelessWidget {
-  const _RssSubTile({required this.podcast});
-  final Map<String, dynamic> podcast;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final art = Thumbnail((podcast['artwork'] ?? '').toString()).high;
-    return SizedBox(
-      width: _subsTileWidth,
-      height: _subsTileHeight,
-      child: Padding(
-        padding: _subsTilePadding,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(10),
+void _confirmUnfollowRss(BuildContext context, Map<String, dynamic> podcast) {
+  showModalBottomSheet(
+    context: context,
+    useRootNavigator: true,
+    builder: (ctx) => SafeArea(
+      child: Wrap(children: [
+        ListTile(
+          leading: const Icon(Icons.remove_circle_outline),
+          title: Text('${'subscribed'.tr} · ${podcast['title'] ?? ''}',
+              maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text('unsubscribe'.tr),
           onTap: () async {
-            final ok = await playPodcastShow(podcast);
-            if (ok) return;
-            Get.to(() => PodcastEpisodesScreen(podcast: podcast));
+            await PodcastService.unsubscribe('${podcast['feedUrl']}');
+            if (ctx.mounted) Navigator.of(ctx).pop();
           },
-          onLongPress: () => _confirmUnfollow(context),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: CachedNetworkImage(
-                  imageUrl: art,
-                  width: _subsCoverSize,
-                  height: _subsCoverSize,
-                  memCacheWidth:
-                      (_subsCoverSize * MediaQuery.devicePixelRatioOf(context))
-                          .round(),
-                  fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => Container(
-                    width: _subsCoverSize,
-                    height: _subsCoverSize,
-                    color: theme.colorScheme.secondary.withOpacity(0.3),
-                    child: const Icon(Icons.podcasts, size: 44),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 5),
-              Expanded(
-                child: Text(
-                  (podcast['title'] ?? '').toString(),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium,
-                ),
-              ),
-            ],
-          ),
         ),
-      ),
-    );
-  }
-
-  void _confirmUnfollow(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      useRootNavigator: true,
-      builder: (ctx) => SafeArea(
-        child: Wrap(children: [
-          ListTile(
-            leading: const Icon(Icons.remove_circle_outline),
-            title: Text('${'subscribed'.tr} · ${podcast['title'] ?? ''}',
-                maxLines: 1, overflow: TextOverflow.ellipsis),
-            subtitle: Text('unsubscribe'.tr),
-            onTap: () async {
-              await PodcastService.unsubscribe('${podcast['feedUrl']}');
-              if (ctx.mounted) Navigator.of(ctx).pop();
-            },
-          ),
-        ]),
-      ),
-    );
-  }
+      ]),
+    ),
+  );
 }

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '/ui/widgets/content_list_widget_item.dart';
+import '/models/thumbnail.dart';
+import 'podcast_cover_tile.dart';
 import 'podcast_folder_controller.dart';
+import 'podcast_subs_screen.dart';
 import 'podcasts_library_controller.dart';
 
 /// The shows inside one podcast folder.
@@ -55,23 +57,24 @@ class PodcastFolderScreen extends StatelessWidget {
           );
         }
         return LayoutBuilder(builder: (context, constraints) {
-          const itemWidth = 130.0;
-          const itemHeight = 180.0;
-          final columns =
-              (constraints.maxWidth / itemWidth).floor().clamp(2, 6);
           return GridView.builder(
-            padding: const EdgeInsets.fromLTRB(8, 12, 8, 200),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: columns,
-              childAspectRatio: itemWidth / itemHeight,
-            ),
+            padding: kPodcastSubsGridPadding,
+            gridDelegate: podcastSubsGridDelegate(constraints.maxWidth),
             itemCount: items.length,
-            itemBuilder: (context, index) => Center(
-              child: ContentListItem(
-                content: items[index],
-                isLibraryItem: true,
-              ),
-            ),
+            itemBuilder: (context, index) {
+              final podcast = items[index];
+              return PodcastCoverTile(
+                title: podcast.title,
+                subtitle: libraryPodcastSubtitle(podcast),
+                imageUrl: Thumbnail(podcast.thumbnailUrl).high,
+                badge: isYoutubeChannelPodcast(podcast)
+                    ? youtubeChannelBadge()
+                    : null,
+                onTap: () => playLibraryPodcast(podcast),
+                onPlay: () => playLibraryPodcast(podcast),
+                onLongPress: () => showPodcastFolderSheet(context, podcast),
+              );
+            },
           );
         });
       }),
