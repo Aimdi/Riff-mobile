@@ -208,6 +208,7 @@ class PodcastSubsScreen extends StatelessWidget {
                 return PodcastCoverTile(
                   title: podcast.title,
                   subtitle: libraryPodcastSubtitle(podcast),
+                  playlist: podcast,
                   imageUrl: podcast.thumbnailUrl,
                   badge: isYoutubeChannelPodcast(podcast)
                       ? youtubeChannelBadge()

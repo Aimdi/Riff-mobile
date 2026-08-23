@@ -573,6 +573,33 @@ class PodcastService {
       .map((v) => Map<String, dynamic>.from(v))
       .toList();
 
+  /// Fill empty / placeholder subscription artwork from Apple's directory.
+  /// Runs in the background from the library controller so Subs tiles that
+  /// stored no URL still get a real cover.
+  static Future<void> refreshMissingArtwork() async {
+    var changed = false;
+    for (final s in subscriptions) {
+      final art = '${s['artwork'] ?? ''}';
+      if (art.isNotEmpty && !art.contains('placeholder')) continue;
+      final title = '${s['title'] ?? ''}';
+      if (title.isEmpty) continue;
+      final found = await search(title);
+      if (found.isEmpty) continue;
+      final want = title.toLowerCase();
+      final hit = found.firstWhere(
+        (r) => '${r['title']}'.toLowerCase() == want,
+        orElse: () => found.first,
+      );
+      final next = '${hit['artwork'] ?? ''}';
+      if (next.isEmpty) continue;
+      final feed = '${s['feedUrl'] ?? ''}';
+      if (feed.isEmpty) continue;
+      await _subs.put(feed, {...s, 'artwork': next});
+      changed = true;
+    }
+    if (changed) subsRev.value++;
+  }
+
   // --- Feed parsing ---
 
   /// Fetches a podcast RSS feed and returns its episodes:

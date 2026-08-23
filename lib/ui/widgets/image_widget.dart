@@ -15,6 +15,13 @@ import '/services/cover_resolver.dart';
 import '../../models/album.dart';
 import '../../models/playlist.dart';
 
+/// CDNs (Apple artwork, some Google user-content) 404 a bare Dart UA.
+const kCoverImageHeaders = {
+  'User-Agent':
+      'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+  'Accept': 'image/webp,image/jpeg,image/png,image/*,*/*;q=0.8',
+};
+
 class ImageWidget extends StatelessWidget {
   const ImageWidget({
     super.key,
@@ -143,6 +150,7 @@ class ImageWidget extends StatelessWidget {
                   memCacheWidth: decodeSide,
                   filterQuality: FilterQuality.medium,
                   imageUrl: imageUrl,
+                  httpHeaders: kCoverImageHeaders,
                   fit: BoxFit.cover,
                   alignment: Alignment.center,
                   errorWidget: (context, url, error) {
@@ -152,6 +160,7 @@ class ImageWidget extends StatelessWidget {
                         width: size,
                         memCacheWidth: decodeSide,
                         imageUrl: raw,
+                        httpHeaders: kCoverImageHeaders,
                         fit: BoxFit.cover,
                         alignment: Alignment.center,
                         errorWidget: (_, __, ___) => _placeholder(context),
@@ -243,6 +252,7 @@ class _SongCoverImageState extends State<_SongCoverImage> {
       memCacheWidth: widget.decodeSide,
       filterQuality: FilterQuality.medium,
       imageUrl: _url,
+      httpHeaders: kCoverImageHeaders,
       fit: BoxFit.cover,
       alignment: Alignment.center,
       errorWidget: (_, __, ___) => widget.placeholder,

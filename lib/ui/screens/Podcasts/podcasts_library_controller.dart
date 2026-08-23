@@ -40,7 +40,10 @@ class LibraryPodcastsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    refreshLib().then((_) => loadSimilar());
+    refreshLib().then((_) {
+      loadSimilar();
+      PodcastService.refreshMissingArtwork();
+    });
     loadDiscovery();
   }
 

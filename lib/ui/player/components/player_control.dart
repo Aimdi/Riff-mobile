@@ -14,6 +14,7 @@ import '../../widgets/discovery/player_similar_row.dart';
 import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/sleep_timer_bottom_sheet.dart';
 import '../../widgets/snackbar.dart';
+import '../chapter_marks.dart';
 import '../play_queue_order.dart';
 import '../player_controller.dart';
 import '../radio_continuation.dart';
@@ -201,7 +202,7 @@ class PlayerControlWidget extends StatelessWidget {
                     label: Text("shownotes".tr),
                     style: style,
                   ),
-                  if (playerController.hasChapters)
+                  if (playerController.chapters.isNotEmpty)
                     OutlinedButton.icon(
                       onPressed: () => _openChapters(playerController, context),
                       icon: const Icon(Icons.list_rounded, size: 20),
@@ -260,12 +261,9 @@ class PlayerControlWidget extends StatelessWidget {
               ),
             );
           }),
-          // The seek control IS the SoundCloud-style waveform (no separate
-          // slider line): it fills with the accent colour as the track plays,
-          // shows the elapsed/total time beneath, and is tap/drag seekable.
-          const _WaveformScrubber(),
-          if (GetPlatform.isMobile)
-            _mobileVolume(playerController, context),
+          // Spotify-style straight seek bar. Podcasts with chapters split
+          // into sections; music is one line. Phone volume stays on hardware.
+          const _SeekScrubber(),
           Obx(() => playerController.usesLongFormTransport
               ? _podcastControls(playerController, context)
               : _musicControls(playerController, context)),
@@ -275,45 +273,6 @@ class PlayerControlWidget extends StatelessWidget {
               ? const SizedBox.shrink()
               : const PlayerSimilarRow()),
         ]);
-  }
-
-  Widget _mobileVolume(
-      PlayerController playerController, BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 2),
-      child: Obx(() {
-        final volume = playerController.volume.value;
-        return Row(
-          children: [
-            InkWell(
-              onTap: playerController.mute,
-              child: Icon(
-                volumeIconFor(volume),
-                size: 20,
-                color: Theme.of(context).textTheme.titleMedium?.color,
-              ),
-            ),
-            Expanded(
-              child: SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  trackHeight: 2,
-                  thumbShape:
-                      const RoundSliderThumbShape(enabledThumbRadius: 6.0),
-                  overlayShape:
-                      const RoundSliderOverlayShape(overlayRadius: 10.0),
-                ),
-                child: Slider(
-                  value: (volume / 100).clamp(0.0, 1.0),
-                  onChanged: (value) {
-                    playerController.setVolume((value * 100).toInt());
-                  },
-                ),
-              ),
-            ),
-          ],
-        );
-      }),
-    );
   }
 
   Widget _nowPlayingActions(
@@ -708,16 +667,16 @@ String _fmtDuration(Duration d, {bool allowZero = true}) {
   return '$m:$ss';
 }
 
-/// Waveform seek bar with local drag preview so scrubbing stays snappy even
-/// when progress UI updates are throttled upstream.
-class _WaveformScrubber extends StatefulWidget {
-  const _WaveformScrubber();
+/// Straight seek bar (Spotify). Podcast chapters split the line into
+/// sections; music / chapter-less episodes stay one rounded track.
+class _SeekScrubber extends StatefulWidget {
+  const _SeekScrubber();
 
   @override
-  State<_WaveformScrubber> createState() => _WaveformScrubberState();
+  State<_SeekScrubber> createState() => _SeekScrubberState();
 }
 
-class _WaveformScrubberState extends State<_WaveformScrubber> {
+class _SeekScrubberState extends State<_SeekScrubber> {
   double? _dragFrac;
   Duration? _dragPosition;
 
@@ -749,8 +708,10 @@ class _WaveformScrubberState extends State<_WaveformScrubber> {
           ? (status.current.inMilliseconds / totalMs).clamp(0.0, 1.0)
           : 0.0;
       final frac = _dragFrac ?? liveFrac;
-      final song = controller.currentSong.value;
-      final seed = (song?.id ?? song?.title ?? '').hashCode;
+      final marks = podcastChapterMarks(
+        controller.chapters,
+        status.total.inMilliseconds / 1000.0,
+      );
       final timeStyle = Theme.of(context).textTheme.titleSmall!.copyWith(
             fontSize: 12,
             color: RiffSurfaces.textMuted,
@@ -758,6 +719,11 @@ class _WaveformScrubberState extends State<_WaveformScrubber> {
           );
       final currentLabel = _fmtDuration(_dragPosition ?? status.current);
       final totalLabel = _fmtDuration(status.total, allowZero: false);
+      final played = Theme.of(context).sliderTheme.activeTrackColor ??
+          Theme.of(context).colorScheme.secondary;
+      final rest = (Theme.of(context).sliderTheme.inactiveTrackColor ??
+              RiffSurfaces.hairline)
+          .withOpacity(0.55);
 
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -778,22 +744,15 @@ class _WaveformScrubberState extends State<_WaveformScrubber> {
                 onHorizontalDragEnd: (_) => _endScrub(),
                 onHorizontalDragCancel: _endScrub,
                 child: SizedBox(
-                  height: 34,
+                  height: 36,
                   width: double.infinity,
                   child: CustomPaint(
-                    painter: _WaveformPainter(
+                    painter: _SectionTrackPainter(
                       progress: frac,
-                      seed: seed,
-                      playedColor: Theme.of(context)
-                              .sliderTheme
-                              .activeTrackColor ??
-                          Theme.of(context).colorScheme.secondary,
-                      unplayedColor: (Theme.of(context)
-                                  .sliderTheme
-                                  .inactiveTrackColor ??
-                              RiffSurfaces.hairline)
-                          .withOpacity(0.55),
-                      playheadColor: RiffSurfaces.textPrimary,
+                      marks: marks,
+                      playedColor: played,
+                      restColor: rest,
+                      thumbColor: RiffSurfaces.textPrimary,
                     ),
                   ),
                 ),
@@ -814,61 +773,71 @@ class _WaveformScrubberState extends State<_WaveformScrubber> {
   }
 }
 
-/// A thin SoundCloud-style waveform. Bar heights are deterministic per song
-/// (hashed from a seed) so they stay stable across rebuilds; the played portion
-/// is drawn in [playedColor], the rest in [unplayedColor]. A thin playhead
-/// line marks the current position.
-class _WaveformPainter extends CustomPainter {
-  _WaveformPainter({
+/// Spotify-style rounded track. [marks] are 0–1 chapter boundaries that
+/// punch a gap so each section reads as its own pill.
+class _SectionTrackPainter extends CustomPainter {
+  _SectionTrackPainter({
     required this.progress,
-    required this.seed,
+    required this.marks,
     required this.playedColor,
-    required this.unplayedColor,
-    required this.playheadColor,
+    required this.restColor,
+    required this.thumbColor,
   });
 
-  final double progress; // 0..1
-  final int seed;
+  final double progress;
+  final List<double> marks;
   final Color playedColor;
-  final Color unplayedColor;
-  final Color playheadColor;
+  final Color restColor;
+  final Color thumbColor;
+
+  static const _gap = 3.0;
+  static const _trackH = 4.0;
+  static const _thumb = 13.0;
 
   @override
   void paint(Canvas canvas, Size size) {
-    const barWidth = 2.5;
-    const gap = 1.5;
-    const step = barWidth + gap;
-    final count = (size.width / step).floor();
-    if (count <= 0) return;
-    final midY = size.height / 2;
-    final playedBars = (count * progress).round();
-    final paint = Paint()
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = barWidth;
-    for (int i = 0; i < count; i++) {
-      // Deterministic pseudo-random amplitude in [0.30, 1.0].
-      final n = (seed ^ (i * 2654435761)) & 0x7fffffff;
-      final amp = 0.30 + (n % 1000) / 1000.0 * 0.70;
-      final barH = size.height * amp;
-      final x = i * step + barWidth / 2;
-      paint.color = i < playedBars ? playedColor : unplayedColor;
-      canvas.drawLine(
-          Offset(x, midY - barH / 2), Offset(x, midY + barH / 2), paint);
+    final cy = size.height / 2;
+    final top = cy - _trackH / 2;
+    final bounds = <double>[0, ...marks.where((m) => m > 0 && m < 1), 1];
+    for (var i = 0; i < bounds.length - 1; i++) {
+      final left = bounds[i] * size.width + (i == 0 ? 0 : _gap / 2);
+      final right =
+          bounds[i + 1] * size.width - (i == bounds.length - 2 ? 0 : _gap / 2);
+      if (right - left < 1) continue;
+      final rect = RRect.fromLTRBR(
+          left, top, right, top + _trackH, const Radius.circular(99));
+      canvas.drawRRect(rect, Paint()..color = restColor);
+      final playedRight = (size.width * progress).clamp(left, right);
+      if (playedRight > left + 0.5) {
+        canvas.drawRRect(
+          RRect.fromLTRBR(
+              left, top, playedRight, top + _trackH, const Radius.circular(99)),
+          Paint()..color = playedColor,
+        );
+      }
     }
-    // Playhead line at the current progress position.
-    final playheadX = (size.width * progress).clamp(0.0, size.width);
-    final head = Paint()
-      ..color = playheadColor.withOpacity(0.9)
-      ..strokeWidth = 1.5
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(Offset(playheadX, 2), Offset(playheadX, size.height - 2), head);
+    final tx =
+        (size.width * progress).clamp(_thumb / 2, size.width - _thumb / 2);
+    canvas.drawCircle(
+      Offset(tx, cy),
+      _thumb / 2,
+      Paint()..color = thumbColor,
+    );
   }
 
   @override
-  bool shouldRepaint(covariant _WaveformPainter old) =>
+  bool shouldRepaint(covariant _SectionTrackPainter old) =>
       old.progress != progress ||
-      old.seed != seed ||
       old.playedColor != playedColor ||
-      old.unplayedColor != unplayedColor ||
-      old.playheadColor != playheadColor;
+      old.restColor != restColor ||
+      old.thumbColor != thumbColor ||
+      !_listEq(old.marks, marks);
+
+  bool _listEq(List<double> a, List<double> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 }

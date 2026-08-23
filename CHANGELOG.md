@@ -1,3 +1,14 @@
+# 1.7.107
+
+**Player**
+* Straight Spotify-style seek bar; podcasts with chapters show section gaps
+* Volume slider removed from now-playing (use the phone’s buttons)
+
+**Podcasts**
+* Subs covers load through the same path as the old grid, with a browser
+  User-Agent so Apple/Google art is not 404’d
+* Empty subscription artwork is filled from Apple’s directory
+
 # 1.7.106
 
 **Podcasts**
