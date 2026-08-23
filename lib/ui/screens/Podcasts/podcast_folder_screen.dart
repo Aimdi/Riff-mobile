@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '/models/thumbnail.dart';
 import 'podcast_cover_tile.dart';
 import 'podcast_folder_controller.dart';
 import 'podcast_subs_screen.dart';
@@ -66,7 +65,7 @@ class PodcastFolderScreen extends StatelessWidget {
               return PodcastCoverTile(
                 title: podcast.title,
                 subtitle: libraryPodcastSubtitle(podcast),
-                imageUrl: Thumbnail(podcast.thumbnailUrl).high,
+                imageUrl: podcast.thumbnailUrl,
                 badge: isYoutubeChannelPodcast(podcast)
                     ? youtubeChannelBadge()
                     : null,

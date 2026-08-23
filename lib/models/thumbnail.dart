@@ -22,6 +22,43 @@ class Thumbnail {
   String get extraHigh =>
       GetPlatform.isDesktop ? sizewith(1600) : sizewith(1200);
 
+  /// URLs to try for a square cover, in order.
+  ///
+  /// The first is a quality upgrade (Apple 1400 / Google 720). Later entries
+  /// are the stored original, a smaller Apple size, https, and Google crops
+  /// without `-p` — ImageWidget already falls back to the raw URL when the
+  /// upgrade 404s; callers that skip that retry (the Subs grid) need this list.
+  static List<String> coverUrls(String raw, {int size = 720}) {
+    final url = raw.trim();
+    if (url.isEmpty) return const [];
+    if (_isPlaceholder(url)) return const [];
+
+    final out = <String>[];
+    void add(String u) {
+      final s = u.trim();
+      if (s.isEmpty || _isPlaceholder(s)) return;
+      if (!out.contains(s)) out.add(s);
+    }
+
+    final t = Thumbnail(url);
+    add(t.sizewith(size));
+    add(t.extraHigh);
+    if (url.contains('mzstatic.com')) {
+      add(t.medium);
+    }
+    add(url);
+    if (url.startsWith('http://')) {
+      add('https://${url.substring(7)}');
+    }
+    for (final u in List<String>.from(out)) {
+      if (u.contains('-p-')) add(u.replaceAll('-p-', '-'));
+    }
+    return out;
+  }
+
+  static bool _isPlaceholder(String url) =>
+      url.contains('playlist_placeholder.png');
+
   /// Rewrite known CDN URL patterns to [size]×[size] (or equivalent).
   String sizewith(int size) {
     final raw = _url.trim();
