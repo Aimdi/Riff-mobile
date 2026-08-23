@@ -155,15 +155,12 @@ class PlayerController extends GetxController
   final sponsorBlockActiveCategory = RxnString();
 
   /// Podcasting 2.0 chapters for the current podcast episode (ad auto-skip).
-  List<PodcastChapter> _chapters = const [];
+  final chapters = <PodcastChapter>[].obs;
   String? _chaptersForSongId;
   bool _chapterSeekInFlight = false;
   // True while playback is inside an ad chapter (drives the "Skip ad" chip).
   final inAdChapter = false.obs;
-  bool get hasChapters => _chapters.isNotEmpty;
-
-  /// Podcasting 2.0 chapters for the current episode (UI chapter list).
-  List<PodcastChapter> get chapters => _chapters;
+  bool get hasChapters => chapters.isNotEmpty;
 
   Box get _prefs => HiveBoxes.prefs();
 
@@ -504,18 +501,18 @@ class PlayerController extends GetxController
 
   Future<void> _loadChaptersFor(MediaItem item) async {
     _chaptersForSongId = item.id;
-    _chapters = const [];
+    chapters.clear();
     inAdChapter.value = false;
     final url = item.chaptersUrl;
     if (url == null || url.isEmpty) return;
     final chs = await PodcastService.chapters(url);
-    if (_chaptersForSongId == item.id) _chapters = chs;
+    if (_chaptersForSongId == item.id) chapters.assignAll(chs);
   }
 
   /// The chapter covering [sec], if any (chapters are start-only + sorted).
   PodcastChapter? _chapterAt(double sec) {
     PodcastChapter? current;
-    for (final c in _chapters) {
+    for (final c in chapters) {
       if (c.startSec <= sec) {
         current = c;
       } else {
@@ -531,16 +528,16 @@ class PlayerController extends GetxController
     if (c.endSec != null) {
       return Duration(milliseconds: (c.endSec! * 1000).round());
     }
-    final idx = _chapters.indexOf(c);
-    if (idx >= 0 && idx + 1 < _chapters.length) {
+    final idx = chapters.indexOf(c);
+    if (idx >= 0 && idx + 1 < chapters.length) {
       return Duration(
-          milliseconds: (_chapters[idx + 1].startSec * 1000).round());
+          milliseconds: (chapters[idx + 1].startSec * 1000).round());
     }
     return null;
   }
 
   void _maybeSkipAdChapter(Duration position) {
-    if (_chapters.isEmpty) {
+    if (chapters.isEmpty) {
       if (inAdChapter.isTrue) inAdChapter.value = false;
       return;
     }

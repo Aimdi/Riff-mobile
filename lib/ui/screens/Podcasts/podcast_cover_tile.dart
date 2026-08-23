@@ -7,6 +7,7 @@ import '/models/thumbnail.dart';
 import '/ui/navigator.dart';
 import '/ui/utils/riff_tokens.dart';
 import '/ui/widgets/collection_play.dart';
+import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/podcast_play.dart';
 import '/ui/widgets/snackbar.dart';
 import 'podcasts_screen.dart';
@@ -51,6 +52,7 @@ class PodcastCoverTile extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.imageUrl,
+    this.playlist,
     this.cover,
     this.onTap,
     this.onLongPress,
@@ -62,6 +64,8 @@ class PodcastCoverTile extends StatelessWidget {
   final String title;
   final String? subtitle;
   final String? imageUrl;
+  /// Library / YouTube shows — uses [ImageWidget] so art matches the old grid.
+  final Playlist? playlist;
   final Widget? cover;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
@@ -155,6 +159,17 @@ class PodcastCoverTile extends StatelessWidget {
       ),
     );
     final urls = Thumbnail.coverUrls(imageUrl ?? '');
+    if (playlist != null) {
+      return LayoutBuilder(builder: (context, constraints) {
+        final side = constraints.biggest.shortestSide;
+        final size = (side.isFinite && side > 0) ? side : 180.0;
+        return ImageWidget(
+          playlist: playlist,
+          size: size,
+          borderRadius: 0,
+        );
+      });
+    }
     if (urls.isEmpty) return fallback;
     final waiting = ColoredBox(
       color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.35),
@@ -169,6 +184,7 @@ class PodcastCoverTile extends StatelessWidget {
       Widget layer(int i) {
         return CachedNetworkImage(
           imageUrl: urls[i],
+          httpHeaders: kCoverImageHeaders,
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
