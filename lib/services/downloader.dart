@@ -23,7 +23,13 @@ import 'music_service.dart';
 //import '../models/thumbnail.dart' as th;
 
 class Downloader extends GetxService {
-  final _dio = Dio();
+  // receiveTimeout is the max gap between chunks, so a stalled download
+  // fails instead of leaving isJobRunning stuck and every later download
+  // queued forever. It does not cap the total transfer time.
+  final _dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 15),
+    receiveTimeout: const Duration(seconds: 30),
+  ));
   MediaItem? currentSong;
   RxMap<String, List<MediaItem>> playlistQueue =
       <String, List<MediaItem>>{}.obs;
@@ -107,9 +113,26 @@ class Downloader extends GetxService {
   }
 
   Future<void> triggerDownloadingJob() async {
+    isJobRunning.value = true;
+    try {
+      // Loop (was recursion) until both queues drain.
+      do {
+        await _runDownloadingJob();
+      } while (songQueue.isNotEmpty);
+    } catch (e) {
+      printERROR("Download job failed: $e");
+    } finally {
+      // Always release the job flag, or later downloads only ever queue.
+      isJobRunning.value = false;
+      currentSong = null;
+      currentPlaylistId.value = "";
+      playlistDownloadingProgress.value = 0;
+    }
+  }
+
+  Future<void> _runDownloadingJob() async {
     //check if playlist download in queue => download playlistsongs else download from general songs queue
     if (playlistQueue.isNotEmpty) {
-      isJobRunning.value = true;
       for (String playlistId in playlistQueue.keys.toList()) {
         //checked in case download cancel request
         if (playlistQueue.containsKey(playlistId)) {
@@ -139,16 +162,17 @@ class Downloader extends GetxService {
         playlistDownloadingProgress.value = 0;
       }
     } else {
-      isJobRunning.value = true;
       await downloadSongList(songQueue.toList());
     }
+  }
 
-    if (songQueue.isNotEmpty) {
-      triggerDownloadingJob();
-    } else {
-      isJobRunning.value = false;
-      currentSong = null;
-    }
+  void _showSnack(String message) {
+    final ctx = Get.context;
+    if (ctx == null || !ctx.mounted) return;
+    ScaffoldMessenger.of(ctx).showSnackBar(snackbar(ctx, message,
+        size: SanckBarSize.BIG,
+        duration: const Duration(seconds: 2),
+        top: !GetPlatform.isDesktop));
   }
 
   Future<void> downloadSongList(List<MediaItem> jobSongList,
@@ -164,7 +188,13 @@ class Downloader extends GetxService {
       if (!Hive.box("SongDownloads").containsKey(song.id)) {
         currentSong = song;
         songDownloadingProgress.value = 0;
-        await writeFileStream(song);
+        try {
+          await writeFileStream(song);
+        } catch (e) {
+          // Skip this song (it leaves the queue below) rather than aborting
+          // the job and retrying the same failing song forever.
+          printERROR("Download of ${song.id} failed: $e");
+        }
       }
       songQueue.remove(song);
       //for playlist downloading counter update
@@ -193,14 +223,9 @@ class Downloader extends GetxService {
     // }
 
     if (!playerResponse.playable) {
-      ScaffoldMessenger.of(Get.context!).showSnackBar(snackbar(
-          Get.context!,
-          playerResponse.statusMSG.tr,
-          size: SanckBarSize.BIG,
-          duration: const Duration(seconds: 2),
-          top: !GetPlatform.isDesktop));
+      _showSnack(playerResponse.statusMSG.tr);
       printINFO("Requested song is not downloadable. You may try again");
-      complete.complete();
+      if (!complete.isCompleted) complete.complete();
       return complete.future;
     }
 
@@ -290,18 +315,14 @@ class Downloader extends GetxService {
         } catch (e) {
           printERROR("$e");
         }
-        complete.complete();
+        if (!complete.isCompleted) complete.complete();
       },
     ).onError(
       (error, stackTrace) {
-        ScaffoldMessenger.of(Get.context!).showSnackBar(snackbar(
-            Get.context!, "downloadError3".tr,
-            size: SanckBarSize.BIG,
-            duration: const Duration(seconds: 2),
-            top: !GetPlatform.isDesktop));
+        _showSnack("downloadError3".tr);
         printINFO(
             "Downloading failed due to network/stream error! Please try again");
-        complete.complete();
+        if (!complete.isCompleted) complete.complete();
       },
     );
 

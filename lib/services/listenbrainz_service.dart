@@ -12,6 +12,14 @@ class ListenBrainzService {
 
   static const _endpoint = "https://api.listenbrainz.org/1/submit-listens";
 
+  // One shared client (was a new Dio per scrobble) with timeouts so a hung
+  // connection can't pile up pending submissions.
+  static final Dio _dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 10),
+    sendTimeout: const Duration(seconds: 15),
+    receiveTimeout: const Duration(seconds: 15),
+  ));
+
   static String get token =>
       SecureCredentials.get("listenBrainzToken") ?? "";
 
@@ -23,7 +31,7 @@ class ListenBrainzService {
   static Future<void> submitListen(MediaItem item) async {
     if (!enabled) return;
     try {
-      await Dio().post(
+      await _dio.post(
         _endpoint,
         options: Options(headers: {
           "Authorization": "Token $token",

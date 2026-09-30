@@ -105,12 +105,14 @@ class SearchScreenController extends GetxController with ProcessLink {
     historyQuerylist.clear();
   }
 
+  // GetX calls onClose (not dispose) when the Search route is removed.
+  // The small "searchQuery" box stays open: the next visit's controller
+  // would otherwise race this close and get the same, now-closed instance.
   @override
-  void dispose() {
+  void onClose() {
     _suggestionDebounce?.cancel();
     focusNode.dispose();
     textInputController.dispose();
-    queryBox.close();
-    super.dispose();
+    super.onClose();
   }
 }

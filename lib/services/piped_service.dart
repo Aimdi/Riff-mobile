@@ -7,7 +7,13 @@ import '../utils/helper.dart';
 
 class PipedServices extends GetxService {
   final Map<String, dynamic> _headers = {};
-  final _dio = Dio();
+  // Timeouts: without them a dead instance parks requests (and the Library
+  // playlist sync) for minutes.
+  final _dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 10),
+    sendTimeout: const Duration(seconds: 15),
+    receiveTimeout: const Duration(seconds: 20),
+  ));
   String _insApiUrl = "";
   bool _isLoggedIn = false;
 
@@ -30,8 +36,16 @@ class PipedServices extends GetxService {
       final response = await _dio
           .post(url, data: {"username": userName, "password": password});
       final data = response.data;
+      // Reject error replies before persisting anything: the old order saved
+      // isLoggedIn=true (with a null token) even for a failed login.
+      if (data is! Map || data.containsKey("error") || data['token'] == null) {
+        return Res(0,
+            errorMessage: data is Map
+                ? data['error']?.toString()
+                : "Unexpected login response");
+      }
       final appPrefsBox = Hive.box('AppPrefs');
-      appPrefsBox.put("piped", {
+      await appPrefsBox.put("piped", {
         "isLoggedIn": true,
         "token": data['token'],
         "instApiUrl": insApiUrl
@@ -40,12 +54,7 @@ class PipedServices extends GetxService {
       _isLoggedIn = true;
       _insApiUrl = insApiUrl;
 
-      if (response.data.runtimeType.toString() == "_Map<String, dynamic>" &&
-          response.data.containsKey("error")) {
-        return Res(0, errorMessage: response.data['error']);
-      }
-
-      printINFO("Login successful! topken : ${data['token']}");
+      printINFO("Piped login successful");
       return Res(1, response: response.data);
     } on DioException catch (e) {
       printERROR("Login Failed! => ${e.response?.statusMessage ?? e.message}");

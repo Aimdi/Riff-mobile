@@ -520,7 +520,9 @@ List<dynamic> parsePlaylistItems(List<dynamic> results,
         'browseEndpoint',
         'browseId'
       ]);
-      videoId = creditId?.split("MPTC")[1];
+      if (creditId is String && creditId.startsWith("MPTC")) {
+        videoId = creditId.substring(4);
+      }
     }
 
     if (isAlbum) {
@@ -1276,10 +1278,12 @@ Map<String, dynamic> parseAlbumHeader(Map<String, dynamic> response) {
 
   // add to library/uploaded
 
-  album['audioPlaylistId'] =
-      nav(response, ['microformat', "microformatDataRenderer", "urlCanonical"])
-          .toString()
-          .split("list=")[1];
+  final canonical =
+      nav(response, ['microformat', "microformatDataRenderer", "urlCanonical"]);
+  album['audioPlaylistId'] = canonical is String
+      ? Uri.tryParse(canonical)?.queryParameters['list'] ??
+          (canonical.contains("list=") ? canonical.split("list=")[1] : null)
+      : null;
 
   return album;
 }

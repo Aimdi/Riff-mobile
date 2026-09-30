@@ -56,7 +56,12 @@ class SoulSyncTrack {
 /// (https://github.com/Nezreka/SoulSync). Uses the public `/api/v1` REST API
 /// with a Bearer API key — same pattern as Discord bots / curl integrations.
 class SoulSyncService extends GetxController {
-  SoulSyncService({Dio? dio}) : _dio = dio ?? Dio();
+  // Per-request Options set send/receive timeouts; connectTimeout can only
+  // be set on the client, and without it an unreachable host hangs for the
+  // OS TCP timeout (minutes).
+  SoulSyncService({Dio? dio})
+      : _dio = dio ??
+            Dio(BaseOptions(connectTimeout: const Duration(seconds: 10)));
 
   final Dio _dio;
 
