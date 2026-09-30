@@ -14,7 +14,9 @@ class SearchScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final searchScreenController = Get.put(SearchScreenController());
+    final searchScreenController = Get.isRegistered<SearchScreenController>()
+        ? Get.find<SearchScreenController>()
+        : Get.put(SearchScreenController());
     final topPadding = context.isLandscape ? 50.0 : 80.0;
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -102,9 +104,8 @@ class SearchScreen extends StatelessWidget {
             ),
             Expanded(
               child: Obx(() {
-                final isEmpty =
-                    searchScreenController.suggestionList.isEmpty ||
-                        searchScreenController.textInputController.text == "";
+                final isEmpty = searchScreenController.suggestionList.isEmpty ||
+                    searchScreenController.textInputController.text == "";
                 final list = isEmpty
                     ? searchScreenController.historyQuerylist.toList()
                     : searchScreenController.suggestionList.toList();
@@ -117,8 +118,7 @@ class SearchScreen extends StatelessWidget {
                       InkWell(
                         onTap: () {
                           searchScreenController.filterLinks(Uri.parse(
-                              searchScreenController
-                                  .textInputController.text));
+                              searchScreenController.textInputController.text));
                           searchScreenController.reset();
                         },
                         child: Padding(

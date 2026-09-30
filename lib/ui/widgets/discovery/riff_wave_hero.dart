@@ -82,10 +82,14 @@ class _RiffWaveHeroState extends State<RiffWaveHero>
         size: SanckBarSize.MEDIUM,
       ));
     } finally {
-      _playPulse
-        ..stop()
-        ..value = 0;
-      if (mounted) setState(() => _starting = false);
+      // The controller is disposed with the widget — only touch it if still
+      // mounted (the play call can outlive the home screen).
+      if (mounted) {
+        _playPulse
+          ..stop()
+          ..value = 0;
+        setState(() => _starting = false);
+      }
     }
   }
 

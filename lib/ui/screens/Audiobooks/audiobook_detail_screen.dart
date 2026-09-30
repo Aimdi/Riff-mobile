@@ -109,6 +109,9 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
               borderRadius: BorderRadius.circular(10),
               child: CachedNetworkImage(
                 imageUrl: cover,
+                // Decode at display size, not full resolution.
+                memCacheHeight:
+                    (180 * MediaQuery.devicePixelRatioOf(context)).round(),
                 width: 120,
                 height: 180,
                 fit: BoxFit.cover,

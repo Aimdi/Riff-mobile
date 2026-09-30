@@ -413,9 +413,15 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
 
                                   // if the panel is open ignore pointers (touch events) on the collapsed
                                   // child so that way touch events go through to whatever is underneath
-                                  child: IgnorePointer(
-                                      ignoring: _isPanelOpen,
-                                      child: widget.collapsed),
+                                  // Re-evaluated as the panel animates (was
+                                  // only read at build, so the invisible
+                                  // strip kept eating taps once open).
+                                  child: AnimatedBuilder(
+                                    animation: _ac,
+                                    builder: (context, child) => IgnorePointer(
+                                        ignoring: _isPanelOpen, child: child),
+                                    child: widget.collapsed,
+                                  ),
                                 ),
                         ),
                       ),
@@ -430,6 +436,7 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
   @override
   void dispose() {
     _ac.dispose();
+    _sc.dispose();
     super.dispose();
   }
 
@@ -507,13 +514,12 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
     // whether to enable scrolling if the user swipes up, or disable closing and
     // begin to close the panel if the user swipes down
     if (_isPanelOpen && _sc.hasClients && _sc.offset <= 0) {
-      setState(() {
-        if (dy < 0) {
-          _scrollingEnabled = true;
-        } else {
-          _scrollingEnabled = false;
-        }
-      });
+      // Only rebuild when the flag flips — this runs on every pointer move,
+      // and an unconditional setState rebuilt the whole queue at 60-120 Hz.
+      final enabled = dy < 0;
+      if (enabled != _scrollingEnabled) {
+        setState(() => _scrollingEnabled = enabled);
+      }
     }
   }
 

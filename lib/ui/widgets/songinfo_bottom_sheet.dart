@@ -68,10 +68,26 @@ class SongInfoBottomSheet extends StatelessWidget {
   final bool calledFromPlayer;
   final bool calledFromQueue;
 
+  /// Reuses the sheet's controller across rebuilds (Get.put in build used to
+  /// construct — and run the Hive lookups of — a throwaway controller every
+  /// time). A leftover controller for another song is replaced, so a new
+  /// sheet always shows fresh data.
+  static SongInfoController _controllerFor(
+      MediaItem song, bool calledFromPlayer) {
+    if (Get.isRegistered<SongInfoController>()) {
+      final existing = Get.find<SongInfoController>();
+      if (existing.song.id == song.id &&
+          existing.calledFromPlayer == calledFromPlayer) {
+        return existing;
+      }
+      Get.delete<SongInfoController>(force: true);
+    }
+    return Get.put(SongInfoController(song, calledFromPlayer));
+  }
+
   @override
   Widget build(BuildContext context) {
-    final songInfoController =
-        Get.put(SongInfoController(song, calledFromPlayer));
+    final songInfoController = _controllerFor(song, calledFromPlayer);
     final playerController = Get.find<PlayerController>();
     return Padding(
       // Callers should use useRootNavigator: true so the sheet clears the
@@ -89,8 +105,7 @@ class SongInfoBottomSheet extends StatelessWidget {
               onTap: () async {
                 if (Get.isRegistered<PlayerController>() &&
                     playerController.currentSong.value?.id != song.id) {
-                  final ok =
-                      await playerController.playPlayListSong([song], 0);
+                  final ok = await playerController.playPlayListSong([song], 0);
                   if (!context.mounted) return;
                   if (ok) {
                     Navigator.of(context).maybePop();
@@ -283,7 +298,10 @@ class SongInfoBottomSheet extends StatelessWidget {
                       }
                       Get.toNamed(ScreenNavigationSetup.albumScreen,
                           id: ScreenNavigationSetup.id,
-                          arguments: (null, (song.extras?['album'] as Map?)?['id']));
+                          arguments: (
+                            null,
+                            (song.extras?['album'] as Map?)?['id']
+                          ));
                     },
                   )
                 : const SizedBox.shrink(),
@@ -418,18 +436,18 @@ class SongInfoBottomSheet extends StatelessWidget {
               ),
             ),
             ListTile(
-                contentPadding: const EdgeInsets.only(left: 15),
-                visualDensity: const VisualDensity(vertical: -1),
-                leading: const Icon(Icons.timer),
-                title: Text("sleepTimer".tr),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  final sheetContext =
-                      playerController.homeScaffoldkey.currentContext ??
-                          Get.context;
-                  showSleepTimerSheet(sheetContext);
-                },
-              ),
+              contentPadding: const EdgeInsets.only(left: 15),
+              visualDensity: const VisualDensity(vertical: -1),
+              leading: const Icon(Icons.timer),
+              title: Text("sleepTimer".tr),
+              onTap: () {
+                Navigator.of(context).pop();
+                final sheetContext =
+                    playerController.homeScaffoldkey.currentContext ??
+                        Get.context;
+                showSleepTimerSheet(sheetContext);
+              },
+            ),
             ListTile(
               contentPadding: const EdgeInsets.only(left: 15),
               visualDensity: const VisualDensity(vertical: -1),

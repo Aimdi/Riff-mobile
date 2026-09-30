@@ -231,12 +231,38 @@ class Player extends StatelessWidget {
 
           /// show player ui based on selected player ui in settings
           /// Gesture player is only applicable for mobile
-          body: settingsScreenController.playerUi.value == 0
-              ? const StandardPlayer()
-              : const GesturePlayer(),
+          /// Tickers (ambient canvas backdrop, play-button morph) are muted
+          /// while the full player is collapsed behind the mini player —
+          /// SlidingUpPanel always builds the panel, so they'd otherwise
+          /// repaint full-screen layers every frame forever.
+          body: _PlayerBodyTickerMode(
+            playerController: playerController,
+            child: settingsScreenController.playerUi.value == 0
+                ? const StandardPlayer()
+                : const GesturePlayer(),
+          ),
         ),
       ),
     );
+  }
+}
+
+/// Enables tickers below [child] only while the player panel is visibly
+/// expanded (past the mini-player cross-fade zone).
+class _PlayerBodyTickerMode extends StatelessWidget {
+  const _PlayerBodyTickerMode({
+    required this.playerController,
+    required this.child,
+  });
+  final PlayerController playerController;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() => TickerMode(
+          enabled: !playerController.isPlayerpanelTopVisible.value,
+          child: child,
+        ));
   }
 }
 

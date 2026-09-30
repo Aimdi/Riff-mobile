@@ -354,6 +354,9 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
               borderRadius: BorderRadius.circular(4),
               child: CachedNetworkImage(
                 imageUrl: art,
+                // Decode at display size, not full resolution.
+                memCacheWidth:
+                    (48 * MediaQuery.devicePixelRatioOf(context)).round(),
                 width: 48,
                 height: 48,
                 fit: BoxFit.cover,
@@ -493,6 +496,9 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
               borderRadius: BorderRadius.circular(8),
               child: CachedNetworkImage(
                 imageUrl: art,
+                // Decode at display size, not full resolution.
+                memCacheWidth:
+                    (124 * MediaQuery.devicePixelRatioOf(context)).round(),
                 width: 124,
                 height: 124,
                 fit: BoxFit.cover,
@@ -565,6 +571,9 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
               borderRadius: BorderRadius.circular(8),
               child: CachedNetworkImage(
                 imageUrl: art,
+                // Decode at display size, not full resolution.
+                memCacheWidth:
+                    (124 * MediaQuery.devicePixelRatioOf(context)).round(),
                 width: 124,
                 height: 124,
                 fit: BoxFit.cover,
@@ -634,6 +643,9 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
             ClipOval(
               child: CachedNetworkImage(
                 imageUrl: art,
+                // Decode at display size, not full resolution.
+                memCacheWidth:
+                    (116 * MediaQuery.devicePixelRatioOf(context)).round(),
                 width: 116,
                 height: 116,
                 fit: BoxFit.cover,

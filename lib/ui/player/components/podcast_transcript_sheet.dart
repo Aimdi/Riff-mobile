@@ -35,6 +35,27 @@ class PodcastTranscriptSheet extends StatefulWidget {
   State<PodcastTranscriptSheet> createState() => _PodcastTranscriptSheetState();
 }
 
+/// Index of the last cue starting at/before [posSec] (-1 before the first).
+/// [hint] (the previous result) makes the common "same cue" case O(1).
+int transcriptActiveIndex(List<PodcastTranscriptCue> cues, double posSec,
+    {int hint = -1}) {
+  if (hint >= 0 &&
+      hint < cues.length &&
+      cues[hint].startSec <= posSec &&
+      (hint + 1 == cues.length || cues[hint + 1].startSec > posSec)) {
+    return hint;
+  }
+  var active = -1;
+  for (var i = 0; i < cues.length; i++) {
+    if (cues[i].startSec <= posSec) {
+      active = i;
+    } else {
+      break;
+    }
+  }
+  return active;
+}
+
 class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
   late final Future<List<PodcastTranscriptCue>> _future;
   final _scroll = ItemScrollController();
@@ -43,22 +64,50 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
   bool _follow = true;
   int _lastAutoScrolled = -1;
 
+  final _player = Get.find<PlayerController>();
+
+  /// Active cue, updated from the 10 Hz progress tick but only notifying when
+  /// the cue changes — so only the two affected rows rebuild, instead of the
+  /// whole list every tick.
+  final _active = ValueNotifier<int>(-1);
+  List<PodcastTranscriptCue> _cues = const [];
+  Worker? _progressWorker;
+
   @override
   void initState() {
     super.initState();
     _future = PodcastService.transcript(widget.url, type: widget.type);
+    _future.then((cues) {
+      if (!mounted) return;
+      _cues = cues.isNotEmpty && cues.first.startSec >= 0 ? cues : const [];
+      _updateActive();
+    });
+    _progressWorker = ever(_player.progressBarStatus, (_) => _updateActive());
+    _active.addListener(_maybeFollow);
   }
 
-  int _activeIndex(List<PodcastTranscriptCue> cues, double posSec) {
-    var active = -1;
-    for (var i = 0; i < cues.length; i++) {
-      if (cues[i].startSec <= posSec) {
-        active = i;
-      } else {
-        break;
-      }
+  @override
+  void dispose() {
+    _progressWorker?.dispose();
+    _active.dispose();
+    super.dispose();
+  }
+
+  void _updateActive() {
+    if (_cues.isEmpty) return;
+    final posSec =
+        _player.progressBarStatus.value.current.inMilliseconds / 1000.0;
+    _active.value = transcriptActiveIndex(_cues, posSec, hint: _active.value);
+  }
+
+  void _maybeFollow() {
+    final active = _active.value;
+    if (_follow && active >= 0 && active != _lastAutoScrolled) {
+      _lastAutoScrolled = active;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _follow) _scrollTo(active);
+      });
     }
-    return active;
   }
 
   void _scrollTo(int index, {bool jump = false}) {
@@ -163,29 +212,20 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
             }
             return false;
           },
-          child: Obx(() {
-            final posSec = playerController
-                    .progressBarStatus.value.current.inMilliseconds /
-                1000.0;
-            final active = _activeIndex(cues, posSec);
-            if (_follow && active >= 0 && active != _lastAutoScrolled) {
-              _lastAutoScrolled = active;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted && _follow) _scrollTo(active);
-              });
-            }
-            return ScrollablePositionedList.builder(
-              itemScrollController: _scroll,
-              padding: const EdgeInsets.only(bottom: 70),
-              itemCount: cues.length,
-              itemBuilder: (context, i) {
+          child: ScrollablePositionedList.builder(
+            itemScrollController: _scroll,
+            padding: const EdgeInsets.only(bottom: 70),
+            itemCount: cues.length,
+            itemBuilder: (context, i) => ValueListenableBuilder<int>(
+              valueListenable: _active,
+              builder: (context, active, _) {
                 final cue = cues[i];
                 final isActive = i == active;
                 return InkWell(
                   borderRadius: BorderRadius.circular(8),
                   onTap: () {
-                    playerController.seek(Duration(
-                        milliseconds: (cue.startSec * 1000).round()));
+                    playerController.seek(
+                        Duration(milliseconds: (cue.startSec * 1000).round()));
                     setState(() => _follow = true);
                     _scrollTo(i);
                   },
@@ -214,9 +254,8 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
                             style: theme.textTheme.bodyMedium?.copyWith(
                               height: 1.35,
                               color: isActive ? accent : normal,
-                              fontWeight: isActive
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
+                              fontWeight:
+                                  isActive ? FontWeight.w600 : FontWeight.w400,
                             ),
                           ),
                         ),
@@ -225,8 +264,8 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
                   ),
                 );
               },
-            );
-          }),
+            ),
+          ),
         ),
         if (!_follow)
           Align(
@@ -240,6 +279,7 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
                 onPressed: () {
                   setState(() => _follow = true);
                   _lastAutoScrolled = -1;
+                  _maybeFollow();
                 },
               ),
             ),
