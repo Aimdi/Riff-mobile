@@ -1534,6 +1534,9 @@ class PlayerController extends GetxController
   void setSpeedAndPitch({required double speed, required double pitch}) {
     _audioHandler
         .customAction("setSpeedAndPitch", {"speed": speed, "pitch": pitch});
+    if (_videoModeActive) {
+      Get.find<VideoModeController>().setVideoSpeed(speed);
+    }
   }
 
   /// Re-applies the full audio-effect chain from persisted settings.

@@ -18,6 +18,7 @@ import '/services/discovery/discovery_service.dart';
 import '/services/listenbrainz_service.dart';
 import '/services/music_service.dart';
 import '/services/video_stream_service.dart';
+import '/ui/player/video_mode_controller.dart';
 import '/services/yt_auth_service.dart';
 import 'yt_login_screen.dart';
 import '../Home/home_screen_controller.dart';
@@ -262,6 +263,34 @@ class SettingsScreen extends StatelessWidget {
                           ),
                         ],
                         onChanged: settingsController.setVideoQuality,
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    contentPadding: const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("videoEngine".tr),
+                    subtitle: Text("videoEngineDes".tr,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    trailing: Obx(
+                      () => DropdownButton(
+                        dropdownColor: Theme.of(context).cardColor,
+                        underline: const SizedBox.shrink(),
+                        // Lite APK: no mpv item, so never select it.
+                        value: VideoModeController.engineAvailable
+                            ? settingsController.videoEngine.value
+                            : 'exo',
+                        items: [
+                          DropdownMenuItem(
+                            value: 'exo',
+                            child: Text("videoEngineExo".tr),
+                          ),
+                          if (VideoModeController.engineAvailable)
+                            DropdownMenuItem(
+                              value: 'mpv',
+                              child: Text("videoEngineMpv".tr),
+                            ),
+                        ],
+                        onChanged: settingsController.setVideoEngine,
                       ),
                     ),
                   ),
@@ -899,6 +928,38 @@ class SettingsScreen extends StatelessWidget {
                                 .podcastContinuousPlaybackEnabled.value,
                             onChanged: settingsController
                                 .togglePodcastContinuousPlayback),
+                      );
+                  }),
+                  Obx(() {
+                    if (!settingsController.settingsMatch(
+                        'youtubePodcasts'.tr, 'youtubePodcastsDes'.tr)) {
+                      return const SizedBox.shrink();
+                    }
+                    return ListTile(
+                        contentPadding:
+                            const EdgeInsets.only(left: 5, right: 10),
+                        title: Text("youtubePodcasts".tr),
+                        subtitle: Text("youtubePodcastsDes".tr,
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        trailing: CustSwitch(
+                            value: settingsController.youtubePodcastsEnabled.value,
+                            onChanged: settingsController.toggleYoutubePodcasts),
+                      );
+                  }),
+                  Obx(() {
+                    if (!settingsController.settingsMatch(
+                        'podcastVideo'.tr, 'podcastVideoDes'.tr)) {
+                      return const SizedBox.shrink();
+                    }
+                    return ListTile(
+                        contentPadding:
+                            const EdgeInsets.only(left: 5, right: 10),
+                        title: Text("podcastVideo".tr),
+                        subtitle: Text("podcastVideoDes".tr,
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        trailing: CustSwitch(
+                            value: settingsController.podcastVideoEnabled.value,
+                            onChanged: settingsController.togglePodcastVideo),
                       );
                   }),
                 ],

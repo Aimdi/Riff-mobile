@@ -4,8 +4,7 @@ import 'package:audio_service/audio_service.dart' show MediaItem;
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '/models/hm_streaming_data.dart';
 import '/services/client_config_service.dart';
@@ -15,15 +14,20 @@ import '/services/video_stream_service.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/utils/helper.dart';
 import '/utils/media_item_video.dart';
+import 'mpv_video_engine.dart';
 import 'player_controller.dart';
+import 'video_engine.dart';
 import 'video_handoff.dart';
 
 /// Video mode: plays the current YouTube track as real video, the way a
-/// video player does it — ONE mpv engine is given the video-only stream
-/// plus the same audio-only stream the music pipeline uses, and schedules
-/// video frames against the audio clock. There is no app-level drift
-/// correction (rate nudges / periodic seeks) because two engines never run
-/// at once, so nothing can drift.
+/// video player does it — ONE engine is given the video-only stream plus
+/// the same audio-only stream the music pipeline uses, and schedules video
+/// frames against the audio clock. There is no app-level drift correction
+/// because two engines never run at once, so nothing can drift.
+///
+/// The engine is ExoPlayer (`RiffVideoPlayer.kt`, NewPipe / WizeStream
+/// style) by default, or mpv when chosen in Settings; if ExoPlayer can't
+/// start a stream, mpv gets one try before giving up.
 ///
 /// The audio pipeline (just_audio/ExoPlayer) is paused while video mode is
 /// active and takes over again — at the video's position — when the pane
@@ -31,11 +35,13 @@ import 'video_handoff.dart';
 /// playing with working notification controls).
 class VideoModeController extends GetxController with WidgetsBindingObserver {
   /// Set at startup when the mpv library loaded. False in the lite
-  /// (audio-only) APK, where the engine is stripped — video mode's UI
-  /// then hides entirely.
+  /// (audio-only) APK, where the mpv engine is stripped.
   static bool engineAvailable = false;
 
-  /// The video pane is showing and mpv owns playback.
+  /// The native ExoPlayer engine ships in every Android build.
+  static bool get nativeEngineAvailable => GetPlatform.isAndroid;
+
+  /// The video pane is showing and an engine owns playback.
   final isActive = false.obs;
   final isLoading = false.obs;
   final isVideoPlaying = false.obs;
@@ -43,13 +49,20 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
   /// Width/height of the loaded video (for aspect ratio); 16:9 fallback.
   final videoAspect = (16 / 9).obs;
 
-  Player? _player;
-  VideoController? videoController;
+  VideoEngine? _engine;
   String? _activeSongId;
   final List<StreamSubscription> _subs = [];
   Worker? _songWorker;
 
+  /// Engine currently holding the video frames (null when inactive).
+  VideoEngine? get engine => isActive.value ? _engine : null;
+
   PlayerController get _pc => Get.find<PlayerController>();
+
+  SettingsScreenController? get _settings =>
+      Get.isRegistered<SettingsScreenController>()
+          ? Get.find<SettingsScreenController>()
+          : null;
 
   @override
   void onInit() {
@@ -70,9 +83,8 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _songWorker?.dispose();
     _unwire();
-    _player?.dispose();
-    _player = null;
-    videoController = null;
+    _engine?.dispose();
+    _engine = null;
     super.onClose();
   }
 
@@ -86,11 +98,28 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
   }
 
   /// Video mode exists for YouTube videos (and YT-sourced podcast
-  /// episodes) on Android builds that bundle the engine.
+  /// episodes) on Android.
   bool availableFor(MediaItem? song) {
-    if (!engineAvailable) return false;
+    if (!engineAvailable && !nativeEngineAvailable) return false;
     if (song == null || !GetPlatform.isAndroid) return false;
     return song.canShowPlayerVideo;
+  }
+
+  String? get _preferredEngine => chooseVideoEngine(
+        preference: _settings?.videoEngine.value,
+        exoAvailable: nativeEngineAvailable,
+        mpvAvailable: engineAvailable,
+      );
+
+  /// Reuse the engine of the right kind, or swap it for a fresh one.
+  Future<VideoEngine> _engineFor(String id) async {
+    final current = _engine;
+    if (current != null && current.id == id) return current;
+    _unwire();
+    await current?.dispose();
+    final created = id == 'mpv' ? MpvVideoEngine() : ExoVideoEngine();
+    _engine = created;
+    return created;
   }
 
   /// Switch the current track to video. Returns false when no video (or
@@ -113,18 +142,16 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
         _pc.buttonState.value == PlayButtonState.playing ||
         isVideoPlaying.value;
     try {
-      final quality = Get.isRegistered<SettingsScreenController>()
-          ? Get.find<SettingsScreenController>().videoQuality.value
-          : VideoQuality.high;
-      final video = await VideoStreamService.resolve(song!.id,
-          quality: quality);
+      final quality = _settings?.videoQuality.value ?? VideoQuality.high;
+      final video =
+          await VideoStreamService.resolve(song!.id, quality: quality);
       if (video == null) {
         _resumeAudioIfVideoEnableFailed(wasPlayingBeforeAttempt: wasPlaying);
         return false;
       }
       // Same audio stream the music pipeline plays — quality unchanged.
-      final audioUrl = await _audioUrlFor(song.id);
-      if (audioUrl == null) {
+      final audioUrl = video.hasAudio ? null : await _audioUrlFor(song.id);
+      if (!video.hasAudio && audioUrl == null) {
         _resumeAudioIfVideoEnableFailed(wasPlayingBeforeAttempt: wasPlaying);
         return false;
       }
@@ -133,28 +160,43 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
         return false;
       }
 
+      final preferred = _preferredEngine;
+      if (preferred == null) {
+        _resumeAudioIfVideoEnableFailed(wasPlayingBeforeAttempt: wasPlaying);
+        return false;
+      }
       final position = _pc.progressBarStatus.value.current;
-      _player ??= Player(
-          configuration: const PlayerConfiguration(title: 'Riff video'));
-      videoController ??= VideoController(_player!);
-      final p = _player!;
+      final speed = _settings?.playbackSpeed.value ?? 1.0;
       videoAspect.value = video.aspectRatio;
-      await p.open(Media(video.url, start: position), play: false);
-      // Attach the audio track to the SAME engine (mpv audio-add): this is
-      // what makes A/V sync the engine's job instead of the app's.
-      await p.setAudioTrack(AudioTrack.uri(audioUrl));
-      _wire(p);
-      // Silence guard: the video-only stream carries NO audio of its own.
-      // If the external track failed to attach, playback would "run"
-      // silently — retry once, then hand back to the audio pipeline.
-      _armSilenceGuard(p, song.id, audioUrl);
+      VideoEngine engine;
+      try {
+        engine = await _engineFor(preferred);
+        await engine.open(
+          videoUrl: video.url,
+          audioUrl: audioUrl,
+          start: position,
+          speed: speed,
+        );
+      } catch (e) {
+        // ExoPlayer refused the stream: give mpv one try when it's bundled.
+        if (preferred != 'exo' || !engineAvailable) rethrow;
+        printERROR('Video mode: ExoPlayer failed ($e) — trying mpv');
+        engine = await _engineFor('mpv');
+        await engine.open(
+          videoUrl: video.url,
+          audioUrl: audioUrl,
+          start: position,
+          speed: speed,
+        );
+      }
+      _wire(engine);
       _activeSongId = song.id;
       isActive.value = true;
       // Pause audio only now that video can take over — otherwise the
       // play button sits on a spinner in silence while the stream resolves.
       if (wasPlaying) {
         _pc.pause();
-        await p.play();
+        await engine.play();
       }
       return true;
     } catch (e) {
@@ -182,22 +224,21 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
   /// video's position (a single handoff seek — engines never overlap).
   Future<void> disable({bool resume = true}) async {
     if (!isActive.value) return;
-    final p = _player;
+    final e = _engine;
     var wasPlaying = false;
     var pos = Duration.zero;
-    if (p != null) {
-      wasPlaying = p.state.playing;
-      pos = p.state.position;
+    if (e != null) {
+      wasPlaying = e.isPlaying;
+      pos = e.position;
     }
     isActive.value = false; // before seek/play so transport routes to audio
     _unwire();
     _activeSongId = null;
-    isVideoPlaying.value = false;
+    _setVideoPlaying(false);
     try {
-      await p?.pause();
-      await p?.stop();
-    } catch (e) {
-      printERROR('Video mode stop failed: $e');
+      await e?.stop();
+    } catch (err) {
+      printERROR('Video mode stop failed: $err');
     }
     if (resume) {
       _pc.seek(pos);
@@ -217,59 +258,55 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
     }
   }
 
-  /// The video-only stream has no audio track; if `audio-add` failed the
-  /// engine would advance silently. Verify a real audio track exists once
-  /// playback is underway; retry the attach once, then bail back to the
-  /// audio pipeline so the user never sits in silent "playback".
-  void _armSilenceGuard(Player p, String songId, String audioUrl,
-      {bool retried = false}) {
-    Future.delayed(const Duration(seconds: 3), () async {
-      if (!isActive.value || _activeSongId != songId || _player != p) return;
-      final hasRealAudio = p.state.tracks.audio
-          .any((t) => t.id != 'auto' && t.id != 'no' && t.id.isNotEmpty);
-      if (hasRealAudio) return;
-      if (!retried) {
-        printERROR('Video mode: audio track missing — retrying attach');
-        try {
-          await p.setAudioTrack(AudioTrack.uri(audioUrl));
-        } catch (e) {
-          printERROR('Video mode: audio re-attach failed: $e');
-        }
-        _armSilenceGuard(p, songId, audioUrl, retried: true);
-        return;
-      }
-      printERROR(
-          'Video mode: no audio track after retry — handing back to audio');
-      await disable(); // resumes the audio pipeline at the same position
-    });
+  /// Transport while video mode is active (routed from PlayerController).
+  void playPauseVideo() {
+    final e = _engine;
+    if (e == null) return;
+    e.isPlaying ? e.pause() : e.play();
   }
 
-  /// Transport while video mode is active (routed from PlayerController).
-  void playPauseVideo() => _player?.playOrPause();
+  void seekVideo(Duration position) => _engine?.seek(position);
 
-  void seekVideo(Duration position) => _player?.seek(position);
+  /// Keep the video at the same speed as the audio pipeline (podcasts at
+  /// 1.5× shouldn't drop to 1× when video turns on).
+  void setVideoSpeed(double speed) {
+    if (isActive.value) _engine?.setSpeed(speed);
+  }
 
-  void _wire(Player p) {
+  void _setVideoPlaying(bool playing) {
+    isVideoPlaying.value = playing;
+    // Watching video: keep the screen on. When it stops, leave the lock to
+    // the "keep screen awake" setting (PlayerController) if that's on.
+    try {
+      if (playing) {
+        WakelockPlus.enable();
+      } else if (_settings?.keepScreenAwake.isTrue != true) {
+        WakelockPlus.disable();
+      }
+    } catch (_) {}
+  }
+
+  void _wire(VideoEngine e) {
     _unwire();
-    _subs.add(p.stream.position.listen((pos) {
+    _subs.add(e.positionStream.listen((pos) {
       if (!isActive.value) return;
       _pc.progressBarStatus.update((val) {
         val!.current = pos;
       });
     }));
-    _subs.add(p.stream.buffer.listen((buf) {
+    _subs.add(e.bufferStream.listen((buf) {
       if (!isActive.value) return;
       _pc.progressBarStatus.update((val) {
         val!.buffered = buf;
       });
     }));
-    _subs.add(p.stream.playing.listen((playing) {
+    _subs.add(e.playingStream.listen((playing) {
       if (!isActive.value) return;
-      isVideoPlaying.value = playing;
+      _setVideoPlaying(playing);
       _pc.buttonState.value =
           playing ? PlayButtonState.playing : PlayButtonState.paused;
     }));
-    _subs.add(p.stream.buffering.listen((buffering) {
+    _subs.add(e.bufferingStream.listen((buffering) {
       if (!isActive.value) return;
       // Don't swap the transport to a spinner. Video streams rebuffer
       // often; the playing stream already drives play/pause.
@@ -277,17 +314,20 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
         _pc.buttonState.value = PlayButtonState.playing;
       }
     }));
-    _subs.add(p.stream.videoParams.listen((params) {
-      final w = params.dw ?? 0;
-      final h = params.dh ?? 0;
-      if (w > 0 && h > 0) videoAspect.value = w / h;
+    _subs.add(e.aspectStream.listen((aspect) {
+      if (aspect > 0) videoAspect.value = aspect;
     }));
-    _subs.add(p.stream.completed.listen((done) async {
-      if (!done || !isActive.value) return;
+    _subs.add(e.completedStream.listen((_) async {
+      if (!isActive.value) return;
       // Video finished — hand back and advance the queue naturally.
       await disable(resume: false);
       final ok = await _pc.next();
       if (!ok) _pc.notifyPlayError('streamPlaybackFailed');
+    }));
+    _subs.add(e.errorStream.listen((message) async {
+      if (!isActive.value) return;
+      printERROR('Video engine ${e.id} error: $message — back to audio');
+      await disable(); // resumes the audio pipeline at the same position
     }));
   }
 

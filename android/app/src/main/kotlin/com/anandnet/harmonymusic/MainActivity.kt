@@ -13,6 +13,9 @@ class MainActivity : AudioServiceActivity() {
 
     private val resolverExecutor = Executors.newSingleThreadExecutor()
 
+    /** Native ExoPlayer video engine (video mode). */
+    private var videoPlayer: RiffVideoPlayer? = null
+
     // Native audio-effect chain bound to the player's audio session
     // (RiPlay-style). All effects are held so they survive across calls and
     // are recreated if the session id changes (new ExoPlayer instance).
@@ -79,6 +82,12 @@ class MainActivity : AudioServiceActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        videoPlayer?.dispose()
+        videoPlayer = RiffVideoPlayer(
+            applicationContext,
+            flutterEngine.renderer,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
         val mainHandler = Handler(Looper.getMainLooper())
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
@@ -180,5 +189,11 @@ class MainActivity : AudioServiceActivity() {
                 else -> result.notImplemented()
             }
         }
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        videoPlayer?.dispose()
+        videoPlayer = null
+        super.cleanUpFlutterEngine(flutterEngine)
     }
 }

@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 
 import '/models/playlist.dart';
 import '/models/thumbnail.dart';
+import '/services/discovery/discovery_types.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
@@ -727,9 +728,32 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
     final suggestions = controller.featuredPodcasts.toList();
     final discoverySeeds =
         _discoverySeeds.where(_discoveryRows.containsKey).toList();
+    final showYoutube = controller.youtubePodcastsEnabled;
+    final ytEpisodes = controller.ytPopularEpisodes.toList();
+    final ytShows = controller.ytPopularShows.toList();
+    if (showYoutube &&
+        ytShows.isEmpty &&
+        ytEpisodes.isEmpty &&
+        controller.isYtLoading.isFalse) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => controller.loadYoutubePodcasts());
+    }
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
       slivers: [
+        // ── YouTube Podcasts: popular episodes (video) + shows ──
+        if (showYoutube && ytEpisodes.isNotEmpty)
+          SliverToBoxAdapter(
+            child: _VideoEpisodeRow(
+              title: 'ytPopularEpisodes'.tr,
+              episodes: ytEpisodes,
+            ),
+          ),
+        if (showYoutube && ytShows.isNotEmpty)
+          SliverToBoxAdapter(
+            child: _PodcastCarousel(
+                title: 'ytPopularPodcasts'.tr, podcasts: ytShows),
+          ),
         // ── Discovery: listeners of X also enjoy ────────────────
         if (discoverySeeds.isNotEmpty)
           SliverList(
@@ -916,6 +940,134 @@ class _EpisodeDiscoveryRow extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// YouTube podcast episodes as 16:9 video cards (they are videos, so a
+/// square crop would cut faces and titles out of the thumbnail).
+class _VideoEpisodeRow extends StatelessWidget {
+  const _VideoEpisodeRow({required this.title, required this.episodes});
+  final String title;
+  final List<MediaItem> episodes;
+
+  static String _clock(Duration? d) {
+    if (d == null || d == Duration.zero) return '';
+    final h = d.inHours;
+    final m = d.inMinutes.remainder(60).toString().padLeft(h > 0 ? 2 : 1, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return h > 0 ? '$h:$m:$s' : '$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final player = Get.find<PlayerController>();
+    final theme = Theme.of(context);
+    const cardWidth = 224.0;
+    const thumbHeight = cardWidth * 9 / 16;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 5, top: 8, bottom: 6),
+          child: Text(title, style: theme.textTheme.titleLarge),
+        ),
+        SizedBox(
+          height: thumbHeight + 62,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 5),
+            physics: const BouncingScrollPhysics(),
+            itemCount: episodes.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, i) {
+              final ep = episodes[i];
+              final clock = _clock(ep.duration);
+              final art = ep.artUri?.toString() ?? '';
+              return SizedBox(
+                width: cardWidth,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () async {
+                    final ok = await player.playPlayListSong(episodes, i,
+                        source: DiscoverySource.podcast);
+                    if (!ok) snackOperationFailed();
+                  },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: SizedBox(
+                          width: cardWidth,
+                          height: thumbHeight,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              if (art.isNotEmpty)
+                                CachedNetworkImage(
+                                  imageUrl: art,
+                                  httpHeaders: kCoverImageHeaders,
+                                  fit: BoxFit.cover,
+                                  memCacheWidth: 480,
+                                  errorWidget: (_, __, ___) =>
+                                      ColoredBox(color: theme.cardColor),
+                                  placeholder: (_, __) =>
+                                      ColoredBox(color: theme.cardColor),
+                                )
+                              else
+                                ColoredBox(color: theme.cardColor),
+                              if (clock.isNotEmpty)
+                                Positioned(
+                                  right: 6,
+                                  bottom: 6,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.75),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      clock,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        ep.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: theme.textTheme.titleMedium?.color,
+                          fontWeight: FontWeight.w600,
+                          height: 1.2,
+                        ),
+                      ),
+                      if ((ep.artist ?? '').isNotEmpty)
+                        Text(
+                          ep.artist!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall,
                         ),
                     ],
                   ),

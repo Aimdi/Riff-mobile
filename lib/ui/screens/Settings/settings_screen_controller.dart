@@ -38,6 +38,12 @@ class SettingsScreenController extends GetxController {
   /// AntennaPod-experimental style: auto-advance to the next podcast episode
   /// when one ends (queue or feed list already loaded into the player queue).
   final podcastContinuousPlaybackEnabled = true.obs;
+
+  /// Browse / search YouTube's own Podcasts catalog (WizeStream-style).
+  final youtubePodcastsEnabled = true.obs;
+
+  /// YouTube podcast episodes open as video in the player by default.
+  final podcastVideoEnabled = true.obs;
   final loudnessNormalizationEnabled = false.obs;
   final ytConnected = false.obs;
   final playbackSpeed = 1.0.obs;
@@ -52,6 +58,9 @@ class SettingsScreenController extends GetxController {
   final streamingQuality = AudioQuality.High.obs;
   /// In-player muted video surface (Low = 144–240p, High = ≤720p video-only).
   final videoQuality = VideoQuality.high.obs;
+
+  /// Video mode engine: `exo` (ExoPlayer, default) or `mpv`.
+  final videoEngine = 'exo'.obs;
   /// Synced lyrics provider preference (Settings → Listening).
   final lyricsSource = LyricsSource.betterLyrics.obs;
   /// Force low streaming quality to save mobile data.
@@ -173,6 +182,8 @@ class SettingsScreenController extends GetxController {
         setBox.get("podcastAutoSkipAds") ?? true;
     podcastContinuousPlaybackEnabled.value =
         setBox.get("podcastContinuousPlayback") ?? true;
+    youtubePodcastsEnabled.value = setBox.get("youtubePodcasts") != false;
+    podcastVideoEnabled.value = setBox.get("podcastShowVideo") != false;
     loudnessNormalizationEnabled.value = isDesktop
         ? false
         : (setBox.get("loudnessNormalizationEnabled") ?? false);
@@ -201,6 +212,8 @@ class SettingsScreenController extends GetxController {
       streamingQuality.value = AudioQuality.High;
       setBox.put('streamingQuality', AudioQuality.High.index);
     }
+    final engine = setBox.get('videoEngine');
+    videoEngine.value = engine == 'mpv' ? 'mpv' : 'exo';
     final videoQIndex = setBox.get('videoQuality');
     if (videoQIndex is int &&
         videoQIndex >= 0 &&
@@ -280,6 +293,12 @@ class SettingsScreenController extends GetxController {
   void setStreamingQuality(dynamic val) {
     setBox.put("streamingQuality", AudioQuality.values.indexOf(val));
     streamingQuality.value = val;
+  }
+
+  void setVideoEngine(dynamic val) {
+    if (val != 'exo' && val != 'mpv') return;
+    setBox.put('videoEngine', val);
+    videoEngine.value = val;
   }
 
   void setVideoQuality(dynamic val) {
@@ -520,6 +539,16 @@ class SettingsScreenController extends GetxController {
   void togglePodcastContinuousPlayback(bool val) {
     setBox.put('podcastContinuousPlayback', val);
     podcastContinuousPlaybackEnabled.value = val;
+  }
+
+  void toggleYoutubePodcasts(bool val) {
+    setBox.put('youtubePodcasts', val);
+    youtubePodcastsEnabled.value = val;
+  }
+
+  void togglePodcastVideo(bool val) {
+    setBox.put('podcastShowVideo', val);
+    podcastVideoEnabled.value = val;
   }
 
   void toggleSponsorBlock(bool val) {

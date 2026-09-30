@@ -9,8 +9,32 @@ import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/music_service.dart';
 import '/services/podcast_service.dart';
+import '/services/youtube_podcast_service.dart';
+import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/widgets/sort_widget.dart';
 import '/utils/youtube_channel_url.dart';
+
+/// A YouTube Podcasts show as a library podcast. YouTube Music serves the
+/// same show at `MPSP` + playlist id, so Follow, Inbox and the episode list
+/// reuse the existing YouTube Music podcast paths.
+Playlist ytShowAsPodcast(YtPodcastShow show) {
+  final id = show.playlistId.startsWith('MPSP')
+      ? show.playlistId
+      : 'MPSP${show.playlistId}';
+  final details = [
+    show.author,
+    if ((show.episodeCountText ?? '').isNotEmpty) show.episodeCountText!,
+  ].where((e) => e.trim().isNotEmpty).join(' • ');
+  return Playlist(
+    title: show.title,
+    playlistId: id,
+    thumbnailUrl: show.thumbnailUrl.isNotEmpty
+        ? show.thumbnailUrl
+        : Playlist.thumbPlaceholderUrl,
+    description: details.isEmpty ? 'Podcast' : details,
+    kind: 'podcast',
+  );
+}
 
 class LibraryPodcastsController extends GetxController {
   final libraryPodcasts = <Playlist>[].obs;
@@ -27,9 +51,19 @@ class LibraryPodcastsController extends GetxController {
   final similarSeedTitle = ''.obs;
   final isSimilarLoading = false.obs;
 
+  // YouTube Podcasts (WizeStream-style): YouTube's own podcast catalog.
+  final ytPopularShows = <Playlist>[].obs;
+  final ytPopularEpisodes = <MediaItem>[].obs;
+  final isYtLoading = false.obs;
+
+  bool get youtubePodcastsEnabled =>
+      !Get.isRegistered<SettingsScreenController>() ||
+      Get.find<SettingsScreenController>().youtubePodcastsEnabled.isTrue;
+
   // Discover / directory search (YouTube Music podcasts + channels)
   final searchQuery = ''.obs;
   final searchResults = <Playlist>[].obs;
+
   /// YouTube channels found while searching (subscribe-as-podcast).
   final channelSearchResults = <Playlist>[].obs;
   final isSearching = false.obs;
@@ -45,6 +79,28 @@ class LibraryPodcastsController extends GetxController {
       PodcastService.refreshMissingArtwork();
     });
     loadDiscovery();
+    loadYoutubePodcasts();
+  }
+
+  /// Popular shows + popular episodes from YouTube's Podcasts page.
+  Future<void> loadYoutubePodcasts({bool force = false}) async {
+    if (!youtubePodcastsEnabled || isYtLoading.isTrue) return;
+    if (!force && ytPopularShows.isNotEmpty) return;
+    isYtLoading.value = true;
+    try {
+      final results = await Future.wait([
+        YoutubePodcastService.popularShows()
+            .catchError((_) => <YtPodcastShow>[]),
+        YoutubePodcastService.popularEpisodes()
+            .catchError((_) => <MediaItem>[]),
+      ]);
+      final shows = results[0] as List<YtPodcastShow>;
+      ytPopularShows.assignAll(shows.take(30).map(ytShowAsPodcast));
+      ytPopularEpisodes
+          .assignAll((results[1] as List<MediaItem>).take(20).toList());
+    } finally {
+      isYtLoading.value = false;
+    }
   }
 
   /// Load "similar podcasts" for a random subscription. Cheap & cached, so it
@@ -153,13 +209,15 @@ class LibraryPodcastsController extends GetxController {
       if (channels.isEmpty &&
           (YoutubeChannelUrl.looksLikeYoutubeInput(term) || term.length >= 3)) {
         try {
-          final artistRes =
-              await ms.search(term, filter: 'artists', limit: 8);
+          final artistRes = await ms.search(term, filter: 'artists', limit: 8);
           channels.addAll(_playlistsFromArtistSearch(artistRes));
         } catch (_) {}
       }
 
-      searchResults.assignAll(list);
+      if (youtubePodcastsEnabled) {
+        list.insertAll(0, await _youtubeShowsFor(term, channels));
+      }
+      searchResults.assignAll(_uniqueById(list));
       channelSearchResults.assignAll(_uniqueById(channels));
     } catch (_) {
       searchResults.clear();
@@ -167,6 +225,25 @@ class LibraryPodcastsController extends GetxController {
     } finally {
       isSearching.value = false;
     }
+  }
+
+  /// YouTube podcast search, plus the Podcasts tab of the first channels
+  /// found (a creator's official shows rather than all their uploads).
+  Future<List<Playlist>> _youtubeShowsFor(
+      String term, List<Playlist> channels) async {
+    final out = <Playlist>[];
+    try {
+      out.addAll(
+          (await YoutubePodcastService.searchShows(term)).map(ytShowAsPodcast));
+    } catch (_) {}
+    for (final ch in channels.take(2)) {
+      if (!ch.playlistId.startsWith('UC')) continue;
+      try {
+        out.addAll((await YoutubePodcastService.channelShows(ch.playlistId))
+            .map(ytShowAsPodcast));
+      } catch (_) {}
+    }
+    return out;
   }
 
   List<Playlist> _playlistsFromArtistSearch(Map res) {
@@ -206,8 +283,7 @@ class LibraryPodcastsController extends GetxController {
     return Playlist(
       title: '${data['title'] ?? ''}',
       playlistId: id,
-      thumbnailUrl:
-          thumb.isNotEmpty ? thumb : Playlist.thumbPlaceholderUrl,
+      thumbnailUrl: thumb.isNotEmpty ? thumb : Playlist.thumbPlaceholderUrl,
       description: '${data['description'] ?? 'YouTube channel'}',
       kind: 'yt_channel',
     );
@@ -241,8 +317,7 @@ class LibraryPodcastsController extends GetxController {
   Future<void> addToLibrary(Playlist podcast) async {
     final box = await Hive.openBox('LibraryPodcasts');
     final id = podcast.playlistId;
-    final kind =
-        podcast.kind == 'yt_channel' ? 'yt_channel' : 'podcast';
+    final kind = podcast.kind == 'yt_channel' ? 'yt_channel' : 'podcast';
     final toStore = podcast.copyWith(kind: kind);
     await box.put(id, {
       ...toStore.toJson(),

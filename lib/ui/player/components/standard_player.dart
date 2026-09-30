@@ -32,7 +32,9 @@ class StandardPlayer extends StatelessWidget {
 
     return Obx(() {
       final isVideo = playerController.isCurrentSongVideo;
-      final showVideo = isVideo && AlbumArtNLyrics.videoPlaybackEnabled;
+      final showVideo = isVideo &&
+          AlbumArtNLyrics.videoPlaybackEnabledFor(
+              playerController.currentSong.value);
       final canvasOn = Get.isRegistered<SettingsScreenController>() &&
           Get.find<SettingsScreenController>().playerCanvas.isTrue;
 
