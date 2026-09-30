@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:dio/dio.dart';
 import 'package:get/get.dart';
@@ -127,8 +128,7 @@ class PodcastService {
   /// German/Spanish/etc. user gets that store's genre charts, not the US one.
   static String _storefront() {
     try {
-      final m = RegExp(r'[_-]([A-Za-z]{2})').firstMatch(Platform.localeName);
-      if (m != null) return m.group(1)!.toLowerCase();
+      return storefrontFromLocale(Platform.localeName);
     } catch (_) {}
     return 'us';
   }
@@ -604,105 +604,123 @@ class PodcastService {
 
   /// Fetches a podcast RSS feed and returns its episodes:
   /// [{id, title, description, url, artwork, date, durationSec, podcast}].
+  ///
+  /// The XML parse runs on a background isolate: feeds are often several MB,
+  /// and a DOM walk plus HTML strip on the UI isolate janks scrolling. With
+  /// [maxItems] only the first (feed-order, normally newest) episodes are
+  /// built.
   static Future<List<Map<String, dynamic>>> episodes(
-      String feedUrl, String podcastTitle, String fallbackArt) async {
+      String feedUrl, String podcastTitle, String fallbackArt,
+      {int? maxItems}) async {
     try {
       final res = await _dio.get(feedUrl,
           options: Options(responseType: ResponseType.plain));
-      final doc = XmlDocument.parse(res.data as String);
-      final channelArtRaw = doc
-              .findAllElements('itunes:image')
-              .map((e) => e.getAttribute('href'))
-              .firstWhere((e) => e != null && e.isNotEmpty,
-                  orElse: () => fallbackArt) ??
-          fallbackArt;
-      // Also try <image><url> (RSS 2.0 channel image).
-      final rssImage = doc
-          .findAllElements('image')
-          .map((e) => e.getElement('url')?.innerText.trim())
-          .firstWhere((e) => e != null && e.isNotEmpty, orElse: () => null);
-      // Best channel-level art for episodes with no image of their own:
-      // prefer the RSS 2.0 <image> then itunes:image, upscaled.
-      final channelFallback = (rssImage != null && rssImage.isNotEmpty)
-          ? rssImage
-          : channelArtRaw;
-
-      final items = doc.findAllElements('item');
-      final episodes = <Map<String, dynamic>>[];
-      for (final item in items) {
-        final enclosure = item.findElements('enclosure').firstOrNull;
-        final url = enclosure?.getAttribute('url');
-        if (url == null || url.isEmpty) continue;
-        final title = item.getElement('title')?.innerText.trim() ?? "Episode";
-        final guid = item.getElement('guid')?.innerText.trim() ?? url;
-        final sizeBytes =
-            int.tryParse(enclosure?.getAttribute('length') ?? '') ?? 0;
-        final epArtRaw = item
-                .findElements('itunes:image')
-                .firstOrNull
-                ?.getAttribute('href') ??
-            item
-                .findElements('media:thumbnail')
-                .firstOrNull
-                ?.getAttribute('url') ??
-            item
-                .findElements('media:content')
-                .map((e) => e.getAttribute('url'))
-                .firstWhere(
-                    (u) =>
-                        u != null &&
-                        (u.endsWith('.jpg') ||
-                            u.endsWith('.png') ||
-                            u.endsWith('.webp') ||
-                            u.contains('image')),
-                    orElse: () => null) ??
-            channelFallback;
-        // Podcasting 2.0 chapters (used for ad auto-skip when present).
-        final chaptersUrl = item
-            .findElements('podcast:chapters')
-            .firstOrNull
-            ?.getAttribute('url');
-        // Podcasting 2.0 transcript (Spotify-style transcript view). A feed
-        // can list several formats; keep the one we parse best.
-        String? transcriptUrl;
-        String? transcriptType;
-        var transcriptScore = -1;
-        for (final t in item.findElements('podcast:transcript')) {
-          final tUrl = t.getAttribute('url');
-          if (tUrl == null || tUrl.isEmpty) continue;
-          final tType = (t.getAttribute('type') ?? '').toLowerCase();
-          final score = _transcriptTypeScore(tType, tUrl);
-          if (score > transcriptScore) {
-            transcriptScore = score;
-            transcriptUrl = tUrl;
-            transcriptType = tType;
-          }
-        }
-        final pubRaw = item.getElement('pubDate')?.innerText.trim();
-        episodes.add({
-          'id': 'podcast_${guid.hashCode}',
-          'title': title,
-          'description': stripHtml(
-              item.getElement('description')?.innerText ?? ""),
-          'url': url,
-          'artwork': Thumbnail(epArtRaw).extraHigh,
-          'date': _formatDate(pubRaw),
-          'pubDateMs': _pubDateMs(pubRaw),
-          'sizeBytes': sizeBytes,
-          'durationSec':
-              _parseDuration(item.getElement('itunes:duration')?.innerText),
-          'podcast': podcastTitle,
-          if (chaptersUrl != null && chaptersUrl.isNotEmpty)
-            'chaptersUrl': chaptersUrl,
-          if (transcriptUrl != null) 'transcriptUrl': transcriptUrl,
-          if (transcriptUrl != null) 'transcriptType': transcriptType ?? '',
-        });
-      }
-      return episodes;
+      return await _parseFeedInBackground(
+          res.data as String, podcastTitle, fallbackArt, maxItems);
     } catch (e) {
       printERROR("Feed parse failed ($feedUrl): $e");
       return [];
     }
+  }
+
+  /// Kept apart from [episodes] so the isolate closure captures only these
+  /// sendable arguments.
+  static Future<List<Map<String, dynamic>>> _parseFeedInBackground(String body,
+          String podcastTitle, String fallbackArt, int? maxItems) =>
+      Isolate.run(() => parsePodcastFeed(body, podcastTitle, fallbackArt,
+          maxItems: maxItems));
+
+  /// Pure RSS body → episode maps. See [parsePodcastFeed].
+  static List<Map<String, dynamic>> _parseFeed(
+      String body, String podcastTitle, String fallbackArt, int? maxItems) {
+    final doc = XmlDocument.parse(body);
+    final channelArtRaw = doc
+            .findAllElements('itunes:image')
+            .map((e) => e.getAttribute('href'))
+            .firstWhere((e) => e != null && e.isNotEmpty,
+                orElse: () => fallbackArt) ??
+        fallbackArt;
+    // Also try <image><url> (RSS 2.0 channel image).
+    final rssImage = doc
+        .findAllElements('image')
+        .map((e) => e.getElement('url')?.innerText.trim())
+        .firstWhere((e) => e != null && e.isNotEmpty, orElse: () => null);
+    // Best channel-level art for episodes with no image of their own:
+    // prefer the RSS 2.0 <image> then itunes:image, upscaled.
+    final channelFallback =
+        (rssImage != null && rssImage.isNotEmpty) ? rssImage : channelArtRaw;
+
+    final items = doc.findAllElements('item');
+    final episodes = <Map<String, dynamic>>[];
+    for (final item in items) {
+      if (maxItems != null && episodes.length >= maxItems) break;
+      final enclosure = item.findElements('enclosure').firstOrNull;
+      final url = enclosure?.getAttribute('url');
+      if (url == null || url.isEmpty) continue;
+      final title = item.getElement('title')?.innerText.trim() ?? "Episode";
+      final guid = item.getElement('guid')?.innerText.trim() ?? url;
+      final sizeBytes =
+          int.tryParse(enclosure?.getAttribute('length') ?? '') ?? 0;
+      final epArtRaw =
+          item.findElements('itunes:image').firstOrNull?.getAttribute('href') ??
+              item
+                  .findElements('media:thumbnail')
+                  .firstOrNull
+                  ?.getAttribute('url') ??
+              item
+                  .findElements('media:content')
+                  .map((e) => e.getAttribute('url'))
+                  .firstWhere(
+                      (u) =>
+                          u != null &&
+                          (u.endsWith('.jpg') ||
+                              u.endsWith('.png') ||
+                              u.endsWith('.webp') ||
+                              u.contains('image')),
+                      orElse: () => null) ??
+              channelFallback;
+      // Podcasting 2.0 chapters (used for ad auto-skip when present).
+      final chaptersUrl = item
+          .findElements('podcast:chapters')
+          .firstOrNull
+          ?.getAttribute('url');
+      // Podcasting 2.0 transcript (Spotify-style transcript view). A feed
+      // can list several formats; keep the one we parse best.
+      String? transcriptUrl;
+      String? transcriptType;
+      var transcriptScore = -1;
+      for (final t in item.findElements('podcast:transcript')) {
+        final tUrl = t.getAttribute('url');
+        if (tUrl == null || tUrl.isEmpty) continue;
+        final tType = (t.getAttribute('type') ?? '').toLowerCase();
+        final score = _transcriptTypeScore(tType, tUrl);
+        if (score > transcriptScore) {
+          transcriptScore = score;
+          transcriptUrl = tUrl;
+          transcriptType = tType;
+        }
+      }
+      final pubRaw = item.getElement('pubDate')?.innerText.trim();
+      episodes.add({
+        'id': 'podcast_${guid.hashCode}',
+        'title': title,
+        'description':
+            stripHtml(item.getElement('description')?.innerText ?? ""),
+        'url': url,
+        'artwork': Thumbnail(epArtRaw).extraHigh,
+        'date': formatPubDate(pubRaw),
+        'pubDateMs': pubDateMs(pubRaw),
+        'sizeBytes': sizeBytes,
+        'durationSec':
+            _parseDuration(item.getElement('itunes:duration')?.innerText),
+        'podcast': podcastTitle,
+        if (chaptersUrl != null && chaptersUrl.isNotEmpty)
+          'chaptersUrl': chaptersUrl,
+        if (transcriptUrl != null) 'transcriptUrl': transcriptUrl,
+        if (transcriptUrl != null) 'transcriptType': transcriptType ?? '',
+      });
+    }
+    return episodes;
   }
 
   static int _parseDuration(String? raw) {
@@ -772,29 +790,109 @@ class PodcastService {
   static String stripHtml(String s) =>
       decodeHtmlEntities(s.replaceAll(RegExp(r'<[^>]*>'), '')).trim();
 
+  static const _monthAbbr = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
   /// RSS pubDate → "19 Jul 2026" (drops weekday and time for a compact row).
-  static String _formatDate(String? raw) {
+  /// Shows the calendar date as the feed wrote it, not the UTC-shifted one,
+  /// so a late-evening US release keeps its publisher's date. Falls back to
+  /// the raw string when unparseable.
+  static String formatPubDate(String? raw) {
     if (raw == null || raw.isEmpty) return "";
-    try {
-      // RFC-822: "Sat, 19 Jul 2026 08:00:00 +0000"
-      final parts = raw.replaceFirst(RegExp(r'^\w+,\s*'), '').split(' ');
-      if (parts.length >= 3) return "${parts[0]} ${parts[1]} ${parts[2]}";
-    } catch (_) {}
-    return raw;
+    final d = parseRssDate(raw);
+    if (d == null) return raw;
+    return "${d.day} ${_monthAbbr[d.month - 1]} ${d.year}";
   }
 
-  /// RSS pubDate → epoch ms for chronological sorting (0 when unparseable).
-  static int _pubDateMs(String? raw) {
+  /// RSS pubDate → UTC epoch ms for chronological sorting (0 when
+  /// unparseable).
+  static int pubDateMs(String? raw) {
     if (raw == null || raw.isEmpty) return 0;
-    try {
-      return HttpDate.parse(raw).toUtc().millisecondsSinceEpoch;
-    } catch (_) {
-      try {
-        return DateTime.parse(raw).toUtc().millisecondsSinceEpoch;
-      } catch (_) {
-        return 0;
+    return parseRssDate(raw)?.utcMs ?? 0;
+  }
+
+  static const _months = {
+    'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6, //
+    'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+  };
+
+  /// US zone names RFC 822 allows, as minutes east of UTC. Anything else
+  /// (military letters, unknown abbreviations, no zone) is read as UTC.
+  static const _zones = {
+    'gmt': 0, 'ut': 0, 'utc': 0, 'z': 0, //
+    'est': -300, 'edt': -240, 'cst': -360, 'cdt': -300,
+    'mst': -420, 'mdt': -360, 'pst': -480, 'pdt': -420,
+  };
+
+  // "[Day,] d MMM yyyy [HH:mm[:ss]] [zone]" as feeds really write RFC 822:
+  // weekday and seconds optional, single-digit day/hour, full month names,
+  // 2-digit years, "+00:00" style offsets.
+  static final _rfc822Re = RegExp(
+      r'^\s*(?:[A-Za-z]+\.?,?\s*)?(\d{1,2})[\s-]+([A-Za-z]{3,9})\.?,?[\s-]+'
+      r'(\d{4}|\d{2})'
+      r'(?:[\sT]+(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?)?'
+      r'\s*([+-]\d{2}:?\d{2}|[A-Za-z]{1,5})?');
+
+  static final _isoDateRe = RegExp(r'^\s*(\d{4})-(\d{2})-(\d{2})');
+
+  /// Parses an RSS pubDate (RFC 822/2822, lenient) or an ISO 8601 date.
+  /// Returns the calendar date as written plus the instant as UTC epoch ms,
+  /// or null when unparseable.
+  static ({int year, int month, int day, int utcMs})? parseRssDate(String raw) {
+    final m = _rfc822Re.firstMatch(raw);
+    if (m != null) {
+      final day = int.parse(m.group(1)!);
+      final month = _months[m.group(2)!.substring(0, 3).toLowerCase()];
+      var year = int.parse(m.group(3)!);
+      if (m.group(3)!.length == 2) year += year < 50 ? 2000 : 1900;
+      final hour = int.parse(m.group(4) ?? '0');
+      final minute = int.parse(m.group(5) ?? '0');
+      // Leap second "60" → 59 rather than rolling into the next minute.
+      final second = int.parse(m.group(6) ?? '0').clamp(0, 59);
+      if (month != null && day >= 1 && hour <= 23 && minute <= 59) {
+        final wall = DateTime.utc(year, month, day, hour, minute, second);
+        // Reject impossible dates ("31 Feb") that DateTime would roll over.
+        if (wall.day == day) {
+          final offsetMin = _zoneOffsetMinutes(m.group(7));
+          return (
+            year: year,
+            month: month,
+            day: day,
+            utcMs: wall.millisecondsSinceEpoch - offsetMin * 60000,
+          );
+        }
       }
     }
+    // ISO 8601 fallback (Atom-style dates some generators emit).
+    try {
+      final dt = DateTime.parse(raw.trim());
+      final iso = _isoDateRe.firstMatch(raw);
+      return (
+        year: iso != null ? int.parse(iso.group(1)!) : dt.year,
+        month: iso != null ? int.parse(iso.group(2)!) : dt.month,
+        day: iso != null ? int.parse(iso.group(3)!) : dt.day,
+        // A zone-less ISO date parses as local time; toUtc() keeps it right.
+        utcMs: dt.toUtc().millisecondsSinceEpoch,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static int _zoneOffsetMinutes(String? zone) {
+    if (zone == null || zone.isEmpty) return 0;
+    final sign = zone[0];
+    if (sign == '+' || sign == '-') {
+      final digits = zone.replaceAll(':', '');
+      final h = int.parse(digits.substring(1, 3));
+      final mm = int.parse(digits.substring(3, 5));
+      if (h > 23 || mm > 59) return 0;
+      final off = h * 60 + mm;
+      return sign == '-' ? -off : off;
+    }
+    return _zones[zone.toLowerCase()] ?? 0;
   }
 
   /// enclosure length (bytes) → "42.3 MB" / "512 KB".
@@ -814,6 +912,23 @@ class PodcastService {
     String two(int n) => n.toString().padLeft(2, '0');
     return h > 0 ? "$h:${two(m)}:${two(s)}" : "$m:${two(s)}";
   }
+}
+
+/// Pure RSS body → episode maps holding only primitives, so it can run on a
+/// background isolate (no GetX translations, no Hive). Throws on bad XML.
+List<Map<String, dynamic>> parsePodcastFeed(
+        String body, String podcastTitle, String fallbackArt,
+        {int? maxItems}) =>
+    PodcastService._parseFeed(body, podcastTitle, fallbackArt, maxItems);
+
+/// Apple storefront (lowercase country code) from a platform locale name
+/// such as `en_US`, `de-DE`, `en_US.UTF-8`, `zh_Hans_CN` or `sr_Latn_RS`.
+/// Takes the last 2-letter uppercase region segment so script subtags
+/// (`Hans`, `Latn`) are never mistaken for a country; 'us' when none.
+String storefrontFromLocale(String localeName) {
+  final matches = RegExp(r'[_-]([A-Z]{2})(?=[.@_-]|$)').allMatches(localeName);
+  if (matches.isEmpty) return 'us';
+  return matches.last.group(1)!.toLowerCase();
 }
 
 extension _FirstOrNull<E> on Iterable<E> {

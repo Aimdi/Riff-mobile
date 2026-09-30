@@ -2,6 +2,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/music_service.dart';
 import '/services/podcast_progress_service.dart';
@@ -48,7 +49,14 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    // A fresh cached inbox renders on the first frame, without the shimmer.
+    final cached = _freshCache();
+    if (cached != null) {
+      _episodes = _unplayed(cached);
+      _loading = false;
+    } else {
+      _load();
+    }
   }
 
   @override
@@ -56,22 +64,48 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.refreshNonce != widget.refreshNonce) {
       setState(() => _loading = true);
-      _load();
+      _load(force: true);
     }
   }
 
-  Future<void> _load() async {
+  /// Feeds fetched at once; the rest queue behind them.
+  static const _fetchConcurrency = 6;
+
+  static String _subsKey(
+          List<Playlist> ytSubs, List<Map<String, dynamic>> rssSubs) =>
+      ([
+        for (final p in ytSubs) 'yt:${p.playlistId}',
+        for (final s in rssSubs) 'rss:${s['feedUrl']}',
+      ]..sort())
+          .join('|');
+
+  /// The merged inbox kept by the library controller, when it is recent and
+  /// built from the current subscriptions. Reused across tab switches (the
+  /// widget is recreated each time) instead of refetching every feed.
+  List<MediaItem>? _freshCache() {
+    final lib = Get.find<LibraryPodcastsController>();
+    return lib.freshInbox(
+        _subsKey(lib.libraryPodcasts.toList(), PodcastService.subscriptions));
+  }
+
+  Future<void> _load({bool force = false}) async {
     // Two subscription sources: YouTube-Music library shows and iTunes/RSS
     // subscriptions (from Discover / categories). Merge both into the inbox.
-    final ytSubs =
-        Get.find<LibraryPodcastsController>().libraryPodcasts.toList();
+    final lib = Get.find<LibraryPodcastsController>();
+    final ytSubs = lib.libraryPodcasts.toList();
     final rssSubs = PodcastService.subscriptions;
     if (ytSubs.isEmpty && rssSubs.isEmpty) {
       if (mounted) setState(() => _loading = false);
       return;
     }
+    final subsKey = _subsKey(ytSubs, rssSubs);
+    final cached = force ? null : lib.freshInbox(subsKey);
+    if (cached != null) {
+      _show(cached);
+      return;
+    }
     final ms = Get.find<MusicServices>();
-    final ytFutures = ytSubs.take(25).map((p) async {
+    Future<List<MediaItem>> fetchYt(Playlist p) async {
       try {
         if (p.kind == 'yt_channel' ||
             RegExp(r'^UC[\w-]{20,}$').hasMatch(p.playlistId)) {
@@ -84,14 +118,16 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
       } catch (_) {
         return <MediaItem>[];
       }
-    });
-    final rssFutures = rssSubs.take(25).map((s) async {
+    }
+
+    Future<List<MediaItem>> fetchRss(Map<String, dynamic> s) async {
       try {
         final feedUrl = '${s['feedUrl']}';
         final eps = await PodcastService.episodes(
           feedUrl,
           '${s['title'] ?? ''}',
           '${s['artwork'] ?? ''}',
+          maxItems: 12,
         );
         return eps
             .take(12)
@@ -100,15 +136,26 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
       } catch (_) {
         return <MediaItem>[];
       }
-    });
-    final lists = await Future.wait([...ytFutures, ...rssFutures]);
-    final merged =
-        _mergeNewestFirst(lists.where((l) => l.isNotEmpty).toList());
-    // AntennaPod-style: hide finished episodes from Latest (still in Continue
-    // until cleared; mark-unplayed brings them back).
-    final inbox = merged
-        .where((e) => !PodcastProgressService.isPlayed(e.id))
-        .toList();
+    }
+
+    final tasks = <Future<List<MediaItem>> Function()>[
+      for (final p in ytSubs) () => fetchYt(p),
+      for (final s in rssSubs) () => fetchRss(s),
+    ];
+    final lists =
+        await mapWithConcurrency(tasks, _fetchConcurrency, (t) => t());
+    final merged = _mergeNewestFirst(lists.where((l) => l.isNotEmpty).toList());
+    lib.storeInbox(merged, subsKey);
+    _show(merged);
+  }
+
+  // AntennaPod-style: hide finished episodes from Latest (still in Continue
+  // until cleared; mark-unplayed brings them back).
+  List<MediaItem> _unplayed(List<MediaItem> merged) =>
+      merged.where((e) => !PodcastProgressService.isPlayed(e.id)).toList();
+
+  void _show(List<MediaItem> merged) {
+    final inbox = _unplayed(merged);
     if (mounted) {
       setState(() {
         _episodes = inbox;
@@ -232,7 +279,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     return RefreshIndicator(
       onRefresh: () async {
         setState(() => _loading = true);
-        await _load();
+        await _load(force: true);
       },
       // Lazy slivers — avoid building hundreds of episode rows + images
       // up-front on every setState/refresh.
