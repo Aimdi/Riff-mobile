@@ -6,6 +6,8 @@ import 'package:ionicons/ionicons.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '/services/wizestream_service.dart';
+
 import '../../models/media_item_extras.dart';
 import '../../services/ban_service.dart';
 import '../../services/discovery/discovery_service.dart';
@@ -401,7 +403,16 @@ class SongInfoBottomSheet extends StatelessWidget {
                             "https://music.youtube.com/watch?v=${song.id}"));
                       },
                       icon: const Icon(Ionicons.play_circle),
-                    )
+                    ),
+                    if (WizeStream.isInstalled &&
+                        WizeStream.watchUrlFor(song) != null)
+                      IconButton(
+                        splashRadius: 10,
+                        tooltip: 'WizeStream',
+                        onPressed: () =>
+                            WizeStream.open(WizeStream.watchUrlFor(song)!),
+                        icon: const Icon(Icons.smart_display_outlined),
+                      ),
                   ],
                 ),
               ),

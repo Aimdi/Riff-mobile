@@ -42,6 +42,12 @@ class PodcastEmptyState extends StatelessWidget {
             if (onAction != null && actionLabel != null) ...[
               const SizedBox(height: 16),
               OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.colorScheme.secondary,
+                  side: BorderSide(
+                      color: theme.colorScheme.secondary.withOpacity(0.6)),
+                  shape: const StadiumBorder(),
+                ),
                 onPressed: onAction,
                 icon: Icon(actionIcon, size: 18),
                 label: Text(actionLabel!),

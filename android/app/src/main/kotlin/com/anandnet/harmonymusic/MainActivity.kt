@@ -1,5 +1,9 @@
 package com.anandnet.harmonymusic
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import com.ryanheise.audioservice.AudioServiceActivity
@@ -80,6 +84,16 @@ class MainActivity : AudioServiceActivity() {
         } catch (_: Throwable) {}
     }
 
+    // Deprecated on API 33 but still works everywhere; visible thanks to
+    // the <queries> entries in the manifest.
+    @Suppress("DEPRECATION")
+    private fun isPackageInstalled(pkg: String): Boolean = try {
+        packageManager.getPackageInfo(pkg, 0)
+        true
+    } catch (_: PackageManager.NameNotFoundException) {
+        false
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         videoPlayer?.dispose()
@@ -88,6 +102,39 @@ class MainActivity : AudioServiceActivity() {
             flutterEngine.renderer,
             flutterEngine.dartExecutor.binaryMessenger,
         )
+        // Hand-off to other apps (WizeStream for YouTube podcasts).
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "riff/apps"
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "installedPackage" -> {
+                    val candidates = call.argument<List<String>>("packages") ?: emptyList()
+                    result.success(candidates.firstOrNull { isPackageInstalled(it) })
+                }
+                "openUrl" -> {
+                    val url = call.argument<String>("url")
+                    val pkg = call.argument<String>("package")
+                    if (url.isNullOrEmpty() || pkg.isNullOrEmpty()) {
+                        result.success(false)
+                        return@setMethodCallHandler
+                    }
+                    try {
+                        startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                .setPackage(pkg)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                        result.success(true)
+                    } catch (_: ActivityNotFoundException) {
+                        result.success(false)
+                    } catch (_: SecurityException) {
+                        result.success(false)
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
         val mainHandler = Handler(Looper.getMainLooper())
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,

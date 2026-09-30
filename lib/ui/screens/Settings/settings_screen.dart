@@ -12,6 +12,7 @@ import '../../widgets/restore_dialog.dart';
 import '../Library/library_controller.dart';
 import '../../widgets/snackbar.dart';
 import '/ui/widgets/link_piped.dart';
+import '/services/wizestream_service.dart';
 import '/services/ban_service.dart';
 import '/services/better_lyrics_service.dart';
 import '/services/discovery/discovery_service.dart';
@@ -960,6 +961,31 @@ class SettingsScreen extends StatelessWidget {
                         trailing: CustSwitch(
                             value: settingsController.podcastVideoEnabled.value,
                             onChanged: settingsController.togglePodcastVideo),
+                      );
+                  }),
+                  Obx(() {
+                    if (!GetPlatform.isAndroid ||
+                        !settingsController.settingsMatch(
+                            'podcastsInWizeStream'.tr,
+                            'podcastsInWizeStreamDes'.tr)) {
+                      return const SizedBox.shrink();
+                    }
+                    final installed = WizeStream.installedPackage.value != null;
+                    return ListTile(
+                        contentPadding:
+                            const EdgeInsets.only(left: 5, right: 10),
+                        title: Text("podcastsInWizeStream".tr),
+                        subtitle: Text(
+                            installed
+                                ? "podcastsInWizeStreamDes".tr
+                                : "wizeStreamMissing".tr,
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        trailing: CustSwitch(
+                            value: installed &&
+                                settingsController.podcastsInWizeStream.value,
+                            onChanged: installed
+                                ? settingsController.togglePodcastsInWizeStream
+                                : null),
                       );
                   }),
                 ],

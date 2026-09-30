@@ -7,8 +7,11 @@ import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/discovery/discovery_types.dart';
 import '/services/podcast_service.dart';
+import '/services/wizestream_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
+import '/ui/utils/riff_tokens.dart';
+import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/content_list_widget_item.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/podcast_follow_button.dart';
@@ -16,9 +19,12 @@ import '/ui/widgets/podcast_play.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import '/ui/widgets/snackbar.dart';
 import '/ui/widgets/sort_widget.dart';
+import '../Home/home_layout.dart';
 import 'podcast_category_screen.dart';
 import 'podcast_downloads_screen.dart';
+import 'podcast_layout.dart';
 import 'podcast_inbox_screen.dart';
+import 'podcast_queue_controller.dart';
 import 'podcast_queue_screen.dart';
 import 'podcast_subs_screen.dart';
 import 'podcasts_library_controller.dart';
@@ -72,6 +78,13 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Picks up a WizeStream installed since launch.
+    if (GetPlatform.isAndroid) WizeStream.refresh();
+  }
+
+  @override
   void dispose() {
     _searchCtrl.dispose();
     _searchFocus.dispose();
@@ -87,97 +100,14 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
 
     return Padding(
       padding: widget.isBottomNavActive
-          ? const EdgeInsets.only(left: 15)
+          ? const EdgeInsets.only(top: 10)
           : EdgeInsets.only(top: topPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 5.0, right: 12),
-            child: widget.isBottomNavActive
-                ? const SizedBox(height: 10)
-                : Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'podcasts'.tr,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                  ),
-          ),
-          // Inline nav: Inbox / Queue / Subs / Discover + AntennaPod-style
-          // Refresh / Autoplay shortcuts on the right.
-          Padding(
-            padding: const EdgeInsets.only(left: 3, top: 6, right: 4, bottom: 2),
-            child: Row(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _navChip(
-                            icon: Icons.inbox_outlined,
-                            activeIcon: Icons.inbox,
-                            label: 'podcastInbox'.tr,
-                            section: 1),
-                        _navChip(
-                            icon: Icons.playlist_play,
-                            activeIcon: Icons.playlist_play,
-                            label: 'queue'.tr,
-                            section: 2),
-                        _navChip(
-                            icon: Icons.subscriptions_outlined,
-                            activeIcon: Icons.subscriptions,
-                            label: 'subsShort'.tr,
-                            section: 3),
-                        _navChip(
-                            icon: Icons.explore_outlined,
-                            activeIcon: Icons.explore,
-                            label: 'discover'.tr,
-                            section: 4),
-                        _navChip(
-                            icon: Icons.download_outlined,
-                            activeIcon: Icons.download,
-                            label: 'downloads'.tr,
-                            section: 5),
-                      ],
-                    ),
-                  ),
-                ),
-                if (_section == 1)
-                  IconButton(
-                    tooltip: 'refreshInbox'.tr,
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.refresh_rounded, size: 22),
-                    onPressed: () =>
-                        setState(() => _inboxRefreshNonce++),
-                  ),
-                Obx(() {
-                  final settings = Get.find<SettingsScreenController>();
-                  final on =
-                      settings.podcastContinuousPlaybackEnabled.value;
-                  return IconButton(
-                    tooltip: on
-                        ? 'podcastAutoplayOn'.tr
-                        : 'podcastAutoplayOff'.tr,
-                    visualDensity: VisualDensity.compact,
-                    icon: Icon(
-                      on
-                          ? Icons.playlist_play_rounded
-                          : Icons.playlist_remove_rounded,
-                      size: 22,
-                      color: on
-                          ? Theme.of(context).colorScheme.secondary
-                          : null,
-                    ),
-                    onPressed: () =>
-                        settings.togglePodcastContinuousPlayback(!on),
-                  );
-                }),
-              ],
-            ),
-          ),
-          const Divider(height: 1, thickness: 0.5),
+          if (!widget.isBottomNavActive) _header(context),
+          _tabs(context),
+          const SizedBox(height: 4),
           Expanded(
             // Plain builder: section switching is setState-driven. (An Obx
             // here would throw at runtime — its builder reads no Rx values.)
@@ -427,64 +357,126 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
     );
   }
 
-  /// A chip for the inline Inbox / Queue / Subscriptions nav.
-  Widget _navChip({
-    required IconData icon,
-    required IconData activeIcon,
-    required String label,
-    required int section,
-  }) {
+  /// "Podcasts" title with the tab's shortcuts (refresh the inbox,
+  /// autoplay next episode) on the right.
+  Widget _header(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 0, 4, 6),
+      child: SizedBox(
+        height: 40,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                'podcasts'.tr,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            if (_section == 1)
+              IconButton(
+                tooltip: 'refreshInbox'.tr,
+                icon: const Icon(Icons.refresh_rounded, size: 22),
+                onPressed: () => setState(() => _inboxRefreshNonce++),
+              ),
+            Obx(() {
+              final settings = Get.find<SettingsScreenController>();
+              final on = settings.podcastContinuousPlaybackEnabled.value;
+              return IconButton(
+                tooltip: on ? 'podcastAutoplayOn'.tr : 'podcastAutoplayOff'.tr,
+                icon: Icon(
+                  on
+                      ? Icons.playlist_play_rounded
+                      : Icons.playlist_remove_rounded,
+                  size: 24,
+                  color: on ? Theme.of(context).colorScheme.secondary : null,
+                ),
+                onPressed: () => settings.togglePodcastContinuousPlayback(!on),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Inbox · Queue · Subscriptions · Discover · Downloads as pill tabs.
+  Widget _tabs(BuildContext context) {
+    final tabs = <(int, String)>[
+      (1, 'podcastInbox'.tr),
+      (2, 'queue'.tr),
+      (3, 'subscriptions'.tr),
+      (4, 'discover'.tr),
+      (5, 'downloads'.tr),
+    ];
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
+        itemCount: tabs.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final (section, label) = tabs[i];
+          if (section != 2) return _tab(context, section, label, null);
+          // Queue shows how many episodes are waiting.
+          return Obx(() {
+            final n = Get.find<PodcastQueueController>().queue.length;
+            return _tab(context, section, label, n > 0 ? '$n' : null);
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _tab(BuildContext context, int section, String label, String? count) {
     final active = _section == section;
     final accent = Theme.of(context).colorScheme.secondary;
-    final normal = Theme.of(context).textTheme.bodyMedium?.color;
-    final color = active ? accent : normal;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+    final fg = active
+        ? RiffSurfaces.voidBlack
+        : Theme.of(context).textTheme.titleMedium?.color;
+    return Material(
+      color: active ? accent : homeTileColor(context),
+      shape: StadiumBorder(side: active ? BorderSide.none : homeTileBorder(context)),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: () {
-          // Search state belongs to the Discover tab; reset it when leaving.
-          if (section != 4 &&
-              Get.find<LibraryPodcastsController>().hasSearched.isTrue) {
-            _searchCtrl.clear();
-            Get.find<LibraryPodcastsController>().clearSearch();
-          }
-          // Discover tab: load the "listeners also enjoy" rows.
-          if (section == 4) _loadDiscoveryRows();
-          setState(() => _section = section);
-        },
+        onTap: () => _select(section),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // M3-style indicator: a small pill behind the icon only, so
-              // long labels below never get squeezed into ellipsis.
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
-                decoration: BoxDecoration(
-                  color:
-                      active ? accent.withOpacity(0.14) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(active ? activeIcon : icon, size: 22, color: color),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Center(
+            child: Text.rich(
+              TextSpan(children: [
+                TextSpan(text: label),
+                if (count != null)
+                  TextSpan(
+                    text: '  $count',
+                    style: TextStyle(color: fg?.withOpacity(0.6)),
+                  ),
+              ]),
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: fg,
               ),
-              const SizedBox(height: 3),
-              Text(
-                label,
-                maxLines: 1,
-                softWrap: false,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: color,
-                    fontSize: 11,
-                    fontWeight: active ? FontWeight.w600 : FontWeight.w400),
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  void _select(int section) {
+    // Search state belongs to the Discover tab; reset it when leaving.
+    if (section != 4 &&
+        Get.find<LibraryPodcastsController>().hasSearched.isTrue) {
+      _searchCtrl.clear();
+      Get.find<LibraryPodcastsController>().clearSearch();
+    }
+    // Discover tab: load the "listeners also enjoy" rows.
+    if (section == 4) _loadDiscoveryRows();
+    setState(() => _section = section);
   }
 
   /// Discover tab: a rounded search bar on top; below it either the search
@@ -496,7 +488,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(5, 10, 12, 8),
+          padding: const EdgeInsets.fromLTRB(
+              HomeLayout.gutter, 6, HomeLayout.gutter, 4),
           child: TextField(
             controller: _searchCtrl,
             focusNode: _searchFocus,
@@ -553,19 +546,21 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                   if (channels.isNotEmpty) ...[
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(10, 8, 10, 2),
+                        padding: const EdgeInsets.fromLTRB(
+                            HomeLayout.gutter, 12, HomeLayout.gutter, 2),
                         child: Text(
                           'youtubeChannels'.tr,
-                          style: Theme.of(context).textTheme.titleMedium,
+                          style: homeSectionTitleStyle(context),
                         ),
                       ),
                     ),
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
+                        padding: const EdgeInsets.fromLTRB(
+                            HomeLayout.gutter, 0, HomeLayout.gutter, 10),
                         child: Text(
                           'youtubeChannelsDes'.tr,
-                          style: Theme.of(context).textTheme.bodySmall,
+                          style: homeCardSubtitleStyle(context),
                         ),
                       ),
                     ),
@@ -577,7 +572,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                         height: itemHeight + 8,
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: HomeLayout.gutter - 4),
                           itemCount: channels.length,
                           itemBuilder: (context, i) {
                             final ch = channels[i];
@@ -647,11 +643,12 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                   if (items.isNotEmpty) ...[
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding:
-                            const EdgeInsets.only(left: 5, top: 8, bottom: 4),
+                        padding: const EdgeInsets.fromLTRB(
+                            HomeLayout.gutter, 16, HomeLayout.gutter, 0),
                         child: Text(
                           '${items.length} ${'items'.tr}',
-                          style: Theme.of(context).textTheme.titleSmall,
+                          style: homeCardSubtitleStyle(context)
+                              .copyWith(fontSize: 13),
                         ),
                       ),
                     ),
@@ -775,33 +772,23 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
             child: _PodcastCarousel(
                 title: 'suggestions'.tr, podcasts: suggestions),
           ),
-        // ── Browse all: two rows of scrolling category chips ────
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.only(left: 5, top: 12, bottom: 8),
-            child: Text('browseAll'.tr,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700)),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: SizedBox(
-            height: 100,
-            child: GridView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 5),
-              physics: const BouncingScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2, // rows
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                mainAxisExtent: 165, // chip width
-              ),
-              itemCount: genres.length,
-              itemBuilder: (context, i) =>
+        // ── Browse all: two-column grid of category tiles ───────
+        SliverToBoxAdapter(child: HomeSectionHeader('browseAll'.tr)),
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
+          sliver: SliverGrid(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount:
+                  MediaQuery.sizeOf(context).width >= 700 ? 4 : 2,
+              mainAxisSpacing: HomeLayout.tileGap,
+              crossAxisSpacing: HomeLayout.tileGap,
+              mainAxisExtent:
+                  MediaQuery.textScalerOf(context).scale(HomeLayout.tileHeight),
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, i) =>
                   _categoryChip(genres[i]['id']!, genres[i]['name']!, i),
+              childCount: genres.length,
             ),
           ),
         ),
@@ -810,54 +797,43 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
     );
   }
 
-  /// Compact tinted chip (colour-coded, not a Spotify colour block).
+  /// Category tile: a solid colour block with the genre name.
   Widget _categoryChip(String genreId, String name, int i) {
     final color = _categoryColors[i % _categoryColors.length];
-    return InkWell(
-      borderRadius: BorderRadius.circular(22),
-      onTap: () async {
-        if (shouldPlayPodcastShowOnTap()) {
-          final ok = await playFirstPodcastInGenre(genreId);
-          if (ok) return;
-        }
-        Get.to(() => PodcastCategoryScreen(genreId: genreId, name: name));
-      },
-      onLongPress: () => Get.to(
-          () => PodcastCategoryScreen(genreId: genreId, name: name)),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        alignment: Alignment.centerLeft,
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.20),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: color.withOpacity(0.55)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13),
+    return Material(
+      color: Color.alphaBlend(Colors.black.withOpacity(0.18), color),
+      borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () async {
+          if (shouldPlayPodcastShowOnTap()) {
+            final ok = await playFirstPodcastInGenre(genreId);
+            if (ok) return;
+          }
+          Get.to(() => PodcastCategoryScreen(genreId: genreId, name: name));
+        },
+        onLongPress: () => Get.to(
+            () => PodcastCategoryScreen(genreId: genreId, name: name)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+                height: 1.15,
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
-
 }
 
 class _PodcastCarousel extends StatelessWidget {
@@ -870,17 +846,16 @@ class _PodcastCarousel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 5, top: 12, bottom: 6),
-          child: Text(title, style: Theme.of(context).textTheme.titleLarge),
-        ),
+        HomeSectionHeader(title),
         SizedBox(
-          height: 200,
+          // ContentListItem is a fixed 112 x 156 card.
+          height: 156 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.2),
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 5),
+            padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
             physics: const BouncingScrollPhysics(),
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            separatorBuilder: (_, __) =>
+                const SizedBox(width: HomeLayout.cardGap),
             itemCount: podcasts.length,
             itemBuilder: (_, i) =>
                 ContentListItem(content: podcasts[i], showSimilarOnOpen: true),
@@ -902,51 +877,24 @@ class _EpisodeDiscoveryRow extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 5, top: 8, bottom: 6),
-          child: Text(title, style: Theme.of(context).textTheme.titleLarge),
-        ),
-        SizedBox(
-          height: 180,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 5),
-            physics: const BouncingScrollPhysics(),
-            itemCount: episodes.length,
-            itemBuilder: (context, i) {
-              final ep = episodes[i];
-              return SizedBox(
-                width: 130,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(8),
-                  onTap: () async {
-                    final ok = await player.playPlayListSong(episodes, i);
-                    if (!ok) snackOperationFailed();
-                  },
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ImageWidget(song: ep, size: 120),
-                      const SizedBox(height: 6),
-                      Text(
-                        ep.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                      if (ep.artist != null)
-                        Text(
-                          ep.artist!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
+        HomeSectionHeader(title),
+        HomeShelf(
+          cardSize: HomeLayout.shelfCard,
+          itemCount: episodes.length,
+          itemBuilder: (context, i) {
+            final ep = episodes[i];
+            return HomeShelfCard(
+              size: HomeLayout.shelfCard,
+              art: ImageWidget(song: ep, size: HomeLayout.shelfCard),
+              title: ep.title,
+              subtitle: ep.artist ?? '',
+              onTap: () async {
+                if (await openInWizeStreamIfPreferred(ep)) return;
+                final ok = await player.playPlayListSong(episodes, i);
+                if (!ok) snackOperationFailed();
+              },
+            );
+          },
         ),
       ],
     );
@@ -972,23 +920,28 @@ class _VideoEpisodeRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final player = Get.find<PlayerController>();
     final theme = Theme.of(context);
-    const cardWidth = 224.0;
+    const cardWidth = 256.0;
+    final scaler = MediaQuery.textScalerOf(context);
     const thumbHeight = cardWidth * 9 / 16;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 5, top: 8, bottom: 6),
-          child: Text(title, style: theme.textTheme.titleLarge),
-        ),
+        HomeSectionHeader(title, top: 12),
         SizedBox(
-          height: thumbHeight + 62,
+          // Thumb + two-line title + one meta line.
+          height: thumbHeight +
+              8 +
+              scaler.scale(13.5) * 1.2 * 2 +
+              2 +
+              scaler.scale(12) * 1.25 +
+              6,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 5),
+            padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
             physics: const BouncingScrollPhysics(),
             itemCount: episodes.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            separatorBuilder: (_, __) =>
+                const SizedBox(width: HomeLayout.cardGap),
             itemBuilder: (context, i) {
               final ep = episodes[i];
               final clock = _clock(ep.duration);
@@ -997,7 +950,9 @@ class _VideoEpisodeRow extends StatelessWidget {
                 width: cardWidth,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(10),
+                  onLongPress: () => showAddToQueueSheet(context, ep),
                   onTap: () async {
+                    if (await openInWizeStreamIfPreferred(ep)) return;
                     final ok = await player.playPlayListSong(episodes, i,
                         source: DiscoverySource.podcast);
                     if (!ok) snackOperationFailed();
@@ -1051,24 +1006,21 @@ class _VideoEpisodeRow extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Text(
                         ep.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          color: theme.textTheme.titleMedium?.color,
-                          fontWeight: FontWeight.w600,
-                          height: 1.2,
-                        ),
+                        style: homeCardTitleStyle(context),
                       ),
-                      if ((ep.artist ?? '').isNotEmpty)
-                        Text(
-                          ep.artist!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall,
-                        ),
+                      const SizedBox(height: 2),
+                      Text(
+                        episodeMetaLine(
+                            [ep.artist, '${ep.extras?['date'] ?? ''}']),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: homeCardSubtitleStyle(context),
+                      ),
                     ],
                   ),
                 ),
@@ -1081,11 +1033,9 @@ class _VideoEpisodeRow extends StatelessWidget {
   }
 }
 
-/// "Popular with listeners of X" — a horizontal row of Apple-genre-similar
-/// podcasts (plain maps: {title, author, artwork, feedUrl}). Tapping a card
-/// opens its episode list (PodcastEpisodesScreen), which streams straight from
-/// the RSS enclosure.
-/// Compact "Similar podcasts" strip (smaller than featured carousel cards).
+/// "Because you follow X" — Apple-genre-similar podcasts (plain maps:
+/// {title, author, artwork, feedUrl}). Tapping plays the show, or opens its
+/// episode list when that fails.
 class _SimilarPodcastsRow extends StatelessWidget {
   const _SimilarPodcastsRow({
     required this.title,
@@ -1098,105 +1048,50 @@ class _SimilarPodcastsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 16, top: 18, bottom: 10, right: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (kicker != null)
-                Text(
-                  kicker!,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
-                    letterSpacing: 0.6,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+        if (kicker != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                HomeLayout.gutter, HomeLayout.sectionTop, HomeLayout.gutter, 0),
+            child: Text(
+              kicker!.toUpperCase(),
+              style: homeCardSubtitleStyle(context).copyWith(
+                fontSize: 11,
+                letterSpacing: 0.8,
+                fontWeight: FontWeight.w600,
               ),
-            ],
+            ),
           ),
-        ),
-        SizedBox(
-          height: 214,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            physics: const BouncingScrollPhysics(),
-            separatorBuilder: (_, __) => const SizedBox(width: 14),
-            itemCount: podcasts.length,
-            itemBuilder: (_, i) => _ItunesPodcastCard(podcast: podcasts[i]),
-          ),
+        HomeSectionHeader(title,
+            top: kicker != null ? 2 : HomeLayout.sectionTop),
+        HomeShelf(
+          cardSize: HomeLayout.shelfCard,
+          itemCount: podcasts.length,
+          itemBuilder: (context, i) {
+            final podcast = podcasts[i];
+            return HomeShelfCard(
+              size: HomeLayout.shelfCard,
+              art: PodcastArt(
+                url: Thumbnail((podcast['artwork'] ?? '').toString()).medium,
+                size: HomeLayout.shelfCard,
+              ),
+              title: (podcast['title'] ?? '').toString(),
+              subtitle: (podcast['author'] ?? '').toString(),
+              onTap: () async {
+                if (shouldPlayPodcastShowOnTap()) {
+                  final ok = await playPodcastShow(podcast);
+                  if (ok) return;
+                }
+                Get.to(() => PodcastEpisodesScreen(podcast: podcast));
+              },
+              onLongPress: () =>
+                  Get.to(() => PodcastEpisodesScreen(podcast: podcast)),
+            );
+          },
         ),
       ],
-    );
-  }
-}
-
-/// Compact square podcast chip for similar / suggestion rows.
-class _ItunesPodcastCard extends StatelessWidget {
-  const _ItunesPodcastCard({required this.podcast});
-  final Map<String, dynamic> podcast;
-
-  static const double _tile = 148;
-
-  @override
-  Widget build(BuildContext context) {
-    final art = Thumbnail((podcast['artwork'] ?? '').toString()).medium;
-    return SizedBox(
-      width: _tile,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: () async {
-          if (shouldPlayPodcastShowOnTap()) {
-            final ok = await playPodcastShow(podcast);
-            if (ok) return;
-          }
-          Get.to(() => PodcastEpisodesScreen(podcast: podcast));
-        },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: CachedNetworkImage(
-                imageUrl: art,
-                width: _tile,
-                height: _tile,
-                memCacheWidth:
-                    (_tile * MediaQuery.devicePixelRatioOf(context)).round(),
-                fit: BoxFit.cover,
-                errorWidget: (_, __, ___) => Container(
-                  width: _tile,
-                  height: _tile,
-                  color: Theme.of(context).colorScheme.secondary.withOpacity(.3),
-                  child: const Icon(Icons.podcasts, size: 22),
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              (podcast['title'] ?? '').toString(),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    height: 1.2,
-                  ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

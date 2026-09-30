@@ -12,6 +12,7 @@ import '../../../services/cache_eviction.dart';
 import '../../../services/song_cache_service.dart';
 import '../../../utils/app_version.dart';
 import '../../../utils/update_check_flag_file.dart';
+import '/services/wizestream_service.dart';
 import '/services/piped_service.dart';
 import '../Library/library_controller.dart';
 import '../../widgets/snackbar.dart';
@@ -44,6 +45,10 @@ class SettingsScreenController extends GetxController {
 
   /// YouTube podcast episodes open as video in the player by default.
   final podcastVideoEnabled = true.obs;
+
+  /// Tapping a YouTube podcast episode opens it in WizeStream (if installed)
+  /// instead of Riff's player.
+  final podcastsInWizeStream = false.obs;
   final loudnessNormalizationEnabled = false.obs;
   final ytConnected = false.obs;
   final playbackSpeed = 1.0.obs;
@@ -114,6 +119,7 @@ class SettingsScreenController extends GetxController {
   @override
   void onInit() {
     _setInitValue();
+    if (GetPlatform.isAndroid) WizeStream.refresh();
     _loadAppVersion();
     _createInAppSongDownDir();
     super.onInit();
@@ -184,6 +190,7 @@ class SettingsScreenController extends GetxController {
         setBox.get("podcastContinuousPlayback") ?? true;
     youtubePodcastsEnabled.value = setBox.get("youtubePodcasts") != false;
     podcastVideoEnabled.value = setBox.get("podcastShowVideo") != false;
+    podcastsInWizeStream.value = setBox.get("podcastsInWizeStream") == true;
     loudnessNormalizationEnabled.value = isDesktop
         ? false
         : (setBox.get("loudnessNormalizationEnabled") ?? false);
@@ -549,6 +556,11 @@ class SettingsScreenController extends GetxController {
   void togglePodcastVideo(bool val) {
     setBox.put('podcastShowVideo', val);
     podcastVideoEnabled.value = val;
+  }
+
+  void togglePodcastsInWizeStream(bool val) {
+    setBox.put('podcastsInWizeStream', val);
+    podcastsInWizeStream.value = val;
   }
 
   void toggleSponsorBlock(bool val) {

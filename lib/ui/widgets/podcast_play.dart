@@ -6,7 +6,21 @@ import '../../models/thumbnail.dart';
 import '../../services/discovery/discovery_types.dart';
 import '../../services/podcast_progress_service.dart';
 import '../../services/podcast_service.dart';
+import '../../services/wizestream_service.dart';
+import '../screens/Settings/settings_screen_controller.dart';
 import '../player/player_controller.dart';
+
+/// With "Play YouTube podcasts in WizeStream" on, hands a YouTube episode
+/// to WizeStream instead of Riff's player. True when WizeStream took it.
+Future<bool> openInWizeStreamIfPreferred(MediaItem episode) async {
+  if (!Get.isRegistered<SettingsScreenController>()) return false;
+  if (!Get.find<SettingsScreenController>().podcastsInWizeStream.isTrue) {
+    return false;
+  }
+  final url = WizeStream.watchUrlFor(episode);
+  if (url == null) return false;
+  return WizeStream.open(url);
+}
 
 /// iTunes / RSS show tiles play the feed instead of only opening the list.
 bool shouldPlayPodcastShowOnTap() => true;

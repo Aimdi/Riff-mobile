@@ -90,6 +90,12 @@
         </receiver>
 
     </application>
+    <!-- Android 11+ package visibility: detect WizeStream for YouTube podcasts. -->
+    <queries>
+        <package android:name="org.wisso.newpipematerial" />
+        <package android:name="org.wisso.newpipematerial.nightly" />
+        <package android:name="org.wisso.newpipematerial.debug" />
+    </queries>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage"/>
