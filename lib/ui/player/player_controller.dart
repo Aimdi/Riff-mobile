@@ -98,6 +98,9 @@ class PlayerController extends GetxController
   /// Home "Continue listening" chip — saved queue exists and player is idle.
   final showContinueListening = false.obs;
   final continueListeningTitle = ''.obs;
+
+  /// Saved-queue track behind the chip, so Home can show its cover art.
+  final continueListeningItem = Rxn<MediaItem>();
   Timer? sleepTimer;
   int timerDuration = 0;
   final timerDurationLeft = 0.obs;
@@ -811,6 +814,7 @@ class PlayerController extends GetxController
       final safe = index.clamp(0, rawQueue.length - 1);
       final item = MediaItemBuilder.fromJson(rawQueue[safe]);
       continueListeningTitle.value = item.title;
+      continueListeningItem.value = item;
       showContinueListening.value = true;
     } catch (_) {
       showContinueListening.value = false;

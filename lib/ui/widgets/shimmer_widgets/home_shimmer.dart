@@ -1,97 +1,102 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
-import 'basic_container.dart';
+import '../../screens/Home/home_layout.dart';
+import '../../utils/riff_tokens.dart';
 
+/// Home loading skeleton in the same shape as the real feed: title, quick
+/// grid, Riff Wave card, then a shelf of covers.
 class HomeShimmer extends StatelessWidget {
   const HomeShimmer({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final base = isDark
+        ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
+        : Colors.grey[300]!;
+    final highlight = isDark
+        ? Color.alphaBlend(Colors.white.withOpacity(0.12), theme.cardColor)
+        : Colors.grey[100]!;
     return Shimmer.fromColors(
-        baseColor: Colors.grey[500]!,
-        highlightColor: Colors.grey[300]!,
-        enabled: true,
-        direction: ShimmerDirection.ltr,
-        child: Column(
-          children: [_discoverWidget(), _contentWidget(), _contentWidget()],
-        ));
-  }
-
-  Widget _discoverWidget() {
-    return SizedBox(
-      height: 320,
-      width: double.infinity,
+      baseColor: base,
+      highlightColor: highlight,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Padding(
-              padding: EdgeInsets.only(left: 5),
-              child: BasicShimmerContainer(Size(220, 30)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _Box(width: 200, height: 30, radius: 8),
+                const SizedBox(height: 16),
+                for (var row = 0; row < 3; row++) ...[
+                  if (row > 0) const SizedBox(height: HomeLayout.tileGap),
+                  const Row(
+                    children: [
+                      Expanded(child: _Box(height: HomeLayout.tileHeight)),
+                      SizedBox(width: HomeLayout.tileGap),
+                      Expanded(child: _Box(height: HomeLayout.tileHeight)),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 16),
+                const _Box(height: 118, radius: RiffTokens.radiusLg),
+                const SizedBox(height: HomeLayout.sectionTop + 4),
+                const _Box(width: 150, height: 22, radius: 6),
+                const SizedBox(height: HomeLayout.headerBottom + 4),
+              ],
             ),
           ),
-          const SizedBox(height: 10),
-          Expanded(
-            child: GridView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: 20,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
-                  childAspectRatio: .26 / 1,
-                  crossAxisSpacing: 1,
-                  mainAxisSpacing: 5,
-                ),
-                itemBuilder: (_, item) {
-                  return const ListTile(
-                    contentPadding: EdgeInsetsDirectional.all(5),
-                    leading: BasicShimmerContainer(Size(50, 50)),
-                    title: BasicShimmerContainer(Size(90, 20)),
-                    subtitle: BasicShimmerContainer(Size(40, 15)),
-                  );
-                }),
+          // Shelf runs to the screen edge like the real one.
+          SizedBox(
+            height: HomeLayout.shelfCard + 44,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const NeverScrollableScrollPhysics(),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
+              itemCount: 4,
+              separatorBuilder: (_, __) =>
+                  const SizedBox(width: HomeLayout.cardGap),
+              itemBuilder: (_, __) => const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _Box(
+                      width: HomeLayout.shelfCard,
+                      height: HomeLayout.shelfCard),
+                  SizedBox(height: 10),
+                  _Box(width: 100, height: 12, radius: 4),
+                  SizedBox(height: 6),
+                  _Box(width: 70, height: 10, radius: 4),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(height: 20)
         ],
       ),
     );
   }
+}
 
-  Widget _contentWidget() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 5),
-          child: BasicShimmerContainer(Size(220, 30)),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 200,
-          //color: Colors.blueAccent,
-          child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: 5,
-              itemBuilder: (_, index) {
-                return Container(
-                  width: 140,
-                  padding: const EdgeInsets.only(left: 5.0),
-                  child: const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                          height: 120,
-                          child: BasicShimmerContainer(Size(120, 120))),
-                      SizedBox(height: 5),
-                      BasicShimmerContainer(Size(115, 20)),
-                      SizedBox(height: 5),
-                      BasicShimmerContainer(Size(90, 15)),
-                    ],
-                  ),
-                );
-              }),
-        ),
-      ],
+class _Box extends StatelessWidget {
+  const _Box({this.width, required this.height, this.radius = 10});
+
+  final double? width;
+  final double height;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(radius),
+      ),
     );
   }
 }

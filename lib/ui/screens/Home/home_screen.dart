@@ -21,12 +21,12 @@ import '../../widgets/shimmer_widgets/home_shimmer.dart';
 import '../../widgets/snackbar.dart';
 import '../../../services/discovery/discovery_service.dart';
 import '../../../services/discovery/discovery_types.dart';
-import '../../../services/podcast_progress_service.dart';
 import 'home_explore_section.dart';
 import 'home_feed_view_model.dart';
 import 'home_greeting.dart';
+import 'home_layout.dart';
+import 'home_quick_grid.dart';
 import 'home_screen_controller.dart';
-import 'podcast_continue.dart';
 import '../Settings/settings_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -140,8 +140,7 @@ class Body extends StatelessWidget {
                                 padding: const EdgeInsets.only(left: 12),
                                 child: Text(
                                   "home".tr,
-                                  style:
-                                      Theme.of(context).textTheme.titleLarge,
+                                  style: Theme.of(context).textTheme.titleLarge,
                                 ),
                               ),
                             ),
@@ -250,46 +249,57 @@ class _HomeFeed extends StatelessWidget {
       return ListView(
         padding: EdgeInsets.only(bottom: 200, top: topPadding),
         children: [
-          // Hierarchy: offline → title → continue → Jump back in → Wave → shortcuts.
+          // Your stuff first (resume + shortcuts), then Wave, recents,
+          // personal mixes / picks, and editorial Explore last.
           Obx(() => home.showingCachedWhileOffline.isTrue
               ? const _OfflineHomeBanner()
               : const SizedBox.shrink()),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    homeGreetingKey(DateTime.now()).tr,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          letterSpacing: -0.35,
-                        ),
-                  ),
-                ),
-                if (!GetPlatform.isDesktop)
-                  IconButton(
-                    tooltip: 'search'.tr,
-                    icon: const Icon(Icons.search),
-                    onPressed: () {
-                      Get.toNamed(ScreenNavigationSetup.searchScreen,
-                          id: ScreenNavigationSetup.id);
-                    },
-                  ),
-              ],
-            ),
-          ),
-          const _ContinueListeningChip(),
-          const _PodcastContinueChip(),
-          const JumpBackInRow(),
+          const _HomeHeader(),
+          const HomeQuickGrid(),
           const RiffWaveHero(),
-          const HomeShortcutGrid(),
-          const SizedBox(height: 8),
+          const JumpBackInRow(),
           const _HomeZoneB(),
-          const SizedBox(height: 12),
           const HomeExploreSection(),
         ],
       );
     });
+  }
+}
+
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 0, 2, 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              homeGreetingKey(DateTime.now()).tr,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.6,
+                    height: 1.15,
+                  ),
+            ),
+          ),
+          if (!GetPlatform.isDesktop)
+            IconButton(
+              tooltip: 'search'.tr,
+              icon: const Icon(Icons.search_rounded, size: 26),
+              onPressed: () {
+                Get.toNamed(ScreenNavigationSetup.searchScreen,
+                    id: ScreenNavigationSetup.id);
+              },
+            ),
+        ],
+      ),
+    );
   }
 }
 
@@ -302,13 +312,11 @@ class _HomeZoneB extends StatelessWidget {
   Widget build(BuildContext context) {
     final home = Get.find<HomeScreenController>();
     return Obx(() {
-      final personal = Get.isRegistered<DiscoveryService>()
-          ? Get.find<DiscoveryService>().personalSections.toList()
-          : <DiscoverySection>[];
-      // Touch mixes-updated pill so Obx rebuilds when it flips.
-      if (Get.isRegistered<DiscoveryService>()) {
-        final _ = Get.find<DiscoveryService>().mixesUpdatedPill.value;
-      }
+      final disc = Get.isRegistered<DiscoveryService>()
+          ? Get.find<DiscoveryService>()
+          : null;
+      final personal = disc?.personalSections.toList() ?? <DiscoverySection>[];
+      final mixesUpdated = disc?.mixesUpdatedPill.value ?? false;
       final vm = assembleHomeFeedViewModel(
         personalSections: personal,
         quickPicks: home.quickPicks.value,
@@ -317,11 +325,11 @@ class _HomeZoneB extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (Get.isRegistered<DiscoveryService>() &&
-              Get.find<DiscoveryService>().mixesUpdatedPill.value)
-            const _MixesUpdatedBanner(),
           if (vm.dailyMixes != null)
-            HomeDiscoverySection(section: vm.dailyMixes!),
+            HomeDiscoverySection(
+              section: vm.dailyMixes!,
+              badge: mixesUpdated ? 'mixesUpdatedBadge'.tr : null,
+            ),
           if (vm.quickPicks != null && vm.quickPicks!.songList.isNotEmpty)
             QuickPicksWidget(
               content: vm.quickPicks!,
@@ -336,26 +344,6 @@ class _HomeZoneB extends StatelessWidget {
         ],
       );
     });
-  }
-}
-
-class _MixesUpdatedBanner extends StatelessWidget {
-  const _MixesUpdatedBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 2),
-      child: Text(
-        'mixesUpdated'.tr,
-        style: theme.textTheme.labelMedium?.copyWith(
-          color: theme.textTheme.titleSmall?.color?.withOpacity(0.55),
-          fontWeight: FontWeight.w500,
-          letterSpacing: 0.1,
-        ),
-      ),
-    );
   }
 }
 
@@ -395,23 +383,24 @@ class _HomeDiscoverEmptyCard extends StatelessWidget {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.secondary;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+      padding: const EdgeInsets.fromLTRB(
+          HomeLayout.gutter, HomeLayout.sectionTop, HomeLayout.gutter, 0),
       child: Material(
-        color: theme.cardColor,
+        color: homeTileColor(context),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
-          side: RiffTokens.hairlineBorder(context),
+          borderRadius: BorderRadius.circular(RiffTokens.radiusLg),
+          side: homeTileBorder(context),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('discover'.tr, style: theme.textTheme.titleMedium),
+              Text('discover'.tr, style: homeSectionTitleStyle(context)),
               const SizedBox(height: 6),
               Text(
                 'discoverEmptyDes'.tr,
-                style: theme.textTheme.bodyMedium,
+                style: homeCardSubtitleStyle(context).copyWith(fontSize: 13),
               ),
               const SizedBox(height: 14),
               Wrap(
@@ -450,186 +439,6 @@ class _HomeDiscoverEmptyCard extends StatelessWidget {
   }
 }
 
-/// Resume the last saved queue when the player is idle.
-class _ContinueListeningChip extends StatelessWidget {
-  const _ContinueListeningChip();
-
-  @override
-  Widget build(BuildContext context) {
-    if (!Get.isRegistered<PlayerController>()) {
-      return const SizedBox.shrink();
-    }
-    final player = Get.find<PlayerController>();
-    return Obx(() {
-      final idle =
-          player.currentSong.value == null || player.initFlagForPlayer;
-      if (player.showContinueListening.isFalse || !idle) {
-        return const SizedBox.shrink();
-      }
-      final theme = Theme.of(context);
-      final title = player.continueListeningTitle.value;
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-        child: Material(
-          color: theme.cardColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
-            side: RiffTokens.hairlineBorder(context),
-          ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
-            onTap: () async {
-              final ok = await player.resumeSavedSession();
-              if (!context.mounted || ok) return;
-              ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                context,
-                'operationFailed'.tr,
-                size: SanckBarSize.MEDIUM,
-              ));
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Row(
-                children: [
-                  Icon(Icons.play_circle_fill_rounded,
-                      size: 22, color: theme.colorScheme.secondary),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'continueListening'.tr,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        if (title.isNotEmpty)
-                          Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.textTheme.bodySmall?.color
-                                  ?.withOpacity(0.7),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'close'.tr,
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
-                    ),
-                    icon: Icon(Icons.close,
-                        size: 18, color: theme.textTheme.bodySmall?.color),
-                    onPressed: player.dismissContinueListening,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    });
-  }
-}
-
-/// Resume the newest in-progress podcast episode from Home.
-class _PodcastContinueChip extends StatelessWidget {
-  const _PodcastContinueChip();
-
-  @override
-  Widget build(BuildContext context) {
-    if (!Get.isRegistered<PlayerController>()) {
-      return const SizedBox.shrink();
-    }
-    final player = Get.find<PlayerController>();
-    return Obx(() {
-      final rows = PodcastProgressService.inProgress();
-      final latest = latestPodcastContinue(rows);
-      final episode = latest == null
-          ? null
-          : PodcastProgressService.toMediaItem(latest);
-      if (episode == null ||
-          !shouldShowPodcastContinueChip(
-            hasEpisode: true,
-            currentSongId: player.currentSong.value?.id,
-            continueEpisodeId: episode.id,
-          )) {
-        return const SizedBox.shrink();
-      }
-      final theme = Theme.of(context);
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-        child: Material(
-          color: theme.cardColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
-            side: RiffTokens.hairlineBorder(context),
-          ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
-            onTap: () async {
-              final queue = podcastContinueQueue(rows);
-              if (queue.isEmpty) return;
-              final pos =
-                  PodcastProgressService.positionMs(queue.first.id) ?? 0;
-              if (pos > 0) player.armResume(queue.first.id, pos);
-              final ok = await player.playPlayListSong(queue, 0,
-                  source: DiscoverySource.podcast);
-              if (!context.mounted || ok) return;
-              ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                context,
-                'operationFailed'.tr,
-                size: SanckBarSize.MEDIUM,
-              ));
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Row(
-                children: [
-                  Icon(Icons.podcasts,
-                      size: 22, color: theme.colorScheme.secondary),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'continueListening'.tr,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          episode.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.textTheme.bodySmall?.color
-                                ?.withOpacity(0.7),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.play_circle_fill_rounded,
-                      size: 22, color: theme.colorScheme.secondary),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    });
-  }
-}
-
 /// Soft strip when Home is showing cached shelves after a silent network miss.
 class _OfflineHomeBanner extends StatelessWidget {
   const _OfflineHomeBanner();
@@ -638,12 +447,13 @@ class _OfflineHomeBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      padding: const EdgeInsets.fromLTRB(
+          HomeLayout.gutter, 0, HomeLayout.gutter, 12),
       child: Material(
-        color: theme.cardColor,
+        color: homeTileColor(context),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
-          side: RiffTokens.hairlineBorder(context),
+          side: homeTileBorder(context),
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
