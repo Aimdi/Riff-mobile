@@ -16,6 +16,7 @@ import '../../../mixins/additional_opeartion_mixin.dart';
 import '../../../models/album.dart' show Album;
 import '../../../models/media_Item_builder.dart';
 import '../../../models/playlist.dart';
+import '../../../utils/hive_boxes.dart';
 import '../../../services/music_service.dart';
 import '../../../services/piped_service.dart';
 import '../../../services/playlist_mix_service.dart';
@@ -273,21 +274,28 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
       if (await checkIfAddedToLibrary(playlistId)) {
         final songsBox = await Hive.openBox(playlistId);
         if (songsBox.values.isEmpty) {
-          _fetchSongOnline(playlistId, isIdOnly, isPipedPlaylist).then((value) {
-            updateSongsIntoDb();
-          });
+          await _fetchSongOnline(playlistId, isIdOnly, isPipedPlaylist);
+          await updateSongsIntoDb();
         } else {
           // If the playlist is offline, fetch the songs from the local database
           // Playlist details are already fetched in _checkIfAddedToLibrary method
           fetchSongsfromDatabase(playlistId);
         }
       } else {
-        _fetchSongOnline(playlistId, isIdOnly, isPipedPlaylist);
+        // Awaited so a network/parse failure lands in the catch below instead
+        // of escaping as an unhandled error behind an empty "loaded" list.
+        await _fetchSongOnline(playlistId, isIdOnly, isPipedPlaylist);
       }
-      isContentFetched.value = true;
     } catch (e) {
       // Handle any errors that occur during the fetch
       printERROR("Error fetching playlist details: $e");
+      final ctx = Get.context;
+      if (!isClosed && ctx != null && ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+            snackbar(ctx, "networkError".tr, size: SanckBarSize.MEDIUM));
+      }
+    } finally {
+      if (!isClosed) isContentFetched.value = true;
     }
   }
 
@@ -369,10 +377,11 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
       }
       return isAddedToLibrary.value;
     }
-    final box = await Hive.openBox("LibraryPlaylists");
+    // Shared box: never close it here — Hive hands the same instance to
+    // every opener, so closing would break a concurrent library read/write.
+    final box = await HiveBoxes.open("LibraryPlaylists");
     isAddedToLibrary.value = box.containsKey(id);
     if (isAddedToLibrary.value) playlist.value = Playlist.fromJson(box.get(id));
-    await box.close();
     return isAddedToLibrary.value;
   }
 
@@ -408,24 +417,20 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
         Get.find<LibraryPlaylistsController>().syncPipedPlaylist();
         return (res.code == 1);
       } else {
-        final box = await Hive.openBox("LibraryPlaylists");
+        final box = await HiveBoxes.open("LibraryPlaylists");
         final id = content.playlistId;
         if (add) {
-          box.put(id, content.toJson());
-          updateSongsIntoDb();
+          await box.put(id, content.toJson());
+          await updateSongsIntoDb();
         } else {
-          box.delete(id);
+          await box.delete(id);
           final songsBox = await Hive.openBox(id);
-          songsBox.deleteFromDisk();
+          await songsBox.deleteFromDisk();
         }
         isAddedToLibrary.value = add;
       }
       //Update frontend
       Get.find<LibraryPlaylistsController>().refreshLib();
-      if (!content.isCloudPlaylist && !add) {
-        final plstbox = await Hive.openBox(content.playlistId);
-        plstbox.deleteFromDisk();
-      }
       return true;
     } catch (e) {
       return false;
@@ -435,11 +440,13 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
   @override
   Future<void> updateSongsIntoDb() async {
     final songsBox = await Hive.openBox(playlist.value.playlistId);
-    await songsBox.clear();
     final songListCopy = songList.toList();
-    for (int i = 0; i < songListCopy.length; i++) {
-      await songsBox.put(i, MediaItemBuilder.toJson(songListCopy[i]));
-    }
+    await songsBox.clear();
+    // One batched write instead of one disk flush per song (up to thousands).
+    await songsBox.putAll({
+      for (int i = 0; i < songListCopy.length; i++)
+        i: MediaItemBuilder.toJson(songListCopy[i]),
+    });
     if (playlist.value.playlistId != "SongDownloads") await songsBox.close();
 
     // Update the playlist thumbnail based on the first song's thumbnail
@@ -452,19 +459,24 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     final isoffline = id == "SongsCache" || id == "SongDownloads";
 
     final box_ = await Hive.openBox(id);
-    for (MediaItem element in songs) {
-      final index = box_.values
-          .toList()
-          .indexWhere((ele) => ele['videoId'] == element.id);
-      await box_.deleteAt(index);
+    // One pass over the box (was a full values scan per song, and a missing
+    // song made deleteAt(-1) throw and abort the rest of the batch).
+    final removeIds = songs.map((s) => s.id).toSet();
+    final keysToDelete = [
+      for (final key in box_.keys)
+        if (box_.get(key) case final Map v
+            when removeIds.contains(v['videoId']))
+          key
+    ];
+    await box_.deleteAll(keysToDelete);
 
-      if (isoffline) {
+    if (isoffline) {
+      for (MediaItem element in songs) {
         await Get.find<LibrarySongsController>()
             .removeSong(element, id == "SongDownloads");
       }
-
-      songList.removeWhere((song) => song.id == element.id);
     }
+    songList.removeWhere((song) => removeIds.contains(song.id));
     if (!isoffline) await box_.close();
 
     // Update the playlist thumbnail based on the first song's thumbnail

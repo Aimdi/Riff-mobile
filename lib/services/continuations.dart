@@ -17,6 +17,7 @@ const CONTINUATION_ITEMS = [
 ];
 
 String? getContinuationToken(List<dynamic> results) {
+  if (results.isEmpty) return null;
   return nav(results.last, CONTINUATION_TOKEN);
 }
 
@@ -62,7 +63,9 @@ Future<List<dynamic>> getContinuations(
         (reloadable
             ? getReloadableContinuationParams(results)
             : getContinuationParams(results, ctokenPath: ctokenPath));
-    //print(additionalParams);
+    // The caller-supplied token only seeds the first page; later pages must
+    // come from each response, or the same page is re-requested every loop.
+    additionalParams_ = null;
 
     final Map<String, dynamic> response = await requestFunc(additionalParams);
     //print("Checking........=${response.containsKey('continuationContents')}");

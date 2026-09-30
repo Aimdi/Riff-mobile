@@ -31,7 +31,10 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
       _error = null;
     });
     try {
-      final d = await Get.find<AudiobookshelfService>().openBook(widget.bookId);
+      // Metadata only: openBook() starts a server play session, which Play
+      // opens itself; calling it here orphaned one session per visit.
+      final d = await Get.find<AudiobookshelfService>()
+          .fetchBookDetail(widget.bookId);
       if (mounted) {
         setState(() {
           _detail = d;

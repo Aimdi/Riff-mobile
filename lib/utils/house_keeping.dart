@@ -41,15 +41,12 @@ void _removeCachedIdsFromLibrary(Iterable<String> ids) {
 Future<void> removeExpiredSongsUrlFromDb() async {
   try {
     final songsUrlCacheBox = Hive.box(HiveBoxes.songsUrlCache);
-    final songsUrlCacheKeysList =
-        songsUrlCacheBox.keys.whereType<String>().toList();
-    for (var i = 0; i < songsUrlCacheKeysList.length; i++) {
-      final songUrlKey = songsUrlCacheKeysList[i];
-      final entry = songsUrlCacheBox.get(songUrlKey);
-      if (songsUrlCacheEntryExpired(entry)) {
-        await songsUrlCacheBox.delete(songUrlKey);
-      }
-    }
+    final expiredKeys = songsUrlCacheBox.keys
+        .whereType<String>()
+        .where((key) => songsUrlCacheEntryExpired(songsUrlCacheBox.get(key)))
+        .toList();
+    // One batched delete instead of a disk write per expired entry.
+    if (expiredKeys.isNotEmpty) await songsUrlCacheBox.deleteAll(expiredKeys);
   } catch (e) {
     printERROR("Error in removeExpiredSongsUrlFromDb: $e");
   } finally {
@@ -64,17 +61,27 @@ Future<void> removeDeletedOfflineSongsFromDb() async {
     final downloadedSongs = songDownloadsBox.values.toList();
     final LibrarySongsController librarySongsController =
         Get.find<LibrarySongsController>();
-    for (var i = 0; i < downloadedSongs.length; i++) {
-      final songKey = downloadedSongs[i]['videoId'];
-      final songUrl = downloadedSongs[i]['url'];
-      if (await File(songUrl).exists() == false) {
-        await songDownloadsBox.delete(songKey);
-        await librarySongsController.removeSong(
-            MediaItemBuilder.fromJson(downloadedSongs[i]), true);
-        final thumbNailPath = "$supportDir/thumbnails/$songKey.png";
-        if (await File(thumbNailPath).exists()) {
-          await File(thumbNailPath).delete();
+    for (final song in downloadedSongs) {
+      // A malformed entry (no url / not a map) must be skipped, not throw:
+      // the catch below would abort cleanup for every remaining song.
+      if (song is! Map) continue;
+      final songKey = song['videoId'];
+      final songUrl = song['url'];
+      if (songKey is! String || songUrl is! String || songUrl.isEmpty) {
+        continue;
+      }
+      try {
+        if (await File(songUrl).exists() == false) {
+          await songDownloadsBox.delete(songKey);
+          await librarySongsController.removeSong(
+              MediaItemBuilder.fromJson(song), true);
+          final thumbNailPath = "$supportDir/thumbnails/$songKey.png";
+          if (await File(thumbNailPath).exists()) {
+            await File(thumbNailPath).delete();
+          }
         }
+      } catch (e) {
+        printERROR("House keeping skipped $songKey: $e");
       }
     }
   } catch (e) {

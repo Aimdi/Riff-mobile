@@ -129,7 +129,9 @@ class ClientConfigService {
 
   static Future<void> _fetchAndStore({bool forced = false}) async {
     try {
-      final res = await Dio().get(_url,
+      final res = await Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 10),
+      )).get(_url,
           options: Options(
               responseType: ResponseType.plain,
               receiveTimeout: const Duration(seconds: 10)));

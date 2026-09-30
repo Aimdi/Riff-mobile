@@ -59,7 +59,12 @@ class SoulseekHit {
 /// the Soulseek network in-app (embedding Seeker's full protocol stack is not
 /// practical in Flutter).
 class SlskdService extends GetxController {
-  SlskdService({Dio? dio}) : _dio = dio ?? Dio();
+  // Per-request Options set send/receive timeouts; connectTimeout can only
+  // be set on the client, and without it an unreachable host hangs for the
+  // OS TCP timeout (minutes).
+  SlskdService({Dio? dio})
+      : _dio = dio ??
+            Dio(BaseOptions(connectTimeout: const Duration(seconds: 10)));
 
   final Dio _dio;
 

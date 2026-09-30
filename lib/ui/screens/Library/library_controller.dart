@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
 
+import '../../../utils/hive_boxes.dart';
 import '../../../utils/house_keeping.dart';
 import '../../widgets/add_to_playlist.dart';
 import '/ui/widgets/sort_widget.dart';
@@ -51,32 +52,31 @@ class LibrarySongsController extends GetxController {
   Future<void> init() async {
     // Make sure that song cached in system or not cleared by system
     // if cleared then it will remove from database as well
-    List<String> songsList = [];
+    final cachedIds = <String>{};
+    var listedOk = true;
     final cacheDir = (await getTemporaryDirectory()).path;
-    if (Directory("$cacheDir/cachedSongs/").existsSync()) {
-      final downloadedFiles = Directory("$cacheDir/cachedSongs")
-          .listSync()
-          .where((f) => !['mime', 'part']
-              .contains(f.path.replaceAll(RegExp(r'^.*\.'), '')));
-      songsList.addAll(downloadedFiles
-          .map((e) {
-            RegExpMatch? match =
-                RegExp(".cachedSongs/([^#]*)?.mp3").firstMatch(e.path);
-            if (match != null) {
-              return match[1]!;
-            }
-          })
-          .whereType<String>()
-          .toList());
-      //printINFO("all files: $downloadedFiles \n $songsList");
+    final cachedSongsDir = Directory("$cacheDir/cachedSongs");
+    try {
+      // Async listing: listSync() on thousands of files stalls the UI isolate.
+      if (await cachedSongsDir.exists()) {
+        final idPattern = RegExp(".cachedSongs/([^#]*)?.mp3");
+        await for (final f in cachedSongsDir.list()) {
+          final ext = f.path.replaceAll(RegExp(r'^.*\.'), '');
+          if (ext == 'mime' || ext == 'part') continue;
+          final id = idPattern.firstMatch(f.path)?[1];
+          if (id != null) cachedIds.add(id);
+        }
+      }
+    } catch (e) {
+      listedOk = false;
+      printERROR("Cached songs listing failed: $e");
     }
 
     final box = Hive.box("SongsCache");
-    for (var element in box.keys) {
-      if (!songsList.contains(element)) {
-        box.delete(element);
-      }
-    }
+    final staleKeys =
+        box.keys.where((key) => !cachedIds.contains(key)).toList();
+    // A failed listing must not wipe the whole cache index.
+    if (listedOk && staleKeys.isNotEmpty) await box.deleteAll(staleKeys);
 
     librarySongsList.value = box.values
         .map<MediaItem?>((item) => MediaItemBuilder.fromJson(item))
@@ -272,27 +272,39 @@ class LibraryPlaylistsController extends GetxController
   }
 
   void refreshLib() async {
-    final box = await Hive.openBox("LibraryPlaylists");
+    // Shared box, kept open: closing it here raced other openers (playlist
+    // screen, add-to-playlist) and forced a file re-read on every refresh.
+    final box = await HiveBoxes.open("LibraryPlaylists");
+    // Keep already-synced Piped playlists visible until the background sync
+    // below reconciles them, so a refresh doesn't make them blink out.
+    final piped = Hive.box("AppPrefs").get("piped");
+    final pipedLoggedIn = piped is Map && piped['isLoggedIn'] == true;
+    final pipedShown = pipedLoggedIn
+        ? libraryPlaylists.where((p) => p.isPipedPlaylist).toList()
+        : const <Playlist>[];
     libraryPlaylists.value = [
       ...initPlst,
       ...(box.values
           .map<Playlist?>((item) => Playlist.fromJson(item))
           .whereType<Playlist>()
-          .toList())
+          .toList()),
+      ...pipedShown,
     ];
-
-    final appPrefsBox = Hive.box("AppPrefs");
-    if (appPrefsBox.containsKey("piped")) {
-      if (appPrefsBox.get("piped")['isLoggedIn']) await syncPipedPlaylist();
-    }
-
+    // Local content is ready: don't hold the spinner on the network sync.
     isContentFetched.value = true;
-    await box.close();
+
+    if (pipedLoggedIn) {
+      try {
+        await syncPipedPlaylist();
+      } catch (e) {
+        printERROR("Piped playlist sync failed: $e");
+      }
+    }
   }
 
   void updatePlaylistIntoDb(Playlist playlist) async {
-    final box = await Hive.openBox("LibraryPlaylists");
-    box.put(playlist.playlistId, playlist.toJson());
+    final box = await HiveBoxes.open("LibraryPlaylists");
+    await box.put(playlist.playlistId, playlist.toJson());
     refreshLib();
   }
 
@@ -349,7 +361,6 @@ class LibraryPlaylistsController extends GetxController
         }
       }
     }
-    box.close();
     return res.code == 1;
   }
 
@@ -362,10 +373,10 @@ class LibraryPlaylistsController extends GetxController
         if (res.code == 0) return false;
         playlist.newTitle = title;
       } else {
-        final box = await Hive.openBox("LibraryPlaylists");
+        final box = await HiveBoxes.open("LibraryPlaylists");
         title = "${title[0].toUpperCase()}${title.substring(1).toLowerCase()}";
         playlist.newTitle = title;
-        box.put(playlist.playlistId, playlist.toJson());
+        await box.put(playlist.playlistId, playlist.toJson());
       }
       refreshLib();
       return true;
@@ -409,19 +420,17 @@ class LibraryPlaylistsController extends GetxController
                 : Playlist.thumbPlaceholderUrl,
             description: "Library Playlist",
             isCloudPlaylist: false);
-        final box = await Hive.openBox("LibraryPlaylists");
-        box.put(newplst.playlistId, newplst.toJson());
-        await box.close();
+        final box = await HiveBoxes.open("LibraryPlaylists");
+        await box.put(newplst.playlistId, newplst.toJson());
       }
 
       libraryPlaylists.add(newplst);
 
       if (createPlaylistNaddSong && playlistCreationMode.value == "local") {
         final plastbox = await Hive.openBox(newplst.playlistId);
-        for (MediaItem item in songItems!) {
-          plastbox.add(MediaItemBuilder.toJson(item));
-        }
-        plastbox.close();
+        await plastbox
+            .addAll(songItems!.map((item) => MediaItemBuilder.toJson(item)));
+        await plastbox.close();
       } else if ((createPlaylistNaddSong &&
           playlistCreationMode.value == "piped")) {
         final songIds = songItems!.map((e) => e.id).toList();
@@ -443,7 +452,6 @@ class LibraryPlaylistsController extends GetxController
       final box = await Hive.openBox('blacklistedPlaylist');
       await box.add(playlist.playlistId);
       libraryPlaylists.remove(playlist);
-      await box.close();
       return true;
     } catch (_) {
       return false;
@@ -454,7 +462,6 @@ class LibraryPlaylistsController extends GetxController
     try {
       final box = await Hive.openBox('blacklistedPlaylist');
       await box.clear();
-      await box.close();
       return syncPipedPlaylist();
     } catch (_) {
       return false;
@@ -487,10 +494,10 @@ class LibraryPlaylistsController extends GetxController
   }
 
   @override
-  void dispose() {
+  void onClose() {
     textInputController.dispose();
     controller.dispose();
-    super.dispose();
+    super.onClose();
   }
 
   Future<void> importPlaylistFromJson(BuildContext context) async {
@@ -560,24 +567,20 @@ class LibraryPlaylistsController extends GetxController
       importProgress.value = 0.6;
 
       // Save playlist to database
-      final box = await Hive.openBox("LibraryPlaylists");
-      box.put(newPlaylistId, newPlaylist.toJson());
+      final box = await HiveBoxes.open("LibraryPlaylists");
+      await box.put(newPlaylistId, newPlaylist.toJson());
       importProgress.value = 0.7;
 
-      // Save songs to playlist
+      // Save songs to playlist in one batched write (was one flush per song).
       final songsBox = await Hive.openBox(newPlaylistId);
       final songsList = jsonData['songs'] as List;
+      await songsBox.putAll({
+        for (int i = 0; i < songsList.length; i++) i: songsList[i],
+      });
+      importProgress.value = 0.95;
 
-      // Update progress as songs are added
-      final totalSongs = songsList.length;
-      for (int i = 0; i < totalSongs; i++) {
-        await songsBox.put(i, songsList[i]);
-        // Update progress from 70% to 95% based on song import progress
-        importProgress.value = 0.7 + (0.25 * (i + 1) / totalSongs);
-      }
-
+      // Freshly created, uniquely named box that nothing else holds yet.
       await songsBox.close();
-      await box.close();
       importProgress.value = 1.0;
 
       // Close progress dialog if it's still open
@@ -677,14 +680,14 @@ class LibraryAlbumsController extends GetxController {
   }
 
   void refreshLib() async {
-    final box = await Hive.openBox("LibraryAlbums");
+    // Shared box, kept open (closing it broke concurrent openers).
+    final box = await HiveBoxes.open("LibraryAlbums");
     libraryAlbums.value = box.values
         .map<Album?>((item) => Album.fromJson(item))
         .whereType<Album>()
         .toList();
 
     isContentFetched.value = true;
-    box.close();
   }
 
   void onSort(SortType sortType, bool isAscending) {
@@ -723,13 +726,13 @@ class LibraryArtistsController extends GetxController {
   }
 
   void refreshLib() async {
-    final box = await Hive.openBox("LibraryArtists");
+    // Shared box, kept open (closing it broke concurrent openers).
+    final box = await HiveBoxes.open("LibraryArtists");
     libraryArtists.value = box.values
         .map<Artist?>((item) => Artist.fromJson(item))
         .whereType<Artist>()
         .toList();
     isContentFetched.value = true;
-    box.close();
   }
 
   void onSort(SortType sortType, bool isAscending) {
