@@ -30,8 +30,10 @@ class FreeAudiobook {
   /// The Archive's thumbnail service serves each item's cover art.
   String get cover => coverFor(id);
 
-  static String coverFor(String id) =>
-      'https://archive.org/services/img/${Uri.encodeComponent(id)}';
+  static String coverFor(String id) => '$coverBase${Uri.encodeComponent(id)}';
+
+  @visibleForTesting
+  static String coverBase = 'https://archive.org/services/img/';
 
   Map<String, dynamic> toJson() =>
       {'id': id, 'title': title, 'author': author, 'downloads': downloads};
@@ -73,8 +75,8 @@ class FreeAudiobookDetail {
   final List<String> subjects;
   final String language;
 
-  double get totalSec =>
-      chapters.fold(0.0, (sum, c) => sum + (c.durationSec > 0 ? c.durationSec : 0));
+  double get totalSec => chapters.fold(
+      0.0, (sum, c) => sum + (c.durationSec > 0 ? c.durationSec : 0));
 }
 
 /// A browsable genre: a localisation key for the label and the Archive
@@ -315,8 +317,10 @@ class FreeAudiobookService {
 
   /// LibriVox titles often end in a recording note — keep the book's name.
   static String cleanTitle(String t) => t
-      .replaceAll(RegExp(r'\s*\((?:version|dramatic reading)[^)]*\)\s*$',
-          caseSensitive: false), '')
+      .replaceAll(
+          RegExp(r'\s*\((?:version|dramatic reading)[^)]*\)\s*$',
+              caseSensitive: false),
+          '')
       .replaceAll(RegExp(r'\s+'), ' ')
       .trim();
 

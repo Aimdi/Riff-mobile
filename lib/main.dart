@@ -233,6 +233,7 @@ Future<void> initHiveDeferred() async {
     safeOpenBox("PodcastQueue"),
     safeOpenBox("PodcastFolders"),
     safeOpenBox("SavedAudiobooks"),
+    safeOpenBox("SavedFreeAudiobooks"),
     safeOpenBox("PodcastDownloads"),
     safeOpenBox("PodcastProgress"),
     safeOpenBox("AudiobookProgress"),

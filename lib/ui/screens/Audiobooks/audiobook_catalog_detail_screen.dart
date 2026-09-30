@@ -93,10 +93,11 @@ class _AudiobookCatalogDetailScreenState
               child: CachedNetworkImage(
                 imageUrl: book.cover,
                 // Decode at display size, not full resolution.
+                // Store audiobook art is square.
                 memCacheHeight:
-                    (210 * MediaQuery.devicePixelRatioOf(context)).round(),
-                width: 140,
-                height: 210,
+                    (200 * MediaQuery.devicePixelRatioOf(context)).round(),
+                width: 200,
+                height: 200,
                 fit: BoxFit.cover,
                 errorWidget: (_, __, ___) =>
                     const Icon(Icons.menu_book, size: 120),
