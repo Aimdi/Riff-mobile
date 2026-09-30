@@ -62,6 +62,8 @@ class RiffVideoPlayer(
         try {
             when (call.method) {
                 "create" -> result.success(ensurePlayer())
+                // Lets Dart bind the app's audio effects to video mode too.
+                "audioSessionId" -> result.success(player?.audioSessionId)
                 "load" -> {
                     val videoUrl = call.argument<String>("videoUrl")
                     if (videoUrl.isNullOrEmpty()) {
@@ -152,19 +154,40 @@ class RiffVideoPlayer(
 
     private fun release() {
         main.removeCallbacks(ticker)
-        player?.removeListener(this)
-        player?.release()
+        val exo = player
+        exo?.removeListener(this)
+        exo?.release()
         player = null
+        if (exo != null) {
+            // Tell Dart playback stopped (it otherwise keeps showing "playing"
+            // when the activity, and with it this player, goes away).
+            emit(
+                mapOf(
+                    "event" to "state",
+                    "playing" to false,
+                    "buffering" to false,
+                    "ended" to false,
+                    "ready" to false,
+                )
+            )
+        }
         surface?.release()
         surface = null
         texture?.release()
         texture = null
     }
 
-    fun dispose() {
+    /**
+     * Releases the player. [detachChannels] is false when a newer instance
+     * already owns the channels (its handlers must not be cleared).
+     */
+    fun dispose(detachChannels: Boolean = true) {
         release()
-        methods.setMethodCallHandler(null)
-        events.setStreamHandler(null)
+        sink = null
+        if (detachChannels) {
+            methods.setMethodCallHandler(null)
+            events.setStreamHandler(null)
+        }
     }
 
     // --- events --------------------------------------------------------

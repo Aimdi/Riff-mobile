@@ -45,6 +45,10 @@ abstract class VideoEngine {
 /// style playback with a YouTube-aware data source, rendered to a texture.
 class ExoVideoEngine implements VideoEngine {
   ExoVideoEngine() {
+    _subscribe();
+  }
+
+  void _subscribe() {
     _sub = _events.receiveBroadcastStream().listen(_onEvent, onError: (e) {
       _error.add('$e');
     });
@@ -127,6 +131,10 @@ class ExoVideoEngine implements VideoEngine {
     required Duration start,
     required double speed,
   }) async {
+    // Re-subscribe: when the activity is recreated the native player (and
+    // its event handler) is new, and only a fresh listen reaches it.
+    await _sub?.cancel();
+    _subscribe();
     // Always ask: the native side recreates the texture if the activity
     // (and with it the player) was rebuilt.
     _textureId = await _methods.invokeMethod<int>('create');
@@ -140,6 +148,11 @@ class ExoVideoEngine implements VideoEngine {
       'speed': speed,
     });
   }
+
+  /// Audio session of the native player (to bind audio effects to video
+  /// mode), or null before [open].
+  Future<int?> audioSessionId() =>
+      _methods.invokeMethod<int>('audioSessionId');
 
   @override
   Future<void> play() => _methods.invokeMethod('play');
