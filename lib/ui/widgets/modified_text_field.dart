@@ -13,6 +13,7 @@ class ModifiedTextField extends StatelessWidget {
   final TextInputAction? textInputAction;
   final void Function(String)? onSubmitted;
   final void Function(String)? onChanged;
+  final TextStyle? style;
 
   const ModifiedTextField(
       {super.key,
@@ -26,7 +27,8 @@ class ModifiedTextField extends StatelessWidget {
       this.textCapitalization = TextCapitalization.none,
       this.textInputAction,
       this.onSubmitted,
-      this.onChanged});
+      this.onChanged,
+      this.style});
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +39,7 @@ class ModifiedTextField extends StatelessWidget {
         },
         child: TextField(
             controller: controller,
+            style: style,
             cursorColor: cursorColor,
             decoration: decoration,
             obscureText: obscureText,

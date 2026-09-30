@@ -13,6 +13,7 @@ import '../player/player_controller.dart';
 import 'collection_play.dart';
 import 'empty_play_hint.dart';
 import 'image_widget.dart';
+import '../screens/Home/home_layout.dart';
 import 'snackbar.dart';
 import 'song_list_tile.dart';
 import 'songinfo_bottom_sheet.dart';
@@ -200,7 +201,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           ),
           controller: sc,
           itemCount: playlists.length,
-          itemExtent: 120,
+          itemExtent: 96,
           physics: const BouncingScrollPhysics(),
           itemBuilder: (context, index) => wideListTile(context,
               playlist: playlists[index],
@@ -219,7 +220,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           ),
           controller: sc,
           itemCount: albums.length,
-          itemExtent: 120,
+          itemExtent: 96,
           physics: const BouncingScrollPhysics(),
           itemBuilder: (context, index) {
             String artistName = "";
@@ -267,7 +268,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
               ? _playArtistRow(artist)
               : _openArtist(artist),
           onLongPress: () => _showArtistActions(context, artist),
-          contentPadding: const EdgeInsets.only(top: 0, bottom: 0, left: 5),
+          contentPadding: const EdgeInsets.only(top: 0, bottom: 0, left: 7),
           leading: SizedBox(
             width: 56,
             height: 56,
@@ -557,18 +558,19 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
         );
       },
       child: SizedBox(
-        height: 120,
+        height: 96,
         child: Padding(
-          padding: const EdgeInsets.only(top: 10.0, bottom: 10),
+          // 5 from the list wrapper + 7 = the 12dp Home gutter.
+          padding: const EdgeInsets.fromLTRB(7, 10, 0, 10),
           child: Row(
             children: [
               SizedBox(
-                width: 100,
-                height: 100,
+                width: 76,
+                height: 76,
                 child: Stack(
                   children: [
                     ImageWidget(
-                      size: 100,
+                      size: 76,
                       album: album,
                       playlist: playlist,
                     ),
@@ -593,7 +595,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
                               padding: EdgeInsets.all(2),
                               child: Icon(
                                 Icons.play_circle_fill,
-                                size: 26,
+                                size: 22,
                                 color: Colors.white,
                               ),
                             ),
@@ -604,9 +606,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
                   ],
                 ),
               ),
-              const SizedBox(
-                width: 20,
-              ),
+              const SizedBox(width: 14),
               Expanded(
                   child: Padding(
                 padding: const EdgeInsets.only(right: 10.0),
@@ -618,16 +618,19 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
                       title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium,
+                      style: homeCardTitleStyle(context)
+                          .copyWith(fontSize: 15, height: 1.25),
                     ),
+                    const SizedBox(height: 3),
                     Text(
-                      subtitle,
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    Text(
-                      subtitle2,
+                      [subtitle2, subtitle]
+                          .map((e) => e.trim())
+                          .where((e) => e.isNotEmpty && e != ',')
+                          .join(' · '),
                       maxLines: 1,
-                      style: Theme.of(context).textTheme.titleSmall,
+                      overflow: TextOverflow.ellipsis,
+                      style: homeCardSubtitleStyle(context)
+                          .copyWith(fontSize: 12.5),
                     ),
                   ],
                 ),
