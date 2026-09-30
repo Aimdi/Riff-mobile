@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '/models/thumbnail.dart';
 import '/services/podcast_service.dart';
@@ -91,7 +92,8 @@ class AudiobookExtras {
 class AudiobookCatalogService {
   AudiobookCatalogService._();
 
-  static final _dio = Dio(BaseOptions(
+  @visibleForTesting
+  static Dio dio = Dio(BaseOptions(
     receiveTimeout: const Duration(seconds: 15),
     headers: {'user-agent': 'Riff/1.0 (audiobooks)'},
   ));
@@ -118,7 +120,7 @@ class AudiobookCatalogService {
   static Future<List<AudiobookItem>> browse({int limit = 25}) async {
     try {
       final cc = _storefront();
-      final res = await _dio.get(
+      final res = await dio.get(
           'https://itunes.apple.com/$cc/rss/topaudiobooks/limit=$limit/json');
       final entries = _asMap(res.data)?['feed']?['entry'] as List?;
       if (entries == null) return [];
@@ -152,7 +154,7 @@ class AudiobookCatalogService {
     if (t.isEmpty) return [];
     try {
       final cc = _storefront();
-      final res = await _dio.get('https://itunes.apple.com/search',
+      final res = await dio.get('https://itunes.apple.com/search',
           queryParameters: {
             'media': 'audiobook',
             'term': t,
@@ -212,7 +214,7 @@ class AudiobookCatalogService {
   static Future<AudiobookDetails?> details(String collectionId) async {
     if (collectionId.isEmpty) return null;
     try {
-      final res = await _dio.get('https://itunes.apple.com/lookup',
+      final res = await dio.get('https://itunes.apple.com/lookup',
           queryParameters: {'id': collectionId, 'country': _storefront()});
       final results = _asMap(res.data)?['results'] as List?;
       if (results == null || results.isEmpty) return null;
@@ -244,7 +246,7 @@ class AudiobookCatalogService {
     try {
       final q =
           [title.trim(), author.trim()].where((s) => s.isNotEmpty).join(' ');
-      final res = await _dio.get(
+      final res = await dio.get(
         'https://www.googleapis.com/books/v1/volumes',
         queryParameters: {
           'q': q,

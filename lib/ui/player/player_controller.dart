@@ -436,6 +436,18 @@ class PlayerController extends GetxController
 
   void _handleAbsProgress(Duration position) {
     final song = currentSong.value;
+    if (song != null && song.isFreeAudiobook) {
+      // Free (LibriVox) chapters: local resume only, no server session.
+      _absLastTickMs = 0;
+      final total = progressBarStatus.value.total;
+      _maybeApplyPendingResume(song, position, total);
+      final saveMs = DateTime.now().millisecondsSinceEpoch;
+      if (saveMs - _lastAudiobookSaveMs >= 5000) {
+        _lastAudiobookSaveMs = saveMs;
+        AudiobookProgressService.save(song, position, total, nowMs: saveMs);
+      }
+      return;
+    }
     if (!_isAbsItem(song)) {
       _absLastTickMs = 0;
       return;
@@ -1532,11 +1544,11 @@ class PlayerController extends GetxController
     return s.isPodcastEpisode;
   }
 
-  /// True for Audiobookshelf streams (abs_ ids).
+  /// True for audiobook chapters (Audiobookshelf abs_ and free lv_ ids).
   bool get isCurrentSongAudiobook {
     final s = currentSong.value;
     if (s == null) return false;
-    return s.isAudiobookshelf;
+    return s.isAudiobook;
   }
 
   /// Podcast OR audiobook — ±skip / speed transport (not podcast-only tools).

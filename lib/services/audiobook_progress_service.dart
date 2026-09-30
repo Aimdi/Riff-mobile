@@ -24,13 +24,15 @@ class AudiobookProgressService {
   /// Audiobookshelf tracks carry the `abs_` prefix (see
   /// `AudiobookshelfService.toMediaItems`), which is also what makes
   /// `MyAudioHandler.checkNGetUrl` skip YouTube stream resolution.
-  static bool isAudiobookItem(MediaItem item) => item.id.startsWith('abs_');
+  /// Free LibriVox chapters (`lv_`) are tracked the same way.
+  static bool isAudiobookItem(MediaItem item) =>
+      item.id.startsWith('abs_') || item.id.startsWith('lv_');
 
   /// The owning book's id, recovered from `extras['absItemId']` when present
   /// and otherwise from the `abs_<bookId>_<trackIndex>` id shape. Returns null
   /// when neither is available.
   static String? bookIdOf(MediaItem item) {
-    final fromExtras = item.extras?['absItemId'];
+    final fromExtras = item.extras?['absItemId'] ?? item.extras?['audiobookId'];
     if (fromExtras is String && fromExtras.isNotEmpty) return fromExtras;
     if (!item.id.startsWith('abs_')) return null;
     final rest = item.id.substring(4);
@@ -73,7 +75,9 @@ class AudiobookProgressService {
       'artist': track.artist,
       'artUri': track.artUri?.toString(),
       'url': track.extras?['url'],
-      'trackIndex': track.extras?['absTrackIndex'],
+      'trackIndex':
+          track.extras?['absTrackIndex'] ?? track.extras?['audiobookTrackIndex'],
+      'trackCount': track.extras?['audiobookTrackCount'],
       'positionMs': posMs,
       'durationMs': totMs,
       'updatedAt': nowMs,
@@ -129,5 +133,23 @@ class AudiobookProgressService {
     list.sort((a, b) =>
         ((b['updatedAt'] ?? 0) as int).compareTo((a['updatedAt'] ?? 0) as int));
     return list;
+  }
+
+  /// One entry per free (LibriVox) book with a saved position, newest first:
+  /// the latest track record of each book. Drives "Continue listening".
+  static List<Map<String, dynamic>> freeBooksInProgress() =>
+      latestPerBook(inProgress().where((r) => '${r['id']}'.startsWith('lv_')));
+
+  /// Keeps the first (newest) record per `bookId`. Pure for tests.
+  static List<Map<String, dynamic>> latestPerBook(
+      Iterable<Map<String, dynamic>> newestFirst) {
+    final seen = <String>{};
+    final out = <Map<String, dynamic>>[];
+    for (final r in newestFirst) {
+      final id = r['bookId'];
+      if (id is! String || id.isEmpty || !seen.add(id)) continue;
+      out.add(r);
+    }
+    return out;
   }
 }

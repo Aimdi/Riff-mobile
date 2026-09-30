@@ -56,7 +56,11 @@ class WizeStream {
   /// episodes, Audiobookshelf items and local files.
   static String? watchUrlFor(MediaItem item) {
     final id = item.id;
-    if (id.startsWith('podcast_') || id.startsWith('abs_')) return null;
+    if (id.startsWith('podcast_') ||
+        id.startsWith('abs_') ||
+        id.startsWith('lv_')) {
+      return null;
+    }
     if (!_videoId.hasMatch(id)) return null;
     return 'https://www.youtube.com/watch?v=$id';
   }

@@ -10,7 +10,7 @@ bool shouldScrobble({
   required Duration listened,
   Duration? total,
 }) {
-  if (item.isPodcastEpisode || item.isAudiobookshelf) return false;
+  if (item.isPodcastEpisode || item.isAudiobook) return false;
   const cap = Duration(minutes: 4);
   final t = total ?? item.duration;
   if (t == null || t <= Duration.zero) return listened >= cap;

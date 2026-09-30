@@ -625,6 +625,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   static bool _hasDirectStreamUrl(String id) =>
       id.startsWith("podcast_") ||
       id.startsWith("abs_") ||
+      id.startsWith("lv_") ||
       id.startsWith("cloud_") ||
       id.startsWith("slsk_");
 
@@ -1346,6 +1347,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     // needed (same pattern Lissen uses for ABS).
     if (songId.startsWith("podcast_") ||
         songId.startsWith("abs_") ||
+        songId.startsWith("lv_") ||
         songId.startsWith("cloud_") ||
         songId.startsWith("slsk_")) {
       MediaItem? item;
@@ -1606,6 +1608,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     if (songId.isEmpty ||
         songId.startsWith('podcast_') ||
         songId.startsWith('abs_') ||
+        songId.startsWith('lv_') ||
         songId.startsWith('cloud_') ||
         songId.startsWith('slsk_')) {
       return;

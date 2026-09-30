@@ -23,6 +23,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 
 import 'package:harmonymusic/services/audiobook_catalog_service.dart';
+import 'package:harmonymusic/services/free_audiobook_service.dart';
 import 'package:harmonymusic/services/kugou_lyrics_service.dart';
 import 'package:harmonymusic/services/music_service.dart';
 import 'package:harmonymusic/services/podcast_service.dart';
@@ -159,5 +160,44 @@ void main() {
         similar.every((p) =>
             (p["feedUrl"] as String?)?.startsWith("http") ?? false),
         isTrue);
+  }, timeout: const Timeout(Duration(minutes: 3)));
+
+  test('free audiobooks (LibriVox via Internet Archive)', () async {
+    final popular = await FreeAudiobookService.popular(rows: 12);
+    final mystery = await FreeAudiobookService.byGenre('mystery', rows: 8);
+    final found = await FreeAudiobookService.search('sherlock holmes');
+    // ignore: avoid_print
+    print('FREE AUDIOBOOKS: popular=${popular.length} '
+        'mystery=${mystery.length} search=${found.length}; first='
+        '${popular.isNotEmpty ? "${popular.first.title} / ${popular.first.author}" : "none"}');
+    expect(popular.length, greaterThanOrEqualTo(10));
+    expect(mystery, isNotEmpty);
+    expect(found, isNotEmpty);
+
+    final detail = await FreeAudiobookService.detail(popular.first.id);
+    // ignore: avoid_print
+    print('FREE AUDIOBOOK DETAIL: ${detail?.book.title}; '
+        'chapters=${detail?.chapters.length}; '
+        'first=${detail?.chapters.isNotEmpty == true ? detail!.chapters.first.url : "none"}; '
+        'totalMin=${((detail?.totalSec ?? 0) / 60).round()}');
+    expect(detail, isNotNull);
+    expect(detail!.chapters, isNotEmpty);
+    expect(detail.chapters.every((c) => c.durationSec > 0), isTrue);
+
+    // The chapter MP3 and the cover must actually be fetchable.
+    final client = HttpClient();
+    try {
+      for (final url in [detail.chapters.first.url, popular.first.cover]) {
+        final req = await client.getUrl(Uri.parse(url));
+        req.headers.set('range', 'bytes=0-1023');
+        final res = await req.close();
+        await res.drain<void>();
+        // ignore: avoid_print
+        print('FETCH ${res.statusCode} ${res.headers.contentType} $url');
+        expect(res.statusCode, anyOf(200, 206));
+      }
+    } finally {
+      client.close(force: true);
+    }
   }, timeout: const Timeout(Duration(minutes: 3)));
 }
