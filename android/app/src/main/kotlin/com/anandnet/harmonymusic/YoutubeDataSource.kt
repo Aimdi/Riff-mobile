@@ -7,6 +7,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.BaseDataSource
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.HttpDataSource
 import java.io.IOException
 import java.io.InputStream
 import java.net.HttpURLConnection
@@ -46,8 +47,16 @@ class YoutubeDataSource private constructor() : BaseDataSource(/* isNetwork= */ 
     private var requestNumber = 0L
     private var earlyEnds = 0
 
+    /**
+     * Where the redirector sent the first chunk (without our `rn`), so later
+     * chunks of the same open() go straight to the media server.
+     */
+    private var resolvedUrl: String? = null
+
     override fun open(dataSpec: DataSpec): Long {
         this.dataSpec = dataSpec
+        resolvedUrl = null
+        earlyEnds = 0
         transferInitializing(dataSpec)
         position = dataSpec.position
         end = if (dataSpec.length != C.LENGTH_UNSET.toLong()) {
@@ -75,10 +84,9 @@ class YoutubeDataSource private constructor() : BaseDataSource(/* isNetwork= */ 
         var chunkLast = position + CHUNK_BYTES - 1
         if (end != C.LENGTH_UNSET.toLong()) chunkLast = minOf(chunkLast, end - 1)
 
-        var url = uri.toString()
-        if (isVideoPlayback(url) && !url.contains(RN_PARAMETER)) {
-            url += RN_PARAMETER + requestNumber++
-        }
+        var url = resolvedUrl ?: uri.toString()
+        val addedRn = isVideoPlayback(url) && !url.contains(RN_PARAMETER)
+        if (addedRn) url += RN_PARAMETER + requestNumber++
 
         var redirects = 0
         while (true) {
@@ -114,9 +122,24 @@ class YoutubeDataSource private constructor() : BaseDataSource(/* isNetwork= */ 
                 redirects++
                 continue
             }
-            if (code !in 200..299) {
+            if (code == 416 && end == C.LENGTH_UNSET.toLong() && position > 0) {
+                // Length unknown and the previous chunk ended exactly at the
+                // end of the resource: nothing left to read.
                 conn.disconnect()
-                throw IOException("YouTube stream HTTP $code")
+                end = position
+                chunkEnd = position
+                return -1L
+            }
+            if (code !in 200..299) {
+                val message = conn.responseMessage
+                val headers = conn.headerFields
+                conn.disconnect()
+                // Typed so ExoPlayer reports ERROR_CODE_IO_BAD_HTTP_STATUS.
+                throw HttpDataSource.InvalidResponseCodeException(
+                    code, message, null, headers, dataSpec!!, ByteArray(0))
+            }
+            if (redirects > 0) {
+                resolvedUrl = if (addedRn) removeQueryParam(url, "rn") else url
             }
             connection = conn
             input = conn.inputStream
@@ -126,7 +149,11 @@ class YoutubeDataSource private constructor() : BaseDataSource(/* isNetwork= */ 
             }
             val contentLength =
                 conn.getHeaderField("Content-Length")?.trim()?.toLongOrNull() ?: -1L
-            chunkEnd = if (code == 206) chunkLast + 1 else {
+            chunkEnd = if (code == 206) {
+                // The server may return less than asked (end of resource).
+                (lastFromContentRange(conn.getHeaderField("Content-Range"))
+                    ?: chunkLast) + 1
+            } else {
                 if (contentLength > 0) contentLength else Long.MAX_VALUE
             }
             return totalFromContentRange(conn.getHeaderField("Content-Range"))
@@ -140,14 +167,21 @@ class YoutubeDataSource private constructor() : BaseDataSource(/* isNetwork= */ 
         if (position >= chunkEnd) {
             // Chunk done but the resource continues: fetch the next piece.
             openChunk(dataSpec!!.uri)
+            if (end != C.LENGTH_UNSET.toLong() && position >= end) return C.RESULT_END_OF_INPUT
         }
         var toRead = length.toLong()
         if (end != C.LENGTH_UNSET.toLong()) toRead = minOf(toRead, end - position)
         toRead = minOf(toRead, chunkEnd - position)
         val n = input?.read(buffer, offset, toRead.toInt()) ?: -1
         if (n == -1) {
-            if (end == C.LENGTH_UNSET.toLong() || position >= end) return C.RESULT_END_OF_INPUT
-            // Connection ended early: resume from the same offset.
+            if (end != C.LENGTH_UNSET.toLong() && position >= end) return C.RESULT_END_OF_INPUT
+            // Length unknown and the server sent the whole resource (no
+            // range, no Content-Length): this is the real end.
+            if (end == C.LENGTH_UNSET.toLong() && chunkEnd == Long.MAX_VALUE) {
+                return C.RESULT_END_OF_INPUT
+            }
+            // Connection ended before the chunk did: resume from the same
+            // offset (also when the total length is unknown).
             if (++earlyEnds > MAX_EARLY_ENDS) throw IOException("YouTube stream kept ending early")
             chunkEnd = position
             return read(buffer, offset, length)
@@ -237,6 +271,22 @@ class YoutubeDataSource private constructor() : BaseDataSource(/* isNetwork= */ 
                         "(iPhone16,2; U; CPU iOS 18_1_0 like Mac OS X;)"
                 else -> DESKTOP_USER_AGENT
             }
+        }
+
+        /** "bytes 0-99/12345" → 99 (inclusive last byte). */
+        internal fun lastFromContentRange(header: String?): Long? {
+            val range = header?.trim()?.substringAfter(' ', "")?.substringBefore('/') ?: return null
+            return range.substringAfter('-', "").trim().toLongOrNull()
+        }
+
+        /** Drops every `name=` parameter from [url]'s query. */
+        internal fun removeQueryParam(url: String, name: String): String {
+            val q = url.indexOf('?')
+            if (q < 0) return url
+            val kept = url.substring(q + 1).split('&').filter {
+                it.isNotEmpty() && it.substringBefore('=') != name
+            }
+            return url.substring(0, q) + if (kept.isEmpty()) "" else "?" + kept.joinToString("&")
         }
 
         /** "bytes 0-99/12345" → 12345. */
