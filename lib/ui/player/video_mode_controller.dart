@@ -189,15 +189,21 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
           speed: speed,
         );
       }
+      // The song may have changed while the engine opened.
+      if (_pc.currentSong.value?.id != song.id) {
+        await engine.stop();
+        _resumeAudioIfVideoEnableFailed(wasPlayingBeforeAttempt: wasPlaying);
+        return false;
+      }
+      // Pause audio only now that video can take over — otherwise the
+      // play button sits on a spinner in silence while the stream resolves.
+      // Before isActive flips: once active, pause() routes to the video
+      // engine and the audio pipeline would keep playing.
+      if (wasPlaying) _pc.pause();
       _wire(engine);
       _activeSongId = song.id;
       isActive.value = true;
-      // Pause audio only now that video can take over — otherwise the
-      // play button sits on a spinner in silence while the stream resolves.
-      if (wasPlaying) {
-        _pc.pause();
-        await engine.play();
-      }
+      if (wasPlaying) await engine.play();
       return true;
     } catch (e) {
       printERROR('Video mode enable failed: $e');
@@ -290,9 +296,9 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
     _unwire();
     _subs.add(e.positionStream.listen((pos) {
       if (!isActive.value) return;
-      _pc.progressBarStatus.update((val) {
-        val!.current = pos;
-      });
+      // Same per-tick work as audio playback (SponsorBlock, podcast
+      // progress, sleep-at-end …) plus the throttled progress bar.
+      _pc.onPlaybackPosition(pos);
     }));
     _subs.add(e.bufferStream.listen((buf) {
       if (!isActive.value) return;
