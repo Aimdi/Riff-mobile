@@ -228,6 +228,22 @@ class _SongCoverImageState extends State<_SongCoverImage> {
   @override
   void initState() {
     super.initState();
+    _resolve();
+  }
+
+  @override
+  void didUpdateWidget(covariant _SongCoverImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reused elements (queue rows, mini player on track change) must not
+    // keep showing the previous song's art.
+    if (oldWidget.song.id != widget.song.id ||
+        oldWidget.song.artUri != widget.song.artUri ||
+        oldWidget.size != widget.size) {
+      _resolve();
+    }
+  }
+
+  void _resolve() {
     _url = _scaled(widget.song.artUri?.toString() ?? '');
     final vid = widget.song.id;
     final cached = CoverResolver.cached(vid);
@@ -237,7 +253,11 @@ class _SongCoverImageState extends State<_SongCoverImage> {
       CoverResolver.resolve(vid,
               title: widget.song.title, artist: widget.song.artist)
           .then((square) {
-        if (square != null && square.isNotEmpty && mounted) {
+        // Drop results for a song this element no longer shows.
+        if (square != null &&
+            square.isNotEmpty &&
+            mounted &&
+            widget.song.id == vid) {
           setState(() => _url = _scaled(square));
         }
       });

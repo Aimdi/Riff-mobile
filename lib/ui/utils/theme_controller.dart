@@ -18,6 +18,37 @@ class RiffSurfaces {
   static const Color textPrimary = Color(0xFFE7E9EA);
 }
 
+/// Tracks which song's palette is being generated / applied so repeated
+/// requests are ignored and out-of-order completions are dropped.
+class PaletteRequestGate {
+  /// Song whose palette is currently applied.
+  String? current;
+
+  /// Song whose palette is being generated.
+  String? pending;
+
+  /// Returns false when [songId] is already applied or in flight.
+  bool begin(String songId) {
+    if (songId == current || songId == pending) return false;
+    pending = songId;
+    return true;
+  }
+
+  /// Returns true (and marks [songId] applied) when its result is still
+  /// wanted, false when a newer request superseded it.
+  bool complete(String songId) {
+    if (pending != songId) return false;
+    pending = null;
+    current = songId;
+    return true;
+  }
+
+  /// Generation failed — allow a retry for [songId].
+  void fail(String songId) {
+    if (pending == songId) pending = null;
+  }
+}
+
 class ThemeController extends GetxController {
   /// Riff accent palette (used by the Pitch Black theme). Green is the
   /// signature Riff accent; the rest mirror the desktop theme gallery.
@@ -37,7 +68,7 @@ class ThemeController extends GetxController {
 
   /// The method channel for setting the title bar color on Windows.
   final platform = const MethodChannel('win_titlebar_color');
-  String? currentSongId;
+  String? get currentSongId => _paletteGate.current;
   late Brightness systemBrightness;
 
   ThemeController() {
@@ -107,17 +138,34 @@ class ThemeController extends GetxController {
     changeThemeModeType(_themeTypeFromPrefs(box));
   }
 
+  /// Dedupes palette extraction: the art widgets call [setTheme] from build
+  /// paths, so without this every rebuild started another quantization and
+  /// a slow one for the previous song could land after the current one.
+  final _paletteGate = PaletteRequestGate();
+
   void setTheme(ImageProvider imageProvider, String songId) async {
-    if (songId == currentSongId) return;
-    PaletteGenerator generator = await PaletteGenerator.fromImageProvider(
-        ResizeImage(imageProvider, height: 200, width: 200));
+    if (!_paletteGate.begin(songId)) return;
+    final PaletteGenerator generator;
+    try {
+      // A small thumbnail is plenty for a dominant colour and far cheaper
+      // to decode + quantize than the full-size art.
+      generator = await PaletteGenerator.fromImageProvider(
+          ResizeImage(imageProvider, height: 96, width: 96));
+    } catch (e) {
+      _paletteGate.fail(songId);
+      printERROR("setTheme palette failed: $e");
+      return;
+    }
+    // Superseded by a newer song while quantizing — drop the stale palette.
+    if (!_paletteGate.complete(songId)) return;
     //final colorList = generator.colors;
     final paletteColor = generator.dominantColor ??
         generator.darkMutedColor ??
         generator.darkVibrantColor ??
         generator.lightMutedColor ??
         generator.lightVibrantColor;
-    primaryColor.value = paletteColor!.color;
+    if (paletteColor == null) return;
+    primaryColor.value = paletteColor.color;
     textColor.value = paletteColor.bodyTextColor;
     // printINFO(paletteColor.color.computeLuminance().toString());0.11 ref
     if (paletteColor.color.computeLuminance() > 0.10) {
@@ -128,7 +176,6 @@ class ThemeController extends GetxController {
     themedata.value = _createThemeData(primarySwatch, ThemeType.dynamic,
         textColor: textColor.value,
         titleColorSwatch: _createMaterialColor(textColor.value));
-    currentSongId = songId;
     Hive.box('AppPrefs').put("themePrimaryColor", (primaryColor.value!).value);
     setWindowsTitleBarColor(themedata.value!.scaffoldBackgroundColor);
   }

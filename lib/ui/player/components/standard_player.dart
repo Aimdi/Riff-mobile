@@ -42,7 +42,10 @@ class StandardPlayer extends StatelessWidget {
             ),
           ] else ...[
             const BackgroudImage(),
-            if (canvasOn) const Positioned.fill(child: PlayerCanvasBackdrop()),
+            if (canvasOn)
+              const Positioned.fill(
+                child: RepaintBoundary(child: PlayerCanvasBackdrop()),
+              ),
             // Lighter than BackdropFilter blur — solid tint keeps art readable
             // without per-frame save-layer cost while the panel animates.
             Stack(

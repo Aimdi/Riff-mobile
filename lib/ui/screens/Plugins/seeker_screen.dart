@@ -872,6 +872,9 @@ class _CoverThumbState extends State<_CoverThumb> {
     if (_url != null) {
       child = CachedNetworkImage(
         imageUrl: _url!,
+        // Decode at display size, not full resolution.
+        memCacheWidth:
+            (widget.size * MediaQuery.devicePixelRatioOf(context)).round(),
         width: widget.size,
         height: widget.size,
         fit: BoxFit.cover,

@@ -116,6 +116,8 @@ class _QueueSongRow extends StatelessWidget {
     required this.playerController,
   });
 
+  static const _playedOpacity = AlwaysStoppedAnimation<double>(0.55);
+
   final int index;
   final MediaItem song;
   final bool isCurrent;
@@ -148,8 +150,11 @@ class _QueueSongRow extends StatelessWidget {
             ),
           ),
         Expanded(
-          child: Opacity(
-            opacity: isPlayed ? 0.55 : 1,
+          // FadeTransition with a constant animation: the row becomes its own
+          // repaint boundary with a retained opacity layer, instead of an
+          // Opacity re-rasterizing the row via saveLayer on every repaint.
+          child: FadeTransition(
+            opacity: isPlayed ? _playedOpacity : kAlwaysCompleteAnimation,
             child: Dismissible(
               key: ValueKey('dismiss_${song.id}'),
               direction: DismissDirection.horizontal,

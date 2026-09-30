@@ -92,6 +92,9 @@ class _AudiobookCatalogDetailScreenState
               borderRadius: BorderRadius.circular(10),
               child: CachedNetworkImage(
                 imageUrl: book.cover,
+                // Decode at display size, not full resolution.
+                memCacheHeight:
+                    (210 * MediaQuery.devicePixelRatioOf(context)).round(),
                 width: 140,
                 height: 210,
                 fit: BoxFit.cover,
@@ -247,6 +250,9 @@ class _AudiobookCatalogDetailScreenState
                         borderRadius: BorderRadius.circular(8),
                         child: CachedNetworkImage(
                           imageUrl: b.cover,
+                          // Decode at display size, not full resolution.
+                          memCacheHeight:
+                              (180 * MediaQuery.devicePixelRatioOf(context)).round(),
                           width: 120,
                           height: 180,
                           fit: BoxFit.cover,

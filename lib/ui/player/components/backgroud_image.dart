@@ -55,24 +55,54 @@ class BackgroudImage extends StatelessWidget {
   }
 }
 
-class _LocalArt extends StatelessWidget {
+class _LocalArt extends StatefulWidget {
   const _LocalArt({required this.songId, this.cacheHeight});
   final String songId;
   final int? cacheHeight;
 
   @override
+  State<_LocalArt> createState() => _LocalArtState();
+}
+
+class _LocalArtState extends State<_LocalArt> {
+  late File _imgFile;
+  // Cached so rebuilds don't restart the existence check (which painted a
+  // blank frame every time).
+  late Future<bool> _exists;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolve();
+  }
+
+  @override
+  void didUpdateWidget(covariant _LocalArt oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.songId != widget.songId) _resolve();
+  }
+
+  void _resolve() {
+    _imgFile = File(
+        "${Get.find<SettingsScreenController>().supportDirPath}/thumbnails/${widget.songId}.png");
+    _exists = _imgFile.exists();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final imgFile = File(
-        "${Get.find<SettingsScreenController>().supportDirPath}/thumbnails/$songId.png");
-    return FutureBuilder(
-      future: imgFile.exists(),
+    final imgFile = _imgFile;
+    final cacheHeight = widget.cacheHeight;
+    return FutureBuilder<bool>(
+      future: _exists,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done &&
             snapshot.hasData &&
             snapshot.data == true) {
+          // setTheme dedupes per song id, so calling it from build is cheap.
           if (Get.find<SettingsScreenController>().themeModetype.value ==
               ThemeType.dynamic) {
-            Get.find<ThemeController>().setTheme(FileImage(imgFile), songId);
+            Get.find<ThemeController>()
+                .setTheme(FileImage(imgFile), widget.songId);
           }
           return Image.file(
             imgFile,

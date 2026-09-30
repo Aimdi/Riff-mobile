@@ -168,8 +168,7 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
                 Center(
                   child: Text(
                     'videoUnavailable'.tr,
-                    style:
-                        const TextStyle(color: Colors.white70, fontSize: 13),
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                 ),
               if (widget.showControls && !loading)
@@ -271,6 +270,10 @@ class _FullscreenVideoPage extends StatefulWidget {
 }
 
 class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
+  /// Slider position while the user drags; the seek itself is sent once on
+  /// release instead of on every drag update.
+  double? _dragMs;
+
   @override
   void initState() {
     super.initState();
@@ -315,8 +318,9 @@ class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
               if (vm.engine != null)
                 Center(
                   child: AspectRatio(
-                    aspectRatio:
-                        vm.videoAspect.value <= 0 ? 16 / 9 : vm.videoAspect.value,
+                    aspectRatio: vm.videoAspect.value <= 0
+                        ? 16 / 9
+                        : vm.videoAspect.value,
                     child: vm.engine!.buildView(),
                   ),
                 ),
@@ -368,9 +372,9 @@ class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
                       final total = st.total.inMilliseconds <= 0
                           ? 1.0
                           : st.total.inMilliseconds.toDouble();
-                      final cur = st.current.inMilliseconds
-                          .clamp(0, total.toInt())
-                          .toDouble();
+                      final cur =
+                          (_dragMs ?? st.current.inMilliseconds.toDouble())
+                              .clamp(0.0, total);
                       return SliderTheme(
                         data: SliderTheme.of(context).copyWith(
                           trackHeight: 2,
@@ -382,8 +386,11 @@ class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
                           max: total,
                           // Routed through the transport, which drives the
                           // engine that owns playback.
-                          onChanged: (v) =>
-                              player.seek(Duration(milliseconds: v.round())),
+                          onChanged: (v) => setState(() => _dragMs = v),
+                          onChangeEnd: (v) {
+                            player.seek(Duration(milliseconds: v.round()));
+                            setState(() => _dragMs = null);
+                          },
                         ),
                       );
                     }),
@@ -415,7 +422,8 @@ class PlayerVideoEnableButton extends StatelessWidget {
         padding: const EdgeInsets.all(8),
         constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
         onPressed: onShow,
-        icon: const Icon(Icons.videocam_outlined, color: Colors.white, size: 22),
+        icon:
+            const Icon(Icons.videocam_outlined, color: Colors.white, size: 22),
       ),
     );
   }

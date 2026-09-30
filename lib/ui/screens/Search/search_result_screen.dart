@@ -16,7 +16,10 @@ class SearchResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final searchResScrController = Get.put(SearchResultScreenController());
+    final searchResScrController =
+        Get.isRegistered<SearchResultScreenController>()
+            ? Get.find<SearchResultScreenController>()
+            : Get.put(SearchResultScreenController());
     return GetPlatform.isDesktop
         ? const SearchResultScreenBN()
         : Scaffold(
@@ -134,7 +137,8 @@ class _RailLabel extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: (style ?? theme.textTheme.labelSmall)?.copyWith(fontSize: 12),
+            style:
+                (style ?? theme.textTheme.labelSmall)?.copyWith(fontSize: 12),
           ),
         ),
       ),
@@ -177,8 +181,8 @@ class Body extends StatelessWidget {
                   const SizedBox(height: 16),
                   TextButton.icon(
                     onPressed: () {
-                      final idx = searchResScrController.railItems.indexWhere(
-                          searchResScrController.isSoulseekRail);
+                      final idx = searchResScrController.railItems
+                          .indexWhere(searchResScrController.isSoulseekRail);
                       if (idx >= 0) {
                         searchResScrController.onDestinationSelected(idx + 1);
                       }

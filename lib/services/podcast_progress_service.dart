@@ -157,6 +157,28 @@ class PodcastProgressService {
     return list;
   }
 
+  /// Newest in-progress episode (same as `inProgress().first`) without
+  /// copying and sorting the whole box — for widgets that rebuild often.
+  static Map<String, dynamic>? latestInProgress() {
+    if (!Hive.isBoxOpen('PodcastProgress')) return null;
+    return newestProgressRow(_box.values);
+  }
+
+  /// Max-by-`updatedAt` over stored rows; null when none are maps.
+  static Map<String, dynamic>? newestProgressRow(Iterable<dynamic> values) {
+    Map? best;
+    var bestAt = 0;
+    for (final v in values) {
+      if (v is! Map) continue;
+      final at = (v['updatedAt'] ?? 0) as int;
+      if (best == null || at > bestAt) {
+        best = v;
+        bestAt = at;
+      }
+    }
+    return best == null ? null : Map<String, dynamic>.from(best);
+  }
+
   /// Rebuild a playable MediaItem from a stored progress record.
   static MediaItem toMediaItem(Map<String, dynamic> r) => MediaItem(
         id: '${r['id']}',
@@ -176,8 +198,7 @@ class PodcastProgressService {
           if (r['description'] != null) 'description': r['description'],
           if (r['chaptersUrl'] != null) 'chaptersUrl': r['chaptersUrl'],
           if (r['transcriptUrl'] != null) 'transcriptUrl': r['transcriptUrl'],
-          if (r['transcriptUrl'] != null)
-            'transcriptType': r['transcriptType'],
+          if (r['transcriptUrl'] != null) 'transcriptType': r['transcriptType'],
         },
       );
 }

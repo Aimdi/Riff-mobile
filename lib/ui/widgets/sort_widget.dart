@@ -82,8 +82,10 @@ class SortWidget extends StatelessWidget {
   final Function(String?)? onSearchClose;
   final Function(SortType, bool) onSort;
   final bool isImportFeatureRequired;
+
   /// Shows a cloud icon next to the duration (clock) control.
   final bool isCloudFeatureRequired;
+
   /// When non-null, drives the selected state of the cloud icon (use with Obx).
   final bool? isCloudModeActive;
   final VoidCallback? onCloudToggle;
@@ -177,7 +179,9 @@ class SortWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(SortWidgetController(), tag: tag);
+    final controller = Get.isRegistered<SortWidgetController>(tag: tag)
+        ? Get.find<SortWidgetController>(tag: tag)
+        : Get.put(SortWidgetController(), tag: tag);
     return Padding(
       padding: const EdgeInsets.only(top: 10.0),
       child: SizedBox(
@@ -207,8 +211,7 @@ class SortWidget extends StatelessWidget {
                     ),
                     Obx(
                       () => _customIconButton(
-                        isSelected:
-                            controller.sortType.value == SortType.Name,
+                        isSelected: controller.sortType.value == SortType.Name,
                         icon: Icons.sort_by_alpha,
                         tooltip: "sortByName".tr,
                         onPressed: () {
@@ -291,12 +294,11 @@ class SortWidget extends StatelessWidget {
                                     screenController: screenController,
                                     controller: controller,
                                   ));
-                
+
                           controller.setActiveMode(mode);
                           startAdditionalOperation!(controller, mode);
                         },
-                        itemBuilder: (BuildContext context) =>
-                            <PopupMenuEntry>[
+                        itemBuilder: (BuildContext context) => <PopupMenuEntry>[
                           if (isPlaylistRearrageFeatureRequired)
                             PopupMenuItem(
                               value: OperationMode.arrange,

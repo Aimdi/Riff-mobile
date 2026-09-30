@@ -10,6 +10,7 @@ import 'package:widget_marquee/widget_marquee.dart';
 
 import '../../../services/downloader.dart';
 import '../../player/player_controller.dart';
+import '../../widgets/header_hero_fade.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/loader.dart';
 import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
@@ -65,82 +66,62 @@ class AlbumScreen extends StatelessWidget {
                         final opacityValue = 1 -
                             albumController.scrollOffset.value /
                                 (size.width - 100);
-                        return Opacity(
+                        return HeaderHeroFade(
                             opacity: opacityValue < 0 ||
                                     albumController.isSearchingOn.isTrue
                                 ? 0
                                 : opacityValue,
-                            child: DecoratedBox(
-                                position: DecorationPosition.foreground,
-                                decoration: BoxDecoration(
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Theme.of(context).canvasColor,
-                                      spreadRadius: 200,
-                                      blurRadius: 100,
-                                      offset: Offset(-size.height, 0),
-                                    ),
-                                    BoxShadow(
-                                      color: Theme.of(context).canvasColor,
-                                      spreadRadius: 200,
-                                      blurRadius: 100,
-                                      offset: Offset(
-                                          0,
-                                          landscape
-                                              ? size.height
-                                              : size.width + 80),
-                                    )
-                                  ],
+                            color: Theme.of(context).canvasColor,
+                            leftShadowOffset: -size.height,
+                            bottomShadowOffset:
+                                landscape ? size.height : size.width + 80,
+                            child: CachedNetworkImage(
+                              imageUrl: Thumbnail(
+                                      albumController.album.value.thumbnailUrl)
+                                  .extraHigh,
+                              fit: landscape
+                                  ? BoxFit.fitHeight
+                                  : BoxFit.fitWidth,
+                              width: landscape ? null : size.width,
+                              height: landscape ? size.height : null,
+                              memCacheWidth: landscape
+                                  ? null
+                                  : (size.width *
+                                          MediaQuery.devicePixelRatioOf(
+                                              context))
+                                      .round(),
+                              memCacheHeight: landscape
+                                  ? (size.height *
+                                          MediaQuery.devicePixelRatioOf(
+                                              context))
+                                      .round()
+                                  : null,
+                              errorWidget: (_, __, ___) => CachedNetworkImage(
+                                imageUrl:
+                                    albumController.album.value.thumbnailUrl,
+                                fit: landscape
+                                    ? BoxFit.fitHeight
+                                    : BoxFit.fitWidth,
+                                width: landscape ? null : size.width,
+                                height: landscape ? size.height : null,
+                                memCacheWidth: landscape
+                                    ? null
+                                    : (size.width *
+                                            MediaQuery.devicePixelRatioOf(
+                                                context))
+                                        .round(),
+                                memCacheHeight: landscape
+                                    ? (size.height *
+                                            MediaQuery.devicePixelRatioOf(
+                                                context))
+                                        .round()
+                                    : null,
+                                errorWidget: (_, __, ___) => Container(
+                                  color:
+                                      Theme.of(context).colorScheme.secondary,
                                 ),
-                                child: CachedNetworkImage(
-                                  imageUrl: Thumbnail(albumController
-                                          .album.value.thumbnailUrl)
-                                      .extraHigh,
-                                  fit: landscape
-                                      ? BoxFit.fitHeight
-                                      : BoxFit.fitWidth,
-                                  width: landscape ? null : size.width,
-                                  height: landscape ? size.height : null,
-                                  memCacheWidth: landscape
-                                      ? null
-                                      : (size.width *
-                                              MediaQuery.devicePixelRatioOf(
-                                                  context))
-                                          .round(),
-                                  memCacheHeight: landscape
-                                      ? (size.height *
-                                              MediaQuery.devicePixelRatioOf(
-                                                  context))
-                                          .round()
-                                      : null,
-                                  errorWidget: (_, __, ___) =>
-                                      CachedNetworkImage(
-                                    imageUrl: albumController
-                                        .album.value.thumbnailUrl,
-                                    fit: landscape
-                                        ? BoxFit.fitHeight
-                                        : BoxFit.fitWidth,
-                                    width: landscape ? null : size.width,
-                                    height: landscape ? size.height : null,
-                                    memCacheWidth: landscape
-                                        ? null
-                                        : (size.width *
-                                                MediaQuery.devicePixelRatioOf(
-                                                    context))
-                                            .round(),
-                                    memCacheHeight: landscape
-                                        ? (size.height *
-                                                MediaQuery.devicePixelRatioOf(
-                                                    context))
-                                            .round()
-                                        : null,
-                                    errorWidget: (_, __, ___) => Container(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .secondary,
-                                    ),
-                                  ),
-                                )));
+                              ),
+                            ));
                       }))
                   : SizedBox(
                       height: size.width,
@@ -295,13 +276,11 @@ class AlbumScreen extends StatelessWidget {
                                           IconButton(
                                               tooltip: "enqueueAlbumSongs".tr,
                                               onPressed: () async {
-                                                final ok =
-                                                    await Get.find<
-                                                            PlayerController>()
-                                                        .enqueueSongList(
-                                                            albumController
-                                                                .songList
-                                                                .toList());
+                                                final ok = await Get.find<
+                                                        PlayerController>()
+                                                    .enqueueSongList(
+                                                        albumController.songList
+                                                            .toList());
                                                 if (!context.mounted) return;
                                                 ScaffoldMessenger.of(context)
                                                     .showSnackBar(snackbar(
@@ -325,10 +304,12 @@ class AlbumScreen extends StatelessWidget {
                                           IconButton(
                                               tooltip: "playNext".tr,
                                               onPressed: () async {
-                                                final ok = await playerController
-                                                    .playNextList(
-                                                        albumController.songList
-                                                            .toList());
+                                                final ok =
+                                                    await playerController
+                                                        .playNextList(
+                                                            albumController
+                                                                .songList
+                                                                .toList());
                                                 if (!context.mounted) return;
                                                 ScaffoldMessenger.of(context)
                                                     .showSnackBar(snackbar(
@@ -366,16 +347,17 @@ class AlbumScreen extends StatelessWidget {
                                                   }
                                                   return;
                                                 }
-                                                final ok = await playerController
-                                                    .startRadio(songs.first);
+                                                final ok =
+                                                    await playerController
+                                                        .startRadio(
+                                                            songs.first);
                                                 if (!context.mounted || ok) {
                                                   return;
                                                 }
                                                 ScaffoldMessenger.of(context)
                                                     .showSnackBar(snackbar(
                                                         context,
-                                                        "radioNotAvailable"
-                                                            .tr,
+                                                        "radioNotAvailable".tr,
                                                         size: SanckBarSize
                                                             .MEDIUM));
                                               },
@@ -663,7 +645,7 @@ class AlbumScreen extends StatelessWidget {
 
   Future openBottomSheet(BuildContext context, MediaItem song) {
     return showModalBottomSheet(
-      useRootNavigator: true, 
+      useRootNavigator: true,
       constraints: const BoxConstraints(maxWidth: 500),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),

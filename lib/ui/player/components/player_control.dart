@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:ionicons/ionicons.dart';
@@ -9,6 +11,7 @@ import '/ui/player/components/podcast_transcript_sheet.dart';
 import '/ui/utils/riff_tokens.dart';
 import '/ui/utils/theme_controller.dart';
 import '/utils/content_filters.dart';
+import '/services/podcast_service.dart' show PodcastChapter;
 import '../../screens/Settings/settings_screen_controller.dart';
 import '../../widgets/add_to_playlist.dart';
 import '../../widgets/discovery/player_similar_row.dart';
@@ -89,7 +92,9 @@ class PlayerControlWidget extends StatelessWidget {
           }),
           // Spotify-style straight seek bar. Podcasts with chapters split
           // into sections; music is one line. Phone volume stays on hardware.
-          const _SeekScrubber(),
+          // Own layer: the 10 Hz progress tick must not repaint the whole
+          // player (album art, controls) up to the root.
+          const RepaintBoundary(child: _SeekScrubber()),
           const SizedBox(height: 6),
           Obx(() => playerController.usesLongFormTransport
               ? _podcastControls(playerController, context)
@@ -736,19 +741,60 @@ class _SeekScrubber extends StatefulWidget {
 class _SeekScrubberState extends State<_SeekScrubber> {
   double? _dragFrac;
   Duration? _dragPosition;
+  Duration? _seekTarget;
+  Timer? _seekHold;
 
-  void _scrubTo(double dx, double width, Duration total, PlayerController c) {
+  // Chapter marks only change with the episode's chapters / duration, not
+  // with every 10 Hz progress tick — memoize them.
+  List<double> _marks = const [];
+  List<PodcastChapter> _marksChapters = const [];
+  int _marksTotalMs = -1;
+
+  List<double> _chapterMarks(List<PodcastChapter> chapters, int totalMs) {
+    var same = totalMs == _marksTotalMs &&
+        chapters.length == _marksChapters.length;
+    for (var i = 0; same && i < chapters.length; i++) {
+      same = identical(chapters[i], _marksChapters[i]);
+    }
+    if (!same) {
+      _marksTotalMs = totalMs;
+      _marksChapters = List.of(chapters);
+      _marks = podcastChapterMarks(chapters, totalMs / 1000.0);
+    }
+    return _marks;
+  }
+
+  /// Moves the thumb only — the actual seek happens once, on release
+  /// ([_commitScrub]); seeking on every drag update floods the player.
+  void _scrubTo(double dx, double width, Duration total) {
     if (total.inMilliseconds <= 0 || width <= 0) return;
     final f = (dx / width).clamp(0.0, 1.0);
     final pos = total * f;
+    _seekHold?.cancel();
+    _seekTarget = null;
     setState(() {
       _dragFrac = f;
       _dragPosition = pos;
     });
+  }
+
+  /// Seeks once and keeps the thumb at the target until the player reports
+  /// a position near it (or a short timeout), so it doesn't snap back to the
+  /// pre-seek position for a few ticks.
+  void _commitScrub(PlayerController c) {
+    final pos = _dragPosition;
+    if (pos == null) return _endScrub();
     c.seek(pos);
+    _seekTarget = pos;
+    _seekHold?.cancel();
+    _seekHold = Timer(const Duration(milliseconds: 1500), () {
+      if (mounted) _endScrub();
+    });
   }
 
   void _endScrub() {
+    _seekHold?.cancel();
+    _seekTarget = null;
     if (_dragFrac == null && _dragPosition == null) return;
     setState(() {
       _dragFrac = null;
@@ -757,18 +803,30 @@ class _SeekScrubberState extends State<_SeekScrubber> {
   }
 
   @override
+  void dispose() {
+    _seekHold?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return GetX<PlayerController>(builder: (controller) {
       final status = controller.progressBarStatus.value;
+      final target = _seekTarget;
+      if (target != null &&
+          (status.current - target).abs() < const Duration(seconds: 1)) {
+        // Player caught up with the committed seek — follow live progress.
+        _seekHold?.cancel();
+        _seekTarget = null;
+        _dragFrac = null;
+        _dragPosition = null;
+      }
       final totalMs = status.total.inMilliseconds;
       final liveFrac = totalMs > 0
           ? (status.current.inMilliseconds / totalMs).clamp(0.0, 1.0)
           : 0.0;
       final frac = _dragFrac ?? liveFrac;
-      final marks = podcastChapterMarks(
-        controller.chapters,
-        status.total.inMilliseconds / 1000.0,
-      );
+      final marks = _chapterMarks(controller.chapters, totalMs);
       final timeStyle = Theme.of(context).textTheme.titleSmall!.copyWith(
             fontSize: 12,
             color: RiffSurfaces.textMuted,
@@ -790,15 +848,15 @@ class _SeekScrubberState extends State<_SeekScrubber> {
               final width = constraints.maxWidth;
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTapDown: (d) => _scrubTo(
-                    d.localPosition.dx, width, status.total, controller),
-                onTapUp: (_) => _endScrub(),
+                onTapDown: (d) =>
+                    _scrubTo(d.localPosition.dx, width, status.total),
+                onTapUp: (_) => _commitScrub(controller),
                 onTapCancel: _endScrub,
-                onHorizontalDragStart: (d) => _scrubTo(
-                    d.localPosition.dx, width, status.total, controller),
-                onHorizontalDragUpdate: (d) => _scrubTo(
-                    d.localPosition.dx, width, status.total, controller),
-                onHorizontalDragEnd: (_) => _endScrub(),
+                onHorizontalDragStart: (d) =>
+                    _scrubTo(d.localPosition.dx, width, status.total),
+                onHorizontalDragUpdate: (d) =>
+                    _scrubTo(d.localPosition.dx, width, status.total),
+                onHorizontalDragEnd: (_) => _commitScrub(controller),
                 onHorizontalDragCancel: _endScrub,
                 child: SizedBox(
                   height: 36,

@@ -149,8 +149,9 @@ class _ResumeRow extends StatelessWidget {
       final sessionTitle = player.continueListeningTitle.value;
 
       final idle = current == null || player.initFlagForPlayer;
-      final rows = PodcastProgressService.inProgress();
-      final latest = latestPodcastContinue(rows);
+      // Just the newest row — this Obx rebuilds on every song change, and
+      // inProgress() copies + sorts the whole box.
+      final latest = PodcastProgressService.latestInProgress();
       final episode =
           latest == null ? null : PodcastProgressService.toMediaItem(latest);
       final showEpisode = episode != null &&
@@ -177,7 +178,6 @@ class _ResumeRow extends StatelessWidget {
             _EpisodeTile(
               player: player,
               episode: episode,
-              rows: rows,
               compact: both,
             ),
         ]),
@@ -274,17 +274,16 @@ class _EpisodeTile extends StatelessWidget {
   const _EpisodeTile({
     required this.player,
     required this.episode,
-    required this.rows,
     required this.compact,
   });
 
   final PlayerController player;
   final MediaItem episode;
-  final List<Map<String, dynamic>> rows;
   final bool compact;
 
   Future<void> _resume() async {
-    final queue = podcastContinueQueue(rows);
+    // Full newest-first list only when actually resuming.
+    final queue = podcastContinueQueue(PodcastProgressService.inProgress());
     if (queue.isEmpty) return;
     final pos = PodcastProgressService.positionMs(queue.first.id) ?? 0;
     if (pos > 0) player.armResume(queue.first.id, pos);

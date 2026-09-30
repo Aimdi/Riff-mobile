@@ -61,9 +61,7 @@ class SongsLibraryWidget extends StatelessWidget {
             final cloudMode = libSongsController.showCloudSongs.value;
             final cloud = Get.find<CloudMusicService>();
             final count = cloudMode
-                ? (cloud.isConnected.value
-                    ? cloud.songs.length
-                    : 0)
+                ? (cloud.isConnected.value ? cloud.songs.length : 0)
                 : libSongsController.librarySongsList.length;
             return SortWidget(
               tag: "LibSongSort",
@@ -270,11 +268,31 @@ class _CloudSongsPane extends StatelessWidget {
   }
 }
 
-class PlaylistNAlbumLibraryWidget extends StatelessWidget {
+class PlaylistNAlbumLibraryWidget extends StatefulWidget {
   const PlaylistNAlbumLibraryWidget(
       {super.key, this.isAlbumContent = true, this.isBottomNavActive = false});
   final bool isAlbumContent;
   final bool isBottomNavActive;
+
+  @override
+  State<PlaylistNAlbumLibraryWidget> createState() =>
+      _PlaylistNAlbumLibraryWidgetState();
+}
+
+class _PlaylistNAlbumLibraryWidgetState
+    extends State<PlaylistNAlbumLibraryWidget> {
+  // One controller for the grid's lifetime — it used to be created inside
+  // build (Obx/LayoutBuilder), leaking a controller on every rebuild.
+  final _gridScroll = ScrollController(keepScrollOffset: false);
+
+  bool get isAlbumContent => widget.isAlbumContent;
+  bool get isBottomNavActive => widget.isBottomNavActive;
+
+  @override
+  void dispose() {
+    _gridScroll.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -374,7 +392,7 @@ class PlaylistNAlbumLibraryWidget extends StatelessWidget {
                               crossAxisCount: columns,
                               childAspectRatio: (itemWidth / itemHeight),
                             ),
-                            controller: ScrollController(keepScrollOffset: false),
+                            controller: _gridScroll,
                             itemCount: isAlbumContent
                                 ? libralbumCntrller.libraryAlbums.length
                                 : librplstCntrller.libraryPlaylists.length,
@@ -443,8 +461,7 @@ class LibraryArtistWidget extends StatelessWidget {
           ),
           Obx(() => cntrller.libraryArtists.isNotEmpty
               ? ListWidget(cntrller.libraryArtists, "Library Artists", true)
-              : Expanded(
-                  child: EmptyPlayHint(message: "noLibArtists".tr)))
+              : Expanded(child: EmptyPlayHint(message: "noLibArtists".tr)))
         ],
       ),
     );
@@ -493,15 +510,14 @@ class _LibraryPinnedRow extends StatelessWidget {
     if (shuffle) {
       tracks.shuffle();
     } else if (id == 'LIBRP') {
-      final ok = await Get.find<PlayerController>()
-          .playPlayListSong(tracks.reversed.toList(), 0,
-              source: sourceFromPlaylistId(id));
+      final ok = await Get.find<PlayerController>().playPlayListSong(
+          tracks.reversed.toList(), 0,
+          source: sourceFromPlaylistId(id));
       if (!ok) _snackPlayFailed();
       return;
     }
-    final ok =
-        await Get.find<PlayerController>().playPlayListSong(tracks, 0,
-            source: sourceFromPlaylistId(id));
+    final ok = await Get.find<PlayerController>()
+        .playPlayListSong(tracks, 0, source: sourceFromPlaylistId(id));
     if (!ok) _snackPlayFailed();
   }
 

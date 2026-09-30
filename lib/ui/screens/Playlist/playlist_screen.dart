@@ -16,6 +16,7 @@ import '../../../services/downloader.dart';
 import '../../navigator.dart';
 import '../../player/player_controller.dart';
 import '../../widgets/create_playlist_dialog.dart';
+import '../../widgets/header_hero_fade.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/loader.dart';
 import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
@@ -29,6 +30,9 @@ import '../../widgets/songinfo_bottom_sheet.dart';
 import '../../widgets/sort_widget.dart';
 import '../Library/library_controller.dart';
 import 'playlist_screen_controller.dart';
+
+/// YouTube channel id (`UC…`) — compiled once, not per list row.
+final _channelIdRe = RegExp(r'^UC[\w-]{20,}$');
 
 class PlaylistScreen extends StatelessWidget {
   const PlaylistScreen({super.key});
@@ -78,38 +82,36 @@ class PlaylistScreen extends StatelessWidget {
                         final opacityValue = 1 -
                             playlistController.scrollOffset.value /
                                 (size.width - 100);
-                        return Opacity(
+                        return HeaderHeroFade(
                           opacity: opacityValue < 0 ||
                                   playlistController.isSearchingOn.isTrue &&
                                       !landscape
                               ? 0
                               : opacityValue,
-                          child: DecoratedBox(
-                            position: DecorationPosition.foreground,
-                            decoration: BoxDecoration(
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Theme.of(context).canvasColor,
-                                  spreadRadius: 200,
-                                  blurRadius: 100,
-                                  offset: Offset(-size.height, 0),
-                                ),
-                                BoxShadow(
-                                  color: Theme.of(context).canvasColor,
-                                  spreadRadius: 200,
-                                  blurRadius: 100,
-                                  offset: Offset(
-                                      0,
-                                      landscape
-                                          ? size.height
-                                          : size.width + 80),
-                                )
-                              ],
-                            ),
-                            child: CachedNetworkImage(
-                              imageUrl: Thumbnail(playlistController
-                                      .playlist.value.thumbnailUrl)
-                                  .extraHigh,
+                          color: Theme.of(context).canvasColor,
+                          leftShadowOffset: -size.height,
+                          bottomShadowOffset:
+                              landscape ? size.height : size.width + 80,
+                          child: CachedNetworkImage(
+                            imageUrl: Thumbnail(playlistController
+                                    .playlist.value.thumbnailUrl)
+                                .extraHigh,
+                            fit: landscape ? BoxFit.fitHeight : BoxFit.cover,
+                            width: landscape ? null : size.width,
+                            height: landscape ? size.height : size.width,
+                            memCacheWidth: landscape
+                                ? null
+                                : (size.width *
+                                        MediaQuery.devicePixelRatioOf(context))
+                                    .round(),
+                            memCacheHeight: landscape
+                                ? (size.height *
+                                        MediaQuery.devicePixelRatioOf(context))
+                                    .round()
+                                : null,
+                            errorWidget: (_, __, ___) => CachedNetworkImage(
+                              imageUrl: playlistController
+                                  .playlist.value.thumbnailUrl,
                               fit: landscape ? BoxFit.fitHeight : BoxFit.cover,
                               width: landscape ? null : size.width,
                               height: landscape ? size.height : size.width,
@@ -125,29 +127,8 @@ class PlaylistScreen extends StatelessWidget {
                                               context))
                                       .round()
                                   : null,
-                              errorWidget: (_, __, ___) => CachedNetworkImage(
-                                imageUrl: playlistController
-                                    .playlist.value.thumbnailUrl,
-                                fit:
-                                    landscape ? BoxFit.fitHeight : BoxFit.cover,
-                                width: landscape ? null : size.width,
-                                height: landscape ? size.height : size.width,
-                                memCacheWidth: landscape
-                                    ? null
-                                    : (size.width *
-                                            MediaQuery.devicePixelRatioOf(
-                                                context))
-                                        .round(),
-                                memCacheHeight: landscape
-                                    ? (size.height *
-                                            MediaQuery.devicePixelRatioOf(
-                                                context))
-                                        .round()
-                                    : null,
-                                errorWidget: (_, __, ___) => Container(
-                                  color:
-                                      Theme.of(context).colorScheme.secondary,
-                                ),
+                              errorWidget: (_, __, ___) => Container(
+                                color: Theme.of(context).colorScheme.secondary,
                               ),
                             ),
                           ),
@@ -194,84 +175,91 @@ class PlaylistScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (!playlistController
-                                .playlist.value.isCloudPlaylist &&
-                            playlistController.isDefaultPlaylist.isFalse)
-                          SizedBox(
-                            width: 50,
-                            child: IconButton(
-                                onPressed: () {
-                                  showModalBottomSheet(
-                                    constraints:
-                                        const BoxConstraints(maxWidth: 500),
-                                    shape: const RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.vertical(
-                                          top: Radius.circular(10.0)),
-                                    ),
-                                    context: Get.find<PlayerController>()
-                                        .homeScaffoldkey
-                                        .currentState!
-                                        .context,
-                                    barrierColor:
-                                        Colors.transparent.withAlpha(100),
-                                    builder: (context) => SizedBox(
-                                      height: 140,
-                                      child: Column(
-                                        children: [
-                                          ListTile(
-                                            leading: const Icon(Icons.edit),
-                                            title: Text("renamePlaylist".tr),
-                                            onTap: () {
-                                              Navigator.of(context).pop();
-                                              showDialog(
-                                                context: context,
-                                                builder: (context) =>
-                                                    CreateNRenamePlaylistPopup(
-                                                        renamePlaylist: true,
-                                                        playlist:
-                                                            playlistController
-                                                                .playlist
-                                                                .value),
-                                              );
-                                            },
+                        // Reactive: an id-only open fills `playlist`
+                        // asynchronously (starts as a cloud placeholder).
+                        Obx(() => (!playlistController
+                                    .playlist.value.isCloudPlaylist &&
+                                playlistController.isDefaultPlaylist.isFalse)
+                            ? SizedBox(
+                                width: 50,
+                                child: IconButton(
+                                    onPressed: () {
+                                      showModalBottomSheet(
+                                        constraints:
+                                            const BoxConstraints(maxWidth: 500),
+                                        shape: const RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.vertical(
+                                              top: Radius.circular(10.0)),
+                                        ),
+                                        context: Get.find<PlayerController>()
+                                            .homeScaffoldkey
+                                            .currentState!
+                                            .context,
+                                        barrierColor:
+                                            Colors.transparent.withAlpha(100),
+                                        builder: (context) => SizedBox(
+                                          height: 140,
+                                          child: Column(
+                                            children: [
+                                              ListTile(
+                                                leading: const Icon(Icons.edit),
+                                                title:
+                                                    Text("renamePlaylist".tr),
+                                                onTap: () {
+                                                  Navigator.of(context).pop();
+                                                  showDialog(
+                                                    context: context,
+                                                    builder: (context) =>
+                                                        CreateNRenamePlaylistPopup(
+                                                            renamePlaylist:
+                                                                true,
+                                                            playlist:
+                                                                playlistController
+                                                                    .playlist
+                                                                    .value),
+                                                  );
+                                                },
+                                              ),
+                                              ListTile(
+                                                leading:
+                                                    const Icon(Icons.delete),
+                                                title:
+                                                    Text("removePlaylist".tr),
+                                                onTap: () {
+                                                  Navigator.of(context).pop();
+                                                  playlistController
+                                                      .addNremoveFromLibrary(
+                                                          playlistController
+                                                              .playlist.value,
+                                                          add: false)
+                                                      .then((value) {
+                                                    Get.nestedKey(
+                                                            ScreenNavigationSetup
+                                                                .id)!
+                                                        .currentState!
+                                                        .pop();
+                                                    ScaffoldMessenger.of(
+                                                            Get.context!)
+                                                        .showSnackBar(snackbar(
+                                                            Get.context!,
+                                                            value
+                                                                ? "playlistRemovedAlert"
+                                                                    .tr
+                                                                : "operationFailed"
+                                                                    .tr,
+                                                            size: SanckBarSize
+                                                                .MEDIUM));
+                                                  });
+                                                },
+                                              ),
+                                            ],
                                           ),
-                                          ListTile(
-                                            leading: const Icon(Icons.delete),
-                                            title: Text("removePlaylist".tr),
-                                            onTap: () {
-                                              Navigator.of(context).pop();
-                                              playlistController
-                                                  .addNremoveFromLibrary(
-                                                      playlistController
-                                                          .playlist.value,
-                                                      add: false)
-                                                  .then((value) {
-                                                Get.nestedKey(
-                                                        ScreenNavigationSetup
-                                                            .id)!
-                                                    .currentState!
-                                                    .pop();
-                                                ScaffoldMessenger.of(
-                                                        Get.context!)
-                                                    .showSnackBar(snackbar(
-                                                        Get.context!,
-                                                        value
-                                                            ? "playlistRemovedAlert"
-                                                                .tr
-                                                            : "operationFailed"
-                                                                .tr,
-                                                        size: SanckBarSize
-                                                            .MEDIUM));
-                                              });
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
-                                icon: const Icon(Icons.more_vert)),
-                          )
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.more_vert)),
+                              )
+                            : const SizedBox.shrink()),
                       ],
                     ),
                   ),
@@ -305,13 +293,11 @@ class PlaylistScreen extends StatelessWidget {
                                 // Podcasts / YT channels: no music action strip
                                 // (play/shuffle/download/…). Follow lives under
                                 // the title in the header row (index == 1).
-                                final pl0 =
-                                    playlistController.playlist.value;
+                                final pl0 = playlistController.playlist.value;
                                 final isPodcastPage = pl0.kind == 'podcast' ||
                                     pl0.kind == 'yt_channel' ||
                                     pl0.playlistId.startsWith('MPSP') ||
-                                    RegExp(r'^UC[\w-]{20,}$')
-                                        .hasMatch(pl0.playlistId);
+                                    _channelIdRe.hasMatch(pl0.playlistId);
                                 if (isPodcastPage) {
                                   return const SizedBox.shrink();
                                 }
@@ -358,7 +344,8 @@ class PlaylistScreen extends StatelessWidget {
                                                       return;
                                                     }
 
-                                                    ScaffoldMessenger.of(context)
+                                                    ScaffoldMessenger.of(
+                                                            context)
                                                         .showSnackBar(snackbar(
                                                             context,
                                                             value
@@ -400,13 +387,12 @@ class PlaylistScreen extends StatelessWidget {
                                           IconButton(
                                               tooltip: "enqueueSongs".tr,
                                               onPressed: () async {
-                                                final ok =
-                                                    await Get.find<
-                                                            PlayerController>()
-                                                        .enqueueSongList(
-                                                            playlistController
-                                                                .songList
-                                                                .toList());
+                                                final ok = await Get.find<
+                                                        PlayerController>()
+                                                    .enqueueSongList(
+                                                        playlistController
+                                                            .songList
+                                                            .toList());
                                                 if (!context.mounted) return;
                                                 ScaffoldMessenger.of(context)
                                                     .showSnackBar(snackbar(
@@ -430,11 +416,12 @@ class PlaylistScreen extends StatelessWidget {
                                           IconButton(
                                               tooltip: "playNext".tr,
                                               onPressed: () async {
-                                                final ok = await playerController
-                                                    .playNextList(
-                                                        playlistController
-                                                            .songList
-                                                            .toList());
+                                                final ok =
+                                                    await playerController
+                                                        .playNextList(
+                                                            playlistController
+                                                                .songList
+                                                                .toList());
                                                 if (!context.mounted) return;
                                                 ScaffoldMessenger.of(context)
                                                     .showSnackBar(snackbar(
@@ -456,9 +443,9 @@ class PlaylistScreen extends StatelessWidget {
                                           IconButton(
                                               tooltip: "startRadio".tr,
                                               onPressed: () async {
-                                                final songs =
-                                                    playlistController.songList
-                                                        .toList();
+                                                final songs = playlistController
+                                                    .songList
+                                                    .toList();
                                                 if (songs.isEmpty) {
                                                   if (context.mounted) {
                                                     ScaffoldMessenger.of(
@@ -472,16 +459,17 @@ class PlaylistScreen extends StatelessWidget {
                                                   }
                                                   return;
                                                 }
-                                                final ok = await playerController
-                                                    .startRadio(songs.first);
+                                                final ok =
+                                                    await playerController
+                                                        .startRadio(
+                                                            songs.first);
                                                 if (!context.mounted || ok) {
                                                   return;
                                                 }
                                                 ScaffoldMessenger.of(context)
                                                     .showSnackBar(snackbar(
                                                         context,
-                                                        "radioNotAvailable"
-                                                            .tr,
+                                                        "radioNotAvailable".tr,
                                                         size: SanckBarSize
                                                             .MEDIUM));
                                               },
@@ -512,12 +500,14 @@ class PlaylistScreen extends StatelessWidget {
                                                     .playPlayListSong(
                                                         songsToplay, 0,
                                                         playfrom: PlaylingFrom(
-                                                            name: playlistController
-                                                                .playlist
-                                                                .value
-                                                                .title,
-                                                            type: PlaylingFromType
-                                                                .PLAYLIST));
+                                                            name:
+                                                                playlistController
+                                                                    .playlist
+                                                                    .value
+                                                                    .title,
+                                                            type:
+                                                                PlaylingFromType
+                                                                    .PLAYLIST));
                                                 if (!ok) snackOperationFailed();
                                               },
                                               icon: Icon(
@@ -530,8 +520,8 @@ class PlaylistScreen extends StatelessWidget {
                                           // Mix mode toggle — icon-only to match
                                           // the rest of the action row.
                                           Obx(() {
-                                            final pl =
-                                                playlistController.playlist.value;
+                                            final pl = playlistController
+                                                .playlist.value;
                                             final isPodcast =
                                                 pl.kind == 'podcast' ||
                                                     pl.playlistId
@@ -539,8 +529,8 @@ class PlaylistScreen extends StatelessWidget {
                                             if (isPodcast) {
                                               return const SizedBox.shrink();
                                             }
-                                            final on =
-                                                playlistController.isMixMode.isTrue;
+                                            final on = playlistController
+                                                .isMixMode.isTrue;
                                             final color = on
                                                 ? Theme.of(context)
                                                     .colorScheme
@@ -574,7 +564,8 @@ class PlaylistScreen extends StatelessWidget {
                                               child: SizedBox(
                                                 width: 18,
                                                 height: 18,
-                                                child: CircularProgressIndicator(
+                                                child:
+                                                    CircularProgressIndicator(
                                                   strokeWidth: 2,
                                                   value: playlistController
                                                               .mixAnalyzeProgress
@@ -808,8 +799,7 @@ class PlaylistScreen extends StatelessWidget {
                                 final isPodcast = pl.kind == 'podcast' ||
                                     pl.playlistId.startsWith('MPSP') ||
                                     pl.kind == 'yt_channel' ||
-                                    RegExp(r'^UC[\w-]{20,}$')
-                                        .hasMatch(pl.playlistId);
+                                    _channelIdRe.hasMatch(pl.playlistId);
 
                                 return AnimatedBuilder(
                                   animation:
@@ -817,8 +807,8 @@ class PlaylistScreen extends StatelessWidget {
                                   builder: (context, child) {
                                     // Podcasts need room for the Follow pill
                                     // under the title (image-2 style header).
-                                    final base =
-                                        playlistController.heightAnimation.value;
+                                    final base = playlistController
+                                        .heightAnimation.value;
                                     final height = isPodcast
                                         ? 10 +
                                             ((base - 10) / 70).clamp(0.0, 1.0) *
@@ -1043,8 +1033,7 @@ class PlaylistScreen extends StatelessWidget {
                               final isPodcastList = pl.kind == 'podcast' ||
                                   pl.kind == 'yt_channel' ||
                                   pl.playlistId.startsWith('MPSP') ||
-                                  RegExp(r'^UC[\w-]{20,}$')
-                                      .hasMatch(pl.playlistId);
+                                  _channelIdRe.hasMatch(pl.playlistId);
                               final song =
                                   playlistController.songList[index - 3];
                               final songIndex = index - 3;
@@ -1055,6 +1044,7 @@ class PlaylistScreen extends StatelessWidget {
                                   songIndex,
                                 );
                               }
+
                               // Podcast episodes get an AntennaPod-style row
                               // (date · 2-line title · duration), not the
                               // scrolling music tile.
@@ -1065,8 +1055,12 @@ class PlaylistScreen extends StatelessWidget {
                               return Obx(() {
                                 final mixOn =
                                     playlistController.isMixMode.isTrue;
-                                final analysis =
-                                    playlistController.mixAnalyses[song.id];
+                                // Only subscribe to analyses in mix mode
+                                // (isMixMode is always read, so the Obx
+                                // stays valid).
+                                final analysis = mixOn
+                                    ? playlistController.mixAnalyses[song.id]
+                                    : null;
                                 final isLast = songIndex >=
                                     playlistController.songList.length - 1;
                                 final gapStyle = mixOn && !isLast
@@ -1086,9 +1080,7 @@ class PlaylistScreen extends StatelessWidget {
                                         showMixMeta: mixOn,
                                         mixAnalysis: analysis,
                                       ),
-                                      if (mixOn &&
-                                          gapStyle != null &&
-                                          !isLast)
+                                      if (mixOn && gapStyle != null && !isLast)
                                         MixTransitionChip(
                                           style: gapStyle,
                                           onTap: () async {
@@ -1121,7 +1113,7 @@ class PlaylistScreen extends StatelessWidget {
                   final isPodcastList = pl.kind == 'podcast' ||
                       pl.kind == 'yt_channel' ||
                       pl.playlistId.startsWith('MPSP') ||
-                      RegExp(r'^UC[\w-]{20,}$').hasMatch(pl.playlistId);
+                      _channelIdRe.hasMatch(pl.playlistId);
                   if (!playlistController.showSimilarPodcasts.value ||
                       !isPodcastList) {
                     return const SizedBox.shrink();
@@ -1138,7 +1130,7 @@ class PlaylistScreen extends StatelessWidget {
 
   Future openBottomSheet(BuildContext context, MediaItem song) {
     return showModalBottomSheet(
-      useRootNavigator: true, 
+      useRootNavigator: true,
       constraints: const BoxConstraints(maxWidth: 500),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
@@ -1255,8 +1247,7 @@ class _PodcastEpisodeTile extends StatelessWidget {
                                 padding: const EdgeInsets.only(top: 2),
                                 child: Text(
                                   durationText,
-                                  style:
-                                      Theme.of(context).textTheme.bodyMedium,
+                                  style: Theme.of(context).textTheme.bodyMedium,
                                 ),
                               ),
                           ],
@@ -1319,8 +1310,7 @@ class _PodcastSimilarFooterState extends State<_PodcastSimilarFooter> {
     // Once we know there are no matches, don't reserve space.
     if (!_loading && _similar.isEmpty) return const SizedBox.shrink();
     // Lift the panel above the minimized player bar so nothing is hidden.
-    final playerMin =
-        Get.find<PlayerController>().playerPanelMinHeight.value;
+    final playerMin = Get.find<PlayerController>().playerPanelMinHeight.value;
     return Container(
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
@@ -1381,9 +1371,10 @@ class _PodcastSimilarFooterState extends State<_PodcastSimilarFooter> {
                                   imageUrl: art,
                                   width: tile,
                                   height: tile,
-                                  memCacheWidth:
-                                      (tile * MediaQuery.devicePixelRatioOf(context))
-                                          .round(),
+                                  memCacheWidth: (tile *
+                                          MediaQuery.devicePixelRatioOf(
+                                              context))
+                                      .round(),
                                   fit: BoxFit.cover,
                                   errorWidget: (_, __, ___) => Container(
                                     width: tile,
