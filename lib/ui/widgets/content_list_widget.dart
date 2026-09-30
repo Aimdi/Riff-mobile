@@ -58,7 +58,10 @@ class ContentListWidget extends StatelessWidget {
             ),
           ),
           SizedBox(
-            height: 168,
+            // Card height grows with the system text size.
+            height: ContentListItem.heightFor(
+                    context, ContentListItem.defaultSize) +
+                12,
             child: Scrollbar(
               thickness: GetPlatform.isDesktop ? null : 0,
               controller: scrollController,

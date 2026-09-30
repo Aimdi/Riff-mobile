@@ -139,7 +139,6 @@ class SeparateTabItemWidget extends StatelessWidget {
                     isAdditionalOperationRequired: artistController != null &&
                         (title == "Songs" || title == "Videos"),
                     isSearchFeatureRequired: artistController != null,
-                    titleLeftPadding: 9,
                     itemCountTitle:
                         "${isResultWidget ? (searchResController?.separatedResultContent[title] ?? []).length : (artistController?.sepataredContent[title] != null ? artistController?.sepataredContent[title]['results'] : []).length} ${"items".tr}",
                     requiredSortTypes: buildSortTypeSet(

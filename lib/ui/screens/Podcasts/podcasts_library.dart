@@ -848,8 +848,8 @@ class _PodcastCarousel extends StatelessWidget {
       children: [
         HomeSectionHeader(title),
         SizedBox(
-          // ContentListItem is a fixed 112 x 156 card.
-          height: 156 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.2),
+          height:
+              ContentListItem.heightFor(context, ContentListItem.defaultSize),
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),

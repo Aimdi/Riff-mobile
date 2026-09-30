@@ -487,7 +487,6 @@ class AlbumScreen extends StatelessWidget {
                                           itemCountTitle:
                                               "${albumController.songList.length}",
                                           itemIcon: Icons.music_note,
-                                          titleLeftPadding: 9,
                                           requiredSortTypes:
                                               buildSortTypeSet(false, true),
                                           onSort: albumController.onSort,

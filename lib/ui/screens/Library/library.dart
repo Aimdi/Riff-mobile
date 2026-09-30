@@ -25,6 +25,7 @@ import '../../widgets/sort_widget.dart';
 import '../Cloud/cloud_play.dart';
 import '../Cloud/cloud_screen.dart';
 import '../Settings/settings_screen_controller.dart';
+import '../Home/home_layout.dart';
 import 'library_controller.dart';
 
 class SongsLibraryWidget extends StatelessWidget {
@@ -37,25 +38,33 @@ class SongsLibraryWidget extends StatelessWidget {
     final libSongsController = Get.find<LibrarySongsController>();
     return Padding(
       padding: isBottomNavActive
-          ? const EdgeInsets.only(left: 15)
-          : EdgeInsets.only(left: 5.0, top: topPadding),
+          ? const EdgeInsets.only(top: 10)
+          : EdgeInsets.only(top: topPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          isBottomNavActive
-              ? const SizedBox(
-                  height: 10,
-                )
-              : Align(
-                  alignment: Alignment.centerLeft,
-                  child: Obx(() {
-                    final cloudMode = libSongsController.showCloudSongs.value;
-                    return Text(
-                      cloudMode ? "cloud".tr : "libSongs".tr,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    );
-                  }),
-                ),
+          if (!isBottomNavActive)
+            Obx(() {
+              final cloudMode = libSongsController.showCloudSongs.value;
+              final canPlay = shouldShowLibrarySongsPlayBar(
+                cloudMode: cloudMode,
+                songCount: libSongsController.librarySongsList.length,
+              );
+              return LibraryHeader(
+                title: cloudMode ? "cloud".tr : "libSongs".tr,
+                actions: [
+                  if (canPlay) ...[
+                    IconButton(
+                      tooltip: 'shuffle'.tr,
+                      icon: const Icon(Icons.shuffle_rounded, size: 22),
+                      onPressed: () => _playLibrarySongs(shuffle: true),
+                    ),
+                    LibraryPlayButton(
+                        onPressed: () => _playLibrarySongs(shuffle: false)),
+                  ],
+                ],
+              );
+            }),
           if (!isBottomNavActive) const _LibraryPinnedRow(),
           Obx(() {
             final cloudMode = libSongsController.showCloudSongs.value;
@@ -68,7 +77,6 @@ class SongsLibraryWidget extends StatelessWidget {
               screenController: libSongsController,
               itemCountTitle: "$count",
               itemIcon: Icons.music_note,
-              titleLeftPadding: 9,
               requiredSortTypes: buildSortTypeSet(true, true),
               isSearchFeatureRequired: !cloudMode,
               isSongDeletetioFeatureRequired: !cloudMode,
@@ -92,15 +100,17 @@ class SongsLibraryWidget extends StatelessWidget {
                   libSongsController.cancelAdditionalOperation,
             );
           }),
-          Obx(() {
-            if (!shouldShowLibrarySongsPlayBar(
-              cloudMode: libSongsController.showCloudSongs.value,
-              songCount: libSongsController.librarySongsList.length,
-            )) {
-              return const SizedBox.shrink();
-            }
-            return const _LibrarySongsPlayBar();
-          }),
+          // Bottom-nav layout has no header: keep Play all / Shuffle.
+          if (isBottomNavActive)
+            Obx(() {
+              if (!shouldShowLibrarySongsPlayBar(
+                cloudMode: libSongsController.showCloudSongs.value,
+                songCount: libSongsController.librarySongsList.length,
+              )) {
+                return const SizedBox.shrink();
+              }
+              return const _LibrarySongsPlayBar();
+            }),
           Expanded(
             child: Obx(() {
               if (libSongsController.showCloudSongs.value) {
@@ -110,16 +120,26 @@ class SongsLibraryWidget extends StatelessWidget {
                 return controller.librarySongsList.isNotEmpty
                     ? (controller.additionalOperationMode.value ==
                             OperationMode.none
-                        ? ListWidget(
-                            controller.librarySongsList,
-                            "library Songs",
-                            true,
-                            isPlaylistOrAlbum: true,
-                            playlist: Playlist(
-                                title: "Library Songs",
-                                playlistId: "SongDownloads",
-                                thumbnailUrl: "",
-                                isCloudPlaylist: false),
+                        // ListWidget returns an Expanded, so it needs a Flex
+                        // parent (it sat directly in this Expanded before:
+                        // "Incorrect use of ParentDataWidget").
+                        ? Padding(
+                            padding: const EdgeInsets.only(left: 4),
+                            child: Column(
+                              children: [
+                                ListWidget(
+                                  controller.librarySongsList,
+                                  "library Songs",
+                                  true,
+                                  isPlaylistOrAlbum: true,
+                                  playlist: Playlist(
+                                      title: "Library Songs",
+                                      playlistId: "SongDownloads",
+                                      thumbnailUrl: "",
+                                      isCloudPlaylist: false),
+                                ),
+                              ],
+                            ),
                           )
                         : ModificationList(
                             mode: controller.additionalOperationMode.value,
@@ -135,29 +155,112 @@ class SongsLibraryWidget extends StatelessWidget {
   }
 }
 
-/// Play all / Shuffle for the offline Songs tab (Spotify library chrome).
+/// Plays the offline library songs in order or shuffled.
+Future<void> _playLibrarySongs({required bool shuffle}) async {
+  if (!Get.isRegistered<LibrarySongsController>() ||
+      !Get.isRegistered<PlayerController>()) {
+    return;
+  }
+  final songs = Get.find<LibrarySongsController>().librarySongsList;
+  if (songs.isEmpty) return;
+  final queue = playQueueFrom(songs, shuffle: shuffle);
+  final ok = await Get.find<PlayerController>().playPlayListSong(
+    queue,
+    0,
+    playfrom: PlaylingFrom(
+      type: PlaylingFromType.PLAYLIST,
+      name: 'libSongs'.tr,
+    ),
+    source: DiscoverySource.downloads,
+  );
+  if (!ok) _snackPlayFailed();
+}
+
+/// Library tab title row: title on the left, tab actions on the right.
+class LibraryHeader extends StatelessWidget {
+  const LibraryHeader({super.key, required this.title, this.actions = const []});
+
+  final String title;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 0, 8, 2),
+      child: SizedBox(
+        height: 44,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            ...actions,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Round accent play button for a library header.
+class LibraryPlayButton extends StatelessWidget {
+  const LibraryPlayButton({super.key, required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.secondary;
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Material(
+        color: accent,
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPressed,
+          child: Tooltip(
+            message: 'playAll'.tr,
+            child: const SizedBox.square(
+              dimension: 40,
+              child: Icon(Icons.play_arrow_rounded,
+                  size: 26, color: RiffSurfaces.voidBlack),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Library grid: 3 columns on phones (2 when narrow), more on tablets,
+/// covers sized to fill each column.
+({int columns, double cover}) libraryGridMetrics(double width) {
+  final columns = width >= 1100
+      ? 6
+      : width >= 720
+          ? 4
+          : width >= 380
+              ? 3
+              : 2;
+  final cover = (width -
+          HomeLayout.gutter * 2 -
+          HomeLayout.cardGap * (columns - 1)) /
+      columns;
+  return (columns: columns, cover: cover);
+}
+
+/// Play all / Shuffle for the offline Songs tab (bottom-nav layout).
 class _LibrarySongsPlayBar extends StatelessWidget {
   const _LibrarySongsPlayBar();
 
-  Future<void> _play({required bool shuffle}) async {
-    if (!Get.isRegistered<LibrarySongsController>() ||
-        !Get.isRegistered<PlayerController>()) {
-      return;
-    }
-    final songs = Get.find<LibrarySongsController>().librarySongsList;
-    if (songs.isEmpty) return;
-    final queue = playQueueFrom(songs, shuffle: shuffle);
-    final ok = await Get.find<PlayerController>().playPlayListSong(
-      queue,
-      0,
-      playfrom: PlaylingFrom(
-        type: PlaylingFromType.PLAYLIST,
-        name: 'libSongs'.tr,
-      ),
-      source: DiscoverySource.downloads,
-    );
-    if (!ok) _snackPlayFailed();
-  }
+  Future<void> _play({required bool shuffle}) =>
+      _playLibrarySongs(shuffle: shuffle);
 
   @override
   Widget build(BuildContext context) {
@@ -301,41 +404,25 @@ class _PlaylistNAlbumLibraryWidgetState
     final settingscrnController = Get.find<SettingsScreenController>();
     final size = MediaQuery.of(context).size;
 
-    const double itemHeight = 180;
-    const double itemWidth = 130;
     final topPadding = context.isLandscape ? 50.0 : 90.0;
 
     return Padding(
       padding: isBottomNavActive
-          ? const EdgeInsets.only(left: 15)
+          ? const EdgeInsets.only(top: 10)
           : EdgeInsets.only(top: topPadding),
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 5.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                isBottomNavActive
-                    ? const SizedBox(
-                        height: 10,
-                      )
-                    : Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          isAlbumContent ? "libAlbums".tr : "libPlaylists".tr,
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                      ),
-                (isAlbumContent ||
-                        settingscrnController.isLinkedWithPiped.isFalse)
-                    ? const SizedBox.shrink()
-                    : PipedSyncWidget(
-                        padding: EdgeInsets.only(right: size.width * .05),
-                      )
+          if (!isBottomNavActive)
+            LibraryHeader(
+              title: isAlbumContent ? "libAlbums".tr : "libPlaylists".tr,
+              actions: [
+                if (!isAlbumContent &&
+                    settingscrnController.isLinkedWithPiped.isTrue)
+                  PipedSyncWidget(
+                    padding: EdgeInsets.only(right: size.width * .02),
+                  ),
               ],
             ),
-          ),
           Obx(
             () => isAlbumContent
                 ? SortWidget(
@@ -376,36 +463,32 @@ class _PlaylistNAlbumLibraryWidgetState
                       ? libralbumCntrller.libraryAlbums.isNotEmpty
                       : librplstCntrller.libraryPlaylists.isNotEmpty)
                   ? LayoutBuilder(builder: (context, constraints) {
-                      //Fix for grid in mobile screen
-                      final availableWidth = constraints.maxWidth > 300 &&
-                              constraints.maxWidth < 394
-                          ? 310.0
-                          : constraints.maxWidth;
-                      int columns = (availableWidth / itemWidth).floor();
-                      return SizedBox(
-                        width: availableWidth,
-                        child: GridView.builder(
-                            physics: const BouncingScrollPhysics(),
-                            padding: const EdgeInsets.only(bottom: 200),
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: columns,
-                              childAspectRatio: (itemWidth / itemHeight),
-                            ),
-                            controller: _gridScroll,
-                            itemCount: isAlbumContent
-                                ? libralbumCntrller.libraryAlbums.length
-                                : librplstCntrller.libraryPlaylists.length,
-                            itemBuilder: (BuildContext context, int index) {
-                              return Center(
-                                  child: ContentListItem(
-                                content: isAlbumContent
-                                    ? libralbumCntrller.libraryAlbums[index]
-                                    : librplstCntrller.libraryPlaylists[index],
-                                isLibraryItem: true,
-                              ));
-                            }),
-                      );
+                      final grid = libraryGridMetrics(constraints.maxWidth);
+                      return GridView.builder(
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(HomeLayout.gutter,
+                              6, HomeLayout.gutter, 200),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: grid.columns,
+                            crossAxisSpacing: HomeLayout.cardGap,
+                            mainAxisSpacing: 14,
+                            mainAxisExtent:
+                                ContentListItem.heightFor(context, grid.cover),
+                          ),
+                          controller: _gridScroll,
+                          itemCount: isAlbumContent
+                              ? libralbumCntrller.libraryAlbums.length
+                              : librplstCntrller.libraryPlaylists.length,
+                          itemBuilder: (BuildContext context, int index) {
+                            return ContentListItem(
+                              content: isAlbumContent
+                                  ? libralbumCntrller.libraryAlbums[index]
+                                  : librplstCntrller.libraryPlaylists[index],
+                              isLibraryItem: true,
+                              size: grid.cover,
+                            );
+                          });
                     })
                   : EmptyPlayHint(
                       message: isAlbumContent
@@ -562,7 +645,8 @@ class _LibraryPinnedRow extends StatelessWidget {
     final liked = _count('LIBFAV');
     final recent = _count('LIBRP');
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 10, 12, 4),
+      padding: const EdgeInsets.fromLTRB(
+          HomeLayout.gutter, 6, HomeLayout.gutter, 0),
       child: Row(
         children: [
           Expanded(
@@ -639,10 +723,7 @@ class _PinnedTile extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                      style: homeCardTitleStyle(context),
                     ),
                     if (subtitle != null)
                       Text(
