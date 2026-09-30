@@ -23,7 +23,11 @@ class SyncedLyricsService {
 
   static Future<Map<String, dynamic>?> getSyncedLyrics(
       MediaItem song, int durInSec) async {
-    final lyricsBox = await Hive.openBox("lyrics");
+    // Opened once and left open: closing it here raced overlapping lookups
+    // (one call closed the box under another's put → HiveError).
+    final lyricsBox = Hive.isBoxOpen("lyrics")
+        ? Hive.box("lyrics")
+        : await Hive.openBox("lyrics");
     if (lyricsBox.containsKey(song.id)) {
       return Map<String, dynamic>.from(await lyricsBox.get(song.id));
     }
@@ -106,17 +110,12 @@ class SyncedLyricsService {
         break;
     }
 
-    try {
-      for (final p in providers) {
-        final hit = await p();
-        if (hit != null) {
-          await lyricsBox.put(song.id, hit);
-          await lyricsBox.close();
-          return hit;
-        }
+    for (final p in providers) {
+      final hit = await p();
+      if (hit != null) {
+        await lyricsBox.put(song.id, hit);
+        return hit;
       }
-    } finally {
-      if (lyricsBox.isOpen) await lyricsBox.close();
     }
     return null;
   }

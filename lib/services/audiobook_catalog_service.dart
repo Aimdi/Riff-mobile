@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 
 import '/models/thumbnail.dart';
+import '/services/podcast_service.dart';
 import '/utils/helper.dart';
 
 /// A commercial audiobook entry (metadata only — not playable in-app).
@@ -97,8 +98,7 @@ class AudiobookCatalogService {
 
   static String _storefront() {
     try {
-      final m = RegExp(r'[_-]([A-Za-z]{2})').firstMatch(Platform.localeName);
-      if (m != null) return m.group(1)!.toLowerCase();
+      return storefrontFromLocale(Platform.localeName);
     } catch (_) {}
     return 'us';
   }

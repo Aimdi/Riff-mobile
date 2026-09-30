@@ -22,19 +22,15 @@ class KuGouLyricsService {
     try {
       final keyword = _keyword(artist, title);
 
-      // 1) Search songs, match by duration (±tolerance), grab lyrics by hash.
+      // 1) Search songs, match by duration (±5 s, closest first), grab
+      //    lyrics by hash. Each hash is tried once.
       final songs = await _searchSong(keyword);
-      for (var tolerance = 0; tolerance <= 5; tolerance++) {
-        for (final s in songs) {
-          final dur = (s['duration'] ?? 0) as int;
-          if (dur >= durationSec - tolerance && dur <= durationSec + tolerance) {
-            final cand = await _searchLyricsByHash(
-                s['hash'] as String, durationSec, artist, title);
-            if (cand != null) {
-              final lrc = await _download(cand[0], cand[1]);
-              if (lrc != null && lrc.contains('[')) return lrc;
-            }
-          }
+      for (final hash in songHashesByDuration(songs, durationSec)) {
+        final cand =
+            await _searchLyricsByHash(hash, durationSec, artist, title);
+        if (cand != null) {
+          final lrc = await _download(cand[0], cand[1]);
+          if (lrc != null && lrc.contains('[')) return lrc;
         }
       }
 
@@ -49,6 +45,30 @@ class KuGouLyricsService {
       printINFO("KuGou lyrics lookup failed: $e");
     }
     return null;
+  }
+
+  /// Hashes of [songs] whose duration is within [toleranceSec] of
+  /// [durationSec], closest first, without duplicates.
+  static List<String> songHashesByDuration(
+      List<Map<String, dynamic>> songs, int durationSec,
+      {int toleranceSec = 5}) {
+    final matches = <({String hash, int diff})>[];
+    final seen = <String>{};
+    for (final s in songs) {
+      final hash = s['hash'];
+      final dur = s['duration'];
+      if (hash is! String || hash.isEmpty || dur is! num) continue;
+      final diff = (dur.round() - durationSec).abs();
+      if (diff > toleranceSec || !seen.add(hash)) continue;
+      matches.add((hash: hash, diff: diff));
+    }
+    // List.sort isn't stable; tie-break on search rank to keep its order.
+    final rank = {for (var i = 0; i < matches.length; i++) matches[i].hash: i};
+    matches.sort((a, b) {
+      final c = a.diff.compareTo(b.diff);
+      return c != 0 ? c : rank[a.hash]!.compareTo(rank[b.hash]!);
+    });
+    return [for (final m in matches) m.hash];
   }
 
   static Future<List<Map<String, dynamic>>> _searchSong(String keyword) async {

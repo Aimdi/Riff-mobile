@@ -71,6 +71,33 @@ class LibraryPodcastsController extends GetxController {
 
   List<Playlist> tempListContainer = [];
 
+  // Inbox: merged latest episodes across every subscription (newest first,
+  // played ones not yet filtered). Kept here, not in the Inbox widget, so
+  // switching tabs doesn't refetch every feed.
+  static const inboxMaxAge = Duration(minutes: 15);
+  List<MediaItem>? inboxEpisodes;
+  DateTime? inboxFetchedAt;
+
+  /// Subscriptions the cached inbox was built from; a follow/unfollow
+  /// invalidates it.
+  String inboxSubsKey = '';
+
+  /// Cached inbox when younger than [inboxMaxAge] and built from [subsKey].
+  List<MediaItem>? freshInbox(String subsKey) {
+    final at = inboxFetchedAt;
+    if (inboxEpisodes == null || at == null || subsKey != inboxSubsKey) {
+      return null;
+    }
+    if (DateTime.now().difference(at) > inboxMaxAge) return null;
+    return inboxEpisodes;
+  }
+
+  void storeInbox(List<MediaItem> episodes, String subsKey) {
+    inboxEpisodes = episodes;
+    inboxSubsKey = subsKey;
+    inboxFetchedAt = DateTime.now();
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -408,4 +435,24 @@ class LibraryPodcastsController extends GetxController {
     libraryPodcasts.value = tempListContainer.toList();
     tempListContainer.clear();
   }
+}
+
+/// Runs [task] over [items] with at most [concurrency] in flight, returning
+/// results in input order. Used by the Inbox so dozens of feeds don't all
+/// hit the network (and the parser) at once.
+Future<List<R>> mapWithConcurrency<T, R>(
+    List<T> items, int concurrency, Future<R> Function(T item) task) async {
+  final results = List<R?>.filled(items.length, null);
+  var next = 0;
+  Future<void> worker() async {
+    while (next < items.length) {
+      final i = next++;
+      results[i] = await task(items[i]);
+    }
+  }
+
+  final workers = concurrency < 1 ? 1 : concurrency;
+  await Future.wait(List.generate(
+      workers < items.length ? workers : items.length, (_) => worker()));
+  return results.cast<R>();
 }
