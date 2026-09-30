@@ -13,7 +13,6 @@ import '/ui/utils/riff_tokens.dart';
 import '/ui/utils/theme_controller.dart';
 import '/utils/media_item_video.dart';
 import '../../widgets/image_widget.dart';
-import '../../widgets/sleep_timer_bottom_sheet.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
 
 class AlbumArtNLyrics extends StatelessWidget {
@@ -23,7 +22,9 @@ class AlbumArtNLyrics extends StatelessWidget {
   /// YouTube podcast episodes have their own switch (video by default,
   /// WizeStream-style); music videos stay opt-in.
   static String _prefKey(MediaItem? song) =>
-      song != null && song.isPodcastEpisode ? 'podcastShowVideo' : 'playerShowVideo';
+      song != null && song.isPodcastEpisode
+          ? 'podcastShowVideo'
+          : 'playerShowVideo';
 
   static bool videoPlaybackEnabledFor(MediaItem? song) {
     final key = _prefKey(song);
@@ -88,9 +89,9 @@ class AlbumArtNLyrics extends StatelessWidget {
               children: [
                 GestureDetector(
                   onLongPress: () {
-                    final sheetContext = playerController
-                            .homeScaffoldkey.currentContext ??
-                        Get.context;
+                    final sheetContext =
+                        playerController.homeScaffoldkey.currentContext ??
+                            Get.context;
                     if (sheetContext == null) return;
                     showModalBottomSheet(
                       useRootNavigator: true,
@@ -131,7 +132,8 @@ class AlbumArtNLyrics extends StatelessWidget {
                           width: width,
                           maxHeight: height,
                           onToggleVideo: () async {
-                            await AlbumArtNLyrics.setVideoPlaybackEnabled(song, false);
+                            await AlbumArtNLyrics.setVideoPlaybackEnabled(
+                                song, false);
                             playerController.currentSong.refresh();
                           },
                         )
@@ -162,7 +164,8 @@ class AlbumArtNLyrics extends StatelessWidget {
                     top: 8,
                     child: PlayerVideoEnableButton(
                       onShow: () async {
-                        await AlbumArtNLyrics.setVideoPlaybackEnabled(song, true);
+                        await AlbumArtNLyrics.setVideoPlaybackEnabled(
+                            song, true);
                         playerController.currentSong.refresh();
                       },
                     ),
@@ -184,8 +187,7 @@ class AlbumArtNLyrics extends StatelessWidget {
                             children: [
                               LyricsWidget(
                                   padding: EdgeInsets.symmetric(
-                                      horizontal: 0,
-                                      vertical: height / 3.5)),
+                                      horizontal: 0, vertical: height / 3.5)),
                               IgnorePointer(
                                 child: Container(
                                   decoration: BoxDecoration(
@@ -195,7 +197,8 @@ class AlbumArtNLyrics extends StatelessWidget {
                                       begin: Alignment.topCenter,
                                       end: Alignment.bottomCenter,
                                       colors: [
-                                        RiffSurfaces.voidBlack.withOpacity(0.90),
+                                        RiffSurfaces.voidBlack
+                                            .withOpacity(0.90),
                                         Colors.transparent,
                                         Colors.transparent,
                                         Colors.transparent,
@@ -211,41 +214,6 @@ class AlbumArtNLyrics extends StatelessWidget {
                         ),
                       )
                     : const SizedBox.shrink()),
-                if (playerController.isSleepTimerActive.isTrue)
-                  SizedBox(
-                    width: width,
-                    height: height,
-                    child: Align(
-                      alignment: Alignment.bottomRight,
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Container(
-                          height: 50,
-                          width: 60,
-                          decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(15),
-                              border:
-                                  Border.all(width: 1.3, color: Colors.white),
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .secondary
-                                  .withAlpha(150)),
-                          child: IconButton(
-                            onPressed: () {
-                              final sheetContext = playerController
-                                      .homeScaffoldkey.currentContext ??
-                                  Get.context;
-                              showSleepTimerSheet(sheetContext);
-                            },
-                            icon: const Icon(
-                              Icons.timer,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
               ],
             ),
           ),
