@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'discovery_math.dart';
 import 'discovery_repository.dart';
 import 'discovery_score.dart';
@@ -308,7 +310,8 @@ class TasteModel {
     return score;
   }
 
-  int get lifetimeEventCount => repo.recentEvents(limit: 20000).length;
+  /// Same value as counting `recentEvents(limit: 20000)`, without decoding.
+  int get lifetimeEventCount => math.min(repo.eventCount, 20000);
 
   /// Enough listens for personal sections (~20).
   bool get hasEnoughSignal {

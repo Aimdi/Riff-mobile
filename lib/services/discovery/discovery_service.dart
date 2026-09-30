@@ -40,6 +40,7 @@ class DiscoveryService extends GetxService {
     repo = DiscoveryRepository();
     await repo.open();
     await repo.pruneEvents();
+    await repo.pruneAuxiliary();
 
     BanServiceSafe.setBanHook(BanService.isBanned);
 
@@ -261,7 +262,9 @@ class DiscoveryService extends GetxService {
   Future<void> materializeMixPlaylists() async {
     try {
       final lib = await Hive.openBox('LibraryPlaylists');
-      for (final mix in repo.allMixes()) {
+      final mixes = repo.allMixes();
+      final liveIds = {for (final mix in mixes) 'RIFF_${mix.id}'};
+      for (final mix in mixes) {
         final playlistId = 'RIFF_${mix.id}';
         await lib.put(playlistId, {
           'title': mix.title,
@@ -280,14 +283,38 @@ class DiscoveryService extends GetxService {
           'isCloudPlaylist': false,
           'kind': mix.kind,
         });
-        final songs = await Hive.openBox(playlistId);
-        await songs.clear();
+        final tracks = <String, dynamic>{};
         for (final t in mix.tracks) {
           final id = t['videoId'] as String? ?? '';
           if (id.isEmpty) continue;
-          await songs.put(id, t);
+          tracks[id] = t;
         }
-        await songs.close();
+        final wasOpen = Hive.isBoxOpen(playlistId);
+        final songs = await Hive.openBox(playlistId);
+        final unchanged = songs.length == tracks.length &&
+            tracks.keys.every(songs.containsKey);
+        if (!unchanged) {
+          await songs.clear();
+          await songs.putAll(tracks);
+        }
+        // Leave boxes another screen holds open alone.
+        if (!wasOpen) await songs.close();
+      }
+
+      // Mixes that no longer exist (e.g. daily mix count dropped).
+      final stale = lib.keys
+          .map((k) => k.toString())
+          .where((k) => k.startsWith('RIFF_') && !liveIds.contains(k))
+          .toList();
+      if (stale.isNotEmpty) {
+        await lib.deleteAll(stale);
+        for (final playlistId in stale) {
+          if (Hive.isBoxOpen(playlistId)) {
+            await Hive.box(playlistId).clear();
+          } else {
+            await Hive.deleteBoxFromDisk(playlistId);
+          }
+        }
       }
     } catch (_) {}
   }

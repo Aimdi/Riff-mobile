@@ -78,6 +78,16 @@ class MixGenerator {
         existing.every((m) => !_staleDaily(m.generatedTs))) {
       return existing.take(count).toList();
     }
+    // Clustering can yield fewer than [count] mixes; a run since the last
+    // 4 AM boundary for the same requested count is still fresh.
+    final lastGen = repo.getPref('lastDailyMixGenerated') as int?;
+    final lastCount = repo.getPref('lastDailyMixCount') as int?;
+    if (existing.isNotEmpty &&
+        lastGen != null &&
+        lastCount == count &&
+        !_staleDaily(lastGen)) {
+      return existing.take(count).toList();
+    }
 
     // Wi-Fi only check is done by caller / DiscoveryService
     final clusters = _clusterArtists(count);
@@ -121,7 +131,13 @@ class MixGenerator {
           '${DiscoverySurface.dailyMix}_${i + 1}');
       mixes.add(mix);
     }
+    // Drop leftovers from an earlier run that produced more mixes.
+    await repo.deleteMixes([
+      for (final m in existing)
+        if (!mixes.any((n) => n.id == m.id)) m.id,
+    ]);
     await repo.setPref('lastDailyMixGenerated', DateTime.now().millisecondsSinceEpoch);
+    await repo.setPref('lastDailyMixCount', count);
     return mixes;
   }
 
@@ -149,6 +165,9 @@ class MixGenerator {
       artistTracks.putIfAbsent(e.artistKey, () => {}).add(e.videoId);
     }
 
+    // Neighbor lists are reused across every artist/cluster pair below.
+    final neighborMemo = <String, Map<String, double>>{};
+
     double relatedness(String a, String b) {
       final ta = artistTracks[a] ?? {};
       final tb = artistTracks[b] ?? {};
@@ -156,7 +175,8 @@ class MixGenerator {
       // Track-level co-occurrence overlap
       var score = 0.0;
       for (final t in ta) {
-        final neigh = repo.neighborsOf(t, limit: 20);
+        final neigh =
+            neighborMemo.putIfAbsent(t, () => repo.neighborsOf(t, limit: 20));
         for (final u in tb) {
           score += neigh[u] ?? 0;
         }
@@ -321,26 +341,42 @@ class MixGenerator {
 
     final candidates = <Map<String, dynamic>>[];
     final seen = <String>{};
+    final target = limit * 3;
+    void consider(Iterable<Map<String, dynamic>> items) {
+      for (final m2 in items) {
+        if (candidates.length >= target) return;
+        final v2 = m2['videoId'] as String? ?? '';
+        if (v2.isEmpty || seen.contains(v2)) continue;
+        if (!repo.isUnheard(v2)) continue;
+        if (repo.shownRecently(v2, within: const Duration(days: 365))) {
+          continue;
+        }
+        if (BanServiceSafe.isBanned(v2)) continue;
+        seen.add(v2);
+        candidates.add(m2);
+      }
+    }
+
     for (final id in seedTracks) {
+      if (candidates.length >= target) break;
       final related = await sources.relatedTracks(id, limit: 15);
-      for (final m in related) {
-        final vid = m['videoId'] as String? ?? '';
-        if (vid.isEmpty || seen.contains(vid)) continue;
-        // two-hop
-        final hop2 = await sources.relatedTracks(vid, limit: 8);
-        for (final m2 in [...related, ...hop2]) {
-          final v2 = m2['videoId'] as String? ?? '';
-          if (v2.isEmpty || seen.contains(v2)) continue;
-          if (!repo.isUnheard(v2)) continue;
-          if (repo.shownRecently(v2, within: const Duration(days: 365))) {
-            continue;
-          }
-          if (BanServiceSafe.isBanned(v2)) continue;
-          seen.add(v2);
-          candidates.add(m2);
+      // Two-hop from the first few related tracks, fetched concurrently.
+      final hopIds = related
+          .map((m) => m['videoId'] as String? ?? '')
+          .where((v) => v.isNotEmpty)
+          .take(_freshFindsHop2PerSeed)
+          .toList();
+      consider(related);
+      for (var i = 0;
+          i < hopIds.length && candidates.length < target;
+          i += _freshFindsHop2Concurrency) {
+        final chunk = hopIds.skip(i).take(_freshFindsHop2Concurrency);
+        final hops = await Future.wait(
+            chunk.map((v) => sources.relatedTracks(v, limit: 8)));
+        for (final hop2 in hops) {
+          consider(hop2);
         }
       }
-      if (candidates.length >= limit * 3) break;
     }
 
     // Score by novelty + mild affinity of artist
@@ -378,6 +414,9 @@ class MixGenerator {
         picked.map((t) => t['videoId'] as String), DiscoverySurface.freshFinds);
     return mix;
   }
+
+  static const int _freshFindsHop2PerSeed = 3;
+  static const int _freshFindsHop2Concurrency = 4;
 
   // ─── Release Radar ────────────────────────────────────────────────────
 
