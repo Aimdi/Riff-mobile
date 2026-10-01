@@ -278,7 +278,7 @@ class RiffPageHeader extends StatelessWidget {
   final String? subtitle;
   final List<Widget> actions;
 
-  /// Defaults to popping the nested (tab) navigator.
+  /// Defaults to popping the navigator this page is in (tab or root).
   final VoidCallback? onBack;
 
   @override
@@ -293,8 +293,7 @@ class RiffPageHeader extends StatelessWidget {
           IconButton(
             tooltip: 'back'.tr,
             icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-            onPressed: onBack ??
-                () => Get.nestedKey(1)?.currentState?.maybePop(),
+            onPressed: onBack ?? () => Navigator.of(context).maybePop(),
           ),
           Expanded(
             child: Column(

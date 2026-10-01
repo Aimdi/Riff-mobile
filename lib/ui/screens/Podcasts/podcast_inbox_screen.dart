@@ -109,8 +109,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
       try {
         if (p.kind == 'yt_channel' ||
             RegExp(r'^UC[\w-]{20,}$').hasMatch(p.playlistId)) {
-          final data =
-              await ms.getChannelAsPodcast(p.playlistId, limit: 15);
+          final data = await ms.getChannelAsPodcast(p.playlistId, limit: 15);
           return List<MediaItem>.from(data['tracks'] ?? const []);
         }
         final data = await ms.getPodcast(p.playlistId, limit: 15);
@@ -173,8 +172,8 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
         duration: (e['durationSec'] != null && (e['durationSec'] as int) > 0)
             ? Duration(seconds: e['durationSec'] as int)
             : null,
-        artUri: Uri.tryParse(
-            Thumbnail((e['artwork'] ?? '').toString()).extraHigh),
+        artUri:
+            Uri.tryParse(Thumbnail((e['artwork'] ?? '').toString()).extraHigh),
         extras: {
           'url': e['url'],
           'isPodcast': true,
@@ -184,8 +183,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
           'feedUrl': feedUrl,
           if (e['chaptersUrl'] != null) 'chaptersUrl': e['chaptersUrl'],
           if (e['transcriptUrl'] != null) 'transcriptUrl': e['transcriptUrl'],
-          if (e['transcriptUrl'] != null)
-            'transcriptType': e['transcriptType'],
+          if (e['transcriptUrl'] != null) 'transcriptType': e['transcriptType'],
         },
       );
 
@@ -232,8 +230,8 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
         return;
       }
       if (same.isNotEmpty) {
-        final ok = await pc.playPlayListSong(
-            [item, ...same.where((e) => e.id != item.id)], 0);
+        final ok = await pc
+            .playPlayListSong([item, ...same.where((e) => e.id != item.id)], 0);
         if (!ok) snackOperationFailed();
         return;
       }
@@ -264,8 +262,10 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     final body = _body(context);
     if (widget.embedded) return body;
     return Scaffold(
-      appBar: AppBar(title: Text("podcastInbox".tr)),
-      body: body,
+      body: Column(children: [
+        RiffPageHeader("podcastInbox".tr),
+        Expanded(child: body),
+      ]),
     );
   }
 
@@ -273,8 +273,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     if (_loading) {
       return const SongListShimmer(itemCount: 8, topPadding: 8);
     }
-    final continueItems =
-        PodcastProgressService.inProgress().take(8).toList();
+    final continueItems = PodcastProgressService.inProgress().take(8).toList();
     final empty = _episodes.isEmpty && continueItems.isEmpty;
     return RefreshIndicator(
       onRefresh: () async {
@@ -296,8 +295,8 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
                 height: PodcastContinueCard.heightFor(context),
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: HomeLayout.gutter),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
                   itemCount: continueItems.length,
                   separatorBuilder: (_, __) =>
                       const SizedBox(width: HomeLayout.cardGap),

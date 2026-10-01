@@ -1,3 +1,4 @@
+import '../Home/home_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -16,75 +17,74 @@ class PodcastFolderScreen extends StatelessWidget {
     final fc = Get.find<PodcastFolderController>();
     final lib = Get.find<LibraryPodcastsController>();
     return Scaffold(
-      appBar: AppBar(
-        title: Obx(() => Text(fc.findById(folderId)?.name ?? "folder".tr)),
-        actions: [
-          IconButton(
-            tooltip: "rename".tr,
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () => _rename(context, fc),
-          ),
-          IconButton(
-            tooltip: "deleteFolder".tr,
-            icon: const Icon(Icons.delete_outline),
-            onPressed: () {
-              fc.deleteFolder(folderId);
-              Get.back();
-            },
-          ),
-        ],
-      ),
-      body: Obx(() {
-        final folder = fc.findById(folderId);
-        if (folder == null) {
-          return const SizedBox.shrink();
-        }
-        final ids = folder.podcastIds.toSet();
-        final items = lib.libraryPodcasts
-            .where((p) => ids.contains(p.playlistId))
-            .toList();
-        if (items.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(
-                "folderEmpty".tr,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium,
+      body: Column(children: [
+        Obx(() => RiffPageHeader(fc.findById(folderId)?.name ?? "folder".tr,
+                actions: [
+                  IconButton(
+                    tooltip: "rename".tr,
+                    icon: const Icon(Icons.edit_outlined),
+                    onPressed: () => _rename(context, fc),
+                  ),
+                  IconButton(
+                    tooltip: "deleteFolder".tr,
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () {
+                      fc.deleteFolder(folderId);
+                      Get.back();
+                    },
+                  ),
+                ])),
+        Expanded(child: Obx(() {
+          final folder = fc.findById(folderId);
+          if (folder == null) {
+            return const SizedBox.shrink();
+          }
+          final ids = folder.podcastIds.toSet();
+          final items = lib.libraryPodcasts
+              .where((p) => ids.contains(p.playlistId))
+              .toList();
+          if (items.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  "folderEmpty".tr,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
               ),
-            ),
-          );
-        }
-        return LayoutBuilder(builder: (context, constraints) {
-          return GridView.builder(
-            padding: kPodcastSubsGridPadding,
-            gridDelegate: podcastSubsGridDelegate(constraints.maxWidth,
-                textScaler: MediaQuery.textScalerOf(context)),
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final podcast = items[index];
-              return PodcastCoverTile(
-                title: podcast.title,
-                subtitle: libraryPodcastSubtitle(podcast),
-                playlist: podcast,
-                imageUrl: podcast.thumbnailUrl,
-                badge: isYoutubeChannelPodcast(podcast)
-                    ? youtubeChannelBadge()
-                    : null,
-                onTap: () => openLibraryPodcast(podcast),
-                onPlay: () => playLibraryPodcast(podcast),
-                onLongPress: () => showPodcastFolderSheet(context, podcast),
-              );
-            },
-          );
-        });
-      }),
+            );
+          }
+          return LayoutBuilder(builder: (context, constraints) {
+            return GridView.builder(
+              padding: kPodcastSubsGridPadding,
+              gridDelegate: podcastSubsGridDelegate(constraints.maxWidth,
+                  textScaler: MediaQuery.textScalerOf(context)),
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final podcast = items[index];
+                return PodcastCoverTile(
+                  title: podcast.title,
+                  subtitle: libraryPodcastSubtitle(podcast),
+                  playlist: podcast,
+                  imageUrl: podcast.thumbnailUrl,
+                  badge: isYoutubeChannelPodcast(podcast)
+                      ? youtubeChannelBadge()
+                      : null,
+                  onTap: () => openLibraryPodcast(podcast),
+                  onPlay: () => playLibraryPodcast(podcast),
+                  onLongPress: () => showPodcastFolderSheet(context, podcast),
+                );
+              },
+            );
+          });
+        })),
+      ]),
     );
   }
 
   void _rename(BuildContext context, PodcastFolderController fc) {
-    final ctrl =
-        TextEditingController(text: fc.findById(folderId)?.name ?? '');
+    final ctrl = TextEditingController(text: fc.findById(folderId)?.name ?? '');
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
