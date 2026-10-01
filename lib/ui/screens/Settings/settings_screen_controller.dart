@@ -59,7 +59,7 @@ class SettingsScreenController extends GetxController {
   final volumeBoostMb = 0.obs;
   final reverbPreset = 0.obs;
   final virtualizer = 0.obs;
-  final noOfHomeScreenContent = 3.obs;
+  final noOfHomeScreenContent = 9.obs;
   final streamingQuality = AudioQuality.High.obs;
   /// In-player muted video surface (Low = 144–240p, High = ≤720p video-only).
   final videoQuality = VideoQuality.high.obs;
@@ -166,7 +166,7 @@ class SettingsScreenController extends GetxController {
       setBox.put("isBottomNavBarEnabled", false);
     }
     noOfHomeScreenContent.value =
-        _asInt(setBox.get("noOfHomeScreenContent"), 3);
+        _asInt(setBox.get("noOfHomeScreenContent"), 9);
     isTransitionAnimationDisabled.value =
         setBox.get("isTransitionAnimationDisabled") ?? false;
     cacheSongs.value = setBox.get('cacheSongs') ?? false;

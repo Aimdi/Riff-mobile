@@ -1,3 +1,5 @@
+import '/models/artist.dart';
+import '/models/home_shelf_content.dart';
 import '/services/crash_report.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
@@ -101,16 +103,8 @@ class HomeScreenController extends GetxController {
       _setQuickPicks(
           quickPicksData.map((e) => MediaItemBuilder.fromJson(e)).toList(),
           title: quickPicksType);
-      middleContent.value = middleContentData
-          .map((e) => e["type"] == "Album Content"
-              ? AlbumContent.fromJson(e)
-              : PlaylistContent.fromJson(e))
-          .toList();
-      fixedContent.value = fixedContentData
-          .map((e) => e["type"] == "Album Content"
-              ? AlbumContent.fromJson(e)
-              : PlaylistContent.fromJson(e))
-          .toList();
+      middleContent.value = middleContentData.map(_shelfFromJson).toList();
+      fixedContent.value = fixedContentData.map(_shelfFromJson).toList();
       isContentFetched.value = true;
       printINFO("Loaded from offline db");
       return true;
@@ -275,9 +269,39 @@ class HomeScreenController extends GetxController {
         if (tmp.albumList.length >= 2) {
           contentTemp.add(tmp);
         }
+      } else if (content["contents"][0] is MediaItem) {
+        // "Listen again", "Forgotten favourites", … used to be dropped
+        // here, which left Home with almost nothing to scroll.
+        final songs = _filterSongs(BanService.filterTracks(
+                (content["contents"]).whereType<MediaItem>().toList())
+            .whereType<MediaItem>()
+            .toList());
+        final title = '${content["title"] ?? ''}';
+        if (songs.length >= 4 && title.isNotEmpty) {
+          contentTemp.add(SongContent(title: title, songs: songs));
+        }
+      } else if (content["contents"][0] is Artist) {
+        final artists = (content["contents"]).whereType<Artist>().toList();
+        final title = '${content["title"] ?? ''}';
+        if (artists.length >= 2 && title.isNotEmpty) {
+          contentTemp.add(ArtistShelf(title: title, artists: artists));
+        }
       }
     }
     return contentTemp;
+  }
+
+  static dynamic _shelfFromJson(dynamic e) {
+    switch (e["type"]) {
+      case "Album Content":
+        return AlbumContent.fromJson(e);
+      case "Song Content":
+        return SongContent.fromJson(e);
+      case "Artist Content":
+        return ArtistShelf.fromJson(e);
+      default:
+        return PlaylistContent.fromJson(e);
+    }
   }
 
   Future<void> changeDiscoverContent(dynamic val, {String? songId}) async {
@@ -400,11 +424,10 @@ class HomeScreenController extends GetxController {
       return content.toList().map((e) => MediaItemBuilder.toJson(e)).toList();
     } else {
       return content.map((e) {
-        if (e.runtimeType == AlbumContent) {
-          return (e as AlbumContent).toJson();
-        } else {
-          return (e as PlaylistContent).toJson();
-        }
+        if (e is AlbumContent) return e.toJson();
+        if (e is SongContent) return e.toJson();
+        if (e is ArtistShelf) return e.toJson();
+        return (e as PlaylistContent).toJson();
       }).toList();
     }
   }

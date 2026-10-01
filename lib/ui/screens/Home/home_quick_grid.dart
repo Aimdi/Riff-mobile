@@ -76,6 +76,13 @@ class HomeQuickGrid extends StatelessWidget {
         },
       ),
       _ShortcutTile(
+        title: 'explore'.tr,
+        icon: Icons.explore_rounded,
+        colors: const [Color(0xFF1E5AA8), Color(0xFF6FB1FF)],
+        onTap: () => Get.toNamed(ScreenNavigationSetup.exploreScreen,
+            id: ScreenNavigationSetup.id),
+      ),
+      _ShortcutTile(
         title: 'releaseRadar'.tr,
         icon: Icons.new_releases_rounded,
         colors: const [Color(0xFF8E1540), Color(0xFFFF5A8A)],
