@@ -43,8 +43,8 @@ void showPodcastFolderSheet(BuildContext context, Playlist podcast) {
               ),
               if (fc.folders.isEmpty)
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   child: Text('noFoldersYet'.tr,
                       style: Theme.of(ctx).textTheme.bodySmall),
                 ),
@@ -104,8 +104,7 @@ void showNewPodcastFolderDialog(BuildContext context,
                 ),
               ),
               const SizedBox(height: 14),
-              Text("folderColor".tr,
-                  style: Theme.of(ctx).textTheme.titleSmall),
+              Text("folderColor".tr, style: Theme.of(ctx).textTheme.titleSmall),
               const SizedBox(height: 8),
               _FolderColorPicker(
                 selected: colorIndex,
@@ -191,60 +190,59 @@ class PodcastSubsScreen extends StatelessWidget {
     final controller = Get.find<LibraryPodcastsController>();
     final folders = Get.find<PodcastFolderController>();
     final content = Obx(() {
-        final subs = controller.libraryPodcasts.toList();
-        // iTunes/RSS subscriptions (followed from Discover) live in a separate
-        // store; list them alongside the YouTube-Music library shows.
-        PodcastService.subsRev.value; // rebuild when RSS subs change
-        final rssSubs = PodcastService.subscriptions;
-        final folderList = folders.folders.toList();
-        if (subs.isEmpty && rssSubs.isEmpty && folderList.isEmpty) {
-          return PodcastEmptyState(
-            icon: Icons.subscriptions_outlined,
-            message: "noPodcastsBookmarked".tr,
-            actionLabel: onDiscover != null ? 'discover'.tr : null,
-            onAction: onDiscover,
-          );
-        }
-        return LayoutBuilder(builder: (context, constraints) {
-          final total = folderList.length + subs.length + rssSubs.length;
-          return GridView.builder(
-            padding: kPodcastSubsGridPadding,
-            gridDelegate: podcastSubsGridDelegate(constraints.maxWidth,
-                textScaler: MediaQuery.textScalerOf(context)),
-            itemCount: total,
-            itemBuilder: (context, index) {
-              if (index < folderList.length) {
-                return _folderTile(context, folders, folderList[index]);
-              }
-              final subIndex = index - folderList.length;
-              if (subIndex < subs.length) {
-                final podcast = subs[subIndex];
-                return PodcastCoverTile(
-                  title: podcast.title,
-                  subtitle: libraryPodcastSubtitle(podcast),
-                  playlist: podcast,
-                  imageUrl: podcast.thumbnailUrl,
-                  badge: isYoutubeChannelPodcast(podcast)
-                      ? youtubeChannelBadge()
-                      : null,
-                  onTap: () => openLibraryPodcast(podcast),
-                  onPlay: () => playLibraryPodcast(podcast),
-                  onLongPress: () =>
-                      showPodcastFolderSheet(context, podcast),
-                );
-              }
-              final rss = rssSubs[subIndex - subs.length];
+      final subs = controller.libraryPodcasts.toList();
+      // iTunes/RSS subscriptions (followed from Discover) live in a separate
+      // store; list them alongside the YouTube-Music library shows.
+      PodcastService.subsRev.value; // rebuild when RSS subs change
+      final rssSubs = PodcastService.subscriptions;
+      final folderList = folders.folders.toList();
+      if (subs.isEmpty && rssSubs.isEmpty && folderList.isEmpty) {
+        return PodcastEmptyState(
+          icon: Icons.subscriptions_outlined,
+          message: "noPodcastsBookmarked".tr,
+          actionLabel: onDiscover != null ? 'discover'.tr : null,
+          onAction: onDiscover,
+        );
+      }
+      return LayoutBuilder(builder: (context, constraints) {
+        final total = folderList.length + subs.length + rssSubs.length;
+        return GridView.builder(
+          padding: kPodcastSubsGridPadding,
+          gridDelegate: podcastSubsGridDelegate(constraints.maxWidth,
+              textScaler: MediaQuery.textScalerOf(context)),
+          itemCount: total,
+          itemBuilder: (context, index) {
+            if (index < folderList.length) {
+              return _folderTile(context, folders, folderList[index]);
+            }
+            final subIndex = index - folderList.length;
+            if (subIndex < subs.length) {
+              final podcast = subs[subIndex];
               return PodcastCoverTile(
-                title: (rss['title'] ?? '').toString(),
-                subtitle: (rss['author'] ?? '').toString(),
-                imageUrl: rssArtworkUrl(rss),
-                onTap: () => playOrOpenRssPodcast(rss),
-                onPlay: () => playOrOpenRssPodcast(rss),
-                onLongPress: () => _confirmUnfollowRss(context, rss),
+                title: podcast.title,
+                subtitle: libraryPodcastSubtitle(podcast),
+                playlist: podcast,
+                imageUrl: podcast.thumbnailUrl,
+                badge: isYoutubeChannelPodcast(podcast)
+                    ? youtubeChannelBadge()
+                    : null,
+                onTap: () => openLibraryPodcast(podcast),
+                onPlay: () => playLibraryPodcast(podcast),
+                onLongPress: () => showPodcastFolderSheet(context, podcast),
               );
-            },
-          );
-        });
+            }
+            final rss = rssSubs[subIndex - subs.length];
+            return PodcastCoverTile(
+              title: (rss['title'] ?? '').toString(),
+              subtitle: (rss['author'] ?? '').toString(),
+              imageUrl: rssArtworkUrl(rss),
+              onTap: () => playOrOpenRssPodcast(rss),
+              onPlay: () => playOrOpenRssPodcast(rss),
+              onLongPress: () => _confirmUnfollowRss(context, rss),
+            );
+          },
+        );
+      });
     });
     if (embedded) {
       return Column(
@@ -293,17 +291,16 @@ class PodcastSubsScreen extends StatelessWidget {
       );
     }
     return Scaffold(
-      appBar: AppBar(
-        title: Text("subscriptions".tr),
-        actions: [
+      body: Column(children: [
+        RiffPageHeader("subscriptions".tr, actions: [
           IconButton(
             tooltip: "newFolder".tr,
             icon: const Icon(Icons.create_new_folder_outlined),
             onPressed: () => showNewPodcastFolderDialog(context),
           ),
-        ],
-      ),
-      body: content,
+        ]),
+        Expanded(child: content),
+      ]),
     );
   }
 
@@ -340,8 +337,7 @@ class PodcastSubsScreen extends StatelessWidget {
       builder: (ctx) => SafeArea(
         child: Obx(() {
           // Refresh color selection when setColor updates the list.
-          final current =
-              fc.findById(folder.id) ?? folder;
+          final current = fc.findById(folder.id) ?? folder;
           return Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             child: Column(

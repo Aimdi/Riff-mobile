@@ -200,7 +200,11 @@ class ThemeController extends GetxController {
 
       final baseTheme = ThemeData(
           useMaterial3: false,
-          primaryColor: primarySwatch![500],
+          // Without this, FilledButtons fall back to Material's default blue.
+          filledButtonTheme: FilledButtonThemeData(
+              style: FilledButton.styleFrom(
+                  backgroundColor: primarySwatch![200], foregroundColor: Colors.black)),
+          primaryColor: primarySwatch[500],
           colorScheme: ColorScheme.fromSwatch(
               accentColor: primarySwatch[200],
               brightness: Brightness.dark,
@@ -287,6 +291,10 @@ class ThemeController extends GetxController {
       final accent = accentColor.value;
       final baseTheme = ThemeData(
           useMaterial3: false,
+          // Without this, FilledButtons fall back to Material's default blue.
+          filledButtonTheme: FilledButtonThemeData(
+              style: FilledButton.styleFrom(
+                  backgroundColor: accent, foregroundColor: Colors.black)),
           brightness: Brightness.dark,
           canvasColor: RiffSurfaces.voidBlack,
           scaffoldBackgroundColor: RiffSurfaces.voidBlack,
@@ -386,6 +394,10 @@ class ThemeController extends GetxController {
       );
       final baseTheme = ThemeData(
           useMaterial3: false,
+          // Without this, FilledButtons fall back to Material's default blue.
+          filledButtonTheme: FilledButtonThemeData(
+              style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF1DB954), foregroundColor: Colors.black)),
           brightness: Brightness.light,
           canvasColor: const Color(0xFFF7F9F9),
           scaffoldBackgroundColor: const Color(0xFFF7F9F9),

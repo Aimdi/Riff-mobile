@@ -18,16 +18,13 @@ class LinkPiped extends StatelessWidget {
     return CommonDialog(
         child: Obx(() => Container(
               height: pipedLinkedController.selectedInst.value == "custom"
-                  ? 400
-                  : 365,
+                  ? 470
+                  : 435,
               padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 30),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    "Piped".tr,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
+                  RiffDialogTitle("Piped".tr, icon: Icons.link_rounded),
                   Padding(
                     padding: const EdgeInsets.only(top: 15.0, bottom: 10),
                     child: Obx(() => DropdownButton(
@@ -90,22 +87,8 @@ class LinkPiped extends StatelessWidget {
                             pipedLinkedController.errorText.value,
                             textAlign: TextAlign.center,
                           )))),
-                  Container(
-                      decoration: BoxDecoration(
-                          color: Theme.of(context).textTheme.titleLarge!.color,
-                          borderRadius: BorderRadius.circular(10)),
-                      child: InkWell(
-                        onTap: pipedLinkedController.link,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20.0, vertical: 10),
-                          child: Text(
-                            "link".tr,
-                            style:
-                                TextStyle(color: Theme.of(context).canvasColor),
-                          ),
-                        ),
-                      )),
+                  RiffDialogButton("link".tr,
+                      onPressed: pipedLinkedController.link),
                 ],
               ),
             )));

@@ -262,3 +262,63 @@ class HomeShelfCard extends StatelessWidget {
     );
   }
 }
+
+/// Top of a pushed page: back button and a large title, with optional
+/// subtitle and actions. Shared by Explore, Stats, Rewind, the podcast and
+/// plugin screens so every sub-page opens the same way.
+class RiffPageHeader extends StatelessWidget {
+  const RiffPageHeader(
+    this.title, {
+    super.key,
+    this.subtitle,
+    this.actions = const [],
+    this.onBack,
+  });
+  final String title;
+  final String? subtitle;
+  final List<Widget> actions;
+
+  /// Defaults to popping the navigator this page is in (tab or root).
+  final VoidCallback? onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.paddingOf(context).top;
+    final fg = Theme.of(context).textTheme.titleMedium?.color;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(2, top + 8, 8, 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          IconButton(
+            tooltip: 'back'.tr,
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+            onPressed: onBack ?? () => Navigator.of(context).maybePop(),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.6,
+                        color: fg)),
+                if (subtitle != null && subtitle!.isNotEmpty)
+                  Text(subtitle!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: homeCardSubtitleStyle(context)),
+              ],
+            ),
+          ),
+          ...actions,
+        ],
+      ),
+    );
+  }
+}

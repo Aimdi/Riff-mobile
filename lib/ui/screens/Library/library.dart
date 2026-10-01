@@ -18,7 +18,10 @@ import '../../widgets/modification_list.dart';
 import '../../widgets/piped_sync_widget.dart';
 import '../../widgets/content_list_widget_item.dart';
 import '../../widgets/empty_play_hint.dart';
+import '../../widgets/collection_play.dart';
+import '../../widgets/image_widget.dart';
 import '../../widgets/list_widget.dart';
+import '../../widgets/riff_sheet.dart';
 import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/sort_widget.dart';
@@ -512,21 +515,11 @@ class LibraryArtistWidget extends StatelessWidget {
     final topPadding = context.isLandscape ? 50.0 : 90.0;
     return Padding(
       padding: isBottomNavActive
-          ? const EdgeInsets.only(left: 15)
-          : EdgeInsets.only(left: 5, top: topPadding),
+          ? const EdgeInsets.only(top: 10)
+          : EdgeInsets.only(top: topPadding),
       child: Column(
         children: [
-          isBottomNavActive
-              ? const SizedBox(
-                  height: 10,
-                )
-              : Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    "libArtists".tr,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
+          if (!isBottomNavActive) LibraryHeader(title: "libArtists".tr),
           Obx(
             () => SortWidget(
               tag: "LibArtistSort",
@@ -542,9 +535,130 @@ class LibraryArtistWidget extends StatelessWidget {
               onSearchStart: cntrller.onSearchStart,
             ),
           ),
-          Obx(() => cntrller.libraryArtists.isNotEmpty
-              ? ListWidget(cntrller.libraryArtists, "Library Artists", true)
-              : Expanded(child: EmptyPlayHint(message: "noLibArtists".tr)))
+          Expanded(
+            child: Obx(() => cntrller.libraryArtists.isEmpty
+                ? EmptyPlayHint(message: "noLibArtists".tr)
+                : LayoutBuilder(builder: (context, constraints) {
+                    final grid = libraryGridMetrics(constraints.maxWidth);
+                    final scaler = MediaQuery.textScalerOf(context);
+                    return GridView.builder(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(
+                          HomeLayout.gutter, 6, HomeLayout.gutter, 200),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: grid.columns,
+                        crossAxisSpacing: HomeLayout.cardGap,
+                        mainAxisSpacing: 16,
+                        mainAxisExtent: grid.cover +
+                            10 +
+                            scaler.scale(14) * 1.25 +
+                            scaler.scale(12) * 1.3 +
+                            6,
+                      ),
+                      itemCount: cntrller.libraryArtists.length,
+                      itemBuilder: (context, index) => _LibraryArtistCard(
+                        artist: cntrller.libraryArtists[index],
+                        size: grid.cover,
+                      ),
+                    );
+                  })),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Round artist card: photo, name and "Artist". Tap opens the artist;
+/// long-press offers play, shuffle, radio and open.
+class _LibraryArtistCard extends StatelessWidget {
+  const _LibraryArtistCard({required this.artist, required this.size});
+  final dynamic artist;
+  final double size;
+
+  void _open() => Get.toNamed(ScreenNavigationSetup.artistScreen,
+      id: ScreenNavigationSetup.id, arguments: [false, artist]);
+
+  Future<void> _play({bool shuffle = false, bool radio = false}) async {
+    final ok = await playArtist(artist, shuffle: shuffle, radio: radio);
+    if (!ok) _open();
+  }
+
+  void _actions(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      shape: riffSheetShape,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const RiffSheetHandle(),
+            RiffSheetTitle('${artist.name}', subtitle: 'artist'.tr),
+            RiffQuickActions([
+              RiffQuickAction(
+                  icon: Icons.play_arrow_rounded,
+                  label: 'play'.tr,
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _play();
+                  }),
+              RiffQuickAction(
+                  icon: Icons.shuffle_rounded,
+                  label: 'shuffle'.tr,
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _play(shuffle: true);
+                  }),
+              RiffQuickAction(
+                  icon: Icons.sensors_rounded,
+                  label: 'startRadio'.tr,
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _play(radio: true);
+                  }),
+            ]),
+            RiffSheetTile(
+              icon: Icons.person_outline_rounded,
+              title: 'viewArtist'.tr,
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _open();
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
+      onTap: _open,
+      onLongPress: () => _actions(context),
+      child: Column(
+        children: [
+          ClipOval(
+            child: ImageWidget(size: size, artist: artist),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '${artist.name}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: homeCardTitleStyle(context),
+          ),
+          Text(
+            'artist'.tr,
+            maxLines: 1,
+            textAlign: TextAlign.center,
+            style: homeCardSubtitleStyle(context),
+          ),
         ],
       ),
     );

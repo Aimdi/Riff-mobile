@@ -1,3 +1,4 @@
+import '../Home/home_layout.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -41,8 +42,7 @@ class _PodcastDownloadsScreenState extends State<PodcastDownloadsScreen> {
 
   Future<void> _play(MediaItem item) async {
     if (!Get.isRegistered<PlayerController>()) return;
-    final ok =
-        await Get.find<PlayerController>().playPlayListSong([item], 0);
+    final ok = await Get.find<PlayerController>().playPlayListSong([item], 0);
     if (!ok) snackOperationFailed();
   }
 
@@ -119,8 +119,10 @@ class _PodcastDownloadsScreenState extends State<PodcastDownloadsScreen> {
 
     if (widget.embedded) return body;
     return Scaffold(
-      appBar: AppBar(title: Text('downloads'.tr)),
-      body: body,
+      body: Column(children: [
+        RiffPageHeader('downloads'.tr),
+        Expanded(child: body),
+      ]),
     );
   }
 }

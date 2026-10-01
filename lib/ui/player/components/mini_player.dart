@@ -33,60 +33,63 @@ class MiniPlayer extends StatelessWidget {
     final theme = Theme.of(context);
     // Solid frost — BackdropFilter blur was rebuilding every panel-drag /
     // opacity tick and was a major source of mini-player jank.
-    final frost = theme.cardColor.withOpacity(
-      theme.brightness == Brightness.dark ? 0.94 : 0.97,
-    );
+    final frost = theme.brightness == Brightness.dark
+        ? Color.alphaBlend(Colors.white.withOpacity(0.07), theme.cardColor)
+        : theme.cardColor;
 
     // Built outside the opacity Obx so the same child instance is reused when
     // playerPaneOpacity / visibility / height tick — Flutter skips rebuilding
     // identical child widget instances.
     // Align top + bottom pad so the progress bar stays at the top of the
     // panel while the system nav/home inset is reserved below the content.
-    final content = Align(
-      alignment: Alignment.topCenter,
-      child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewPaddingOf(context).bottom,
-        ),
-        child: Column(
-          children: [
-            // Own layer so 10 Hz progress ticks don't repaint the whole
-            // mini player (art, title, transport).
-            RepaintBoundary(
-              child: !isWideScreen
-                  ? const _MiniPlayerThinProgress()
-                  : const _MiniPlayerWideProgress(),
-            ),
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 17.0, vertical: 7),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const _MiniPlayerArt(),
-                  const SizedBox(
-                    width: 10,
-                  ),
-                  const Expanded(
-                    child: _MiniPlayerSongInfo(),
-                  ),
-                  isWideScreen
-                      ? const SizedBox(
-                          width: 450,
-                          child: _MiniPlayerTransport(isWideScreen: true),
-                        )
-                      : const _MiniPlayerTransport(isWideScreen: false),
-                  if (isWideScreen)
-                    Expanded(
-                      child: _MiniPlayerWideExtras(size: size),
+    final content = Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (isWideScreen)
+          // Own layer so 10 Hz progress ticks don't repaint the whole
+          // mini player (art, title, transport).
+          const RepaintBoundary(child: _MiniPlayerWideProgress()),
+        Expanded(
+          child: Stack(
+            children: [
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const _MiniPlayerArt(),
+                    const SizedBox(
+                      width: 10,
                     ),
-                ],
+                    const Expanded(
+                      child: _MiniPlayerSongInfo(),
+                    ),
+                    isWideScreen
+                        ? const SizedBox(
+                            width: 450,
+                            child: _MiniPlayerTransport(isWideScreen: true),
+                          )
+                        : const _MiniPlayerTransport(isWideScreen: false),
+                    if (isWideScreen)
+                      Expanded(
+                        child: _MiniPlayerWideExtras(size: size),
+                      ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              if (!isWideScreen)
+                const Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: RepaintBoundary(child: _MiniPlayerThinProgress()),
+                ),
+            ],
+          ),
         ),
-      ),
+      ],
     );
 
     return Obx(() {
@@ -95,20 +98,33 @@ class MiniPlayer extends StatelessWidget {
         child: AnimatedOpacity(
           opacity: playerController.playerPaneOpacity.value,
           duration: Duration.zero,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: frost,
-              border: Border(
-                top: BorderSide(
-                  color: theme.dividerColor.withOpacity(0.9),
-                  width: 0.5,
-                ),
-              ),
-            ),
+          // The strip is page-coloured; the player itself is a floating
+          // pill inside it, with the system inset kept clear below.
+          child: ColoredBox(
+            color: theme.canvasColor,
             child: SizedBox(
               height: playerController.playerPanelMinHeight.value,
               width: size.width,
-              child: content,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  12,
+                  0,
+                  12,
+                  MediaQuery.viewPaddingOf(context).bottom + 8,
+                ),
+                child: Material(
+                  color: frost,
+                  elevation: 10,
+                  shadowColor: Colors.black.withOpacity(0.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    side: BorderSide(
+                        color: theme.dividerColor.withOpacity(0.7), width: 0.5),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: content,
+                ),
+              ),
             ),
           ),
         ),
@@ -138,22 +154,24 @@ class _MiniPlayerArt extends StatelessWidget {
                   },
                   child: Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
+                      shape: BoxShape.circle,
                       border: Border.all(
                         color: RiffSurfaces.hairline,
                         width: RiffTokens.hairline,
                       ),
                     ),
-                    child: ImageWidget(
-                      size: 50,
-                      song: song,
-                      borderRadius: 8,
+                    child: ClipOval(
+                      child: ImageWidget(
+                        size: 46,
+                        song: song,
+                        borderRadius: 0,
+                      ),
                     ),
                   ),
                 )
               : const SizedBox(
-                  height: 50,
-                  width: 50,
+                  height: 46,
+                  width: 46,
                 ),
         ],
       );
@@ -505,8 +523,8 @@ class _MiniPlayerWideExtras extends StatelessWidget {
                     child: SliderTheme(
                       data: SliderTheme.of(context).copyWith(
                         trackHeight: 2,
-                        thumbShape:
-                            const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+                        thumbShape: const RoundSliderThumbShape(
+                            enabledThumbRadius: 6.0),
                         overlayShape:
                             const RoundSliderOverlayShape(overlayRadius: 10.0),
                       ),
@@ -529,25 +547,26 @@ class _MiniPlayerWideExtras extends StatelessWidget {
               children: [
                 IconButton(
                   onPressed: () {
-                    playerController.homeScaffoldkey.currentState?.openEndDrawer();
+                    playerController.homeScaffoldkey.currentState
+                        ?.openEndDrawer();
                   },
                   icon: const Icon(Icons.queue_music),
                 ),
                 Padding(
-                    padding: const EdgeInsets.only(left: 10.0),
-                    child: Obx(() => IconButton(
-                          tooltip: 'sleepTimer'.tr,
-                          onPressed: () {
-                            final sheetContext = playerController
-                                    .homeScaffoldkey.currentContext ??
-                                Get.context;
-                            showSleepTimerSheet(sheetContext);
-                          },
-                          icon: Icon(playerController.isSleepTimerActive.isTrue
-                              ? Icons.timer
-                              : Icons.timer_outlined),
-                        )),
-                  ),
+                  padding: const EdgeInsets.only(left: 10.0),
+                  child: Obx(() => IconButton(
+                        tooltip: 'sleepTimer'.tr,
+                        onPressed: () {
+                          final sheetContext =
+                              playerController.homeScaffoldkey.currentContext ??
+                                  Get.context;
+                          showSleepTimerSheet(sheetContext);
+                        },
+                        icon: Icon(playerController.isSleepTimerActive.isTrue
+                            ? Icons.timer
+                            : Icons.timer_outlined),
+                      )),
+                ),
                 const SizedBox(
                   width: 10,
                 ),

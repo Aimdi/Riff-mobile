@@ -11,66 +11,41 @@ class NewVersionDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CommonDialog(
-      child: Container(
-        height: 320,
-        padding: const EdgeInsets.only(top: 40, bottom: 20),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(22, 24, 22, 14),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              "newVersionAvailable".tr,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                child: SizedBox.square(
-                  dimension: 100,
-                  child: FittedBox(
-                    child: FloatingActionButton(
-                      onPressed: () {
-                        launchUrl(
-                          Uri.parse(
-                            'https://github.com/Aimdi/Riff-mobile/releases/latest',
-                          ),
-                          mode: LaunchMode.externalApplication,
-                        );
-                      },
-                      child: const Icon(
-                        Icons.download,
-                        size: 30,
-                      ),
-                    ),
+            RiffDialogTitle("newVersionAvailable".tr,
+                icon: Icons.system_update_rounded),
+            const SizedBox(height: 20),
+            RiffDialogButton(
+              "download".tr,
+              onPressed: () {
+                launchUrl(
+                  Uri.parse(
+                    'https://github.com/Aimdi/Riff-mobile/releases/latest',
                   ),
-                )),
-            Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  GetX<HomeScreenController>(builder: (controller) {
-                    return Checkbox(
-                        value: controller.showVersionDialog.isFalse,
-                        onChanged: (val) {
-                          controller.onChangeVersionVisibility(val ?? false);
-                        },
-                        shape: const CircleBorder());
-                  }),
-                  Text("dontShowInfoAgain".tr)
-                ],
-              ),
+                  mode: LaunchMode.externalApplication,
+                );
+              },
             ),
-            Container(
-                decoration: BoxDecoration(
-                    color: Theme.of(context).textTheme.titleLarge!.color,
-                    borderRadius: BorderRadius.circular(10)),
-                child: InkWell(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 15.0, vertical: 10),
-                    child: Text("dismiss".tr,
-                        style: TextStyle(color: Theme.of(context).canvasColor)),
-                  ),
-                  onTap: () => Navigator.of(context).pop(),
-                ))
+            const SizedBox(height: 4),
+            GetX<HomeScreenController>(
+                builder: (controller) => CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      activeColor: Theme.of(context).colorScheme.secondary,
+                      checkColor: Colors.black,
+                      title: Text("dontShowInfoAgain".tr,
+                          style: const TextStyle(fontSize: 14)),
+                      value: controller.showVersionDialog.isFalse,
+                      onChanged: (val) =>
+                          controller.onChangeVersionVisibility(val ?? false),
+                    )),
+            RiffDialogButton("dismiss".tr,
+                primary: false, onPressed: () => Navigator.of(context).pop()),
           ],
         ),
       ),

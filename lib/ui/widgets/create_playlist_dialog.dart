@@ -1,7 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:widget_marquee/widget_marquee.dart';
 
 import '/services/piped_service.dart';
 import '../screens/Library/library_controller.dart';
@@ -10,6 +9,10 @@ import '/ui/widgets/snackbar.dart';
 import '../../models/playlist.dart';
 import 'common_dialog_widget.dart';
 import 'modified_text_field.dart';
+import 'riff_sheet.dart';
+import '../screens/Home/home_layout.dart';
+import '../utils/riff_tokens.dart';
+import '../utils/theme_controller.dart';
 
 class CreateNRenamePlaylistPopup extends StatelessWidget {
   const CreateNRenamePlaylistPopup(
@@ -23,6 +26,43 @@ class CreateNRenamePlaylistPopup extends StatelessWidget {
   final List<MediaItem>? songItems;
   final Playlist? playlist;
 
+  Future<void> _submit(
+      BuildContext context, LibraryPlaylistsController librPlstCntrller) async {
+    if (librPlstCntrller.textInputController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(snackbar(
+          context, "playlistNameRequired".tr,
+          size: SanckBarSize.MEDIUM));
+      return;
+    }
+    if (renamePlaylist) {
+      final value = await librPlstCntrller.renamePlaylist(playlist!);
+      if (!context.mounted) return;
+      if (value) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(snackbar(
+            context, "playlistRenameAlert".tr,
+            size: SanckBarSize.MEDIUM));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(snackbar(
+            context, "operationFailed".tr,
+            size: SanckBarSize.MEDIUM));
+      }
+      return;
+    }
+    final value = await librPlstCntrller.createNewPlaylist(
+        createPlaylistNaddSong: isCreateNadd, songItems: songItems);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(snackbar(
+        context,
+        value
+            ? (isCreateNadd
+                ? "playlistCreatednsongAddedAlert".tr
+                : "playlistCreatedAlert".tr)
+            : "errorOccuredAlert".tr,
+        size: SanckBarSize.MEDIUM));
+    Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final librPlstCntrller = Get.find<LibraryPlaylistsController>();
@@ -31,171 +71,115 @@ class CreateNRenamePlaylistPopup extends StatelessWidget {
         ? ""
         : defaultNewPlaylistName(songItems: songItems);
     final isPipedLinked = Get.find<PipedServices>().isLoggedIn;
+    final theme = Theme.of(context);
+    final fg = theme.textTheme.titleMedium?.color;
     return CommonDialog(
-      child: Container(
-        height: (isPipedLinked && !renamePlaylist) ? 245 : 200,
-        padding:
-            const EdgeInsets.only(top: 30, left: 30, right: 30, bottom: 10),
-        child: Stack(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(22, 22, 22, 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Column(children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 5),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Marquee(
-                    delay: const Duration(milliseconds: 300),
-                    id: "createPlaylist",
-                    child: Text(
-                      renamePlaylist
-                          ? "renamePlaylist".tr
-                          : "CreateNewPlaylist".tr,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    renamePlaylist ? "renamePlaylist".tr : "CreateNewPlaylist".tr,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                        color: fg),
                   ),
                 ),
-              ),
-              if (isPipedLinked && !renamePlaylist)
-                Obx(
-                  () => Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Radio(
-                              value: "piped",
-                              groupValue:
-                                  librPlstCntrller.playlistCreationMode.value,
-                              onChanged: librPlstCntrller.changeCreationMode),
-                          Text("Piped".tr),
-                        ],
-                      ),
-                      const SizedBox(
-                        width: 15,
-                      ),
-                      Row(
-                        children: [
-                          Radio(
-                              value: "local",
-                              groupValue:
-                                  librPlstCntrller.playlistCreationMode.value,
-                              onChanged: librPlstCntrller.changeCreationMode),
-                          Text("local".tr),
-                        ],
-                      )
-                    ],
-                  ),
-                ),
-              ModifiedTextField(
-                textCapitalization: TextCapitalization.sentences,
-                autofocus: true,
-                cursorColor: Theme.of(context).textTheme.titleSmall!.color,
-                controller: librPlstCntrller.textInputController,
-                decoration: const InputDecoration(
-                  contentPadding: EdgeInsets.only(left: 5),
-                  focusColor: Colors.white,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 20.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                Obx(() => (librPlstCntrller.creationInProgress.isTrue &&
+                        isPipedLinked)
+                    ? const SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const SizedBox.shrink()),
+              ],
+            ),
+            const SizedBox(height: 14),
+            if (isPipedLinked && !renamePlaylist) ...[
+              Obx(() {
+                final mode = librPlstCntrller.playlistCreationMode.value;
+                return Row(
                   children: [
-                    InkWell(
-                      child: Padding(
-                        padding: const EdgeInsets.all(10.0),
-                        child: Text("cancel".tr),
-                      ),
-                      onTap: () => Navigator.of(context).pop(),
+                    RiffChoiceChip(
+                      icon: Icons.phone_android_rounded,
+                      label: "local".tr,
+                      selected: mode == "local",
+                      onTap: () => librPlstCntrller.changeCreationMode("local"),
                     ),
-                    Container(
-                      decoration: BoxDecoration(
-                          color: Theme.of(context).textTheme.titleLarge!.color,
-                          borderRadius: BorderRadius.circular(10)),
-                      child: InkWell(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 15.0, vertical: 10),
-                          child: Text(
-                            isCreateNadd
-                                ? "createnAdd".tr
-                                : renamePlaylist
-                                    ? "rename".tr
-                                    : "create".tr,
-                            style:
-                                TextStyle(color: Theme.of(context).canvasColor),
-                          ),
-                        ),
-                        onTap: () async {
-                          if (librPlstCntrller.textInputController.text
-                              .trim()
-                              .isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                snackbar(context, "playlistNameRequired".tr,
-                                    size: SanckBarSize.MEDIUM));
-                            return;
-                          }
-                          if (renamePlaylist) {
-                            librPlstCntrller
-                                .renamePlaylist(playlist!)
-                                .then((value) {
-                              if (!context.mounted) return;
-                              if (value) {
-                                Navigator.of(context).pop();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    snackbar(context, "playlistRenameAlert".tr,
-                                        size: SanckBarSize.MEDIUM));
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    snackbar(context, "operationFailed".tr,
-                                        size: SanckBarSize.MEDIUM));
-                              }
-                            });
-                          } else {
-                            librPlstCntrller
-                                .createNewPlaylist(
-                                    createPlaylistNaddSong: isCreateNadd,
-                                    songItems: songItems)
-                                .then((value) {
-                              if (!context.mounted) return;
-                              if (value) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    snackbar(
-                                        context,
-                                        isCreateNadd
-                                            ? "playlistCreatednsongAddedAlert"
-                                                .tr
-                                            : "playlistCreatedAlert".tr,
-                                        size: SanckBarSize.MEDIUM));
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    snackbar(context, "errorOccuredAlert".tr,
-                                        size: SanckBarSize.MEDIUM));
-                              }
-                              Navigator.of(context).pop();
-                            });
-                          }
-                        },
-                      ),
+                    const SizedBox(width: 8),
+                    RiffChoiceChip(
+                      icon: Icons.cloud_outlined,
+                      label: "Piped".tr,
+                      selected: mode == "piped",
+                      onTap: () => librPlstCntrller.changeCreationMode("piped"),
                     ),
                   ],
+                );
+              }),
+              const SizedBox(height: 14),
+            ],
+            ModifiedTextField(
+              textCapitalization: TextCapitalization.sentences,
+              autofocus: true,
+              cursorColor: theme.colorScheme.secondary,
+              controller: librPlstCntrller.textInputController,
+              onSubmitted: (_) => _submit(context, librPlstCntrller),
+              decoration: InputDecoration(
+                hintText: "playlistName".tr,
+                filled: true,
+                fillColor: homeTileColor(context),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
+                  borderSide: BorderSide.none,
                 ),
-              )
-            ]),
-            Obx(() =>
-                (librPlstCntrller.creationInProgress.isTrue && isPipedLinked)
-                    ? const Positioned(
-                        top: 5,
-                        right: 8,
-                        child: SizedBox(
-                            height: 15,
-                            width: 15,
-                            child: CircularProgressIndicator(
-                              backgroundColor: Colors.transparent,
-                              strokeWidth: 2,
-                            )),
-                      )
-                    : const SizedBox.shrink()),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
+                  borderSide:
+                      BorderSide(color: theme.colorScheme.secondary, width: 1.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(foregroundColor: fg),
+                  child: Text("cancel".tr,
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: () => _submit(context, librPlstCntrller),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: theme.colorScheme.secondary,
+                    foregroundColor: RiffSurfaces.voidBlack,
+                    minimumSize: const Size(0, 44),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                  ),
+                  child: Text(
+                    isCreateNadd
+                        ? "createnAdd".tr
+                        : renamePlaylist
+                            ? "rename".tr
+                            : "create".tr,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),

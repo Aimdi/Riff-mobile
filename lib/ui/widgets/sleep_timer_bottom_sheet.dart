@@ -3,6 +3,10 @@ import 'package:get/get.dart';
 
 import '/ui/player/play_queue_order.dart';
 import '/ui/player/player_controller.dart';
+import '../screens/Home/home_layout.dart';
+import '../utils/riff_tokens.dart';
+import '../utils/theme_controller.dart';
+import 'riff_sheet.dart';
 import 'snackbar.dart';
 
 /// Opens the sleep-timer sheet from the full player, mini player, or song menu.
@@ -11,9 +15,7 @@ Future<void> showSleepTimerSheet(BuildContext? context) async {
   if (sheetContext == null) return;
   await showModalBottomSheet<void>(
     constraints: const BoxConstraints(maxWidth: 500),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
-    ),
+    shape: riffSheetShape,
     isScrollControlled: true,
     context: sheetContext,
     barrierColor: Colors.transparent.withAlpha(100),
@@ -24,145 +26,167 @@ Future<void> showSleepTimerSheet(BuildContext? context) async {
 class SleepTimerBottomSheet extends StatelessWidget {
   const SleepTimerBottomSheet({super.key});
 
+  static String _clock(int secs) {
+    final h = secs ~/ 3600;
+    final m = ((secs % 3600) ~/ 60).toString().padLeft(2, '0');
+    final s = (secs % 60).toString().padLeft(2, '0');
+    return h > 0 ? '$h:$m:$s' : '$m:$s';
+  }
+
+  void _done(BuildContext context, String message) {
+    Navigator.of(context).pop();
+    final ctx = Get.context;
+    if (ctx == null || !ctx.mounted) return;
+    ScaffoldMessenger.of(ctx)
+        .showSnackBar(snackbar(ctx, message, size: SanckBarSize.BIG));
+  }
+
   @override
   Widget build(BuildContext context) {
     final playerController = Get.find<PlayerController>();
+    final theme = Theme.of(context);
+    final fg = theme.textTheme.titleMedium?.color ?? RiffSurfaces.textPrimary;
+    final accent = theme.colorScheme.secondary;
     return Padding(
-      padding: EdgeInsets.only(bottom: Get.mediaQuery.padding.bottom),
-      child: Obx(
-        () => Column(
+      padding: EdgeInsets.only(bottom: Get.mediaQuery.padding.bottom + 12),
+      child: Obx(() {
+        final active = playerController.isSleepTimerActive.isTrue;
+        final endOfSong = playerController.isSleepEndOfSongActive.isTrue;
+        final left = playerController.timerDurationLeft.value;
+        final endLabel =
+            sleepEndLabelKey(longForm: playerController.usesLongFormTransport)
+                .tr;
+        return Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ListTile(
-              leading: const Icon(Icons.timer),
-              title: Text("sleepTimer".tr),
-            ),
-            const Divider(),
-            if (playerController.isSleepTimerActive.isTrue)
-              SizedBox(
-                height: 90,
-                child: Container(
-                  width: 180,
-                  decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.secondary,
-                      borderRadius: BorderRadius.circular(20)),
-                  child: Align(
-                    alignment: Alignment.center,
-                    child: Obx(() {
-                      final leftDurationInSec =
-                          playerController.timerDurationLeft.value;
-                      final hrs = (leftDurationInSec ~/ 3600)
-                          .toString()
-                          .padLeft(2, '0');
-                      final min = ((leftDurationInSec % 3600) ~/ 60)
-                          .toString()
-                          .padLeft(2, '0');
-                      final sec = ((leftDurationInSec % 3600) % 60)
-                          .toString()
-                          .padLeft(2, '0');
-
-                      return Text(
-                        "$hrs:$min:$sec",
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge!
-                            .copyWith(fontSize: 35),
-                      );
-                    }),
+            const RiffSheetHandle(),
+            RiffSheetTitle('sleepTimer'.tr,
+                trailing: Icon(Icons.bedtime_rounded, color: accent)),
+            if (active) ...[
+              const SizedBox(height: 8),
+              Center(
+                child: Text(
+                  endOfSong ? endLabel : _clock(left),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: endOfSong ? 22 : 52,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: endOfSong ? 0 : -1,
+                    color: fg,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
               ),
-            if (playerController.isSleepTimerActive.isFalse)
-              Column(
-                children: getTimeListWidget(context),
-              ),
-            if (playerController.isSleepTimerActive.isTrue)
+              const SizedBox(height: 20),
               Padding(
-                padding: const EdgeInsets.only(bottom: 20.0, top: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    if (playerController.isSleepEndOfSongActive.isFalse)
-                      OutlinedButton(
+                    if (!endOfSong) ...[
+                      Expanded(
+                        child: FilledButton.tonal(
                           onPressed: playerController.addFiveMinutes,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor:
-                                Theme.of(context).textTheme.titleMedium!.color!,
-                            side: BorderSide(
-                              color: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium!
-                                  .color!,
-                            ),
-                          ),
-                          child: Text("add5Minutes".tr)),
-                    OutlinedButton(
+                          style: FilledButton.styleFrom(
+                              minimumSize: const Size.fromHeight(48)),
+                          child: Text('add5Minutes'.tr,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    Expanded(
+                      child: OutlinedButton(
                         onPressed: () {
                           playerController.cancelSleepTimer();
-                          Navigator.of(context).pop();
-                          final ctx = Get.context;
-                          if (ctx == null || !ctx.mounted) return;
-                          ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
-                              ctx, "cancelTimerAlert".tr,
-                              size: SanckBarSize.BIG));
+                          _done(context, 'cancelTimerAlert'.tr);
                         },
                         style: OutlinedButton.styleFrom(
-                          foregroundColor:
-                              Theme.of(context).textTheme.titleMedium!.color!,
-                          side: BorderSide(
-                            color:
-                                Theme.of(context).textTheme.titleMedium!.color!,
-                          ),
+                          minimumSize: const Size.fromHeight(48),
+                          foregroundColor: fg,
+                          side: BorderSide(color: fg.withOpacity(0.4)),
                         ),
-                        child: Text("cancelTimer".tr))
+                        child: Text('cancelTimer'.tr,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                    ),
                   ],
                 ),
               ),
+            ] else ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+                child: GridView.count(
+                  crossAxisCount: 3,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: 2.4,
+                  children: [
+                    for (final dur in const [5, 10, 15, 30, 45, 60])
+                      _DurationTile(
+                        minutes: dur,
+                        onTap: () {
+                          final ok = playerController.startSleepTimer(dur);
+                          _done(context,
+                              ok ? 'sleepTimeSetAlert'.tr : 'operationFailed'.tr);
+                        },
+                      ),
+                  ],
+                ),
+              ),
+              RiffSheetTile(
+                icon: Icons.music_off_outlined,
+                title: endLabel,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  playerController.sleepEndOfSong();
+                },
+              ),
+            ],
           ],
+        );
+      }),
+    );
+  }
+}
+
+/// "15 min" tile in the duration grid.
+class _DurationTile extends StatelessWidget {
+  const _DurationTile({required this.minutes, required this.onTap});
+  final int minutes;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = Theme.of(context).textTheme.titleMedium?.color ??
+        RiffSurfaces.textPrimary;
+    return Material(
+      color: homeTileColor(context),
+      borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Center(
+          child: Text.rich(
+            TextSpan(children: [
+              TextSpan(
+                  text: '$minutes',
+                  style: TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.w800, color: fg)),
+              TextSpan(
+                  text: ' ${'minShort'.tr}',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: fg.withOpacity(0.7))),
+            ]),
+          ),
         ),
       ),
     );
-  }
-
-  List<Widget> getTimeListWidget(BuildContext context) {
-    final playerController = Get.find<PlayerController>();
-    final List<Widget> widgets = [];
-    widgets.addAll([5, 10, 15, 30, 45, 60]
-        .map((dur) => ListTile(
-              onTap: () {
-                final ok = playerController.startSleepTimer(dur);
-                Navigator.of(context).pop();
-                final ctx = Get.context;
-                if (ctx == null || !ctx.mounted) return;
-                ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
-                    ctx,
-                    ok ? "sleepTimeSetAlert".tr : "operationFailed".tr,
-                    size: SanckBarSize.BIG));
-              },
-              leading: Padding(
-                padding: const EdgeInsets.only(left: 10.0),
-                child: Text(
-                  "$dur ${'minutes'.tr}",
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-            ))
-        .toList());
-    widgets.add(ListTile(
-      onTap: () {
-        Navigator.of(context).pop();
-        playerController.sleepEndOfSong();
-      },
-      leading: Padding(
-        padding: const EdgeInsets.only(left: 10.0),
-        child: Text(
-          sleepEndLabelKey(
-                  longForm: playerController.usesLongFormTransport)
-              .tr,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-      ),
-    ));
-    return widgets;
   }
 }

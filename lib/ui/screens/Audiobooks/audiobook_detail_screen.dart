@@ -1,3 +1,4 @@
+import '../Home/home_layout.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -69,32 +70,33 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_detail?.title ?? 'audiobooks'.tr),
-        backgroundColor: theme.canvasColor,
-        elevation: 0,
-      ),
-      body: _loading
-          ? const SongListShimmer(itemCount: 8, topPadding: 12)
-          : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.cloud_off_outlined,
-                            size: 48,
-                            color: theme.colorScheme.error.withOpacity(0.8)),
-                        const SizedBox(height: 12),
-                        Text(_error!, textAlign: TextAlign.center),
-                        const SizedBox(height: 12),
-                        TextButton(onPressed: _load, child: Text('retry'.tr)),
-                      ],
-                    ),
-                  ),
-                )
-              : _buildBody(theme, abs),
+      body: Column(children: [
+        RiffPageHeader(_detail?.title ?? 'audiobooks'.tr),
+        Expanded(
+            child: _loading
+                ? const SongListShimmer(itemCount: 8, topPadding: 12)
+                : _error != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.cloud_off_outlined,
+                                  size: 48,
+                                  color:
+                                      theme.colorScheme.error.withOpacity(0.8)),
+                              const SizedBox(height: 12),
+                              Text(_error!, textAlign: TextAlign.center),
+                              const SizedBox(height: 12),
+                              TextButton(
+                                  onPressed: _load, child: Text('retry'.tr)),
+                            ],
+                          ),
+                        ),
+                      )
+                    : _buildBody(theme, abs)),
+      ]),
     );
   }
 
@@ -150,9 +152,7 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                   ElevatedButton.icon(
                     onPressed: d.tracks.isEmpty ? null : () => _play(),
                     icon: Icon(canResume ? Icons.play_arrow : Icons.play_arrow),
-                    label: Text(canResume
-                        ? 'continueListening'.tr
-                        : 'play'.tr),
+                    label: Text(canResume ? 'continueListening'.tr : 'play'.tr),
                   ),
                 ],
               ),
@@ -174,8 +174,7 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
         if (d.tracks.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Text('absNoBooks'.tr,
-                style: theme.textTheme.bodyMedium),
+            child: Text('absNoBooks'.tr, style: theme.textTheme.bodyMedium),
           )
         else
           ...List.generate(d.tracks.length, (i) {

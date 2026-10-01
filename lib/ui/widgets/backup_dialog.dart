@@ -13,6 +13,7 @@ import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/widgets/loader.dart';
 import '/utils/helper.dart';
 import '../../services/permission_service.dart';
+import '../screens/Home/home_layout.dart';
 import 'common_dialog_widget.dart';
 
 class BackupDialog extends StatelessWidget {
@@ -20,142 +21,80 @@ class BackupDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final backupDialogController = Get.put(BackupDialogController());
+    final c = Get.put(BackupDialogController());
     return CommonDialog(
-      child: Container(
-        height: GetPlatform.isAndroid ? 350 : 300,
-        padding:
-            const EdgeInsets.only(top: 20, bottom: 30, left: 20, right: 20),
-        child: Stack(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(22, 24, 22, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
-              Container(
-                padding: const EdgeInsets.only(bottom: 10.0, top: 10),
-                child: Text(
-                  "backupAppData".tr,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              Expanded(
-                child: SizedBox(
-                  height: 100,
-                  child: Center(
-                      child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+            RiffDialogTitle("backupAppData".tr, icon: Icons.backup_outlined),
+            SizedBox(
+              height: 110,
+              child: Center(
+                child: Obx(() {
+                  final busy = c.scanning.isTrue || c.backupRunning.isTrue;
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Obx(() => (backupDialogController.scanning.isTrue ||
-                              backupDialogController.backupRunning.isTrue)
-                          ? const LoadingIndicator()
-                          : const SizedBox.shrink()),
-                      const SizedBox(
-                        height: 10,
+                      if (busy) ...[
+                        const LoadingIndicator(),
+                        const SizedBox(height: 10),
+                      ],
+                      Text(
+                        c.scanning.isTrue
+                            ? "scanning".tr
+                            : c.backupRunning.isTrue
+                                ? "backupInProgress".tr
+                                : c.isbackupCompleted.isTrue
+                                    ? "backupMsg".tr
+                                    : "letsStrart".tr,
+                        textAlign: TextAlign.center,
+                        style: homeCardSubtitleStyle(context)
+                            .copyWith(fontSize: 14),
                       ),
-                      Column(
-                        children: [
-                          Obx(() => Text(
-                                backupDialogController.scanning.isTrue
-                                    ? "scanning".tr
-                                    : backupDialogController
-                                            .backupRunning.isTrue
-                                        ? "backupInProgress".tr
-                                        : backupDialogController
-                                                .isbackupCompleted.isTrue
-                                            ? "backupMsg".tr
-                                            : "letsStrart".tr,
-                                textAlign: TextAlign.center,
-                              )),
-                          if (GetPlatform.isAndroid)
-                            Obx(() => (backupDialogController
-                                    .isDownloadedfilesSeclected.isTrue)
-                                ? Padding(
-                                    padding: const EdgeInsets.only(top: 8.0),
-                                    child: Text(
-                                      "androidBackupWarning".tr,
-                                      textAlign: TextAlign.center,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleSmall!
-                                          .copyWith(
-                                              fontWeight: FontWeight.bold),
-                                    ),
-                                  )
-                                : const SizedBox.shrink())
-                        ],
-                      )
+                      if (GetPlatform.isAndroid &&
+                          c.isDownloadedfilesSeclected.isTrue) ...[
+                        const SizedBox(height: 8),
+                        Text("androidBackupWarning".tr,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w700)),
+                      ],
                     ],
+                  );
+                }),
+              ),
+            ),
+            if (!GetPlatform.isDesktop)
+              Obx(() => CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    activeColor: Theme.of(context).colorScheme.secondary,
+                    checkColor: Colors.black,
+                    title: Text("includeDownloadedFiles".tr,
+                        style: const TextStyle(fontSize: 14)),
+                    value: c.isDownloadedfilesSeclected.value,
+                    onChanged: c.scanning.isTrue ||
+                            c.backupRunning.isTrue ||
+                            c.isbackupCompleted.isTrue
+                        ? null
+                        : (v) => c.isDownloadedfilesSeclected.value = v!,
                   )),
-                ),
-              ),
-              if (!GetPlatform.isDesktop)
-                Obx(() => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                      child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Checkbox(
-                              value: backupDialogController
-                                  .isDownloadedfilesSeclected.value,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(5)),
-                              onChanged:
-                                  backupDialogController.scanning.isTrue ||
-                                          backupDialogController
-                                              .backupRunning.isTrue ||
-                                          backupDialogController
-                                              .isbackupCompleted.isTrue
-                                      ? null
-                                      : (bool? value) {
-                                          backupDialogController
-                                              .isDownloadedfilesSeclected
-                                              .value = value!;
-                                        },
-                            ),
-                            Text("includeDownloadedFiles".tr),
-                          ]),
-                    )),
-              SizedBox(
-                width: double.maxFinite,
-                child: Align(
-                  child: Container(
-                    decoration: BoxDecoration(
-                        color: Theme.of(context).textTheme.titleLarge!.color,
-                        borderRadius: BorderRadius.circular(10)),
-                    child: InkWell(
-                      onTap: () {
-                        if (backupDialogController.isbackupCompleted.isTrue) {
-                          Navigator.of(context).pop();
-                        } else {
-                          backupDialogController.backup();
-                        }
-                      },
-                      child: Obx(
-                        () => Visibility(
-                          visible:
-                              !(backupDialogController.backupRunning.isTrue ||
-                                  backupDialogController.scanning.isTrue),
-                          replacement: const SizedBox(
-                            height: 40,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 15.0, vertical: 10),
-                            child: Obx(
-                              () => Text(
-                                backupDialogController.isbackupCompleted.isTrue
-                                    ? "close".tr
-                                    : "backup".tr,
-                                style: TextStyle(
-                                    color: Theme.of(context).canvasColor),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ]),
+            const SizedBox(height: 8),
+            Obx(() => RiffDialogButton(
+                  c.isbackupCompleted.isTrue ? "close".tr : "backup".tr,
+                  onPressed: c.backupRunning.isTrue || c.scanning.isTrue
+                      ? null
+                      : () {
+                          if (c.isbackupCompleted.isTrue) {
+                            Navigator.of(context).pop();
+                          } else {
+                            c.backup();
+                          }
+                        },
+                )),
           ],
         ),
       ),

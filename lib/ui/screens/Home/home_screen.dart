@@ -16,7 +16,6 @@ import '../../widgets/discovery/home_discovery_section.dart';
 import '../../widgets/discovery/jump_back_in_row.dart';
 import '../../widgets/discovery/riff_wave_hero.dart';
 import '../../utils/riff_tokens.dart';
-import '../../widgets/quickpickswidget.dart';
 import '../../widgets/shimmer_widgets/home_shimmer.dart';
 import '../../widgets/snackbar.dart';
 import '../../../services/discovery/discovery_service.dart';
@@ -24,7 +23,9 @@ import '../../../services/discovery/discovery_types.dart';
 import 'home_explore_section.dart';
 import 'home_feed_view_model.dart';
 import 'home_greeting.dart';
+import 'home_hero_carousel.dart';
 import 'home_layout.dart';
+import 'home_mood_chips.dart';
 import 'home_quick_grid.dart';
 import 'home_screen_controller.dart';
 import '../Settings/settings_screen.dart';
@@ -255,6 +256,8 @@ class _HomeFeed extends StatelessWidget {
               ? const _OfflineHomeBanner()
               : const SizedBox.shrink()),
           const _HomeHeader(),
+          const HomeMoodChips(),
+          const SizedBox(height: 14),
           const HomeQuickGrid(),
           const RiffWaveHero(),
           const JumpBackInRow(),
@@ -331,9 +334,9 @@ class _HomeZoneB extends StatelessWidget {
               badge: mixesUpdated ? 'mixesUpdatedBadge'.tr : null,
             ),
           if (vm.quickPicks != null && vm.quickPicks!.songList.isNotEmpty)
-            QuickPicksWidget(
-              content: vm.quickPicks!,
-              scrollController: home.scrollControllerFor('quick_picks'),
+            HomeHeroCarousel(
+              title: 'quickpicks'.tr,
+              songs: vm.quickPicks!.songList,
             )
           else if (vm.dailyMixes == null &&
               vm.contextual == null &&

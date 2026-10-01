@@ -1,3 +1,4 @@
+import '../Home/home_layout.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -66,9 +67,9 @@ class _CloudCollectionScreenState extends State<CloudCollectionScreen> {
     if (d == null || d.songs.isEmpty) return;
     final cloud = Get.find<CloudMusicService>();
     final list = shuffle ? (d.songs.toList()..shuffle()) : d.songs;
-    final ok = await Get.find<PlayerController>()
-        .playPlayListSong(cloud.toMediaItems(list), 0,
-            source: DiscoverySource.cloud);
+    final ok = await Get.find<PlayerController>().playPlayListSong(
+        cloud.toMediaItems(list), 0,
+        source: DiscoverySource.cloud);
     if (!ok) snackOperationFailed();
   }
 
@@ -76,28 +77,28 @@ class _CloudCollectionScreenState extends State<CloudCollectionScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_detail?.name ?? widget.title),
-        backgroundColor: theme.canvasColor,
-        elevation: 0,
-      ),
-      body: _loading
-          ? const SongListShimmer(itemCount: 8, topPadding: 12)
-          : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(_error!, textAlign: TextAlign.center),
-                        const SizedBox(height: 12),
-                        TextButton(onPressed: _load, child: Text('retry'.tr)),
-                      ],
-                    ),
-                  ),
-                )
-              : _buildBody(theme),
+      body: Column(children: [
+        RiffPageHeader(_detail?.name ?? widget.title),
+        Expanded(
+            child: _loading
+                ? const SongListShimmer(itemCount: 8, topPadding: 12)
+                : _error != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(_error!, textAlign: TextAlign.center),
+                              const SizedBox(height: 12),
+                              TextButton(
+                                  onPressed: _load, child: Text('retry'.tr)),
+                            ],
+                          ),
+                        ),
+                      )
+                    : _buildBody(theme)),
+      ]),
     );
   }
 
@@ -114,24 +115,9 @@ class _CloudCollectionScreenState extends State<CloudCollectionScreen> {
             InkWell(
               onTap: d.songs.isEmpty ? null : () => _playAll(),
               child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: cover.isEmpty
-                  ? Container(
-                      width: 120,
-                      height: 120,
-                      color: theme.primaryColorLight,
-                      child: Icon(
-                          widget.isPlaylist
-                              ? Icons.library_music
-                              : Icons.album,
-                          size: 40),
-                    )
-                  : CachedNetworkImage(
-                      imageUrl: cover,
-                      width: 120,
-                      height: 120,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => Container(
+                borderRadius: BorderRadius.circular(10),
+                child: cover.isEmpty
+                    ? Container(
                         width: 120,
                         height: 120,
                         color: theme.primaryColorLight,
@@ -140,9 +126,24 @@ class _CloudCollectionScreenState extends State<CloudCollectionScreen> {
                                 ? Icons.library_music
                                 : Icons.album,
                             size: 40),
+                      )
+                    : CachedNetworkImage(
+                        imageUrl: cover,
+                        width: 120,
+                        height: 120,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) => Container(
+                          width: 120,
+                          height: 120,
+                          color: theme.primaryColorLight,
+                          child: Icon(
+                              widget.isPlaylist
+                                  ? Icons.library_music
+                                  : Icons.album,
+                              size: 40),
+                        ),
                       ),
-                    ),
-            ),
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -161,8 +162,7 @@ class _CloudCollectionScreenState extends State<CloudCollectionScreen> {
                   Row(
                     children: [
                       ElevatedButton.icon(
-                        onPressed:
-                            d.songs.isEmpty ? null : () => _playAll(),
+                        onPressed: d.songs.isEmpty ? null : () => _playAll(),
                         icon: const Icon(Icons.play_arrow),
                         label: Text('playAll'.tr),
                       ),

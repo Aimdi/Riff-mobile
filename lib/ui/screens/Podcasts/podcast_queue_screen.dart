@@ -73,8 +73,8 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode) {
                   title: Text("openInWizeStream".tr),
                   onTap: () async {
                     Navigator.of(ctx).pop();
-                    final ok = await WizeStream.open(
-                        WizeStream.watchUrlFor(episode)!);
+                    final ok =
+                        await WizeStream.open(WizeStream.watchUrlFor(episode)!);
                     if (!ok) snack("operationFailed".tr);
                   },
                 ),
@@ -247,8 +247,8 @@ class PodcastQueueScreen extends StatelessWidget {
                       ]),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: homeCardSubtitleStyle(context)
-                          .copyWith(fontSize: 13),
+                      style:
+                          homeCardSubtitleStyle(context).copyWith(fontSize: 13),
                     ),
                   ),
                   // Non-embedded gets the clear action in the AppBar instead.
@@ -277,19 +277,18 @@ class PodcastQueueScreen extends StatelessWidget {
     });
     if (embedded) return body;
     return Scaffold(
-      appBar: AppBar(
-        title: Text("queue".tr),
-        actions: [
+      body: Column(children: [
+        RiffPageHeader("queue".tr, actions: [
           Obx(() => controller.queue.isEmpty
               ? const SizedBox.shrink()
               : IconButton(
                   tooltip: "clear".tr,
-                  icon: const Icon(Icons.clear_all),
+                  icon: const Icon(Icons.clear_all_rounded),
                   onPressed: controller.clear,
                 )),
-        ],
-      ),
-      body: body,
+        ]),
+        Expanded(child: body),
+      ]),
     );
   }
 

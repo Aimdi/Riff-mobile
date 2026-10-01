@@ -2,6 +2,8 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../riff_sheet.dart';
+
 import '../../../services/discovery/discovery_service.dart';
 import '../../player/player_controller.dart';
 import '../shimmer_widgets/song_list_shimmer.dart';
@@ -52,38 +54,25 @@ class _SimilarSongsSheetState extends State<SimilarSongsSheet> {
     return SizedBox(
       height: height,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 8, 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("similarSongs".tr,
-                          style: Theme.of(context).textTheme.titleMedium),
-                      Text(
-                        widget.seed.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-                FilterChip(
-                  label: Text("unheardOnly".tr),
-                  selected: unheardOnly,
-                  onSelected: (v) {
-                    setState(() => unheardOnly = v);
-                    _load();
-                  },
-                ),
-              ],
+          const RiffSheetHandle(),
+          RiffSheetTitle(
+            "similarSongs".tr,
+            subtitle: widget.seed.title,
+            trailing: Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: RiffChoiceChip(
+                label: "unheardOnly".tr,
+                selected: unheardOnly,
+                onTap: () {
+                  setState(() => unheardOnly = !unheardOnly);
+                  _load();
+                },
+              ),
             ),
           ),
-          const Divider(height: 1),
+          const RiffSheetDivider(),
           Expanded(
             child: loading
                 ? const SongListShimmer(itemCount: 8, topPadding: 8)

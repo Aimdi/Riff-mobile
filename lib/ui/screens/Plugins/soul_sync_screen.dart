@@ -1,3 +1,4 @@
+import '../Home/home_layout.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -20,30 +21,21 @@ class SoulSyncScreen extends StatelessWidget {
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: theme.canvasColor,
-      body: Padding(
-        padding: const EdgeInsets.only(left: 16, right: 16, top: 70),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new),
-                  onPressed: () => Get.back(id: ScreenNavigationSetup.id),
-                ),
-                Text('soulSync'.tr, style: theme.textTheme.titleLarge),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text('soulSyncDes'.tr, style: theme.textTheme.bodyMedium),
-            const SizedBox(height: 12),
-            Expanded(
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          RiffPageHeader('soulSync'.tr,
+              subtitle: 'soulSyncDes'.tr,
+              onBack: () => Get.back(id: ScreenNavigationSetup.id)),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
               child: Obx(() => svc.isConnected.value
                   ? const _SoulSyncConnectedView()
                   : const _SoulSyncLoginForm()),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

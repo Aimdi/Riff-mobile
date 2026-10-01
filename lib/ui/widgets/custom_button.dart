@@ -12,20 +12,15 @@ class ProceedButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-          color: Theme.of(context).textTheme.titleLarge!.color,
-          borderRadius: BorderRadius.circular(10)),
-      child: InkWell(
-        onTap: onPressed,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 10),
-          child: Text(
-            buttonText,
-            style: TextStyle(color: Theme.of(context).canvasColor),
-          ),
-        ),
-      ),
+    return FilledButton(
+      onPressed: onPressed,
+      style: FilledButton.styleFrom(
+          backgroundColor: Theme.of(context).colorScheme.secondary,
+          foregroundColor: Colors.black,
+          minimumSize: const Size(110, 46),
+          shape: const StadiumBorder()),
+      child: Text(buttonText,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
     );
   }
 }
@@ -36,14 +31,16 @@ class CancelButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      child: Padding(
-        padding: const EdgeInsets.all(10.0),
-        child: Text("cancel".tr),
-      ),
-      onTap: () {
+    return TextButton(
+      style: TextButton.styleFrom(
+          foregroundColor: Theme.of(context).textTheme.titleMedium?.color,
+          minimumSize: const Size(110, 46),
+          shape: const StadiumBorder()),
+      child: Text("cancel".tr,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+      onPressed: () {
         Navigator.of(context).pop();
-         if (onPressed != null) {
+        if (onPressed != null) {
           onPressed!();
         }
       },

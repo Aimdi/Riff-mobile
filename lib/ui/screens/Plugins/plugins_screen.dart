@@ -6,6 +6,8 @@ import '/services/plugin_service.dart';
 import '/ui/navigator.dart';
 import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/snackbar.dart';
+import '../../utils/riff_tokens.dart';
+import '../Home/home_layout.dart';
 
 /// Catalog of optional plugins that extend Riff.
 ///
@@ -49,23 +51,17 @@ class PluginsScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: theme.canvasColor,
-      body: Padding(
-        padding: const EdgeInsets.only(left: 20, right: 20, top: 70),
-        child: Column(
+      body: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new),
-                  onPressed: () => Get.back(id: ScreenNavigationSetup.id),
-                ),
-                Text('plugins'.tr, style: theme.textTheme.titleLarge),
-              ],
+            RiffPageHeader('plugins'.tr,
+                onBack: () => Get.back(id: ScreenNavigationSetup.id)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  HomeLayout.gutter, 0, HomeLayout.gutter, 14),
+              child: Text('pluginsDes'.tr,
+                  style: homeCardSubtitleStyle(context)),
             ),
-            const SizedBox(height: 6),
-            Text('pluginsDes'.tr, style: theme.textTheme.bodyMedium),
-            const SizedBox(height: 24),
             Expanded(
               child: Obx(() {
                 // Touch obs so the list rebuilds on install/uninstall.
@@ -74,7 +70,8 @@ class PluginsScreen extends StatelessWidget {
                   return _EmptyPluginsState(accent: accent);
                 }
                 return ListView.separated(
-                  padding: const EdgeInsets.only(bottom: 120),
+                  padding: const EdgeInsets.fromLTRB(
+                      HomeLayout.gutter, 0, HomeLayout.gutter, 120),
                   itemCount: _offers.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
                   itemBuilder: (context, index) {
@@ -90,7 +87,6 @@ class PluginsScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }
@@ -220,54 +216,101 @@ class _PluginOfferTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-          leading: Icon(
-            installed ? Icons.extension : Icons.extension_outlined,
-            color: accent,
+    final fg = Theme.of(context).textTheme.titleMedium?.color;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+      decoration: BoxDecoration(
+        color: homeTileColor(context),
+        borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: accent.withOpacity(0.16),
+                  borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+                ),
+                child: Icon(
+                  installed ? Icons.extension : Icons.extension_outlined,
+                  color: accent,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(offer.nameKey.tr,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700, color: fg)),
+              ),
+              if (installed)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: accent.withOpacity(0.16),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text('installed'.tr,
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: accent)),
+                ),
+            ],
           ),
-          title: Text(offer.nameKey.tr),
-          subtitle: Text(offer.desKey.tr, style: theme.textTheme.bodyMedium),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(left: 4, right: 4, bottom: 8),
-          child: Row(
+          // A description without a translation would show its raw key.
+          if (offer.desKey.tr != offer.desKey) ...[
+            const SizedBox(height: 10),
+            Text(offer.desKey.tr, style: homeCardSubtitleStyle(context)),
+          ],
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               if (installed) ...[
                 FilledButton.icon(
                   onPressed: _open,
-                  icon: const Icon(Icons.search, size: 18),
-                  label: Text('openPlugin'.tr),
+                  style: FilledButton.styleFrom(
+                      backgroundColor: accent, foregroundColor: Colors.black),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                  label: Text('openPlugin'.tr,
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
                 ),
-                const SizedBox(width: 8),
                 OutlinedButton(
                   onPressed: () => _uninstall(context),
+                  style: OutlinedButton.styleFrom(foregroundColor: fg),
                   child: Text('uninstallPlugin'.tr),
                 ),
               ] else
                 FilledButton.icon(
                   onPressed: () => _install(context),
-                  icon: const Icon(Icons.download, size: 18),
-                  label: Text('downloadPlugin'.tr),
+                  style: FilledButton.styleFrom(
+                      backgroundColor: accent, foregroundColor: Colors.black),
+                  icon: const Icon(Icons.download_rounded, size: 18),
+                  label: Text('downloadPlugin'.tr,
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
                 ),
-              if (offer.sourceUrl != null) ...[
-                const SizedBox(width: 8),
+              if (offer.sourceUrl != null)
                 TextButton(
                   onPressed: () => launchUrl(
                     Uri.parse(offer.sourceUrl!),
                     mode: LaunchMode.externalApplication,
                   ),
+                  style: TextButton.styleFrom(foregroundColor: accent),
                   child: Text('pluginSource'.tr),
                 ),
-              ],
             ],
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

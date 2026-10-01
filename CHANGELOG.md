@@ -1,3 +1,18 @@
+# 1.7.114
+
+**Design**
+* Every remaining screen now matches the new look: the song menu, sleep
+  timer, add to playlist, queue, create playlist and sort sheets; the
+  Artists tab, Explore, Stats and Rewind; podcast categories, downloads,
+  folders, queue, inbox and subscriptions; Plugins, Cloud, Audiobookshelf,
+  Spotify Bridge, SoulSync and Seeker
+* Backup, restore, export, playlist export, Piped, song info, update and
+  Spotify import dialogs, and the podcast transcript, share one style
+* Filled buttons use your accent color instead of a default blue
+* Home opens with mood chips, Quick picks as big swipeable covers and a
+  3×3 "speed dial" of recent songs; the player's cover fills the top of
+  the screen with the title over it; the mini player is a floating pill
+
 # 1.7.113
 
 **Fixes**

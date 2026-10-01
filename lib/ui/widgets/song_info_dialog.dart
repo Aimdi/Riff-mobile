@@ -18,13 +18,13 @@ class SongInfoDialog extends StatelessWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10.0),
-              child: Text("songInfo".tr,
-                  style: Theme.of(context).textTheme.titleLarge),
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 10),
+              child: RiffDialogTitle("songInfo".tr,
+                  icon: Icons.info_outline_rounded),
             ),
-            const Divider(),
             Expanded(
                 child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 6),
               children: [
                 InfoItem(title: "id".tr, value: song.id),
                 InfoItem(title: "title".tr, value: song.title),
@@ -45,22 +45,11 @@ class SongInfoDialog extends StatelessWidget {
                     value: "${streamInfo["loudnessDb"] ?? "NA"}"),
               ],
             )),
-            const Divider(),
-            SizedBox(
-              height: 50,
-              child: Align(
-                alignment: Alignment.center,
-                child: InkWell(
-                    onTap: () {
-                      Navigator.of(context).pop();
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 10.0, horizontal: 25),
-                      child: Text("close".tr),
-                    )),
-              ),
-            )
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 6, 20, 16),
+              child: RiffDialogButton("close".tr,
+                  onPressed: () => Navigator.of(context).pop()),
+            ),
           ],
         ),
       ),
@@ -101,19 +90,25 @@ class InfoItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 7),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            textAlign: TextAlign.start,
-          ),
+          Text(title.toUpperCase(),
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                  color: Theme.of(context).colorScheme.secondary)),
+          const SizedBox(height: 2),
           TextSelectionTheme(
             data: Theme.of(context).textSelectionTheme,
             child: SelectableText(
               value,
-              style: Theme.of(context).textTheme.titleMedium,
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).textTheme.titleMedium?.color),
             ),
           )
         ],
