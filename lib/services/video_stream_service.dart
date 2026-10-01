@@ -40,14 +40,47 @@ class VideoStreamInfo {
       width > 0 && height > 0 ? width / height : 16 / 9;
 }
 
+class _CachedStream {
+  _CachedStream(this.info, this.fetchedAt);
+  final VideoStreamInfo info;
+  final DateTime fetchedAt;
+}
+
 class VideoStreamService {
   VideoStreamService._();
 
   static const _newPipeChannel = MethodChannel('riff/newpipe');
-  static final Map<String, VideoStreamInfo> _cache = {};
+  /// Insertion-ordered, so the first key is the least recently used.
+  static final Map<String, _CachedStream> _cache = {};
+  static final Map<String, Future<VideoStreamInfo?>> _inFlight = {};
+
+  /// Max cached resolutions; oldest-used entries are evicted first.
+  static const maxCacheEntries = 50;
+
+  /// Entries this close to the URL's expiry are treated as stale: a stream
+  /// that dies mid-video 403s, so refresh well before googlevideo does.
+  static const expiryMargin = Duration(minutes: 30);
+
+  /// Assumed lifetime when the URL carries no `expire=` parameter.
+  static const assumedUrlLifetime = Duration(hours: 5);
 
   static String _cacheKey(String videoId, VideoQuality quality) =>
       '$videoId:${quality.name}';
+
+  /// When a stream URL stops working: its `expire=` epoch-seconds query
+  /// parameter when present, else [fetchedAt] + [assumedUrlLifetime].
+  static DateTime urlExpiry(String url, DateTime fetchedAt) {
+    final expire = Uri.tryParse(url)?.queryParameters['expire'];
+    final secs = expire == null ? null : int.tryParse(expire);
+    if (secs != null && secs > 0) {
+      return DateTime.fromMillisecondsSinceEpoch(secs * 1000, isUtc: true);
+    }
+    return fetchedAt.add(assumedUrlLifetime);
+  }
+
+  /// Whether a cached [url] resolved at [fetchedAt] is still safe to hand out.
+  static bool isFresh(String url, DateTime fetchedAt, DateTime now) =>
+      now.isBefore(urlExpiry(url, fetchedAt).subtract(expiryMargin));
 
   /// Best effort video URL for [videoId] (muted player surface).
   static Future<VideoStreamInfo?> resolve(
@@ -57,21 +90,40 @@ class VideoStreamService {
     final id = videoId.trim();
     if (id.isEmpty) return null;
     final key = _cacheKey(id, quality);
-    final cached = _cache[key];
-    if (cached != null) return cached;
+    final cached = _cache.remove(key);
+    if (cached != null &&
+        isFresh(cached.info.url, cached.fetchedAt, DateTime.now())) {
+      _cache[key] = cached; // re-insert: now the most recently used
+      return cached.info;
+    }
 
+    // Concurrent callers for the same id share one resolution.
+    final pending = _inFlight[key];
+    if (pending != null) return pending;
+    final future = _resolveUncached(id, quality);
+    _inFlight[key] = future;
+    try {
+      final info = await future;
+      if (info != null) _put(key, info);
+      return info;
+    } finally {
+      _inFlight.remove(key);
+    }
+  }
+
+  static Future<VideoStreamInfo?> _resolveUncached(
+      String id, VideoQuality quality) async {
     final viaNewPipe = await _viaNewPipe(id, quality);
-    if (viaNewPipe != null) {
-      _cache[key] = viaNewPipe;
-      return viaNewPipe;
-    }
+    if (viaNewPipe != null) return viaNewPipe;
+    return _viaExplode(id, quality);
+  }
 
-    final viaExplode = await _viaExplode(id, quality);
-    if (viaExplode != null) {
-      _cache[key] = viaExplode;
-      return viaExplode;
+  static void _put(String key, VideoStreamInfo info) {
+    _cache.remove(key);
+    _cache[key] = _CachedStream(info, DateTime.now());
+    while (_cache.length > maxCacheEntries) {
+      _cache.remove(_cache.keys.first);
     }
-    return null;
   }
 
   static void clearCache([String? videoId]) {

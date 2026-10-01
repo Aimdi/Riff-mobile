@@ -36,27 +36,30 @@ class _PlayerSimilarRowState extends State<PlayerSimilarRow> {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
           final current = player.currentSong.value;
-          if (current != null &&
-              _loadedForId != current.id &&
-              !_loading) {
+          if (current != null && _loadedForId != current.id && !_loading) {
             _load(current);
           }
         });
       }
       if (_songs.isEmpty && !_loading) return const SizedBox.shrink();
+      final fg = Theme.of(context).textTheme.titleMedium?.color ?? Colors.white;
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(left: 4, top: 8, bottom: 4),
+            padding: const EdgeInsets.only(top: 4, bottom: 8),
             child: Text(
               "similarSongs".tr,
-              style: Theme.of(context).textTheme.titleSmall,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: fg.withOpacity(0.66),
+              ),
             ),
           ),
           SizedBox(
-            height: 72,
+            height: 52,
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 280),
               switchInCurve: Curves.easeOutCubic,
@@ -89,16 +92,16 @@ class _PlayerSimilarRowState extends State<PlayerSimilarRow> {
                             },
                             borderRadius: BorderRadius.circular(8),
                             child: Padding(
-                              padding: const EdgeInsets.only(right: 10),
+                              padding: const EdgeInsets.only(right: 6),
                               child: Row(
                                 children: [
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(6),
-                                    child: ImageWidget(song: s, size: 56),
+                                    child: ImageWidget(song: s, size: 48),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 10),
                                   SizedBox(
-                                    width: 100,
+                                    width: 108,
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
@@ -108,15 +111,21 @@ class _PlayerSimilarRowState extends State<PlayerSimilarRow> {
                                         Text(s.title,
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall),
+                                            style: TextStyle(
+                                              fontSize: 13.5,
+                                              height: 1.25,
+                                              fontWeight: FontWeight.w600,
+                                              color: fg,
+                                            )),
+                                        const SizedBox(height: 2),
                                         Text(s.artist ?? '',
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .labelSmall),
+                                            style: TextStyle(
+                                              fontSize: 12.5,
+                                              height: 1.25,
+                                              color: fg.withOpacity(0.62),
+                                            )),
                                       ],
                                     ),
                                   ),
@@ -127,7 +136,8 @@ class _PlayerSimilarRowState extends State<PlayerSimilarRow> {
                                     constraints: const BoxConstraints(
                                         minWidth: 28, minHeight: 28),
                                     iconSize: 20,
-                                    icon: const Icon(Icons.playlist_play),
+                                    icon: Icon(Icons.playlist_play_rounded,
+                                        color: fg.withOpacity(0.62)),
                                     onPressed: () async {
                                       HapticFeedback.selectionClick();
                                       final ok = await player.playNext(s);

@@ -5,6 +5,9 @@ import '/ui/screens/Plugins/seeker_screen.dart';
 import '/ui/screens/Search/search_result_screen_v2.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import '../../navigator.dart';
+import '../../utils/theme_controller.dart';
+import '../Home/home_layout.dart';
+import '../Podcasts/podcast_empty_state.dart';
 import '../../widgets/animated_screen_transition.dart';
 import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
 import '../../widgets/search_related_widgets.dart';
@@ -16,129 +19,156 @@ class SearchResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final searchResScrController = Get.put(SearchResultScreenController());
-    return GetPlatform.isDesktop
-        ? const SearchResultScreenBN()
-        : Scaffold(
-            body: Row(
-              children: [
-                // Slim left rail: put rotated labels in the icon slot so
-                // NavigationRail doesn't expand to unrotated text width.
-                SizedBox(
-                  width: 48,
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.only(bottom: 200),
-                      child: Obx(
-                        () => NavigationRail(
-                          onDestinationSelected:
-                              searchResScrController.onDestinationSelected,
-                          minWidth: 48,
-                          groupAlignment: -1,
-                          labelType: NavigationRailLabelType.none,
-                          destinations: (searchResScrController
-                                      .isResultContentFetced.value &&
-                                  searchResScrController.railItems.isNotEmpty)
-                              ? [
-                                  railDestination("results".tr),
-                                  ...(searchResScrController.railItems.map(
-                                      (element) => railDestination(element))),
-                                ]
-                              : [
-                                  railDestination("results".tr),
-                                  railDestination("")
-                                ],
-                          leading: Column(
-                            children: [
-                              SizedBox(
-                                height: context.isLandscape ? 50 : 80,
-                              ),
-                              IconButton(
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(
-                                    minWidth: 40, minHeight: 40),
-                                icon: Icon(
-                                  Icons.arrow_back_ios_new,
-                                  size: 20,
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium!
-                                      .color,
-                                ),
-                                onPressed: () {
-                                  Get.nestedKey(ScreenNavigationSetup.id)!
-                                      .currentState!
-                                      .pop();
-                                },
-                              ),
-                              const SizedBox(height: 8),
-                            ],
-                          ),
-                          selectedIndex: searchResScrController
-                              .navigationRailCurrentIndex.value,
-                        ),
-                      ),
-                    ),
+    final searchResScrController =
+        Get.isRegistered<SearchResultScreenController>()
+            ? Get.find<SearchResultScreenController>()
+            : Get.put(SearchResultScreenController());
+    if (GetPlatform.isDesktop) return const SearchResultScreenBN();
+    final topPadding = context.isLandscape ? 50.0 : 80.0;
+    return Scaffold(
+      body: Padding(
+        padding: EdgeInsets.only(top: topPadding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _QueryBar(controller: searchResScrController),
+            const SizedBox(height: 8),
+            _FilterChips(controller: searchResScrController),
+            const SizedBox(height: 4),
+            Expanded(
+              child: GetX<SearchResultScreenController>(
+                builder: (controller) => AnimatedScreenTransition(
+                  enabled: Get.find<SettingsScreenController>()
+                      .isTransitionAnimationDisabled
+                      .isFalse,
+                  resverse: controller.isTabTransitionReversed,
+                  child: KeyedSubtree(
+                    key: ValueKey<int>(
+                        controller.navigationRailCurrentIndex.toInt() * 8),
+                    child: Body(searchResScrController: searchResScrController),
                   ),
                 ),
-                Expanded(
-                  child: GetX<SearchResultScreenController>(
-                    builder: (controller) => AnimatedScreenTransition(
-                      enabled: Get.find<SettingsScreenController>()
-                          .isTransitionAnimationDisabled
-                          .isFalse,
-                      resverse: controller.isTabTransitionReversed,
-                      child: Center(
-                        key: ValueKey<int>(
-                            controller.navigationRailCurrentIndex.toInt() * 8),
-                        child: Body(
-                            searchResScrController: searchResScrController),
-                      ),
-                    ),
-                  ),
-                )
-              ],
+              ),
             ),
-          );
-  }
-
-  NavigationRailDestination railDestination(String label) {
-    final text = label.toLowerCase().removeAllWhitespace.tr;
-    return NavigationRailDestination(
-      icon: _RailLabel(text),
-      selectedIcon: _RailLabel(text, selected: true),
-      label: const SizedBox.shrink(),
+          ],
+        ),
+      ),
     );
   }
 }
 
-class _RailLabel extends StatelessWidget {
-  const _RailLabel(this.label, {this.selected = false});
-  final String label;
-  final bool selected;
+/// Back button and the query in a pill; tapping the pill goes back to the
+/// search field to change it.
+class _QueryBar extends StatelessWidget {
+  const _QueryBar({required this.controller});
+  final SearchResultScreenController controller;
+
+  void _back() => Get.nestedKey(ScreenNavigationSetup.id)!.currentState!.pop();
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final style = selected
-        ? theme.navigationRailTheme.selectedLabelTextStyle
-        : theme.navigationRailTheme.unselectedLabelTextStyle;
-    return SizedBox(
-      width: 28,
-      height: 72,
-      child: Center(
-        child: RotatedBox(
-          quarterTurns: -1,
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: (style ?? theme.textTheme.labelSmall)?.copyWith(fontSize: 12),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 0, HomeLayout.gutter, 0),
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: 'back'.tr,
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+            onPressed: _back,
           ),
-        ),
+          Expanded(
+            child: Material(
+              color: homeTileColor(context),
+              shape: const StadiumBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: _back,
+                child: SizedBox(
+                  height: 48,
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 12),
+                      const Icon(Icons.search_rounded, size: 22),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Obx(() => Text(
+                              controller.queryString.value,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 15.5,
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.color),
+                            )),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
+  }
+}
+
+/// "All" plus one chip per result type (and Soulseek when installed).
+class _FilterChips extends StatelessWidget {
+  const _FilterChips({required this.controller});
+  final SearchResultScreenController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final labels = [
+        'allResults'.tr,
+        if (controller.isResultContentFetced.value)
+          ...controller.railItems
+              .map((e) => e.toLowerCase().removeAllWhitespace.tr),
+      ];
+      final selected = controller.navigationRailCurrentIndex.value;
+      final accent = Theme.of(context).colorScheme.secondary;
+      return SizedBox(
+        height: 36,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
+          itemCount: labels.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, i) {
+            final active = i == selected;
+            return Material(
+              color: active ? accent : homeTileColor(context),
+              shape: StadiumBorder(
+                  side: active ? BorderSide.none : homeTileBorder(context)),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => controller.onDestinationSelected(i),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: Center(
+                    child: Text(
+                      labels[i],
+                      style: TextStyle(
+                        color: active
+                            ? RiffSurfaces.voidBlack
+                            : Theme.of(context).textTheme.titleMedium?.color,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    });
   }
 }
 
@@ -163,54 +193,41 @@ class Body extends StatelessWidget {
             .where((r) => !searchResScrController.isSoulseekRail(r))
             .toList();
         if (ytmRails.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "nomatch".tr,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                Text("'${searchResScrController.queryString.value}'"),
-                if (searchResScrController.railItems
-                    .any(searchResScrController.isSoulseekRail)) ...[
-                  const SizedBox(height: 16),
-                  TextButton.icon(
-                    onPressed: () {
-                      final idx = searchResScrController.railItems.indexWhere(
-                          searchResScrController.isSoulseekRail);
-                      if (idx >= 0) {
-                        searchResScrController.onDestinationSelected(idx + 1);
-                      }
-                    },
-                    icon: const Icon(Icons.search),
-                    label: Text('soulseek'.tr),
-                  ),
-                ],
-              ],
-            ),
+          final hasSoulseek = searchResScrController.railItems
+              .any(searchResScrController.isSoulseekRail);
+          return PodcastEmptyState(
+            icon: Icons.search_off_rounded,
+            message:
+                "${"nomatch".tr}\n'${searchResScrController.queryString.value}'",
+            actionLabel: hasSoulseek ? 'soulseek'.tr : null,
+            actionIcon: Icons.search_rounded,
+            onAction: hasSoulseek
+                ? () {
+                    final idx = searchResScrController.railItems
+                        .indexWhere(searchResScrController.isSoulseekRail);
+                    if (idx >= 0) {
+                      searchResScrController.onDestinationSelected(idx + 1);
+                    }
+                  }
+                : null,
           );
         }
-        return const ResultWidget();
+        return const ResultWidget(isv2Used: true);
       });
     } else {
       if (searchResScrController.isResultContentFetced.isTrue) {
-        final topPadding = context.isLandscape ? 50.0 : 80.0;
         final name = searchResScrController.railItems[
             searchResScrController.navigationRailCurrentIndex.value - 1];
         if (searchResScrController.isSoulseekRail(name)) {
-          return Padding(
-            padding: EdgeInsets.only(top: topPadding),
-            child: SeekerScreen(
-              embedded: true,
-              initialQuery: searchResScrController.queryString.value,
-            ),
+          return SeekerScreen(
+            embedded: true,
+            initialQuery: searchResScrController.queryString.value,
           );
         }
         return SeparateTabItemWidget(
           items: const [],
           title: name,
-          topPadding: topPadding,
+          topPadding: 8,
           scrollController: searchResScrController.scrollControllers[name],
         );
       }

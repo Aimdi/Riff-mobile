@@ -92,8 +92,12 @@ class _AudiobookCatalogDetailScreenState
               borderRadius: BorderRadius.circular(10),
               child: CachedNetworkImage(
                 imageUrl: book.cover,
-                width: 140,
-                height: 210,
+                // Decode at display size, not full resolution.
+                // Store audiobook art is square.
+                memCacheHeight:
+                    (200 * MediaQuery.devicePixelRatioOf(context)).round(),
+                width: 200,
+                height: 200,
                 fit: BoxFit.cover,
                 errorWidget: (_, __, ___) =>
                     const Icon(Icons.menu_book, size: 120),
@@ -247,6 +251,9 @@ class _AudiobookCatalogDetailScreenState
                         borderRadius: BorderRadius.circular(8),
                         child: CachedNetworkImage(
                           imageUrl: b.cover,
+                          // Decode at display size, not full resolution.
+                          memCacheHeight:
+                              (180 * MediaQuery.devicePixelRatioOf(context)).round(),
                           width: 120,
                           height: 180,
                           fit: BoxFit.cover,

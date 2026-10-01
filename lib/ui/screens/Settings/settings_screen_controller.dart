@@ -12,6 +12,7 @@ import '../../../services/cache_eviction.dart';
 import '../../../services/song_cache_service.dart';
 import '../../../utils/app_version.dart';
 import '../../../utils/update_check_flag_file.dart';
+import '/services/wizestream_service.dart';
 import '/services/piped_service.dart';
 import '../Library/library_controller.dart';
 import '../../widgets/snackbar.dart';
@@ -38,6 +39,16 @@ class SettingsScreenController extends GetxController {
   /// AntennaPod-experimental style: auto-advance to the next podcast episode
   /// when one ends (queue or feed list already loaded into the player queue).
   final podcastContinuousPlaybackEnabled = true.obs;
+
+  /// Browse / search YouTube's own Podcasts catalog (WizeStream-style).
+  final youtubePodcastsEnabled = true.obs;
+
+  /// YouTube podcast episodes open as video in the player by default.
+  final podcastVideoEnabled = true.obs;
+
+  /// Tapping a YouTube podcast episode opens it in WizeStream (if installed)
+  /// instead of Riff's player.
+  final podcastsInWizeStream = false.obs;
   final loudnessNormalizationEnabled = false.obs;
   final ytConnected = false.obs;
   final playbackSpeed = 1.0.obs;
@@ -52,6 +63,9 @@ class SettingsScreenController extends GetxController {
   final streamingQuality = AudioQuality.High.obs;
   /// In-player muted video surface (Low = 144–240p, High = ≤720p video-only).
   final videoQuality = VideoQuality.high.obs;
+
+  /// Video mode engine: `exo` (ExoPlayer, default) or `mpv`.
+  final videoEngine = 'exo'.obs;
   /// Synced lyrics provider preference (Settings → Listening).
   final lyricsSource = LyricsSource.betterLyrics.obs;
   /// Force low streaming quality to save mobile data.
@@ -105,6 +119,7 @@ class SettingsScreenController extends GetxController {
   @override
   void onInit() {
     _setInitValue();
+    if (GetPlatform.isAndroid) WizeStream.refresh();
     _loadAppVersion();
     _createInAppSongDownDir();
     super.onInit();
@@ -173,6 +188,9 @@ class SettingsScreenController extends GetxController {
         setBox.get("podcastAutoSkipAds") ?? true;
     podcastContinuousPlaybackEnabled.value =
         setBox.get("podcastContinuousPlayback") ?? true;
+    youtubePodcastsEnabled.value = setBox.get("youtubePodcasts") != false;
+    podcastVideoEnabled.value = setBox.get("podcastShowVideo") != false;
+    podcastsInWizeStream.value = setBox.get("podcastsInWizeStream") == true;
     loudnessNormalizationEnabled.value = isDesktop
         ? false
         : (setBox.get("loudnessNormalizationEnabled") ?? false);
@@ -201,6 +219,8 @@ class SettingsScreenController extends GetxController {
       streamingQuality.value = AudioQuality.High;
       setBox.put('streamingQuality', AudioQuality.High.index);
     }
+    final engine = setBox.get('videoEngine');
+    videoEngine.value = engine == 'mpv' ? 'mpv' : 'exo';
     final videoQIndex = setBox.get('videoQuality');
     if (videoQIndex is int &&
         videoQIndex >= 0 &&
@@ -280,6 +300,12 @@ class SettingsScreenController extends GetxController {
   void setStreamingQuality(dynamic val) {
     setBox.put("streamingQuality", AudioQuality.values.indexOf(val));
     streamingQuality.value = val;
+  }
+
+  void setVideoEngine(dynamic val) {
+    if (val != 'exo' && val != 'mpv') return;
+    setBox.put('videoEngine', val);
+    videoEngine.value = val;
   }
 
   void setVideoQuality(dynamic val) {
@@ -520,6 +546,21 @@ class SettingsScreenController extends GetxController {
   void togglePodcastContinuousPlayback(bool val) {
     setBox.put('podcastContinuousPlayback', val);
     podcastContinuousPlaybackEnabled.value = val;
+  }
+
+  void toggleYoutubePodcasts(bool val) {
+    setBox.put('youtubePodcasts', val);
+    youtubePodcastsEnabled.value = val;
+  }
+
+  void togglePodcastVideo(bool val) {
+    setBox.put('podcastShowVideo', val);
+    podcastVideoEnabled.value = val;
+  }
+
+  void togglePodcastsInWizeStream(bool val) {
+    setBox.put('podcastsInWizeStream', val);
+    podcastsInWizeStream.value = val;
   }
 
   void toggleSponsorBlock(bool val) {

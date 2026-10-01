@@ -58,7 +58,8 @@ class PodcastFolderScreen extends StatelessWidget {
         return LayoutBuilder(builder: (context, constraints) {
           return GridView.builder(
             padding: kPodcastSubsGridPadding,
-            gridDelegate: podcastSubsGridDelegate(constraints.maxWidth),
+            gridDelegate: podcastSubsGridDelegate(constraints.maxWidth,
+                textScaler: MediaQuery.textScalerOf(context)),
             itemCount: items.length,
             itemBuilder: (context, index) {
               final podcast = items[index];

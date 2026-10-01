@@ -12,16 +12,17 @@ import '/ui/widgets/podcast_play.dart';
 import '/ui/widgets/snackbar.dart';
 import 'podcasts_screen.dart';
 
-/// Phone: always 2 columns so covers stay large. Wider screens get 3–4.
+/// 3 columns on regular phones (2 on narrow ones), more on tablets.
 int podcastSubsColumnCount(double width) {
-  if (width >= 1100) return 4;
-  if (width >= 720) return 3;
+  if (width >= 1100) return 6;
+  if (width >= 720) return 4;
+  if (width >= 380) return 3;
   return 2;
 }
 
-const double kPodcastSubsHPad = 16;
-const double kPodcastSubsGap = 14;
-const double kPodcastSubsTextBlock = 58;
+const double kPodcastSubsHPad = 12;
+const double kPodcastSubsGap = 12;
+const double kPodcastSubsTextBlock = 40;
 
 double podcastSubsCoverSize(double maxWidth, int columns) {
   return (maxWidth - kPodcastSubsHPad * 2 - kPodcastSubsGap * (columns - 1)) /
@@ -31,19 +32,20 @@ double podcastSubsCoverSize(double maxWidth, int columns) {
 double podcastSubsMainAxisExtent(double coverSize) =>
     coverSize + 8 + kPodcastSubsTextBlock;
 
-SliverGridDelegate podcastSubsGridDelegate(double width) {
+SliverGridDelegate podcastSubsGridDelegate(double width,
+    {TextScaler textScaler = TextScaler.noScaling}) {
   final columns = podcastSubsColumnCount(width);
   final cover = podcastSubsCoverSize(width, columns);
   return SliverGridDelegateWithFixedCrossAxisCount(
     crossAxisCount: columns,
     crossAxisSpacing: kPodcastSubsGap,
-    mainAxisSpacing: kPodcastSubsGap,
-    mainAxisExtent: podcastSubsMainAxisExtent(cover),
+    mainAxisSpacing: kPodcastSubsGap + 4,
+    mainAxisExtent: cover + 8 + textScaler.scale(kPodcastSubsTextBlock),
   );
 }
 
 const EdgeInsets kPodcastSubsGridPadding =
-    EdgeInsets.fromLTRB(16, 8, 16, 200);
+    EdgeInsets.fromLTRB(12, 4, 12, 200);
 
 /// Large cover-filling tile for the Subs grid (and folder contents).
 class PodcastCoverTile extends StatelessWidget {
@@ -100,8 +102,8 @@ class PodcastCoverTile extends StatelessWidget {
                     Positioned(left: 8, top: 8, child: badge!),
                   if (showPlay)
                     Positioned(
-                      right: 8,
-                      bottom: 8,
+                      right: 6,
+                      bottom: 6,
                       child: _PlayFab(onPressed: onPlay ?? onTap),
                     ),
                 ],
@@ -110,13 +112,13 @@ class PodcastCoverTile extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               title,
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
-                fontSize: 14,
+                fontSize: 13.5,
                 height: 1.2,
-                letterSpacing: -0.15,
+                letterSpacing: -0.1,
               ),
             ),
             if (subtitle != null && subtitle!.isNotEmpty)
@@ -218,9 +220,9 @@ class _PlayFab extends StatelessWidget {
         customBorder: const CircleBorder(),
         onTap: onPressed,
         child: const SizedBox(
-          width: 36,
-          height: 36,
-          child: Icon(Icons.play_arrow_rounded, color: Colors.black, size: 24),
+          width: 30,
+          height: 30,
+          child: Icon(Icons.play_arrow_rounded, color: Colors.black, size: 20),
         ),
       ),
     );

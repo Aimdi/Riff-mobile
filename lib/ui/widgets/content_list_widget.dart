@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../screens/Search/search_result_screen_controller.dart';
 import '/ui/widgets/content_list_widget_item.dart';
+import '../screens/Home/home_layout.dart';
 
 class ContentListWidget extends StatelessWidget {
   ///ContentListWidget is used to render a section of Content like a list of Albums or Playlists in HomeScreen
@@ -25,40 +26,33 @@ class ContentListWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 12, top: 24, bottom: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    !isHomeContent && content.title.length > 12
-                        ? "${content.title.substring(0, 12)}..."
-                        : content.title,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 19,
-                          letterSpacing: -0.35,
-                        ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+          // Home shelves pass display titles; search passes type keys
+          // ("Community playlists") that need translating, never cutting.
+          HomeSectionHeader(
+            isHomeContent
+                ? content.title
+                : '${content.title}'.toLowerCase().removeAllWhitespace.tr,
+            top: isHomeContent ? HomeLayout.sectionTop : 20,
+            trailing: isHomeContent
+                ? null
+                : TextButton(
+                    onPressed: () => Get.find<SearchResultScreenController>()
+                        .viewAllCallback(content.title),
+                    style: TextButton.styleFrom(
+                      foregroundColor: homeMutedColor(context),
+                      minimumSize: const Size(0, 30),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                    ),
+                    child: Text("viewAll".tr,
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600)),
                   ),
-                ),
-                !isHomeContent
-                    ? TextButton(
-                        onPressed: () {
-                          final scrresController =
-                              Get.find<SearchResultScreenController>();
-                          scrresController.viewAllCallback(content.title);
-                        },
-                        child: Text("viewAll".tr,
-                            style: Theme.of(Get.context!).textTheme.titleSmall))
-                    : const SizedBox.shrink()
-              ],
-            ),
           ),
           SizedBox(
-            height: 168,
+            // Card height grows with the system text size.
+            height: ContentListItem.heightFor(
+                    context, ContentListItem.defaultSize) +
+                12,
             child: Scrollbar(
               thickness: GetPlatform.isDesktop ? null : 0,
               controller: scrollController,

@@ -52,6 +52,12 @@ extension MediaItemExtras on MediaItem {
   bool get isAudiobookshelf =>
       id.startsWith('abs_') || streamSource == 'audiobookshelf';
 
+  /// A free LibriVox chapter (`lv_` ids from FreeAudiobookService).
+  bool get isFreeAudiobook => id.startsWith('lv_');
+
+  /// Any audiobook chapter, from a server or the free catalog.
+  bool get isAudiobook => isAudiobookshelf || isFreeAudiobook;
+
   List<Map<String, dynamic>> get extrasArtists {
     final raw = extras?['artists'];
     if (raw is! List) return const [];

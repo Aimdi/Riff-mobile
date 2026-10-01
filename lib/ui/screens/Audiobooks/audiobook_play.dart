@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 
 import '/services/audiobook_progress_service.dart';
 import '/services/audiobookshelf_service.dart';
+import '/services/free_audiobook_service.dart';
 import '/services/discovery/discovery_types.dart';
 import '/ui/player/player_controller.dart';
 
@@ -60,4 +61,32 @@ Future<bool> playAudiobook({
   } catch (_) {
     return false;
   }
+}
+
+/// Play a free (LibriVox) book, resuming the last chapter and position
+/// unless [index] picks a chapter.
+Future<bool> playFreeAudiobook(FreeAudiobookDetail detail, {int? index}) async {
+  if (!Get.isRegistered<PlayerController>()) return false;
+  final items = FreeAudiobookService.toMediaItems(detail);
+  if (items.isEmpty) return false;
+  var start = 0;
+  var resumeMs = 0;
+  if (index != null) {
+    start = index.clamp(0, items.length - 1);
+    resumeMs = AudiobookProgressService.positionMs(items[start].id) ?? 0;
+  } else {
+    final local = AudiobookProgressService.lastTrackForBook(detail.book.id);
+    final at = local == null
+        ? -1
+        : items.indexWhere((m) => m.id == local['id']?.toString());
+    if (at >= 0) {
+      start = at;
+      final pos = local!['positionMs'];
+      if (pos is int) resumeMs = pos;
+    }
+  }
+  final player = Get.find<PlayerController>();
+  if (resumeMs > 1500) player.armResume(items[start].id, resumeMs);
+  return player.playPlayListSong(items, start,
+      source: DiscoverySource.audiobook);
 }

@@ -40,7 +40,7 @@ class SortWidget extends StatelessWidget {
     super.key,
     required this.tag,
     this.itemCountTitle = '',
-    this.titleLeftPadding = 18,
+    this.titleLeftPadding = 12,
     this.isAdditionalOperationRequired = true,
     this.requiredSortTypes = const <SortType>{SortType.Name},
     this.isSearchFeatureRequired = false,
@@ -82,8 +82,10 @@ class SortWidget extends StatelessWidget {
   final Function(String?)? onSearchClose;
   final Function(SortType, bool) onSort;
   final bool isImportFeatureRequired;
+
   /// Shows a cloud icon next to the duration (clock) control.
   final bool isCloudFeatureRequired;
+
   /// When non-null, drives the selected state of the cloud icon (use with Obx).
   final bool? isCloudModeActive;
   final VoidCallback? onCloudToggle;
@@ -177,209 +179,257 @@ class SortWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(SortWidgetController(), tag: tag);
+    final controller = Get.isRegistered<SortWidgetController>(tag: tag)
+        ? Get.find<SortWidgetController>(tag: tag)
+        : Get.put(SortWidgetController(), tag: tag);
+    final theme = Theme.of(context);
+    final muted = theme.textTheme.titleSmall?.color;
     return Padding(
-      padding: const EdgeInsets.only(top: 10.0),
+      padding: const EdgeInsets.only(top: 6.0),
       child: SizedBox(
-        height: 40,
-        child: Obx(
-          () => Stack(
+        height: 44,
+        child: Obx(() {
+          if (controller.isSearchingEnabled.value) {
+            return _searchField(context, controller);
+          }
+          return Row(
             children: [
-              if (controller.isSearchingEnabled.isFalse)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.only(left: titleLeftPadding),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Text(itemCountTitle),
-                          if (itemIcon != null)
-                            Icon(
-                              Icons.music_note,
-                              size: 15,
-                              color: Theme.of(context).colorScheme.secondary,
-                            )
-                        ],
-                      ),
-                    ),
-                    Obx(
-                      () => _customIconButton(
-                        isSelected:
-                            controller.sortType.value == SortType.Name,
-                        icon: Icons.sort_by_alpha,
-                        tooltip: "sortByName".tr,
-                        onPressed: () {
-                          controller.onSortByName(onSort);
-                        },
-                      ),
-                    ),
-                    requiredSortTypes.contains(SortType.Date)
-                        ? Obx(
-                            () => _customIconButton(
-                              isSelected:
-                                  controller.sortType.value == SortType.Date,
-                              icon: Icons.calendar_month,
-                              tooltip: "sortByDate".tr,
-                              onPressed: () {
-                                controller.onSortByDate(onSort);
-                              },
-                            ),
-                          )
-                        : const SizedBox.shrink(),
-                    requiredSortTypes.contains(SortType.Duration)
-                        ? Obx(() => _customIconButton(
-                              isSelected: controller.sortType.value ==
-                                  SortType.Duration,
-                              tooltip: "sortByDuration".tr,
-                              icon: Icons.timer,
-                              onPressed: () {
-                                controller.onSortByDuration(onSort);
-                              },
-                            ))
-                        : const SizedBox.shrink(),
-                    if (isCloudFeatureRequired)
-                      _customIconButton(
-                        isSelected: isCloudModeActive == true,
-                        icon: isCloudModeActive == true
-                            ? Icons.cloud
-                            : Icons.cloud_outlined,
-                        tooltip: "cloud".tr,
-                        onPressed: () => onCloudToggle?.call(),
-                      ),
-                    const Expanded(child: SizedBox()),
-                    Obx(
-                      () => _customIconButton(
-                        icon: controller.isAscending.value
-                            ? Icons.arrow_downward
-                            : Icons.arrow_upward,
-                        tooltip: "sortAscendNDescend".tr,
-                        onPressed: () {
-                          controller.onAscendNDescend(onSort);
-                        },
-                      ),
-                    ),
-                    if (isImportFeatureRequired)
-                      _customIconButton(
-                        icon: Icons.import_contacts,
-                        tooltip: "importPlaylist".tr,
-                        onPressed: () => _showImportDialog(context),
-                      ),
-                    if (isSearchFeatureRequired)
-                      _customIconButton(
-                        icon: Icons.search,
-                        tooltip: "search".tr,
-                        onPressed: () {
-                          onSearchStart!(tag);
-                          controller.toggleSearch();
-                        },
-                      ),
-                    if (isAdditionalOperationRequired)
-                      PopupMenuButton(
-                        child: const Icon(
-                          Icons.more_vert,
-                          size: 20,
-                        ),
-                        // Callback that sets the selected popup menu item.
-                        onSelected: (mode) {
-                          showDialog(
-                              context: context,
-                              builder: (context) => AdditionalOperationDialog(
-                                    operationMode: mode,
-                                    screenController: screenController,
-                                    controller: controller,
-                                  ));
-                
-                          controller.setActiveMode(mode);
-                          startAdditionalOperation!(controller, mode);
-                        },
-                        itemBuilder: (BuildContext context) =>
-                            <PopupMenuEntry>[
-                          if (isPlaylistRearrageFeatureRequired)
-                            PopupMenuItem(
-                              value: OperationMode.arrange,
-                              child: Text("reArrangePlaylist".tr),
-                            ),
-                          if (isSongDeletetioFeatureRequired)
-                            PopupMenuItem(
-                              value: OperationMode.delete,
-                              child: Text("removeMultiple".tr),
-                            ),
-                          PopupMenuItem(
-                            value: OperationMode.addToPlaylist,
-                            child: Text("addMultipleSongs".tr),
-                          ),
-                        ],
-                      ),
-                    const SizedBox(
-                      width: 15,
-                    )
-                  ],
-                ),
-              if (controller.isSearchingEnabled.value)
-                Container(
-                  height: 40,
-                  padding: const EdgeInsets.only(left: 5, right: 20),
-                  // color:
-                  //     Theme.of(context).scaffoldBackgroundColor.withAlpha(125),
-                  child: ColoredBox(
-                    color: Theme.of(context)
-                        .scaffoldBackgroundColor
-                        .withAlpha(125),
-                    child: ModifiedTextField(
-                      controller: controller.textEditingController,
-                      textAlignVertical: TextAlignVertical.center,
-                      autofocus: true,
-                      onChanged: (value) {
-                        onSearch!(value, tag);
-                      },
-                      cursorColor:
-                          Theme.of(context).textTheme.titleSmall!.color,
-                      decoration: InputDecoration(
-                        isDense: true,
-                        contentPadding: const EdgeInsets.all(8),
-                        filled: true,
-                        border: const OutlineInputBorder(),
-                        hintText: "search".tr,
-                        suffixIconColor:
-                            Theme.of(context).colorScheme.secondary,
-                        suffixIcon: IconButton(
-                          splashRadius: 10,
-                          iconSize: 20,
-                          icon: const Icon(Icons.cancel),
-                          onPressed: () {
-                            controller.toggleSearch();
-                            onSearchClose!(tag);
-                          },
-                        ),
-                      ),
-                    ),
+              SizedBox(width: titleLeftPadding),
+              Expanded(
+                child: Text(
+                  _countLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: muted,
                   ),
                 ),
+              ),
+              _sortMenu(context, controller),
+              if (isCloudFeatureRequired)
+                _iconButton(
+                  context,
+                  selected: isCloudModeActive == true,
+                  icon: isCloudModeActive == true
+                      ? Icons.cloud
+                      : Icons.cloud_outlined,
+                  tooltip: "cloud".tr,
+                  onPressed: () => onCloudToggle?.call(),
+                ),
+              if (isImportFeatureRequired)
+                _iconButton(
+                  context,
+                  icon: Icons.file_download_outlined,
+                  tooltip: "importPlaylist".tr,
+                  onPressed: () => _showImportDialog(context),
+                ),
+              if (isSearchFeatureRequired)
+                _iconButton(
+                  context,
+                  icon: Icons.search_rounded,
+                  tooltip: "search".tr,
+                  onPressed: () {
+                    onSearchStart!(tag);
+                    controller.toggleSearch();
+                  },
+                ),
+              if (isAdditionalOperationRequired)
+                PopupMenuButton<OperationMode>(
+                  tooltip: "moreOptions".tr,
+                  icon: Icon(Icons.more_vert_rounded, size: 22, color: muted),
+                  onSelected: (mode) {
+                    showDialog(
+                        context: context,
+                        builder: (context) => AdditionalOperationDialog(
+                              operationMode: mode,
+                              screenController: screenController,
+                              controller: controller,
+                            ));
+
+                    controller.setActiveMode(mode);
+                    startAdditionalOperation!(controller, mode);
+                  },
+                  itemBuilder: (BuildContext context) =>
+                      <PopupMenuEntry<OperationMode>>[
+                    if (isPlaylistRearrageFeatureRequired)
+                      PopupMenuItem(
+                        value: OperationMode.arrange,
+                        child: Text("reArrangePlaylist".tr),
+                      ),
+                    if (isSongDeletetioFeatureRequired)
+                      PopupMenuItem(
+                        value: OperationMode.delete,
+                        child: Text("removeMultiple".tr),
+                      ),
+                    PopupMenuItem(
+                      value: OperationMode.addToPlaylist,
+                      child: Text("addMultipleSongs".tr),
+                    ),
+                  ],
+                )
+              else
+                const SizedBox(width: 6),
             ],
+          );
+        }),
+      ),
+    );
+  }
+
+  /// Song lists pass a bare number with [itemIcon]: show "14 songs".
+  String get _countLabel {
+    final n = int.tryParse(itemCountTitle.trim());
+    if (itemIcon == null || n == null) return itemCountTitle;
+    return n == 1 ? "songCountOne".tr : "songCount".trParams({'count': '$n'});
+  }
+
+  static String _sortLabel(SortType type) => switch (type) {
+        SortType.Name => "sortName".tr,
+        SortType.Date => "sortDate".tr,
+        SortType.Duration => "duration".tr,
+        SortType.RecentlyPlayed => "recentlyPlayed".tr,
+      };
+
+  /// "Name ↑" chip: one menu for the sort key and the direction instead of
+  /// a row of unlabeled icons.
+  Widget _sortMenu(BuildContext context, SortWidgetController controller) {
+    final theme = Theme.of(context);
+    final fg = theme.textTheme.titleMedium?.color;
+    final types = <SortType>[
+      SortType.Name,
+      ...requiredSortTypes.where((t) => t != SortType.Name),
+    ];
+    return PopupMenuButton<Object>(
+      tooltip: "sortBy".tr,
+      position: PopupMenuPosition.under,
+      onSelected: (value) {
+        if (value == #direction) {
+          controller.onAscendNDescend(onSort);
+          return;
+        }
+        switch (value as SortType) {
+          case SortType.Name:
+            controller.onSortByName(onSort);
+          case SortType.Date:
+            controller.onSortByDate(onSort);
+          case SortType.Duration:
+            controller.onSortByDuration(onSort);
+          case SortType.RecentlyPlayed:
+            break;
+        }
+      },
+      itemBuilder: (context) => [
+        for (final t in types)
+          CheckedPopupMenuItem<Object>(
+            value: t,
+            checked: controller.sortType.value == t,
+            child: Text(_sortLabel(t)),
+          ),
+        const PopupMenuDivider(),
+        PopupMenuItem<Object>(
+          value: #direction,
+          child: Row(
+            children: [
+              Icon(
+                controller.isAscending.value
+                    ? Icons.arrow_downward_rounded
+                    : Icons.arrow_upward_rounded,
+                size: 18,
+              ),
+              const SizedBox(width: 12),
+              Text(controller.isAscending.value
+                  ? "sortDescending".tr
+                  : "sortAscending".tr),
+            ],
+          ),
+        ),
+      ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.sort_rounded, size: 18, color: fg),
+            const SizedBox(width: 6),
+            Text(
+              _sortLabel(controller.sortType.value),
+              style: TextStyle(
+                  fontSize: 13.5, fontWeight: FontWeight.w600, color: fg),
+            ),
+            const SizedBox(width: 2),
+            Icon(
+              controller.isAscending.value
+                  ? Icons.arrow_upward_rounded
+                  : Icons.arrow_downward_rounded,
+              size: 15,
+              color: fg?.withOpacity(0.7),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _searchField(BuildContext context, SortWidgetController controller) {
+    final theme = Theme.of(context);
+    final hint = theme.textTheme.bodySmall?.color?.withOpacity(0.7);
+    const border = OutlineInputBorder(
+      borderRadius: BorderRadius.all(Radius.circular(22)),
+      borderSide: BorderSide.none,
+    );
+    return Padding(
+      padding: EdgeInsets.only(left: titleLeftPadding, right: 12),
+      child: ModifiedTextField(
+        controller: controller.textEditingController,
+        textAlignVertical: TextAlignVertical.center,
+        autofocus: true,
+        onChanged: (value) {
+          onSearch!(value, tag);
+        },
+        cursorColor: theme.colorScheme.secondary,
+        decoration: InputDecoration(
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+          filled: true,
+          fillColor: theme.colorScheme.onSurface.withOpacity(0.07),
+          border: border,
+          enabledBorder: border,
+          focusedBorder: border,
+          hintText: "search".tr,
+          hintStyle: TextStyle(color: hint),
+          prefixIcon: Icon(Icons.search_rounded, color: hint, size: 20),
+          suffixIcon: IconButton(
+            splashRadius: 18,
+            iconSize: 20,
+            tooltip: "close".tr,
+            icon: Icon(Icons.close_rounded, color: hint),
+            onPressed: () {
+              controller.toggleSearch();
+              onSearchClose!(tag);
+            },
           ),
         ),
       ),
     );
   }
 
-  Widget _customIconButton({
+  Widget _iconButton(
+    BuildContext context, {
     required IconData icon,
     required String tooltip,
-    bool? isSelected,
-    Function()? onPressed,
+    bool selected = false,
+    VoidCallback? onPressed,
   }) {
+    final theme = Theme.of(context);
     return IconButton(
       icon: Icon(icon),
-      padding: const EdgeInsets.all(0),
-      color: isSelected == null || isSelected == true
-          ? Theme.of(Get.context!).textTheme.bodySmall!.color
-          : Theme.of(Get.context!).colorScheme.secondary,
-      iconSize: 20,
-      splashRadius: 20,
-      visualDensity: const VisualDensity(horizontal: -3, vertical: -3),
+      color: selected
+          ? theme.colorScheme.secondary
+          : theme.textTheme.titleSmall?.color,
+      iconSize: 22,
+      visualDensity: VisualDensity.compact,
       onPressed: onPressed,
       tooltip: tooltip,
     );

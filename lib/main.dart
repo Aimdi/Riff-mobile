@@ -61,7 +61,13 @@ Future<void> main() async {
   // isn't stuck on ~18 sequential Hive opens + discovery network work.
   await initHiveCritical();
   _setAppInitPrefs();
+  // Secondary boxes open in the background from here on, overlapping the
+  // secure-storage read and AudioService init instead of waiting behind them
+  // (podcast/audiobook screens read these boxes synchronously).
+  final deferredBoxes = initHiveDeferred().catchError(
+      (Object e) => printERROR('Deferred Hive open failed: $e'));
   // Migrate secrets out of plaintext Hive before services restore sessions.
+  // Stays awaited: services read credentials synchronously once found.
   await SecureCredentials.init();
   // Load cached remote client config synchronously; refresh in background.
   unawaited(ClientConfigService.init());
@@ -71,11 +77,11 @@ Future<void> main() async {
   TerminateRestart.instance.initialize();
   // Paint the shell first — AudioService init can take hundreds of ms.
   runApp(const MyApp());
-  unawaited(_initAudioAndWarm());
+  unawaited(_initAudioAndWarm(deferredBoxes));
 }
 
 /// AudioService + deferred Hive / discovery. Never blocks first frame.
-Future<void> _initAudioAndWarm() async {
+Future<void> _initAudioAndWarm(Future<void> deferredBoxes) async {
   try {
     if (!Get.isRegistered<AudioHandler>()) {
       final handler = await initAudioService();
@@ -85,7 +91,7 @@ Future<void> _initAudioAndWarm() async {
     printERROR('AudioService init failed: $e');
   }
   try {
-    await initHiveDeferred();
+    await deferredBoxes;
     if (!Get.isRegistered<DiscoveryService>()) {
       await Get.putAsync(() => DiscoveryService().init(), permanent: true);
     }
@@ -213,19 +219,21 @@ initHiveCritical() async {
     safeOpenBox("BannedSongs"),
     safeOpenBox("BannedArtists"),
     safeOpenBox("BannedCollections"),
+    // Home's Riff Wave hero reads play stats on its first build.
+    safeOpenBox("SongStats"),
   ]);
 }
 
 /// Secondary boxes used by podcasts, stats, bans, discovery — not first paint.
-initHiveDeferred() async {
+Future<void> initHiveDeferred() async {
   await Future.wait([
     safeOpenBox("PodcastSubs"),
-    safeOpenBox("SongStats"),
     safeOpenBox("DailyStats"),
     safeOpenBox("SquareCovers"),
     safeOpenBox("PodcastQueue"),
     safeOpenBox("PodcastFolders"),
     safeOpenBox("SavedAudiobooks"),
+    safeOpenBox("SavedFreeAudiobooks"),
     safeOpenBox("PodcastDownloads"),
     safeOpenBox("PodcastProgress"),
     safeOpenBox("AudiobookProgress"),

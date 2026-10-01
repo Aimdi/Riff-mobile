@@ -4,19 +4,18 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:media_kit_video/media_kit_video.dart';
 
 import '/ui/player/player_controller.dart';
 import '/ui/player/video_mode_controller.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 
-/// In-player video pane for YouTube *videos*.
+/// In-player video pane for YouTube *videos* and YouTube podcast episodes.
 ///
 /// Unlike the old muted-surface approach (a second ExoPlayer chasing the
 /// audio clock with rate nudges and periodic seeks — the source of the
 /// notorious lag/desync), this pane hands playback to [VideoModeController]:
-/// ONE mpv engine plays the video stream plus the exact audio stream the
-/// music pipeline uses, so A/V sync is the engine's own frame scheduling.
+/// ONE engine plays the video stream plus the exact audio stream the music
+/// pipeline uses, so A/V sync is the engine's own frame scheduling.
 /// While the pane is visible the engine owns playback; collapsing the
 /// panel, hiding video, changing songs or backgrounding hands playback
 /// back to the audio pipeline at the same position.
@@ -142,7 +141,8 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
       child: ColoredBox(
         color: Colors.black,
         child: Obx(() {
-          final ready = _vm.isActive.value && _vm.videoController != null;
+          final engine = _vm.engine;
+          final ready = engine != null;
           final loading = _vm.isLoading.value;
           return Stack(
             fit: StackFit.expand,
@@ -153,13 +153,7 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
                     aspectRatio: _vm.videoAspect.value <= 0
                         ? 16 / 9
                         : _vm.videoAspect.value,
-                    child: RepaintBoundary(
-                      child: Video(
-                        controller: _vm.videoController!,
-                        controls: NoVideoControls,
-                        fill: Colors.black,
-                      ),
-                    ),
+                    child: RepaintBoundary(child: engine.buildView()),
                   ),
                 ),
               if (loading)
@@ -174,8 +168,7 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
                 Center(
                   child: Text(
                     'videoUnavailable'.tr,
-                    style:
-                        const TextStyle(color: Colors.white70, fontSize: 13),
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                 ),
               if (widget.showControls && !loading)
@@ -277,6 +270,10 @@ class _FullscreenVideoPage extends StatefulWidget {
 }
 
 class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
+  /// Slider position while the user drags; the seek itself is sent once on
+  /// release instead of on every drag update.
+  double? _dragMs;
+
   @override
   void initState() {
     super.initState();
@@ -318,16 +315,13 @@ class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
           }
           return Stack(
             children: [
-              if (vm.videoController != null)
+              if (vm.engine != null)
                 Center(
                   child: AspectRatio(
-                    aspectRatio:
-                        vm.videoAspect.value <= 0 ? 16 / 9 : vm.videoAspect.value,
-                    child: Video(
-                      controller: vm.videoController!,
-                      controls: NoVideoControls,
-                      fill: Colors.black,
-                    ),
+                    aspectRatio: vm.videoAspect.value <= 0
+                        ? 16 / 9
+                        : vm.videoAspect.value,
+                    child: vm.engine!.buildView(),
                   ),
                 ),
               Positioned.fill(
@@ -378,9 +372,9 @@ class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
                       final total = st.total.inMilliseconds <= 0
                           ? 1.0
                           : st.total.inMilliseconds.toDouble();
-                      final cur = st.current.inMilliseconds
-                          .clamp(0, total.toInt())
-                          .toDouble();
+                      final cur =
+                          (_dragMs ?? st.current.inMilliseconds.toDouble())
+                              .clamp(0.0, total);
                       return SliderTheme(
                         data: SliderTheme.of(context).copyWith(
                           trackHeight: 2,
@@ -392,8 +386,11 @@ class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
                           max: total,
                           // Routed through the transport, which drives the
                           // engine that owns playback.
-                          onChanged: (v) =>
-                              player.seek(Duration(milliseconds: v.round())),
+                          onChanged: (v) => setState(() => _dragMs = v),
+                          onChangeEnd: (v) {
+                            player.seek(Duration(milliseconds: v.round()));
+                            setState(() => _dragMs = null);
+                          },
                         ),
                       );
                     }),
@@ -425,7 +422,8 @@ class PlayerVideoEnableButton extends StatelessWidget {
         padding: const EdgeInsets.all(8),
         constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
         onPressed: onShow,
-        icon: const Icon(Icons.videocam_outlined, color: Colors.white, size: 22),
+        icon:
+            const Icon(Icons.videocam_outlined, color: Colors.white, size: 22),
       ),
     );
   }

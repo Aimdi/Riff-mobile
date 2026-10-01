@@ -264,6 +264,7 @@ class AudiobookshelfService extends GetxService {
     books.clear();
     inProgressBooks.clear();
     selectedLibraryId.value = '';
+    isLoading.value = false;
     host.value = '';
     username.value = '';
     _prefs.delete('audiobookshelf');
@@ -386,10 +387,16 @@ class AudiobookshelfService extends GetxService {
   ///
   /// [maxPages] is a runaway guard, not a product limit; hitting it is logged.
   Future<void> fetchBooks(
-      {int page = 0, int limit = 50, int maxPages = 40}) async {
+      {int page = 0,
+      int limit = 50,
+      int maxPages = 40,
+      String? libraryId}) async {
     _ensureConnected();
-    final libId = selectedLibraryId.value;
+    // Pages carry the library they started with: re-reading the selection
+    // per page mixed two libraries if the user switched mid-load.
+    final libId = libraryId ?? selectedLibraryId.value;
     if (libId.isEmpty) return;
+    if (libId != selectedLibraryId.value) return; // selection changed; stop
     isLoading.value = true;
     try {
       final res = await _dio.get(
@@ -403,6 +410,9 @@ class AudiobookshelfService extends GetxService {
         },
         options: _authOptions,
       );
+      // The user switched libraries while this page was in flight: drop it
+      // (the new selection's own load owns `books` now).
+      if (libId != selectedLibraryId.value) return;
       final results = res.data is Map ? res.data['results'] : null;
       final list = <AbsBook>[];
       if (results is List) {
@@ -436,7 +446,11 @@ class AudiobookshelfService extends GetxService {
       // truncated with no indication anything was missing.
       if (list.length >= limit) {
         if (page + 1 < maxPages) {
-          await fetchBooks(page: page + 1, limit: limit, maxPages: maxPages);
+          await fetchBooks(
+              page: page + 1,
+              limit: limit,
+              maxPages: maxPages,
+              libraryId: libId);
         } else {
           printINFO(
               'ABS: stopped paging at $maxPages pages; library list truncated');
@@ -445,14 +459,15 @@ class AudiobookshelfService extends GetxService {
     } catch (e) {
       // Never leave a failure looking like an empty library: the shelf would
       // tell the user they own no books when in fact nothing was fetched.
-      if (page == 0) {
+      if (page == 0 && libId == selectedLibraryId.value) {
         loadError.value = _describeLoadError(e);
         books.clear();
         inProgressBooks.clear();
       }
       printERROR('ABS library load failed: $e');
     } finally {
-      isLoading.value = false;
+      // A superseded load must not hide the new selection's spinner.
+      if (libId == selectedLibraryId.value) isLoading.value = false;
     }
   }
 
@@ -595,16 +610,43 @@ class AudiobookshelfService extends GetxService {
     }
   }
 
-  /// Start playback session and return book detail with streamable tracks.
-  Future<AbsBookDetail> openBook(String itemId) async {
+  /// Book detail for display only: GET /api/items/{id} (no play session).
+  ///
+  /// [openBook] POSTs /play, which starts a server listening session; calling
+  /// it just to render the detail screen left an orphaned session on the
+  /// server every time (and another one when Play was then pressed). Tracks
+  /// come from the item's audio files; [AbsBookDetail.currentTime] from the
+  /// user's saved progress. [AbsBookDetail.sessionId] is always null here.
+  Future<AbsBookDetail> fetchBookDetail(String itemId) async {
     _ensureConnected();
-    // Metadata
-    final detailRes = await _dio.get(
+    final res = await _dio.get(
       '${host.value}/api/items/$itemId',
+      queryParameters: {'expanded': '1', 'include': 'progress'},
       options: _authOptions,
     );
-    final d = detailRes.data as Map;
-    final media = d['media'] is Map ? d['media'] as Map : {};
+    final d = res.data as Map;
+    final progress = d['userMediaProgress'];
+    return _detailFromItem(
+      itemId,
+      d,
+      tracks: _tracksFromAudioFiles(itemId, _mediaOf(d)),
+      currentTime: progress is Map
+          ? (progress['currentTime'] as num?)?.toDouble() ?? 0
+          : 0,
+    );
+  }
+
+  static Map _mediaOf(Map item) =>
+      item['media'] is Map ? item['media'] as Map : {};
+
+  static AbsBookDetail _detailFromItem(
+    String itemId,
+    Map d, {
+    required List<AbsAudioTrack> tracks,
+    double currentTime = 0,
+    String? sessionId,
+  }) {
+    final media = _mediaOf(d);
     final meta = media['metadata'] is Map ? media['metadata'] as Map : {};
     final title = (meta['title'] ?? 'Audiobook').toString();
     String author = meta['authorName']?.toString() ?? '';
@@ -617,7 +659,53 @@ class AudiobookshelfService extends GetxService {
     final narrators = meta['narrators'] is List
         ? (meta['narrators'] as List).join(', ')
         : meta['narrator']?.toString();
-    final description = meta['description']?.toString();
+    return AbsBookDetail(
+      id: itemId,
+      title: title,
+      author: author,
+      description: meta['description']?.toString(),
+      narrator: narrators,
+      tracks: tracks,
+      currentTime: currentTime,
+      sessionId: sessionId,
+    );
+  }
+
+  /// Tracks built from the item's `audioFiles` (file endpoint URLs).
+  static List<AbsAudioTrack> _tracksFromAudioFiles(String itemId, Map media) {
+    final tracks = <AbsAudioTrack>[];
+    if (media['audioFiles'] is! List) return tracks;
+    final files = media['audioFiles'] as List;
+    for (var i = 0; i < files.length; i++) {
+      final f = files[i];
+      if (f is! Map) continue;
+      final ino = f['ino']?.toString();
+      if (ino == null) continue;
+      tracks.add(AbsAudioTrack(
+        index: (f['index'] as num?)?.toInt() ?? i,
+        title: (f['metaTags']?['tagTitle'] ??
+                f['metadata']?['filename'] ??
+                'Track ${i + 1}')
+            .toString(),
+        contentUrl: '/api/items/$itemId/file/$ino',
+        duration: (f['duration'] as num?)?.toDouble() ?? 0,
+        mimeType: f['mimeType']?.toString(),
+        ino: ino,
+      ));
+    }
+    return tracks;
+  }
+
+  /// Start playback session and return book detail with streamable tracks.
+  /// Only call this to actually play: every call opens a server session.
+  Future<AbsBookDetail> openBook(String itemId) async {
+    _ensureConnected();
+    // Metadata
+    final detailRes = await _dio.get(
+      '${host.value}/api/items/$itemId',
+      options: _authOptions,
+    );
+    final d = detailRes.data as Map;
 
     // Play session → content URLs (same as Lissen)
     final playRes = await _dio.post(
@@ -646,7 +734,7 @@ class AudiobookshelfService extends GetxService {
     final session = playRes.data as Map;
     final sessionId = session['id']?.toString();
     final currentTime = (session['currentTime'] as num?)?.toDouble() ?? 0;
-    final tracks = <AbsAudioTrack>[];
+    var tracks = <AbsAudioTrack>[];
     final audioTracks = session['audioTracks'] as List? ?? const [];
     for (var i = 0; i < audioTracks.length; i++) {
       final t = audioTracks[i];
@@ -667,33 +755,11 @@ class AudiobookshelfService extends GetxService {
     }
 
     // Fallback: build file URLs from item audioFiles if session had none
-    if (tracks.isEmpty && media['audioFiles'] is List) {
-      final files = media['audioFiles'] as List;
-      for (var i = 0; i < files.length; i++) {
-        final f = files[i];
-        if (f is! Map) continue;
-        final ino = f['ino']?.toString();
-        if (ino == null) continue;
-        tracks.add(AbsAudioTrack(
-          index: (f['index'] as num?)?.toInt() ?? i,
-          title: (f['metaTags']?['tagTitle'] ??
-                  f['metadata']?['filename'] ??
-                  'Track ${i + 1}')
-              .toString(),
-          contentUrl: '/api/items/$itemId/file/$ino',
-          duration: (f['duration'] as num?)?.toDouble() ?? 0,
-          mimeType: f['mimeType']?.toString(),
-          ino: ino,
-        ));
-      }
-    }
+    if (tracks.isEmpty) tracks = _tracksFromAudioFiles(itemId, _mediaOf(d));
 
-    return AbsBookDetail(
-      id: itemId,
-      title: title,
-      author: author,
-      description: description,
-      narrator: narrators,
+    return _detailFromItem(
+      itemId,
+      d,
       tracks: tracks,
       currentTime: currentTime,
       sessionId: sessionId,

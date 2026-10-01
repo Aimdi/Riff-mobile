@@ -90,8 +90,17 @@
         </receiver>
 
     </application>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- Android 11+ package visibility: detect WizeStream for YouTube podcasts. -->
+    <queries>
+        <package android:name="org.wisso.newpipematerial" />
+        <package android:name="org.wisso.newpipematerial.nightly" />
+        <package android:name="org.wisso.newpipematerial.debug" />
+    </queries>
+    <!-- Storage permissions are only requested below API 30 (see
+         permission_service.dart); API 30+ uses MANAGE_EXTERNAL_STORAGE. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>

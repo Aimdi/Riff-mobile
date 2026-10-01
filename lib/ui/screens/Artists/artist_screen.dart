@@ -26,43 +26,49 @@ class ArtistScreen extends StatelessWidget {
             ? Get.find<ArtistScreenController>(tag: tag)
             : Get.put(ArtistScreenController(), tag: tag);
     return Scaffold(
-      floatingActionButton: Obx(
-        () => Padding(
-          padding: EdgeInsets.only(
-              bottom: playerController.playerPanelMinHeight.value),
-          child: SizedBox(
-            height: 60,
-            width: 60,
-            child: FittedBox(
-              child: FloatingActionButton(
-                  focusElevation: 0,
-                  shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(14))),
-                  elevation: 0,
-                  onPressed: () async {
-                    final radioId = artistScreenController.artist_.radioId;
-                    if (radioId == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                          context, "radioNotAvailable".tr,
-                          size: SanckBarSize.BIG));
-                      return;
-                    }
-                    final ok = await playerController.startRadio(null,
-                        playlistid: radioId);
-                    if (!context.mounted || ok) return;
-                    ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                        context, "radioNotAvailable".tr,
-                        size: SanckBarSize.BIG));
-                  },
-                  child: const Icon(Icons.sensors)),
+      // Radio lives in the artist page's own menu on mobile; the floating
+      // button only duplicated it and covered the content.
+      floatingActionButton: !GetPlatform.isDesktop
+          ? null
+          : Obx(
+              () => Padding(
+                padding: EdgeInsets.only(
+                    bottom: playerController.playerPanelMinHeight.value),
+                child: SizedBox(
+                  height: 60,
+                  width: 60,
+                  child: FittedBox(
+                    child: FloatingActionButton(
+                        focusElevation: 0,
+                        shape: const RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.all(Radius.circular(14))),
+                        elevation: 0,
+                        onPressed: () async {
+                          final radioId =
+                              artistScreenController.artist_.radioId;
+                          if (radioId == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                                context, "radioNotAvailable".tr,
+                                size: SanckBarSize.BIG));
+                            return;
+                          }
+                          final ok = await playerController.startRadio(null,
+                              playlistid: radioId);
+                          if (!context.mounted || ok) return;
+                          ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                              context, "radioNotAvailable".tr,
+                              size: SanckBarSize.BIG));
+                        },
+                        child: const Icon(Icons.sensors)),
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
-      ),
       body: GetPlatform.isDesktop
           ? ArtistScreenBN(
               artistScreenController: artistScreenController, tag: tag)
-          : SpotifyArtistView(controller: artistScreenController),
+          : SpotifyArtistView(controller: artistScreenController, tag: tag),
     );
   }
 
@@ -220,15 +226,14 @@ class AboutArtist extends StatelessWidget {
                         return const SizedBox.shrink();
                       }
                       final rawId = artistScreenController.artist_.browseId;
-                      final id = rawId.startsWith('MPLA')
-                          ? rawId.substring(4)
-                          : rawId;
+                      final id =
+                          rawId.startsWith('MPLA') ? rawId.substring(4) : rawId;
                       if (!Get.isRegistered<LibraryPodcastsController>()) {
                         return const SizedBox.shrink();
                       }
                       final lib = Get.find<LibraryPodcastsController>();
-                      final subscribed = lib.libraryPodcasts
-                          .any((p) => p.playlistId == id);
+                      final subscribed =
+                          lib.libraryPodcasts.any((p) => p.playlistId == id);
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: PodcastFollowButton(
@@ -237,8 +242,8 @@ class AboutArtist extends StatelessWidget {
                             if (subscribed) {
                               await lib.removeFromLibrary(id);
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    snackbar(
+                                ScaffoldMessenger.of(context)
+                                    .showSnackBar(snackbar(
                                   context,
                                   'removeFromLib'.tr,
                                   size: SanckBarSize.MEDIUM,
@@ -249,11 +254,11 @@ class AboutArtist extends StatelessWidget {
                             final pl = Playlist(
                               title: artistScreenController.artist_.name,
                               playlistId: id,
-                              thumbnailUrl: artistScreenController
-                                  .artist_.thumbnailUrl,
-                              description: artistScreenController
-                                      .artist_.subscribers ??
-                                  'YouTube channel',
+                              thumbnailUrl:
+                                  artistScreenController.artist_.thumbnailUrl,
+                              description:
+                                  artistScreenController.artist_.subscribers ??
+                                      'YouTube channel',
                               kind: 'yt_channel',
                             );
                             final saved = await lib.subscribeYoutubeChannel(
@@ -261,8 +266,8 @@ class AboutArtist extends StatelessWidget {
                               seed: pl,
                             );
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  snackbar(
+                              ScaffoldMessenger.of(context)
+                                  .showSnackBar(snackbar(
                                 context,
                                 saved != null
                                     ? 'subscribedAsPodcast'.tr

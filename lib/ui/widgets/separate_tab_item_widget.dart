@@ -12,6 +12,7 @@ import 'list_widget.dart';
 import 'loader.dart';
 import 'snackbar.dart';
 import 'sort_widget.dart';
+import '../screens/Home/home_layout.dart';
 
 /// Songs / Videos / Episodes tabs expose Play all (overview and full list).
 bool shouldShowTabPlayAllHeader(String title) =>
@@ -95,41 +96,48 @@ class SeparateTabItemWidget extends StatelessWidget {
       child: Column(
         children: [
           if (!hideTitle)
-            SizedBox(
-              height: 30,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      title.toLowerCase().removeAllWhitespace.tr,
-                      style: Theme.of(context).textTheme.titleLarge,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+            Padding(
+              // Title lines up with the Home gutter; rows keep their inset.
+              padding: const EdgeInsets.only(left: HomeLayout.gutter - 5),
+              child: SizedBox(
+                height: 40,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title.toLowerCase().removeAllWhitespace.tr,
+                        style: homeSectionTitleStyle(context),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  if (shouldShowTabPlayAllHeader(title))
-                    TextButton(
-                      onPressed: () => _playTabItems(shuffle: false),
-                      child: Text("playAll".tr,
-                          style: Theme.of(context).textTheme.titleSmall),
-                    ),
-                  if (isCompleteList && shouldShowTabPlayAllHeader(title))
-                    TextButton(
-                      onPressed: () => _playTabItems(shuffle: true),
-                      child: Text("shuffle".tr,
-                          style: Theme.of(context).textTheme.titleSmall),
-                    ),
-                  if (!isCompleteList)
-                    TextButton(
-                        onPressed: () {
-                          searchResController!.viewAllCallback(title);
-                        },
+                    if (!isCompleteList)
+                      TextButton(
+                        onPressed: () =>
+                            searchResController!.viewAllCallback(title),
+                        style: TextButton.styleFrom(
+                          foregroundColor: homeMutedColor(context),
+                          minimumSize: const Size(0, 30),
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                        ),
                         child: Text("viewAll".tr,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall)),
-                ],
+                            style: const TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600)),
+                      ),
+                    if (isCompleteList && shouldShowTabPlayAllHeader(title))
+                      IconButton(
+                        tooltip: 'shuffle'.tr,
+                        icon: const Icon(Icons.shuffle_rounded, size: 22),
+                        onPressed: () => _playTabItems(shuffle: true),
+                      ),
+                    if (shouldShowTabPlayAllHeader(title))
+                      Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: HomeSectionPlayButton(
+                            onPressed: () => _playTabItems(shuffle: false)),
+                      ),
+                  ],
+                ),
               ),
             ),
           isCompleteList
@@ -139,7 +147,6 @@ class SeparateTabItemWidget extends StatelessWidget {
                     isAdditionalOperationRequired: artistController != null &&
                         (title == "Songs" || title == "Videos"),
                     isSearchFeatureRequired: artistController != null,
-                    titleLeftPadding: 9,
                     itemCountTitle:
                         "${isResultWidget ? (searchResController?.separatedResultContent[title] ?? []).length : (artistController?.sepataredContent[title] != null ? artistController?.sepataredContent[title]['results'] : []).length} ${"items".tr}",
                     requiredSortTypes: buildSortTypeSet(

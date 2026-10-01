@@ -21,12 +21,17 @@ extension MediaItemVideoX on MediaItem {
   /// Whether the in-player 16:9 surface may load for this item.
   ///
   /// Includes normal music videos plus YouTube-sourced podcast episodes
-  /// (channel subscriptions / YTM podcast shows). Never RSS (`podcast_` ids).
+  /// (channel subscriptions / YTM podcast shows / YouTube Podcasts). Never
+  /// RSS (`podcast_` ids).
   bool get canShowPlayerVideo {
     if (id.startsWith('podcast_')) return false;
     if (extras?['showVideo'] == true) return true;
     final source = '${extras?['podcastSource'] ?? ''}';
-    if (source == 'yt_channel' || source == 'yt_music_podcast') return true;
+    if (source == 'yt_channel' ||
+        source == 'yt_music_podcast' ||
+        source == 'yt_podcast') {
+      return true;
+    }
     if (extras?['isPodcast'] == true) {
       final vt = '${extras?['videoType'] ?? ''}';
       // Official YTM podcast episodes are real YouTube videos.

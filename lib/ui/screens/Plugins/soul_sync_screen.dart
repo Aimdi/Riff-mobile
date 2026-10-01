@@ -311,6 +311,9 @@ class _SoulSyncConnectedViewState extends State<_SoulSyncConnectedView> {
                                               BorderRadius.circular(6),
                                           child: CachedNetworkImage(
                                             imageUrl: t.imageUrl!,
+                                            // Decode at display size, not full resolution.
+                                            memCacheWidth:
+                                                (48 * MediaQuery.devicePixelRatioOf(context)).round(),
                                             width: 48,
                                             height: 48,
                                             fit: BoxFit.cover,

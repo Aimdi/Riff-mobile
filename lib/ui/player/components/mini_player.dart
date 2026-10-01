@@ -50,9 +50,13 @@ class MiniPlayer extends StatelessWidget {
         ),
         child: Column(
           children: [
-            !isWideScreen
-                ? const _MiniPlayerThinProgress()
-                : const _MiniPlayerWideProgress(),
+            // Own layer so 10 Hz progress ticks don't repaint the whole
+            // mini player (art, title, transport).
+            RepaintBoundary(
+              child: !isWideScreen
+                  ? const _MiniPlayerThinProgress()
+                  : const _MiniPlayerWideProgress(),
+            ),
             Padding(
               padding:
                   const EdgeInsets.symmetric(horizontal: 17.0, vertical: 7),

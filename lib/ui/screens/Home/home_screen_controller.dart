@@ -74,6 +74,20 @@ class HomeScreenController extends GetxController {
     final homeScreenData = Hive.isBoxOpen("homeScreenData")
         ? Hive.box("homeScreenData")
         : await Hive.openBox("homeScreenData");
+    try {
+      return _applyCachedHome(homeScreenData);
+    } catch (e) {
+      // A bad cached payload (older format, partial write) must not leave
+      // the Home shimmer up forever: drop it and let the caller refetch.
+      printERROR("Cached home data unreadable, refetching: $e");
+      try {
+        await homeScreenData.clear();
+      } catch (_) {}
+      return false;
+    }
+  }
+
+  bool _applyCachedHome(Box homeScreenData) {
     if (homeScreenData.keys.isNotEmpty) {
       final String quickPicksType = homeScreenData.get("quickPicksType");
       final List quickPicksData = homeScreenData.get("quickPicks");
@@ -119,6 +133,10 @@ class HomeScreenController extends GetxController {
 
     networkError.value = false;
     if (!silent) showingCachedWhileOffline.value = false;
+    // Tracks whether *this* fetch produced Quick Picks. Checking
+    // quickPicks.songList.isEmpty instead never refreshed them on a silent
+    // refresh (already filled from cache) and re-saved the stale list.
+    var quickPicksSet = false;
     try {
       List middleContentTemp = [];
       final homeContentListMap = await _musicServices.getHome(
@@ -131,6 +149,7 @@ class HomeScreenController extends GetxController {
           _setQuickPicks(
               List<MediaItem>.from(homeContentListMap[index]["contents"]),
               title: "Trending");
+          quickPicksSet = true;
         } else if (index == -1) {
           List charts = await _musicServices.getCharts(contentType);
           final index = charts.indexWhere((element) =>
@@ -139,6 +158,7 @@ class HomeScreenController extends GetxController {
           if (index != -1) {
             _setQuickPicks(List<MediaItem>.from(charts[index]["contents"]),
                 title: charts[index]['title']);
+            quickPicksSet = true;
             middleContentTemp.addAll(charts);
           }
         }
@@ -149,6 +169,7 @@ class HomeScreenController extends GetxController {
           final con = homeContentListMap.removeAt(index);
           _setQuickPicks(List<MediaItem>.from(con["contents"]),
               title: con["title"]);
+          quickPicksSet = true;
         } else if (index == -1) {
           List charts = await _musicServices.getCharts(contentType);
           final index = charts.indexWhere((element) =>
@@ -157,6 +178,7 @@ class HomeScreenController extends GetxController {
           if (index != -1) {
             _setQuickPicks(List<MediaItem>.from(charts[index]["contents"]),
                 title: charts[index]["title"]);
+            quickPicksSet = true;
             middleContentTemp.addAll(charts);
           }
         }
@@ -169,6 +191,7 @@ class HomeScreenController extends GetxController {
             final con = rel.removeAt(0);
             quickPicks.value =
                 QuickPicks(List<MediaItem>.from(con["contents"]));
+            quickPicksSet = true;
             middleContentTemp.addAll(rel);
           }
         } catch (e) {
@@ -177,7 +200,7 @@ class HomeScreenController extends GetxController {
         }
       }
 
-      if (quickPicks.value.songList.isEmpty) {
+      if (!quickPicksSet) {
         // YT Music renames/reorders home sections over time; fall back to
         // the first song section instead of crashing on a missing title.
         int index = homeContentListMap
@@ -191,6 +214,7 @@ class HomeScreenController extends GetxController {
           final con = homeContentListMap.removeAt(index);
           _setQuickPicks(List<MediaItem>.from(con["contents"]),
               title: con["title"] ?? "Quick picks");
+          quickPicksSet = true;
         }
       }
 
@@ -388,8 +412,8 @@ class HomeScreenController extends GetxController {
   }
 
   @override
-  void dispose() {
+  void onClose() {
     disposeContentScrollControllers();
-    super.dispose();
+    super.onClose();
   }
 }

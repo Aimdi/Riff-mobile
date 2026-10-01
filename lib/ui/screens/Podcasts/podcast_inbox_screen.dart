@@ -1,16 +1,19 @@
 import 'package:audio_service/audio_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/music_service.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
+import '/ui/widgets/podcast_play.dart';
 import '/ui/widgets/snackbar.dart';
+import '../Home/home_layout.dart';
 import 'podcast_empty_state.dart';
+import 'podcast_layout.dart';
 import 'podcast_queue_screen.dart';
 import 'podcasts_library_controller.dart';
 
@@ -46,7 +49,14 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    // A fresh cached inbox renders on the first frame, without the shimmer.
+    final cached = _freshCache();
+    if (cached != null) {
+      _episodes = _unplayed(cached);
+      _loading = false;
+    } else {
+      _load();
+    }
   }
 
   @override
@@ -54,22 +64,48 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.refreshNonce != widget.refreshNonce) {
       setState(() => _loading = true);
-      _load();
+      _load(force: true);
     }
   }
 
-  Future<void> _load() async {
+  /// Feeds fetched at once; the rest queue behind them.
+  static const _fetchConcurrency = 6;
+
+  static String _subsKey(
+          List<Playlist> ytSubs, List<Map<String, dynamic>> rssSubs) =>
+      ([
+        for (final p in ytSubs) 'yt:${p.playlistId}',
+        for (final s in rssSubs) 'rss:${s['feedUrl']}',
+      ]..sort())
+          .join('|');
+
+  /// The merged inbox kept by the library controller, when it is recent and
+  /// built from the current subscriptions. Reused across tab switches (the
+  /// widget is recreated each time) instead of refetching every feed.
+  List<MediaItem>? _freshCache() {
+    final lib = Get.find<LibraryPodcastsController>();
+    return lib.freshInbox(
+        _subsKey(lib.libraryPodcasts.toList(), PodcastService.subscriptions));
+  }
+
+  Future<void> _load({bool force = false}) async {
     // Two subscription sources: YouTube-Music library shows and iTunes/RSS
     // subscriptions (from Discover / categories). Merge both into the inbox.
-    final ytSubs =
-        Get.find<LibraryPodcastsController>().libraryPodcasts.toList();
+    final lib = Get.find<LibraryPodcastsController>();
+    final ytSubs = lib.libraryPodcasts.toList();
     final rssSubs = PodcastService.subscriptions;
     if (ytSubs.isEmpty && rssSubs.isEmpty) {
       if (mounted) setState(() => _loading = false);
       return;
     }
+    final subsKey = _subsKey(ytSubs, rssSubs);
+    final cached = force ? null : lib.freshInbox(subsKey);
+    if (cached != null) {
+      _show(cached);
+      return;
+    }
     final ms = Get.find<MusicServices>();
-    final ytFutures = ytSubs.take(25).map((p) async {
+    Future<List<MediaItem>> fetchYt(Playlist p) async {
       try {
         if (p.kind == 'yt_channel' ||
             RegExp(r'^UC[\w-]{20,}$').hasMatch(p.playlistId)) {
@@ -82,14 +118,16 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
       } catch (_) {
         return <MediaItem>[];
       }
-    });
-    final rssFutures = rssSubs.take(25).map((s) async {
+    }
+
+    Future<List<MediaItem>> fetchRss(Map<String, dynamic> s) async {
       try {
         final feedUrl = '${s['feedUrl']}';
         final eps = await PodcastService.episodes(
           feedUrl,
           '${s['title'] ?? ''}',
           '${s['artwork'] ?? ''}',
+          maxItems: 12,
         );
         return eps
             .take(12)
@@ -98,15 +136,26 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
       } catch (_) {
         return <MediaItem>[];
       }
-    });
-    final lists = await Future.wait([...ytFutures, ...rssFutures]);
-    final merged =
-        _mergeNewestFirst(lists.where((l) => l.isNotEmpty).toList());
-    // AntennaPod-style: hide finished episodes from Latest (still in Continue
-    // until cleared; mark-unplayed brings them back).
-    final inbox = merged
-        .where((e) => !PodcastProgressService.isPlayed(e.id))
-        .toList();
+    }
+
+    final tasks = <Future<List<MediaItem>> Function()>[
+      for (final p in ytSubs) () => fetchYt(p),
+      for (final s in rssSubs) () => fetchRss(s),
+    ];
+    final lists =
+        await mapWithConcurrency(tasks, _fetchConcurrency, (t) => t());
+    final merged = _mergeNewestFirst(lists.where((l) => l.isNotEmpty).toList());
+    lib.storeInbox(merged, subsKey);
+    _show(merged);
+  }
+
+  // AntennaPod-style: hide finished episodes from Latest (still in Continue
+  // until cleared; mark-unplayed brings them back).
+  List<MediaItem> _unplayed(List<MediaItem> merged) =>
+      merged.where((e) => !PodcastProgressService.isPlayed(e.id)).toList();
+
+  void _show(List<MediaItem> merged) {
+    final inbox = _unplayed(merged);
     if (mounted) {
       setState(() {
         _episodes = inbox;
@@ -160,6 +209,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
   }
 
   Future<void> _play(int index) async {
+    if (await openInWizeStreamIfPreferred(_episodes[index])) return;
     final ok =
         await Get.find<PlayerController>().playPlayListSong(_episodes, index);
     if (!ok) snackOperationFailed();
@@ -168,6 +218,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
   /// Resume an in-progress episode and queue the rest of that show (or the
   /// inbox from that point) so continuous playback doesn't stop after one.
   Future<void> _playContinue(MediaItem item) async {
+    if (await openInWizeStreamIfPreferred(item)) return;
     final pc = Get.find<PlayerController>();
     final show = (item.artist ?? '').trim();
 
@@ -194,19 +245,17 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     if (!ok) snackOperationFailed();
   }
 
+  /// "25m left" while partly played, else the episode length ("45m").
   String _remainingLabel(MediaItem e) {
     final left = PodcastProgressService.remainingSec(
       e.id,
       fallbackDurationSec: e.duration?.inSeconds,
     );
-    if (left == null || left <= 0) {
-      return PodcastService.formatDuration(e.duration?.inSeconds ?? 0);
-    }
     final tot = e.duration?.inSeconds ?? 0;
-    if (tot > 0 && left >= tot) {
-      return PodcastService.formatDuration(tot);
+    if (left == null || left <= 0 || (tot > 0 && left >= tot)) {
+      return compactEpisodeLength(tot);
     }
-    final fmt = PodcastService.formatDuration(left);
+    final fmt = compactEpisodeLength(left);
     return fmt.isEmpty ? '' : '$fmt ${'left'.tr}';
   }
 
@@ -230,7 +279,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     return RefreshIndicator(
       onRefresh: () async {
         setState(() => _loading = true);
-        await _load();
+        await _load(force: true);
       },
       // Lazy slivers — avoid building hundreds of episode rows + images
       // up-front on every setState/refresh.
@@ -240,36 +289,37 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
         slivers: [
           if (continueItems.isNotEmpty) ...[
             SliverToBoxAdapter(
-              child: _sectionHeader(context, "continueListening".tr),
+              child: HomeSectionHeader("continueListening".tr, top: 12),
+            ),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: PodcastContinueCard.heightFor(context),
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: HomeLayout.gutter),
+                  itemCount: continueItems.length,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(width: HomeLayout.cardGap),
+                  itemBuilder: (context, i) => KeyedSubtree(
+                    key: ValueKey('cont_${continueItems[i]['id']}'),
+                    child: _continueCard(context, continueItems[i]),
+                  ),
+                ),
+              ),
+            ),
+          ],
+          if (_episodes.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: HomeSectionHeader("latestEpisodes".tr,
+                  top: continueItems.isEmpty ? 12 : HomeLayout.sectionTop),
             ),
             SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, i) => KeyedSubtree(
-                  key: ValueKey('cont_${continueItems[i]['id']}'),
-                  child: _continueRow(context, continueItems[i]),
+                  key: ValueKey(_episodes[i].id),
+                  child: _row(context, i),
                 ),
-                childCount: continueItems.length,
-              ),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 8)),
-          ],
-          if (_episodes.isNotEmpty) ...[
-            SliverToBoxAdapter(
-              child: _sectionHeader(context, "latestEpisodes".tr),
-            ),
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, i) {
-                  return Column(
-                    key: ValueKey(_episodes[i].id),
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _row(context, i),
-                      if (i != _episodes.length - 1)
-                        const Divider(height: 1, indent: 16, endIndent: 12),
-                    ],
-                  );
-                },
                 childCount: _episodes.length,
                 addAutomaticKeepAlives: false,
                 addRepaintBoundaries: true,
@@ -298,194 +348,31 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     );
   }
 
-  Widget _sectionHeader(BuildContext context, String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-      child: Text(title,
-          style: Theme.of(context)
-              .textTheme
-              .titleLarge
-              ?.copyWith(fontWeight: FontWeight.w700)),
-    );
-  }
-
-  /// "Continue" row (mockup style): rounded art with a green play button, title,
-  /// show name and a green progress bar. Tapping resumes from the saved spot.
-  Widget _continueRow(BuildContext context, Map<String, dynamic> r) {
-    final theme = Theme.of(context);
+  /// Continue-listening card: resumes from the saved spot and queues the
+  /// rest of that show.
+  Widget _continueCard(BuildContext context, Map<String, dynamic> r) {
     final item = PodcastProgressService.toMediaItem(r);
-    final art = Thumbnail(item.artUri?.toString() ?? '').medium;
-    final prog = PodcastProgressService.progress(item.id) ?? 0.0;
-    return InkWell(
+    return PodcastContinueCard(
+      artUrl: Thumbnail(item.artUri?.toString() ?? '').medium,
+      title: item.title,
+      show: item.artist ?? '',
+      progress: PodcastProgressService.progress(item.id) ?? 0.0,
+      timeLeft: _remainingLabel(item),
       onTap: () => _playContinue(item),
       onLongPress: () => showAddToQueueSheet(context, item),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: CachedNetworkImage(
-                        imageUrl: art,
-                        width: 64,
-                        height: 64,
-                        memCacheWidth:
-                            (64 * MediaQuery.devicePixelRatioOf(context))
-                                .round(),
-                        fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) =>
-                            const Icon(Icons.podcasts, size: 44),
-                      ),
-                    ),
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.secondary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(Icons.play_arrow,
-                          size: 22, color: theme.colorScheme.onSecondary),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(item.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w700)),
-                      if ((item.artist ?? '').trim().isNotEmpty)
-                        Text(item.artist!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall),
-                      if (_remainingLabel(item).isNotEmpty)
-                        Text(_remainingLabel(item),
-                            style: theme.textTheme.bodySmall),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: prog,
-                minHeight: 4,
-                backgroundColor:
-                    theme.colorScheme.onSurface.withOpacity(0.15),
-                valueColor:
-                    AlwaysStoppedAnimation(theme.colorScheme.secondary),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
   Widget _row(BuildContext context, int i) {
     final e = _episodes[i];
-    final date = (e.extras?['date'] ?? '').toString().trim();
-    final show = e.artist ?? '';
-    final meta = [date, show].where((s) => s.isNotEmpty).join('  ·  ');
-    final timeLabel = _remainingLabel(e);
-    final prog = PodcastProgressService.progress(e.id);
-    final art = Thumbnail(e.artUri?.toString() ?? '').medium;
-    return InkWell(
+    return PodcastEpisodeTile(
+      artUrl: Thumbnail(e.artUri?.toString() ?? '').medium,
+      title: e.title,
+      meta: episodeMetaLine(
+          [e.artist, '${e.extras?['date'] ?? ''}', _remainingLabel(e)]),
+      progress: PodcastProgressService.progress(e.id),
       onTap: () => _play(i),
       onLongPress: () => showAddToQueueSheet(context, e),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: CachedNetworkImage(
-                      imageUrl: art,
-                      width: 56,
-                      height: 56,
-                      memCacheWidth:
-                          (56 * MediaQuery.devicePixelRatioOf(context))
-                              .round(),
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) =>
-                          const Icon(Icons.podcasts, size: 40),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (meta.isNotEmpty)
-                          Text(
-                            meta,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        Text(
-                          e.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                        if (timeLabel.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              timeLabel,
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ),
-                        if (prog != null && prog > 0 && prog < 1) ...[
-                          const SizedBox(height: 8),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: prog,
-                              minHeight: 3,
-                              backgroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withOpacity(0.15),
-                              valueColor: AlwaysStoppedAnimation(
-                                  Theme.of(context).colorScheme.secondary),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(Icons.play_circle_outline, size: 30),
-          ],
-        ),
-      ),
     );
   }
 }

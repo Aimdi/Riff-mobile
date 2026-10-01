@@ -31,7 +31,10 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
       _error = null;
     });
     try {
-      final d = await Get.find<AudiobookshelfService>().openBook(widget.bookId);
+      // Metadata only: openBook() starts a server play session, which Play
+      // opens itself; calling it here orphaned one session per visit.
+      final d = await Get.find<AudiobookshelfService>()
+          .fetchBookDetail(widget.bookId);
       if (mounted) {
         setState(() {
           _detail = d;
@@ -109,6 +112,9 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
               borderRadius: BorderRadius.circular(10),
               child: CachedNetworkImage(
                 imageUrl: cover,
+                // Decode at display size, not full resolution.
+                memCacheHeight:
+                    (180 * MediaQuery.devicePixelRatioOf(context)).round(),
                 width: 120,
                 height: 180,
                 fit: BoxFit.cover,

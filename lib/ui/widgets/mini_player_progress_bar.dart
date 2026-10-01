@@ -46,8 +46,10 @@ class ProgressBarPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant ProgressBarPainter oldDelegate) {
-    return oldDelegate.current != current ||
-        oldDelegate.total != total ||
+    // paint() only uses whole seconds, so sub-second ticks (10 Hz) are
+    // visually identical — don't repaint for them.
+    return oldDelegate.current.inSeconds != current.inSeconds ||
+        oldDelegate.total.inSeconds != total.inSeconds ||
         oldDelegate.progressBarColor != progressBarColor;
   }
 }

@@ -15,7 +15,31 @@ class ContentListItem extends StatelessWidget {
       {super.key,
       required this.content,
       this.isLibraryItem = false,
-      this.showSimilarOnOpen = false});
+      this.showSimilarOnOpen = false,
+      this.size = defaultSize});
+
+  /// Cover width of a shelf card; grids pass a size that fills a column.
+  static const double defaultSize = 112;
+  final double size;
+
+  /// Height of a card of [size]: cover, gap, one-line title and subtitle,
+  /// grown with the system text size.
+  static double heightFor(BuildContext context, double size) {
+    final scaler = MediaQuery.textScalerOf(context);
+    return size + 8 + scaler.scale(14) * 1.15 + 2 + scaler.scale(12) * 1.3 + 2;
+  }
+
+  /// Built-in library playlists store their title as a translation key
+  /// (the list is built before translations load), so show the real name.
+  static const _builtInPlaylists = {'LIBRP', 'LIBFAV', 'SongsCache', 'SongDownloads'};
+
+  String get _title {
+    final title = content.title?.toString() ?? '';
+    if (!_isAlbum && _builtInPlaylists.contains(content.playlistId)) {
+      return title.tr;
+    }
+    return title;
+  }
 
   ///content will be of Type class Album or Playlist
   final dynamic content;
@@ -85,7 +109,7 @@ class ContentListItem extends StatelessWidget {
         if (tracks.isNotEmpty) {
           final ok = await playCollectionTracksAsPodcast(
             tracks: tracks,
-            title: content.title?.toString() ?? '',
+            title: _title,
             shuffle: shuffle,
           );
           if (ok) return;
@@ -94,7 +118,7 @@ class ContentListItem extends StatelessWidget {
       final ok = await playCollection(
         isAlbum: _isAlbum,
         id: _collectionId,
-        title: content.title?.toString() ?? '',
+        title: _title,
         shuffle: shuffle,
         isLibraryItem: isLibraryItem,
         isPipedPlaylist: !_isAlbum && content.isPipedPlaylist == true,
@@ -194,7 +218,7 @@ class ContentListItem extends StatelessWidget {
     final Widget child;
     if (_isAlbum) {
       child = ImageWidget(
-        size: 112,
+        size: size,
         album: content,
         borderRadius: RiffTokens.radiusSm,
       );
@@ -204,14 +228,14 @@ class ContentListItem extends StatelessWidget {
             content.playlistId == 'SongsCache' ||
             content.playlistId == 'SongDownloads')) {
       child = ImageWidget(
-        size: 112,
+        size: size,
         playlist: content,
         borderRadius: RiffTokens.radiusSm,
       );
     } else {
       child = Container(
-          height: 112,
-          width: 112,
+          height: size,
+          width: size,
           decoration: BoxDecoration(
               color: Theme.of(context).primaryColorLight,
               borderRadius: BorderRadius.circular(RiffTokens.radiusSm)),
@@ -225,12 +249,12 @@ class ContentListItem extends StatelessWidget {
                         ? Icons.flight
                         : Icons.download,
             color: Colors.white,
-            size: 36,
+            size: size * 0.32,
           )));
     }
     return SizedBox(
-      width: 112,
-      height: 112,
+      width: size,
+      height: size,
       child: Stack(
         children: [
           child,
@@ -276,15 +300,15 @@ class ContentListItem extends StatelessWidget {
       onTap: shouldPlayCollectionOnTap() ? _playFromOverlay : _openContent,
       onLongPress: () => _showPlaySheet(context),
       child: SizedBox(
-        width: 112,
-        height: 156,
+        width: size,
+        height: heightFor(context, size),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _art(context),
             const SizedBox(height: 8),
             Text(
-              content.title,
+              _title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -302,6 +326,7 @@ class ContentListItem extends StatelessWidget {
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w400,
                     fontSize: 12,
+                    height: 1.3,
                     color: muted,
                   ),
             ),

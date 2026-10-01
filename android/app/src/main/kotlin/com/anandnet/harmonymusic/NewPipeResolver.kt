@@ -5,6 +5,7 @@ import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.downloader.Downloader
 import org.schabi.newpipe.extractor.downloader.Request
 import org.schabi.newpipe.extractor.downloader.Response
+import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.VideoStream
 import java.net.HttpURLConnection
@@ -27,18 +28,62 @@ object NewPipeResolver {
     @Volatile
     private var initialized = false
 
-    /** Optional YouTube session cookie (SAPISID…) from in-app login. */
-    @Volatile
-    private var authCookie: String? = null
+    /**
+     * Optional YouTube session cookie (SAPISID…) from in-app login and the
+     * matching `Authorization: SAPISIDHASH …` header. Per thread: requests
+     * resolve in parallel and one must not pick up another's session.
+     * NewPipe downloads on the thread that calls [StreamInfo.getInfo].
+     */
+    private class Auth(val cookie: String?, val header: String?)
 
-    /** Optional Authorization: SAPISIDHASH … header. */
-    @Volatile
-    private var authHeader: String? = null
+    private val auth = ThreadLocal<Auth?>()
 
+    /** Sets the session used by resolutions on the calling thread. */
     @JvmStatic
     fun setAuth(cookie: String?, authorization: String?) {
-        authCookie = cookie?.takeIf { it.isNotBlank() }
-        authHeader = authorization?.takeIf { it.isNotBlank() }
+        auth.set(Auth(cookie?.takeIf { it.isNotBlank() },
+            authorization?.takeIf { it.isNotBlank() }))
+    }
+
+    // --- StreamInfo cache ----------------------------------------------
+    // getAudioStreams / getMuxedVideoStreams / getVideoStreams all need the
+    // same extraction; toggling video mode right after the audio resolve
+    // (or a prefetch followed by the real play) reuses it.
+
+    private const val CACHE_TTL_MS = 5 * 60 * 1000L
+    private const val CACHE_MAX = 20
+
+    private class Cached(val info: StreamInfo, val atMs: Long)
+
+    private val cache = object : LinkedHashMap<String, Cached>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Cached>?) =
+            size > CACHE_MAX
+    }
+
+    /** Drops cached extractions (e.g. after sign-out / cookies cleared). */
+    @JvmStatic
+    fun clearCache() {
+        synchronized(cache) { cache.clear() }
+    }
+
+    private fun streamInfo(videoId: String): StreamInfo {
+        ensureInit()
+        synchronized(cache) {
+            val hit = cache[videoId]
+            if (hit != null) {
+                if (System.currentTimeMillis() - hit.atMs < CACHE_TTL_MS) return hit.info
+                cache.remove(videoId)
+            }
+        }
+        val info = StreamInfo.getInfo(
+            ServiceList.YouTube, "https://www.youtube.com/watch?v=$videoId")
+        // Don't cache a failed / partial extraction.
+        if (info.audioStreams.isNotEmpty()) {
+            synchronized(cache) {
+                cache[videoId] = Cached(info, System.currentTimeMillis())
+            }
+        }
+        return info
     }
 
     private class SimpleDownloader : Downloader() {
@@ -48,33 +93,56 @@ object NewPipeResolver {
             conn.readTimeout = 20000
             conn.requestMethod = request.httpMethod()
             conn.instanceFollowRedirects = true
-            for ((name, values) in request.headers()) {
-                for (value in values) conn.addRequestProperty(name, value)
+            try {
+                val cookies = mutableListOf<String>()
+                for ((name, values) in request.headers()) {
+                    if (name.equals("Cookie", ignoreCase = true)) {
+                        cookies += values
+                        continue
+                    }
+                    for (value in values) conn.addRequestProperty(name, value)
+                }
+                if (conn.getRequestProperty("User-Agent") == null) {
+                    conn.setRequestProperty("User-Agent", USER_AGENT)
+                }
+                // Prefer the signed-in session when available — anonymous
+                // player responses increasingly return LOGIN_REQUIRED / bot
+                // checks. Appended to NewPipe's own cookies (e.g. consent),
+                // not dropped because of them.
+                val session = auth.get()
+                session?.cookie?.let { cookies += it }
+                val cookieHeader = cookies.filter { it.isNotBlank() }.joinToString("; ")
+                if (cookieHeader.isNotEmpty()) conn.setRequestProperty("Cookie", cookieHeader)
+                val authorization = session?.header
+                if (authorization != null && conn.getRequestProperty("Authorization") == null) {
+                    conn.setRequestProperty("Authorization", authorization)
+                    conn.setRequestProperty("X-Origin", "https://www.youtube.com")
+                }
+                request.dataToSend()?.let { data ->
+                    conn.doOutput = true
+                    conn.outputStream.use { it.write(data) }
+                }
+                val code = conn.responseCode
+                if (code == 429) {
+                    // Same as NewPipe's own downloader: YouTube rate-limits /
+                    // wants a captcha. Callers treat it as a bot check and
+                    // retry signed in.
+                    try { conn.errorStream?.close() } catch (_: Exception) {}
+                    conn.disconnect()
+                    throw ReCaptchaException("reCaptcha Challenge requested", request.url())
+                }
+                val stream = if (code in 200..299) conn.inputStream else conn.errorStream
+                val body = stream?.bufferedReader()?.use { it.readText() } ?: ""
+                if (stream == null) conn.disconnect()
+                val headers = conn.headerFields.filterKeys { it != null }
+                return Response(code, conn.responseMessage ?: "", headers, body,
+                    conn.url.toString())
+            } catch (e: Exception) {
+                // Fully read + closed bodies go back to the keep-alive pool;
+                // anything that failed half-way is dropped.
+                conn.disconnect()
+                throw e
             }
-            if (conn.getRequestProperty("User-Agent") == null) {
-                conn.setRequestProperty("User-Agent", USER_AGENT)
-            }
-            // Prefer the signed-in session when available — anonymous player
-            // responses increasingly return LOGIN_REQUIRED / bot checks.
-            val cookie = authCookie
-            if (cookie != null && conn.getRequestProperty("Cookie") == null) {
-                conn.setRequestProperty("Cookie", cookie)
-            }
-            val auth = authHeader
-            if (auth != null && conn.getRequestProperty("Authorization") == null) {
-                conn.setRequestProperty("Authorization", auth)
-                conn.setRequestProperty("X-Origin", "https://www.youtube.com")
-            }
-            request.dataToSend()?.let { data ->
-                conn.doOutput = true
-                conn.outputStream.use { it.write(data) }
-            }
-            val code = conn.responseCode
-            val stream = if (code in 200..299) conn.inputStream else conn.errorStream
-            val body = stream?.bufferedReader()?.use { it.readText() } ?: ""
-            val headers = conn.headerFields.filterKeys { it != null }
-            return Response(code, conn.responseMessage ?: "", headers, body,
-                conn.url.toString())
         }
     }
 
@@ -96,9 +164,7 @@ object NewPipeResolver {
      */
     @JvmStatic
     fun getAudioStreams(videoId: String): List<Map<String, Any?>> {
-        ensureInit()
-        val info = StreamInfo.getInfo(
-            ServiceList.YouTube, "https://www.youtube.com/watch?v=$videoId")
+        val info = streamInfo(videoId)
         if (info.audioStreams.isEmpty()) {
             // Surface why (non-fatal extraction errors are collected here).
             println("NewPipeResolver: no audio streams for $videoId; " +
@@ -127,9 +193,7 @@ object NewPipeResolver {
      */
     @JvmStatic
     fun getMuxedVideoStreams(videoId: String): List<Map<String, Any?>> {
-        ensureInit()
-        val info = StreamInfo.getInfo(
-            ServiceList.YouTube, "https://www.youtube.com/watch?v=$videoId")
+        val info = streamInfo(videoId)
         val durationMs = info.duration * 1000
         fun mapStream(s: VideoStream, hasAudio: Boolean): Map<String, Any?> =
             mapOf(
@@ -159,9 +223,7 @@ object NewPipeResolver {
      */
     @JvmStatic
     fun getVideoStreams(videoId: String): List<Map<String, Any?>> {
-        ensureInit()
-        val info = StreamInfo.getInfo(
-            ServiceList.YouTube, "https://www.youtube.com/watch?v=$videoId")
+        val info = streamInfo(videoId)
         if (info.videoOnlyStreams.isEmpty()) {
             println("NewPipeResolver: no video-only streams for $videoId; " +
                 "errors=${info.errors}")

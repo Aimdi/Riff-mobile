@@ -2,32 +2,43 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '/ui/screens/Search/search_play_top.dart';
 import '/ui/screens/Search/search_screen_controller.dart';
-import '/ui/utils/theme_controller.dart';
 
 import '../../../navigator.dart';
+import '../../Home/home_layout.dart';
 
+/// A recent search or a suggestion. Tap plays the top song (same as Enter),
+/// long-press opens the full results; the trailing button removes a recent
+/// search or copies a suggestion into the field.
 class SearchItem extends StatelessWidget {
   final String queryString;
   final bool isHistoryString;
+
+  /// What is in the field, so a suggestion can bold the part it adds.
+  final String typed;
   const SearchItem(
-      {super.key, required this.queryString, required this.isHistoryString});
+      {super.key,
+      required this.queryString,
+      required this.isHistoryString,
+      this.typed = ''});
+
+  void _openResults(SearchScreenController c, String q) {
+    Get.toNamed(ScreenNavigationSetup.searchResultScreen,
+        id: ScreenNavigationSetup.id, arguments: q);
+    c.addToHistryQueryList(q);
+    if (GetPlatform.isDesktop) c.focusNode.unfocus();
+  }
 
   @override
   Widget build(BuildContext context) {
     final searchScreenController = Get.find<SearchScreenController>();
-    final iconColor = Theme.of(context).brightness == Brightness.dark
-        ? RiffSurfaces.textMuted
-        : Theme.of(context).textTheme.titleMedium!.color;
-    return ListTile(
-      contentPadding: const EdgeInsets.only(left: 10, right: 4),
+    final muted = homeMutedColor(context);
+    return SearchRow(
+      icon: isHistoryString ? Icons.history_rounded : Icons.search_rounded,
+      label: queryString,
+      typed: typed,
       onTap: () {
         if (!shouldPlaySearchItemOnTap()) {
-          Get.toNamed(ScreenNavigationSetup.searchResultScreen,
-              id: ScreenNavigationSetup.id, arguments: queryString);
-          searchScreenController.addToHistryQueryList(queryString);
-          if (GetPlatform.isDesktop) {
-            searchScreenController.focusNode.unfocus();
-          }
+          _openResults(searchScreenController, queryString);
           return;
         }
         submitSearchQuery(
@@ -47,71 +58,88 @@ class SearchItem extends StatelessWidget {
           onPlayFailed: () => showSearchPlayFailed(context),
         );
       },
-      leading: Icon(
-        isHistoryString ? Icons.history : Icons.search,
-        size: 20,
-        color: iconColor,
+      onLongPress: () => _openResults(searchScreenController, queryString),
+      trailing: IconButton(
+        tooltip: isHistoryString ? 'clear'.tr : null,
+        iconSize: 20,
+        color: muted,
+        onPressed: () => isHistoryString
+            ? searchScreenController.removeQueryFromHistory(queryString)
+            : searchScreenController.suggestionInput(queryString),
+        icon: Icon(isHistoryString ? Icons.close_rounded : Icons.north_west),
       ),
-      minLeadingWidth: 20,
-      horizontalTitleGap: 10,
-      dense: true,
-      visualDensity: const VisualDensity(horizontal: 0, vertical: -2),
-      title: Text(queryString),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            tooltip: 'play'.tr,
-            iconSize: 18,
-            splashRadius: 14,
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-            padding: EdgeInsets.zero,
-            visualDensity: const VisualDensity(horizontal: -4, vertical: -2),
-            onPressed: () {
-              submitSearchQuery(
-                queryString,
-                onLink: (_) {
-                  Get.toNamed(ScreenNavigationSetup.searchResultScreen,
-                      id: ScreenNavigationSetup.id, arguments: queryString);
-                },
-                onRemember: searchScreenController.addToHistryQueryList,
-                onOpenResults: (q) {
-                  Get.toNamed(ScreenNavigationSetup.searchResultScreen,
-                      id: ScreenNavigationSetup.id, arguments: q);
-                },
-                onPlayFailed: () => showSearchPlayFailed(context),
-              );
-            },
-            icon: Icon(Icons.play_arrow, color: iconColor),
-          ),
-          isHistoryString
-              ? IconButton(
-                  iconSize: 16,
-                  splashRadius: 14,
-                  constraints:
-                      const BoxConstraints(minWidth: 28, minHeight: 28),
-                  padding: EdgeInsets.zero,
-                  visualDensity:
-                      const VisualDensity(horizontal: -4, vertical: -2),
-                  onPressed: () {
-                    searchScreenController.removeQueryFromHistory(queryString);
-                  },
-                  icon: Icon(Icons.clear, color: iconColor),
-                )
-              : IconButton(
-                  iconSize: 16,
-                  splashRadius: 14,
-                  constraints:
-                      const BoxConstraints(minWidth: 28, minHeight: 28),
-                  padding: EdgeInsets.zero,
-                  visualDensity:
-                      const VisualDensity(horizontal: -4, vertical: -2),
-                  onPressed: () {
-                    searchScreenController.suggestionInput(queryString);
-                  },
-                  icon: Icon(Icons.north_west, color: iconColor),
-                ),
-        ],
+    );
+  }
+}
+
+/// One search list row: a round icon tile, the text, and a trailing action.
+class SearchRow extends StatelessWidget {
+  const SearchRow({
+    super.key,
+    required this.icon,
+    required this.label,
+    this.typed = '',
+    this.onTap,
+    this.onLongPress,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final String label;
+  final String typed;
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = homeCardTitleStyle(context).copyWith(fontSize: 15, height: 1.3);
+    // A suggestion that extends what was typed: typed part muted, the
+    // completion bold — the eye goes straight to what is new.
+    final prefix = typed.trim();
+    final extendsTyped = prefix.isNotEmpty &&
+        label.length > prefix.length &&
+        label.toLowerCase().startsWith(prefix.toLowerCase());
+    final text = extendsTyped
+        ? Text.rich(
+            TextSpan(children: [
+              TextSpan(
+                  text: label.substring(0, prefix.length),
+                  style: base.copyWith(
+                      fontWeight: FontWeight.w400,
+                      color: homeMutedColor(context))),
+              TextSpan(text: label.substring(prefix.length)),
+            ]),
+            style: base,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          )
+        : Text(label,
+            style: base.copyWith(fontWeight: FontWeight.w500),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis);
+    return InkWell(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+            HomeLayout.gutter, 6, HomeLayout.gutter - 8, 6),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: homeTileColor(context),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 20, color: homeMutedColor(context)),
+            ),
+            const SizedBox(width: 14),
+            Expanded(child: text),
+            if (trailing != null) trailing! else const SizedBox(height: 48),
+          ],
+        ),
       ),
     );
   }

@@ -36,9 +36,7 @@ class DiscoveryRepository {
 
   Future<void> open() async {
     if (_opened) return;
-    for (final name in DiscoveryBoxes.all) {
-      await Hive.openBox(name);
-    }
+    await Future.wait(DiscoveryBoxes.all.map(Hive.openBox));
     _opened = true;
   }
 
@@ -57,6 +55,19 @@ class DiscoveryRepository {
   static const int maxEvents = 20000;
   static const Duration maxEventAge = Duration(days: 365 * 2);
 
+  /// Hive deletes are flushed in chunks of this size.
+  static const int _deleteBatch = 500;
+
+  Future<void> _deleteInBatches(Box box, List<dynamic> keys) async {
+    for (var i = 0; i < keys.length; i += _deleteBatch) {
+      final end =
+          i + _deleteBatch < keys.length ? i + _deleteBatch : keys.length;
+      await box.deleteAll(keys.sublist(i, end));
+    }
+  }
+
+  int get eventCount => _events.length;
+
   Future<void> appendEvent(DiscoveryEvent e) async {
     await _events.add(e.toJson());
   }
@@ -74,7 +85,7 @@ class DiscoveryRepository {
     final cutoff =
         DateTime.now().subtract(maxEventAge).millisecondsSinceEpoch;
     final keys = _events.keys.toList();
-    final toDelete = <dynamic>[];
+    final toDelete = <dynamic>{};
     for (final k in keys) {
       final v = _events.get(k);
       if (v is Map && ((v['ts'] as int?) ?? 0) < cutoff) {
@@ -93,9 +104,45 @@ class DiscoveryRepository {
         if (dropped >= keepDrop) break;
       }
     }
-    for (final k in toDelete) {
-      await _events.delete(k);
+    await _deleteInBatches(_events, toDelete.toList());
+  }
+
+  /// Per-surface impressions are never read back beyond short windows; the
+  /// global `|*` entry backs Fresh Finds' 365-day "shown recently" check.
+  static const Duration maxSurfaceImpressionAge = Duration(days: 30);
+  static const Duration maxGlobalImpressionAge = Duration(days: 365);
+
+  /// Startup housekeeping for boxes that otherwise only grow: old
+  /// impressions, expired API cache entries, and over-degree co-occurrence
+  /// nodes (e.g. graphs written before the neighbor cap worked).
+  Future<void> pruneAuxiliary({DateTime? now}) async {
+    final n = (now ?? DateTime.now()).millisecondsSinceEpoch;
+
+    final surfaceCutoff = n - maxSurfaceImpressionAge.inMilliseconds;
+    final globalCutoff = n - maxGlobalImpressionAge.inMilliseconds;
+    final staleImpressions = <dynamic>[];
+    for (final k in _impressions.keys) {
+      final ts = _impressions.get(k);
+      final cutoff =
+          k.toString().endsWith('|*') ? globalCutoff : surfaceCutoff;
+      if (ts is! int || ts < cutoff) staleImpressions.add(k);
     }
+    await _deleteInBatches(_impressions, staleImpressions);
+
+    final expiredCache = <dynamic>[];
+    for (final k in _apiCache.keys) {
+      final v = _apiCache.get(k);
+      if (v is! Map || ((v['expiresTs'] as int?) ?? 0) < n) {
+        expiredCache.add(k);
+      }
+    }
+    await _deleteInBatches(_apiCache, expiredCache);
+
+    final overCap = <String>[];
+    for (final id in _adjacency.keys.toList()) {
+      overCap.addAll(_trimNeighbors(id));
+    }
+    await _deleteInBatches(_cooc, overCap);
   }
 
   // ─── Artist affinity ──────────────────────────────────────────────────
@@ -305,6 +352,36 @@ class DiscoveryRepository {
 
   static const int maxNeighbors = 150;
 
+  /// In-memory adjacency mirror of [_cooc] (id → neighbor → weight), built
+  /// lazily on first use and kept in sync by every write below, so neighbor
+  /// lookups are O(degree) instead of a scan over every edge in the box.
+  Map<String, Map<String, double>>? _adj;
+
+  Map<String, Map<String, double>> get _adjacency {
+    final cached = _adj;
+    if (cached != null) return cached;
+    final adj = <String, Map<String, double>>{};
+    for (final k in _cooc.keys) {
+      final key = k.toString();
+      final sep = key.indexOf('|');
+      if (sep <= 0 || sep == key.length - 1) continue;
+      final a = key.substring(0, sep);
+      final b = key.substring(sep + 1);
+      final w = (_cooc.get(k) as num?)?.toDouble() ?? 0;
+      (adj[a] ??= <String, double>{})[b] = w;
+      (adj[b] ??= <String, double>{})[a] = w;
+    }
+    return _adj = adj;
+  }
+
+  void _unlink(String a, String b) {
+    final adj = _adjacency;
+    adj[a]?.remove(b);
+    if (adj[a]?.isEmpty ?? false) adj.remove(a);
+    adj[b]?.remove(a);
+    if (adj[b]?.isEmpty ?? false) adj.remove(b);
+  }
+
   String _edgeKey(String a, String b) {
     if (a.compareTo(b) <= 0) return '$a|$b';
     return '$b|$a';
@@ -312,39 +389,38 @@ class DiscoveryRepository {
 
   Future<void> bumpCooccurrence(String a, String b, {double weight = 1.0}) async {
     if (a.isEmpty || b.isEmpty || a == b) return;
+    final adj = _adjacency;
     final key = _edgeKey(a, b);
     final prev = (_cooc.get(key) as num?)?.toDouble() ?? 0;
-    await _cooc.put(key, prev + weight);
-    await _capNeighbors(a);
-    await _capNeighbors(b);
+    final w = prev + weight;
+    (adj[a] ??= <String, double>{})[b] = w;
+    (adj[b] ??= <String, double>{})[a] = w;
+    await _cooc.put(key, w);
+    final drop = [..._trimNeighbors(a, keep: b), ..._trimNeighbors(b, keep: a)];
+    if (drop.isNotEmpty) await _cooc.deleteAll(drop);
   }
 
-  Future<void> _capNeighbors(String id) async {
-    final neighbors = neighborsOf(id);
-    if (neighbors.length <= maxNeighbors) return;
-    final sorted = neighbors.entries.toList()
+  /// Drops the lowest-weight edges of [id] beyond [maxNeighbors] from the
+  /// index and returns their box keys for the caller to delete. [keep] (the
+  /// edge just bumped) is spared so a new neighbor can enter a full node.
+  List<String> _trimNeighbors(String id, {String? keep}) {
+    final neighbors = _adjacency[id];
+    if (neighbors == null || neighbors.length <= maxNeighbors) return const [];
+    final excess = neighbors.length - maxNeighbors;
+    final sorted = neighbors.entries.where((e) => e.key != keep).toList()
       ..sort((a, b) => a.value.compareTo(b.value));
-    final drop = sorted.take(neighbors.length - maxNeighbors);
-    for (final e in drop) {
-      await _cooc.delete(_edgeKey(id, e.key));
+    final keys = <String>[];
+    for (final e in sorted.take(excess).toList()) {
+      _unlink(id, e.key);
+      keys.add(_edgeKey(id, e.key));
     }
+    return keys;
   }
 
   Map<String, double> neighborsOf(String id, {int limit = 50}) {
-    final out = <String, double>{};
-    final prefix = '$id|';
-    final suffix = '|$id';
-    for (final k in _cooc.keys) {
-      final key = k.toString();
-      if (key.startsWith(prefix)) {
-        out[key.substring(prefix.length)] =
-            (_cooc.get(k) as num?)?.toDouble() ?? 0;
-      } else if (key.endsWith(suffix)) {
-        out[key.substring(0, key.length - suffix.length)] =
-            (_cooc.get(k) as num?)?.toDouble() ?? 0;
-      }
-    }
-    final sorted = out.entries.toList()
+    final neighbors = _adjacency[id];
+    if (neighbors == null) return {};
+    final sorted = neighbors.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     return Map.fromEntries(sorted.take(limit));
   }
@@ -353,17 +429,20 @@ class DiscoveryRepository {
 
   Future<void> logImpression(String videoId, String surface,
       {DateTime? now}) async {
-    final n = now ?? DateTime.now();
-    await _impressions.put('$videoId|$surface', n.millisecondsSinceEpoch);
-    // Also a global last-shown for any surface
-    await _impressions.put('$videoId|*', n.millisecondsSinceEpoch);
+    await logImpressions([videoId], surface, now: now);
   }
 
   Future<void> logImpressions(Iterable<String> videoIds, String surface,
       {DateTime? now}) async {
+    final ts = (now ?? DateTime.now()).millisecondsSinceEpoch;
+    final entries = <String, int>{};
     for (final id in videoIds) {
-      await logImpression(id, surface, now: now);
+      entries['$id|$surface'] = ts;
+      // Also a global last-shown for any surface
+      entries['$id|*'] = ts;
     }
+    if (entries.isEmpty) return;
+    await _impressions.putAll(entries);
   }
 
   int? lastImpressionTs(String videoId, {String? surface}) {
@@ -404,6 +483,12 @@ class DiscoveryRepository {
 
   Future<void> saveMix(GeneratedMix mix) async {
     await _mixes.put(mix.id, mix.toJson());
+  }
+
+  Future<void> deleteMixes(Iterable<String> ids) async {
+    final existing = ids.where(_mixes.containsKey).toList();
+    if (existing.isEmpty) return;
+    await _mixes.deleteAll(existing);
   }
 
   GeneratedMix? getMix(String id) {
@@ -463,6 +548,7 @@ class DiscoveryRepository {
     await _affinity.clear();
     await _trackStats.clear();
     await _cooc.clear();
+    _adj = null;
     await _impressions.clear();
     await _mixes.clear();
   }

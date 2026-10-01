@@ -1,5 +1,4 @@
 import 'package:audio_service/audio_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -7,10 +6,13 @@ import 'package:get/get.dart';
 import '/models/thumbnail.dart';
 import '/services/podcast_download_service.dart';
 import '/services/podcast_progress_service.dart';
-import '/services/podcast_service.dart';
+import '/services/wizestream_service.dart';
+import '../Home/home_layout.dart';
 import 'podcast_empty_state.dart';
+import 'podcast_layout.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/utils/sheet_insets.dart';
+import '/ui/widgets/podcast_play.dart';
 import '/ui/widgets/snackbar.dart';
 import 'podcast_queue_controller.dart';
 import 'podcasts_screen.dart';
@@ -63,6 +65,18 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode) {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
+              if (WizeStream.isInstalled &&
+                  WizeStream.watchUrlFor(episode) != null)
+                ListTile(
+                  leading: const Icon(Icons.open_in_new_rounded),
+                  title: Text("openInWizeStream".tr),
+                  onTap: () async {
+                    Navigator.of(ctx).pop();
+                    final ok = await WizeStream.open(
+                        WizeStream.watchUrlFor(episode)!);
+                    if (!ok) snack("operationFailed".tr);
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.playlist_play),
                 title: Text("playNext".tr),
@@ -219,31 +233,39 @@ class PodcastQueueScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    "${items.length} ${'episodes'.tr}  ·  "
-                    "${'remainingTime'.tr} ${_fmtTotal(controller.totalTime)}",
-                    style: Theme.of(context).textTheme.bodyMedium,
+            padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 6, 4, 2),
+            child: SizedBox(
+              height: 40,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      episodeMetaLine([
+                        "${items.length} ${'episodes'.tr}",
+                        "${'remainingTime'.tr} ${_fmtTotal(controller.totalTime)}",
+                      ]),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: homeCardSubtitleStyle(context)
+                          .copyWith(fontSize: 13),
+                    ),
                   ),
-                ),
-                // Non-embedded gets the clear action in the AppBar instead.
-                if (embedded)
-                  IconButton(
-                    tooltip: "clear".tr,
-                    icon: const Icon(Icons.clear_all, size: 22),
-                    onPressed: controller.clear,
-                  ),
-              ],
+                  // Non-embedded gets the clear action in the AppBar instead.
+                  if (embedded)
+                    IconButton(
+                      tooltip: "clear".tr,
+                      icon: const Icon(Icons.delete_sweep_outlined, size: 22),
+                      onPressed: controller.clear,
+                    ),
+                ],
+              ),
             ),
           ),
-          const Divider(height: 1),
           Expanded(
             child: ReorderableListView.builder(
               padding: const EdgeInsets.only(bottom: 200),
               itemCount: items.length,
+              buildDefaultDragHandles: false,
               onReorder: controller.reorder,
               itemBuilder: (context, i) =>
                   _row(context, controller, items[i], i),
@@ -272,78 +294,44 @@ class PodcastQueueScreen extends StatelessWidget {
 
   Widget _row(BuildContext context, PodcastQueueController controller,
       MediaItem e, int i) {
-    final date = (e.extras?['date'] ?? '').toString().trim();
-    final durationText =
-        PodcastService.formatDuration(e.duration?.inSeconds ?? 0);
     final art = Thumbnail(e.artUri?.toString() ?? '').medium;
-    return Padding(
+    return KeyedSubtree(
       key: ValueKey(e.id),
-      // Match Inbox rhythm: 16 content inset; drag handle sits in the gutter.
-      padding: const EdgeInsets.only(left: 8, right: 16),
-      child: InkWell(
+      child: PodcastEpisodeTile(
+        artUrl: art,
+        title: e.title,
+        meta: episodeMetaLine([
+          e.artist,
+          '${e.extras?['date'] ?? ''}',
+          compactEpisodeLength(e.duration?.inSeconds ?? 0),
+        ]),
+        progress: PodcastProgressService.progress(e.id),
         onTap: () async {
+          if (await openInWizeStreamIfPreferred(e)) return;
           final ok = await Get.find<PlayerController>()
               .playPlayListSong(items(controller), i);
           if (!ok) snackOperationFailed();
         },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              ReorderableDragStartListener(
-                index: i,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4),
-                  child: Icon(Icons.drag_indicator, size: 22),
-                ),
+        onLongPress: () => showAddToQueueSheet(context, e),
+        leading: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ReorderableDragStartListener(
+              index: i,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Icon(Icons.drag_indicator_rounded,
+                    size: 22, color: homeMutedColor(context)),
               ),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: CachedNetworkImage(
-                  imageUrl: art,
-                  width: 56,
-                  height: 56,
-                  memCacheWidth:
-                      (56 * MediaQuery.devicePixelRatioOf(context)).round(),
-                  fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) =>
-                      const Icon(Icons.podcasts, size: 40),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (date.isNotEmpty || durationText.isNotEmpty)
-                      Text(
-                        [date, durationText]
-                            .where((s) => s.isNotEmpty)
-                            .join('  ·  '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    Text(
-                      e.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                tooltip: "removeFromQueue".tr,
-                icon: const Icon(Icons.remove_circle_outline, size: 22),
-                onPressed: () => controller.removeAt(i),
-              ),
-            ],
-          ),
+            ),
+            PodcastArt(url: art, size: 56),
+          ],
+        ),
+        trailing: IconButton(
+          tooltip: "removeFromQueue".tr,
+          icon: Icon(Icons.remove_circle_outline_rounded,
+              size: 22, color: homeMutedColor(context)),
+          onPressed: () => controller.removeAt(i),
         ),
       ),
     );

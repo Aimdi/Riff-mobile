@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:ionicons/ionicons.dart';
@@ -6,8 +8,10 @@ import 'package:widget_marquee/widget_marquee.dart';
 
 import '/ui/player/components/animated_play_button.dart';
 import '/ui/player/components/podcast_transcript_sheet.dart';
+import '/ui/utils/riff_tokens.dart';
 import '/ui/utils/theme_controller.dart';
 import '/utils/content_filters.dart';
+import '/services/podcast_service.dart' show PodcastChapter;
 import '../../screens/Settings/settings_screen_controller.dart';
 import '../../widgets/add_to_playlist.dart';
 import '../../widgets/discovery/player_similar_row.dart';
@@ -27,226 +31,52 @@ class PlayerControlWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final PlayerController playerController = Get.find<PlayerController>();
     return Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: ShaderMask(
-                  shaderCallback: (rect) {
-                    return const LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [
-                        Colors.white,
-                        Colors.white,
-                        Colors.white,
-                        Colors.white,
-                        Colors.white,
-                        Colors.white,
-                        Colors.transparent
-                      ],
-                    ).createShader(
-                        Rect.fromLTWH(0, 0, rect.width, rect.height));
-                  },
-                  blendMode: BlendMode.dstIn,
-                  child: Obx(() {
-                    final song = playerController.currentSong.value;
-                    return AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 280),
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
-                      transitionBuilder: (child, animation) {
-                        return FadeTransition(
-                          opacity: animation,
-                          child: SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0, 0.08),
-                              end: Offset.zero,
-                            ).animate(animation),
-                            child: child,
-                          ),
-                        );
-                      },
-                      child: Column(
-                        key: ValueKey<String>(song?.id ?? 'none'),
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () => openCurrentAlbum(playerController),
-                            child: Marquee(
-                              delay: const Duration(milliseconds: 300),
-                              duration: const Duration(seconds: 10),
-                              id: "${song}_title",
-                              child: Text(
-                                (song != null && song.title.isNotEmpty)
-                                    ? song.title
-                                    : "—",
-                                textAlign: TextAlign.start,
-                                style: Theme.of(context).textTheme.labelMedium!,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () => openCurrentArtist(playerController),
-                            child: Marquee(
-                              delay: const Duration(milliseconds: 300),
-                              duration: const Duration(seconds: 10),
-                              id: "${song}_subtitle",
-                              child: Text(
-                                (song?.artist != null &&
-                                        song!.artist!.isNotEmpty)
-                                    ? song.artist!
-                                    : "—",
-                                textAlign: TextAlign.start,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.labelSmall,
-                              ),
-                            ),
-                          )
-                        ],
-                      ),
-                    );
-                  }),
-                ),
-              ),
+              Expanded(child: _TitleBlock(playerController: playerController)),
+              const SizedBox(width: 8),
               FavoriteHeartButton(
                 isFav: playerController.isCurrentSongFav,
                 onToggleFav: playerController.toggleFavourite,
                 song: () => playerController.currentSong.value,
-              ),
-              IconButton(
-                tooltip: 'addToPlaylist'.tr,
-                icon: Icon(
-                  Icons.playlist_add,
-                  color: Theme.of(context).textTheme.titleMedium?.color,
-                ),
-                onPressed: () {
-                  final song = playerController.currentSong.value;
-                  if (song == null) return;
-                  showAddToPlaylistSheet(context, [song]);
-                },
+                iconSize: 26,
               ),
             ],
           ),
-          const SizedBox(
-            height: 20,
-          ),
-          // Shownotes / chapters / transcript / autoplay — tools row above
-          // the seek bar. Autoplay lives here (not in the transport row) so
-          // speed · −10 · play · +30 · next stays visually mirrored.
-          Obx(() {
-            if (!playerController.isCurrentSongPodcast) {
-              return const SizedBox.shrink();
-            }
-            final song = playerController.currentSong.value;
-            final transcriptUrl =
-                (song?.extras?['transcriptUrl'] ?? '').toString();
-            final settings = Get.find<SettingsScreenController>();
-            final autoOn = settings.podcastContinuousPlaybackEnabled.value;
-            final style = OutlinedButton.styleFrom(
-              foregroundColor: Theme.of(context).textTheme.titleMedium!.color,
-              side: BorderSide(
-                  color: Theme.of(context)
-                      .textTheme
-                      .titleLarge!
-                      .color!
-                      .withOpacity(0.4)),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            );
-            final autoStyle = OutlinedButton.styleFrom(
-              foregroundColor: autoOn
-                  ? Theme.of(context).colorScheme.secondary
-                  : Theme.of(context).textTheme.titleMedium!.color,
-              side: BorderSide(
-                color: autoOn
-                    ? Theme.of(context).colorScheme.secondary
-                    : Theme.of(context)
-                        .textTheme
-                        .titleLarge!
-                        .color!
-                        .withOpacity(0.4),
-              ),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            );
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 10,
-                runSpacing: 8,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: () =>
-                        settings.togglePodcastContinuousPlayback(!autoOn),
-                    icon: Icon(
-                      autoOn
-                          ? Icons.playlist_play_rounded
-                          : Icons.playlist_remove_rounded,
-                      size: 20,
-                    ),
-                    label: Text(autoOn ? 'auto'.tr : 'stop'.tr),
-                    style: autoStyle,
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () => _openShownotes(playerController, context),
-                    icon: const Icon(Icons.info_outline, size: 20),
-                    label: Text("shownotes".tr),
-                    style: style,
-                  ),
-                  if (playerController.chapters.isNotEmpty)
-                    OutlinedButton.icon(
-                      onPressed: () => _openChapters(playerController, context),
-                      icon: const Icon(Icons.list_rounded, size: 20),
-                      label: Text("chapters".tr),
-                      style: style,
-                    ),
-                  if (transcriptUrl.isNotEmpty)
-                    OutlinedButton.icon(
-                      onPressed: () => PodcastTranscriptSheet.open(
-                        context,
-                        url: transcriptUrl,
-                        type: '${song?.extras?['transcriptType'] ?? ''}',
-                      ),
-                      icon: const Icon(Icons.subtitles_outlined, size: 20),
-                      label: Text("transcript".tr),
-                      style: style,
-                    ),
-                ],
-              ),
-            );
-          }),
+          const SizedBox(height: 14),
           // Visible reason when a song won't start — snackbar alone is easy to miss.
           Obx(() {
             final err = playerController.playbackError.value;
             if (err == null || err.isEmpty) return const SizedBox.shrink();
             final theme = Theme.of(context);
             return Padding(
-              padding: const EdgeInsets.fromLTRB(6, 0, 6, 8),
-              child: Material(
-                color: theme.colorScheme.error.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(10),
+              padding: const EdgeInsets.only(bottom: 10),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.error.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+                  border: Border.all(
+                      color: theme.colorScheme.error.withOpacity(0.35),
+                      width: 1),
+                ),
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
                   child: Row(
                     children: [
-                      Icon(Icons.error_outline,
+                      Icon(Icons.error_outline_rounded,
                           size: 18, color: theme.colorScheme.error),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           err,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.3,
                             color: theme.textTheme.titleMedium?.color,
                           ),
                         ),
@@ -262,50 +92,49 @@ class PlayerControlWidget extends StatelessWidget {
           }),
           // Spotify-style straight seek bar. Podcasts with chapters split
           // into sections; music is one line. Phone volume stays on hardware.
-          const _SeekScrubber(),
+          // Own layer: the 10 Hz progress tick must not repaint the whole
+          // player (album art, controls) up to the root.
+          const RepaintBoundary(child: _SeekScrubber()),
+          const SizedBox(height: 6),
           Obx(() => playerController.usesLongFormTransport
               ? _podcastControls(playerController, context)
               : _musicControls(playerController, context)),
-          _nowPlayingActions(playerController, context),
-          // Similar songs are music-only; hide for podcasts and audiobooks.
+          const SizedBox(height: 10),
           Obx(() => playerController.usesLongFormTransport
+              ? _podcastActions(playerController, context)
+              : _musicActions(playerController, context)),
+          // Similar songs are music-only, and only where the cover keeps
+          // most of the screen.
+          Obx(() => playerController.usesLongFormTransport ||
+                  MediaQuery.sizeOf(context).height < 820
               ? const SizedBox.shrink()
-              : const PlayerSimilarRow()),
+              : const Padding(
+                  padding: EdgeInsets.only(top: 6),
+                  child: PlayerSimilarRow(),
+                )),
         ]);
   }
 
-  Widget _nowPlayingActions(
+  /// Lyrics · sleep timer · radio · add to playlist · share. Everything
+  /// else for the song is in the ⋮ sheet.
+  Widget _musicActions(
       PlayerController playerController, BuildContext context) {
-    return Obx(() {
-      if (playerController.usesLongFormTransport) {
-        return const SizedBox.shrink();
-      }
-      final song = playerController.currentSong.value;
-      if (song == null) return const SizedBox.shrink();
-      final size = MediaQuery.sizeOf(context);
-      // Hide on landscape / very short viewports; portrait phones keep the row
-      // and Wrap handles narrow widths.
-      if (size.height < 480) return const SizedBox.shrink();
-
-      final labelStyle = Theme.of(context).textTheme.labelSmall;
-      final color = Theme.of(context).textTheme.titleMedium?.color;
-      final style = TextButton.styleFrom(
-        foregroundColor: color,
-        visualDensity: VisualDensity.compact,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        minimumSize: Size.zero,
-      );
-
-      return Padding(
-        padding: const EdgeInsets.only(top: 2),
-        child: Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 4,
-          runSpacing: 0,
-          children: [
-            TextButton.icon(
-              onPressed: () async {
+    final song = playerController.currentSong.value;
+    return PlayerActionBar(actions: [
+      PlayerAction(
+        icon: Icons.lyrics_outlined,
+        activeIcon: Icons.lyrics,
+        tooltip: 'lyrics'.tr,
+        active: playerController.showLyricsflag.isTrue,
+        onTap: playerController.showLyrics,
+      ),
+      _sleepAction(playerController, context),
+      PlayerAction(
+        icon: Icons.sensors_rounded,
+        tooltip: 'startRadio'.tr,
+        onTap: song == null
+            ? null
+            : () async {
                 final ok = await playerController.startRadio(song);
                 if (!context.mounted || ok) return;
                 ScaffoldMessenger.of(context).showSnackBar(snackbar(
@@ -314,57 +143,97 @@ class PlayerControlWidget extends StatelessWidget {
                   size: SanckBarSize.MEDIUM,
                 ));
               },
-              icon: const Icon(Icons.sensors, size: 18),
-              label: Text("startRadio".tr, style: labelStyle),
-              style: style,
-            ),
-            TextButton.icon(
-              onPressed: () => playerController.moreLikeThisPlayNext(song),
-              icon: const Icon(Icons.playlist_play, size: 18),
-              label: Text("playNext".tr, style: labelStyle),
-              style: style,
-            ),
-            TextButton.icon(
-              onPressed: () => showSleepTimerSheet(context),
-              icon: Icon(
-                playerController.isSleepTimerActive.isTrue
-                    ? Icons.timer
-                    : Icons.timer_outlined,
-                size: 18,
-              ),
-              label: Text("sleepTimer".tr, style: labelStyle),
-              style: style,
-            ),
-            TextButton.icon(
-              onPressed: () {
-                Share.share(SongLinkShare.shareText(song));
-              },
-              icon: const Icon(Icons.share, size: 18),
-              label: Text("shareSong".tr, style: labelStyle),
-              style: style,
-            ),
-          ],
+      ),
+      PlayerAction(
+        icon: Icons.playlist_add_rounded,
+        tooltip: 'addToPlaylist'.tr,
+        onTap:
+            song == null ? null : () => showAddToPlaylistSheet(context, [song]),
+      ),
+      PlayerAction(
+        icon: Icons.share_outlined,
+        tooltip: 'shareSong'.tr,
+        onTap: song == null
+            ? null
+            : () => Share.share(SongLinkShare.shareText(song)),
+      ),
+    ]);
+  }
+
+  /// Autoplay · shownotes · chapters · transcript · sleep timer.
+  Widget _podcastActions(
+      PlayerController playerController, BuildContext context) {
+    final song = playerController.currentSong.value;
+    final transcriptUrl = (song?.extras?['transcriptUrl'] ?? '').toString();
+    final settings = Get.find<SettingsScreenController>();
+    final autoOn = settings.podcastContinuousPlaybackEnabled.value;
+    final isPodcast = playerController.isCurrentSongPodcast;
+    return PlayerActionBar(actions: [
+      if (isPodcast)
+        PlayerAction(
+          icon: Icons.playlist_play_rounded,
+          tooltip: 'autoplayEpisodes'.tr,
+          active: autoOn,
+          onTap: () => settings.togglePodcastContinuousPlayback(!autoOn),
         ),
-      );
-    });
+      if (isPodcast)
+        PlayerAction(
+          icon: Icons.info_outline_rounded,
+          tooltip: 'shownotes'.tr,
+          onTap: () => _openShownotes(playerController, context),
+        ),
+      if (playerController.chapters.isNotEmpty)
+        PlayerAction(
+          icon: Icons.format_list_bulleted_rounded,
+          tooltip: 'chapters'.tr,
+          onTap: () => _openChapters(playerController, context),
+        ),
+      if (transcriptUrl.isNotEmpty)
+        PlayerAction(
+          icon: Icons.subtitles_outlined,
+          tooltip: 'transcript'.tr,
+          onTap: () => PodcastTranscriptSheet.open(
+            context,
+            url: transcriptUrl,
+            type: '${song?.extras?['transcriptType'] ?? ''}',
+          ),
+        ),
+      _sleepAction(playerController, context),
+    ]);
+  }
+
+  PlayerAction _sleepAction(
+      PlayerController playerController, BuildContext context) {
+    final on = playerController.isSleepTimerActive.isTrue;
+    return PlayerAction(
+      icon: Icons.bedtime_outlined,
+      activeIcon: Icons.bedtime,
+      tooltip: 'sleepTimer'.tr,
+      active: on,
+      badge:
+          on ? sleepTimerBadge(playerController.timerDurationLeft.value) : null,
+      onTap: () => showSleepTimerSheet(
+          playerController.homeScaffoldkey.currentContext ?? context),
+    );
   }
 
   Widget _musicControls(
       PlayerController playerController, BuildContext context) {
+    final fg = Theme.of(context).textTheme.titleMedium!.color!;
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         IconButton(
+            tooltip: 'shuffle'.tr,
+            iconSize: 22,
             onPressed: playerController.toggleShuffleMode,
-            icon: Obx(() => Icon(
-                  Ionicons.shuffle,
-                  color: playerController.isShuffleModeEnabled.value
-                      ? RiffSurfaces.textPrimary
-                      : RiffSurfaces.textMuted.withOpacity(0.45),
+            icon: Obx(() => _ToggleIcon(
+                  icon: Ionicons.shuffle,
+                  on: playerController.isShuffleModeEnabled.value,
+                  color: fg,
                 ))),
         _previousButton(playerController, context),
-        const AnimatedPlayButton(key: Key("playButton")),
+        const AnimatedPlayButton(key: Key("playButton"), size: 68),
         _nextButton(playerController, context),
         Obx(() {
           final state = playerController.repeatState;
@@ -374,13 +243,15 @@ class PlayerControlWidget extends StatelessWidget {
                   : state == 1
                       ? "repeatAll".tr
                       : "repeat".tr,
+              iconSize: 22,
               onPressed: playerController.cycleRepeatMode,
-              icon: Icon(
+              icon: _ToggleIcon(
                 // repeat_one shows the "1" badge (Spotify-style).
-                state == 2 ? Icons.repeat_one : Icons.repeat,
-                color: state == 0
-                    ? RiffSurfaces.textMuted.withOpacity(0.45)
-                    : RiffSurfaces.textPrimary,
+                icon: state == 2
+                    ? Icons.repeat_one_rounded
+                    : Icons.repeat_rounded,
+                on: state != 0,
+                color: fg,
               ));
         }),
       ],
@@ -388,7 +259,6 @@ class PlayerControlWidget extends StatelessWidget {
   }
 
   /// AntennaPod-style transport: speed · −10s · play/pause · +30s · next.
-  /// (Autoplay is in the tools row above so this bar stays mirrored.)
   Widget _podcastControls(
       PlayerController playerController, BuildContext context) {
     final color = Theme.of(context).textTheme.titleMedium!.color;
@@ -417,66 +287,27 @@ class PlayerControlWidget extends StatelessWidget {
                       ),
                     ),
             )),
-        _podcastButtonsRow(playerController, context, color),
-      ],
-    );
-  }
-
-  Widget _podcastButtonsRow(
-      PlayerController playerController, BuildContext context, Color? color) {
-    final labelStyle = Theme.of(context).textTheme.labelSmall;
-    // Five equal columns around a fixed play button keep left/right mirrored.
-    Widget side({required Widget child}) => Expanded(child: child);
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        side(child: _SpeedButton(color: color)),
-        side(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                iconSize: 32,
-                onPressed: () =>
-                    playerController.seekBy(const Duration(seconds: -10)),
-                icon: Icon(Icons.replay_10, color: color),
-              ),
-              Text('10', style: labelStyle),
-            ],
-          ),
-        ),
-        const AnimatedPlayButton(key: Key('podcastPlayButton')),
-        side(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                iconSize: 32,
-                onPressed: () =>
-                    playerController.seekBy(const Duration(seconds: 30)),
-                icon: Icon(Icons.forward_30, color: color),
-              ),
-              Text('30', style: labelStyle),
-            ],
-          ),
-        ),
-        side(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _nextButton(playerController, context),
-              // Reserve the same caption line as Speed / 10 / 30.
-              Text(
-                ' ',
-                style: labelStyle,
-                strutStyle: StrutStyle(
-                  forceStrutHeight: true,
-                  fontSize: labelStyle?.fontSize ?? 12,
-                ),
-              ),
-            ],
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _SpeedButton(color: color),
+            IconButton(
+              tooltip: '−10s',
+              iconSize: 34,
+              onPressed: () =>
+                  playerController.seekBy(const Duration(seconds: -10)),
+              icon: Icon(Icons.replay_10_rounded, color: color),
+            ),
+            const AnimatedPlayButton(key: Key('podcastPlayButton'), size: 68),
+            IconButton(
+              tooltip: '+30s',
+              iconSize: 34,
+              onPressed: () =>
+                  playerController.seekBy(const Duration(seconds: 30)),
+              icon: Icon(Icons.forward_30_rounded, color: color),
+            ),
+            _nextButton(playerController, context),
+          ],
         ),
       ],
     );
@@ -581,11 +412,12 @@ class PlayerControlWidget extends StatelessWidget {
   Widget _previousButton(
       PlayerController playerController, BuildContext context) {
     return IconButton(
+      tooltip: 'previous'.tr,
       icon: Icon(
-        Icons.skip_previous,
+        Icons.skip_previous_rounded,
         color: Theme.of(context).textTheme.titleMedium!.color,
       ),
-      iconSize: 30,
+      iconSize: 38,
       onPressed: playerController.prev,
     );
   }
@@ -614,19 +446,249 @@ class _SpeedButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settings = Get.find<SettingsScreenController>();
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          iconSize: 30,
-          onPressed: _cycle,
-          icon: Icon(Icons.speed, color: color),
+    return Tooltip(
+      message: 'speed'.tr,
+      child: InkWell(
+        onTap: _cycle,
+        customBorder: const StadiumBorder(),
+        child: Container(
+          width: 52,
+          height: 32,
+          alignment: Alignment.center,
+          decoration: ShapeDecoration(
+            shape: StadiumBorder(
+              side: BorderSide(
+                  color: (color ?? RiffSurfaces.textPrimary).withOpacity(0.35)),
+            ),
+          ),
+          child: Obx(() => Text(
+                speedLabel(settings.playbackSpeed.value),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              )),
         ),
-        Obx(() => Text(
-              settings.playbackSpeed.value.toStringAsFixed(2),
-              style: Theme.of(context).textTheme.labelSmall,
-            )),
+      ),
+    );
+  }
+}
+
+/// 1.0 → "1×", 1.25 → "1.25×", 1.5 → "1.5×".
+String speedLabel(double speed) {
+  var s = speed.toStringAsFixed(2);
+  s = s.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
+  return '$s×';
+}
+
+/// Remaining sleep time for the action-bar badge: "1h", "12m", "45s".
+/// End-of-song timers count down the song's remaining time.
+String sleepTimerBadge(int secondsLeft) {
+  if (secondsLeft <= 0) return '';
+  if (secondsLeft >= 3600) return '${(secondsLeft / 3600).ceil()}h';
+  if (secondsLeft >= 60) return '${(secondsLeft / 60).ceil()}m';
+  return '${secondsLeft}s';
+}
+
+/// One entry in [PlayerActionBar].
+class PlayerAction {
+  const PlayerAction({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    this.activeIcon,
+    this.active = false,
+    this.badge,
+  });
+  final IconData icon;
+  final IconData? activeIcon;
+  final String tooltip;
+  final VoidCallback? onTap;
+  final bool active;
+
+  /// Short text under the icon while [active] (e.g. sleep time left).
+  final String? badge;
+}
+
+/// Row of equal-width icon actions under the transport. Active actions use
+/// the accent colour, so state is visible without labels.
+class PlayerActionBar extends StatelessWidget {
+  const PlayerActionBar({super.key, required this.actions});
+  final List<PlayerAction> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = Theme.of(context).textTheme.titleMedium?.color ??
+        RiffSurfaces.textPrimary;
+    final accent = Theme.of(context).colorScheme.secondary;
+    return Row(
+      children: [
+        for (final a in actions)
+          Expanded(
+            child: Tooltip(
+              message: a.tooltip,
+              child: InkResponse(
+                onTap: a.onTap,
+                radius: 26,
+                child: SizedBox(
+                  height: 48,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        a.active ? (a.activeIcon ?? a.icon) : a.icon,
+                        size: 22,
+                        semanticLabel: a.tooltip,
+                        color: a.active ? accent : fg.withOpacity(0.72),
+                      ),
+                      if (a.active && (a.badge ?? '').isNotEmpty)
+                        Text(
+                          a.badge!,
+                          style: TextStyle(
+                            fontSize: 10,
+                            height: 1.3,
+                            fontWeight: FontWeight.w700,
+                            color: accent,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
+    );
+  }
+}
+
+/// Shuffle / repeat: full colour with an accent dot when on, dimmed when off.
+class _ToggleIcon extends StatelessWidget {
+  const _ToggleIcon(
+      {required this.icon, required this.on, required this.color});
+  final IconData icon;
+  final bool on;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.secondary;
+    return SizedBox.square(
+      dimension: 22,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          Icon(icon, size: 22, color: on ? accent : color.withOpacity(0.5)),
+          if (on)
+            Positioned(
+              bottom: -8,
+              child: Container(
+                width: 4,
+                height: 4,
+                decoration:
+                    BoxDecoration(shape: BoxShape.circle, color: accent),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Title + artist, left aligned; long names scroll. Tapping opens the
+/// album / artist.
+class _TitleBlock extends StatelessWidget {
+  const _TitleBlock({required this.playerController});
+  final PlayerController playerController;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = Theme.of(context).textTheme.titleMedium?.color ??
+        RiffSurfaces.textPrimary;
+    return ShaderMask(
+      // Fade the right edge so a scrolling title doesn't hard-clip.
+      shaderCallback: (rect) => const LinearGradient(
+        colors: [Colors.white, Colors.white, Colors.transparent],
+        stops: [0, 0.9, 1],
+      ).createShader(Rect.fromLTWH(0, 0, rect.width, rect.height)),
+      blendMode: BlendMode.dstIn,
+      child: Obx(() {
+        final song = playerController.currentSong.value;
+        final title =
+            (song != null && song.title.isNotEmpty) ? song.title : '—';
+        final artist = (song?.artist ?? '').isNotEmpty ? song!.artist! : '—';
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 280),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          layoutBuilder: (current, previous) => Stack(
+            alignment: Alignment.centerLeft,
+            children: [...previous, if (current != null) current],
+          ),
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.08),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            ),
+          ),
+          child: SizedBox(
+            key: ValueKey<String>(song?.id ?? 'none'),
+            width: double.infinity,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => openCurrentAlbum(playerController),
+                  child: Marquee(
+                    delay: const Duration(milliseconds: 1500),
+                    duration: const Duration(seconds: 10),
+                    id: '${song?.id}_title',
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 22,
+                        height: 1.25,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
+                        color: fg,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => openCurrentArtist(playerController),
+                  child: Marquee(
+                    delay: const Duration(milliseconds: 1500),
+                    duration: const Duration(seconds: 10),
+                    id: '${song?.id}_subtitle',
+                    child: Text(
+                      artist,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 15.5,
+                        height: 1.3,
+                        fontWeight: FontWeight.w500,
+                        color: fg.withOpacity(0.66),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
     );
   }
 }
@@ -643,13 +705,14 @@ Widget _nextButton(PlayerController playerController, BuildContext context) {
       radioOn: playerController.isRadioModeOn,
     );
     return IconButton(
+        tooltip: 'next'.tr,
         icon: Icon(
-          Icons.skip_next,
+          Icons.skip_next_rounded,
           color: !canNext
               ? Theme.of(context).textTheme.titleLarge!.color!.withOpacity(0.2)
               : Theme.of(context).textTheme.titleMedium!.color,
         ),
-        iconSize: 30,
+        iconSize: 38,
         onPressed: canNext ? playerController.next : null);
   });
 }
@@ -678,19 +741,60 @@ class _SeekScrubber extends StatefulWidget {
 class _SeekScrubberState extends State<_SeekScrubber> {
   double? _dragFrac;
   Duration? _dragPosition;
+  Duration? _seekTarget;
+  Timer? _seekHold;
 
-  void _scrubTo(double dx, double width, Duration total, PlayerController c) {
+  // Chapter marks only change with the episode's chapters / duration, not
+  // with every 10 Hz progress tick — memoize them.
+  List<double> _marks = const [];
+  List<PodcastChapter> _marksChapters = const [];
+  int _marksTotalMs = -1;
+
+  List<double> _chapterMarks(List<PodcastChapter> chapters, int totalMs) {
+    var same = totalMs == _marksTotalMs &&
+        chapters.length == _marksChapters.length;
+    for (var i = 0; same && i < chapters.length; i++) {
+      same = identical(chapters[i], _marksChapters[i]);
+    }
+    if (!same) {
+      _marksTotalMs = totalMs;
+      _marksChapters = List.of(chapters);
+      _marks = podcastChapterMarks(chapters, totalMs / 1000.0);
+    }
+    return _marks;
+  }
+
+  /// Moves the thumb only — the actual seek happens once, on release
+  /// ([_commitScrub]); seeking on every drag update floods the player.
+  void _scrubTo(double dx, double width, Duration total) {
     if (total.inMilliseconds <= 0 || width <= 0) return;
     final f = (dx / width).clamp(0.0, 1.0);
     final pos = total * f;
+    _seekHold?.cancel();
+    _seekTarget = null;
     setState(() {
       _dragFrac = f;
       _dragPosition = pos;
     });
+  }
+
+  /// Seeks once and keeps the thumb at the target until the player reports
+  /// a position near it (or a short timeout), so it doesn't snap back to the
+  /// pre-seek position for a few ticks.
+  void _commitScrub(PlayerController c) {
+    final pos = _dragPosition;
+    if (pos == null) return _endScrub();
     c.seek(pos);
+    _seekTarget = pos;
+    _seekHold?.cancel();
+    _seekHold = Timer(const Duration(milliseconds: 1500), () {
+      if (mounted) _endScrub();
+    });
   }
 
   void _endScrub() {
+    _seekHold?.cancel();
+    _seekTarget = null;
     if (_dragFrac == null && _dragPosition == null) return;
     setState(() {
       _dragFrac = null;
@@ -699,18 +803,30 @@ class _SeekScrubberState extends State<_SeekScrubber> {
   }
 
   @override
+  void dispose() {
+    _seekHold?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return GetX<PlayerController>(builder: (controller) {
       final status = controller.progressBarStatus.value;
+      final target = _seekTarget;
+      if (target != null &&
+          (status.current - target).abs() < const Duration(seconds: 1)) {
+        // Player caught up with the committed seek — follow live progress.
+        _seekHold?.cancel();
+        _seekTarget = null;
+        _dragFrac = null;
+        _dragPosition = null;
+      }
       final totalMs = status.total.inMilliseconds;
       final liveFrac = totalMs > 0
           ? (status.current.inMilliseconds / totalMs).clamp(0.0, 1.0)
           : 0.0;
       final frac = _dragFrac ?? liveFrac;
-      final marks = podcastChapterMarks(
-        controller.chapters,
-        status.total.inMilliseconds / 1000.0,
-      );
+      final marks = _chapterMarks(controller.chapters, totalMs);
       final timeStyle = Theme.of(context).textTheme.titleSmall!.copyWith(
             fontSize: 12,
             color: RiffSurfaces.textMuted,
@@ -725,7 +841,7 @@ class _SeekScrubberState extends State<_SeekScrubber> {
           .withOpacity(0.55);
 
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6),
+        padding: EdgeInsets.zero,
         child: Column(
           children: [
             LayoutBuilder(builder: (context, constraints) {
@@ -733,14 +849,14 @@ class _SeekScrubberState extends State<_SeekScrubber> {
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTapDown: (d) =>
-                    _scrubTo(d.localPosition.dx, width, status.total, controller),
-                onTapUp: (_) => _endScrub(),
+                    _scrubTo(d.localPosition.dx, width, status.total),
+                onTapUp: (_) => _commitScrub(controller),
                 onTapCancel: _endScrub,
                 onHorizontalDragStart: (d) =>
-                    _scrubTo(d.localPosition.dx, width, status.total, controller),
+                    _scrubTo(d.localPosition.dx, width, status.total),
                 onHorizontalDragUpdate: (d) =>
-                    _scrubTo(d.localPosition.dx, width, status.total, controller),
-                onHorizontalDragEnd: (_) => _endScrub(),
+                    _scrubTo(d.localPosition.dx, width, status.total),
+                onHorizontalDragEnd: (_) => _commitScrub(controller),
                 onHorizontalDragCancel: _endScrub,
                 child: SizedBox(
                   height: 36,

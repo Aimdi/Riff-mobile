@@ -43,9 +43,7 @@ class ResultWidget extends StatelessWidget {
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                       ),
-                    const SizedBox(
-                      height: 10,
-                    ),
+                    SizedBox(height: isv2Used ? 4 : 10),
                     ...generateWidgetList(searchResScrController),
                   ])
                 : const SizedBox.shrink(),
@@ -77,6 +75,7 @@ class ResultWidget extends StatelessWidget {
           items: List<MediaItem>.from(value),
           title: key,
           isCompleteList: false,
+          topPadding: list.isEmpty ? 4 : 20,
         ));
       } else if (key == 'Albums') {
         list.add(ContentListWidget(
@@ -97,6 +96,7 @@ class ResultWidget extends StatelessWidget {
           items: List<Artist>.from(value),
           title: key,
           isCompleteList: false,
+          topPadding: list.isEmpty ? 4 : 20,
         ));
       }
     }

@@ -28,7 +28,6 @@ class Player extends StatelessWidget {
     final size = MediaQuery.of(context).size;
     final PlayerController playerController = Get.find<PlayerController>();
     final settingsScreenController = Get.find<SettingsScreenController>();
-    final accent = Theme.of(context).colorScheme.secondary;
     return Scaffold(
       /// SlidingUpPanel is used to create a panel that can slide up and down
       /// It is used to show the current queue panel in mobile
@@ -141,12 +140,14 @@ class Player extends StatelessWidget {
                   alignment: Alignment.bottomCenter,
                   child: Builder(builder: (context) {
                     final theme = Theme.of(context);
-                    final frost = theme.cardColor.withOpacity(
-                      theme.brightness == Brightness.dark ? 0.94 : 0.97,
-                    );
+                    // Opaque, so queue rows never show through the footer.
+                    final frost = Color.alphaBlend(
+                        theme.cardColor, theme.scaffoldBackgroundColor);
                     return Container(
-                      padding: const EdgeInsets.only(
-                          top: 15, bottom: 10, left: 10, right: 10),
+                      padding: EdgeInsets.only(
+                          left: 20,
+                          right: 8,
+                          bottom: Get.mediaQuery.padding.bottom),
                       decoration: BoxDecoration(
                           color: frost,
                           border: const Border(
@@ -156,147 +157,70 @@ class Player extends StatelessWidget {
                             ),
                           )),
                       height: 60 + Get.mediaQuery.padding.bottom,
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            /// number of songs in queue
-                            Obx(
+                      child: Row(
+                        children: [
+                          /// number of songs in queue
+                          Expanded(
+                            child: Obx(
                               () => Text(
                                 "${playerController.currentQueue.length} ${"songs".tr}",
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleSmall!
-                                    .copyWith(
-                                        color: RiffSurfaces.textPrimary),
-                              ),
-                            ),
-
-                            /// queue loop button
-                            InkWell(
-                              onTap: () {
-                                playerController.toggleQueueLoopMode();
-                              },
-                              child: Obx(
-                                () {
-                                  final active = playerController
-                                      .isQueueLoopModeEnabled.isTrue;
-                                  return Container(
-                                    height: 30,
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 15),
-                                    decoration: BoxDecoration(
-                                      color: RiffSurfaces.elevatedSoft,
-                                      borderRadius: BorderRadius.circular(
-                                          RiffTokens.radiusSm),
-                                      border: Border.all(
-                                        color: active
-                                            ? accent
-                                            : Colors.transparent,
-                                        width: 1.2,
-                                      ),
-                                    ),
-                                    child: Center(
-                                        child: Text(
-                                      "queueLoop".tr,
-                                      style: TextStyle(
-                                        color: active
-                                            ? RiffSurfaces.textPrimary
-                                            : RiffSurfaces.textMuted,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    )),
-                                  );
-                                },
-                              ),
-                            ),
-
-                            /// queue shuffle button
-                            InkWell(
-                              onTap: () {
-                                if (playerController
-                                    .isShuffleModeEnabled.isTrue) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      snackbar(context,
-                                          "queueShufflingDeniedMsg".tr,
-                                          size: SanckBarSize.BIG));
-                                  return;
-                                }
-                                playerController.shuffleQueue();
-                              },
-                              child: Container(
-                                height: 30,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 15),
-                                decoration: BoxDecoration(
-                                  color: RiffSurfaces.elevatedSoft,
-                                  borderRadius: BorderRadius.circular(
-                                      RiffTokens.radiusSm),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: RiffSurfaces.textMuted,
                                 ),
-                                child: const Center(
-                                    child: Icon(Icons.shuffle,
-                                        size: 18,
-                                        color: RiffSurfaces.textPrimary)),
                               ),
                             ),
-
-                            /// save queue as playlist
-                            InkWell(
-                              onTap: () {
-                                final queue =
-                                    playerController.currentQueue.toList();
-                                if (!canSaveQueueAsPlaylist(queue.length)) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                          ),
+                          Obx(() => _QueueBarButton(
+                                tooltip: "queueLoop".tr,
+                                icon: Icons.repeat_rounded,
+                                active: playerController
+                                    .isQueueLoopModeEnabled.isTrue,
+                                onTap: playerController.toggleQueueLoopMode,
+                              )),
+                          _QueueBarButton(
+                            tooltip: "shuffleQueue".tr,
+                            icon: Icons.shuffle_rounded,
+                            onTap: () {
+                              if (playerController
+                                  .isShuffleModeEnabled.isTrue) {
+                                ScaffoldMessenger.of(context).showSnackBar(
                                     snackbar(
-                                      context,
-                                      'emptyPlaylist'.tr,
-                                      size: SanckBarSize.MEDIUM,
-                                    ),
-                                  );
-                                  return;
-                                }
-                                showAddToPlaylistSheet(context, queue);
-                              },
-                              child: Container(
-                                height: 30,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 15),
-                                decoration: BoxDecoration(
-                                  color: RiffSurfaces.elevatedSoft,
-                                  borderRadius: BorderRadius.circular(
-                                      RiffTokens.radiusSm),
-                                ),
-                                child: const Center(
-                                    child: Icon(Icons.playlist_add,
-                                        size: 18,
-                                        color: RiffSurfaces.textPrimary)),
-                              ),
-                            ),
-
-                            /// clear queue button
-                            InkWell(
-                              onTap: () {
-                                playerController.clearQueue();
-                              },
-                              child: Container(
-                                height: 30,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 15),
-                                decoration: BoxDecoration(
-                                  color: RiffSurfaces.elevatedSoft,
-                                  borderRadius: BorderRadius.circular(
-                                      RiffTokens.radiusSm),
-                                ),
-                                child: const Center(
-                                    child: Icon(Icons.playlist_remove,
-                                        size: 18,
-                                        color: RiffSurfaces.textPrimary)),
-                              ),
-                            ),
-                          ],
-                        ),
+                                        context, "queueShufflingDeniedMsg".tr,
+                                        size: SanckBarSize.BIG));
+                                return;
+                              }
+                              playerController.shuffleQueue();
+                            },
+                          ),
+                          _QueueBarButton(
+                            tooltip: "saveQueueAsPlaylist".tr,
+                            icon: Icons.playlist_add_rounded,
+                            onTap: () {
+                              final queue =
+                                  playerController.currentQueue.toList();
+                              if (!canSaveQueueAsPlaylist(queue.length)) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  snackbar(
+                                    context,
+                                    'emptyPlaylist'.tr,
+                                    size: SanckBarSize.MEDIUM,
+                                  ),
+                                );
+                                return;
+                              }
+                              showAddToPlaylistSheet(context, queue);
+                            },
+                          ),
+                          _QueueBarButton(
+                            tooltip: "clearQueue".tr,
+                            icon: Icons.playlist_remove_rounded,
+                            onTap: playerController.clearQueue,
+                          ),
+                        ],
                       ),
                     );
                   }),
@@ -307,11 +231,67 @@ class Player extends StatelessWidget {
 
           /// show player ui based on selected player ui in settings
           /// Gesture player is only applicable for mobile
-          body: settingsScreenController.playerUi.value == 0
-              ? const StandardPlayer()
-              : const GesturePlayer(),
+          /// Tickers (ambient canvas backdrop, play-button morph) are muted
+          /// while the full player is collapsed behind the mini player —
+          /// SlidingUpPanel always builds the panel, so they'd otherwise
+          /// repaint full-screen layers every frame forever.
+          body: _PlayerBodyTickerMode(
+            playerController: playerController,
+            child: settingsScreenController.playerUi.value == 0
+                ? const StandardPlayer()
+                : const GesturePlayer(),
+          ),
         ),
       ),
+    );
+  }
+}
+
+/// Enables tickers below [child] only while the player panel is visibly
+/// expanded (past the mini-player cross-fade zone).
+class _PlayerBodyTickerMode extends StatelessWidget {
+  const _PlayerBodyTickerMode({
+    required this.playerController,
+    required this.child,
+  });
+  final PlayerController playerController;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() => TickerMode(
+          enabled: !playerController.isPlayerpanelTopVisible.value,
+          child: child,
+        ));
+  }
+}
+
+/// Queue panel footer action: icon only, accent while [active].
+class _QueueBarButton extends StatelessWidget {
+  const _QueueBarButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onTap,
+    this.active = false,
+  });
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.secondary;
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onTap,
+      iconSize: 22,
+      isSelected: active,
+      style: IconButton.styleFrom(
+        backgroundColor: active ? accent.withOpacity(0.16) : Colors.transparent,
+      ),
+      icon: Icon(icon,
+          color: active ? accent : RiffSurfaces.textPrimary.withOpacity(0.8)),
     );
   }
 }

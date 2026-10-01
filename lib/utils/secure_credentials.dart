@@ -35,6 +35,19 @@ class SecureCredentials {
   static Future<void> init() async {
     if (ready) return;
     try {
+      // One platform-channel round trip instead of a read per key (twice,
+      // with the migration pass) — this sits on the cold-start path.
+      final stored = await _storage.readAll();
+      for (final key in [
+        ...flatKeys,
+        for (final e in nestedSecrets.entries) '${e.key}.${e.value}',
+      ]) {
+        final v = stored[key];
+        if (v != null && v.isNotEmpty) _cache[key] = v;
+      }
+      // Migration only touches in-memory Hive data unless a plaintext secret
+      // is actually present (e.g. an old install or a restored backup), so it
+      // costs nothing on a normal launch and needs no "done" flag.
       if (Hive.isBoxOpen('AppPrefs')) {
         final prefs = Hive.box('AppPrefs');
         for (final key in flatKeys) {
@@ -44,16 +57,6 @@ class SecureCredentials {
           await _migrateNested(prefs, entry.key, entry.value);
         }
       }
-      // Load anything already in secure storage (fresh install / prior migrate).
-      for (final key in flatKeys) {
-        _cache[key] ??= (await _storage.read(key: key)) ?? '';
-        if (_cache[key]!.isEmpty) _cache.remove(key);
-      }
-      for (final entry in nestedSecrets.entries) {
-        final sk = '${entry.key}.${entry.value}';
-        _cache[sk] ??= (await _storage.read(key: sk)) ?? '';
-        if (_cache[sk]!.isEmpty) _cache.remove(sk);
-      }
     } catch (e) {
       printERROR('SecureCredentials.init failed: $e');
     }
@@ -61,10 +64,9 @@ class SecureCredentials {
   }
 
   static Future<void> _migrateFlat(Box prefs, String key) async {
-    final existing = await _storage.read(key: key);
-    if (existing != null && existing.isNotEmpty) {
-      _cache[key] = existing;
-      if (prefs.containsKey(key)) await prefs.delete(key);
+    if (!prefs.containsKey(key)) return;
+    if (_cache[key]?.isNotEmpty ?? false) {
+      await prefs.delete(key);
       return;
     }
     final hive = prefs.get(key);
@@ -78,28 +80,17 @@ class SecureCredentials {
   static Future<void> _migrateNested(
       Box prefs, String mapKey, String field) async {
     final secureKey = '$mapKey.$field';
-    final existing = await _storage.read(key: secureKey);
-    if (existing != null && existing.isNotEmpty) {
-      _cache[secureKey] = existing;
-      final cfg = prefs.get(mapKey);
-      if (cfg is Map && cfg[field] != null) {
-        final copy = Map<String, dynamic>.from(cfg);
-        copy.remove(field);
-        await prefs.put(mapKey, copy);
-      }
-      return;
-    }
     final cfg = prefs.get(mapKey);
-    if (cfg is Map) {
+    if (cfg is! Map || cfg[field] == null) return;
+    if (!(_cache[secureKey]?.isNotEmpty ?? false)) {
       final secret = cfg[field]?.toString();
-      if (secret != null && secret.isNotEmpty) {
-        await _storage.write(key: secureKey, value: secret);
-        _cache[secureKey] = secret;
-        final copy = Map<String, dynamic>.from(cfg);
-        copy.remove(field);
-        await prefs.put(mapKey, copy);
-      }
+      if (secret == null || secret.isEmpty) return;
+      await _storage.write(key: secureKey, value: secret);
+      _cache[secureKey] = secret;
     }
+    final copy = Map<String, dynamic>.from(cfg);
+    copy.remove(field);
+    await prefs.put(mapKey, copy);
   }
 
   static String? get(String key) {

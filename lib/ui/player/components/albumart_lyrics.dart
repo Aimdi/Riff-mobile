@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:audio_service/audio_service.dart';
 import 'package:hive/hive.dart';
+
+import '/models/media_item_extras.dart';
+import '/ui/screens/Settings/settings_screen_controller.dart';
 
 import '/ui/player/components/lyrics_widget.dart';
 import '/ui/player/components/player_video_surface.dart';
@@ -9,22 +13,33 @@ import '/ui/utils/riff_tokens.dart';
 import '/ui/utils/theme_controller.dart';
 import '/utils/media_item_video.dart';
 import '../../widgets/image_widget.dart';
-import '../../widgets/sleep_timer_bottom_sheet.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
 
 class AlbumArtNLyrics extends StatelessWidget {
   const AlbumArtNLyrics({super.key, required this.playerArtImageSize});
   final double playerArtImageSize;
 
-  static bool get videoPlaybackEnabled {
-    final v = Hive.box('AppPrefs').get('playerShowVideo');
+  /// YouTube podcast episodes have their own switch (video by default,
+  /// WizeStream-style); music videos stay opt-in.
+  static String _prefKey(MediaItem? song) =>
+      song != null && song.isPodcastEpisode
+          ? 'podcastShowVideo'
+          : 'playerShowVideo';
+
+  static bool videoPlaybackEnabledFor(MediaItem? song) {
+    final key = _prefKey(song);
+    final v = Hive.box('AppPrefs').get(key);
     if (v is bool) return v;
-    // Opt-in: cover/thumbnail by default; user taps the video icon to enable.
-    return false;
+    // Music: cover/thumbnail until the user taps the video icon.
+    return key == 'podcastShowVideo';
   }
 
-  static Future<void> setVideoPlaybackEnabled(bool on) async {
-    await Hive.box('AppPrefs').put('playerShowVideo', on);
+  static Future<void> setVideoPlaybackEnabled(MediaItem? song, bool on) async {
+    await Hive.box('AppPrefs').put(_prefKey(song), on);
+    if (_prefKey(song) == 'podcastShowVideo' &&
+        Get.isRegistered<SettingsScreenController>()) {
+      Get.find<SettingsScreenController>().podcastVideoEnabled.value = on;
+    }
   }
 
   @override
@@ -35,7 +50,7 @@ class AlbumArtNLyrics extends StatelessWidget {
       if (song == null) return const SizedBox.shrink();
 
       final canVideo = song.canShowPlayerVideo;
-      final isVideo = canVideo && videoPlaybackEnabled;
+      final isVideo = canVideo && videoPlaybackEnabledFor(song);
       // Spotify-style: videos use a 16:9 frame, songs keep the square cover.
       final width = playerArtImageSize;
       final height = isVideo ? (width * 9 / 16) : playerArtImageSize;
@@ -74,9 +89,9 @@ class AlbumArtNLyrics extends StatelessWidget {
               children: [
                 GestureDetector(
                   onLongPress: () {
-                    final sheetContext = playerController
-                            .homeScaffoldkey.currentContext ??
-                        Get.context;
+                    final sheetContext =
+                        playerController.homeScaffoldkey.currentContext ??
+                            Get.context;
                     if (sheetContext == null) return;
                     showModalBottomSheet(
                       useRootNavigator: true,
@@ -117,7 +132,8 @@ class AlbumArtNLyrics extends StatelessWidget {
                           width: width,
                           maxHeight: height,
                           onToggleVideo: () async {
-                            await AlbumArtNLyrics.setVideoPlaybackEnabled(false);
+                            await AlbumArtNLyrics.setVideoPlaybackEnabled(
+                                song, false);
                             playerController.currentSong.refresh();
                           },
                         )
@@ -148,7 +164,8 @@ class AlbumArtNLyrics extends StatelessWidget {
                     top: 8,
                     child: PlayerVideoEnableButton(
                       onShow: () async {
-                        await AlbumArtNLyrics.setVideoPlaybackEnabled(true);
+                        await AlbumArtNLyrics.setVideoPlaybackEnabled(
+                            song, true);
                         playerController.currentSong.refresh();
                       },
                     ),
@@ -170,8 +187,7 @@ class AlbumArtNLyrics extends StatelessWidget {
                             children: [
                               LyricsWidget(
                                   padding: EdgeInsets.symmetric(
-                                      horizontal: 0,
-                                      vertical: height / 3.5)),
+                                      horizontal: 0, vertical: height / 3.5)),
                               IgnorePointer(
                                 child: Container(
                                   decoration: BoxDecoration(
@@ -181,7 +197,8 @@ class AlbumArtNLyrics extends StatelessWidget {
                                       begin: Alignment.topCenter,
                                       end: Alignment.bottomCenter,
                                       colors: [
-                                        RiffSurfaces.voidBlack.withOpacity(0.90),
+                                        RiffSurfaces.voidBlack
+                                            .withOpacity(0.90),
                                         Colors.transparent,
                                         Colors.transparent,
                                         Colors.transparent,
@@ -197,41 +214,6 @@ class AlbumArtNLyrics extends StatelessWidget {
                         ),
                       )
                     : const SizedBox.shrink()),
-                if (playerController.isSleepTimerActive.isTrue)
-                  SizedBox(
-                    width: width,
-                    height: height,
-                    child: Align(
-                      alignment: Alignment.bottomRight,
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Container(
-                          height: 50,
-                          width: 60,
-                          decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(15),
-                              border:
-                                  Border.all(width: 1.3, color: Colors.white),
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .secondary
-                                  .withAlpha(150)),
-                          child: IconButton(
-                            onPressed: () {
-                              final sheetContext = playerController
-                                      .homeScaffoldkey.currentContext ??
-                                  Get.context;
-                              showSleepTimerSheet(sheetContext);
-                            },
-                            icon: const Icon(
-                              Icons.timer,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
               ],
             ),
           ),

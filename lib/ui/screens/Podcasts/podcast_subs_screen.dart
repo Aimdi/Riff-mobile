@@ -3,10 +3,13 @@ import 'package:get/get.dart';
 
 import '/models/playlist.dart';
 import '/services/podcast_service.dart';
+import '/services/wizestream_service.dart';
+import '../Home/home_layout.dart';
 import 'podcast_cover_tile.dart';
 import 'podcast_empty_state.dart';
 import 'podcast_folder_controller.dart';
 import 'podcast_folder_screen.dart';
+import 'podcast_layout.dart';
 import 'podcasts_library_controller.dart';
 
 /// Long-press a podcast show anywhere it's listed to file it into folders.
@@ -51,6 +54,16 @@ void showPodcastFolderSheet(BuildContext context, Playlist podcast) {
                     title: Text(f.name),
                     secondary: Icon(Icons.folder_rounded, color: f.color),
                   )),
+              if (WizeStream.isInstalled &&
+                  WizeStream.showUrlFor(podcast) != null)
+                ListTile(
+                  leading: const Icon(Icons.open_in_new_rounded),
+                  title: Text("openInWizeStream".tr),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    WizeStream.open(WizeStream.showUrlFor(podcast)!);
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.create_new_folder_outlined),
                 title: Text("newFolder".tr),
@@ -196,7 +209,8 @@ class PodcastSubsScreen extends StatelessWidget {
           final total = folderList.length + subs.length + rssSubs.length;
           return GridView.builder(
             padding: kPodcastSubsGridPadding,
-            gridDelegate: podcastSubsGridDelegate(constraints.maxWidth),
+            gridDelegate: podcastSubsGridDelegate(constraints.maxWidth,
+                textScaler: MediaQuery.textScalerOf(context)),
             itemCount: total,
             itemBuilder: (context, index) {
               if (index < folderList.length) {
@@ -244,12 +258,33 @@ class PodcastSubsScreen extends StatelessWidget {
                 PodcastService.subscriptions.isNotEmpty ||
                 folders.folders.isNotEmpty;
             if (!hasAny) return const SizedBox.shrink();
-            return Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () => showNewPodcastFolderDialog(context),
-                icon: const Icon(Icons.create_new_folder_outlined, size: 20),
-                label: Text("newFolder".tr),
+            final shows = controller.libraryPodcasts.length +
+                PodcastService.subscriptions.length;
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 6, 4, 2),
+              child: SizedBox(
+                height: 40,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        podcastShowCount(shows),
+                        style: homeCardSubtitleStyle(context)
+                            .copyWith(fontSize: 13),
+                      ),
+                    ),
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        foregroundColor:
+                            Theme.of(context).colorScheme.secondary,
+                      ),
+                      onPressed: () => showNewPodcastFolderDialog(context),
+                      icon: const Icon(Icons.create_new_folder_outlined,
+                          size: 20),
+                      label: Text("newFolder".tr),
+                    ),
+                  ],
+                ),
               ),
             );
           }),
@@ -276,7 +311,7 @@ class PodcastSubsScreen extends StatelessWidget {
       BuildContext context, PodcastFolderController fc, PodcastFolder folder) {
     return PodcastCoverTile(
       title: folder.name,
-      subtitle: "${folder.podcastIds.length} ${'items'.tr}",
+      subtitle: podcastShowCount(folder.podcastIds.length),
       showPlay: false,
       cover: Container(
         decoration: BoxDecoration(

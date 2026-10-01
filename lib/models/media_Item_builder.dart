@@ -60,6 +60,8 @@ class MediaItemBuilder {
           if (json['showVideo'] != null) 'showVideo': json['showVideo'],
           if (json['podcastSource'] != null)
             'podcastSource': json['podcastSource'],
+          if (json['podcastPlaylistId'] != null)
+            'podcastPlaylistId': json['podcastPlaylistId'],
           // Audiobookshelf bookkeeping. Session save/restore round-trips every
           // queue item through this builder, and dropping these keys leaves a
           // restored audiobook playable but permanently unable to report its
@@ -187,6 +189,8 @@ class MediaItemBuilder {
         'description': mediaItem.extras?['description'],
         'showVideo': mediaItem.extras?['showVideo'],
         'podcastSource': mediaItem.extras?['podcastSource'],
+        if (mediaItem.extras?['podcastPlaylistId'] != null)
+          'podcastPlaylistId': mediaItem.extras?['podcastPlaylistId'],
         // Keep the Audiobookshelf keys through the round-trip; only emitted
         // when present so ordinary songs serialize exactly as before.
         if (mediaItem.extras?['streamSource'] != null)

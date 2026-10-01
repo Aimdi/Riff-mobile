@@ -252,51 +252,6 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                             ],
                           );
                         }),
-                        IconButton(
-                          tooltip: 'playNext'.tr,
-                          iconSize: 20,
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
-                          ),
-                          splashRadius: 18,
-                          onPressed: () async {
-                            final ok = await playerController.playNext(song);
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              snackbar(
-                                context,
-                                ok
-                                    ? "${"playnextMsg".tr} ${song.title}"
-                                    : "operationFailed".tr,
-                                size: SanckBarSize.MEDIUM,
-                              ),
-                            );
-                          },
-                          icon: Icon(
-                            Icons.playlist_play,
-                            color: muted,
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'addToPlaylist'.tr,
-                          iconSize: 20,
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
-                          ),
-                          splashRadius: 18,
-                          onPressed: () =>
-                              showAddToPlaylistSheet(context, [song]),
-                          icon: Icon(
-                            Icons.playlist_add,
-                            color: muted,
-                          ),
-                        ),
                         SongRowHeartButton(
                           song: song,
                           iconSize: 20,
