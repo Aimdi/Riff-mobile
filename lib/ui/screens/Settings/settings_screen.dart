@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/utils/helper.dart';
 import 'package:harmonymusic/utils/lang_mapping.dart';
@@ -14,6 +15,7 @@ import '../../widgets/snackbar.dart';
 import '/ui/widgets/link_piped.dart';
 import '/services/wizestream_service.dart';
 import '/services/ban_service.dart';
+import '/services/crash_report.dart';
 import '/services/better_lyrics_service.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/listenbrainz_service.dart';
@@ -1267,6 +1269,25 @@ class SettingsScreen extends StatelessWidget {
                         ),
                         mode: LaunchMode.externalApplication,
                       );
+                    },
+                  ),
+                  ListTile(
+                    contentPadding: const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("copyDiagnostics".tr),
+                    subtitle: Text("copyDiagnosticsDes".tr,
+                        style: settingsSubtitleStyle(context)),
+                    trailing: Icon(Icons.bug_report_outlined,
+                        size: 18, color: accent.withOpacity(0.8)),
+                    onTap: () async {
+                      final text = await CrashReport.diagnostics(
+                          settingsController.currentVersion);
+                      await Clipboard.setData(ClipboardData(text: text));
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                        context,
+                        "diagnosticsCopied".tr,
+                        size: SanckBarSize.MEDIUM,
+                      ));
                     },
                   ),
                   const SizedBox(height: 16),

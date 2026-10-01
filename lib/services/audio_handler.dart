@@ -17,6 +17,7 @@ import 'package:rxdart/rxdart.dart';
 import '/models/album.dart';
 import '../models/playlist.dart';
 import '/services/equalizer.dart';
+import '/services/youtube_stream_headers.dart';
 import '/services/playlist_mix_service.dart';
 import '/services/audiobookshelf_service.dart';
 import '/services/cloud_music_service.dart';
@@ -620,8 +621,12 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
     printINFO("Playing Using AudioSource.uri");
     isPlayingUsingLockCachingSource = false;
+    // A YouTube stream fetched by ExoPlayer itself (no caching proxy) is
+    // sent the headers of the client its url was issued to, as NewPipe
+    // does; a mismatched User-Agent is one way YouTube answers 403.
     return AudioSource.uri(
       Uri.parse(url),
+      headers: youtubeStreamHeaders(url),
       tag: mediaItem,
     );
   }

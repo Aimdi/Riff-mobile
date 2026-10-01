@@ -1,3 +1,18 @@
+# 1.7.111
+
+**Podcasts**
+* An episode never opens with video on its own: podcast video is off each
+  time Riff starts and only turns on from the Video button. A saved
+  "video on" choice from an older version is cleared
+* Episodes streamed straight from YouTube send the headers of the client
+  the stream was issued to, as NewPipe does
+
+**Diagnostics**
+* Settings › App info › Copy diagnostics: the version, the last unexpected
+  exit and the recent log, ready to paste into a bug report
+* The crash dialog now includes what the app logged before it stopped,
+  and shows a recorded crash even when Android kept no exit record
+
 # 1.7.110
 
 **Crash reports**

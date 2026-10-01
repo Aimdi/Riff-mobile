@@ -2,21 +2,25 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
+import '/services/diag_log.dart';
 import '/ui/navigator.dart';
 import '/ui/widgets/sort_widget.dart';
 import 'app_version.dart';
 
 void printERROR(dynamic text, {String tag = "Harmony Music"}) {
+  DiagLog.add('E $text');
   if (kReleaseMode) return;
   debugPrint("\x1B[31m[$tag]: $text\x1B[0m");
 }
 
 void printWarning(dynamic text, {String tag = 'Harmony Music'}) {
+  DiagLog.add('W $text');
   if (kReleaseMode) return;
   debugPrint("\x1B[33m[$tag]: $text\x1B[34m");
 }
 
 void printINFO(dynamic text, {String tag = 'Harmony Music'}) {
+  DiagLog.add('I $text');
   if (kReleaseMode) return;
   debugPrint("\x1B[32m[$tag]: $text\x1B[34m");
 }
