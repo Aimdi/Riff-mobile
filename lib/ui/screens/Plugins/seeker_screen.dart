@@ -1,3 +1,4 @@
+import '../Home/home_layout.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -31,18 +32,8 @@ class SeekerScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (!embedded) ...[
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new),
-                onPressed: () => Get.back(id: ScreenNavigationSetup.id),
-              ),
-              Text('soulseek'.tr, style: theme.textTheme.titleLarge),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text('soulseekDes'.tr, style: theme.textTheme.bodyMedium),
-          const SizedBox(height: 12),
+          // Header is drawn full width by the Scaffold below.
+          const SizedBox(height: 6),
         ] else ...[
           Text('soulseek'.tr, style: theme.textTheme.titleMedium),
           const SizedBox(height: 2),
@@ -66,9 +57,19 @@ class SeekerScreen extends StatelessWidget {
     }
     return Scaffold(
       backgroundColor: theme.canvasColor,
-      body: Padding(
-        padding: const EdgeInsets.only(left: 16, right: 16, top: 70),
-        child: body,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          RiffPageHeader('soulseek'.tr,
+              subtitle: 'soulseekDes'.tr,
+              onBack: () => Get.back(id: ScreenNavigationSetup.id)),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: body,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -199,7 +200,8 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
 
   SoulseekSearchMode _mode = SoulseekSearchMode.song;
   SoulseekSearchFilters _filters = const SoulseekSearchFilters();
-  SoulseekQuery _query = const SoulseekQuery(raw: '', mode: SoulseekSearchMode.song);
+  SoulseekQuery _query =
+      const SoulseekQuery(raw: '', mode: SoulseekSearchMode.song);
 
   final List<SoulseekFile> _rawHits = [];
   List<RankedSoulseekFile> _ranked = [];
@@ -312,7 +314,8 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        snackbar(context, 'soulseekDownloadFailed'.tr, size: SanckBarSize.MEDIUM),
+        snackbar(context, 'soulseekDownloadFailed'.tr,
+            size: SanckBarSize.MEDIUM),
       );
     } finally {
       if (mounted) {
@@ -488,7 +491,8 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
         const SizedBox(height: 6),
         Text(
           _loading
-              ? 'soulseekSearchingLive'.trParams({'count': '${_rawHits.length}'})
+              ? 'soulseekSearchingLive'
+                  .trParams({'count': '${_rawHits.length}'})
               : 'soulseekSearchNote'.tr,
           style: theme.textTheme.bodySmall,
         ),
@@ -734,8 +738,8 @@ class _SongResultTile extends StatelessWidget {
       leading: _CoverThumb(
         size: coverSize,
         lookupKey: CoverLookupHint.fromFile(hit, query).cacheKey,
-        loader: () => SoulseekCoverService.instance
-            .coverForFile(hit, query: query),
+        loader: () =>
+            SoulseekCoverService.instance.coverForFile(hit, query: query),
         fallback: Icon(
           Icons.music_note,
           size: coverSize * 0.45,

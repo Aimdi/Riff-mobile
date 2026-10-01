@@ -1,3 +1,4 @@
+import '../Home/home_layout.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -53,37 +54,40 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
     final subs = PodcastService.subscriptions;
     return Scaffold(
       backgroundColor: Theme.of(context).canvasColor,
-      body: Padding(
-        padding: const EdgeInsets.only(left: 16, right: 16, top: 70),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("podcasts".tr, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _searchCtrl,
-              textInputAction: TextInputAction.search,
-              onSubmitted: (_) => _search(),
-              decoration: InputDecoration(
-                hintText: "searchPodcasts".tr,
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: IconButton(
-                    icon: const Icon(Icons.arrow_forward), onPressed: _search),
-                border: const OutlineInputBorder(),
-                isDense: true,
+      body: Column(children: [
+        RiffPageHeader("podcasts".tr),
+        Expanded(
+            child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: _searchCtrl,
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => _search(),
+                decoration: InputDecoration(
+                  hintText: "searchPodcasts".tr,
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: IconButton(
+                      icon: const Icon(Icons.arrow_forward),
+                      onPressed: _search),
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: _loading
-                  ? const SongListShimmer(itemCount: 8, topPadding: 8)
-                  : _searched
-                      ? _resultsList(_results, subscribeMode: true)
-                      : _subscriptionsView(subs),
-            ),
-          ],
-        ),
-      ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: _loading
+                    ? const SongListShimmer(itemCount: 8, topPadding: 8)
+                    : _searched
+                        ? _resultsList(_results, subscribeMode: true)
+                        : _subscriptionsView(subs),
+              ),
+            ],
+          ),
+        )),
+      ]),
     );
   }
 

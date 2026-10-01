@@ -1,3 +1,4 @@
+import '../Home/home_layout.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -233,124 +234,126 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
 
     return Scaffold(
       backgroundColor: theme.canvasColor,
-      appBar: AppBar(title: Text('spotifyBridge'.tr)),
-      body: Obx(() {
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-          children: [
-            Text('spotifyBridgeDes'.tr, style: theme.textTheme.bodyMedium),
-            const SizedBox(height: 16),
+      body: Column(children: [
+        RiffPageHeader('spotifyBridge'.tr),
+        Expanded(child: Obx(() {
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+            children: [
+              Text('spotifyBridgeDes'.tr, style: theme.textTheme.bodyMedium),
+              const SizedBox(height: 16),
 
-            // --- client id ---
-            TextField(
-              controller: _clientIdController,
-              enabled: !_loading.value,
-              decoration: InputDecoration(
-                labelText: 'spotifyClientId'.tr,
-                hintText: '32-character id from developer.spotify.com',
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                suffixIcon: IconButton(
-                  tooltip: 'save'.tr,
-                  icon: const Icon(Icons.check),
-                  onPressed: _loading.value ? null : _saveClientId,
+              // --- client id ---
+              TextField(
+                controller: _clientIdController,
+                enabled: !_loading.value,
+                decoration: InputDecoration(
+                  labelText: 'spotifyClientId'.tr,
+                  hintText: '32-character id from developer.spotify.com',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  suffixIcon: IconButton(
+                    tooltip: 'save'.tr,
+                    icon: const Icon(Icons.check),
+                    onPressed: _loading.value ? null : _saveClientId,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                icon: const Icon(Icons.open_in_new, size: 16),
-                label: Text('spotifyOpenDashboard'.tr),
-                onPressed: () => launchUrl(
-                  Uri.parse('https://developer.spotify.com/dashboard'),
-                  mode: LaunchMode.externalApplication,
-                ),
-              ),
-            ),
-            // The dashboard matches this literally; a mismatch is the most
-            // common reason sign-in fails with an opaque error.
-            SelectableText(
-              '${'spotifyRedirectUri'.tr}: ${SpotifyAuthService.redirectUri}',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 20),
-
-            // --- sign in / out ---
-            if (!_connected.value)
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: accent),
-                onPressed: _loading.value ? null : _signIn,
-                icon: const Icon(Icons.login),
-                label: Text('spotifySignIn'.tr),
-              )
-            else
-              Row(
-                children: [
-                  Expanded(
-                    child: Text('spotifyConnected'.tr,
-                        style: theme.textTheme.titleSmall),
-                  ),
-                  TextButton(
-                    onPressed: _loading.value ? null : _signOut,
-                    child: Text('spotifySignOut'.tr),
-                  ),
-                  IconButton(
-                    tooltip: 'refresh'.tr,
-                    icon: const Icon(Icons.refresh),
-                    onPressed: _loading.value ? null : _loadPlaylists,
-                  ),
-                ],
-              ),
-
-            if (_loading.value || _progress.value > 0) ...[
-              const SizedBox(height: 12),
-              LinearProgressIndicator(
-                value: _progress.value <= 0 || _progress.value >= 1
-                    ? null
-                    : _progress.value,
-                minHeight: 4,
-              ),
-            ],
-            if (_status.value.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Text(_status.value, style: theme.textTheme.bodySmall),
-            ],
-
-            // --- playlists ---
-            if (_playlists.isNotEmpty) ...[
-              const SizedBox(height: 20),
-              Text('spotifyYourPlaylists'.tr,
-                  style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
-              ..._playlists.map((p) => ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    onTap: _loading.value ? null : () => _play(p),
-                    leading: p.coverUrl != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: Image.network(p.coverUrl!,
-                                width: 48,
-                                height: 48,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                    const Icon(Icons.queue_music)),
-                          )
-                        : const Icon(Icons.queue_music),
-                    title: Text(p.name,
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text('${p.trackCount} ${'songs'.tr}'),
-                    trailing: IconButton(
-                      tooltip: 'import'.tr,
-                      icon: const Icon(Icons.cloud_download),
-                      onPressed: _loading.value ? null : () => _import(p),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  icon: const Icon(Icons.open_in_new, size: 16),
+                  label: Text('spotifyOpenDashboard'.tr),
+                  onPressed: () => launchUrl(
+                    Uri.parse('https://developer.spotify.com/dashboard'),
+                    mode: LaunchMode.externalApplication,
+                  ),
+                ),
+              ),
+              // The dashboard matches this literally; a mismatch is the most
+              // common reason sign-in fails with an opaque error.
+              SelectableText(
+                '${'spotifyRedirectUri'.tr}: ${SpotifyAuthService.redirectUri}',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 20),
+
+              // --- sign in / out ---
+              if (!_connected.value)
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: accent),
+                  onPressed: _loading.value ? null : _signIn,
+                  icon: const Icon(Icons.login),
+                  label: Text('spotifySignIn'.tr),
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('spotifyConnected'.tr,
+                          style: theme.textTheme.titleSmall),
                     ),
-                  )),
+                    TextButton(
+                      onPressed: _loading.value ? null : _signOut,
+                      child: Text('spotifySignOut'.tr),
+                    ),
+                    IconButton(
+                      tooltip: 'refresh'.tr,
+                      icon: const Icon(Icons.refresh),
+                      onPressed: _loading.value ? null : _loadPlaylists,
+                    ),
+                  ],
+                ),
+
+              if (_loading.value || _progress.value > 0) ...[
+                const SizedBox(height: 12),
+                LinearProgressIndicator(
+                  value: _progress.value <= 0 || _progress.value >= 1
+                      ? null
+                      : _progress.value,
+                  minHeight: 4,
+                ),
+              ],
+              if (_status.value.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(_status.value, style: theme.textTheme.bodySmall),
+              ],
+
+              // --- playlists ---
+              if (_playlists.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Text('spotifyYourPlaylists'.tr,
+                    style: theme.textTheme.titleMedium),
+                const SizedBox(height: 8),
+                ..._playlists.map((p) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      onTap: _loading.value ? null : () => _play(p),
+                      leading: p.coverUrl != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Image.network(p.coverUrl!,
+                                  width: 48,
+                                  height: 48,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) =>
+                                      const Icon(Icons.queue_music)),
+                            )
+                          : const Icon(Icons.queue_music),
+                      title: Text(p.name,
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                      subtitle: Text('${p.trackCount} ${'songs'.tr}'),
+                      trailing: IconButton(
+                        tooltip: 'import'.tr,
+                        icon: const Icon(Icons.cloud_download),
+                        onPressed: _loading.value ? null : () => _import(p),
+                      ),
+                    )),
+              ],
             ],
-          ],
-        );
-      }),
+          );
+        })),
+      ]),
     );
   }
 }

@@ -1,3 +1,4 @@
+import '../Home/home_layout.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -22,16 +23,23 @@ class CloudScreen extends StatelessWidget {
     final topPadding = context.isLandscape ? 50.0 : 90.0;
 
     return Padding(
-      padding: EdgeInsets.only(top: topPadding, left: 5, right: 5),
+      padding: EdgeInsets.only(top: topPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('cloud'.tr, style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                HomeLayout.gutter, 0, HomeLayout.gutter, 8),
+            child: Text('cloud'.tr,
+                style: Theme.of(context).textTheme.titleLarge),
+          ),
           Expanded(
-            child: Obx(() => cloud.isConnected.value
-                ? const _CloudLibraryView()
-                : const CloudLoginForm()),
+            child: Padding(
+              padding: const EdgeInsets.only(left: HomeLayout.gutter),
+              child: Obx(() => cloud.isConnected.value
+                  ? const _CloudLibraryView()
+                  : const CloudLoginForm()),
+            ),
           ),
         ],
       ),

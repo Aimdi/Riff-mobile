@@ -5205,6 +5205,7 @@ Map<String, Map<String, String>> get keys => {
     "minShort": "min",
     "playlistName": "Playlist name",
     "artist": "Artist",
+    "installed": "Installed",
     "copyDiagnostics": "Copy diagnostics",
     "copyDiagnosticsDes": "Version, the last unexpected exit and the recent log, for a bug report",
     "diagnosticsCopied": "Diagnostics copied",
