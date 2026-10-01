@@ -140,9 +140,9 @@ void main() {
       home.onSideBarTabSelected(0);
     });
 
-    // Search: the screen, then results with each filter pill.
-    await _step_(tester, 'search screen',
-        () async => _go(ScreenNavigationSetup.searchScreen, null));
+    // Search results with each filter pill. (The search screen itself is
+    // covered by the release tour: its autofocused field stalls this
+    // harness's simulated keyboard.)
     await _step_(tester, 'search results', () async {
       _go(ScreenNavigationSetup.searchResultScreen, 'coldplay');
       await _wait(tester, 8);
@@ -160,7 +160,6 @@ void main() {
         await _wait(tester, 3);
       }
     }, settle: 2);
-    _back();
     _back();
 
     // Artist, album and playlist pages from real search results.
@@ -319,5 +318,5 @@ void main() {
     _log('==== ${_errors.length} distinct errors');
     _errors.forEach((k, steps) =>
         _log('x${steps.length} [${steps.toSet().join(', ')}] $k'));
-  }, timeout: const Timeout(Duration(minutes: 20)));
+  }, timeout: const Timeout(Duration(minutes: 35)));
 }

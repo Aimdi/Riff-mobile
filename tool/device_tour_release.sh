@@ -59,6 +59,12 @@ for tab in Songs Podcasts Audiobooks Playlists Albums Artists Settings Home; do
   relaunch_if_dead
 done
 
+# Search with the real keyboard: open, type, submit, results.
+tap_text "search"; sleep 4; step "search screen" search; relaunch_if_dead
+adb shell input text coldplay; sleep 3; step "search typed" search-typed
+adb shell input keyevent 66; sleep 12; step "search results" search-results; relaunch_if_dead
+adb shell input keyevent KEYCODE_BACK; sleep 2; adb shell input keyevent KEYCODE_BACK; sleep 2
+
 open_link "https://music.youtube.com/channel/UCDPM_n1atn2ijUwHd0NNRQw"   # Coldplay
 sleep 15; step "artist page" artist; relaunch_if_dead
 adb shell input swipe 540 1800 540 600 300; sleep 2
