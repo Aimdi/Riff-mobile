@@ -1,3 +1,15 @@
+# 1.7.114
+
+**Design**
+* Every remaining screen now matches the new look: the song menu, sleep
+  timer, add to playlist, queue, create playlist and sort sheets; the
+  Artists tab, Explore, Stats and Rewind; podcast categories, downloads,
+  folders, queue, inbox and subscriptions; Plugins, Cloud, Audiobookshelf,
+  Spotify Bridge, SoulSync and Seeker
+* Backup, restore, export, playlist export, Piped, song info, update and
+  Spotify import dialogs, and the podcast transcript, share one style
+* Filled buttons use your accent color instead of a default blue
+
 # 1.7.113
 
 **Fixes**
