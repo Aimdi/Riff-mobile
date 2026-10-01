@@ -2,8 +2,8 @@ import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '/models/playlist.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:widget_marquee/widget_marquee.dart';
 
 import '/models/playling_from.dart';
 import '/models/thumbnail.dart';
@@ -12,13 +12,13 @@ import '/services/playlist_mix_service.dart';
 import '../Podcasts/podcast_queue_screen.dart';
 import '../Podcasts/podcasts_screen.dart';
 import '/ui/widgets/playlist_album_scroll_behaviour.dart';
-import '../../../services/downloader.dart';
 import '../../navigator.dart';
 import '../../player/player_controller.dart';
 import '../../widgets/create_playlist_dialog.dart';
+import '../../widgets/collection_header.dart';
 import '../../widgets/header_hero_fade.dart';
+import '../Home/home_layout.dart';
 import '../../widgets/image_widget.dart';
-import '../../widgets/loader.dart';
 import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
 import '../../widgets/mix_transition_chip.dart';
 import '../../widgets/playlist_export_dialog.dart';
@@ -141,129 +141,10 @@ class PlaylistScreen extends StatelessWidget {
             ),
             Column(
               children: [
-                Container(
-                  padding: EdgeInsets.only(
-                      top: MediaQuery.of(context).padding.top + 10,
-                      left: 10,
-                      right: 10),
-                  height: 80,
-                  child: Center(
-                    child: Row(
-                      children: [
-                        SizedBox(
-                          width: 50,
-                          child: IconButton(
-                              tooltip: "back".tr,
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                              },
-                              icon: const Icon(Icons.arrow_back_ios)),
-                        ),
-                        Expanded(
-                          child: Obx(
-                            () => Marquee(
-                              delay: const Duration(milliseconds: 300),
-                              duration: const Duration(seconds: 5),
-                              id: "${playlistController.playlist.value.title.hashCode.toString()}_appbar",
-                              child: Text(
-                                playlistController.appBarTitleVisible.isTrue
-                                    ? playlistController.playlist.value.title
-                                    : "",
-                                maxLines: 1,
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Reactive: an id-only open fills `playlist`
-                        // asynchronously (starts as a cloud placeholder).
-                        Obx(() => (!playlistController
-                                    .playlist.value.isCloudPlaylist &&
-                                playlistController.isDefaultPlaylist.isFalse)
-                            ? SizedBox(
-                                width: 50,
-                                child: IconButton(
-                                    onPressed: () {
-                                      showModalBottomSheet(
-                                        constraints:
-                                            const BoxConstraints(maxWidth: 500),
-                                        shape: const RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.vertical(
-                                              top: Radius.circular(10.0)),
-                                        ),
-                                        context: Get.find<PlayerController>()
-                                            .homeScaffoldkey
-                                            .currentState!
-                                            .context,
-                                        barrierColor:
-                                            Colors.transparent.withAlpha(100),
-                                        builder: (context) => SizedBox(
-                                          height: 140,
-                                          child: Column(
-                                            children: [
-                                              ListTile(
-                                                leading: const Icon(Icons.edit),
-                                                title:
-                                                    Text("renamePlaylist".tr),
-                                                onTap: () {
-                                                  Navigator.of(context).pop();
-                                                  showDialog(
-                                                    context: context,
-                                                    builder: (context) =>
-                                                        CreateNRenamePlaylistPopup(
-                                                            renamePlaylist:
-                                                                true,
-                                                            playlist:
-                                                                playlistController
-                                                                    .playlist
-                                                                    .value),
-                                                  );
-                                                },
-                                              ),
-                                              ListTile(
-                                                leading:
-                                                    const Icon(Icons.delete),
-                                                title:
-                                                    Text("removePlaylist".tr),
-                                                onTap: () {
-                                                  Navigator.of(context).pop();
-                                                  playlistController
-                                                      .addNremoveFromLibrary(
-                                                          playlistController
-                                                              .playlist.value,
-                                                          add: false)
-                                                      .then((value) {
-                                                    Get.nestedKey(
-                                                            ScreenNavigationSetup
-                                                                .id)!
-                                                        .currentState!
-                                                        .pop();
-                                                    ScaffoldMessenger.of(
-                                                            Get.context!)
-                                                        .showSnackBar(snackbar(
-                                                            Get.context!,
-                                                            value
-                                                                ? "playlistRemovedAlert"
-                                                                    .tr
-                                                                : "operationFailed"
-                                                                    .tr,
-                                                            size: SanckBarSize
-                                                                .MEDIUM));
-                                                  });
-                                                },
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    icon: const Icon(Icons.more_vert)),
-                              )
-                            : const SizedBox.shrink()),
-                      ],
-                    ),
-                  ),
-                ),
+                Obx(() => CollectionTopBar(
+                      title: playlistController.playlist.value.title,
+                      showTitle: playlistController.appBarTitleVisible.isTrue,
+                    )),
                 Expanded(
                   child: Align(
                     alignment: Alignment.centerLeft,
@@ -280,8 +161,8 @@ class PlaylistScreen extends StatelessWidget {
                               top: playlistController.isSearchingOn.isTrue
                                   ? 0
                                   : landscape
-                                      ? 150
-                                      : 200,
+                                      ? 110
+                                      : 160,
                               bottom: 200,
                             ),
                             itemCount: playlistController.songList.isEmpty ||
@@ -290,677 +171,28 @@ class PlaylistScreen extends StatelessWidget {
                                 : playlistController.songList.length + 3,
                             itemBuilder: (_, index) {
                               if (index == 0) {
-                                // Podcasts / YT channels: no music action strip
-                                // (play/shuffle/download/…). Follow lives under
-                                // the title in the header row (index == 1).
-                                final pl0 = playlistController.playlist.value;
-                                final isPodcastPage = pl0.kind == 'podcast' ||
-                                    pl0.kind == 'yt_channel' ||
-                                    pl0.playlistId.startsWith('MPSP') ||
-                                    _channelIdRe.hasMatch(pl0.playlistId);
-                                if (isPodcastPage) {
-                                  return const SizedBox.shrink();
-                                }
-                                return Padding(
-                                  padding: const EdgeInsets.only(left: 15.0),
-                                  child: SizedBox(
-                                    height: 40,
-                                    child: SingleChildScrollView(
-                                      scrollDirection: Axis.horizontal,
-                                      child: Row(
-                                        children: [
-                                          // Bookmark — playlists only. Podcasts
-                                          // use the green Follow pill under the title.
-                                          Obx(() {
-                                            final pl = playlistController
-                                                .playlist.value;
-                                            final isPodcast =
-                                                pl.kind == 'podcast' ||
-                                                    pl.playlistId
-                                                        .startsWith('MPSP') ||
-                                                    pl.kind == 'yt_channel';
-                                            if (isPodcast ||
-                                                pl.isPipedPlaylist ||
-                                                !pl.isCloudPlaylist) {
-                                              return const SizedBox.shrink();
-                                            }
-                                            return IconButton(
-                                                tooltip: playlistController
-                                                        .isAddedToLibrary
-                                                        .isFalse
-                                                    ? "addToLibrary".tr
-                                                    : "removeFromLibrary".tr,
-                                                splashRadius: 10,
-                                                onPressed: () {
-                                                  final add = playlistController
-                                                      .isAddedToLibrary.isFalse;
-                                                  playlistController
-                                                      .addNremoveFromLibrary(
-                                                          playlistController
-                                                              .playlist.value,
-                                                          add: add)
-                                                      .then((value) {
-                                                    if (!context.mounted) {
-                                                      return;
-                                                    }
-
-                                                    ScaffoldMessenger.of(
-                                                            context)
-                                                        .showSnackBar(snackbar(
-                                                            context,
-                                                            value
-                                                                ? add
-                                                                    ? "playlistBookmarkAddAlert"
-                                                                        .tr
-                                                                    : "listBookmarkRemoveAlert"
-                                                                        .tr
-                                                                : "operationFailed"
-                                                                    .tr,
-                                                            size: SanckBarSize
-                                                                .MEDIUM));
-                                                  });
-                                                },
-                                                icon: Icon(playlistController
-                                                        .isAddedToLibrary
-                                                        .isFalse
-                                                    ? Icons.bookmark_add
-                                                    : Icons.bookmark_added));
-                                          }),
-                                          // Play button
-                                          IconButton(
-                                              tooltip: "play".tr,
-                                              onPressed: () {
-                                                _playPlaylistFrom(
-                                                  playerController,
-                                                  playlistController,
-                                                  0,
-                                                );
-                                              },
-                                              icon: Icon(
-                                                Icons.play_circle,
-                                                color: Theme.of(context)
-                                                    .textTheme
-                                                    .titleMedium!
-                                                    .color,
-                                              )),
-                                          // Enqueue button
-                                          IconButton(
-                                              tooltip: "enqueueSongs".tr,
-                                              onPressed: () async {
-                                                final ok = await Get.find<
-                                                        PlayerController>()
-                                                    .enqueueSongList(
-                                                        playlistController
-                                                            .songList
-                                                            .toList());
-                                                if (!context.mounted) return;
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(snackbar(
-                                                        context,
-                                                        ok
-                                                            ? "songEnqueueAlert"
-                                                                .tr
-                                                            : "operationFailed"
-                                                                .tr,
-                                                        size: SanckBarSize
-                                                            .MEDIUM));
-                                              },
-                                              icon: Icon(
-                                                Icons.merge,
-                                                color: Theme.of(context)
-                                                    .textTheme
-                                                    .titleMedium!
-                                                    .color,
-                                              )),
-                                          // Play next
-                                          IconButton(
-                                              tooltip: "playNext".tr,
-                                              onPressed: () async {
-                                                final ok =
-                                                    await playerController
-                                                        .playNextList(
-                                                            playlistController
-                                                                .songList
-                                                                .toList());
-                                                if (!context.mounted) return;
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(snackbar(
-                                                        context,
-                                                        ok
-                                                            ? "playnextMsg".tr
-                                                            : "operationFailed"
-                                                                .tr,
-                                                        size: SanckBarSize
-                                                            .MEDIUM));
-                                              },
-                                              icon: Icon(
-                                                Icons.playlist_play,
-                                                color: Theme.of(context)
-                                                    .textTheme
-                                                    .titleMedium!
-                                                    .color,
-                                              )),
-                                          IconButton(
-                                              tooltip: "startRadio".tr,
-                                              onPressed: () async {
-                                                final songs = playlistController
-                                                    .songList
-                                                    .toList();
-                                                if (songs.isEmpty) {
-                                                  if (context.mounted) {
-                                                    ScaffoldMessenger.of(
-                                                            context)
-                                                        .showSnackBar(snackbar(
-                                                            context,
-                                                            "radioNotAvailable"
-                                                                .tr,
-                                                            size: SanckBarSize
-                                                                .MEDIUM));
-                                                  }
-                                                  return;
-                                                }
-                                                final ok =
-                                                    await playerController
-                                                        .startRadio(
-                                                            songs.first);
-                                                if (!context.mounted || ok) {
-                                                  return;
-                                                }
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(snackbar(
-                                                        context,
-                                                        "radioNotAvailable".tr,
-                                                        size: SanckBarSize
-                                                            .MEDIUM));
-                                              },
-                                              icon: Icon(
-                                                Icons.sensors,
-                                                color: Theme.of(context)
-                                                    .textTheme
-                                                    .titleMedium!
-                                                    .color,
-                                              )),
-
-                                          // Shuffle button
-                                          IconButton(
-                                              tooltip: "shuffle".tr,
-                                              onPressed: () async {
-                                                final songsToplay =
-                                                    List<MediaItem>.from(
-                                                        playlistController
-                                                            .songList);
-                                                songsToplay.shuffle();
-                                                songsToplay.shuffle();
-                                                if (Get.isRegistered<
-                                                    PlaylistMixService>()) {
-                                                  Get.find<PlaylistMixService>()
-                                                      .deactivatePlayback();
-                                                }
-                                                final ok = await playerController
-                                                    .playPlayListSong(
-                                                        songsToplay, 0,
-                                                        playfrom: PlaylingFrom(
-                                                            name:
-                                                                playlistController
-                                                                    .playlist
-                                                                    .value
-                                                                    .title,
-                                                            type:
-                                                                PlaylingFromType
-                                                                    .PLAYLIST));
-                                                if (!ok) snackOperationFailed();
-                                              },
-                                              icon: Icon(
-                                                Icons.shuffle,
-                                                color: Theme.of(context)
-                                                    .textTheme
-                                                    .titleMedium!
-                                                    .color,
-                                              )),
-                                          // Mix mode toggle — icon-only to match
-                                          // the rest of the action row.
-                                          Obx(() {
-                                            final pl = playlistController
-                                                .playlist.value;
-                                            final isPodcast =
-                                                pl.kind == 'podcast' ||
-                                                    pl.playlistId
-                                                        .startsWith('MPSP');
-                                            if (isPodcast) {
-                                              return const SizedBox.shrink();
-                                            }
-                                            final on = playlistController
-                                                .isMixMode.isTrue;
-                                            final color = on
-                                                ? Theme.of(context)
-                                                    .colorScheme
-                                                    .primary
-                                                : Theme.of(context)
-                                                    .textTheme
-                                                    .titleMedium!
-                                                    .color;
-                                            return IconButton(
-                                              tooltip: 'mix'.tr,
-                                              onPressed: () {
-                                                playlistController
-                                                    .toggleMixMode();
-                                              },
-                                              icon: Icon(
-                                                Icons.tune,
-                                                color: color,
-                                              ),
-                                            );
-                                          }),
-                                          Obx(() {
-                                            if (playlistController
-                                                    .isMixMode.isFalse ||
-                                                playlistController
-                                                    .isAnalyzingMix.isFalse) {
-                                              return const SizedBox.shrink();
-                                            }
-                                            return Padding(
-                                              padding: const EdgeInsets.only(
-                                                  left: 4, right: 8),
-                                              child: SizedBox(
-                                                width: 18,
-                                                height: 18,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  value: playlistController
-                                                              .mixAnalyzeProgress
-                                                              .value >
-                                                          0
-                                                      ? playlistController
-                                                          .mixAnalyzeProgress
-                                                          .value
-                                                      : null,
-                                                ),
-                                              ),
-                                            );
-                                          }),
-                                          Obx(() {
-                                            if (playlistController
-                                                .isMixMode.isFalse) {
-                                              return const SizedBox.shrink();
-                                            }
-                                            return IconButton(
-                                              tooltip: 'mixSmartOrder'.tr,
-                                              onPressed: () async {
-                                                final ok =
-                                                    await playlistController
-                                                        .smartOrderForMix();
-                                                if (!context.mounted) return;
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(snackbar(
-                                                        context,
-                                                        ok
-                                                            ? 'mixSmartOrderDone'
-                                                                .tr
-                                                            : 'operationFailed'
-                                                                .tr,
-                                                        size: SanckBarSize
-                                                            .MEDIUM));
-                                              },
-                                              icon: const Icon(
-                                                  Icons.auto_awesome),
-                                            );
-                                          }),
-                                          // Download button
-                                          GetX<Downloader>(
-                                              builder: (controller) {
-                                            final id = playlistController
-                                                .playlist.value.playlistId;
-                                            return IconButton(
-                                              tooltip: "downloadPlaylist".tr,
-                                              onPressed: () {
-                                                if (playlistController
-                                                    .isDownloaded.isTrue) {
-                                                  return;
-                                                }
-                                                controller.downloadPlaylist(
-                                                    id,
-                                                    playlistController.songList
-                                                        .toList());
-                                              },
-                                              icon: playlistController
-                                                      .isDownloaded.isTrue
-                                                  ? const Icon(
-                                                      Icons.download_done)
-                                                  : controller.playlistQueue
-                                                              .containsKey(
-                                                                  id) &&
-                                                          controller
-                                                                  .currentPlaylistId
-                                                                  .toString() ==
-                                                              id
-                                                      ? Stack(
-                                                          children: [
-                                                            Center(
-                                                                child: Text(
-                                                                    "${controller.playlistDownloadingProgress.value}/${playlistController.songList.length}",
-                                                                    style: Theme.of(
-                                                                            context)
-                                                                        .textTheme
-                                                                        .titleMedium!
-                                                                        .copyWith(
-                                                                            fontSize:
-                                                                                10,
-                                                                            fontWeight:
-                                                                                FontWeight.bold))),
-                                                            const Center(
-                                                                child:
-                                                                    LoadingIndicator(
-                                                              dimension: 30,
-                                                            ))
-                                                          ],
-                                                        )
-                                                      : controller.playlistQueue
-                                                              .containsKey(id)
-                                                          ? const Stack(
-                                                              children: [
-                                                                Center(
-                                                                    child: Icon(
-                                                                  Icons
-                                                                      .hourglass_bottom,
-                                                                  size: 20,
-                                                                )),
-                                                                Center(
-                                                                    child:
-                                                                        LoadingIndicator(
-                                                                  dimension: 30,
-                                                                ))
-                                                              ],
-                                                            )
-                                                          : const Icon(
-                                                              Icons.download),
-                                            );
-                                          }),
-
-                                          if (playlistController
-                                              .isAddedToLibrary.isTrue)
-                                            IconButton(
-                                                tooltip: "syncPlaylistSongs".tr,
-                                                onPressed: () async {
-                                                  final ok =
-                                                      await playlistController
-                                                          .syncPlaylistSongs();
-                                                  if (!context.mounted) return;
-                                                  ScaffoldMessenger.of(context)
-                                                      .showSnackBar(snackbar(
-                                                    context,
-                                                    ok
-                                                        ? "pipedplstSyncAlert"
-                                                            .tr
-                                                        : "errorOccuredAlert"
-                                                            .tr,
-                                                    size: SanckBarSize.MEDIUM,
-                                                  ));
-                                                },
-                                                icon: const Icon(
-                                                    Icons.cloud_sync)),
-                                          if (playlistController
-                                              .playlist.value.isPipedPlaylist)
-                                            IconButton(
-                                                tooltip:
-                                                    "blacklistPipedPlaylist".tr,
-                                                icon: const Icon(
-                                                  Icons.block,
-                                                  size: 20,
-                                                ),
-                                                splashRadius: 10,
-                                                onPressed: () async {
-                                                  Get.nestedKey(
-                                                          ScreenNavigationSetup
-                                                              .id)!
-                                                      .currentState!
-                                                      .pop();
-                                                  final ok = await Get.find<
-                                                          LibraryPlaylistsController>()
-                                                      .blacklistPipedPlaylist(
-                                                          playlistController
-                                                              .playlist.value);
-                                                  ScaffoldMessenger.of(
-                                                          Get.context!)
-                                                      .showSnackBar(snackbar(
-                                                          Get.context!,
-                                                          ok
-                                                              ? "playlistBlacklistAlert"
-                                                                  .tr
-                                                              : "operationFailed"
-                                                                  .tr,
-                                                          size: SanckBarSize
-                                                              .MEDIUM));
-                                                }),
-                                          if (playlistController
-                                              .playlist.value.isCloudPlaylist)
-                                            IconButton(
-                                              tooltip: "sharePlaylist".tr,
-                                              visualDensity:
-                                                  const VisualDensity(
-                                                vertical: -3,
-                                              ),
-                                              splashRadius: 10,
-                                              onPressed: () {
-                                                final content =
-                                                    playlistController
-                                                        .playlist.value;
-                                                if (content.isPipedPlaylist) {
-                                                  Share.share(
-                                                      "https://piped.video/playlist?list=${content.playlistId}");
-                                                } else {
-                                                  final isPlaylistIdPrefixAvlbl =
-                                                      content.playlistId
-                                                              .substring(
-                                                                  0, 2) ==
-                                                          "VL";
-                                                  String url =
-                                                      "https://youtube.com/playlist?list=";
-
-                                                  url = isPlaylistIdPrefixAvlbl
-                                                      ? url +
-                                                          content.playlistId
-                                                              .substring(2)
-                                                      : url +
-                                                          content.playlistId;
-                                                  Share.share(url);
-                                                }
-                                              },
-                                              icon: const Icon(
-                                                Icons.share,
-                                                size: 20,
-                                              ),
-                                            ),
-                                          // Export button - opens export dialog
-                                          IconButton(
-                                            onPressed: () {
-                                              showDialog(
-                                                context: context,
-                                                builder: (dialogContext) =>
-                                                    PlaylistExportDialog(
-                                                  controller:
-                                                      playlistController,
-                                                  parentContext: context,
-                                                ),
-                                              );
-                                            },
-                                            icon: const Icon(Icons.file_upload),
-                                            tooltip: "exportPlaylist".tr,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
+                                return FadeTransition(
+                                  opacity: playlistController.scaleAnimation,
+                                  child: _header(context, playlistController,
+                                      playerController),
                                 );
                               } else if (index == 1) {
-                                final pl = playlistController.playlist.value;
-                                final title = pl.title;
-                                final description = pl.description;
-                                final isPodcast = pl.kind == 'podcast' ||
-                                    pl.playlistId.startsWith('MPSP') ||
-                                    pl.kind == 'yt_channel' ||
-                                    _channelIdRe.hasMatch(pl.playlistId);
-
-                                return AnimatedBuilder(
-                                  animation:
-                                      playlistController.animationController,
-                                  builder: (context, child) {
-                                    // Podcasts need room for the Follow pill
-                                    // under the title (image-2 style header).
-                                    final base = playlistController
-                                        .heightAnimation.value;
-                                    final height = isPodcast
-                                        ? 10 +
-                                            ((base - 10) / 70).clamp(0.0, 1.0) *
-                                                110
-                                        : base;
-                                    return SizedBox(
-                                      height: height,
-                                      child: Transform.scale(
-                                        scale: playlistController
-                                            .scaleAnimation.value,
-                                        child: child,
-                                      ),
-                                    );
-                                  },
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(
-                                        left: 20.0, bottom: 10, right: 20),
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        // Explicit cover so the title row always
-                                        // shows art (not a generic icon) even when
-                                        // the blurred hero background fails.
-                                        InkWell(
-                                          onTap: () {
-                                            if (playlistController
-                                                .songList.isEmpty) {
-                                              return;
-                                            }
-                                            _playPlaylistFrom(
-                                              playerController,
-                                              playlistController,
-                                              0,
-                                            );
-                                          },
-                                          child: ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                            child: ImageWidget(
-                                              size: 64,
-                                              playlist: pl,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 14),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Marquee(
-                                                delay: const Duration(
-                                                    milliseconds: 300),
-                                                duration:
-                                                    const Duration(seconds: 5),
-                                                id: title.hashCode.toString(),
-                                                child: Text(
-                                                  title.length > 50
-                                                      ? title.substring(0, 50)
-                                                      : title,
-                                                  maxLines: 1,
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .titleLarge!
-                                                      .copyWith(fontSize: 22),
-                                                ),
-                                              ),
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    top: 4.0),
-                                                child: Marquee(
-                                                  delay: const Duration(
-                                                      milliseconds: 300),
-                                                  duration: const Duration(
-                                                      seconds: 5),
-                                                  id: description.hashCode
-                                                      .toString(),
-                                                  child: Text(
-                                                    isPodcast
-                                                        ? (description ??
-                                                            "podcasts".tr)
-                                                        : (description ??
-                                                            "playlist".tr),
-                                                    maxLines: 1,
-                                                    style: Theme.of(context)
-                                                        .textTheme
-                                                        .titleSmall,
-                                                  ),
-                                                ),
-                                              ),
-                                              if (isPodcast) ...[
-                                                const SizedBox(height: 8),
-                                                Obx(() => PodcastFollowButton(
-                                                      following:
-                                                          playlistController
-                                                              .isAddedToLibrary
-                                                              .isTrue,
-                                                      onPressed: () {
-                                                        final add =
-                                                            playlistController
-                                                                .isAddedToLibrary
-                                                                .isFalse;
-                                                        playlistController
-                                                            .addNremoveFromLibrary(
-                                                                playlistController
-                                                                    .playlist
-                                                                    .value,
-                                                                add: add)
-                                                            .then((value) {
-                                                          if (!context
-                                                              .mounted) {
-                                                            return;
-                                                          }
-                                                          ScaffoldMessenger.of(
-                                                                  context)
-                                                              .showSnackBar(
-                                                                  snackbar(
-                                                            context,
-                                                            !value
-                                                                ? 'operationFailed'
-                                                                    .tr
-                                                                : add
-                                                                    ? 'subscribedAsPodcast'
-                                                                        .tr
-                                                                    : 'removeFromLib'
-                                                                        .tr,
-                                                            size: SanckBarSize
-                                                                .MEDIUM,
-                                                          ));
-                                                        });
-                                                      },
-                                                    )),
-                                              ],
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
+                                // Podcasts / YT channels: no music actions;
+                                // Subscribe sits in the header instead.
+                                if (_isPodcastPage(
+                                    playlistController.playlist.value)) {
+                                  return const SizedBox(height: 8);
+                                }
+                                return _actions(context, playlistController,
+                                    playerController);
                               } else if (index == 2) {
                                 return SizedBox(
                                     height:
                                         playlistController.isSearchingOn.isTrue
                                             ? 60
-                                            : 40,
+                                            : 44,
                                     child: Padding(
-                                      padding: const EdgeInsets.only(
-                                          left: 15.0, right: 10),
+                                      padding: const EdgeInsets.only(right: 4),
                                       child: Obx(
                                         () => SortWidget(
                                           tag: playlistController
@@ -1068,7 +300,7 @@ class PlaylistScreen extends StatelessWidget {
                                     : null;
                                 return Padding(
                                   padding: const EdgeInsets.only(
-                                      left: 20.0, right: 5),
+                                      left: 4, right: 4),
                                   child: Column(
                                     children: [
                                       SongListTile(
@@ -1140,6 +372,195 @@ class PlaylistScreen extends StatelessWidget {
       builder: (context) => SongInfoBottomSheet(song),
     ).whenComplete(() => Get.delete<SongInfoController>());
   }
+}
+
+bool _isPodcastPage(Playlist pl) =>
+    pl.kind == 'podcast' ||
+    pl.kind == 'yt_channel' ||
+    pl.playlistId.startsWith('MPSP') ||
+    _channelIdRe.hasMatch(pl.playlistId);
+
+Widget _header(BuildContext context, PlaylistScreenController c,
+    PlayerController player) {
+  final pl = c.playlist.value;
+  final isPodcast = _isPodcastPage(pl);
+  final description = (pl.description ?? '').trim();
+  return CollectionHeader(
+    cover: ImageWidget(size: 96, playlist: pl),
+    title: pl.title,
+    subtitle: isPodcast
+        ? (description.isEmpty ? 'podcasts'.tr : description)
+        : (description.isEmpty ? 'playlist'.tr : description),
+    meta: isPodcast ? '' : collectionMetaLine(c.songList.toList()),
+    onCoverTap: () {
+      if (c.songList.isEmpty) return;
+      _playPlaylistFrom(player, c, 0);
+    },
+    extra: !isPodcast
+        ? null
+        : Obx(() => PodcastFollowButton(
+              following: c.isAddedToLibrary.isTrue,
+              onPressed: () {
+                final add = c.isAddedToLibrary.isFalse;
+                c.addNremoveFromLibrary(c.playlist.value, add: add).then((ok) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                    context,
+                    !ok
+                        ? 'operationFailed'.tr
+                        : add
+                            ? 'subscribedAsPodcast'.tr
+                            : 'removeFromLib'.tr,
+                    size: SanckBarSize.MEDIUM,
+                  ));
+                });
+              },
+            )),
+  );
+}
+
+Widget _actions(BuildContext context, PlaylistScreenController c,
+    PlayerController player) {
+  void snack(String key) {
+    final ctx = context.mounted ? context : Get.context;
+    if (ctx == null) return;
+    ScaffoldMessenger.of(ctx)
+        .showSnackBar(snackbar(ctx, key.tr, size: SanckBarSize.MEDIUM));
+  }
+
+  final pl = c.playlist.value;
+  final songs = c.songList.toList();
+  final isLocal = !pl.isCloudPlaylist && c.isDefaultPlaylist.isFalse;
+  return CollectionActionRow(
+    onPlay: songs.isEmpty ? null : () => _playPlaylistFrom(player, c, 0),
+    onShuffle: songs.isEmpty
+        ? null
+        : () async {
+            final list = List<MediaItem>.from(c.songList)..shuffle();
+            if (Get.isRegistered<PlaylistMixService>()) {
+              Get.find<PlaylistMixService>().deactivatePlayback();
+            }
+            final ok = await player.playPlayListSong(list, 0,
+                playfrom: PlaylingFrom(
+                    name: pl.title, type: PlaylingFromType.PLAYLIST));
+            if (!ok) snackOperationFailed();
+          },
+    leading: [
+      if (pl.isCloudPlaylist && !pl.isPipedPlaylist)
+        Obx(() => CollectionSaveButton(
+              saved: c.isAddedToLibrary.isTrue,
+              onPressed: () {
+                final add = c.isAddedToLibrary.isFalse;
+                c.addNremoveFromLibrary(c.playlist.value, add: add).then(
+                    (ok) => snack(ok
+                        ? add
+                            ? "playlistBookmarkAddAlert"
+                            : "listBookmarkRemoveAlert"
+                        : "operationFailed"));
+              },
+            )),
+      Obx(() => CollectionDownloadButton(
+            id: c.playlist.value.playlistId,
+            songs: () => c.songList.toList(),
+            isDownloaded: c.isDownloaded.isTrue,
+            tooltip: "downloadPlaylist".tr,
+          )),
+      // Mix mode: a stateful toggle, so it stays visible (accent when on).
+      Obx(() {
+        final on = c.isMixMode.isTrue;
+        final analyzing = on && c.isAnalyzingMix.isTrue;
+        return IconButton(
+          tooltip: 'mix'.tr,
+          onPressed: c.toggleMixMode,
+          icon: analyzing
+              ? SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    value: c.mixAnalyzeProgress.value > 0
+                        ? c.mixAnalyzeProgress.value
+                        : null,
+                  ),
+                )
+              : Icon(Icons.tune_rounded,
+                  size: 24,
+                  color: on
+                      ? Theme.of(context).colorScheme.secondary
+                      : homeMutedColor(context)),
+        );
+      }),
+    ],
+    menu: [
+      CollectionMenuItem(Icons.playlist_play_rounded, "playNext".tr, () async {
+        final ok = await player.playNextList(c.songList.toList());
+        snack(ok ? "playnextMsg" : "operationFailed");
+      }),
+      CollectionMenuItem(Icons.queue_music_rounded, "enqueueSongs".tr,
+          () async {
+        final ok = await player.enqueueSongList(c.songList.toList());
+        snack(ok ? "songEnqueueAlert" : "operationFailed");
+      }),
+      CollectionMenuItem(Icons.sensors, "startRadio".tr, () async {
+        final list = c.songList.toList();
+        if (list.isEmpty) return snack("radioNotAvailable");
+        final ok = await player.startRadio(list.first);
+        if (!ok) snack("radioNotAvailable");
+      }),
+      if (c.isMixMode.isTrue)
+        CollectionMenuItem(Icons.auto_awesome, 'mixSmartOrder'.tr, () async {
+          final ok = await c.smartOrderForMix();
+          snack(ok ? 'mixSmartOrderDone' : 'operationFailed');
+        }),
+      if (c.isAddedToLibrary.isTrue)
+        CollectionMenuItem(Icons.cloud_sync_outlined, "syncPlaylistSongs".tr,
+            () async {
+          final ok = await c.syncPlaylistSongs();
+          snack(ok ? "pipedplstSyncAlert" : "errorOccuredAlert");
+        }),
+      if (pl.isCloudPlaylist)
+        CollectionMenuItem(Icons.share_outlined, "sharePlaylist".tr, () {
+          if (pl.isPipedPlaylist) {
+            Share.share("https://piped.video/playlist?list=${pl.playlistId}");
+            return;
+          }
+          final id = pl.playlistId.startsWith("VL")
+              ? pl.playlistId.substring(2)
+              : pl.playlistId;
+          Share.share("https://youtube.com/playlist?list=$id");
+        }),
+      CollectionMenuItem(Icons.file_upload_outlined, "exportPlaylist".tr, () {
+        showDialog(
+          context: context,
+          builder: (dialogContext) =>
+              PlaylistExportDialog(controller: c, parentContext: context),
+        );
+      }),
+      if (pl.isPipedPlaylist)
+        CollectionMenuItem(Icons.block, "blacklistPipedPlaylist".tr,
+            () async {
+          Get.nestedKey(ScreenNavigationSetup.id)!.currentState!.pop();
+          final ok = await Get.find<LibraryPlaylistsController>()
+              .blacklistPipedPlaylist(c.playlist.value);
+          snack(ok ? "playlistBlacklistAlert" : "operationFailed");
+        }),
+      if (isLocal) ...[
+        CollectionMenuItem(Icons.edit_outlined, "renamePlaylist".tr, () {
+          showDialog(
+            context: context,
+            builder: (context) => CreateNRenamePlaylistPopup(
+                renamePlaylist: true, playlist: c.playlist.value),
+          );
+        }),
+        CollectionMenuItem(Icons.delete_outline_rounded, "removePlaylist".tr,
+            () {
+          c.addNremoveFromLibrary(c.playlist.value, add: false).then((ok) {
+            Get.nestedKey(ScreenNavigationSetup.id)!.currentState!.pop();
+            snack(ok ? "playlistRemovedAlert" : "operationFailed");
+          });
+        }),
+      ],
+    ],
+  );
 }
 
 Future<void> _playPlaylistFrom(
