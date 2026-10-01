@@ -107,12 +107,12 @@ class _RiffWaveHeroState extends State<RiffWaveHero>
     final accent = theme.colorScheme.secondary;
     final disc = _disc;
     final explore = disc?.exploration ?? 0.5;
-    const artSize = 64.0;
+    const artSize = 48.0;
     final surface = homeTileColor(context);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          HomeLayout.gutter, 16, HomeLayout.gutter, 0),
+          HomeLayout.gutter, 14, HomeLayout.gutter, 0),
       child: Material(
         color: Colors.transparent,
         shape: RoundedRectangleBorder(
@@ -134,7 +134,7 @@ class _RiffWaveHeroState extends State<RiffWaveHero>
           child: InkWell(
             onTap: _starting ? null : _playWave,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -178,20 +178,20 @@ class _RiffWaveHeroState extends State<RiffWaveHero>
                                     overflow: TextOverflow.ellipsis,
                                     style:
                                         homeSectionTitleStyle(context).copyWith(
-                                      fontSize: 20,
+                                      fontSize: 17,
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 3),
+                            const SizedBox(height: 2),
                             Text(
                               'riffWaveDes'.tr,
-                              maxLines: 2,
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: homeCardSubtitleStyle(context)
-                                  .copyWith(fontSize: 12.5),
+                                  .copyWith(fontSize: 12),
                             ),
                           ],
                         ),
@@ -206,7 +206,7 @@ class _RiffWaveHeroState extends State<RiffWaveHero>
                     ],
                   ),
                   if (disc != null) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     ConstrainedBox(
                       // Don't stretch three short labels across a tablet.
                       constraints: const BoxConstraints(maxWidth: 440),
@@ -250,7 +250,7 @@ class _PlayButton extends StatelessWidget {
         customBorder: const CircleBorder(),
         onTap: starting ? null : onTap,
         child: SizedBox.square(
-          dimension: 48,
+          dimension: 42,
           child: Center(
             child: starting
                 ? ScaleTransition(
@@ -309,8 +309,8 @@ class _MoodSelector extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: Container(
-            height: 32,
-            padding: const EdgeInsets.all(3),
+            height: 28,
+            padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               color: isDark
                   ? Colors.black.withOpacity(0.28)

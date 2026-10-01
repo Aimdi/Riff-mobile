@@ -1,3 +1,10 @@
+# 1.7.115
+
+**Design**
+* Home's first screen is lighter: the library and discovery shortcuts
+  are one scrolling row of chips, Riff Wave is a single-row card, and
+  the big Quick picks covers sit right under the mood chips
+
 # 1.7.114
 
 **Design**

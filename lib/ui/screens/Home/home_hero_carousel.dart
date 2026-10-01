@@ -73,7 +73,7 @@ class _HomeHeroCarouselState extends State<HomeHeroCarousel> {
         LayoutBuilder(builder: (context, constraints) {
           final width = constraints.maxWidth;
           // One cover with a peek of the next on phones; several on tablets.
-          final card = (width * 0.84).clamp(200.0, 360.0);
+          final card = (width * 0.78).clamp(200.0, 320.0);
           final controller = _controllerFor(card / width);
           return SizedBox(
             height: card,

@@ -71,7 +71,7 @@ class _HomeMoodChipsState extends State<HomeMoodChips> {
     final fg = theme.textTheme.titleMedium?.color;
     final accent = theme.colorScheme.secondary;
     return SizedBox(
-      height: 44,
+      height: 40,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
@@ -90,7 +90,7 @@ class _HomeMoodChipsState extends State<HomeMoodChips> {
             child: InkWell(
               onTap: () => _play(mood),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
                 child: Row(
                   children: [
                     busy
@@ -102,7 +102,7 @@ class _HomeMoodChipsState extends State<HomeMoodChips> {
                     const SizedBox(width: 8),
                     Text(mood.key.tr,
                         style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 13.5,
                             fontWeight: FontWeight.w600,
                             color: fg)),
                   ],

@@ -87,25 +87,33 @@ class HomeQuickGrid extends StatelessWidget {
       ),
     ];
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
-      child: LayoutBuilder(builder: (context, constraints) {
-        final rows = constraints.maxWidth >= 560
-            ? [library, discovery]
-            : [
-                for (var i = 0; i < library.length; i++)
-                  [library[i], discovery[i]],
-              ];
-        return Column(
-          children: [
-            const _ResumeRow(),
-            for (var i = 0; i < rows.length; i++) ...[
-              if (i > 0) const SizedBox(height: HomeLayout.tileGap),
-              _TileRow(tiles: rows[i]),
-            ],
-          ],
-        );
-      }),
+    return Column(
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
+          child: _ResumeRow(),
+        ),
+        // Six chips are cheap, so build them all rather than lazily.
+        SizedBox(
+          height: 44,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
+            child: Row(
+              children: [
+                for (var i = 0; i < library.length; i++) ...[
+                  if (i > 0) const SizedBox(width: HomeLayout.tileGap),
+                  library[i],
+                ],
+                for (final d in discovery) ...[
+                  const SizedBox(width: HomeLayout.tileGap),
+                  d,
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -327,11 +335,42 @@ class _ShortcutTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _QuickTile(
-      art: _GradientArt(colors: colors, icon: icon),
-      title: title,
-      onTap: onTap,
-      onLongPress: onLongPress,
+    return Material(
+      color: homeTileColor(context),
+      shape: StadiumBorder(side: homeTileBorder(context)),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(6, 6, 14, 6),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: colors,
+                  ),
+                ),
+                child: Icon(icon, color: Colors.white, size: 17),
+              ),
+              const SizedBox(width: 9),
+              Text(
+                title,
+                style: homeCardTitleStyle(context).copyWith(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
