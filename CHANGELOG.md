@@ -9,6 +9,9 @@
 * Backup, restore, export, playlist export, Piped, song info, update and
   Spotify import dialogs, and the podcast transcript, share one style
 * Filled buttons use your accent color instead of a default blue
+* Home opens with mood chips, Quick picks as big swipeable covers and a
+  3×3 "speed dial" of recent songs; the player's cover fills the top of
+  the screen with the title over it; the mini player is a floating pill
 
 # 1.7.113
 
