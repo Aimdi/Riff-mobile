@@ -189,7 +189,12 @@ class SettingsScreenController extends GetxController {
     podcastContinuousPlaybackEnabled.value =
         setBox.get("podcastContinuousPlayback") ?? true;
     youtubePodcastsEnabled.value = setBox.get("youtubePodcasts") != false;
-    podcastVideoEnabled.value = setBox.get("podcastShowVideo") == true;
+    // Podcast video is never remembered across launches (see
+    // AlbumArtNLyrics.videoPlaybackEnabledFor); drop what older builds saved.
+    podcastVideoEnabled.value = false;
+    if (setBox.containsKey("podcastShowVideo")) {
+      setBox.delete("podcastShowVideo");
+    }
     podcastsInWizeStream.value = setBox.get("podcastsInWizeStream") == true;
     loudnessNormalizationEnabled.value = isDesktop
         ? false
@@ -553,8 +558,8 @@ class SettingsScreenController extends GetxController {
     youtubePodcastsEnabled.value = val;
   }
 
+  /// This launch only: see [AlbumArtNLyrics.videoPlaybackEnabledFor].
   void togglePodcastVideo(bool val) {
-    setBox.put('podcastShowVideo', val);
     podcastVideoEnabled.value = val;
   }
 

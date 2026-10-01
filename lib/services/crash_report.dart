@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
+import 'diag_log.dart';
+
 /// After Riff closed unexpectedly (crash, native crash, not responding),
 /// offers the reason Android recorded so it can be copied and reported —
 /// no adb or logcat needed. Android 11+ only; silent everywhere else.
@@ -25,9 +27,11 @@ class CrashReport {
     return Map<String, dynamic>.from(raw);
   }
 
-  /// Plain-text report for the clipboard.
+  /// Plain-text report for the clipboard; [log] is what the app logged
+  /// before the exit.
   @visibleForTesting
-  static String format(Map<String, dynamic> info, String version) {
+  static String format(Map<String, dynamic> info, String version,
+      {List<String> log = const []}) {
     final when = DateTime.fromMillisecondsSinceEpoch(info['timestamp'] as int);
     return [
       'Riff $version — ${info['reason']}',
@@ -35,7 +39,32 @@ class CrashReport {
       if ('${info['description'] ?? ''}'.isNotEmpty)
         'Details: ${info['description']}',
       if ('${info['trace'] ?? ''}'.isNotEmpty) '\n${info['trace']}',
+      if (log.isNotEmpty) '\nLog before the exit:\n${log.join('\n')}',
     ].join('\n');
+  }
+
+  /// Everything a bug report needs, at any time: the version, the last
+  /// unexpected exit Android recorded (shown before or not), what the
+  /// previous launch logged and what this one has logged so far.
+  static Future<String> diagnostics(String version) async {
+    Object? raw;
+    if (GetPlatform.isAndroid) {
+      try {
+        raw = await _channel.invokeMethod('lastExitInfo');
+      } catch (_) {}
+    }
+    final out = StringBuffer('Riff $version diagnostics\n');
+    if (raw is Map &&
+        raw['timestamp'] is int &&
+        '${raw['reason'] ?? ''}'.isNotEmpty) {
+      out.writeln('\nLast unexpected exit:');
+      out.writeln(format(Map<String, dynamic>.from(raw), version));
+    } else {
+      out.writeln('\nNo unexpected exit recorded.');
+    }
+    out.writeln('\nPrevious launch:\n${DiagLog.previousRun().join('\n')}');
+    out.writeln('\nThis launch:\n${DiagLog.tail().join('\n')}');
+    return out.toString();
   }
 
   static Future<void> checkAndOffer(String version) async {
@@ -59,7 +88,7 @@ class CrashReport {
       if (seen == 0) return;
       final ctx = Get.context;
       if (ctx == null || !ctx.mounted) return;
-      final report = format(info, version);
+      final report = format(info, version, log: DiagLog.previousRun());
       unawaited(showDialog(
         context: ctx,
         builder: (context) => AlertDialog(

@@ -19,28 +19,30 @@ class AlbumArtNLyrics extends StatelessWidget {
   const AlbumArtNLyrics({super.key, required this.playerArtImageSize});
   final double playerArtImageSize;
 
-  /// YouTube podcast episodes have their own switch; both start on the
-  /// cover (the podcast player has a Video button), so playing an episode
-  /// never spins up the video engine on its own.
-  static String _prefKey(MediaItem? song) =>
-      song != null && song.isPodcastEpisode
-          ? 'podcastShowVideo'
-          : 'playerShowVideo';
-
+  /// Music videos remember the choice. Podcast episodes keep it only for
+  /// this launch, and off to begin with: the cover is shown until the user
+  /// taps Video, so starting an episode never spins up the video engine on
+  /// its own (that engine is native code, and a fault there takes the whole
+  /// app down rather than showing an error).
   static bool videoPlaybackEnabledFor(MediaItem? song) {
-    final key = _prefKey(song);
-    final v = Hive.box('AppPrefs').get(key);
+    if (song != null && song.isPodcastEpisode) {
+      return Get.isRegistered<SettingsScreenController>() &&
+          Get.find<SettingsScreenController>().podcastVideoEnabled.isTrue;
+    }
+    final v = Hive.box('AppPrefs').get('playerShowVideo');
     if (v is bool) return v;
     // Cover until the user taps the video button.
     return false;
   }
 
   static Future<void> setVideoPlaybackEnabled(MediaItem? song, bool on) async {
-    await Hive.box('AppPrefs').put(_prefKey(song), on);
-    if (_prefKey(song) == 'podcastShowVideo' &&
-        Get.isRegistered<SettingsScreenController>()) {
-      Get.find<SettingsScreenController>().podcastVideoEnabled.value = on;
+    if (song != null && song.isPodcastEpisode) {
+      if (Get.isRegistered<SettingsScreenController>()) {
+        Get.find<SettingsScreenController>().podcastVideoEnabled.value = on;
+      }
+      return;
     }
+    await Hive.box('AppPrefs').put('playerShowVideo', on);
   }
 
   @override

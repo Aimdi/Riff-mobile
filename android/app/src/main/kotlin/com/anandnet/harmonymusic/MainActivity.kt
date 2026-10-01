@@ -89,21 +89,52 @@ class MainActivity : AudioServiceActivity() {
         ).setMethodCallHandler(NewPipeChannel)
     }
 
-    private fun lastExitInfo(): Map<String, Any?>? {
+    private fun lastExitInfo(): Map<String, Any?>? =
+        systemExitInfo() ?: javaCrashInfo()
+
+    /**
+     * The trace [recordJavaCrashes] wrote, as an exit record: Android keeps
+     * none before API 30, and may have dropped or never kept the system one.
+     */
+    private fun javaCrashInfo(): Map<String, Any?>? = try {
+        val file = java.io.File(filesDir, CRASH_FILE)
+        if (!file.exists()) null else mapOf(
+            "reason" to "crash",
+            "description" to "uncaught exception",
+            "timestamp" to file.lastModified(),
+            "importance" to 0,
+            "trace" to file.readText().take(6000),
+        )
+    } catch (_: Exception) {
+        null
+    }
+
+    private fun systemExitInfo(): Map<String, Any?>? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
         return try {
             val am = getSystemService(ActivityManager::class.java) ?: return null
-            val info = am.getHistoricalProcessExitReasons(packageName, 0, 1)
-                .firstOrNull() ?: return null
-            val reason = when (info.reason) {
-                ApplicationExitInfo.REASON_CRASH -> "crash"
-                ApplicationExitInfo.REASON_CRASH_NATIVE -> "native crash"
-                ApplicationExitInfo.REASON_ANR -> "not responding"
-                ApplicationExitInfo.REASON_LOW_MEMORY -> "low memory"
-                ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE -> "resource usage"
-                ApplicationExitInfo.REASON_INITIALIZATION_FAILURE -> "startup failure"
-                else -> null
-            } ?: return null
+            // The newest exits first; swipes-away and normal exits are
+            // skipped so a crash before them is still found.
+            var info: ApplicationExitInfo? = null
+            var reason: String? = null
+            for (candidate in am.getHistoricalProcessExitReasons(packageName, 0, 5)) {
+                reason = when (candidate.reason) {
+                    ApplicationExitInfo.REASON_CRASH -> "crash"
+                    ApplicationExitInfo.REASON_CRASH_NATIVE -> "native crash"
+                    ApplicationExitInfo.REASON_ANR -> "not responding"
+                    ApplicationExitInfo.REASON_LOW_MEMORY -> "low memory"
+                    ApplicationExitInfo.REASON_SIGNALED -> "signal"
+                    ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE -> "resource usage"
+                    ApplicationExitInfo.REASON_INITIALIZATION_FAILURE -> "startup failure"
+                    ApplicationExitInfo.REASON_DEPENDENCY_DIED -> "dependency died"
+                    else -> null
+                }
+                if (reason != null) {
+                    info = candidate
+                    break
+                }
+            }
+            if (info == null || reason == null) return null
             val trace = try {
                 info.traceInputStream?.use { stream ->
                     val bytes = ByteArray(6000)

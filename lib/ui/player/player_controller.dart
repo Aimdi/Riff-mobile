@@ -1066,6 +1066,8 @@ class PlayerController extends GetxController
     // window, with shortened notes, so the media session can't overflow.
     if (mediaItems[index].isPodcastEpisode) {
       final q = prepareLongFormQueue(mediaItems, index);
+      printINFO('Long-form queue: ${q.items.length} of ${mediaItems.length} '
+          'episodes, playing ${mediaItems[index].id}');
       mediaItems = q.items;
       index = q.index;
     }

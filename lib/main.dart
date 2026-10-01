@@ -22,7 +22,9 @@ import '/services/plugin_service.dart';
 import '/services/soul_sync_service.dart';
 import '/services/soulseek_service.dart';
 import 'utils/app_link_controller.dart';
+import 'utils/app_version.dart';
 import '/services/audio_handler.dart';
+import '/services/diag_log.dart';
 import '/services/client_config_service.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/music_service.dart';
@@ -49,6 +51,7 @@ import 'utils/secure_credentials.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _startDiagnostics();
   // Video mode's mpv engine. In the lite (audio-only) APK the library is
   // stripped: init throws, the flag stays false and video mode hides.
   try {
@@ -78,6 +81,28 @@ Future<void> main() async {
   // Paint the shell first — AudioService init can take hundreds of ms.
   runApp(const MyApp());
   unawaited(_initAudioAndWarm(deferredBoxes));
+}
+
+/// Keeps a short log across launches and records Dart errors in it, so a
+/// crash report (Settings › App info › Copy diagnostics) says what the app
+/// was doing right before it stopped.
+void _startDiagnostics() {
+  getApplicationSupportDirectory()
+      .then((d) => DiagLog.init(d.path, version: kPubspecAppVersion))
+      .catchError((Object e) => debugPrint('DiagLog init failed: $e'));
+  final previous = FlutterError.onError;
+  FlutterError.onError = (details) {
+    DiagLog.add('E Flutter: ${details.exceptionAsString()}');
+    if (previous != null) {
+      previous(details);
+    } else {
+      FlutterError.presentError(details);
+    }
+  };
+  WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
+    DiagLog.add('E Dart: $error\n${stack.toString().split('\n').take(8).join('\n')}');
+    return false;
+  };
 }
 
 /// AudioService + deferred Hive / discovery. Never blocks first frame.

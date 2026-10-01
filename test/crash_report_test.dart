@@ -18,4 +18,16 @@ void main() {
     expect(text, contains('Details: boom'));
     expect(text, contains('at x'));
   });
+
+  test('report text includes the log the app wrote before the exit', () {
+    final text = CrashReport.format(
+        {'reason': 'crash', 'timestamp': 0},
+        'V1.7.111',
+        log: ['12:00:00.000 I Requested id : abc', '12:00:01.000 I Playing Using AudioSource.uri']);
+    expect(text, contains('Log before the exit:'));
+    expect(text, contains('Playing Using AudioSource.uri'));
+    expect(
+        CrashReport.format({'reason': 'crash', 'timestamp': 0}, 'V1'),
+        isNot(contains('Log before the exit')));
+  });
 }
