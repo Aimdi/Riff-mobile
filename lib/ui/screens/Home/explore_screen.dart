@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '/ui/widgets/content_list_widget.dart';
 import '/ui/widgets/empty_play_hint.dart';
+import 'home_layout.dart';
 import 'home_screen_controller.dart';
 
 /// Full-page browse destination for Home's former editorial carousels
@@ -26,7 +27,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
     super.initState();
     final focus = (widget.focusTitle ?? '').trim();
     if (focus.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToFocus(focus));
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _scrollToFocus(focus));
     }
   }
 
@@ -57,34 +59,36 @@ class _ExploreScreenState extends State<ExploreScreen> {
     ];
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('explore'.tr),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(id: 1),
-        ),
-      ),
-      body: shelves.isEmpty
-          ? EmptyPlayHint(message: 'discoverEmptyDes'.tr)
-          : ListView.builder(
-              controller: _scroll,
-              padding: const EdgeInsets.only(left: 12, right: 12, bottom: 200),
-              itemCount: shelves.length,
-              itemBuilder: (context, index) {
-                final content = shelves[index];
-                final title = '${content.title}';
-                final key = _keys.putIfAbsent(title, GlobalKey.new);
-                final listKey = 'explore_$title';
-                return Padding(
-                  key: key,
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: ContentListWidget(
-                    content: content,
-                    scrollController: home.scrollControllerFor(listKey),
+      backgroundColor: Theme.of(context).canvasColor,
+      body: Column(
+        children: [
+          RiffPageHeader('explore'.tr, onBack: () => Get.back(id: 1)),
+          Expanded(
+            child: shelves.isEmpty
+                ? EmptyPlayHint(message: 'discoverEmptyDes'.tr)
+                : ListView.builder(
+                    controller: _scroll,
+                    padding:
+                        const EdgeInsets.only(left: 12, right: 12, bottom: 200),
+                    itemCount: shelves.length,
+                    itemBuilder: (context, index) {
+                      final content = shelves[index];
+                      final title = '${content.title}';
+                      final key = _keys.putIfAbsent(title, GlobalKey.new);
+                      final listKey = 'explore_$title';
+                      return Padding(
+                        key: key,
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: ContentListWidget(
+                          content: content,
+                          scrollController: home.scrollControllerFor(listKey),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -5204,6 +5204,7 @@ Map<String, Map<String, String>> get keys => {
     "noPlaylistsYet": "No playlists yet. Create one above.",
     "minShort": "min",
     "playlistName": "Playlist name",
+    "artist": "Artist",
     "copyDiagnostics": "Copy diagnostics",
     "copyDiagnosticsDes": "Version, the last unexpected exit and the recent log, for a bug report",
     "diagnosticsCopied": "Diagnostics copied",
