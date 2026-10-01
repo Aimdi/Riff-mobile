@@ -16,6 +16,10 @@ import '/ui/screens/Home/home_screen_controller.dart';
 class ArtistScreenController extends GetxController
     with GetSingleTickerProviderStateMixin {
   final isArtistContentFetced = false.obs;
+
+  /// The artist could not be loaded (offline, or not an artist channel).
+  final artistLoadFailed = false.obs;
+  String _artistId = '';
   final navigationRailCurrentIndex = 0.obs;
   final musicServices = Get.find<MusicServices>();
   final railItems = <String>[].obs;
@@ -73,8 +77,20 @@ class ArtistScreenController extends GetxController
     // closing it under them throws "Box has already been closed".
   }
 
+  /// Tries the artist again after [artistLoadFailed].
+  void retryArtistContent() => _fetchArtistContent(_artistId);
+
   Future<void> _fetchArtistContent(String id) async {
-    artistData.value = await musicServices.getArtist(id);
+    _artistId = id;
+    artistLoadFailed.value = false;
+    try {
+      artistData.value = await musicServices.getArtist(id);
+    } catch (e) {
+      // Offline, or a channel link that isn't an artist (no header).
+      printERROR('Artist $id failed to load: $e');
+      artistLoadFailed.value = true;
+      return;
+    }
     artistData["Singles"] = artistData["Singles & EPs"];
     artistData["Songs"] = artistData["Top songs"];
     isArtistContentFetced.value = true;

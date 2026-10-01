@@ -196,7 +196,8 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
         await songsBox.put(i, MediaItemBuilder.toJson(items[i]));
       }
       await songsBox.close();
-      await plBox.close();
+      // plBox (LibraryPlaylists) stays open: Hive shares one instance with
+      // the library, discovery and the add-to-playlist sheet.
 
       Get.find<LibraryPlaylistsController>().refreshLib();
 

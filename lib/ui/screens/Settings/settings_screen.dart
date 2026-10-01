@@ -880,19 +880,18 @@ class SettingsScreen extends StatelessWidget {
                   SettingsSearchable(
                     title: 'podcasts'.tr,
                     subtitle: 'podcastsDes'.tr,
-                    child: Obx(() {
-                      return ListTile(
-                        contentPadding:
-                            const EdgeInsets.only(left: 5, right: 10),
-                        title: Text("podcasts".tr),
-                        subtitle: Text("podcastsDes".tr,
-                            style: settingsSubtitleStyle(context)),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => Get.toNamed(
-                            ScreenNavigationSetup.podcastsScreen,
-                            id: ScreenNavigationSetup.id),
-                      );
-                    }),
+                    // No Obx: nothing here is observable, and an Obx that
+                    // reads no Rx throws (a grey box in release builds).
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.only(left: 5, right: 10),
+                      title: Text("podcasts".tr),
+                      subtitle: Text("podcastsDes".tr,
+                          style: settingsSubtitleStyle(context)),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Get.toNamed(
+                          ScreenNavigationSetup.podcastsScreen,
+                          id: ScreenNavigationSetup.id),
+                    ),
                   ),
                   SettingsSearchable(
                     title: 'skipPodcastAds'.tr,

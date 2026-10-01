@@ -1,3 +1,19 @@
+# 1.7.113
+
+**Fixes**
+* Settings › Podcasts showed a grey box instead of the row
+* Shared YouTube links: a link YouTube answers without details (bot
+  check, region block) now opens; a failed lookup no longer leaves the
+  loading spinner up forever; bare or incomplete links show a message
+* Artist pages that can't load show an error with Retry instead of
+  loading forever
+* Song menu: Go to album works for songs without an album id; deleting a
+  download after leaving its playlist and removing a song that isn't
+  stored no longer fail; Never play / Add to queue confirmations show
+* Spotify import, Piped unlink and the Home cache setting no longer close
+  storage other screens are using ("box already closed")
+* Piped login no longer takes Home away if its dialog was closed early
+
 # 1.7.112
 
 **Fixes**

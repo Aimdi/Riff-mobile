@@ -977,10 +977,18 @@ class MusicServices extends getx.GetxService {
     final response = (await _sendRequest("player", data)).data;
     final category =
         nav(response, ["microformat", "microformatDataRenderer", "category"]);
+    final details = response is Map ? response["videoDetails"] : null;
     if (category == "Music" ||
-        (response["videoDetails"]).containsKey("musicVideoType")) {
+        (details is Map && details.containsKey("musicVideoType"))) {
       final list = await getWatchPlaylist(videoId: songId);
       return [true, list['tracks']];
+    }
+    if (details == null) {
+      // The player answer withheld the details (bot check, region block):
+      // the watch queue still says whether this id is a track.
+      final list = await getWatchPlaylist(videoId: songId);
+      final tracks = list['tracks'];
+      if (tracks is List && tracks.isNotEmpty) return [true, tracks];
     }
     return [false, null];
   }

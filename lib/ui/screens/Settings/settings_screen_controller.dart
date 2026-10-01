@@ -598,10 +598,10 @@ class SettingsScreenController extends GetxController {
     setBox.put("cacheHomeScreenData", val);
     cacheHomeScreenData.value = val;
     if (!val) {
-      Hive.openBox("homeScreenData").then((box) async {
-        await box.clear();
-        await box.close();
-      });
+      // Cleared, not closed: Home reads this box synchronously, and a
+      // pending close could land after the setting is turned back on.
+      final box = await Hive.openBox("homeScreenData");
+      await box.clear();
     } else {
       await Hive.openBox("homeScreenData");
       Get.find<HomeScreenController>().cachedHomeScreenData(updateAll: true);
@@ -686,10 +686,10 @@ class SettingsScreenController extends GetxController {
     isLinkedWithPiped.value = false;
     Get.find<LibraryPlaylistsController>().removePipedPlaylists();
     final box = await Hive.openBox('blacklistedPlaylist');
-    box.clear();
+    // Not closed: the library's playlist sync shares this box.
+    await box.clear();
     ScaffoldMessenger.of(Get.context!).showSnackBar(
         snackbar(Get.context!, "unlinkAlert".tr, size: SanckBarSize.MEDIUM));
-    box.close();
   }
 
   Future<bool> resetAppSettingsToDefault() async {
