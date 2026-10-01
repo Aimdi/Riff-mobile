@@ -1,9 +1,64 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
-/// Flat settings group that matches Library / Plugins — large section label,
-/// accent icon, no tinted card chrome.
+import '../../../utils/riff_tokens.dart';
+import '../../Home/home_layout.dart';
+import '../settings_screen_controller.dart';
+
+/// Muted, smaller description line under a setting's title.
+TextStyle settingsSubtitleStyle(BuildContext context) =>
+    (Theme.of(context).textTheme.bodySmall ?? const TextStyle()).copyWith(
+      color: homeMutedColor(context),
+      fontSize: 12.5,
+      height: 1.3,
+    );
+
+/// Marks a setting whose tile is built inside an Obx (so its text can't be
+/// read up front) with the words search should match.
+class SettingsSearchable extends StatelessWidget {
+  const SettingsSearchable({
+    super.key,
+    required this.title,
+    this.subtitle,
+    required this.child,
+  });
+
+  final String title;
+  final String? subtitle;
+  final Widget child;
+
+  bool matches(String q) =>
+      title.toLowerCase().contains(q) ||
+      (subtitle?.toLowerCase().contains(q) ?? false);
+
+  @override
+  Widget build(BuildContext context) => child;
+}
+
+String? _textOf(Widget? w) {
+  if (w is Text) return w.data ?? w.textSpan?.toPlainText();
+  return null;
+}
+
+/// Whether [w] matches [q]: true / false for tiles whose text is known,
+/// null for anything else (shown only when the section itself matches).
+@visibleForTesting
+bool? settingsChildMatches(Widget w, String q) {
+  if (w is SettingsSearchable) return w.matches(q);
+  if (w is ListTile) {
+    final texts = [_textOf(w.title), _textOf(w.subtitle)];
+    if (texts.every((t) => t == null)) return null;
+    return texts.any((t) => t != null && t.toLowerCase().contains(q));
+  }
+  return null;
+}
+
+/// A settings group: a card with a tinted icon, title and one-line summary
+/// that expands to its settings. While Settings search has text, the group
+/// opens by itself and shows only matching settings (or hides entirely).
 class CustomExpansionTile extends StatelessWidget {
   final String title;
+  final String? subtitle;
   final IconData icon;
   final List<Widget> children;
   final bool initiallyExpanded;
@@ -13,51 +68,108 @@ class CustomExpansionTile extends StatelessWidget {
     required this.children,
     required this.icon,
     required this.title,
+    this.subtitle,
     this.initiallyExpanded = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (!Get.isRegistered<SettingsScreenController>()) {
+      return _card(context, children, searching: false);
+    }
+    final c = Get.find<SettingsScreenController>();
+    return Obx(() {
+      final q = c.settingsSearch.value.trim().toLowerCase();
+      if (q.isEmpty) return _card(context, children, searching: false);
+      final sectionMatches = title.toLowerCase().contains(q) ||
+          (subtitle?.toLowerCase().contains(q) ?? false);
+      final visible = children
+          .where((w) => settingsChildMatches(w, q) ?? sectionMatches)
+          .toList();
+      if (visible.isEmpty) return const SizedBox.shrink();
+      return _card(context, visible, searching: true);
+    });
+  }
+
+  Widget _card(BuildContext context, List<Widget> items,
+      {required bool searching}) {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.secondary;
-    final muted = theme.textTheme.bodyMedium?.color?.withOpacity(0.55);
-
-    return Theme(
-      data: theme.copyWith(dividerColor: Colors.transparent),
+    final header = Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: accent.withOpacity(0.14),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: accent, size: 21),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(title,
+                  style: homeCardTitleStyle(context)
+                      .copyWith(fontSize: 15.5, fontWeight: FontWeight.w700)),
+              if ((subtitle ?? '').isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(subtitle!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: settingsSubtitleStyle(context)),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+    final body = Padding(
+      // Tiles carry a 5dp inset of their own.
+      padding: const EdgeInsets.fromLTRB(8, 0, 4, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ExpansionTile(
-            initiallyExpanded: initiallyExpanded,
-            tilePadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            childrenPadding: const EdgeInsets.only(left: 4, right: 4, bottom: 12),
-            expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
-            shape: const Border(),
-            collapsedShape: const Border(),
-            backgroundColor: Colors.transparent,
-            collapsedBackgroundColor: Colors.transparent,
-            iconColor: muted,
-            collapsedIconColor: muted,
-            textColor: theme.textTheme.titleMedium?.color,
-            collapsedTextColor: theme.textTheme.titleMedium?.color,
-            leading: Icon(icon, color: accent, size: 22),
-            title: Text(
-              title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.15,
+        children: items,
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: homeTileColor(context),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
+          side: homeTileBorder(context),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: searching
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+                    child: header,
+                  ),
+                  body,
+                ],
+              )
+            : Theme(
+                data: theme.copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  initiallyExpanded: initiallyExpanded,
+                  tilePadding: const EdgeInsets.fromLTRB(14, 6, 10, 6),
+                  childrenPadding: EdgeInsets.zero,
+                  expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
+                  shape: const Border(),
+                  collapsedShape: const Border(),
+                  iconColor: homeMutedColor(context),
+                  collapsedIconColor: homeMutedColor(context),
+                  title: header,
+                  children: [body],
+                ),
               ),
-            ),
-            children: children,
-          ),
-          Divider(
-            height: 1,
-            thickness: 0.6,
-            indent: 4,
-            endIndent: 4,
-            color: theme.dividerColor.withOpacity(0.35),
-          ),
-        ],
       ),
     );
   }

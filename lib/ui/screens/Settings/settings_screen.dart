@@ -28,6 +28,7 @@ import '/services/cache_eviction.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/utils/theme_controller.dart';
 import 'components/custom_expansion_tile.dart';
+import '../Home/home_layout.dart';
 import 'settings_screen_controller.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -42,44 +43,39 @@ class SettingsScreen extends StatelessWidget {
     final topPadding = context.isLandscape ? 50.0 : 90.0;
     final isDesktop = GetPlatform.isDesktop;
     return Padding(
-      padding: isBottomNavActive
-          ? EdgeInsets.only(left: 20, top: topPadding, right: 20)
-          : EdgeInsets.only(top: topPadding, left: 16, right: 16),
+      padding: EdgeInsets.only(
+          top: topPadding, left: HomeLayout.gutter, right: HomeLayout.gutter),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "settings".tr,
-            style: theme.textTheme.titleLarge,
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Text("settings".tr, style: theme.textTheme.titleLarge),
           ),
-          const SizedBox(height: 6),
-          Text(
-            "settingsDes".tr,
-            style: theme.textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            onChanged: settingsController.setSettingsSearch,
-            decoration: InputDecoration(
-              hintText: 'settingsSearch'.tr,
-              prefixIcon: const Icon(Icons.search, size: 20),
-              isDense: true,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: accent.withOpacity(0.35)),
+          SizedBox(
+            height: 46,
+            child: TextField(
+              onChanged: settingsController.setSettingsSearch,
+              textAlignVertical: TextAlignVertical.center,
+              style: const TextStyle(fontSize: 15),
+              decoration: InputDecoration(
+                hintText: 'settingsSearch'.tr,
+                prefixIcon: const Icon(Icons.search_rounded, size: 22),
+                filled: true,
+                fillColor: homeTileColor(context),
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(999),
+                  borderSide: BorderSide.none,
+                ),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: accent.withOpacity(0.25)),
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             ),
           ),
           Expanded(
               child: ListView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 200, top: 18),
+            padding: const EdgeInsets.only(bottom: 200, top: 14),
             children: [
               Obx(
                 () => settingsController.isNewVersionAvailable.value
@@ -110,6 +106,7 @@ class SettingsScreen extends StatelessWidget {
               // Appearance — look & feel
               CustomExpansionTile(
                 title: "settingsAppearance".tr,
+                subtitle: "settingsAppearanceSum".tr,
                 icon: Icons.palette_outlined,
                 children: [
                   ListTile(
@@ -138,7 +135,7 @@ class SettingsScreen extends StatelessWidget {
                     contentPadding: const EdgeInsets.only(left: 5, right: 10),
                     title: Text("language".tr),
                     subtitle: Text("languageDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
+                        style: settingsSubtitleStyle(context)),
                     trailing: Obx(
                       () => DropdownButton(
                         menuMaxHeight: Get.height - 250,
@@ -172,7 +169,7 @@ class SettingsScreen extends StatelessWidget {
                       contentPadding: const EdgeInsets.only(left: 5, right: 10),
                       title: Text("playerUi".tr),
                       subtitle: Text("playerUiDes".tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
+                          style: settingsSubtitleStyle(context)),
                       trailing: Obx(
                         () => DropdownButton(
                           dropdownColor: Theme.of(context).cardColor,
@@ -194,7 +191,7 @@ class SettingsScreen extends StatelessWidget {
                       contentPadding: const EdgeInsets.only(left: 5, right: 10),
                       title: Text("disableTransitionAnimation".tr),
                       subtitle: Text("disableTransitionAnimationDes".tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
+                          style: settingsSubtitleStyle(context)),
                       trailing: Obx(
                         () => CustSwitch(
                             value: settingsController
@@ -206,7 +203,7 @@ class SettingsScreen extends StatelessWidget {
                       contentPadding: const EdgeInsets.only(left: 5, right: 10),
                       title: Text("enableSlidableAction".tr),
                       subtitle: Text("enableSlidableActionDes".tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
+                          style: settingsSubtitleStyle(context)),
                       trailing: Obx(
                         () => CustSwitch(
                             value:
@@ -219,13 +216,14 @@ class SettingsScreen extends StatelessWidget {
               // Listening — playback quality, effects, discovery
               CustomExpansionTile(
                 title: "settingsListening".tr,
+                subtitle: "settingsListeningSum".tr,
                 icon: Icons.headphones_outlined,
                 children: [
                   ListTile(
                     contentPadding: const EdgeInsets.only(left: 5, right: 10),
                     title: Text("streamingQuality".tr),
                     subtitle: Text("streamingQualityDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
+                        style: settingsSubtitleStyle(context)),
                     trailing: Obx(
                       () => DropdownButton(
                         dropdownColor: Theme.of(context).cardColor,
@@ -247,7 +245,7 @@ class SettingsScreen extends StatelessWidget {
                     contentPadding: const EdgeInsets.only(left: 5, right: 10),
                     title: Text("videoQuality".tr),
                     subtitle: Text("videoQualityDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
+                        style: settingsSubtitleStyle(context)),
                     trailing: Obx(
                       () => DropdownButton(
                         dropdownColor: Theme.of(context).cardColor,
@@ -271,14 +269,18 @@ class SettingsScreen extends StatelessWidget {
                     contentPadding: const EdgeInsets.only(left: 5, right: 10),
                     title: Text("videoEngine".tr),
                     subtitle: Text("videoEngineDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
+                        style: settingsSubtitleStyle(context)),
                     trailing: Obx(
                       () => DropdownButton(
                         dropdownColor: Theme.of(context).cardColor,
                         underline: const SizedBox.shrink(),
                         // Lite APK: no mpv item, so never select it.
-                        value: VideoModeController.engineAvailable
-                            ? settingsController.videoEngine.value
+                        // Read the Rx unconditionally: on the Lite APK
+                        // (no mpv) this Obx otherwise reads nothing, which
+                        // GetX throws on and the row rendered as an error.
+                        value: settingsController.videoEngine.value == 'mpv' &&
+                                VideoModeController.engineAvailable
+                            ? 'mpv'
                             : 'exo',
                         items: [
                           DropdownMenuItem(
@@ -299,7 +301,7 @@ class SettingsScreen extends StatelessWidget {
                     contentPadding: const EdgeInsets.only(left: 5, right: 10),
                     title: Text("lyricsSource".tr),
                     subtitle: Text("lyricsSourceDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
+                        style: settingsSubtitleStyle(context)),
                     trailing: Obx(
                       () => DropdownButton(
                         dropdownColor: Theme.of(context).cardColor,
@@ -323,137 +325,135 @@ class SettingsScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Obx(() {
-                    if (!settingsController.settingsMatch(
-                        'dataSaver'.tr, 'dataSaverDes'.tr)) {
-                      return const SizedBox.shrink();
-                    }
-                    return ListTile(
-                      contentPadding:
-                          const EdgeInsets.only(left: 5, right: 10),
-                      title: Text('dataSaver'.tr),
-                      subtitle: Text('dataSaverDes'.tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
-                      trailing: CustSwitch(
-                        value: settingsController.dataSaver.isTrue,
-                        onChanged: settingsController.toggleDataSaver,
-                      ),
-                    );
-                  }),
-                  Obx(() {
-                    if (!settingsController.settingsMatch(
-                        'hideVideoSongs'.tr, 'hideVideoSongsDes'.tr)) {
-                      return const SizedBox.shrink();
-                    }
-                    return ListTile(
-                      contentPadding:
-                          const EdgeInsets.only(left: 5, right: 10),
-                      title: Text('hideVideoSongs'.tr),
-                      subtitle: Text('hideVideoSongsDes'.tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
-                      trailing: CustSwitch(
-                        value: settingsController.hideVideoSongs.isTrue,
-                        onChanged: settingsController.toggleHideVideoSongs,
-                      ),
-                    );
-                  }),
-                  Obx(() {
-                    if (!settingsController.settingsMatch(
-                        'hideShorts'.tr, 'hideShortsDes'.tr)) {
-                      return const SizedBox.shrink();
-                    }
-                    return ListTile(
-                      contentPadding:
-                          const EdgeInsets.only(left: 5, right: 10),
-                      title: Text('hideShorts'.tr),
-                      subtitle: Text('hideShortsDes'.tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
-                      trailing: CustSwitch(
-                        value: settingsController.hideShorts.isTrue,
-                        onChanged: settingsController.toggleHideShorts,
-                      ),
-                    );
-                  }),
-                  Obx(() {
-                    if (!settingsController.settingsMatch(
-                        'pauseOnHeadsetDisconnect'.tr,
-                        'pauseOnHeadsetDisconnectDes'.tr)) {
-                      return const SizedBox.shrink();
-                    }
-                    return ListTile(
-                      contentPadding:
-                          const EdgeInsets.only(left: 5, right: 10),
-                      title: Text('pauseOnHeadsetDisconnect'.tr),
-                      subtitle: Text('pauseOnHeadsetDisconnectDes'.tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
-                      trailing: CustSwitch(
-                        value: settingsController
-                            .pauseOnHeadsetDisconnect.isTrue,
-                        onChanged:
-                            settingsController.togglePauseOnHeadsetDisconnect,
-                      ),
-                    );
-                  }),
-                  Obx(() {
-                    if (!settingsController.settingsMatch(
-                        'resumeOnBluetooth'.tr, 'resumeOnBluetoothDes'.tr)) {
-                      return const SizedBox.shrink();
-                    }
-                    return ListTile(
-                      contentPadding:
-                          const EdgeInsets.only(left: 5, right: 10),
-                      title: Text('resumeOnBluetooth'.tr),
-                      subtitle: Text('resumeOnBluetoothDes'.tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
-                      trailing: CustSwitch(
-                        value: settingsController.resumeOnBluetooth.isTrue,
-                        onChanged: settingsController.toggleResumeOnBluetooth,
-                      ),
-                    );
-                  }),
-                  Obx(() {
-                    if (!settingsController.settingsMatch(
-                        'smartQueueInjection'.tr,
-                        'smartQueueInjectionDes'.tr)) {
-                      return const SizedBox.shrink();
-                    }
-                    return ListTile(
-                      contentPadding:
-                          const EdgeInsets.only(left: 5, right: 10),
-                      title: Text('smartQueueInjection'.tr),
-                      subtitle: Text('smartQueueInjectionDes'.tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
-                      trailing: CustSwitch(
-                        value: settingsController.smartQueueInjection.isTrue,
-                        onChanged:
-                            settingsController.toggleSmartQueueInjection,
-                      ),
-                    );
-                  }),
-                  Obx(() {
-                    if (!settingsController.settingsMatch(
-                        'playerCanvas'.tr, 'playerCanvasDes'.tr)) {
-                      return const SizedBox.shrink();
-                    }
-                    return ListTile(
-                      contentPadding:
-                          const EdgeInsets.only(left: 5, right: 10),
-                      title: Text('playerCanvas'.tr),
-                      subtitle: Text('playerCanvasDes'.tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
-                      trailing: CustSwitch(
-                        value: settingsController.playerCanvas.isTrue,
-                        onChanged: settingsController.togglePlayerCanvas,
-                      ),
-                    );
-                  }),
+                  SettingsSearchable(
+                    title: 'dataSaver'.tr,
+                    subtitle: 'dataSaverDes'.tr,
+                    child: Obx(() {
+                      return ListTile(
+                        contentPadding:
+                            const EdgeInsets.only(left: 5, right: 10),
+                        title: Text('dataSaver'.tr),
+                        subtitle: Text('dataSaverDes'.tr,
+                            style: settingsSubtitleStyle(context)),
+                        trailing: CustSwitch(
+                          value: settingsController.dataSaver.isTrue,
+                          onChanged: settingsController.toggleDataSaver,
+                        ),
+                      );
+                    }),
+                  ),
+                  SettingsSearchable(
+                    title: 'hideVideoSongs'.tr,
+                    subtitle: 'hideVideoSongsDes'.tr,
+                    child: Obx(() {
+                      return ListTile(
+                        contentPadding:
+                            const EdgeInsets.only(left: 5, right: 10),
+                        title: Text('hideVideoSongs'.tr),
+                        subtitle: Text('hideVideoSongsDes'.tr,
+                            style: settingsSubtitleStyle(context)),
+                        trailing: CustSwitch(
+                          value: settingsController.hideVideoSongs.isTrue,
+                          onChanged: settingsController.toggleHideVideoSongs,
+                        ),
+                      );
+                    }),
+                  ),
+                  SettingsSearchable(
+                    title: 'hideShorts'.tr,
+                    subtitle: 'hideShortsDes'.tr,
+                    child: Obx(() {
+                      return ListTile(
+                        contentPadding:
+                            const EdgeInsets.only(left: 5, right: 10),
+                        title: Text('hideShorts'.tr),
+                        subtitle: Text('hideShortsDes'.tr,
+                            style: settingsSubtitleStyle(context)),
+                        trailing: CustSwitch(
+                          value: settingsController.hideShorts.isTrue,
+                          onChanged: settingsController.toggleHideShorts,
+                        ),
+                      );
+                    }),
+                  ),
+                  SettingsSearchable(
+                    title: 'pauseOnHeadsetDisconnect'.tr,
+                    subtitle: 'pauseOnHeadsetDisconnectDes'.tr,
+                    child: Obx(() {
+                      return ListTile(
+                        contentPadding:
+                            const EdgeInsets.only(left: 5, right: 10),
+                        title: Text('pauseOnHeadsetDisconnect'.tr),
+                        subtitle: Text('pauseOnHeadsetDisconnectDes'.tr,
+                            style: settingsSubtitleStyle(context)),
+                        trailing: CustSwitch(
+                          value: settingsController
+                              .pauseOnHeadsetDisconnect.isTrue,
+                          onChanged:
+                              settingsController.togglePauseOnHeadsetDisconnect,
+                        ),
+                      );
+                    }),
+                  ),
+                  SettingsSearchable(
+                    title: 'resumeOnBluetooth'.tr,
+                    subtitle: 'resumeOnBluetoothDes'.tr,
+                    child: Obx(() {
+                      return ListTile(
+                        contentPadding:
+                            const EdgeInsets.only(left: 5, right: 10),
+                        title: Text('resumeOnBluetooth'.tr),
+                        subtitle: Text('resumeOnBluetoothDes'.tr,
+                            style: settingsSubtitleStyle(context)),
+                        trailing: CustSwitch(
+                          value: settingsController.resumeOnBluetooth.isTrue,
+                          onChanged: settingsController.toggleResumeOnBluetooth,
+                        ),
+                      );
+                    }),
+                  ),
+                  SettingsSearchable(
+                    title: 'smartQueueInjection'.tr,
+                    subtitle: 'smartQueueInjectionDes'.tr,
+                    child: Obx(() {
+                      return ListTile(
+                        contentPadding:
+                            const EdgeInsets.only(left: 5, right: 10),
+                        title: Text('smartQueueInjection'.tr),
+                        subtitle: Text('smartQueueInjectionDes'.tr,
+                            style: settingsSubtitleStyle(context)),
+                        trailing: CustSwitch(
+                          value: settingsController.smartQueueInjection.isTrue,
+                          onChanged:
+                              settingsController.toggleSmartQueueInjection,
+                        ),
+                      );
+                    }),
+                  ),
+                  SettingsSearchable(
+                    title: 'playerCanvas'.tr,
+                    subtitle: 'playerCanvasDes'.tr,
+                    child: Obx(() {
+                      return ListTile(
+                        contentPadding:
+                            const EdgeInsets.only(left: 5, right: 10),
+                        title: Text('playerCanvas'.tr),
+                        subtitle: Text('playerCanvasDes'.tr,
+                            style: settingsSubtitleStyle(context)),
+                        trailing: CustSwitch(
+                          value: settingsController.playerCanvas.isTrue,
+                          onChanged: settingsController.togglePlayerCanvas,
+                        ),
+                      );
+                    }),
+                  ),
                   if (GetPlatform.isAndroid)
                     ListTile(
                         contentPadding:
                             const EdgeInsets.only(left: 5, right: 10),
                         title: Text("loudnessNormalization".tr),
                         subtitle: Text("loudnessNormalizationDes".tr,
-                            style: Theme.of(context).textTheme.bodyMedium),
+                            style: settingsSubtitleStyle(context)),
                         trailing: Obx(
                           () => CustSwitch(
                               value: settingsController
@@ -467,7 +467,7 @@ class SettingsScreen extends StatelessWidget {
                             const EdgeInsets.only(left: 5, right: 10),
                         title: Text("cacheSongs".tr),
                         subtitle: Text("cacheSongsDes".tr,
-                            style: Theme.of(context).textTheme.bodyMedium),
+                            style: settingsSubtitleStyle(context)),
                         trailing: Obx(
                           () => CustSwitch(
                               value: settingsController.cacheSongs.value,
@@ -475,84 +475,85 @@ class SettingsScreen extends StatelessWidget {
                                   settingsController.toggleCachingSongsValue),
                         )),
                   if (!isDesktop)
-                    Obx(() {
-                      if (!settingsController.settingsMatch(
-                          'songsCacheLimit'.tr, 'songsCacheLimitDes'.tr)) {
-                        return const SizedBox.shrink();
-                      }
-                      final sizeLabel = settingsController.cacheSizesReady.isTrue
-                          ? formatCacheBytes(
-                              settingsController.songsCacheBytes.value)
-                          : '…';
-                      final downloadsLabel =
-                          settingsController.cacheSizesReady.isTrue
-                              ? formatCacheBytes(
-                                  settingsController.downloadsBytes.value)
-                              : '…';
-                      return Column(
-                        children: [
-                          ListTile(
-                            contentPadding:
-                                const EdgeInsets.only(left: 5, right: 10),
-                            title: Text('songsCacheLimit'.tr),
-                            subtitle: Text(
-                              '${'songsCacheLimitDes'.tr}\n'
-                              '${'songsCacheSize'.tr}: $sizeLabel · '
-                              '${'downloadsSize'.tr}: $downloadsLabel',
-                              style: Theme.of(context).textTheme.bodyMedium,
+                    SettingsSearchable(
+                      title: 'songsCacheLimit'.tr,
+                      subtitle: 'songsCacheLimitDes'.tr,
+                      child: Obx(() {
+                        final sizeLabel =
+                            settingsController.cacheSizesReady.isTrue
+                                ? formatCacheBytes(
+                                    settingsController.songsCacheBytes.value)
+                                : '…';
+                        final downloadsLabel =
+                            settingsController.cacheSizesReady.isTrue
+                                ? formatCacheBytes(
+                                    settingsController.downloadsBytes.value)
+                                : '…';
+                        return Column(
+                          children: [
+                            ListTile(
+                              contentPadding:
+                                  const EdgeInsets.only(left: 5, right: 10),
+                              title: Text('songsCacheLimit'.tr),
+                              subtitle: Text(
+                                '${'songsCacheLimitDes'.tr}\n'
+                                '${'songsCacheSize'.tr}: $sizeLabel · '
+                                '${'downloadsSize'.tr}: $downloadsLabel',
+                                style: settingsSubtitleStyle(context),
+                              ),
+                              isThreeLine: true,
+                              trailing: DropdownButton<int>(
+                                dropdownColor: Theme.of(context).cardColor,
+                                underline: const SizedBox.shrink(),
+                                value:
+                                    settingsController.songsCacheMaxBytes.value,
+                                items: SongCacheLimits.options
+                                    .map((bytes) => DropdownMenuItem(
+                                          value: bytes,
+                                          child: Text(
+                                              songCacheLimitLabel(bytes).tr),
+                                        ))
+                                    .toList(),
+                                onChanged:
+                                    settingsController.setSongsCacheMaxBytes,
+                              ),
                             ),
-                            isThreeLine: true,
-                            trailing: DropdownButton<int>(
-                              dropdownColor: Theme.of(context).cardColor,
-                              underline: const SizedBox.shrink(),
-                              value:
-                                  settingsController.songsCacheMaxBytes.value,
-                              items: SongCacheLimits.options
-                                  .map((bytes) => DropdownMenuItem(
-                                        value: bytes,
-                                        child: Text(
-                                            songCacheLimitLabel(bytes).tr),
-                                      ))
-                                  .toList(),
-                              onChanged:
-                                  settingsController.setSongsCacheMaxBytes,
+                            ListTile(
+                              contentPadding:
+                                  const EdgeInsets.only(left: 5, right: 10),
+                              title: Text('clearSongsCache'.tr),
+                              subtitle: Text(
+                                'clearSongsCacheDes'.tr,
+                                style: settingsSubtitleStyle(context),
+                              ),
+                              isThreeLine: true,
+                              onTap: () {
+                                settingsController
+                                    .clearCachedSongs()
+                                    .then((ok) {
+                                  final ctx = Get.context;
+                                  if (ctx == null || !ctx.mounted) return;
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                      snackbar(
+                                          ctx,
+                                          ok
+                                              ? 'clearSongsCacheAlert'.tr
+                                              : 'operationFailed'.tr,
+                                          size: SanckBarSize.BIG));
+                                });
+                              },
                             ),
-                          ),
-                          ListTile(
-                            contentPadding:
-                                const EdgeInsets.only(left: 5, right: 10),
-                            title: Text('clearSongsCache'.tr),
-                            subtitle: Text(
-                              'clearSongsCacheDes'.tr,
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                            isThreeLine: true,
-                            onTap: () {
-                              settingsController
-                                  .clearCachedSongs()
-                                  .then((ok) {
-                                final ctx = Get.context;
-                                if (ctx == null || !ctx.mounted) return;
-                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                    snackbar(
-                                        ctx,
-                                        ok
-                                            ? 'clearSongsCacheAlert'.tr
-                                            : 'operationFailed'.tr,
-                                        size: SanckBarSize.BIG));
-                              });
-                            },
-                          ),
-                        ],
-                      );
-                    }),
+                          ],
+                        );
+                      }),
+                    ),
                   if (!isDesktop)
                     ListTile(
                         contentPadding:
                             const EdgeInsets.only(left: 5, right: 10),
                         title: Text("skipSilence".tr),
                         subtitle: Text("skipSilenceDes".tr,
-                            style: Theme.of(context).textTheme.bodyMedium),
+                            style: settingsSubtitleStyle(context)),
                         trailing: Obx(
                           () => CustSwitch(
                               value:
@@ -560,23 +561,20 @@ class SettingsScreen extends StatelessWidget {
                               onChanged: settingsController.toggleSkipSilence),
                         )),
                   ListTile(
-                      contentPadding:
-                          const EdgeInsets.only(left: 5, right: 10),
+                      contentPadding: const EdgeInsets.only(left: 5, right: 10),
                       title: Text("sponsorBlock".tr),
                       subtitle: Text("sponsorBlockDes".tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
+                          style: settingsSubtitleStyle(context)),
                       trailing: Obx(
                         () => CustSwitch(
-                            value:
-                                settingsController.sponsorBlockEnabled.value,
+                            value: settingsController.sponsorBlockEnabled.value,
                             onChanged: settingsController.toggleSponsorBlock),
                       )),
                   ListTile(
-                    contentPadding:
-                        const EdgeInsets.only(left: 5, right: 10),
+                    contentPadding: const EdgeInsets.only(left: 5, right: 10),
                     title: Text("speedAndPitch".tr),
                     subtitle: Text("speedAndPitchDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
+                        style: settingsSubtitleStyle(context)),
                     onTap: () => showDialog(
                         context: context,
                         builder: (context) => const SpeedPitchDialog()),
@@ -587,7 +585,7 @@ class SettingsScreen extends StatelessWidget {
                           const EdgeInsets.only(left: 5, right: 10, top: 0),
                       title: Text("equalizer".tr),
                       subtitle: Text("equalizerDes".tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
+                          style: settingsSubtitleStyle(context)),
                       onTap: () async {
                         try {
                           await Get.find<PlayerController>().openEqualizer();
@@ -602,7 +600,7 @@ class SettingsScreen extends StatelessWidget {
                             const EdgeInsets.only(left: 5, right: 10),
                         title: Text("backgroundPlay".tr),
                         subtitle: Text("backgroundPlayDes".tr,
-                            style: Theme.of(context).textTheme.bodyMedium),
+                            style: settingsSubtitleStyle(context)),
                         trailing: Obx(
                           () => CustSwitch(
                               value: settingsController
@@ -614,7 +612,7 @@ class SettingsScreen extends StatelessWidget {
                       contentPadding: const EdgeInsets.only(left: 5, right: 10),
                       title: Text("keepScreenOnWhilePlaying".tr),
                       subtitle: Text("keepScreenOnWhilePlayingDes".tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
+                          style: settingsSubtitleStyle(context)),
                       trailing: Obx(
                         () => CustSwitch(
                             value: settingsController.keepScreenAwake.value,
@@ -625,7 +623,7 @@ class SettingsScreen extends StatelessWidget {
                       contentPadding: const EdgeInsets.only(left: 5, right: 10),
                       title: Text("restoreLastPlaybackSession".tr),
                       subtitle: Text("restoreLastPlaybackSessionDes".tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
+                          style: settingsSubtitleStyle(context)),
                       trailing: Obx(
                         () => CustSwitch(
                             value:
@@ -637,7 +635,7 @@ class SettingsScreen extends StatelessWidget {
                     contentPadding: const EdgeInsets.only(left: 5, right: 10),
                     title: Text("autoOpenPlayer".tr),
                     subtitle: Text("autoOpenPlayerDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
+                        style: settingsSubtitleStyle(context)),
                     trailing: Obx(
                       () => CustSwitch(
                           value: settingsController.autoOpenPlayer.value,
@@ -645,11 +643,10 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ),
                   ListTile(
-                    contentPadding:
-                        const EdgeInsets.only(left: 5, right: 10),
+                    contentPadding: const EdgeInsets.only(left: 5, right: 10),
                     title: Text("discoverySettings".tr),
                     subtitle: Text("discoverySettingsDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
+                        style: settingsSubtitleStyle(context)),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => showDialog(
                         context: context,
@@ -661,8 +658,9 @@ class SettingsScreen extends StatelessWidget {
               // Library & sync — home feed, accounts, scrobbling
               CustomExpansionTile(
                   title: "settingsLibrarySync".tr,
+                  subtitle: "settingsLibrarySyncSum".tr,
                   icon: Icons.library_music_outlined,
-                children: [
+                  children: [
                     ListTile(
                       contentPadding: const EdgeInsets.only(left: 5, right: 10),
                       title: Text("setDiscoverContent".tr),
@@ -688,7 +686,7 @@ class SettingsScreen extends StatelessWidget {
                       contentPadding: const EdgeInsets.only(left: 5, right: 10),
                       title: Text("homeContentCount".tr),
                       subtitle: Text("homeContentCountDes".tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
+                          style: settingsSubtitleStyle(context)),
                       trailing: Obx(
                         () => DropdownButton(
                           dropdownColor: Theme.of(context).cardColor,
@@ -707,7 +705,7 @@ class SettingsScreen extends StatelessWidget {
                             const EdgeInsets.only(left: 5, right: 10),
                         title: Text("cacheHomeScreenData".tr),
                         subtitle: Text("cacheHomeScreenDataDes".tr,
-                            style: Theme.of(context).textTheme.bodyMedium),
+                            style: settingsSubtitleStyle(context)),
                         trailing: Obx(
                           () => CustSwitch(
                               value:
@@ -715,44 +713,45 @@ class SettingsScreen extends StatelessWidget {
                               onChanged:
                                   settingsController.toggleCacheHomeScreenData),
                         )),
-                  Obx(() {
-                    final connected = settingsController.ytConnected.value;
-                    return ListTile(
-                      contentPadding:
-                          const EdgeInsets.only(left: 5, right: 10),
-                      title: Text("ytAccount".tr),
-                      subtitle: Text(
-                          connected ? "ytConnectedDes".tr : "ytAccountDes".tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
-                      trailing: Icon(connected ? Icons.link_off : Icons.login),
-                      onTap: () async {
-                        if (connected) {
-                          await YtAuthService.disconnect();
-                          settingsController.ytConnected.value = false;
-                          Get.find<HomeScreenController>()
-                              .loadContentFromNetwork();
-                        } else {
-                          final ok =
-                              await Get.to(() => const YtLoginScreen());
-                          if (ok == true) {
-                            settingsController.ytConnected.value = true;
+                    Obx(() {
+                      final connected = settingsController.ytConnected.value;
+                      return ListTile(
+                        contentPadding:
+                            const EdgeInsets.only(left: 5, right: 10),
+                        title: Text("ytAccount".tr),
+                        subtitle: Text(
+                            connected ? "ytConnectedDes".tr : "ytAccountDes".tr,
+                            style: settingsSubtitleStyle(context)),
+                        trailing:
+                            Icon(connected ? Icons.link_off : Icons.login),
+                        onTap: () async {
+                          if (connected) {
+                            await YtAuthService.disconnect();
+                            settingsController.ytConnected.value = false;
                             Get.find<HomeScreenController>()
                                 .loadContentFromNetwork();
-                            ScaffoldMessenger.of(Get.context!).showSnackBar(
-                                snackbar(Get.context!, "ytConnectedMsg".tr,
-                                    size: SanckBarSize.BIG,
-                                    duration: const Duration(seconds: 3)));
+                          } else {
+                            final ok =
+                                await Get.to(() => const YtLoginScreen());
+                            if (ok == true) {
+                              settingsController.ytConnected.value = true;
+                              Get.find<HomeScreenController>()
+                                  .loadContentFromNetwork();
+                              ScaffoldMessenger.of(Get.context!).showSnackBar(
+                                  snackbar(Get.context!, "ytConnectedMsg".tr,
+                                      size: SanckBarSize.BIG,
+                                      duration: const Duration(seconds: 3)));
+                            }
                           }
-                        }
-                      },
-                    );
-                  }),
+                        },
+                      );
+                    }),
                     ListTile(
                       contentPadding:
                           const EdgeInsets.only(left: 5, right: 10, top: 0),
                       title: Text("Piped".tr),
                       subtitle: Text("linkPipedDes".tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
+                          style: settingsSubtitleStyle(context)),
                       trailing: TextButton(
                           child: Obx(() => Text(
                                 settingsController.isLinkedWithPiped.value
@@ -781,7 +780,7 @@ class SettingsScreen extends StatelessWidget {
                                 left: 5, right: 10, top: 0),
                             title: Text("resetblacklistedplaylist".tr),
                             subtitle: Text("resetblacklistedplaylistDes".tr,
-                                style: Theme.of(context).textTheme.bodyMedium),
+                                style: settingsSubtitleStyle(context)),
                             trailing: TextButton(
                                 child: Text(
                                   "reset".tr,
@@ -804,44 +803,42 @@ class SettingsScreen extends StatelessWidget {
                                 }),
                           )
                         : const SizedBox.shrink()),
-                  ListTile(
-                    contentPadding:
-                        const EdgeInsets.only(left: 5, right: 10),
-                    title: Text("listenBrainz".tr),
-                    subtitle: Text("listenBrainzDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    onTap: () => showDialog(
-                        context: context,
-                        builder: (context) => const ListenBrainzDialog()),
-                  ),
-                  ListTile(
-                    contentPadding:
-                        const EdgeInsets.only(left: 5, right: 10),
-                    title: Text("bannedSongs".tr),
-                    subtitle: Text("neverPlayThisDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    onTap: () => showDialog(
-                        context: context,
-                        builder: (context) => const BannedSongsDialog()),
-                  ),
-                  ListTile(
-                    contentPadding:
-                        const EdgeInsets.only(left: 5, right: 10),
-                    title: Text("stats".tr),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Get.toNamed(ScreenNavigationSetup.statsScreen,
-                        id: ScreenNavigationSetup.id),
-                  ),
-                  ListTile(
-                    contentPadding:
-                        const EdgeInsets.only(left: 5, right: 10),
-                    title: Text("riffRewind".tr),
-                    subtitle: Text("riffRewindDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Get.toNamed(ScreenNavigationSetup.rewindScreen,
-                        id: ScreenNavigationSetup.id),
-                  ),
+                    ListTile(
+                      contentPadding: const EdgeInsets.only(left: 5, right: 10),
+                      title: Text("listenBrainz".tr),
+                      subtitle: Text("listenBrainzDes".tr,
+                          style: settingsSubtitleStyle(context)),
+                      onTap: () => showDialog(
+                          context: context,
+                          builder: (context) => const ListenBrainzDialog()),
+                    ),
+                    ListTile(
+                      contentPadding: const EdgeInsets.only(left: 5, right: 10),
+                      title: Text("bannedSongs".tr),
+                      subtitle: Text("neverPlayThisDes".tr,
+                          style: settingsSubtitleStyle(context)),
+                      onTap: () => showDialog(
+                          context: context,
+                          builder: (context) => const BannedSongsDialog()),
+                    ),
+                    ListTile(
+                      contentPadding: const EdgeInsets.only(left: 5, right: 10),
+                      title: Text("stats".tr),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Get.toNamed(
+                          ScreenNavigationSetup.statsScreen,
+                          id: ScreenNavigationSetup.id),
+                    ),
+                    ListTile(
+                      contentPadding: const EdgeInsets.only(left: 5, right: 10),
+                      title: Text("riffRewind".tr),
+                      subtitle: Text("riffRewindDes".tr,
+                          style: settingsSubtitleStyle(context)),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Get.toNamed(
+                          ScreenNavigationSetup.rewindScreen,
+                          id: ScreenNavigationSetup.id),
+                    ),
                     Obx(() {
                       final imgSize = settingsController.cacheSizesReady.isTrue
                           ? formatCacheBytes(
@@ -853,7 +850,7 @@ class SettingsScreen extends StatelessWidget {
                         title: Text("clearImgCache".tr),
                         subtitle: Text(
                           "${"clearImgCacheDes".tr}\n${"imageCacheSize".tr}: $imgSize",
-                          style: Theme.of(context).textTheme.bodyMedium,
+                          style: settingsSubtitleStyle(context),
                         ),
                         isThreeLine: true,
                         onTap: () {
@@ -876,118 +873,121 @@ class SettingsScreen extends StatelessWidget {
               CustomExpansionTile(
                 title: "podcasts".tr,
                 icon: Icons.podcasts_outlined,
+                subtitle: "settingsPodcastsSum".tr,
                 children: [
-                  Obx(() {
-                    if (!settingsController.settingsMatch(
-                        'podcasts'.tr, 'podcastsDes'.tr)) {
-                      return const SizedBox.shrink();
-                    }
-                    return ListTile(
-                      contentPadding:
-                          const EdgeInsets.only(left: 5, right: 10),
-                      title: Text("podcasts".tr),
-                      subtitle: Text("podcastsDes".tr,
-                          style: Theme.of(context).textTheme.bodyMedium),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => Get.toNamed(
-                          ScreenNavigationSetup.podcastsScreen,
-                          id: ScreenNavigationSetup.id),
-                    );
-                  }),
-                  Obx(() {
-                    if (!settingsController.settingsMatch(
-                        'skipPodcastAds'.tr, 'skipPodcastAdsDes'.tr)) {
-                      return const SizedBox.shrink();
-                    }
-                    return ListTile(
+                  SettingsSearchable(
+                    title: 'podcasts'.tr,
+                    subtitle: 'podcastsDes'.tr,
+                    child: Obx(() {
+                      return ListTile(
+                        contentPadding:
+                            const EdgeInsets.only(left: 5, right: 10),
+                        title: Text("podcasts".tr),
+                        subtitle: Text("podcastsDes".tr,
+                            style: settingsSubtitleStyle(context)),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Get.toNamed(
+                            ScreenNavigationSetup.podcastsScreen,
+                            id: ScreenNavigationSetup.id),
+                      );
+                    }),
+                  ),
+                  SettingsSearchable(
+                    title: 'skipPodcastAds'.tr,
+                    subtitle: 'skipPodcastAdsDes'.tr,
+                    child: Obx(() {
+                      return ListTile(
                         contentPadding:
                             const EdgeInsets.only(left: 5, right: 10),
                         title: Text("skipPodcastAds".tr),
                         subtitle: Text("skipPodcastAdsDes".tr,
-                            style: Theme.of(context).textTheme.bodyMedium),
+                            style: settingsSubtitleStyle(context)),
                         trailing: CustSwitch(
                             value: settingsController
                                 .podcastAutoSkipAdsEnabled.value,
                             onChanged:
                                 settingsController.togglePodcastAutoSkipAds),
                       );
-                  }),
-                  Obx(() {
-                    if (!settingsController.settingsMatch(
-                        'podcastContinuousPlayback'.tr,
-                        'podcastContinuousPlaybackDes'.tr)) {
-                      return const SizedBox.shrink();
-                    }
-                    return ListTile(
+                    }),
+                  ),
+                  SettingsSearchable(
+                    title: 'podcastContinuousPlayback'.tr,
+                    subtitle: 'podcastContinuousPlaybackDes'.tr,
+                    child: Obx(() {
+                      return ListTile(
                         contentPadding:
                             const EdgeInsets.only(left: 5, right: 10),
                         title: Text("podcastContinuousPlayback".tr),
                         subtitle: Text("podcastContinuousPlaybackDes".tr,
-                            style: Theme.of(context).textTheme.bodyMedium),
+                            style: settingsSubtitleStyle(context)),
                         trailing: CustSwitch(
                             value: settingsController
                                 .podcastContinuousPlaybackEnabled.value,
                             onChanged: settingsController
                                 .togglePodcastContinuousPlayback),
                       );
-                  }),
-                  Obx(() {
-                    if (!settingsController.settingsMatch(
-                        'youtubePodcasts'.tr, 'youtubePodcastsDes'.tr)) {
-                      return const SizedBox.shrink();
-                    }
-                    return ListTile(
+                    }),
+                  ),
+                  SettingsSearchable(
+                    title: 'youtubePodcasts'.tr,
+                    subtitle: 'youtubePodcastsDes'.tr,
+                    child: Obx(() {
+                      return ListTile(
                         contentPadding:
                             const EdgeInsets.only(left: 5, right: 10),
                         title: Text("youtubePodcasts".tr),
                         subtitle: Text("youtubePodcastsDes".tr,
-                            style: Theme.of(context).textTheme.bodyMedium),
+                            style: settingsSubtitleStyle(context)),
                         trailing: CustSwitch(
-                            value: settingsController.youtubePodcastsEnabled.value,
-                            onChanged: settingsController.toggleYoutubePodcasts),
+                            value:
+                                settingsController.youtubePodcastsEnabled.value,
+                            onChanged:
+                                settingsController.toggleYoutubePodcasts),
                       );
-                  }),
-                  Obx(() {
-                    if (!settingsController.settingsMatch(
-                        'podcastVideo'.tr, 'podcastVideoDes'.tr)) {
-                      return const SizedBox.shrink();
-                    }
-                    return ListTile(
+                    }),
+                  ),
+                  SettingsSearchable(
+                    title: 'podcastVideo'.tr,
+                    subtitle: 'podcastVideoDes'.tr,
+                    child: Obx(() {
+                      return ListTile(
                         contentPadding:
                             const EdgeInsets.only(left: 5, right: 10),
                         title: Text("podcastVideo".tr),
                         subtitle: Text("podcastVideoDes".tr,
-                            style: Theme.of(context).textTheme.bodyMedium),
+                            style: settingsSubtitleStyle(context)),
                         trailing: CustSwitch(
                             value: settingsController.podcastVideoEnabled.value,
                             onChanged: settingsController.togglePodcastVideo),
                       );
-                  }),
-                  Obx(() {
-                    if (!GetPlatform.isAndroid ||
-                        !settingsController.settingsMatch(
-                            'podcastsInWizeStream'.tr,
-                            'podcastsInWizeStreamDes'.tr)) {
-                      return const SizedBox.shrink();
-                    }
-                    final installed = WizeStream.installedPackage.value != null;
-                    return ListTile(
-                        contentPadding:
-                            const EdgeInsets.only(left: 5, right: 10),
-                        title: Text("podcastsInWizeStream".tr),
-                        subtitle: Text(
-                            installed
-                                ? "podcastsInWizeStreamDes".tr
-                                : "wizeStreamMissing".tr,
-                            style: Theme.of(context).textTheme.bodyMedium),
-                        trailing: CustSwitch(
-                            value: installed &&
-                                settingsController.podcastsInWizeStream.value,
-                            onChanged: installed
-                                ? settingsController.togglePodcastsInWizeStream
-                                : null),
-                      );
-                  }),
+                    }),
+                  ),
+                  if (GetPlatform.isAndroid)
+                    SettingsSearchable(
+                      title: 'podcastsInWizeStream'.tr,
+                      subtitle: 'podcastsInWizeStreamDes'.tr,
+                      child: Obx(() {
+                        final installed =
+                            WizeStream.installedPackage.value != null;
+                        return ListTile(
+                          contentPadding:
+                              const EdgeInsets.only(left: 5, right: 10),
+                          title: Text("podcastsInWizeStream".tr),
+                          subtitle: Text(
+                              installed
+                                  ? "podcastsInWizeStreamDes".tr
+                                  : "wizeStreamMissing".tr,
+                              style: settingsSubtitleStyle(context)),
+                          trailing: CustSwitch(
+                              value: installed &&
+                                  settingsController.podcastsInWizeStream.value,
+                              onChanged: installed
+                                  ? settingsController
+                                      .togglePodcastsInWizeStream
+                                  : null),
+                        );
+                      }),
+                    ),
                 ],
               ),
 
@@ -995,13 +995,13 @@ class SettingsScreen extends StatelessWidget {
               CustomExpansionTile(
                 title: "plugins".tr,
                 icon: Icons.extension_outlined,
+                subtitle: "settingsPluginsSum".tr,
                 children: [
                   ListTile(
-                    contentPadding:
-                        const EdgeInsets.only(left: 5, right: 10),
+                    contentPadding: const EdgeInsets.only(left: 5, right: 10),
                     title: Text("plugins".tr),
                     subtitle: Text("pluginsSettingsDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
+                        style: settingsSubtitleStyle(context)),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Get.toNamed(
                         ScreenNavigationSetup.pluginsScreen,
@@ -1013,13 +1013,14 @@ class SettingsScreen extends StatelessWidget {
               // Downloads
               CustomExpansionTile(
                 title: "download".tr,
+                subtitle: "settingsDownloadSum".tr,
                 icon: Icons.download_outlined,
                 children: [
                   ListTile(
                     contentPadding: const EdgeInsets.only(left: 5, right: 10),
                     title: Text("autoDownFavSong".tr),
                     subtitle: Text("autoDownFavSongDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
+                        style: settingsSubtitleStyle(context)),
                     trailing: Obx(
                       () => CustSwitch(
                           value: settingsController
@@ -1032,7 +1033,7 @@ class SettingsScreen extends StatelessWidget {
                     contentPadding: const EdgeInsets.only(left: 5, right: 10),
                     title: Text("downloadingFormat".tr),
                     subtitle: Text("downloadingFormatDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium),
+                        style: settingsSubtitleStyle(context)),
                     trailing: Obx(
                       () => DropdownButton(
                         dropdownColor: Theme.of(context).cardColor,
@@ -1081,7 +1082,7 @@ class SettingsScreen extends StatelessWidget {
                       title: Text("exportDowloadedFiles".tr),
                       subtitle: Text(
                         "exportDowloadedFilesDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        style: settingsSubtitleStyle(context),
                       ),
                       isThreeLine: true,
                       onTap: () => showDialog(
@@ -1108,6 +1109,7 @@ class SettingsScreen extends StatelessWidget {
               // Advanced — backup, power, reset, developer tools
               CustomExpansionTile(
                   title: "settingsAdvanced".tr,
+                  subtitle: "settingsAdvancedSum".tr,
                   icon: Icons.tune_outlined,
                   children: [
                     ListTile(
@@ -1115,7 +1117,7 @@ class SettingsScreen extends StatelessWidget {
                       title: Text("backupAppData".tr),
                       subtitle: Text(
                         "backupSettingsAndPlaylistsDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        style: settingsSubtitleStyle(context),
                       ),
                       isThreeLine: true,
                       onTap: () => showDialog(
@@ -1129,7 +1131,7 @@ class SettingsScreen extends StatelessWidget {
                       title: Text("restoreAppData".tr),
                       subtitle: Text(
                         "restoreSettingsAndPlaylistsDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        style: settingsSubtitleStyle(context),
                       ),
                       isThreeLine: true,
                       onTap: () => showDialog(
@@ -1144,7 +1146,7 @@ class SettingsScreen extends StatelessWidget {
                             const EdgeInsets.only(left: 5, right: 10),
                         title: Text("stopMusicOnTaskClear".tr),
                         subtitle: Text("stopMusicOnTaskClearDes".tr,
-                            style: Theme.of(context).textTheme.bodyMedium),
+                            style: settingsSubtitleStyle(context)),
                         trailing: Obx(
                           () => CustSwitch(
                               value: settingsController
@@ -1171,7 +1173,8 @@ class SettingsScreen extends StatelessWidget {
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodyMedium!
-                                          .copyWith(fontWeight: FontWeight.bold),
+                                          .copyWith(
+                                              fontWeight: FontWeight.bold),
                                       children: <TextSpan>[
                                         TextSpan(
                                             text: "ignoreBatOptDes".tr,
@@ -1189,7 +1192,7 @@ class SettingsScreen extends StatelessWidget {
                       title: Text("resetToDefault".tr),
                       subtitle: Text(
                         "resetToDefaultDes".tr,
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        style: settingsSubtitleStyle(context),
                       ),
                       onTap: () async {
                         final ok = await settingsController
@@ -1213,7 +1216,7 @@ class SettingsScreen extends StatelessWidget {
                             const EdgeInsets.only(left: 5, right: 10),
                         title: Text("tasteModelDebug".tr),
                         subtitle: Text("tasteModelDebugDes".tr,
-                            style: Theme.of(context).textTheme.bodyMedium),
+                            style: settingsSubtitleStyle(context)),
                         onTap: () => showDialog(
                             context: context,
                             builder: (context) =>
@@ -1229,7 +1232,7 @@ class SettingsScreen extends StatelessWidget {
                             const EdgeInsets.only(left: 5, right: 10),
                         title: Text("developerMode".tr),
                         subtitle: Text("developerModeDes".tr,
-                            style: Theme.of(context).textTheme.bodyMedium),
+                            style: settingsSubtitleStyle(context)),
                         trailing: CustSwitch(
                           value: true,
                           onChanged: (v) {
@@ -1245,13 +1248,14 @@ class SettingsScreen extends StatelessWidget {
               CustomExpansionTile(
                 icon: Icons.info_outline,
                 title: "appInfo".tr,
+                subtitle: "settingsAboutSum".tr,
                 children: [
                   ListTile(
                     contentPadding: const EdgeInsets.only(left: 5, right: 10),
                     title: Text("github".tr),
                     subtitle: Text(
                       "${"githubDes".tr}${((Get.find<PlayerController>().playerPanelMinHeight.value) == 0 || !isBottomNavActive) ? "" : "\n\n${settingsController.currentVersion}"}",
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      style: settingsSubtitleStyle(context),
                     ),
                     isThreeLine: true,
                     trailing: Icon(Icons.open_in_new,
@@ -1555,7 +1559,7 @@ class _BannedSongsDialogState extends State<BannedSongsDialog> {
                             size: 20),
                         title: Text(c["title"], maxLines: 1),
                         subtitle: Text("bannedCollectionTag".tr,
-                            style: Theme.of(context).textTheme.bodyMedium),
+                            style: settingsSubtitleStyle(context)),
                         trailing: IconButton(
                           icon: const Icon(Icons.close),
                           onPressed: () async {
@@ -1570,7 +1574,7 @@ class _BannedSongsDialogState extends State<BannedSongsDialog> {
                         leading: const Icon(Icons.person_off, size: 20),
                         title: Text(artist["name"], maxLines: 1),
                         subtitle: Text("bannedArtistTag".tr,
-                            style: Theme.of(context).textTheme.bodyMedium),
+                            style: settingsSubtitleStyle(context)),
                         trailing: IconButton(
                           icon: const Icon(Icons.close),
                           onPressed: () async {
@@ -1909,8 +1913,7 @@ class _SpeedPitchDialogState extends State<SpeedPitchDialog> {
     settings.setBox.put("playbackPitch", pitch);
     settings.playbackSpeed.value = speed;
     settings.playbackPitch.value = pitch;
-    Get.find<PlayerController>()
-        .setSpeedAndPitch(speed: speed, pitch: pitch);
+    Get.find<PlayerController>().setSpeedAndPitch(speed: speed, pitch: pitch);
   }
 
   void _applyFx() {
@@ -1968,7 +1971,8 @@ class _SpeedPitchDialogState extends State<SpeedPitchDialog> {
                 onChanged: (v) => setState(() => bass = v),
                 onChangeEnd: (_) => _applyFx(),
               ),
-              Text("${"volumeBoost".tr}: +${(volumeBoost / 100).toStringAsFixed(1)} dB"),
+              Text(
+                  "${"volumeBoost".tr}: +${(volumeBoost / 100).toStringAsFixed(1)} dB"),
               Slider(
                 min: 0,
                 max: 2000,
