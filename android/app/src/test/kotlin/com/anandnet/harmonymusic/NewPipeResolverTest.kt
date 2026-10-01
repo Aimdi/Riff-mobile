@@ -25,6 +25,19 @@ class NewPipeResolverTest {
         assertTrue("stream urls must be https",
             streams.all { (it["url"] as String).startsWith("https://") })
     }
+
+    /** A YouTube Music podcast episode (Handelsblatt Economic Challenges). */
+    @Test
+    fun resolvesPodcastEpisode() {
+        try {
+            val streams = NewPipeResolver.getAudioStreams("5fA9-I6lonI")
+            println("NEWPIPE PODCAST STREAMS: " +
+                streams.map { "${it["itag"]} ${it["mimeType"]} ${it["bitrate"]}bps" })
+        } catch (e: Throwable) {
+            println("NEWPIPE PODCAST ERROR: $e")
+            e.printStackTrace(System.out)
+        }
+    }
 }
 
 class NewPipeVideoResolverTest {
