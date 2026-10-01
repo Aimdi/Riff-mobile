@@ -20,7 +20,10 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:audio_service/audio_service.dart';
 import 'package:hive/hive.dart';
+
+import 'package:harmonymusic/models/playlist.dart';
 
 import 'package:harmonymusic/services/audiobook_catalog_service.dart';
 import 'package:harmonymusic/services/free_audiobook_service.dart';
@@ -126,6 +129,39 @@ void main() {
     expect(eps, isNotEmpty);
     expect((eps.first["url"] as String).startsWith("http"), isTrue);
   }, timeout: const Timeout(Duration(minutes: 3)));
+
+  test('YouTube Music podcast episodes load and resolve (Handelsblatt)',
+      () async {
+    // A daily German news show with a long back catalogue: users reported
+    // a crash as soon as one of its episodes started.
+    final ms = await _makeService();
+    final res = await ms.search('Handelsblatt Economic Challenges',
+        filter: 'podcasts', limit: 10);
+    final shows = res.values
+        .whereType<List>()
+        .expand((l) => l)
+        .whereType<Playlist>()
+        .toList();
+    for (final s in shows) {
+      // ignore: avoid_print
+      print('YTM PODCAST: ${s.title} ${s.playlistId}');
+    }
+    expect(shows, isNotEmpty);
+    final pod = await ms.getPodcast(shows.first.playlistId, limit: 300);
+    final tracks = List<MediaItem>.from(pod['tracks'] as List);
+    // ignore: avoid_print
+    print('YTM EPISODES: ${tracks.length}');
+    for (final t in tracks.take(3)) {
+      // ignore: avoid_print
+      print('  EP id=${t.id} title=${t.title} dur=${t.duration} '
+          'art=${t.artUri} extras=${t.extras?.map((k, v) => MapEntry(k, v is String && v.length > 80 ? '${v.substring(0, 80)}…(${v.length})' : v))}');
+    }
+    expect(tracks, isNotEmpty);
+    final provider = await StreamProvider.fetch(tracks.first.id);
+    // ignore: avoid_print
+    print('YTM EPISODE STREAM: playable=${provider.playable} '
+        'msg=${provider.statusMSG} formats=${provider.audioFormats?.map((a) => '${a.itag}/${a.audioCodec}/${a.size}').toList()}');
+  }, timeout: const Timeout(Duration(minutes: 4)));
 
   test('square cover for a music video (ATV audio-track lookup)', () async {
     final ms = await _makeService();
