@@ -1,3 +1,4 @@
+import '/ui/player/long_form_queue.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -48,53 +49,12 @@ class PlayerControlWidget extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           // Visible reason when a song won't start — snackbar alone is easy to miss.
-          Obx(() {
-            final err = playerController.playbackError.value;
-            if (err == null || err.isEmpty) return const SizedBox.shrink();
-            final theme = Theme.of(context);
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.error.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
-                  border: Border.all(
-                      color: theme.colorScheme.error.withOpacity(0.35),
-                      width: 1),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
-                  child: Row(
-                    children: [
-                      Icon(Icons.error_outline_rounded,
-                          size: 18, color: theme.colorScheme.error),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          err,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.3,
-                            color: theme.textTheme.titleMedium?.color,
-                          ),
-                        ),
-                      ),
-                      PlaybackErrorActions(
-                        color: theme.colorScheme.error,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }),
+          const PlaybackErrorBanner(),
           // Spotify-style straight seek bar. Podcasts with chapters split
           // into sections; music is one line. Phone volume stays on hardware.
           // Own layer: the 10 Hz progress tick must not repaint the whole
           // player (album art, controls) up to the root.
-          const RepaintBoundary(child: _SeekScrubber()),
+          const RepaintBoundary(child: PlayerSeekScrubber()),
           const SizedBox(height: 6),
           Obx(() => playerController.usesLongFormTransport
               ? _podcastControls(playerController, context)
@@ -180,7 +140,7 @@ class PlayerControlWidget extends StatelessWidget {
         PlayerAction(
           icon: Icons.info_outline_rounded,
           tooltip: 'shownotes'.tr,
-          onTap: () => _openShownotes(playerController, context),
+          onTap: () => openShownotesSheet(playerController, context),
         ),
       if (playerController.chapters.isNotEmpty)
         PlayerAction(
@@ -290,7 +250,7 @@ class PlayerControlWidget extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _SpeedButton(color: color),
+            PlayerSpeedButton(color: color),
             IconButton(
               tooltip: '−10s',
               iconSize: 34,
@@ -313,121 +273,176 @@ class PlayerControlWidget extends StatelessWidget {
     );
   }
 
-  void _openChapters(PlayerController playerController, BuildContext context) {
-    final chapters = playerController.chapters;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.55,
-        maxChildSize: 0.9,
-        builder: (ctx, scrollCtrl) {
-          String fmt(double sec) {
-            final d = Duration(milliseconds: (sec * 1000).round());
-            final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-            final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-            final h = d.inHours;
-            return h > 0 ? '$h:$m:$s' : '$m:$s';
-          }
+  void _openChapters(PlayerController playerController, BuildContext context) =>
+      openChaptersSheet(playerController, context);
+}
 
-          return ListView.builder(
-            controller: scrollCtrl,
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 24),
-            itemCount: chapters.length + 1,
-            itemBuilder: (ctx, i) {
-              if (i == 0) {
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-                  child: Text('chapters'.tr,
-                      style: Theme.of(ctx).textTheme.titleLarge),
-                );
-              }
-              final c = chapters[i - 1];
-              return ListTile(
-                leading: Icon(
-                  c.isAd ? Icons.campaign_outlined : Icons.play_arrow_rounded,
-                  color: c.isAd
-                      ? Theme.of(ctx).colorScheme.error
-                      : Theme.of(ctx).colorScheme.secondary,
-                ),
-                title:
-                    Text(c.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-                subtitle: Text(fmt(c.startSec)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  playerController.seek(
-                    Duration(milliseconds: (c.startSec * 1000).round()),
-                  );
-                },
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
+void openChaptersSheet(
+    PlayerController playerController, BuildContext context) {
+  final chapters = playerController.chapters;
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    builder: (ctx) => DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.55,
+      maxChildSize: 0.9,
+      builder: (ctx, scrollCtrl) {
+        String fmt(double sec) {
+          final d = Duration(milliseconds: (sec * 1000).round());
+          final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+          final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+          final h = d.inHours;
+          return h > 0 ? '$h:$m:$s' : '$m:$s';
+        }
 
-  void _openShownotes(PlayerController playerController, BuildContext context) {
-    final song = playerController.currentSong.value;
-    final notes = (song?.extras?['description'] ?? '').toString().trim();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.6,
-        maxChildSize: 0.9,
-        builder: (ctx, scrollCtrl) => SingleChildScrollView(
+        return ListView.builder(
           controller: scrollCtrl,
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(song?.title ?? '',
-                  style: Theme.of(ctx).textTheme.titleLarge),
-              const SizedBox(height: 4),
-              Text(song?.artist ?? '',
-                  style: Theme.of(ctx).textTheme.titleSmall),
-              const Divider(height: 24),
-              Text(
-                notes.isEmpty ? "noShownotes".tr : notes,
-                style: Theme.of(ctx).textTheme.bodyMedium,
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 24),
+          itemCount: chapters.length + 1,
+          itemBuilder: (ctx, i) {
+            if (i == 0) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                child: Text('chapters'.tr,
+                    style: Theme.of(ctx).textTheme.titleLarge),
+              );
+            }
+            final c = chapters[i - 1];
+            return ListTile(
+              leading: Icon(
+                c.isAd ? Icons.campaign_outlined : Icons.play_arrow_rounded,
+                color: c.isAd
+                    ? Theme.of(ctx).colorScheme.error
+                    : Theme.of(ctx).colorScheme.secondary,
               ),
-            ],
-          ),
+              title:
+                  Text(c.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+              subtitle: Text(fmt(c.startSec)),
+              onTap: () {
+                Navigator.pop(ctx);
+                playerController.seek(
+                  Duration(milliseconds: (c.startSec * 1000).round()),
+                );
+              },
+            );
+          },
+        );
+      },
+    ),
+  );
+}
+
+void openShownotesSheet(
+    PlayerController playerController, BuildContext context) {
+  final song = playerController.currentSong.value;
+  final notes = episodeNotes(song).trim();
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    builder: (ctx) => DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.6,
+      maxChildSize: 0.9,
+      builder: (ctx, scrollCtrl) => SingleChildScrollView(
+        controller: scrollCtrl,
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(song?.title ?? '', style: Theme.of(ctx).textTheme.titleLarge),
+            const SizedBox(height: 4),
+            Text(song?.artist ?? '', style: Theme.of(ctx).textTheme.titleSmall),
+            const Divider(height: 24),
+            Text(
+              notes.isEmpty ? "noShownotes".tr : notes,
+              style: Theme.of(ctx).textTheme.bodyMedium,
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Widget _previousButton(
-      PlayerController playerController, BuildContext context) {
-    return IconButton(
-      tooltip: 'previous'.tr,
-      icon: Icon(
-        Icons.skip_previous_rounded,
-        color: Theme.of(context).textTheme.titleMedium!.color,
-      ),
-      iconSize: 38,
-      onPressed: playerController.prev,
-    );
+Widget _previousButton(
+    PlayerController playerController, BuildContext context) {
+  return IconButton(
+    tooltip: 'previous'.tr,
+    icon: Icon(
+      Icons.skip_previous_rounded,
+      color: Theme.of(context).textTheme.titleMedium!.color,
+    ),
+    iconSize: 38,
+    onPressed: playerController.prev,
+  );
+}
+
+/// Why the current item won't play, with retry / skip actions. Shown above
+/// the seek bar in both the music and the long-form player.
+class PlaybackErrorBanner extends StatelessWidget {
+  const PlaybackErrorBanner({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final playerController = Get.find<PlayerController>();
+    return Obx(() {
+      final err = playerController.playbackError.value;
+      if (err == null || err.isEmpty) return const SizedBox.shrink();
+      final theme = Theme.of(context);
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.error.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+            border: Border.all(
+                color: theme.colorScheme.error.withOpacity(0.35), width: 1),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
+            child: Row(
+              children: [
+                Icon(Icons.error_outline_rounded,
+                    size: 18, color: theme.colorScheme.error),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    err,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.3,
+                      color: theme.textTheme.titleMedium?.color,
+                    ),
+                  ),
+                ),
+                PlaybackErrorActions(
+                  color: theme.colorScheme.error,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
   }
 }
 
 /// Podcast playback-speed control: shows the current speed, tap cycles through
 /// common podcast speeds. Persists via SettingsScreenController like the
 /// speed/pitch dialog.
-class _SpeedButton extends StatelessWidget {
-  const _SpeedButton({required this.color});
+class PlayerSpeedButton extends StatelessWidget {
+  const PlayerSpeedButton({super.key, required this.color});
   final Color? color;
 
   static const _speeds = [0.8, 1.0, 1.2, 1.5, 1.75, 2.0];
@@ -731,14 +746,14 @@ String _fmtDuration(Duration d, {bool allowZero = true}) {
 
 /// Straight seek bar (Spotify). Podcast chapters split the line into
 /// sections; music / chapter-less episodes stay one rounded track.
-class _SeekScrubber extends StatefulWidget {
-  const _SeekScrubber();
+class PlayerSeekScrubber extends StatefulWidget {
+  const PlayerSeekScrubber({super.key});
 
   @override
-  State<_SeekScrubber> createState() => _SeekScrubberState();
+  State<PlayerSeekScrubber> createState() => PlayerSeekScrubberState();
 }
 
-class _SeekScrubberState extends State<_SeekScrubber> {
+class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
   double? _dragFrac;
   Duration? _dragPosition;
   Duration? _seekTarget;
@@ -751,8 +766,8 @@ class _SeekScrubberState extends State<_SeekScrubber> {
   int _marksTotalMs = -1;
 
   List<double> _chapterMarks(List<PodcastChapter> chapters, int totalMs) {
-    var same = totalMs == _marksTotalMs &&
-        chapters.length == _marksChapters.length;
+    var same =
+        totalMs == _marksTotalMs && chapters.length == _marksChapters.length;
     for (var i = 0; same && i < chapters.length; i++) {
       same = identical(chapters[i], _marksChapters[i]);
     }

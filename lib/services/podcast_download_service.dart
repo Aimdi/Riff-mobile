@@ -1,3 +1,4 @@
+import '/ui/player/long_form_queue.dart';
 import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
@@ -101,7 +102,7 @@ class PodcastDownloadService {
         'url': url,
         'isPodcast': true,
         'feedUrl': episode.extras?['feedUrl'],
-        'description': episode.extras?['description'],
+        'description': episodeNotes(episode),
         'date': episode.extras?['date'],
         'pubDateMs': episode.extras?['pubDateMs'],
         'chaptersUrl': episode.extras?['chaptersUrl'],

@@ -1,3 +1,4 @@
+import '/ui/player/long_form_queue.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -37,7 +38,7 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode) {
       final downloaded = PodcastDownloadService.isDownloaded(episode.id);
       final canDownload =
           (episode.extras?['url'] as String?)?.isNotEmpty ?? false;
-      final notes = (episode.extras?['description'] ?? '').toString().trim();
+      final notes = episodeNotes(episode).trim();
       final feedUrl = (episode.extras?['feedUrl'] ?? '').toString().trim();
       void snack(String msg) {
         if (!context.mounted) return;

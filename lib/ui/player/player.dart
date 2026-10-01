@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 
 import '/ui/player/components/gesture_player.dart';
+import '/ui/player/components/long_form_player.dart';
 import '/ui/player/components/standard_player.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/utils/riff_tokens.dart';
@@ -237,9 +238,12 @@ class Player extends StatelessWidget {
           /// repaint full-screen layers every frame forever.
           body: _PlayerBodyTickerMode(
             playerController: playerController,
-            child: settingsScreenController.playerUi.value == 0
-                ? const StandardPlayer()
-                : const GesturePlayer(),
+            // Podcasts and audiobooks get their own long-form player.
+            child: Obx(() => playerController.usesLongFormTransport
+                ? const LongFormPlayer()
+                : settingsScreenController.playerUi.value == 0
+                    ? const StandardPlayer()
+                    : const GesturePlayer()),
           ),
         ),
       ),

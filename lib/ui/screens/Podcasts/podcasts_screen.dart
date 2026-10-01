@@ -5,7 +5,6 @@ import 'package:get/get.dart';
 
 import '/models/thumbnail.dart';
 import '/services/discovery/discovery_types.dart';
-import '/services/podcast_progress_service.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/podcast_follow_button.dart';
@@ -13,6 +12,7 @@ import '/ui/widgets/snackbar.dart';
 import '/ui/widgets/podcast_play.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import 'podcast_queue_screen.dart';
+import 'podcast_show_view.dart';
 
 /// AntennaPod-style podcast section: discover via Apple's directory,
 /// subscribe locally (nothing reported anywhere), play episodes straight
@@ -132,8 +132,7 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
           imageUrl: p['artwork'] ?? '',
           width: 52,
           height: 52,
-          memCacheWidth:
-              (52 * MediaQuery.devicePixelRatioOf(context)).round(),
+          memCacheWidth: (52 * MediaQuery.devicePixelRatioOf(context)).round(),
           fit: BoxFit.cover,
           errorWidget: (_, __, ___) => const Icon(Icons.podcasts, size: 40),
         ),
@@ -188,6 +187,7 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
     if (mounted) {
       setState(() {
         _episodes = eps;
+        _items = null;
         _loading = false;
       });
     }
@@ -217,8 +217,7 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
           'feedUrl': widget.podcast['feedUrl'],
           if (e['chaptersUrl'] != null) 'chaptersUrl': e['chaptersUrl'],
           if (e['transcriptUrl'] != null) 'transcriptUrl': e['transcriptUrl'],
-          if (e['transcriptUrl'] != null)
-            'transcriptType': e['transcriptType'],
+          if (e['transcriptUrl'] != null) 'transcriptType': e['transcriptType'],
         },
       );
 
@@ -243,16 +242,14 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
           'feedUrl': widget.podcast['feedUrl'],
           if (e['chaptersUrl'] != null) 'chaptersUrl': e['chaptersUrl'],
           if (e['transcriptUrl'] != null) 'transcriptUrl': e['transcriptUrl'],
-          if (e['transcriptUrl'] != null)
-            'transcriptType': e['transcriptType'],
+          if (e['transcriptUrl'] != null) 'transcriptType': e['transcriptType'],
         },
       );
 
   Future<void> _playFrom(int index) async {
-    final items = _episodes.map(_toMediaItem).toList();
-    final ok =
-        await Get.find<PlayerController>().playPlayListSong(items, index,
-            source: DiscoverySource.podcast);
+    final items = _mediaItems;
+    final ok = await Get.find<PlayerController>()
+        .playPlayListSong(items, index, source: DiscoverySource.podcast);
     if (!ok) snackOperationFailed();
   }
 
@@ -265,215 +262,31 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
     }
   }
 
+  List<MediaItem>? _items;
+
+  List<MediaItem> get _mediaItems =>
+      _items ??= _episodes.map(_toMediaItem).toList();
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.podcast['title'] ?? '', maxLines: 1),
-      ),
-      body: _loading
-          ? const SongListShimmer(itemCount: 8, topPadding: 8)
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Fixed header — cover art + title + Follow stay pinned while
-                // the episode list scrolls.
-                _header(context),
-                const Divider(height: 1),
-                Expanded(
-                  child: _episodes.isEmpty
-                      ? Center(child: Text("noEpisodes".tr))
-                      : ListView.separated(
-                          padding: const EdgeInsets.only(bottom: 200),
-                          itemCount: _episodes.length,
-                          separatorBuilder: (_, __) =>
-                              const Divider(height: 1, indent: 16, endIndent: 16),
-                          itemBuilder: (_, i) => _episodeRow(context, i),
-                        ),
-                ),
-              ],
-            ),
-    );
-  }
-
-  Widget _header(BuildContext context) {
-    final theme = Theme.of(context);
-    final art = (widget.podcast['artwork'] ?? '').toString();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: CachedNetworkImage(
-              imageUrl: art,
-              width: 96,
-              height: 96,
-              memCacheWidth:
-                  (96 * MediaQuery.devicePixelRatioOf(context)).round(),
-              fit: BoxFit.cover,
-              errorWidget: (_, __, ___) =>
-                  const Icon(Icons.podcasts, size: 60),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.podcast['title'] ?? '',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
-                ),
-                if ((widget.podcast['author'] ?? '').toString().isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.podcast['author'] ?? '',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                ],
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    if (_episodes.isNotEmpty)
-                      FilledButton.icon(
-                        onPressed: () => _playFrom(0),
-                        icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                        label: Text('play'.tr),
-                      ),
-                    Obx(() {
-                      PodcastService.subsRev.value;
-                      final subscribed = PodcastService.isSubscribed(
-                          widget.podcast['feedUrl'] ?? '');
-                      return PodcastFollowButton(
-                        following: subscribed,
-                        onPressed: _toggleSubscribe,
-                      );
-                    }),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _episodeRow(BuildContext context, int i) {
-    final e = _episodes[i];
-    final id = '${e['id']}';
-    final date = (e['date'] ?? '').toString();
-    final size = PodcastService.formatSize(e['sizeBytes'] ?? 0);
-    final totSec = (e['durationSec'] is int)
-        ? e['durationSec'] as int
-        : int.tryParse('${e['durationSec']}') ?? 0;
-    final left = PodcastProgressService.remainingSec(id,
-        fallbackDurationSec: totSec);
-    String timeLabel = '';
-    if (left != null && left > 0) {
-      final fmt = PodcastService.formatDuration(left);
-      final inProgress = PodcastProgressService.progress(id) != null;
-      timeLabel = inProgress && left < totSec
-          ? '$fmt ${'left'.tr}'
-          : PodcastService.formatDuration(totSec);
-    } else {
-      timeLabel = PodcastService.formatDuration(totSec);
-    }
-    final prog = PodcastProgressService.progress(id);
-    final meta = [date, size].where((s) => s.isNotEmpty).join('  ·  ');
-    final art =
-        (e['artwork'] ?? widget.podcast['artwork'] ?? '').toString();
-    return InkWell(
-      onTap: () => _playFrom(i),
-      onLongPress: () => showAddToQueueSheet(context, _toSheetItem(e)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: CachedNetworkImage(
-                      imageUrl: art,
-                      width: 56,
-                      height: 56,
-                      memCacheWidth:
-                          (56 * MediaQuery.devicePixelRatioOf(context))
-                              .round(),
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) =>
-                          const Icon(Icons.podcasts, size: 40),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (meta.isNotEmpty)
-                          Text(
-                            meta,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        Text(
-                          e['title'] ?? '',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                        if (timeLabel.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              timeLabel,
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ),
-                        if (prog != null && prog > 0 && prog < 1) ...[
-                          const SizedBox(height: 8),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: prog,
-                              minHeight: 3,
-                              backgroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withOpacity(0.15),
-                              valueColor: AlwaysStoppedAnimation(
-                                  Theme.of(context).colorScheme.secondary),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(Icons.play_circle_outline, size: 30),
-          ],
-        ),
-      ),
-    );
+    return Obx(() {
+      PodcastService.subsRev.value;
+      final feed = (widget.podcast['feedUrl'] ?? '').toString();
+      return PodcastShowView(
+        title: (widget.podcast['title'] ?? '').toString(),
+        author: (widget.podcast['author'] ?? '').toString(),
+        artUrl: (widget.podcast['artwork'] ?? '').toString(),
+        description: (widget.podcast['description'] ?? '').toString(),
+        episodes: _loading ? const [] : _mediaItems,
+        loading: _loading,
+        subscribed: PodcastService.isSubscribed(feed),
+        onToggleSubscribe: _toggleSubscribe,
+        onPlay: _playFrom,
+        onEpisodeLongPress: (m) {
+          final i = _mediaItems.indexWhere((e) => e.id == m.id);
+          if (i >= 0) showAddToQueueSheet(context, _toSheetItem(_episodes[i]));
+        },
+      );
+    });
   }
 }

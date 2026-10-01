@@ -297,7 +297,15 @@ class ContentListItem extends StatelessWidget {
     return InkWell(
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
-      onTap: shouldPlayCollectionOnTap() ? _playFromOverlay : _openContent,
+      // Podcasts open their show page (browse episodes, subscribe); the
+      // play button on the cover still plays. Albums/playlists keep
+      // tap-to-play.
+      onTap: shouldPlayCollectionOnTap() &&
+              (_isAlbum ||
+                  !isPodcastCollection(
+                      kind: _collectionKind, id: _collectionId))
+          ? _playFromOverlay
+          : _openContent,
       onLongPress: () => _showPlaySheet(context),
       child: SizedBox(
         width: size,

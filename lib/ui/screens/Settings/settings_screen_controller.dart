@@ -189,7 +189,7 @@ class SettingsScreenController extends GetxController {
     podcastContinuousPlaybackEnabled.value =
         setBox.get("podcastContinuousPlayback") ?? true;
     youtubePodcastsEnabled.value = setBox.get("youtubePodcasts") != false;
-    podcastVideoEnabled.value = setBox.get("podcastShowVideo") != false;
+    podcastVideoEnabled.value = setBox.get("podcastShowVideo") == true;
     podcastsInWizeStream.value = setBox.get("podcastsInWizeStream") == true;
     loudnessNormalizationEnabled.value = isDesktop
         ? false

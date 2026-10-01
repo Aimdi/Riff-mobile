@@ -19,6 +19,7 @@ import '/ui/widgets/podcast_play.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import '/ui/widgets/snackbar.dart';
 import '/ui/widgets/sort_widget.dart';
+import '/ui/navigator.dart';
 import '../Home/home_layout.dart';
 import 'podcast_category_screen.dart';
 import 'podcast_downloads_screen.dart';
@@ -652,33 +653,22 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                         ),
                       ),
                     ),
-                    SliverLayoutBuilder(builder: (context, constraints) {
-                      final availableWidth = constraints.crossAxisExtent;
-                      final width =
-                          availableWidth > 300 && availableWidth < 394
-                              ? 310.0
-                              : availableWidth;
-                      final columns =
-                          (width / itemWidth).floor().clamp(2, 6);
-                      return SliverPadding(
-                        padding: const EdgeInsets.only(bottom: 200, top: 10),
-                        sliver: SliverGrid(
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: columns,
-                            mainAxisExtent: itemHeight + 12,
+                    // One row per show: cover, full two-line title, host
+                    // and Subscribe. Tapping opens the show; the cover's
+                    // play button starts the latest episode.
+                    SliverPadding(
+                      padding: const EdgeInsets.only(top: 6, bottom: 200),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => _ShowResultRow(
+                            key: ValueKey(items[index].playlistId),
+                            show: items[index],
+                            controller: controller,
                           ),
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) => Center(
-                              child: ContentListItem(
-                                  content: items[index],
-                                  showSimilarOnOpen: true),
-                            ),
-                            childCount: items.length,
-                          ),
+                          childCount: items.length,
                         ),
-                      );
-                    }),
+                      ),
+                    ),
                   ] else
                     const SliverToBoxAdapter(child: SizedBox(height: 80)),
                 ],
@@ -1103,5 +1093,85 @@ Future<void> togglePodcastLibrary(Playlist podcast, {required bool add}) async {
     await c.addToLibrary(podcast);
   } else {
     await c.removeFromLibrary(podcast.playlistId);
+  }
+}
+
+/// A podcast search result: cover, two-line title, host and Subscribe.
+class _ShowResultRow extends StatelessWidget {
+  const _ShowResultRow(
+      {super.key, required this.show, required this.controller});
+  final Playlist show;
+  final LibraryPodcastsController controller;
+
+  void _open() => Get.toNamed(ScreenNavigationSetup.playlistScreen,
+      id: ScreenNavigationSetup.id,
+      arguments: [show, show.playlistId, true]);
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: _open,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+            HomeLayout.gutter, 8, HomeLayout.gutter, 8),
+        child: Row(
+          children: [
+            PodcastArt(url: show.thumbnailUrl, size: 72),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    show.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: homeCardTitleStyle(context)
+                        .copyWith(fontSize: 15, height: 1.25),
+                  ),
+                  if ((show.description ?? '').trim().isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      show.description!.trim(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: homeCardSubtitleStyle(context)
+                          .copyWith(fontSize: 12.5),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Obx(() {
+              final subscribed = controller.libraryPodcasts
+                  .any((p) => p.playlistId == show.playlistId);
+              // Quiet in a list: outlined + to subscribe, accent check once
+              // subscribed (the show page has the full Subscribe button).
+              return IconButton(
+                tooltip: subscribed ? 'subscribed'.tr : 'subscribe'.tr,
+                onPressed: () async {
+                  if (subscribed) {
+                    await controller.removeFromLibrary(show.playlistId);
+                  } else {
+                    await controller.addToLibrary(show);
+                  }
+                },
+                icon: Icon(
+                  subscribed
+                      ? Icons.check_circle_rounded
+                      : Icons.add_circle_outline_rounded,
+                  size: 28,
+                  color: subscribed
+                      ? Theme.of(context).colorScheme.secondary
+                      : homeMutedColor(context),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
   }
 }
