@@ -17,10 +17,13 @@ shot() {
 alive() { adb shell pidof $PKG >/dev/null 2>&1 && echo yes || echo NO; }
 # Taps the centre of the first on-screen node whose text or description
 # matches $1 (Flutter publishes its semantics to the accessibility tree).
+# Flutter builds its accessibility tree only once something queries it, so
+# the first dump can come back empty: try a few times.
 tap_text() {
+  local b="" try
+  for try in 1 2 3 4; do
   adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
   adb pull /sdcard/ui.xml "$OUT/ui-$1.xml" >/dev/null 2>&1
-  local b
   b=$(python3 - "$OUT/ui-$1.xml" "$1" <<'PY'
 import re, sys, xml.etree.ElementTree as ET
 try:
@@ -36,6 +39,9 @@ for node in root.iter('node'):
         break
 PY
 )
+  [ -n "$b" ] && break
+  sleep 3
+  done
   if [ -n "$b" ]; then
     echo "E2E: tap '$1' at $b"
     adb shell input tap $b
