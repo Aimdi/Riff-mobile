@@ -111,6 +111,24 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
+      if (c.artistLoadFailed.isTrue) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('networkError'.tr, textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: c.retryArtistContent,
+                  child: Text('retry'.tr),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
       if (c.isArtistContentFetced.isFalse) {
         return const SongListShimmer(itemCount: 8, topPadding: 12);
       }

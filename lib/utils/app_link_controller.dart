@@ -63,24 +63,34 @@ mixin ProcessLink {
         uri.host == "m.youtube.com") {
       printINFO(
           "pathsegmet: ${uri.pathSegments} params:${uri.queryParameters}");
-      if (uri.pathSegments[0] == "playlist" &&
-          uri.queryParameters.containsKey("list")) {
-        final browseId = uri.queryParameters['list'];
-        await openPlaylistOrAlbum(browseId!);
-      } else if (uri.pathSegments[0] == "shorts") {
+      // A bare host (music.youtube.com) or a link missing its id is not
+      // something to open; say so instead of throwing.
+      final segs = uri.pathSegments;
+      final first = segs.isEmpty ? '' : segs[0];
+      final videoId = uri.queryParameters['v'] ?? '';
+      final listId = uri.queryParameters['list'] ?? '';
+      if (first.isEmpty ||
+          (first == "watch" && videoId.isEmpty) ||
+          (first == "channel" && segs.length < 2) ||
+          (first == "playlist" && listId.isEmpty)) {
+        ScaffoldMessenger.of(Get.context!).showSnackBar(snackbar(
+            Get.context!, "notaValidLink".tr,
+            size: SanckBarSize.MEDIUM));
+        return;
+      }
+      if (first == "playlist") {
+        await openPlaylistOrAlbum(listId);
+      } else if (first == "shorts") {
         ScaffoldMessenger.of(Get.context!).showSnackBar(snackbar(
             Get.context!, "notaSongVideo".tr,
             size: SanckBarSize.MEDIUM));
-      } else if (uri.pathSegments[0] == "watch") {
-        final songId = uri.queryParameters['v'];
-        await playSong(songId!);
-      } else if (uri.pathSegments[0] == "channel") {
-        final browseId = uri.pathSegments[1];
-        await openArtist(browseId);
+      } else if (first == "watch") {
+        await playSong(videoId);
+      } else if (first == "channel") {
+        await openArtist(segs[1]);
       } else if ((uri.queryParameters.isEmpty || uri.query.contains("si=")) &&
           uri.host == "youtu.be") {
-        final songId = uri.pathSegments[0];
-        await playSong(songId);
+        await playSong(first);
       }
     } else {
       ScaffoldMessenger.of(Get.context!).showSnackBar(snackbar(
@@ -105,16 +115,27 @@ mixin ProcessLink {
   }
 
   Future<void> playSong(String songId) async {
-    showDialog(
-        context: Get.context!,
+    final ctx = Get.context!;
+    // The spinner's own route, so closing it can never pop something else.
+    final spinner = DialogRoute<void>(
+        context: ctx,
+        barrierDismissible: false,
         builder: (context) => const Center(
                 child: LoadingIndicator(
               strokeWidth: 5,
-            )),
-        barrierDismissible: false);
-    final result = await Get.find<MusicServices>().getSongWithId(songId);
-    Navigator.of(Get.context!).pop();
-    if (result[0]) {
+            )));
+    Navigator.of(ctx).push(spinner);
+    List result;
+    try {
+      result = await Get.find<MusicServices>().getSongWithId(songId);
+    } catch (e) {
+      // Offline, or the video is unavailable / region-blocked.
+      printERROR('Shared link $songId failed: $e');
+      result = [false];
+    } finally {
+      if (spinner.isActive) spinner.navigator?.removeRoute(spinner);
+    }
+    if (result[0] == true) {
       final ok = await Get.find<PlayerController>().playPlayListSong(
           List.from(result[1]), 0,
           playfrom: PlaylingFrom(type: PlaylingFromType.SELECTION));

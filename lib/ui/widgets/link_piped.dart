@@ -170,7 +170,9 @@ class PipedLinkedController extends GetxController {
       if (res.code == 1) {
         printINFO("Login Successfull");
         Get.find<SettingsScreenController>().isLinkedWithPiped.value = true;
-        Navigator.of(Get.context!).pop();
+        // Close the login dialog only if it is still up: the user may have
+        // dismissed it while logging in, and popping then took Home away.
+        if (Get.isDialogOpen == true) Navigator.of(Get.context!).pop();
         ScaffoldMessenger.of(Get.context!).showSnackBar(
             snackbar(Get.context!, "linkAlert".tr, size: SanckBarSize.MEDIUM));
         Get.find<LibraryPlaylistsController>().syncPipedPlaylist();

@@ -232,9 +232,10 @@ class SongInfoBottomSheet extends StatelessWidget {
                 if (ok && Get.isRegistered<DiscoveryService>()) {
                   Get.find<DiscoveryService>().onNeverPlay(song);
                 }
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                    context,
+                final ctx = Get.context;
+                if (ctx == null || !ctx.mounted) return;
+                ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
+                    ctx,
                     ok
                         ? "${"songBannedMsg".tr} ${song.title}"
                         : "operationFailed".tr,
@@ -249,9 +250,10 @@ class SongInfoBottomSheet extends StatelessWidget {
                 onTap: () async {
                   Navigator.of(context).pop();
                   final ok = await BanService.banArtist(song.artist!);
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                      context,
+                  final ctx = Get.context;
+                  if (ctx == null || !ctx.mounted) return;
+                  ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
+                      ctx,
                       ok
                           ? "${"artistBannedMsg".tr} ${song.artist}"
                           : "operationFailed".tr,
@@ -276,14 +278,17 @@ class SongInfoBottomSheet extends StatelessWidget {
                     onTap: () async {
                       Navigator.of(context).pop();
                       final ok = await playerController.enqueueSong(song);
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                          context,
+                      final ctx = Get.context;
+                      if (ctx == null || !ctx.mounted) return;
+                      ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
+                          ctx,
                           ok ? "songEnqueueAlert".tr : "operationFailed".tr,
                           size: SanckBarSize.MEDIUM));
                     },
                   ),
-            song.extras?['album'] != null
+            // Only when there is an album id to open: YouTube often sends
+            // an album name with a null id.
+            ((song.extras?['album'] as Map?)?['id'] ?? '').toString().isNotEmpty
                 ? ListTile(
                     visualDensity: const VisualDensity(vertical: -1),
                     leading: const Icon(Icons.album),
@@ -300,7 +305,7 @@ class SongInfoBottomSheet extends StatelessWidget {
                           id: ScreenNavigationSetup.id,
                           arguments: (
                             null,
-                            (song.extras?['album'] as Map?)?['id']
+                            (song.extras!['album'] as Map)['id'].toString()
                           ));
                     },
                   )
@@ -379,11 +384,12 @@ class SongInfoBottomSheet extends StatelessWidget {
                             return;
                           }
                           box.delete(song.id).then((value) {
-                            if (playlist != null) {
-                              Get.find<PlaylistScreenController>(
-                                      tag: Key(playlist!.playlistId)
-                                          .hashCode
-                                          .toString())
+                            final tag =
+                                Key(playlist?.playlistId ?? '').hashCode.toString();
+                            if (playlist != null &&
+                                Get.isRegistered<PlaylistScreenController>(
+                                    tag: tag)) {
+                              Get.find<PlaylistScreenController>(tag: tag)
                                   .checkDownloadStatus();
                             }
                             if (context.mounted) {
@@ -550,9 +556,10 @@ mixin RemoveSongFromPlaylistMixin {
       Get.find<LibrarySongsController>().removeSong(item, true);
     } else if (!playlist.isPipedPlaylist) {
       //Other playlist song case
-      final index =
-          box.values.toList().indexWhere((ele) => ele['videoId'] == item.id);
-      await box.deleteAt(index);
+      final index = box.values
+          .toList()
+          .indexWhere((ele) => ele is Map && ele['videoId'] == item.id);
+      if (index >= 0) await box.deleteAt(index);
     }
 
     // this try catch block is to handle the case when song is removed from libsongs sections
