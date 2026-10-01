@@ -297,9 +297,8 @@ class ContentListItem extends StatelessWidget {
     return InkWell(
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
-      // Podcasts open their show page (browse episodes, subscribe); the
-      // play button on the cover still plays. Albums/playlists keep
-      // tap-to-play.
+      // Open the album / playlist / show page; the play button on the
+      // cover still plays.
       onTap: shouldPlayCollectionOnTap() &&
               (_isAlbum ||
                   !isPodcastCollection(

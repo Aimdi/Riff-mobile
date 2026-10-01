@@ -33,26 +33,25 @@ class HomeQuickGrid extends StatelessWidget {
         title: 'favorites'.tr,
         icon: Icons.favorite_rounded,
         colors: const [Color(0xFF4B22D6), Color(0xFF9D85FF)],
-        onTap: () => _playLibraryBox(context,
+        onTap: () => _openLibraryPlaylist('LIBFAV', 'favorites'.tr),
+        onLongPress: () => _playLibraryBox(context,
             id: 'LIBFAV', title: 'favorites'.tr, shuffle: true),
-        onLongPress: () => _openLibraryPlaylist('LIBFAV', 'favorites'.tr),
       ),
       _ShortcutTile(
         title: 'recentlyPlayed'.tr,
         icon: Icons.history_rounded,
         colors: const [Color(0xFF0D4F9E), Color(0xFF45B4F5)],
-        onTap: () => _playLibraryBox(context,
+        onTap: () => _openLibraryPlaylist('LIBRP', 'recentlyPlayed'.tr),
+        onLongPress: () => _playLibraryBox(context,
             id: 'LIBRP', title: 'recentlyPlayed'.tr, mostRecentFirst: true),
-        onLongPress: () => _openLibraryPlaylist('LIBRP', 'recentlyPlayed'.tr),
       ),
       _ShortcutTile(
         title: 'downloads'.tr,
         icon: Icons.download_done_rounded,
         colors: const [Color(0xFF0A5E5A), Color(0xFF27C2B4)],
-        onTap: () => _playLibraryBox(context,
+        onTap: () => _openLibraryPlaylist('SongDownloads', 'downloads'.tr),
+        onLongPress: () => _playLibraryBox(context,
             id: 'SongDownloads', title: 'downloads'.tr),
-        onLongPress: () =>
-            _openLibraryPlaylist('SongDownloads', 'downloads'.tr),
       ),
     ];
     final discovery = <Widget>[
