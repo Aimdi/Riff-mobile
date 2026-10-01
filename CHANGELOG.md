@@ -1,3 +1,10 @@
+# 1.7.110
+
+**Crash reports**
+* After an unexpected close, the crash details now include the error's
+  stack trace, ready to copy and send
+* The first crash after an update is no longer skipped
+
 # 1.7.109
 
 **Podcasts**
