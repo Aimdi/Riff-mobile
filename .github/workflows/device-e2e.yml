@@ -59,6 +59,11 @@ jobs:
       - name: Pre-build the debug APK
         run: flutter build apk --debug --target-platform android-x64
 
+      # The Gradle daemon keeps ~2 GB after the build; next to a 4 GB
+      # emulator on a 7 GB runner it can get the emulator killed mid-run.
+      - name: Free memory for the emulator
+        run: pkill -f GradleDaemon || true
+
       - name: Run on emulator
         uses: reactivecircus/android-emulator-runner@v2
         env:
@@ -119,6 +124,11 @@ jobs:
           flutter build apk --release --target-platform android-x64
           --dart-define=RIFF_E2E_STREAM_URL=https://archive.org/download/art_of_war_librivox/art_of_war_09-10_sun_tzu_64kb.mp3
 
+      # The Gradle daemon keeps ~2 GB after the build; next to a 4 GB
+      # emulator on a 7 GB runner it can get the emulator killed mid-run.
+      - name: Free memory for the emulator
+        run: pkill -f GradleDaemon || true
+
       - name: Run on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -178,6 +188,11 @@ jobs:
           else
             flutter build apk --debug --target-platform android-x64
           fi
+
+      # The Gradle daemon keeps ~2 GB after the build; next to a 4 GB
+      # emulator on a 7 GB runner it can get the emulator killed mid-run.
+      - name: Free memory for the emulator
+        run: pkill -f GradleDaemon || true
 
       - name: Run on emulator
         uses: reactivecircus/android-emulator-runner@v2
