@@ -257,8 +257,9 @@ class _HomeFeed extends StatelessWidget {
               : const SizedBox.shrink()),
           const _HomeHeader(),
           const HomeMoodChips(),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           const HomeQuickGrid(),
+          const _HomeHero(),
           const RiffWaveHero(),
           const JumpBackInRow(),
           const _HomeZoneB(),
@@ -306,7 +307,22 @@ class _HomeHeader extends StatelessWidget {
   }
 }
 
-/// Zone B — personalised: daily mixes → quick picks → one contextual row.
+/// Quick picks as big swipeable covers, right under the shortcuts.
+class _HomeHero extends StatelessWidget {
+  const _HomeHero();
+
+  @override
+  Widget build(BuildContext context) {
+    final home = Get.find<HomeScreenController>();
+    return Obx(() {
+      final songs = home.quickPicks.value.songList;
+      if (songs.isEmpty) return const SizedBox.shrink();
+      return HomeHeroCarousel(title: 'quickpicks'.tr, songs: songs);
+    });
+  }
+}
+
+/// Zone B — personalised: daily mixes → one contextual row.
 /// Order, caps, and global dedupe come from [assembleHomeFeedViewModel].
 class _HomeZoneB extends StatelessWidget {
   const _HomeZoneB();
@@ -333,12 +349,7 @@ class _HomeZoneB extends StatelessWidget {
               section: vm.dailyMixes!,
               badge: mixesUpdated ? 'mixesUpdatedBadge'.tr : null,
             ),
-          if (vm.quickPicks != null && vm.quickPicks!.songList.isNotEmpty)
-            HomeHeroCarousel(
-              title: 'quickpicks'.tr,
-              songs: vm.quickPicks!.songList,
-            )
-          else if (vm.dailyMixes == null &&
+          if (vm.dailyMixes == null &&
               vm.contextual == null &&
               home.quickPicks.value.songList.isEmpty)
             const _HomeDiscoverEmptyCard(),
