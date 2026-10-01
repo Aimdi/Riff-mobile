@@ -76,7 +76,8 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
             .map<MediaItem?>((item) => MediaItemBuilder.fromJson(item))
             .whereType<MediaItem>()
             .toList();
-        box.close();
+        // Shared box (Hive hands every caller the same instance): never close
+        // it here, or the player and other screens using it fail mid-write.
       }
       checkDownloadStatus();
       isContentFetched.value = true;
@@ -127,7 +128,8 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
     for (int i = 0; i < songListCopy.length; i++) {
       await songsBox.put(i, MediaItemBuilder.toJson(songListCopy[i]));
     }
-    await songsBox.close();
+    // Shared box (Hive hands every caller the same instance): never close
+    // it here, or the player and other screens using it fail mid-write.
   }
 
   @override

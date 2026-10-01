@@ -1,0 +1,139 @@
+name: Device E2E (podcast playback)
+
+# Runs the real app on an Android emulator, plays a YouTube Music podcast
+# episode and records logcat, crash records and screenshots. For crashes
+# that only happen with real YouTube access on a device.
+on:
+  workflow_dispatch:
+    inputs:
+      podcast:
+        description: 'Podcast to search for and play'
+        required: false
+        default: 'Handelsblatt Economic Challenges'
+  push:
+    paths:
+      # Native code and resources: a release-only failure there (R8, the
+      # resource shrinker) only shows up when the real APK plays something.
+      - 'android/**'
+      - 'pubspec.yaml'
+      - 'lib/services/audio_handler.dart'
+      - 'integration_test/**'
+      - 'tool/device_e2e.sh'
+      - '.github/workflows/device-e2e.yml'
+
+jobs:
+  podcast:
+    name: Play a podcast episode (Android API ${{ matrix.api }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [31, 34, 35]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: '3.24.2'
+          cache: true
+
+      - name: Install packages
+        run: flutter pub get
+
+      # Compile before the emulator starts so its boot isn't competing with
+      # Gradle for the runner's CPU.
+      - name: Pre-build the debug APK
+        run: flutter build apk --debug --target-platform android-x64
+
+      - name: Run on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          E2E_PODCAST: ${{ github.event.inputs.podcast }}
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          ram-size: 4096M
+          disk-size: 6G
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: bash tool/device_e2e.sh
+
+      - name: Upload logs and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-e2e-api${{ matrix.api }}
+          path: e2e-out
+
+  release:
+    name: Release APK, driven by adb (Android API ${{ matrix.api }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [34, 35]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: '3.24.2'
+          cache: true
+
+      - name: Install packages
+        run: flutter pub get
+
+      # The same release build users get (R8, AOT), except that YouTube
+      # ids play a public mp3: YouTube refuses stream urls to CI runners.
+      - name: Build the release APK
+        run: >-
+          flutter build apk --release --target-platform android-x64
+          --dart-define=RIFF_E2E_STREAM_URL=https://archive.org/download/art_of_war_librivox/art_of_war_09-10_sun_tzu_64kb.mp3
+
+      - name: Run on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          ram-size: 4096M
+          disk-size: 6G
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: bash tool/device_e2e_release.sh
+
+      - name: Upload logs and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-e2e-release-api${{ matrix.api }}
+          path: e2e-out

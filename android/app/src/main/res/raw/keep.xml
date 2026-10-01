@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Resources only referenced by name at runtime, which the release build's
+     resource shrinker cannot see. ic_stat_riff is the playback notification's
+     small icon (AudioServiceConfig.androidNotificationIcon in Dart): stripped,
+     Android rejects the notification with "no valid small icon" and kills
+     the app as soon as anything starts playing. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_riff" />

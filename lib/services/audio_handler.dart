@@ -57,6 +57,8 @@ Future<AudioHandler> initAudioService() async {
   );
 }
 
+const _e2eStreamUrl = String.fromEnvironment('RIFF_E2E_STREAM_URL');
+
 class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   // ignore: prefer_typing_uninitialized_variables
   late final _cacheDir;
@@ -1444,6 +1446,24 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       }
       return HMStreamingData(playable: false, statusMSG: "networkError");
     }
+    // Device E2E builds only (empty, and compiled out, everywhere else):
+    // YouTube refuses stream urls to CI runners, so every YouTube id plays
+    // this file instead and the rest of the playback path runs as on a phone.
+    if (_e2eStreamUrl.isNotEmpty) {
+      final audio = Audio(
+          audioCodec: Codec.mp4a,
+          bitrate: 64000,
+          loudnessDb: 0,
+          duration: 0,
+          size: 0,
+          url: _e2eStreamUrl,
+          itag: 140);
+      return HMStreamingData(
+          playable: true,
+          statusMSG: "OK",
+          lowQualityAudio: audio,
+          highQualityAudio: audio);
+    }
     final songDownloadsBox = Hive.box("SongDownloads");
     final songsCache = await Hive.openBox("SongsCache");
     if (!offlineReplacementUrl && songsCache.containsKey(songId)) {
@@ -1788,7 +1808,8 @@ class MediaLibrary {
     final box = await Hive.openBox("LibraryAlbums");
     final albums =
         box.values.map((item) => Album.fromJson(item).toMediaItem()).toList();
-    await box.close();
+    // Shared box (Hive hands every caller the same instance): never close
+    // it here, or the player and other screens using it fail mid-write.
     return albums;
   }
 
@@ -1800,7 +1821,8 @@ class MediaLibrary {
           .map((item) => Playlist.fromJson(item).toMediaItem())
           .toList())
     ];
-    await box.close();
+    // Shared box (Hive hands every caller the same instance): never close
+    // it here, or the player and other screens using it fail mid-write.
     return playlists;
   }
 
@@ -1827,9 +1849,8 @@ class MediaLibrary {
       );
     }).toList();
 
-    if (!libId.contains("SongDownloads")) {
-      await box.close();
-    }
+    // Shared box (Hive hands every caller the same instance): never close
+    // it here, or the player and other screens using it fail mid-write.
 
     if (libId == "LIBRP") {
       return songs.reversed.toList();
