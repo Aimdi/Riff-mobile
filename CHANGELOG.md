@@ -1,3 +1,13 @@
+# 1.7.112
+
+**Fixes**
+* Riff no longer closes as soon as something starts playing. Since 1.7.108
+  the release build dropped the notification icon as unused, and Android
+  killed the app when playback posted its notification. Podcasts, songs
+  and audiobooks were all affected
+* Starting an episode while Favourites, Recently played or a playlist was
+  open no longer breaks the player's bookkeeping ("box already closed")
+
 # 1.7.111
 
 **Podcasts**
