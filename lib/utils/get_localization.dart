@@ -5201,6 +5201,8 @@ Map<String, Map<String, String>> get keys => {
     "crashReportTitle": "Riff closed unexpectedly",
     "crashReportDes": "Last time Riff stopped because of a @reason. Copy the details and send them so it can be fixed.",
     "crashReportCopy": "Copy details",
+    "noPlaylistsYet": "No playlists yet. Create one above.",
+    "minShort": "min",
     "copyDiagnostics": "Copy diagnostics",
     "copyDiagnosticsDes": "Version, the last unexpected exit and the recent log, for a bug report",
     "diagnosticsCopied": "Diagnostics copied",

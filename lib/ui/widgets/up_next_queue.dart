@@ -6,11 +6,12 @@ import 'package:harmonymusic/ui/utils/theme_controller.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
 import 'image_widget.dart';
+import 'riff_sheet.dart';
 import 'snackbar.dart';
 import 'songinfo_bottom_sheet.dart';
 
-const double _kQueueRowExtent = 72;
-const double _kSectionLabelExtent = 28;
+const double _kQueueRowExtent = 64;
+const double _kSectionLabelExtent = 34;
 
 String _queueTr(String key, String fallback) {
   final translated = key.tr;
@@ -129,24 +130,48 @@ class _QueueSongRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const fg = RiffSurfaces.textPrimary;
+    void openMenu() {
+      final sheetContext =
+          playerController.homeScaffoldkey.currentContext ?? Get.context;
+      if (sheetContext == null) return;
+      showModalBottomSheet(
+        useRootNavigator: true,
+        constraints: const BoxConstraints(maxWidth: 500),
+        shape: riffSheetShape,
+        isScrollControlled: true,
+        context: sheetContext,
+        barrierColor: Colors.transparent.withAlpha(100),
+        builder: (context) => SongInfoBottomSheet(
+          song,
+          calledFromQueue: true,
+        ),
+      ).whenComplete(() => Get.delete<SongInfoController>());
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (sectionLabel != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
-            child: Text(
-              sectionLabel!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(homeScaffoldContext)
-                  .textTheme
-                  .labelMedium
-                  ?.copyWith(
-                    color: isCurrent ? accent : RiffSurfaces.textMuted,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3,
-                  ),
+          Container(
+            height: _kSectionLabelExtent,
+            color: Theme.of(homeScaffoldContext)
+                .bottomSheetTheme
+                .backgroundColor,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              // Explicit size: the theme's labelMedium is 22sp bold.
+              child: Text(
+                sectionLabel!.toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.8,
+                  color: isCurrent ? accent : RiffSurfaces.textMuted,
+                ),
+              ),
             ),
           ),
         Expanded(
@@ -162,130 +187,94 @@ class _QueueSongRow extends StatelessWidget {
               onDismissed: (direction) {
                 playerController.removeFromQueue(song);
               },
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: isCurrent
-                      ? RiffSurfaces.elevatedSoft
-                      : Theme.of(homeScaffoldContext)
-                          .bottomSheetTheme
-                          .backgroundColor,
-                  border: Border(
-                    left: BorderSide(
-                      color: isCurrent ? accent : Colors.transparent,
-                      width: 3,
-                    ),
-                  ),
-                ),
-                child: ListTile(
-                  onTap: () {
-                    playerController.seekByIndex(index);
-                  },
-                  onLongPress: () {
-                    final sheetContext =
-                        playerController.homeScaffoldkey.currentContext ??
-                            Get.context;
-                    if (sheetContext == null) return;
-                    showModalBottomSheet(
-                      useRootNavigator: true,
-                      constraints: const BoxConstraints(maxWidth: 500),
-                      shape: const RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.vertical(top: Radius.circular(10.0)),
-                      ),
-                      isScrollControlled: true,
-                      context: sheetContext,
-                      barrierColor: Colors.transparent.withAlpha(100),
-                      builder: (context) => SongInfoBottomSheet(
-                        song,
-                        calledFromQueue: true,
-                      ),
-                    ).whenComplete(() => Get.delete<SongInfoController>());
-                  },
-                  contentPadding: EdgeInsets.only(
-                      top: 0,
-                      left: GetPlatform.isAndroid ? 30 : 0,
-                      right: 25),
-                  tileColor: Colors.transparent,
-                  leading: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (GetPlatform.isDesktop)
-                        IconButton(
-                            onPressed: () {
-                              if (isCurrent) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    snackbar(context,
-                                        "songRemovedfromQueueCurrSong".tr,
-                                        size: SanckBarSize.BIG));
-                              } else {
-                                playerController.removeFromQueue(song);
-                              }
-                            },
-                            icon: const Icon(Icons.close)),
-                      ImageWidget(
-                        size: 50,
-                        song: song,
-                      ),
-                    ],
-                  ),
-                  title: Marquee(
-                    delay: const Duration(milliseconds: 300),
-                    duration: const Duration(seconds: 5),
-                    id: "queue${song.title.hashCode}",
-                    child: Text(
-                      song.title,
-                      maxLines: 1,
-                      style: Theme.of(homeScaffoldContext)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(
-                            color: RiffSurfaces.textPrimary,
-                            fontWeight:
-                                isCurrent ? FontWeight.w700 : FontWeight.w500,
-                          ),
-                    ),
-                  ),
-                  subtitle: Text(
-                    song.artist ?? '',
-                    maxLines: 1,
-                    style: Theme.of(homeScaffoldContext)
-                        .textTheme
-                        .titleSmall
-                        ?.copyWith(
-                          color: isCurrent
-                              ? RiffSurfaces.textMuted.withOpacity(0.75)
-                              : RiffSurfaces.textMuted,
-                        ),
-                  ),
-                  trailing: ReorderableDragStartListener(
-                    enabled: !GetPlatform.isDesktop,
-                    index: index,
-                    child: Container(
-                      padding: EdgeInsets.only(
-                          right: (GetPlatform.isDesktop) ? 20 : 5, left: 20),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          if (!GetPlatform.isDesktop)
-                            const Icon(
-                              Icons.drag_handle,
-                              color: RiffSurfaces.textMuted,
-                            ),
-                          isCurrent
-                              ? Icon(
-                                  Icons.equalizer,
-                                  color: accent,
-                                )
-                              : Text(
-                                  song.extras?['length'] ?? "",
-                                  style: Theme.of(homeScaffoldContext)
-                                      .textTheme
-                                      .titleSmall
-                                      ?.copyWith(
-                                          color: RiffSurfaces.textMuted),
+              child: Material(
+                color: isCurrent
+                    ? RiffSurfaces.elevatedSoft
+                    : Theme.of(homeScaffoldContext)
+                        .bottomSheetTheme
+                        .backgroundColor,
+                child: InkWell(
+                  onTap: () => playerController.seekByIndex(index),
+                  onLongPress: openMenu,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 16, right: 4),
+                    child: Row(
+                      children: [
+                        if (GetPlatform.isDesktop)
+                          IconButton(
+                              tooltip: 'removeFromQueue'.tr,
+                              onPressed: () {
+                                if (isCurrent) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      snackbar(context,
+                                          "songRemovedfromQueueCurrSong".tr,
+                                          size: SanckBarSize.BIG));
+                                } else {
+                                  playerController.removeFromQueue(song);
+                                }
+                              },
+                              icon: const Icon(Icons.close)),
+                        ImageWidget(size: 48, song: song),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Marquee(
+                                delay: const Duration(milliseconds: 300),
+                                duration: const Duration(seconds: 5),
+                                id: "queue${song.title.hashCode}",
+                                child: Text(
+                                  song.title,
+                                  maxLines: 1,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: isCurrent
+                                        ? FontWeight.w700
+                                        : FontWeight.w600,
+                                    color: isCurrent ? accent : fg,
+                                  ),
                                 ),
-                        ],
-                      ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                song.artist ?? '',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: RiffSurfaces.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (isCurrent)
+                          Icon(Icons.equalizer_rounded, color: accent, size: 22)
+                        else
+                          Text(
+                            '${song.extras?['length'] ?? ''}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: RiffSurfaces.textMuted,
+                              fontFeatures: [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                        if (!GetPlatform.isDesktop)
+                          ReorderableDragStartListener(
+                            index: index,
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 16),
+                              child: Icon(Icons.drag_handle_rounded,
+                                  color: RiffSurfaces.textMuted, size: 22),
+                            ),
+                          )
+                        else
+                          const SizedBox(width: 16),
+                      ],
                     ),
                   ),
                 ),

@@ -1,6 +1,8 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
+import 'riff_sheet.dart';
 import 'package:hive/hive.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
@@ -77,11 +79,7 @@ Future<void> showAddToPlaylistSheet(
     constraints: const BoxConstraints(maxWidth: 500),
     backgroundColor: Theme.of(sheetContext).cardColor,
     barrierColor: Colors.transparent.withAlpha(100),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(RiffTokens.radiusSm),
-      ),
-    ),
+    shape: riffSheetShape,
     builder: (context) => AddToPlaylistSheet(songItems: songs),
   );
   if (Get.isRegistered<AddToPlaylistController>()) {
@@ -240,29 +238,14 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 8),
-          Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: (isDark ? RiffSurfaces.hairline : theme.dividerColor)
-                  .withOpacity(0.9),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'addToPlaylist'.tr,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.2,
-                ),
-              ),
-            ),
+          const RiffSheetHandle(),
+          RiffSheetTitle(
+            'addToPlaylist'.tr,
+            subtitle: widget.songItems.length == 1
+                ? widget.songItems.first.title
+                : '${widget.songItems.length} ${'songs'.tr}',
           ),
           _SheetRow(
             leading: _SheetIcon(
@@ -314,16 +297,15 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
 
   Widget _playlistTiles(List<Playlist> playlists, Color? muted) {
     if (playlists.isEmpty) {
+      // No Align here: inside the height-capped box it would stretch to
+      // the cap and leave a large empty gap under the message.
       return Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            'noLibPlaylist'.tr,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: muted,
-                ),
-          ),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+        child: Text(
+          'noPlaylistsYet'.tr,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: muted,
+              ),
         ),
       );
     }

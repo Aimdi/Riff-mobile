@@ -28,6 +28,8 @@ import '../navigator.dart';
 import 'discovery/similar_songs_sheet.dart';
 import 'song_download_btn.dart';
 import 'image_widget.dart';
+import 'riff_sheet.dart';
+import '../screens/Home/home_layout.dart';
 import 'song_info_dialog.dart';
 
 /// Player / mini-player long-press — same sheet as the full player.
@@ -44,9 +46,7 @@ void showCurrentSongSheet({
   showModalBottomSheet(
     useRootNavigator: true,
     constraints: const BoxConstraints(maxWidth: 500),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
-    ),
+    shape: riffSheetShape,
     isScrollControlled: true,
     context: sheetContext,
     barrierColor: Colors.transparent.withAlpha(100),
@@ -89,19 +89,37 @@ class SongInfoBottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final songInfoController = _controllerFor(song, calledFromPlayer);
     final playerController = Get.find<PlayerController>();
+    final theme = Theme.of(context);
+    final fg = theme.textTheme.titleMedium?.color;
+    final hasAlbum =
+        ((song.extras?['album'] as Map?)?['id'] ?? '').toString().isNotEmpty;
+    final inEditablePlaylist = (playlist != null &&
+            !playlist!.isCloudPlaylist &&
+            !(playlist!.playlistId == "LIBRP")) ||
+        (playlist != null && playlist!.isPipedPlaylist);
+
+    void snack(String text, {SanckBarSize size = SanckBarSize.MEDIUM}) {
+      final ctx = Get.context;
+      if (ctx == null || !ctx.mounted) return;
+      ScaffoldMessenger.of(ctx)
+          .showSnackBar(snackbar(ctx, text, size: size));
+    }
+
     return Padding(
       // Callers should use useRootNavigator: true so the sheet clears the
       // mini player; keep system safe-area inset here.
       padding: EdgeInsets.only(
-        bottom: sheetBottomInset(context, liftAboveMiniPlayer: false),
+        bottom: sheetBottomInset(context, liftAboveMiniPlayer: false) + 8,
       ),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ListTile(
-              contentPadding:
-                  const EdgeInsets.only(left: 15, top: 7, right: 10, bottom: 0),
+            const RiffSheetHandle(),
+            // Song header: tap plays it (or shows its details if it is
+            // already playing).
+            InkWell(
               onTap: () async {
                 if (Get.isRegistered<PlayerController>() &&
                     playerController.currentSong.value?.id != song.id) {
@@ -119,35 +137,41 @@ class SongInfoBottomSheet extends StatelessWidget {
                   builder: (context) => SongInfoDialog(song: song),
                 );
               },
-              leading: ImageWidget(
-                song: song,
-                size: 50,
-              ),
-              title: Text(
-                song.title,
-                maxLines: 1,
-              ),
-              subtitle: Text(song.artist ?? ''),
-              trailing: SizedBox(
-                width: 110,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 6, 10, 10),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
+                    ImageWidget(song: song, size: 56),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(song.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 17,
+                                  height: 1.2,
+                                  fontWeight: FontWeight.w700,
+                                  color: fg)),
+                          const SizedBox(height: 3),
+                          Text(song.artist ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: homeCardSubtitleStyle(context)),
+                        ],
+                      ),
+                    ),
                     calledFromPlayer
                         ? IconButton(
+                            tooltip: 'songInfo'.tr,
                             onPressed: () => showDialog(
                                   context: context,
-                                  builder: (context) => SongInfoDialog(
-                                    song: song,
-                                  ),
+                                  builder: (context) =>
+                                      SongInfoDialog(song: song),
                                 ),
-                            icon: Icon(
-                              Icons.info,
-                              color: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium!
-                                  .color,
-                            ))
+                            icon: Icon(Icons.info_outline_rounded, color: fg))
                         : FavoriteHeartButton(
                             isFav: songInfoController.isCurrentSongFav,
                             onToggleFav: songInfoController.toggleFav,
@@ -157,29 +181,53 @@ class SongInfoBottomSheet extends StatelessWidget {
                       song_: song,
                       isDownloadingDoneCallback:
                           songInfoController.setDownloadStatus,
-                    )
+                    ),
                   ],
                 ),
               ),
             ),
-            const Divider(),
-            ListTile(
-              visualDensity: const VisualDensity(vertical: -1),
-              leading: const Icon(Icons.sensors),
-              title: Text("startRadio".tr),
-              onTap: () async {
-                Navigator.of(context).pop();
-                final ok = await playerController.startRadio(song);
-                if (!context.mounted || ok) return;
-                ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                    context, "radioNotAvailable".tr,
-                    size: SanckBarSize.MEDIUM));
-              },
-            ),
-            ListTile(
-              visualDensity: const VisualDensity(vertical: -1),
-              leading: const Icon(Icons.graphic_eq),
-              title: Text("similarSongs".tr),
+            RiffQuickActions([
+              RiffQuickAction(
+                icon: Icons.sensors_rounded,
+                label: 'startRadio'.tr,
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  final ok = await playerController.startRadio(song);
+                  if (!ok) snack("radioNotAvailable".tr);
+                },
+              ),
+              if (!calledFromQueue)
+                RiffQuickAction(
+                  icon: Icons.playlist_play_rounded,
+                  label: 'playNext'.tr,
+                  onTap: () async {
+                    Navigator.of(context).pop();
+                    final ok = await playerController.playNext(song);
+                    snack(
+                        ok
+                            ? "${"playnextMsg".tr} ${song.title}"
+                            : "operationFailed".tr,
+                        size: SanckBarSize.BIG);
+                  },
+                ),
+              RiffQuickAction(
+                icon: Icons.playlist_add_rounded,
+                label: 'addToPlaylist'.tr,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  showAddToPlaylistSheet(context, [song]);
+                },
+              ),
+              RiffQuickAction(
+                icon: Icons.ios_share_rounded,
+                label: 'share'.tr,
+                onTap: () => Share.share(SongLinkShare.shareText(song)),
+              ),
+            ]),
+            const SizedBox(height: 6),
+            RiffSheetTile(
+              icon: Icons.graphic_eq_rounded,
+              title: "similarSongs".tr,
               onTap: () {
                 Navigator.of(context).pop();
                 showModalBottomSheet(
@@ -187,187 +235,89 @@ class SongInfoBottomSheet extends StatelessWidget {
                   useRootNavigator: true,
                   isScrollControlled: true,
                   constraints: const BoxConstraints(maxWidth: 500),
-                  shape: const RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(10.0)),
-                  ),
+                  shape: riffSheetShape,
                   builder: (context) => SimilarSongsSheet(seed: song),
                 );
               },
             ),
-            ListTile(
-              visualDensity: const VisualDensity(vertical: -1),
-              leading: const Icon(Icons.playlist_add_outlined),
-              title: Text("moreLikeThisPlayNext".tr),
+            RiffSheetTile(
+              icon: Icons.queue_music_rounded,
+              title: "moreLikeThisPlayNext".tr,
               onTap: () {
                 Navigator.of(context).pop();
                 playerController.moreLikeThisPlayNext(song);
               },
             ),
-            calledFromQueue
-                ? const SizedBox.shrink()
-                : ListTile(
-                    visualDensity: const VisualDensity(vertical: -1),
-                    leading: const Icon(Icons.playlist_play),
-                    title: Text("playNext".tr),
-                    onTap: () async {
-                      Navigator.of(context).pop();
-                      final ok = await playerController.playNext(song);
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                          context,
-                          ok
-                              ? "${"playnextMsg".tr} ${song.title}"
-                              : "operationFailed".tr,
-                          size: SanckBarSize.BIG));
-                    },
-                  ),
-            ListTile(
-              visualDensity: const VisualDensity(vertical: -1),
-              leading: const Icon(Icons.block),
-              title: Text("neverPlayThis".tr),
-              onTap: () async {
-                Navigator.of(context).pop();
-                final ok = await BanService.ban(song);
-                if (ok && Get.isRegistered<DiscoveryService>()) {
-                  Get.find<DiscoveryService>().onNeverPlay(song);
-                }
-                final ctx = Get.context;
-                if (ctx == null || !ctx.mounted) return;
-                ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
-                    ctx,
-                    ok
-                        ? "${"songBannedMsg".tr} ${song.title}"
-                        : "operationFailed".tr,
-                    size: SanckBarSize.BIG));
-              },
-            ),
-            if (song.artist != null && song.artist!.isNotEmpty)
-              ListTile(
-                visualDensity: const VisualDensity(vertical: -1),
-                leading: const Icon(Icons.person_off),
-                title: Text("neverPlayArtist".tr),
+            if (!(calledFromPlayer || calledFromQueue))
+              RiffSheetTile(
+                icon: Icons.low_priority_rounded,
+                title: "enqueueSong".tr,
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final ok = await BanService.banArtist(song.artist!);
-                  final ctx = Get.context;
-                  if (ctx == null || !ctx.mounted) return;
-                  ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
-                      ctx,
-                      ok
-                          ? "${"artistBannedMsg".tr} ${song.artist}"
-                          : "operationFailed".tr,
-                      size: SanckBarSize.BIG));
+                  final ok = await playerController.enqueueSong(song);
+                  snack(ok ? "songEnqueueAlert".tr : "operationFailed".tr);
                 },
               ),
-            ListTile(
-              visualDensity: const VisualDensity(vertical: -1),
-              leading: const Icon(Icons.playlist_add),
-              title: Text("addToPlaylist".tr),
-              onTap: () {
-                Navigator.of(context).pop();
-                showAddToPlaylistSheet(context, [song]);
-              },
-            ),
-            (calledFromPlayer || calledFromQueue)
-                ? const SizedBox.shrink()
-                : ListTile(
-                    visualDensity: const VisualDensity(vertical: -1),
-                    leading: const Icon(Icons.merge),
-                    title: Text("enqueueSong".tr),
-                    onTap: () async {
-                      Navigator.of(context).pop();
-                      final ok = await playerController.enqueueSong(song);
-                      final ctx = Get.context;
-                      if (ctx == null || !ctx.mounted) return;
-                      ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
-                          ctx,
-                          ok ? "songEnqueueAlert".tr : "operationFailed".tr,
-                          size: SanckBarSize.MEDIUM));
-                    },
-                  ),
             // Only when there is an album id to open: YouTube often sends
             // an album name with a null id.
-            ((song.extras?['album'] as Map?)?['id'] ?? '').toString().isNotEmpty
-                ? ListTile(
-                    visualDensity: const VisualDensity(vertical: -1),
-                    leading: const Icon(Icons.album),
-                    title: Text("goToAlbum".tr),
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      if (calledFromPlayer) {
-                        playerController.playerPanelController.close();
-                      }
-                      if (calledFromQueue) {
-                        playerController.playerPanelController.close();
-                      }
-                      Get.toNamed(ScreenNavigationSetup.albumScreen,
-                          id: ScreenNavigationSetup.id,
-                          arguments: (
-                            null,
-                            (song.extras!['album'] as Map)['id'].toString()
-                          ));
-                    },
-                  )
-                : const SizedBox.shrink(),
-            ...artistWidgetList(song, context),
-            (playlist != null &&
-                        !playlist!.isCloudPlaylist &&
-                        !(playlist!.playlistId == "LIBRP")) ||
-                    (playlist != null && playlist!.isPipedPlaylist)
-                ? ListTile(
-                    visualDensity: const VisualDensity(vertical: -1),
-                    leading: const Icon(Icons.delete),
-                    title: playlist!.title == "Library Songs"
-                        ? Text("removeFromLib".tr)
-                        : Text("removeFromPlaylist".tr),
-                    onTap: () async {
-                      Navigator.of(context).pop();
-                      final ok = await songInfoController
-                          .removeSongFromPlaylist(song, playlist!);
-                      final ctx = Get.context;
-                      if (ctx == null || !ctx.mounted) return;
-                      ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
-                        ctx,
-                        ok
-                            ? "${"songRemovedAlert".tr} ${playlist!.title}"
-                            : "operationFailed".tr,
-                        size: SanckBarSize.MEDIUM,
+            if (hasAlbum)
+              RiffSheetTile(
+                icon: Icons.album_outlined,
+                title: "goToAlbum".tr,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  if (calledFromPlayer || calledFromQueue) {
+                    playerController.playerPanelController.close();
+                  }
+                  Get.toNamed(ScreenNavigationSetup.albumScreen,
+                      id: ScreenNavigationSetup.id,
+                      arguments: (
+                        null,
+                        (song.extras!['album'] as Map)['id'].toString()
                       ));
-                    },
-                  )
-                : const SizedBox.shrink(),
-            (calledFromQueue)
-                ? ListTile(
-                    visualDensity: const VisualDensity(vertical: -1),
-                    leading: const Icon(Icons.delete),
-                    title: Text("removeFromQueue".tr),
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      if (playerController.currentSong.value?.id == song.id) {
-                        ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                            context, "songRemovedfromQueueCurrSong".tr,
-                            size: SanckBarSize.BIG));
-                      } else {
-                        final ok = playerController.removeFromQueue(song);
-                        ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                            context,
-                            ok
-                                ? "songRemovedfromQueue".tr
-                                : "operationFailed".tr,
-                            size: SanckBarSize.MEDIUM));
-                      }
-                    })
-                : const SizedBox.shrink(),
+                },
+              ),
+            ...artistWidgetList(song, context),
+            const RiffSheetDivider(),
+            if (inEditablePlaylist)
+              RiffSheetTile(
+                icon: Icons.remove_circle_outline_rounded,
+                title: playlist!.title == "Library Songs"
+                    ? "removeFromLib".tr
+                    : "removeFromPlaylist".tr,
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  final ok = await songInfoController.removeSongFromPlaylist(
+                      song, playlist!);
+                  snack(ok
+                      ? "${"songRemovedAlert".tr} ${playlist!.title}"
+                      : "operationFailed".tr);
+                },
+              ),
+            if (calledFromQueue)
+              RiffSheetTile(
+                icon: Icons.remove_circle_outline_rounded,
+                title: "removeFromQueue".tr,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  if (playerController.currentSong.value?.id == song.id) {
+                    snack("songRemovedfromQueueCurrSong".tr,
+                        size: SanckBarSize.BIG);
+                  } else {
+                    final ok = playerController.removeFromQueue(song);
+                    snack(ok
+                        ? "songRemovedfromQueue".tr
+                        : "operationFailed".tr);
+                  }
+                },
+              ),
             Obx(
               () => (songInfoController.isDownloaded.isTrue &&
                       (playlist?.playlistId != "SongDownloads" &&
                           playlist?.playlistId != "SongsCache"))
-                  ? ListTile(
-                      contentPadding: const EdgeInsets.only(left: 15),
-                      visualDensity: const VisualDensity(vertical: -1),
-                      leading: const Icon(Icons.delete),
-                      title: Text("deleteDownloadData".tr),
+                  ? RiffSheetTile(
+                      icon: Icons.delete_outline_rounded,
+                      title: "deleteDownloadData".tr,
                       onTap: () {
                         Navigator.of(context).pop();
                         final box = Hive.box("SongDownloads");
@@ -376,76 +326,31 @@ class SongInfoBottomSheet extends StatelessWidget {
                                 url: box.get(song.id)['url'])
                             .then((ok) async {
                           if (!ok) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  snackbar(context, "operationFailed".tr,
-                                      size: SanckBarSize.BIG));
-                            }
+                            snack("operationFailed".tr,
+                                size: SanckBarSize.BIG);
                             return;
                           }
                           box.delete(song.id).then((value) {
-                            final tag =
-                                Key(playlist?.playlistId ?? '').hashCode.toString();
+                            final tag = Key(playlist?.playlistId ?? '')
+                                .hashCode
+                                .toString();
                             if (playlist != null &&
                                 Get.isRegistered<PlaylistScreenController>(
                                     tag: tag)) {
                               Get.find<PlaylistScreenController>(tag: tag)
                                   .checkDownloadStatus();
                             }
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  snackbar(
-                                      context, "deleteDownloadedDataAlert".tr,
-                                      size: SanckBarSize.BIG));
-                            }
+                            snack("deleteDownloadedDataAlert".tr,
+                                size: SanckBarSize.BIG);
                           });
                         });
                       },
                     )
                   : const SizedBox.shrink(),
             ),
-            ListTile(
-              leading: const Icon(Icons.open_with),
-              title: Text("openIn".tr),
-              trailing: SizedBox(
-                width: 200,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    IconButton(
-                      splashRadius: 10,
-                      onPressed: () {
-                        launchUrl(Uri.parse(
-                            "https://youtube.com/watch?v=${song.id}"));
-                      },
-                      icon: const Icon(Ionicons.logo_youtube),
-                    ),
-                    IconButton(
-                      splashRadius: 10,
-                      onPressed: () {
-                        launchUrl(Uri.parse(
-                            "https://music.youtube.com/watch?v=${song.id}"));
-                      },
-                      icon: const Icon(Ionicons.play_circle),
-                    ),
-                    if (WizeStream.isInstalled &&
-                        WizeStream.watchUrlFor(song) != null)
-                      IconButton(
-                        splashRadius: 10,
-                        tooltip: 'WizeStream',
-                        onPressed: () =>
-                            WizeStream.open(WizeStream.watchUrlFor(song)!),
-                        icon: const Icon(Icons.smart_display_outlined),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            ListTile(
-              contentPadding: const EdgeInsets.only(left: 15),
-              visualDensity: const VisualDensity(vertical: -1),
-              leading: const Icon(Icons.timer),
-              title: Text("sleepTimer".tr),
+            RiffSheetTile(
+              icon: Icons.bedtime_outlined,
+              title: "sleepTimer".tr,
               onTap: () {
                 Navigator.of(context).pop();
                 final sheetContext =
@@ -454,15 +359,75 @@ class SongInfoBottomSheet extends StatelessWidget {
                 showSleepTimerSheet(sheetContext);
               },
             ),
-            ListTile(
-              contentPadding: const EdgeInsets.only(left: 15),
-              visualDensity: const VisualDensity(vertical: -1),
-              leading: const Icon(Icons.share),
-              title: Text("shareSong".tr),
-              subtitle: Text("shareSongLinkDes".tr,
-                  style: Theme.of(context).textTheme.bodySmall),
-              onTap: () => Share.share(SongLinkShare.shareText(song)),
+            // Open in YouTube / YouTube Music / WizeStream.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
+              child: Text("openIn".tr,
+                  style: homeCardSubtitleStyle(context)
+                      .copyWith(fontWeight: FontWeight.w600)),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  RiffChoiceChip(
+                    icon: Ionicons.logo_youtube,
+                    label: 'YouTube',
+                    onTap: () => launchUrl(
+                        Uri.parse("https://youtube.com/watch?v=${song.id}")),
+                  ),
+                  RiffChoiceChip(
+                    icon: Ionicons.play_circle,
+                    label: 'YouTube Music',
+                    onTap: () => launchUrl(Uri.parse(
+                        "https://music.youtube.com/watch?v=${song.id}")),
+                  ),
+                  if (WizeStream.isInstalled &&
+                      WizeStream.watchUrlFor(song) != null)
+                    RiffChoiceChip(
+                      icon: Icons.smart_display_outlined,
+                      label: 'WizeStream',
+                      onTap: () =>
+                          WizeStream.open(WizeStream.watchUrlFor(song)!),
+                    ),
+                ],
+              ),
+            ),
+            const RiffSheetDivider(),
+            RiffSheetTile(
+              icon: Icons.block_rounded,
+              title: "neverPlayThis".tr,
+              destructive: true,
+              onTap: () async {
+                Navigator.of(context).pop();
+                final ok = await BanService.ban(song);
+                if (ok && Get.isRegistered<DiscoveryService>()) {
+                  Get.find<DiscoveryService>().onNeverPlay(song);
+                }
+                snack(
+                    ok
+                        ? "${"songBannedMsg".tr} ${song.title}"
+                        : "operationFailed".tr,
+                    size: SanckBarSize.BIG);
+              },
+            ),
+            if (song.artist != null && song.artist!.isNotEmpty)
+              RiffSheetTile(
+                icon: Icons.person_off_outlined,
+                title: "neverPlayArtist".tr,
+                destructive: true,
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  final ok = await BanService.banArtist(song.artist!);
+                  snack(
+                      ok
+                          ? "${"artistBannedMsg".tr} ${song.artist}"
+                          : "operationFailed".tr,
+                      size: SanckBarSize.BIG);
+                },
+              ),
           ],
         ),
       ),
@@ -472,36 +437,28 @@ class SongInfoBottomSheet extends StatelessWidget {
   List<Widget> artistWidgetList(MediaItem song, BuildContext context) {
     final artistList = [];
     final artists = song.extras?['artists'];
-    if (artists != null) {
+    if (artists is List) {
       for (dynamic each in artists) {
-        if (each.containsKey("id") && each['id'] != null) artistList.add(each);
+        if (each is Map && each['id'] != null) artistList.add(each);
       }
     }
-    return artistList.isNotEmpty
-        ? artistList
-            .map((e) => ListTile(
-                  onTap: () async {
-                    Navigator.of(context).pop();
-                    if (calledFromPlayer) {
-                      Get.find<PlayerController>()
-                          .playerPanelController
-                          .close();
-                    }
-                    if (calledFromQueue) {
-                      final playerController = Get.find<PlayerController>();
-                      playerController.playerPanelController.close();
-                    }
-                    await Get.toNamed(ScreenNavigationSetup.artistScreen,
-                        id: ScreenNavigationSetup.id,
-                        preventDuplicates: true,
-                        arguments: [true, e['id']]);
-                  },
-                  tileColor: Colors.transparent,
-                  leading: const Icon(Icons.person),
-                  title: Text("${"viewArtist".tr} (${e['name']})"),
-                ))
-            .toList()
-        : [const SizedBox.shrink()];
+    return [
+      for (final e in artistList)
+        RiffSheetTile(
+          icon: Icons.person_outline_rounded,
+          title: "${"viewArtist".tr} · ${e['name']}",
+          onTap: () async {
+            Navigator.of(context).pop();
+            if (calledFromPlayer || calledFromQueue) {
+              Get.find<PlayerController>().playerPanelController.close();
+            }
+            await Get.toNamed(ScreenNavigationSetup.artistScreen,
+                id: ScreenNavigationSetup.id,
+                preventDuplicates: true,
+                arguments: [true, e['id']]);
+          },
+        ),
+    ];
   }
 }
 
