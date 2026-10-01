@@ -57,6 +57,8 @@ Future<AudioHandler> initAudioService() async {
   );
 }
 
+const _e2eStreamUrl = String.fromEnvironment('RIFF_E2E_STREAM_URL');
+
 class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   // ignore: prefer_typing_uninitialized_variables
   late final _cacheDir;
@@ -1443,6 +1445,24 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
             highQualityAudio: audio);
       }
       return HMStreamingData(playable: false, statusMSG: "networkError");
+    }
+    // Device E2E builds only (empty, and compiled out, everywhere else):
+    // YouTube refuses stream urls to CI runners, so every YouTube id plays
+    // this file instead and the rest of the playback path runs as on a phone.
+    if (_e2eStreamUrl.isNotEmpty) {
+      final audio = Audio(
+          audioCodec: Codec.mp4a,
+          bitrate: 64000,
+          loudnessDb: 0,
+          duration: 0,
+          size: 0,
+          url: _e2eStreamUrl,
+          itag: 140);
+      return HMStreamingData(
+          playable: true,
+          statusMSG: "OK",
+          lowQualityAudio: audio,
+          highQualityAudio: audio);
     }
     final songDownloadsBox = Hive.box("SongDownloads");
     final songsCache = await Hive.openBox("SongsCache");
