@@ -4,11 +4,14 @@ import 'package:get/get.dart';
 import '../../screens/Settings/settings_screen_controller.dart';
 import '../../utils/theme_controller.dart';
 import '/models/playling_from.dart';
+import '/utils/media_item_video.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
 import '../player_controller.dart';
 import 'albumart_lyrics.dart';
 import 'backgroud_image.dart';
 import 'lyrics_switch.dart';
+import 'lyrics_widget.dart';
+import 'player_video_surface.dart';
 import 'player_canvas_backdrop.dart';
 import 'player_control.dart';
 
@@ -57,6 +60,16 @@ class StandardPlayer extends StatelessWidget {
                     ),
                   ),
                 ),
+                // Portrait: the cover fills the top of the screen and fades
+                // into the tinted backdrop where the controls start.
+                if (!context.isLandscape)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: _heroArtHeight(size),
+                    child: const _HeroArtBackdrop(),
+                  ),
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: Container(
@@ -114,22 +127,13 @@ class StandardPlayer extends StatelessWidget {
                       SizedBox(
                           height:
                               Get.mediaQuery.padding.top + PlayerTopBar.height),
-                      if (!isVideo) const LyricsSwitch(),
-                      // Cover / video takes whatever height the controls
-                      // leave, so nothing overlaps on short phones.
+                      // The cover itself is the backdrop; this layer takes
+                      // the taps and swipes and hosts lyrics / video.
                       Expanded(
-                        child: LayoutBuilder(builder: (context, box) {
-                          final w = box.maxWidth.clamp(0.0, 500.0);
-                          final h = (box.maxHeight - 8).clamp(0.0, 1e9);
-                          final art = showVideo
-                              ? (w * 9 / 16 <= h ? w : h * 16 / 9)
-                              : (w < h ? w : h);
-                          return Center(
-                            child: AlbumArtNLyrics(playerArtImageSize: art),
-                          );
-                        }),
+                        child: _HeroArtRegion(
+                            isVideo: isVideo, showVideo: showVideo),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 8),
                       Padding(
                         padding: EdgeInsets.only(
                             bottom: 80 + Get.mediaQuery.padding.bottom),
@@ -214,15 +218,154 @@ class PlayerTopBar extends StatelessWidget {
                 );
               }),
             ),
-            IconButton(
-              tooltip: 'moreOptions'.tr,
-              icon: const Icon(Icons.more_vert_rounded, size: 24),
-              onPressed: () => openNowPlayingSheet(playerController),
-            ),
+            // Balances the collapse button; song options sit by the title.
+            const SizedBox(width: 48),
           ],
         ),
       ),
     );
+  }
+}
+
+/// Height of the full-bleed cover at the top of the portrait player.
+double _heroArtHeight(Size size) =>
+    size.width > size.height * 0.58 ? size.width : size.height * 0.58;
+
+/// Sharp cover across the top that fades out towards the controls, over
+/// the tinted ambience the rest of the player uses.
+class _HeroArtBackdrop extends StatelessWidget {
+  const _HeroArtBackdrop();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShaderMask(
+      shaderCallback: (rect) => const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Colors.white, Colors.white, Colors.transparent],
+        stops: [0, 0.5, 1],
+      ).createShader(Rect.fromLTWH(0, 0, rect.width, rect.height)),
+      blendMode: BlendMode.dstIn,
+      child: const Stack(
+        fit: StackFit.expand,
+        children: [
+          BackgroudImage(),
+          // Keeps the "playing from" header readable on bright covers.
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0x8A000000), Colors.transparent],
+                stops: [0, 0.3],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Transparent layer over the cover: tap for lyrics (or play/pause on a
+/// video), swipe to skip, long-press for the song menu. Hosts the lyrics
+/// overlay, the video surface and the show-video button.
+class _HeroArtRegion extends StatelessWidget {
+  const _HeroArtRegion({required this.isVideo, required this.showVideo});
+  final bool isVideo;
+  final bool showVideo;
+
+  @override
+  Widget build(BuildContext context) {
+    final playerController = Get.find<PlayerController>();
+    return Obx(() {
+      final song = playerController.currentSong.value;
+      final lyricsOn = playerController.showLyricsflag.isTrue;
+      if (song == null) return const SizedBox.shrink();
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (showVideo) {
+            playerController.playPause();
+          } else {
+            playerController.showLyrics();
+          }
+        },
+        onLongPress: () => openNowPlayingSheet(playerController),
+        onHorizontalDragEnd: (details) {
+          if (lyricsOn) return;
+          final v = details.primaryVelocity ?? 0;
+          if (v < 0) {
+            playerController.next();
+          } else if (v > 0) {
+            playerController.prev();
+          }
+        },
+        child: LayoutBuilder(builder: (context, box) {
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              if (showVideo)
+                Center(
+                  child: PlayerVideoSurface(
+                    song: song,
+                    width: box.maxWidth,
+                    maxHeight: box.maxHeight,
+                    onToggleVideo: () async {
+                      await AlbumArtNLyrics.setVideoPlaybackEnabled(
+                          song, false);
+                      playerController.currentSong.refresh();
+                    },
+                  ),
+                ),
+              if (lyricsOn)
+                ColoredBox(
+                  color: RiffSurfaces.voidBlack.withOpacity(0.78),
+                  child: Stack(
+                    children: [
+                      LyricsWidget(
+                          padding: EdgeInsets.symmetric(
+                              vertical: box.maxHeight / 4)),
+                      IgnorePointer(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                RiffSurfaces.voidBlack.withOpacity(0.9),
+                                Colors.transparent,
+                                Colors.transparent,
+                                RiffSurfaces.voidBlack.withOpacity(0.9),
+                              ],
+                              stops: const [0, 0.2, 0.8, 1],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (!isVideo)
+                const Align(
+                    alignment: Alignment.topCenter, child: LyricsSwitch()),
+              if (song.canShowPlayerVideo && !showVideo)
+                Positioned(
+                  right: 16,
+                  top: 8,
+                  child: PlayerVideoEnableButton(
+                    onShow: () async {
+                      await AlbumArtNLyrics.setVideoPlaybackEnabled(
+                          song, true);
+                      playerController.currentSong.refresh();
+                    },
+                  ),
+                ),
+            ],
+          );
+        }),
+      );
+    });
   }
 }
 

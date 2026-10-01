@@ -24,6 +24,7 @@ import '../player_controller.dart';
 import '../radio_continuation.dart';
 import '../player_media_nav.dart';
 import 'playback_error_actions.dart';
+import 'standard_player.dart';
 
 class PlayerControlWidget extends StatelessWidget {
   const PlayerControlWidget({super.key});
@@ -38,12 +39,28 @@ class PlayerControlWidget extends StatelessWidget {
           Row(
             children: [
               Expanded(child: _TitleBlock(playerController: playerController)),
-              const SizedBox(width: 8),
-              FavoriteHeartButton(
-                isFav: playerController.isCurrentSongFav,
-                onToggleFav: playerController.toggleFavourite,
-                song: () => playerController.currentSong.value,
-                iconSize: 26,
+              const SizedBox(width: 10),
+              _RoundAction(
+                child: IconButton(
+                  tooltip: 'moreOptions'.tr,
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints.tightFor(width: 46, height: 46),
+                  icon: const Icon(Icons.more_vert_rounded, size: 24),
+                  onPressed: () => openNowPlayingSheet(playerController),
+                ),
+              ),
+              const SizedBox(width: 10),
+              _RoundAction(
+                child: FavoriteHeartButton(
+                  isFav: playerController.isCurrentSongFav,
+                  onToggleFav: playerController.toggleFavourite,
+                  song: () => playerController.currentSong.value,
+                  iconSize: 24,
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints.tightFor(width: 46, height: 46),
+                ),
               ),
             ],
           ),
@@ -381,7 +398,7 @@ Widget _previousButton(
       Icons.skip_previous_rounded,
       color: Theme.of(context).textTheme.titleMedium!.color,
     ),
-    iconSize: 38,
+    iconSize: 42,
     onPressed: playerController.prev,
   );
 }
@@ -578,6 +595,24 @@ class PlayerActionBar extends StatelessWidget {
   }
 }
 
+/// Frosted circle behind the title-row buttons (song options, like).
+class _RoundAction extends StatelessWidget {
+  const _RoundAction({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = Theme.of(context).textTheme.titleMedium?.color ??
+        RiffSurfaces.textPrimary;
+    return Material(
+      color: fg.withOpacity(0.12),
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: child,
+    );
+  }
+}
+
 /// Shuffle / repeat: full colour with an accent dot when on, dimmed when off.
 class _ToggleIcon extends StatelessWidget {
   const _ToggleIcon(
@@ -727,7 +762,7 @@ Widget _nextButton(PlayerController playerController, BuildContext context) {
               ? Theme.of(context).textTheme.titleLarge!.color!.withOpacity(0.2)
               : Theme.of(context).textTheme.titleMedium!.color,
         ),
-        iconSize: 38,
+        iconSize: 42,
         onPressed: canNext ? playerController.next : null);
   });
 }
