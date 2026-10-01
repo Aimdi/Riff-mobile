@@ -1,3 +1,36 @@
+# 1.7.108
+
+**New look**
+* Home, now-playing, Podcasts, Library (Songs, Playlists, Albums),
+  Audiobooks, Search, artist, album, playlist and Settings pages share one
+  layout: 12dp edges, the same section headers and cards, one big green
+  Play with secondary actions in a ⋮ menu
+* New app icon: equalizer bars
+
+**Audiobooks**
+* Free public-domain LibriVox audiobooks play in-app, with chapters,
+  resume, genres, search and Saved
+
+**Search**
+* Result filters are pills under the search bar (the side rail never drew)
+* Long-press a search for all results; suggestions bold the new words
+
+**Artists**
+* Videos shelf and View all for songs, videos, albums and singles
+* One Follow button; radio, podcast subscribe and share in the ⋮ menu
+
+**Settings**
+* Search now filters settings; sections are cards with a summary
+* Video player row no longer shows an error on the Lite APK
+
+**Video & podcasts**
+* Native ExoPlayer video engine; YouTube podcasts, with Open in WizeStream
+
+**Fixes**
+* Home grey-box crash; shuffle skipping and stale loads
+* Opening a second artist page no longer crashes ("box already closed")
+* Podcast date parsing, feed jank and lyrics races; smoother scrolling
+
 # 1.7.107
 
 **Player**
