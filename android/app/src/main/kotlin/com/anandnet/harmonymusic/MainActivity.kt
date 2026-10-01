@@ -34,6 +34,7 @@ class MainActivity : AudioServiceActivity() {
     // outlives them; configure/cleanUp run per activity attach/detach.
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        recordJavaCrashes(applicationContext)
         channelOwner = WeakReference(this)
         videoPlayer?.dispose()
         videoPlayer = RiffVideoPlayer(
@@ -111,7 +112,7 @@ class MainActivity : AudioServiceActivity() {
                 }
             } catch (_: Exception) {
                 null
-            }
+            } ?: javaCrashTrace(info.timestamp)
             mapOf(
                 "reason" to reason,
                 "description" to info.description,
@@ -122,6 +123,22 @@ class MainActivity : AudioServiceActivity() {
         } catch (_: Exception) {
             null
         }
+    }
+
+    /**
+     * Android keeps no stack trace for a Java/Kotlin crash (only for ANRs and
+     * native crashes): read the one [recordJavaCrashes] wrote, if it belongs
+     * to the exit at [exitMs].
+     */
+    private fun javaCrashTrace(exitMs: Long): String? = try {
+        val file = java.io.File(filesDir, CRASH_FILE)
+        if (file.exists() && kotlin.math.abs(file.lastModified() - exitMs) < 60_000) {
+            file.readText().take(6000)
+        } else {
+            null
+        }
+    } catch (_: Exception) {
+        null
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
@@ -141,5 +158,28 @@ class MainActivity : AudioServiceActivity() {
     companion object {
         /** The activity whose handlers are currently on the engine's channels. */
         private var channelOwner: WeakReference<MainActivity>? = null
+    }
+}
+
+private const val CRASH_FILE = "last_crash.txt"
+private var crashHandlerInstalled = false
+
+/**
+ * Writes the stack trace of an uncaught Java/Kotlin exception (any thread:
+ * ExoPlayer, the media session, plugins) to [CRASH_FILE] before the default
+ * handler kills the process, so the next launch can offer it.
+ */
+internal fun recordJavaCrashes(context: android.content.Context) {
+    if (crashHandlerInstalled) return
+    crashHandlerInstalled = true
+    val previous = Thread.getDefaultUncaughtExceptionHandler()
+    val dir = context.filesDir
+    Thread.setDefaultUncaughtExceptionHandler { thread, error ->
+        try {
+            java.io.File(dir, CRASH_FILE)
+                .writeText("Thread: ${thread.name}\n${android.util.Log.getStackTraceString(error)}")
+        } catch (_: Throwable) {
+        }
+        previous?.uncaughtException(thread, error)
     }
 }

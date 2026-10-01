@@ -45,7 +45,15 @@ class CrashReport {
       final prefs = Hive.box('AppPrefs');
       final seen = (prefs.get(_seenKey) as int?) ?? 0;
       final info = pick(raw, seen);
-      if (info == null) return;
+      if (info == null) {
+        // First run with nothing to report (e.g. the last exit was the
+        // update itself): start counting from now, or the first real crash
+        // would be taken for an old record and skipped.
+        if (seen == 0) {
+          await prefs.put(_seenKey, DateTime.now().millisecondsSinceEpoch);
+        }
+        return;
+      }
       await prefs.put(_seenKey, info['timestamp']);
       // First run after installing: an old record is not news.
       if (seen == 0) return;
