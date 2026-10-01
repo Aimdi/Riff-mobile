@@ -49,6 +49,7 @@ class HomeStatsCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('yourWeek'.tr,
