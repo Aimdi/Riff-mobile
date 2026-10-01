@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '/services/podcast_service.dart';
+import '/ui/screens/Home/home_layout.dart';
+import '/ui/widgets/riff_sheet.dart';
 import '../player_controller.dart';
 
 /// Spotify-style episode transcript viewer (Podcasting 2.0
@@ -20,10 +22,7 @@ class PodcastTranscriptSheet extends StatefulWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+      shape: riffSheetShape,
       builder: (ctx) => SizedBox(
         height: MediaQuery.of(ctx).size.height * 0.75,
         child: PodcastTranscriptSheet(url: url, type: type),
@@ -136,21 +135,21 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
     final playerController = Get.find<PlayerController>();
     final song = playerController.currentSong.value;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('transcript'.tr, style: theme.textTheme.titleLarge),
-          const SizedBox(height: 2),
-          Text(
-            song?.title ?? '',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.titleSmall,
-          ),
-          const Divider(height: 20),
-          Expanded(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const RiffSheetHandle(),
+        RiffSheetTitle('transcript'.tr,
+            subtitle: song?.title,
+            trailing: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Icon(Icons.subject_rounded,
+                  color: theme.colorScheme.secondary),
+            )),
+        const RiffSheetDivider(),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18),
             child: FutureBuilder<List<PodcastTranscriptCue>>(
               future: _future,
               builder: (context, snap) {
@@ -164,7 +163,8 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
                       padding: const EdgeInsets.all(24),
                       child: Text('noTranscript'.tr,
                           textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium),
+                          style: homeCardSubtitleStyle(context)
+                              .copyWith(fontSize: 14)),
                     ),
                   );
                 }
@@ -174,15 +174,15 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
               },
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   /// Untimed transcript: plain readable paragraphs.
   Widget _plainList(List<PodcastTranscriptCue> cues, ThemeData theme) {
     return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 40),
+      padding: const EdgeInsets.only(top: 8, bottom: 40),
       itemCount: cues.length,
       itemBuilder: (context, i) => Padding(
         padding: const EdgeInsets.only(bottom: 12),
@@ -190,7 +190,10 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
           cues[i].speaker != null
               ? '${cues[i].speaker}: ${cues[i].text}'
               : cues[i].text,
-          style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
+          style: TextStyle(
+              fontSize: 15,
+              height: 1.45,
+              color: theme.textTheme.titleMedium?.color),
         ),
       ),
     );
@@ -200,7 +203,7 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
   Widget _syncedList(List<PodcastTranscriptCue> cues, ThemeData theme,
       PlayerController playerController) {
     final accent = theme.colorScheme.secondary;
-    final normal = theme.textTheme.bodyMedium?.color;
+    final normal = theme.textTheme.titleMedium?.color;
     final dim = theme.textTheme.bodySmall?.color?.withOpacity(0.6);
     return Stack(
       children: [
@@ -239,7 +242,9 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
                           width: 52,
                           child: Text(
                             _fmt(cue.startSec),
-                            style: theme.textTheme.labelSmall?.copyWith(
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
                                 color: isActive ? accent : dim,
                                 fontFeatures: const [
                                   FontFeature.tabularFigures()
@@ -251,8 +256,9 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
                             cue.speaker != null
                                 ? '${cue.speaker}: ${cue.text}'
                                 : cue.text,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              height: 1.35,
+                            style: TextStyle(
+                              fontSize: 15,
+                              height: 1.4,
                               color: isActive ? accent : normal,
                               fontWeight:
                                   isActive ? FontWeight.w600 : FontWeight.w400,
@@ -272,11 +278,11 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
             alignment: Alignment.bottomCenter,
             child: Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: ActionChip(
-                avatar: Icon(Icons.play_circle_outline,
-                    size: 18, color: theme.colorScheme.secondary),
-                label: Text('followPlayback'.tr),
-                onPressed: () {
+              child: RiffChoiceChip(
+                icon: Icons.my_location_rounded,
+                selected: true,
+                label: 'followPlayback'.tr,
+                onTap: () {
                   setState(() => _follow = true);
                   _lastAutoScrolled = -1;
                   _maybeFollow();

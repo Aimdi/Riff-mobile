@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:html/parser.dart' as html_parser;
 
 import '/ui/screens/Playlist/playlist_screen_controller.dart';
+import '../screens/Home/home_layout.dart';
 import 'common_dialog_widget.dart';
 import 'snackbar.dart';
 
@@ -30,16 +31,13 @@ class PlaylistExportDialog extends StatelessWidget {
           children: [
             // Title
             Padding(
-              padding: const EdgeInsets.only(bottom: 20, top: 10),
-              child: Text(
-                "exportPlaylist".tr,
-                style: Theme.of(context).textTheme.titleLarge,
-                textAlign: TextAlign.center,
-              ),
+              padding: const EdgeInsets.only(bottom: 18, top: 4),
+              child: RiffDialogTitle("exportPlaylist".tr,
+                  icon: Icons.ios_share_rounded),
             ),
             // Button 1: Export to JSON
             _ExportButton(
-              icon: Icons.save,
+              icon: Icons.data_object_rounded,
               title: "exportPlaylistJson".tr,
               subtitle: "exportPlaylistJsonSubtitle".tr,
               onTap: () {
@@ -50,7 +48,7 @@ class PlaylistExportDialog extends StatelessWidget {
             const SizedBox(height: 12),
             // Button 2: Export to CSV
             _ExportButton(
-              icon: Icons.table_chart,
+              icon: Icons.table_chart_outlined,
               title: "exportPlaylistCsv".tr,
               subtitle: "exportPlaylistCsvSubtitle".tr,
               onTap: () {
@@ -73,18 +71,9 @@ class PlaylistExportDialog extends StatelessWidget {
                 _copyYouTubeMusicLink();
               },
             ),
-            const SizedBox(height: 20),
-            // Close button
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(
-                  "close".tr,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-            ),
+            const SizedBox(height: 14),
+            RiffDialogButton("close".tr,
+                primary: false, onPressed: () => Navigator.of(context).pop()),
           ],
         ),
       ),
@@ -145,6 +134,48 @@ class PlaylistExportDialog extends StatelessWidget {
   }
 }
 
+/// Icon badge, title and subtitle of one export option.
+class _OptionLabel extends StatelessWidget {
+  const _OptionLabel(
+      {required this.icon, required this.title, required this.subtitle});
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.secondary;
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: accent.withOpacity(0.16),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: accent, size: 22),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).textTheme.titleMedium?.color)),
+              const SizedBox(height: 2),
+              Text(subtitle, style: homeCardSubtitleStyle(context)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _ExportButton extends StatelessWidget {
   const _ExportButton({
     required this.icon,
@@ -161,44 +192,14 @@ class _ExportButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Theme.of(context).cardColor,
-      borderRadius: BorderRadius.circular(10),
+      color: homeTileColor(context),
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: Theme.of(context).dividerColor.withOpacity(0.2),
-            ),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                color: Theme.of(context).textTheme.titleMedium!.color,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: _OptionLabel(icon: icon, title: title, subtitle: subtitle),
         ),
       ),
     );
@@ -223,84 +224,39 @@ class _SplitExportButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Theme.of(context).cardColor,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: Theme.of(context).dividerColor.withOpacity(0.2),
-          ),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: IntrinsicHeight(
-          child: Row(
-            children: [
-              // Main button part (80%)
-              Expanded(
-                flex: 8,
-                child: InkWell(
-                  onTap: onMainTap,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(10),
-                    bottomLeft: Radius.circular(10),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Icon(
-                          icon,
-                          color: Theme.of(context).textTheme.titleMedium!.color,
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                title,
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                subtitle,
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+      color: homeTileColor(context),
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: IntrinsicHeight(
+        child: Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                onTap: onMainTap,
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: _OptionLabel(
+                      icon: icon, title: title, subtitle: subtitle),
                 ),
               ),
-              // Divider
-              VerticalDivider(
-                width: 1,
-                thickness: 1,
-                color: Theme.of(context).dividerColor.withOpacity(0.2),
+            ),
+            VerticalDivider(
+              width: 1,
+              thickness: 1,
+              indent: 12,
+              endIndent: 12,
+              color: (homeMutedColor(context) ?? Colors.grey).withOpacity(0.25),
+            ),
+            InkWell(
+              onTap: onCopyTap,
+              child: SizedBox(
+                width: 56,
+                child: Icon(Icons.copy_rounded,
+                    size: 20,
+                    color: Theme.of(context).textTheme.titleMedium?.color),
               ),
-              // Copy button part (20%)
-              Expanded(
-                flex: 2,
-                child: InkWell(
-                  onTap: onCopyTap,
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(10),
-                    bottomRight: Radius.circular(10),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    child: Icon(
-                      Icons.copy,
-                      color: Theme.of(context).textTheme.titleMedium!.color,
-                      size: 20,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

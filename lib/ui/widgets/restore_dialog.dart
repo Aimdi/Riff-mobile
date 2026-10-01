@@ -11,6 +11,7 @@ import 'package:terminate_restart/terminate_restart.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/utils/helper.dart';
 import '../../services/permission_service.dart';
+import '../screens/Home/home_layout.dart';
 import 'common_dialog_widget.dart';
 
 class RestoreDialog extends StatelessWidget {
@@ -18,63 +19,58 @@ class RestoreDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final restoreDialogController = Get.put(RestoreDialogController());
+    final c = Get.put(RestoreDialogController());
     return CommonDialog(
-      child: Container(
-        height: 300,
-        padding:
-            const EdgeInsets.only(top: 20, bottom: 30, left: 20, right: 20),
-        child: Stack(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(22, 24, 22, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
-              Container(
-                padding: const EdgeInsets.only(bottom: 10.0, top: 10),
-                child: Text(
-                  "restoreAppData".tr,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+            RiffDialogTitle("restoreAppData".tr,
+                icon: Icons.settings_backup_restore_rounded),
+            SizedBox(
+              height: 120,
+              child: Center(
+                child: Obx(() {
+                  final style =
+                      homeCardSubtitleStyle(context).copyWith(fontSize: 14);
+                  if (c.restoreProgress.toInt() == c.filesToRestore.toInt()) {
+                    return Text("restoreMsg".tr,
+                        textAlign: TextAlign.center, style: style);
+                  }
+                  if (c.processingFiles.isTrue) {
+                    return Text("processFiles".tr, style: style);
+                  }
+                  if (c.restoreRunning.isTrue) {
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                            "${c.restoreProgress.toInt()}/${c.filesToRestore.toInt()}",
+                            style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w800,
+                                color:
+                                    Theme.of(context).colorScheme.secondary)),
+                        const SizedBox(height: 6),
+                        Text("restoring".tr, style: style),
+                      ],
+                    );
+                  }
+                  return Text("letsStrart".tr,
+                      textAlign: TextAlign.center, style: style);
+                }),
               ),
-              SizedBox(
-                height: 150,
-                child: Center(
-                  child: Obx(() => restoreDialogController.restoreProgress
-                              .toInt() ==
-                          restoreDialogController.filesToRestore.toInt()
-                      ? Text(
-                          "restoreMsg".tr,
-                          textAlign: TextAlign.center,
-                        )
-                      : restoreDialogController.processingFiles.isTrue
-                          ? Text("processFiles".tr)
-                          : restoreDialogController.restoreRunning.isTrue
-                              ? Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                        "${restoreDialogController.restoreProgress.toInt()}/${restoreDialogController.filesToRestore.toInt()}",
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge),
-                                    const SizedBox(
-                                      height: 10,
-                                    ),
-                                    Text("restoring".tr)
-                                  ],
-                                )
-                              : Text("letsStrart".tr)),
-                ),
-              ),
-              SizedBox(
-                width: double.maxFinite,
-                child: Align(
-                  child: Container(
-                    decoration: BoxDecoration(
-                        color: Theme.of(context).textTheme.titleLarge!.color,
-                        borderRadius: BorderRadius.circular(10)),
-                    child: InkWell(
-                      onTap: () {
-                        if (restoreDialogController.restoreProgress.toInt() ==
-                            restoreDialogController.filesToRestore.toInt()) {
+            ),
+            Obx(() {
+              final done =
+                  c.restoreProgress.toInt() == c.filesToRestore.toInt();
+              return RiffDialogButton(
+                done ? "restartApp".tr : "restore".tr,
+                onPressed: c.processingFiles.isTrue || c.restoreRunning.isTrue
+                    ? null
+                    : () {
+                        if (done) {
                           GetPlatform.isAndroid
                               ? TerminateRestart.instance.restartApp(
                                   options: const TerminateRestartOptions(
@@ -83,40 +79,11 @@ class RestoreDialog extends StatelessWidget {
                                 )
                               : exit(0);
                         } else {
-                          restoreDialogController.restore();
+                          c.restore();
                         }
                       },
-                      child: Obx(
-                        () => Visibility(
-                          visible: restoreDialogController
-                                  .processingFiles.isFalse &&
-                              restoreDialogController.restoreRunning.isFalse,
-                          replacement: const SizedBox(
-                            height: 40,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 15.0, vertical: 10),
-                            child: Obx(
-                              () => Text(
-                                restoreDialogController.restoreProgress
-                                            .toInt() ==
-                                        restoreDialogController.filesToRestore
-                                            .toInt()
-                                    ? "restartApp".tr
-                                    : "restore".tr,
-                                style: TextStyle(
-                                    color: Theme.of(context).canvasColor),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ]),
+              );
+            }),
           ],
         ),
       ),
@@ -203,7 +170,7 @@ class RestoreDialogController extends GetxController {
       // open the restored box
       final newSongBox = await Hive.openBox("SongDownloads");
       final downloadedSongs = newSongBox.values.toList();
-      for(final song in downloadedSongs) {
+      for (final song in downloadedSongs) {
         final songPath = song["url"];
         if (songPath != null && songPath is String) {
           final fileName = songPath.split("/").last;

@@ -8,6 +8,8 @@ import '/models/playlist.dart';
 import '/services/spotify_import_service.dart';
 import '/ui/screens/Library/library_controller.dart';
 import '/ui/widgets/snackbar.dart';
+import '../screens/Home/home_layout.dart';
+import 'common_dialog_widget.dart';
 
 /// Dialog: paste a public Spotify playlist/album URL → resolve on YTM → save
 /// as a local Riff playlist (Spotube-style metadata bridge).
@@ -68,8 +70,7 @@ class _SpotifyImportDialogState extends State<SpotifyImportDialog> {
         collection.tracks,
         onProgress: (done, total) {
           _progress.value = 0.15 + 0.75 * (done / total);
-          _status.value =
-              '${'spotifyImportResolving'.tr} $done / $total';
+          _status.value = '${'spotifyImportResolving'.tr} $done / $total';
         },
       );
 
@@ -136,9 +137,9 @@ class _SpotifyImportDialogState extends State<SpotifyImportDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return AlertDialog(
-      backgroundColor: theme.cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      title: Text('spotifyImport'.tr, style: theme.textTheme.titleLarge),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      title:
+          RiffDialogTitle('spotifyImport'.tr, icon: Icons.playlist_add_rounded),
       content: SizedBox(
         width: 420,
         child: Obx(() {
@@ -149,7 +150,8 @@ class _SpotifyImportDialogState extends State<SpotifyImportDialog> {
             children: [
               Text(
                 'spotifyImportDes'.tr,
-                style: theme.textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+                style: homeCardSubtitleStyle(context).copyWith(fontSize: 14),
               ),
               const SizedBox(height: 14),
               TextField(
@@ -157,8 +159,11 @@ class _SpotifyImportDialogState extends State<SpotifyImportDialog> {
                 enabled: !busy,
                 decoration: InputDecoration(
                   hintText: 'https://open.spotify.com/playlist/…',
+                  filled: true,
+                  fillColor: homeTileColor(context),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
                   ),
                   suffixIcon: IconButton(
                     tooltip: 'paste'.tr,
@@ -175,6 +180,7 @@ class _SpotifyImportDialogState extends State<SpotifyImportDialog> {
                       ? null
                       : _progress.value,
                   minHeight: 4,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               if (_status.value.isNotEmpty) ...[
                 const SizedBox(height: 10),
@@ -190,15 +196,18 @@ class _SpotifyImportDialogState extends State<SpotifyImportDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
+          style: TextButton.styleFrom(
+              foregroundColor: theme.textTheme.titleMedium?.color),
           child: Text('cancel'.tr),
         ),
-        Obx(() => ElevatedButton.icon(
+        Obx(() => FilledButton.icon(
               onPressed: _busy.value ? null : _import,
               icon: _busy.value
                   ? const SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.black),
                     )
                   : const Icon(Icons.cloud_download),
               label: Text('import'.tr),
