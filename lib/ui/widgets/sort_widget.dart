@@ -96,11 +96,16 @@ class SortWidget extends StatelessWidget {
       builder: (context) => AlertDialog(
         backgroundColor: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(22),
         ),
         title: Text(
           "importPlaylist".tr,
-          style: Theme.of(context).textTheme.titleLarge,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.3,
+            color: Theme.of(context).textTheme.titleMedium?.color,
+          ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -118,16 +123,16 @@ class SortWidget extends StatelessWidget {
                     color: Theme.of(context).colorScheme.secondary,
                   ),
             ),
-            const SizedBox(height: 24),
-            Center(
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
+            const SizedBox(height: 22),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.secondary,
-                  foregroundColor: Theme.of(context).colorScheme.onSecondary,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  foregroundColor: Colors.black,
+                  minimumSize: const Size.fromHeight(48),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
                 icon: const Icon(Icons.file_open),
@@ -140,14 +145,16 @@ class SortWidget extends StatelessWidget {
                 },
               ),
             ),
-            const SizedBox(height: 12),
-            Center(
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
               child: OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  minimumSize: const Size.fromHeight(48),
+                  foregroundColor:
+                      Theme.of(context).textTheme.titleMedium?.color,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
                 icon: const Icon(Icons.library_music),

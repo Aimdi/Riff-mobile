@@ -12,7 +12,7 @@ class CommonDialog extends StatelessWidget {
           constraints: BoxConstraints(maxWidth: maxWidth),
           child: Dialog(
             shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
             child: child,
           )),
     );
