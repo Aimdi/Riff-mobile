@@ -69,7 +69,8 @@ class ArtistScreenController extends GetxController
   Future<void> _checkIfAddedToLibrary(String id) async {
     final box = await Hive.openBox("LibraryArtists");
     isAddedToLibrary.value = box.containsKey(id);
-    await box.close();
+    // Not closed: the Library tab and other artist pages share this box, and
+    // closing it under them throws "Box has already been closed".
   }
 
   Future<void> _fetchArtistContent(String id) async {
@@ -135,8 +136,19 @@ class ArtistScreenController extends GetxController
     //check if params available for continuation
     //tab browse endpoint & top result stored in [artistData], tabContent & addtionalParams for continuation stored in Separated Content
     if ((artistData[tabName]).containsKey("params")) {
-      sepataredContent[tabName] = await musicServices.getArtistRealtedContent(
-          artistData[tabName], tabName);
+      try {
+        sepataredContent[tabName] = await musicServices
+            .getArtistRealtedContent(artistData[tabName], tabName);
+      } catch (e) {
+        // Fall back to the overview shelf instead of loading forever.
+        printERROR('Artist "$tabName" list failed: $e');
+        sepataredContent[tabName] = {
+          "results": List.from(artistData[tabName]['content'] ?? const []),
+          "additionalParams": '&ctoken=null&continuation=null',
+        };
+        isSeparatedArtistContentFetced.value = true;
+        return;
+      }
     } else {
       sepataredContent[tabName] = {"results": artistData[tabName]['content']};
       isSeparatedArtistContentFetced.value = true;
@@ -170,14 +182,19 @@ class ArtistScreenController extends GetxController
   }
 
   Future<void> getContinuationContents(browseEndpoint, tabName) async {
-    final x = await musicServices.getArtistRealtedContent(
-        browseEndpoint, tabName,
-        additionalParams: sepataredContent[tabName]['additionalParams']);
-    (sepataredContent[tabName]['results']).addAll(x['results']);
-    sepataredContent[tabName]['additionalParams'] = x['additionalParams'];
-    sepataredContent.refresh();
-
-    continuationInProgress = false;
+    try {
+      final x = await musicServices.getArtistRealtedContent(
+          browseEndpoint, tabName,
+          additionalParams: sepataredContent[tabName]['additionalParams']);
+      (sepataredContent[tabName]['results']).addAll(x['results']);
+      sepataredContent[tabName]['additionalParams'] = x['additionalParams'];
+      sepataredContent.refresh();
+    } catch (e) {
+      printERROR('Artist "$tabName" continuation failed: $e');
+    } finally {
+      // Without this a single failure blocks all further paging.
+      continuationInProgress = false;
+    }
   }
 
   void onSort(SortType sortType, bool isAscending, String title) {

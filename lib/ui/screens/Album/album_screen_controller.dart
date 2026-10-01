@@ -91,7 +91,7 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
     final box = await Hive.openBox("LibraryAlbums");
     isAddedToLibrary.value = box.containsKey(id);
     if (isAddedToLibrary.value) album.value = Album.fromJson(box.get(id));
-    box.close();
+    // Not closed: shared with the Library tab (see ArtistScreenController).
     return isAddedToLibrary.value;
   }
 
