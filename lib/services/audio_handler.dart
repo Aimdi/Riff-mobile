@@ -600,7 +600,11 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     // Song caching is for YouTube tracks: podcast, Audiobookshelf, cloud and
     // Soulseek items have their own sources (tokenised ABS URLs expire) and
     // must not end up in the Library's cached songs.
-    final cacheable = !_hasDirectStreamUrl(mediaItem.id);
+    // YouTube podcast episodes are plain video ids but can run for hours;
+    // LockCachingAudioSource keeps the whole download in memory, which can
+    // exhaust the heap and take the app down. Stream them uncached.
+    final cacheable = !_hasDirectStreamUrl(mediaItem.id) &&
+        mediaItem.extras?['isPodcast'] != true;
     if (cacheable &&
         (url.contains('/cache') ||
             (Get.find<SettingsScreenController>().cacheSongs.isTrue &&

@@ -71,7 +71,7 @@ class PodcastFolderScreen extends StatelessWidget {
                 badge: isYoutubeChannelPodcast(podcast)
                     ? youtubeChannelBadge()
                     : null,
-                onTap: () => playLibraryPodcast(podcast),
+                onTap: () => openLibraryPodcast(podcast),
                 onPlay: () => playLibraryPodcast(podcast),
                 onLongPress: () => showPodcastFolderSheet(context, podcast),
               );

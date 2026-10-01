@@ -1,363 +1,270 @@
-import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:harmonymusic/ui/player/components/backgroud_image.dart';
-import 'package:ionicons/ionicons.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:widget_marquee/widget_marquee.dart';
 
 import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/lyrics_dialog.dart';
 import '../../widgets/sleep_timer_bottom_sheet.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
-import '../../utils/riff_tokens.dart';
 import '../../utils/theme_controller.dart';
 import '/utils/content_filters.dart';
 import '../player_controller.dart';
-import '../player_media_nav.dart';
-import 'playback_error_actions.dart';
+import 'animated_play_button.dart';
+import 'backgroud_image.dart';
+import 'player_control.dart';
+import 'standard_player.dart';
 
+/// Full-bleed cover player: the artwork fills the screen and is the control
+/// surface (swipe for next / previous, double-tap to play or pause,
+/// long-press for song options). Title, seek bar, transport and actions sit
+/// on a gradient at the bottom, styled like the standard player.
 class GesturePlayer extends StatelessWidget {
   const GesturePlayer({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final PlayerController playerController = Get.find<PlayerController>();
-    final accent = Theme.of(context).colorScheme.secondary;
+    final pc = Get.find<PlayerController>();
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.secondary;
+    final bottomInset = Get.mediaQuery.padding.bottom;
     return Stack(
       children: [
         GestureDetector(
-          /// Full screen Background image is acting as album art
-          child: const BackgroudImage(),
-          onHorizontalDragEnd: (DragEndDetails details) {
-            if (details.primaryVelocity! < 0) {
-              playerController.next();
-            } else if (details.primaryVelocity! > 0) {
-              playerController.prev();
+          onHorizontalDragEnd: (details) {
+            final v = details.primaryVelocity ?? 0;
+            if (v < 0) {
+              pc.next();
+            } else if (v > 0) {
+              pc.prev();
             }
           },
-          onDoubleTap: () {
-            playerController.playPause();
-          },
-          onLongPress: () {
-            showCurrentSongSheet(
-              song: playerController.currentSong.value,
-              context: playerController.homeScaffoldkey.currentContext,
-            );
-          },
+          onDoubleTap: pc.playPause,
+          onLongPress: () => showCurrentSongSheet(
+            song: pc.currentSong.value,
+            context: pc.homeScaffoldkey.currentContext,
+          ),
+          child: const BackgroudImage(),
         ),
+        // Readable bottom: fade the cover into the page colour.
         IgnorePointer(
-          child: Align(
-            child: Center(
-              child: Obx(
-                () => FadeTransition(
-                  opacity: playerController.gesturePlayerStateAnimation!,
-                  child: playerController.gesturePlayerVisibleState.value == 2
-                      ? const SizedBox.shrink()
-                      : Icon(
-                          playerController.gesturePlayerVisibleState.value == 1
-                              ? Icons.play_arrow
-                              : Icons.pause,
-                          size: 72,
-                          color: accent,
-                        ),
-                ),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withOpacity(0.35),
+                  Colors.transparent,
+                  theme.primaryColor.withOpacity(0.85),
+                  theme.primaryColor,
+                ],
+                stops: const [0, 0.25, 0.62, 0.85],
               ),
             ),
+            child: const SizedBox.expand(),
           ),
         ),
+        // Play / pause flash after a double-tap.
+        if (pc.gesturePlayerStateAnimation != null)
+          IgnorePointer(
+            child: Center(
+              child: Obx(() => FadeTransition(
+                    opacity: pc.gesturePlayerStateAnimation!,
+                    child: pc.gesturePlayerVisibleState.value == 2
+                        ? const SizedBox.shrink()
+                        : Container(
+                            width: 96,
+                            height: 96,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.45),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              pc.gesturePlayerVisibleState.value == 1
+                                  ? Icons.play_arrow_rounded
+                                  : Icons.pause_rounded,
+                              size: 60,
+                              color: accent,
+                            ),
+                          ),
+                  )),
+            ),
+          ),
         Align(
           alignment: Alignment.bottomCenter,
           child: Padding(
-            padding: EdgeInsets.only(
-                bottom: Get.mediaQuery.padding.bottom != 0
-                    ? Get.mediaQuery.padding.bottom + 10
-                    : 20,
-                left: 20,
-                right: 20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: RiffSurfaces.elevated.withOpacity(0.92),
-                borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
-                border: Border.all(
-                  color: RiffSurfaces.hairline,
-                  width: RiffTokens.hairline,
-                ),
-              ),
+            padding: EdgeInsets.fromLTRB(24, 0, 24, 80 + bottomInset),
+            child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 500),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
-                // No BackdropFilter — blur here was expensive during gestures.
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Obx(() {
-                                  final song =
-                                      playerController.currentSong.value;
-                                  final title = song?.title;
-                                  final titleText = Marquee(
-                                    delay: const Duration(milliseconds: 300),
-                                    duration: const Duration(seconds: 10),
-                                    id: "${song}_title",
-                                    child: Text(
-                                      (title != null && title.isNotEmpty)
-                                          ? title
-                                          : "—",
-                                      textAlign: TextAlign.start,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium!
-                                          .copyWith(
-                                              color: RiffSurfaces.textPrimary),
-                                    ),
-                                  );
-                                  if (songAlbumId(song) == null) {
-                                    return titleText;
-                                  }
-                                  return GestureDetector(
-                                    behavior: HitTestBehavior.opaque,
-                                    onTap: () =>
-                                        openCurrentAlbum(playerController),
-                                    child: titleText,
-                                  );
-                                }),
-                                const SizedBox(
-                                  height: 7,
-                                ),
-                                GetX<PlayerController>(builder: (controller) {
-                                  final song = controller.currentSong.value;
-                                  final artist = song?.artist;
-                                  final artistText = Marquee(
-                                    delay: const Duration(milliseconds: 300),
-                                    duration: const Duration(seconds: 10),
-                                    id: "${song}_subtitle",
-                                    child: Text(
-                                      (artist != null && artist.isNotEmpty)
-                                          ? artist
-                                          : "—",
-                                      textAlign: TextAlign.start,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleSmall!
-                                          .copyWith(
-                                              color: RiffSurfaces.textMuted,
-                                              fontWeight: FontWeight.normal),
-                                    ),
-                                  );
-                                  if (songArtistId(song) == null) {
-                                    return artistText;
-                                  }
-                                  return GestureDetector(
-                                    behavior: HitTestBehavior.opaque,
-                                    onTap: () =>
-                                        openCurrentArtist(playerController),
-                                    child: artistText,
-                                  );
-                                }),
-                              ],
-                            ),
-                          ),
-                          SizedBox(
-                            width: 75,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                FavoriteHeartButton(
-                                  splashRadius: 10,
-                                  iconSize: 20,
-                                  visualDensity: const VisualDensity(
-                                      horizontal: -4, vertical: -4),
-                                  isFav: playerController.isCurrentSongFav,
-                                  onToggleFav: playerController.toggleFavourite,
-                                  song: () =>
-                                      playerController.currentSong.value,
-                                ),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    Obx(() {
-                                      return IconButton(
-                                          splashRadius: 10,
-                                          visualDensity: const VisualDensity(
-                                              horizontal: -4, vertical: -4),
-                                          iconSize: 18,
-                                          onPressed:
-                                              playerController.toggleLoopMode,
-                                          icon: Icon(
-                                            Icons.all_inclusive,
-                                            color: playerController
-                                                    .isLoopModeEnabled.value
-                                                ? RiffSurfaces.textPrimary
-                                                : RiffSurfaces.textMuted
-                                                    .withOpacity(0.45),
-                                          ));
-                                    }),
-                                    IconButton(
-                                      iconSize: 18,
-                                      splashRadius: 10,
-                                      visualDensity: const VisualDensity(
-                                          horizontal: -4, vertical: -4),
-                                      onPressed:
-                                          playerController.toggleShuffleMode,
-                                      icon: Obx(
-                                        () => Icon(
-                                          Ionicons.shuffle,
-                                          color: playerController
-                                                  .isShuffleModeEnabled.value
-                                              ? RiffSurfaces.textPrimary
-                                              : RiffSurfaces.textMuted
-                                                  .withOpacity(0.45),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(
-                        height: 5,
-                      ),
-                      Obx(() {
-                        final song = playerController.currentSong.value;
-                        if (song == null) return const SizedBox.shrink();
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            IconButton(
-                              tooltip: 'lyrics'.tr,
-                              iconSize: 20,
-                              visualDensity: VisualDensity.compact,
-                              onPressed: () {
-                                playerController.showLyrics();
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => const LyricsDialog(),
-                                ).whenComplete(() {
-                                  playerController.isDesktopLyricsDialogOpen =
-                                      false;
-                                  playerController.showLyricsflag.value = false;
-                                });
-                                playerController.isDesktopLyricsDialogOpen =
-                                    true;
-                              },
-                              icon: Icon(
-                                playerController.showLyricsflag.isTrue
-                                    ? Icons.lyrics
-                                    : Icons.lyrics_outlined,
-                                color: RiffSurfaces.textPrimary,
-                              ),
-                            ),
-                            IconButton(
-                              tooltip: 'shareSong'.tr,
-                              iconSize: 20,
-                              visualDensity: VisualDensity.compact,
-                              onPressed: () =>
-                                  Share.share(SongLinkShare.shareText(song)),
-                              icon: const Icon(
-                                Icons.share,
-                                color: RiffSurfaces.textPrimary,
-                              ),
-                            ),
-                            IconButton(
-                              tooltip: 'sleepTimer'.tr,
-                              iconSize: 20,
-                              visualDensity: VisualDensity.compact,
-                              onPressed: () => showSleepTimerSheet(context),
-                              icon: Icon(
-                                playerController.isSleepTimerActive.isTrue
-                                    ? Icons.timer
-                                    : Icons.timer_outlined,
-                                color: RiffSurfaces.textPrimary,
-                              ),
-                            ),
-                          ],
-                        );
-                      }),
-                      Obx(() {
-                        final err = playerController.playbackError.value;
-                        if (err == null || err.isEmpty) {
-                          return const SizedBox.shrink();
-                        }
-                        final theme = Theme.of(context);
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Row(
+                      Expanded(
+                        child: Obx(() {
+                          final song = pc.currentSong.value;
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(Icons.error_outline,
-                                  size: 16, color: theme.colorScheme.error),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  err,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: RiffSurfaces.textMuted,
-                                  ),
+                              Text(
+                                (song?.title ?? '').isEmpty
+                                    ? '—'
+                                    : song!.title,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.15,
+                                  letterSpacing: -0.4,
                                 ),
                               ),
-                              PlaybackErrorActions(
-                                compact: true,
-                                color: theme.colorScheme.error,
+                              const SizedBox(height: 4),
+                              Text(
+                                song?.artist ?? '',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                  color: (theme.textTheme.titleMedium?.color ??
+                                          RiffSurfaces.textPrimary)
+                                      .withOpacity(0.7),
+                                ),
                               ),
                             ],
-                          ),
-                        );
-                      }),
-                      GetX<PlayerController>(builder: (controller) {
-                        return ProgressBar(
-                          thumbRadius: 6,
-                          timeLabelLocation: TimeLabelLocation.sides,
-                          baseBarColor: RiffSurfaces.hairline,
-                          bufferedBarColor: RiffSurfaces.elevatedSoft,
-                          progressBarColor: accent,
-                          thumbColor: RiffSurfaces.textPrimary,
-                          timeLabelTextStyle: Theme.of(context)
-                              .textTheme
-                              .titleSmall!
-                              .copyWith(
-                                  color: RiffSurfaces.textMuted, fontSize: 12),
-                          progress: controller.progressBarStatus.value.current,
-                          total: controller.progressBarStatus.value.total,
-                          buffered: controller.progressBarStatus.value.buffered,
-                          onSeek: controller.seek,
-                        );
-                      }),
+                          );
+                        }),
+                      ),
+                      const SizedBox(width: 8),
+                      FavoriteHeartButton(
+                        isFav: pc.isCurrentSongFav,
+                        onToggleFav: pc.toggleFavourite,
+                        song: () => pc.currentSong.value,
+                        iconSize: 28,
+                      ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 14),
+                  const PlaybackErrorBanner(),
+                  const RepaintBoundary(child: PlayerSeekScrubber()),
+                  const SizedBox(height: 6),
+                  _Transport(pc: pc),
+                  const SizedBox(height: 10),
+                  _Actions(pc: pc),
+                ],
               ),
             ),
           ),
         ),
-        // absorb pointer to prevent the next,prev gesture from being triggered when the user tries to switch app
-        Align(
-          alignment: Alignment.bottomCenter,
-          child: AbsorbPointer(
-            child: SizedBox(
-              height: Get.mediaQuery.padding.bottom + 20,
-              child: Container(),
-            ),
-          ),
-        )
+        const PlayerTopBar(),
       ],
     );
+  }
+}
+
+class _Transport extends StatelessWidget {
+  const _Transport({required this.pc});
+  final PlayerController pc;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = Theme.of(context).textTheme.titleMedium?.color ??
+        RiffSurfaces.textPrimary;
+    final accent = Theme.of(context).colorScheme.secondary;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Obx(() => IconButton(
+              tooltip: 'shuffle'.tr,
+              iconSize: 24,
+              onPressed: pc.toggleShuffleMode,
+              icon: Icon(Icons.shuffle_rounded,
+                  color: pc.isShuffleModeEnabled.value
+                      ? accent
+                      : fg.withOpacity(0.75)),
+            )),
+        IconButton(
+          tooltip: 'previous'.tr,
+          iconSize: 38,
+          onPressed: pc.prev,
+          icon: Icon(Icons.skip_previous_rounded, color: fg),
+        ),
+        const AnimatedPlayButton(key: Key('gesturePlayButton'), size: 68),
+        IconButton(
+          tooltip: 'next'.tr,
+          iconSize: 38,
+          onPressed: pc.next,
+          icon: Icon(Icons.skip_next_rounded, color: fg),
+        ),
+        Obx(() {
+          final state = pc.repeatState;
+          return IconButton(
+            tooltip: state == 2
+                ? 'repeatOne'.tr
+                : state == 1
+                    ? 'repeatAll'.tr
+                    : 'repeat'.tr,
+            iconSize: 24,
+            onPressed: pc.cycleRepeatMode,
+            icon: Icon(
+              state == 2 ? Icons.repeat_one_rounded : Icons.repeat_rounded,
+              color: state != 0 ? accent : fg.withOpacity(0.75),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+}
+
+/// Lyrics · sleep timer · share.
+class _Actions extends StatelessWidget {
+  const _Actions({required this.pc});
+  final PlayerController pc;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final song = pc.currentSong.value;
+      final sleepOn = pc.isSleepTimerActive.isTrue;
+      return PlayerActionBar(actions: [
+        PlayerAction(
+          icon: Icons.lyrics_outlined,
+          activeIcon: Icons.lyrics,
+          tooltip: 'lyrics'.tr,
+          active: pc.showLyricsflag.isTrue,
+          onTap: () {
+            pc.showLyrics();
+            pc.isDesktopLyricsDialogOpen = true;
+            showDialog(
+              context: context,
+              builder: (context) => const LyricsDialog(),
+            ).whenComplete(() {
+              pc.isDesktopLyricsDialogOpen = false;
+              pc.showLyricsflag.value = false;
+            });
+          },
+        ),
+        PlayerAction(
+          icon: Icons.bedtime_outlined,
+          activeIcon: Icons.bedtime,
+          tooltip: 'sleepTimer'.tr,
+          active: sleepOn,
+          badge: sleepOn ? sleepTimerBadge(pc.timerDurationLeft.value) : null,
+          onTap: () =>
+              showSleepTimerSheet(pc.homeScaffoldkey.currentContext ?? context),
+        ),
+        PlayerAction(
+          icon: Icons.share_outlined,
+          tooltip: 'shareSong'.tr,
+          onTap: song == null
+              ? null
+              : () => Share.share(SongLinkShare.shareText(song)),
+        ),
+      ]);
+    });
   }
 }

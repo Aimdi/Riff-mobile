@@ -615,19 +615,19 @@ class _LibraryPinnedRow extends StatelessWidget {
         child: Wrap(
           children: [
             ListTile(
+              leading: const Icon(Icons.play_arrow_rounded),
+              title: Text('play'.tr),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _play('LIBRP', 'recentlyPlayed'.tr);
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.shuffle),
               title: Text('shuffle'.tr),
               onTap: () {
                 Navigator.of(ctx).pop();
                 _play('LIBRP', 'recentlyPlayed'.tr, shuffle: true);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.open_in_new),
-              title: Text('viewAll'.tr),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _open('LIBRP', 'recentlyPlayed'.tr);
               },
             ),
           ],
@@ -656,8 +656,9 @@ class _LibraryPinnedRow extends StatelessWidget {
               subtitle: liked > 0 ? '$liked' : null,
               accent: theme.colorScheme.secondary,
               muted: muted,
-              onTap: () => _play('LIBFAV', 'favorites'.tr, shuffle: true),
-              onLongPress: () => _open('LIBFAV', 'favorites'.tr),
+              onTap: () => _open('LIBFAV', 'favorites'.tr),
+              onLongPress: () =>
+                  _play('LIBFAV', 'favorites'.tr, shuffle: true),
             ),
           ),
           const SizedBox(width: 8),
@@ -668,7 +669,7 @@ class _LibraryPinnedRow extends StatelessWidget {
               subtitle: recent > 0 ? '$recent' : null,
               accent: theme.colorScheme.secondary,
               muted: muted,
-              onTap: () => _play('LIBRP', 'recentlyPlayed'.tr),
+              onTap: () => _open('LIBRP', 'recentlyPlayed'.tr),
               onLongPress: () => _showRecentsActions(context),
             ),
           ),

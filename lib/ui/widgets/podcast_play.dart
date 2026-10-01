@@ -22,8 +22,10 @@ Future<bool> openInWizeStreamIfPreferred(MediaItem episode) async {
   return WizeStream.open(url);
 }
 
-/// iTunes / RSS show tiles play the feed instead of only opening the list.
-bool shouldPlayPodcastShowOnTap() => true;
+/// Podcast show tiles open the show page; the small play button on the
+/// tile (where there is one) starts listening. Tapping a show used to
+/// start an episode straight away, which made shows impossible to browse.
+bool shouldPlayPodcastShowOnTap() => false;
 
 /// Start at the in-progress episode when we have one, else the newest (0).
 int podcastShowStartIndex({

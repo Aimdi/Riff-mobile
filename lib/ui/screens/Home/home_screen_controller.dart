@@ -1,3 +1,4 @@
+import '/services/crash_report.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -44,6 +45,10 @@ class HomeScreenController extends GetxController {
     super.onInit();
     loadContent();
     if (updateCheckFlag) _checkNewVersion();
+    Future.delayed(const Duration(seconds: 4), () {
+      CrashReport.checkAndOffer(
+          Get.find<SettingsScreenController>().currentVersion);
+    });
   }
 
   Future<void> loadContent() async {

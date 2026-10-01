@@ -9,6 +9,7 @@ import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import '../../models/playling_from.dart';
 import '../../models/media_item_extras.dart';
 import '../../utils/hive_boxes.dart';
+import 'long_form_queue.dart';
 import 'play_queue_order.dart';
 import 'video_handoff.dart';
 import '../../services/play_by_index_skip.dart';
@@ -1061,6 +1062,13 @@ class PlayerController extends GetxController
       return false;
     }
     if (index < 0 || index >= mediaItems.length) return false;
+    // Podcast shows can have thousands of episodes with long notes: send a
+    // window, with shortened notes, so the media session can't overflow.
+    if (mediaItems[index].isPodcastEpisode) {
+      final q = prepareLongFormQueue(mediaItems, index);
+      mediaItems = q.items;
+      index = q.index;
+    }
 
     isRadioModeOn = false;
     //open player pane,set current song and push first song into playing list,

@@ -1,3 +1,24 @@
+# 1.7.109
+
+**Podcasts**
+* Tapping a show opens its page instead of starting an episode; search
+  results are a list with a subscribe button
+* New show page: cover, Latest episode / Resume, About, and episodes with
+  notes, progress and newest/oldest sorting
+* Podcasts and audiobooks get their own player: 10s back, 30s forward,
+  speed, sleep timer, show notes or chapters
+* Fixed the crash when an episode of a show with many episodes started;
+  podcast video is now opt-in
+* After an unexpected close, Riff offers the crash details to copy
+
+**Browsing**
+* Playlists, albums and artists open their page on tap; the ▶ on the cover
+  and long-press still play. Same for Favorites, Recently played and
+  Downloads
+
+**Player**
+* The Gesture player style matches the new player
+
 # 1.7.108
 
 **New look**

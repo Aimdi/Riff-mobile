@@ -1,3 +1,4 @@
+import '/ui/player/long_form_queue.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
@@ -70,7 +71,7 @@ class PodcastProgressService {
         previousUrl: previous is Map ? previous['url']?.toString() : null,
       ),
       'feedUrl': episode.extras?['feedUrl'],
-      'description': episode.extras?['description'],
+      'description': episodeNotes(episode),
       'chaptersUrl': episode.extras?['chaptersUrl'],
       'transcriptUrl': episode.extras?['transcriptUrl'],
       'transcriptType': episode.extras?['transcriptType'],

@@ -5,8 +5,8 @@ import 'package:harmonymusic/services/discovery/discovery_types.dart';
 import 'package:harmonymusic/ui/widgets/collection_play.dart';
 
 void main() {
-  test('collection cards play on the body tap', () {
-    expect(shouldPlayCollectionOnTap(), isTrue);
+  test('collection cards open their page on the body tap', () {
+    expect(shouldPlayCollectionOnTap(), isFalse);
   });
 
   test('system library playlist ids', () {

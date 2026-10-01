@@ -106,7 +106,9 @@ class HomeExploreSection extends StatelessWidget {
                   shape: StadiumBorder(side: homeTileBorder(context)),
                   clipBehavior: Clip.antiAlias,
                   child: InkWell(
-                    onTap: () => playOrOpenExploreShelf(shelves[index], title),
+                    onTap: () => shouldPlayCollectionOnTap()
+                        ? playOrOpenExploreShelf(shelves[index], title)
+                        : openExploreShelf(title),
                     onLongPress: () => openExploreShelf(title),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 14),

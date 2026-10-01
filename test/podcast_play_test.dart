@@ -2,8 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/ui/widgets/podcast_play.dart';
 
 void main() {
-  test('podcast show tiles play on tap', () {
-    expect(shouldPlayPodcastShowOnTap(), isTrue);
+  test('podcast show tiles open the show instead of playing', () {
+    expect(shouldPlayPodcastShowOnTap(), isFalse);
   });
 
   test('podcast show starts at the in-progress episode', () {

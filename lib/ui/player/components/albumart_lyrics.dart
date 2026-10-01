@@ -19,8 +19,9 @@ class AlbumArtNLyrics extends StatelessWidget {
   const AlbumArtNLyrics({super.key, required this.playerArtImageSize});
   final double playerArtImageSize;
 
-  /// YouTube podcast episodes have their own switch (video by default,
-  /// WizeStream-style); music videos stay opt-in.
+  /// YouTube podcast episodes have their own switch; both start on the
+  /// cover (the podcast player has a Video button), so playing an episode
+  /// never spins up the video engine on its own.
   static String _prefKey(MediaItem? song) =>
       song != null && song.isPodcastEpisode
           ? 'podcastShowVideo'
@@ -30,8 +31,8 @@ class AlbumArtNLyrics extends StatelessWidget {
     final key = _prefKey(song);
     final v = Hive.box('AppPrefs').get(key);
     if (v is bool) return v;
-    // Music: cover/thumbnail until the user taps the video icon.
-    return key == 'podcastShowVideo';
+    // Cover until the user taps the video button.
+    return false;
   }
 
   static Future<void> setVideoPlaybackEnabled(MediaItem? song, bool on) async {

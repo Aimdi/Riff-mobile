@@ -601,7 +601,9 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                   context, '${album.thumbnailUrl ?? ''}', Icons.album_rounded),
               title: '${album.title ?? ''}',
               subtitle: '${album.year ?? ''}',
-              onTap: () => _playOrOpenAlbum(album),
+              onTap: () => shouldPlayCollectionOnTap()
+                  ? _playOrOpenAlbum(album)
+                  : _openAlbum(album),
               onLongPress: () => _openAlbum(album),
             );
           },
@@ -626,7 +628,9 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                   Icons.queue_music_rounded),
               title: '${p.title ?? ''}',
               subtitle: '${p.description ?? ''}',
-              onTap: () => _playOrOpenPlaylist(p),
+              onTap: () => shouldPlayCollectionOnTap()
+                  ? _playOrOpenPlaylist(p)
+                  : _openPlaylist(p),
               onLongPress: () => _openPlaylist(p),
             );
           },
@@ -656,7 +660,9 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                 width: size,
                 child: InkWell(
                   customBorder: const CircleBorder(),
-                  onTap: () => _playOrOpenArtist(a),
+                  onTap: () => shouldPlayCollectionOnTap()
+                      ? _playOrOpenArtist(a)
+                      : _openRelatedArtist(a),
                   onLongPress: () => _openRelatedArtist(a),
                   child: Column(
                     children: [

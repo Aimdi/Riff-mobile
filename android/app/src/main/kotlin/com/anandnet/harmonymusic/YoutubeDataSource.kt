@@ -91,7 +91,10 @@ class YoutubeDataSource private constructor() : BaseDataSource(/* isNetwork= */ 
         var redirects = 0
         while (true) {
             val isVideoPlayback = isVideoPlayback(url)
-            val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+            // A non-http(s) url (e.g. a local file) is a playback error,
+            // not a ClassCastException.
+            val conn = (URL(url).openConnection() as? HttpURLConnection
+                ?: throw IOException("Not an HTTP url")).apply {
                 connectTimeout = CONNECT_TIMEOUT_MS
                 readTimeout = READ_TIMEOUT_MS
                 instanceFollowRedirects = false

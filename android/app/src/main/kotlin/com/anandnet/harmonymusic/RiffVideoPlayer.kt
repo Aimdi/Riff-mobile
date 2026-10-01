@@ -3,7 +3,6 @@ package com.anandnet.harmonymusic
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import android.view.Surface
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -43,8 +42,13 @@ class RiffVideoPlayer(
 
     private var sink: EventChannel.EventSink? = null
     private var player: ExoPlayer? = null
-    private var texture: TextureRegistry.SurfaceTextureEntry? = null
-    private var surface: Surface? = null
+    /**
+     * Frames go through a [TextureRegistry.SurfaceProducer]: it works with
+     * both Impeller (enabled in the manifest) and Skia. The old
+     * SurfaceTexture entry is unsupported under Impeller and could take the
+     * whole app down when video started (e.g. YouTube podcast episodes).
+     */
+    private var producer: TextureRegistry.SurfaceProducer? = null
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -106,10 +110,10 @@ class RiffVideoPlayer(
 
     /** Creates the player + texture once; returns the Flutter texture id. */
     private fun ensurePlayer(): Long {
-        texture?.let { return it.id() }
-        val entry = textures.createSurfaceTexture()
-        texture = entry
-        surface = Surface(entry.surfaceTexture())
+        producer?.let { return it.id() }
+        val p = textures.createSurfaceProducer()
+        p.setSize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+        producer = p
         val exo = ExoPlayer.Builder(context)
             .setAudioAttributes(
                 AudioAttributes.Builder()
@@ -120,10 +124,21 @@ class RiffVideoPlayer(
             )
             .setHandleAudioBecomingNoisy(true)
             .build()
-        exo.setVideoSurface(surface)
+        exo.setVideoSurface(p.surface)
         exo.addListener(this)
         player = exo
-        return entry.id()
+        // The surface can be torn down (app in background, memory trim) and
+        // recreated; point the player at whichever one is current.
+        p.setCallback(object : TextureRegistry.SurfaceProducer.Callback {
+            override fun onSurfaceCreated() {
+                player?.setVideoSurface(producer?.surface)
+            }
+
+            override fun onSurfaceDestroyed() {
+                player?.clearVideoSurface()
+            }
+        })
+        return p.id()
     }
 
     private fun load(
@@ -171,10 +186,8 @@ class RiffVideoPlayer(
                 )
             )
         }
-        surface?.release()
-        surface = null
-        texture?.release()
-        texture = null
+        producer?.release()
+        producer = null
     }
 
     /**
@@ -243,7 +256,13 @@ class RiffVideoPlayer(
 
     override fun onVideoSizeChanged(videoSize: VideoSize) {
         if (videoSize.width <= 0 || videoSize.height <= 0) return
-        texture?.surfaceTexture()?.setDefaultBufferSize(videoSize.width, videoSize.height)
+        producer?.let { p ->
+            if (p.width != videoSize.width || p.height != videoSize.height) {
+                p.setSize(videoSize.width, videoSize.height)
+                // A resize may hand out a new Surface.
+                player?.setVideoSurface(p.surface)
+            }
+        }
         emit(
             mapOf(
                 "event" to "size",
@@ -266,5 +285,7 @@ class RiffVideoPlayer(
 
     companion object {
         private const val TICK_MS = 250L
+        private const val DEFAULT_WIDTH = 1280
+        private const val DEFAULT_HEIGHT = 720
     }
 }

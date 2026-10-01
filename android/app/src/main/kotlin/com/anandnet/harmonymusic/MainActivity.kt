@@ -1,9 +1,12 @@
 package com.anandnet.harmonymusic
 
+import android.app.ActivityManager
+import android.app.ApplicationExitInfo
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -69,6 +72,9 @@ class MainActivity : AudioServiceActivity() {
                         result.success(false)
                     }
                 }
+                // Why the previous run ended (crash, native crash, ANR …),
+                // so a crash on a user's phone can be reported without adb.
+                "lastExitInfo" -> result.success(lastExitInfo())
                 else -> result.notImplemented()
             }
         }
@@ -80,6 +86,42 @@ class MainActivity : AudioServiceActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             "riff/newpipe"
         ).setMethodCallHandler(NewPipeChannel)
+    }
+
+    private fun lastExitInfo(): Map<String, Any?>? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+        return try {
+            val am = getSystemService(ActivityManager::class.java) ?: return null
+            val info = am.getHistoricalProcessExitReasons(packageName, 0, 1)
+                .firstOrNull() ?: return null
+            val reason = when (info.reason) {
+                ApplicationExitInfo.REASON_CRASH -> "crash"
+                ApplicationExitInfo.REASON_CRASH_NATIVE -> "native crash"
+                ApplicationExitInfo.REASON_ANR -> "not responding"
+                ApplicationExitInfo.REASON_LOW_MEMORY -> "low memory"
+                ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE -> "resource usage"
+                ApplicationExitInfo.REASON_INITIALIZATION_FAILURE -> "startup failure"
+                else -> null
+            } ?: return null
+            val trace = try {
+                info.traceInputStream?.use { stream ->
+                    val bytes = ByteArray(6000)
+                    val n = stream.read(bytes)
+                    if (n > 0) String(bytes, 0, n) else null
+                }
+            } catch (_: Exception) {
+                null
+            }
+            mapOf(
+                "reason" to reason,
+                "description" to info.description,
+                "timestamp" to info.timestamp,
+                "importance" to info.importance,
+                "trace" to trace,
+            )
+        } catch (_: Exception) {
+            null
+        }
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {

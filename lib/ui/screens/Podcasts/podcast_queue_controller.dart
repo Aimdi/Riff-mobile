@@ -1,3 +1,4 @@
+import '/ui/player/long_form_queue.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
@@ -80,7 +81,7 @@ class PodcastQueueController extends GetxController {
         'isPodcast': m.extras?['isPodcast'] ?? true,
         'feedUrl': m.extras?['feedUrl'],
         'date': m.extras?['date'],
-        'description': m.extras?['description'],
+        'description': episodeNotes(m),
         'length': m.extras?['length'],
         'chaptersUrl': m.extras?['chaptersUrl'],
         'transcriptUrl': m.extras?['transcriptUrl'],
