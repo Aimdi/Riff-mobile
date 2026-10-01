@@ -66,7 +66,8 @@ abstract class PlaylistAlbumScreenControllerBase extends GetxController {
         .map<MediaItem?>((item) => MediaItemBuilder.fromJson(item))
         .whereType<MediaItem>()
         .toList();
-    if (id != "SongDownloads") await box.close();
+    // Shared box (Hive hands every caller the same instance): never close
+    // it here, or the player and other screens using it fail mid-write.
     songList.value =
         id == "LIBRP" ? songList.reversed.toList() : songList.toList();
     checkDownloadStatus();

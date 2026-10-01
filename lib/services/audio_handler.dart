@@ -1808,7 +1808,8 @@ class MediaLibrary {
     final box = await Hive.openBox("LibraryAlbums");
     final albums =
         box.values.map((item) => Album.fromJson(item).toMediaItem()).toList();
-    await box.close();
+    // Shared box (Hive hands every caller the same instance): never close
+    // it here, or the player and other screens using it fail mid-write.
     return albums;
   }
 
@@ -1820,7 +1821,8 @@ class MediaLibrary {
           .map((item) => Playlist.fromJson(item).toMediaItem())
           .toList())
     ];
-    await box.close();
+    // Shared box (Hive hands every caller the same instance): never close
+    // it here, or the player and other screens using it fail mid-write.
     return playlists;
   }
 
@@ -1847,9 +1849,8 @@ class MediaLibrary {
       );
     }).toList();
 
-    if (!libId.contains("SongDownloads")) {
-      await box.close();
-    }
+    // Shared box (Hive hands every caller the same instance): never close
+    // it here, or the player and other screens using it fail mid-write.
 
     if (libId == "LIBRP") {
       return songs.reversed.toList();

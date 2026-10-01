@@ -447,7 +447,8 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
       for (int i = 0; i < songListCopy.length; i++)
         i: MediaItemBuilder.toJson(songListCopy[i]),
     });
-    if (playlist.value.playlistId != "SongDownloads") await songsBox.close();
+    // Shared box (Hive hands every caller the same instance): never close
+    // it here, or the player and other screens using it fail mid-write.
 
     // Update the playlist thumbnail based on the first song's thumbnail
     _updatePlaylistThumbSongBased();
@@ -477,7 +478,8 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
       }
     }
     songList.removeWhere((song) => removeIds.contains(song.id));
-    if (!isoffline) await box_.close();
+    // Shared box (Hive hands every caller the same instance): never close
+    // it here, or the player and other screens using it fail mid-write.
 
     // Update the playlist thumbnail based on the first song's thumbnail
     _updatePlaylistThumbSongBased();

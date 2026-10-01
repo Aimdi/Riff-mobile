@@ -586,7 +586,8 @@ mixin RemoveSongFromPlaylistMixin {
         playlist.playlistId == "SongsCache") {
       return true;
     }
-    box.close();
+    // Shared box (Hive hands every caller the same instance): never close
+    // it here, or the player and other screens using it fail mid-write.
     return true;
   }
 }

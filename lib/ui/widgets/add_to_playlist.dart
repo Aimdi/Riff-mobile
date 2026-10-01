@@ -598,7 +598,8 @@ class AddToPlaylistController extends GetxController {
           await plstBox.add(MediaItemBuilder.toJson(element));
         }
       }
-      await plstBox.close();
+      // Shared box (Hive hands every caller the same instance): never close
+      // it here, or the player and other screens using it fail mid-write.
       additionInProgress.value = false;
       return newCount > 0
           ? PlaylistAddOutcome.added

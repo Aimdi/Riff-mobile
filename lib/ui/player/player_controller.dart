@@ -1321,9 +1321,8 @@ class PlayerController extends GetxController
         songIndex,
         source: DiscoverySource.androidAuto,
       );
-      if (libraryId != "SongDownloads") {
-        box.close();
-      }
+      // Shared box (Hive hands every caller the same instance): never close
+      // it here, or the player and other screens using it fail mid-write.
     });
   }
 

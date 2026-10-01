@@ -12,6 +12,11 @@ on:
         default: 'Handelsblatt Economic Challenges'
   push:
     paths:
+      # Native code and resources: a release-only failure there (R8, the
+      # resource shrinker) only shows up when the real APK plays something.
+      - 'android/**'
+      - 'pubspec.yaml'
+      - 'lib/services/audio_handler.dart'
       - 'integration_test/**'
       - 'tool/device_e2e.sh'
       - '.github/workflows/device-e2e.yml'
