@@ -33,16 +33,18 @@ enum HomeSection {
   }
 }
 
-/// Default order: your stuff first, then the picks, then YouTube's feed.
+/// Default order: Riff's own players first (Wave, the generators), then
+/// your speed dial and mixes, YouTube's feed, and Quick picks well down
+/// the page as a smaller carousel.
 const defaultHomeSectionOrder = [
   HomeSection.chips,
   HomeSection.resume,
-  HomeSection.quickPicks,
-  HomeSection.speedDial,
   HomeSection.riffWave,
   HomeSection.generators,
+  HomeSection.speedDial,
   HomeSection.dailyMixes,
   HomeSection.shelves,
+  HomeSection.quickPicks,
   HomeSection.yourWeek,
 ];
 
@@ -222,7 +224,8 @@ Future<void> showHomeSectionSheet(BuildContext context, HomeSection section) {
 /// Wraps one Home section so a long press anywhere on it (that nothing
 /// inside claims first) opens [showHomeSectionSheet].
 class HomeSectionSlot extends StatelessWidget {
-  const HomeSectionSlot({super.key, required this.section, required this.child});
+  const HomeSectionSlot(
+      {super.key, required this.section, required this.child});
   final HomeSection section;
   final Widget child;
 

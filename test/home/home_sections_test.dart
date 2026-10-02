@@ -2,6 +2,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/ui/screens/Home/home_sections.dart';
 
 void main() {
+  test('default order: Wave and generators up top, Quick picks far down', () {
+    const o = defaultHomeSectionOrder;
+    expect(o.indexOf(HomeSection.riffWave),
+        lessThan(o.indexOf(HomeSection.speedDial)));
+    expect(
+        o.indexOf(HomeSection.generators), o.indexOf(HomeSection.riffWave) + 1);
+    expect(o.indexOf(HomeSection.quickPicks),
+        greaterThan(o.indexOf(HomeSection.shelves)));
+  });
+
   test('default order lists every section once', () {
     expect(defaultHomeSectionOrder.toSet().length, HomeSection.values.length);
     expect(defaultHomeSectionOrder.length, HomeSection.values.length);
@@ -15,8 +25,8 @@ void main() {
     expect(order.toSet().length, HomeSection.values.length);
     // Everything the stored list didn't know comes after, in default order.
     final rest = order.skip(3).toList();
-    expect(rest,
-        defaultHomeSectionOrder.where((s) => !order.take(3).contains(s)));
+    expect(
+        rest, defaultHomeSectionOrder.where((s) => !order.take(3).contains(s)));
   });
 
   test('nothing stored means the default', () {
@@ -30,10 +40,10 @@ void main() {
     setUp(HomeSectionPrefs.reset);
 
     test('move hops over hidden sections', () {
-      // chips, resume, quickPicks, speedDial …  hide resume, move quickPicks up
+      // chips, resume, riffWave, …  hide resume, move riffWave up
       HomeSectionPrefs.setHidden(HomeSection.resume, true);
-      HomeSectionPrefs.move(HomeSection.quickPicks, -1);
-      expect(HomeSectionPrefs.visible.first, HomeSection.quickPicks);
+      HomeSectionPrefs.move(HomeSection.riffWave, -1);
+      expect(HomeSectionPrefs.visible.first, HomeSection.riffWave);
       expect(HomeSectionPrefs.visible.contains(HomeSection.resume), isFalse);
       expect(HomeSectionPrefs.isDefault, isFalse);
     });
@@ -45,9 +55,9 @@ void main() {
     });
 
     test('reorder follows ReorderableListView semantics', () {
-      HomeSectionPrefs.reorder(0, 3); // drag chips below quickPicks
+      HomeSectionPrefs.reorder(0, 3); // drag chips below riffWave
       expect(HomeSectionPrefs.order.take(3).toList(),
-          [HomeSection.resume, HomeSection.quickPicks, HomeSection.chips]);
+          [HomeSection.resume, HomeSection.riffWave, HomeSection.chips]);
       HomeSectionPrefs.reset();
       expect(HomeSectionPrefs.isDefault, isTrue);
     });

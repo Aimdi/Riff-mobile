@@ -1,3 +1,14 @@
+# 1.7.120
+
+**Home: Riff first, Quick picks further down**
+* Riff Wave and the Fresh finds / Rediscover / Explore / New releases
+  chips now sit right under the greeting, before the speed dial
+* Quick picks is a smaller carousel (cards about half the screen wide)
+  with its own title, near the bottom of Home after YouTube Music's
+  shelves
+* If you already arranged Home yourself under Home layout, your order
+  is kept
+
 # 1.7.119
 
 **The app, laid out the Echo Music way**
