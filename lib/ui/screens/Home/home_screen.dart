@@ -248,6 +248,26 @@ class _HomeFeed extends StatelessWidget {
           children: const [HomeShimmer()],
         );
       }
+      final chip = home.selectedChip.value;
+      if (chip != null) {
+        return ListView(
+          padding: EdgeInsets.only(bottom: 200, top: topPadding),
+          children: [
+            const _HomeHeader(),
+            const HomeMoodChips(),
+            const SizedBox(height: 4),
+            if (home.chipLoading.value)
+              const HomeShimmer()
+            else if (home.chipError.value)
+              _ChipFeedError(onRetry: () {
+                home.selectChip(null);
+                home.selectChip(chip);
+              })
+            else
+              const HomeShelves(chipFeed: true),
+          ],
+        );
+      }
       return ListView(
         padding: EdgeInsets.only(bottom: 200, top: topPadding),
         children: [
@@ -451,6 +471,32 @@ class _HomeDiscoverEmptyCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The chip's feed didn't load: say so, offer a retry.
+class _ChipFeedError extends StatelessWidget {
+  const _ChipFeedError({required this.onRetry});
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          HomeLayout.gutter, 40, HomeLayout.gutter, 0),
+      child: Column(
+        children: [
+          Icon(Icons.cloud_off_outlined,
+              size: 40, color: homeMutedColor(context)),
+          const SizedBox(height: 12),
+          Text('networkError1'.tr,
+              textAlign: TextAlign.center,
+              style: homeCardSubtitleStyle(context).copyWith(fontSize: 14)),
+          const SizedBox(height: 12),
+          FilledButton(onPressed: onRetry, child: Text('retry'.tr)),
+        ],
       ),
     );
   }

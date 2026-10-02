@@ -1,5 +1,6 @@
 // ignore_for_file: constant_identifier_names
 
+import '/models/home_chip.dart';
 import 'dart:convert';
 import 'dart:math';
 import 'package:audio_service/audio_service.dart';
@@ -177,19 +178,26 @@ class MusicServices extends getx.GetxService {
     return response;
   }
 
-  // Future<List<Map<String, dynamic>>>
-  Future<dynamic> getHome({int limit = 4}) async {
+  /// Chips YouTube Music showed over the last unfiltered home feed.
+  List<HomeChip> lastHomeChips = const [];
+
+  /// Home feed sections. With [params] (a [HomeChip]'s), the feed YouTube
+  /// Music shows for that chip ("Relax", "Workout", …).
+  Future<dynamic> getHome({int limit = 4, String? params}) async {
     final data = _ctx();
     data["browseId"] = "FEmusic_home";
+    if (params != null && params.isNotEmpty) data["params"] = params;
     final response = await _sendRequest("browse", data);
     final results = nav(response.data, single_column_tab + section_list);
     final home = [...parseMixedContent(results)];
 
     final sectionList =
         nav(response.data, single_column_tab + ['sectionListRenderer']);
-    //inspect(sectionList);
-    //print(sectionList.containsKey('continuations'));
-    if (sectionList.containsKey('continuations')) {
+    if (params == null) {
+      final chips = parseHomeChips(sectionList);
+      if (chips.isNotEmpty) lastHomeChips = chips;
+    }
+    if (sectionList is Map && sectionList.containsKey('continuations')) {
       requestFunc(additionalParams) async {
         return (await _sendRequest("browse", data,
                 additionalParams: additionalParams))
@@ -199,7 +207,6 @@ class MusicServices extends getx.GetxService {
       parseFunc(contents) => parseMixedContent(contents);
       final x = (await getContinuations(sectionList, 'sectionListContinuation',
           limit - home.length, requestFunc, parseFunc));
-      // inspect(x);
       home.addAll([...x]);
     }
 

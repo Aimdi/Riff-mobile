@@ -21,13 +21,18 @@ import 'home_screen_controller.dart';
 /// them: songs as a two-row grid, albums and playlists as cover shelves,
 /// artists as round covers.
 class HomeShelves extends StatelessWidget {
-  const HomeShelves({super.key});
+  const HomeShelves({super.key, this.chipFeed = false});
+
+  /// Show the shelves of the selected chip instead of the plain feed.
+  final bool chipFeed;
 
   @override
   Widget build(BuildContext context) {
     final home = Get.find<HomeScreenController>();
     return Obx(() {
-      final shelves = [...home.middleContent, ...home.fixedContent];
+      final shelves = chipFeed
+          ? home.chipContent.toList()
+          : [...home.middleContent, ...home.fixedContent];
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -42,7 +47,8 @@ class HomeShelves extends StatelessWidget {
       return HomeSongShelf(
         title: shelf.title,
         songs: shelf.songs,
-        scrollController: home.scrollControllerFor('shelf_${shelf.title}'),
+        scrollController: home.scrollControllerFor(
+            '${chipFeed ? 'chip_' : ''}shelf_${shelf.title}'),
       );
     }
     if (shelf is ArtistShelf) {
@@ -51,7 +57,8 @@ class HomeShelves extends StatelessWidget {
     if (shelf is AlbumContent || shelf is PlaylistContent) {
       return ContentListWidget(
         content: shelf,
-        scrollController: home.scrollControllerFor('shelf_${shelf.title}'),
+        scrollController: home.scrollControllerFor(
+            '${chipFeed ? 'chip_' : ''}shelf_${shelf.title}'),
       );
     }
     return const SizedBox.shrink();

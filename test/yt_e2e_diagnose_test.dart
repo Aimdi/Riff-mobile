@@ -64,6 +64,22 @@ void main() {
     expect(home, isNotEmpty);
   }, timeout: const Timeout(Duration(minutes: 3)));
 
+  test('home chips load and a chip filters the feed', () async {
+    final ms = await _makeService();
+    final home = await ms.getHome(limit: 4);
+    final chips = ms.lastHomeChips;
+    // ignore: avoid_print
+    print('CHIPS: ${chips.map((c) => c.title).join(', ')}');
+    expect(chips, isNotEmpty);
+    final filtered = await ms.getHome(limit: 4, params: chips.first.params);
+    // ignore: avoid_print
+    print('CHIP "${chips.first.title}": ${filtered.length} sections '
+        '(${filtered.map((s) => s["title"]).take(4).join(' | ')})');
+    expect(filtered, isNotEmpty);
+    expect(filtered.map((s) => s['title']).join('|'),
+        isNot(home.map((s) => s['title']).join('|')));
+  }, timeout: const Timeout(Duration(minutes: 3)));
+
   test('charts load and parse', () async {
     final ms = await _makeService();
     final charts = await ms.getCharts("TR");

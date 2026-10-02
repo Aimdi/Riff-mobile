@@ -1,3 +1,4 @@
+import '/models/home_chip.dart';
 import '/models/artist.dart';
 import '/models/home_shelf_content.dart';
 import '/services/crash_report.dart';
@@ -30,6 +31,17 @@ class HomeScreenController extends GetxController {
   final middleContent = [].obs;
   final fixedContent = [].obs;
   final showVersionDialog = true.obs;
+
+  /// YouTube Music's own home chips ("Relax", "Workout", …).
+  final homeChips = <HomeChip>[].obs;
+
+  /// The chip the feed is filtered by; null for the plain feed.
+  final selectedChip = Rxn<HomeChip>();
+
+  /// Shelves YouTube Music returned for [selectedChip].
+  final chipContent = [].obs;
+  final chipLoading = false.obs;
+  final chipError = false.obs;
   //isHomeScreenOnTop var only useful if bottom nav enabled
   final isHomeSreenOnTop = true.obs;
 
@@ -105,6 +117,13 @@ class HomeScreenController extends GetxController {
           title: quickPicksType);
       middleContent.value = middleContentData.map(_shelfFromJson).toList();
       fixedContent.value = fixedContentData.map(_shelfFromJson).toList();
+      final chipData = homeScreenData.get("homeChips");
+      if (chipData is List) {
+        homeChips.assignAll(chipData
+            .whereType<Map>()
+            .map(HomeChip.fromJson)
+            .where((c) => c.params.isNotEmpty));
+      }
       isContentFetched.value = true;
       printINFO("Loaded from offline db");
       return true;
@@ -219,6 +238,7 @@ class HomeScreenController extends GetxController {
 
       middleContent.value = _setContentList(middleContentTemp);
       fixedContent.value = _setContentList(homeContentListMap);
+      _takeChips();
 
       isContentFetched.value = true;
       showingCachedWhileOffline.value = false;
@@ -245,6 +265,40 @@ class HomeScreenController extends GetxController {
         showingCachedWhileOffline.value = true;
       }
     }
+  }
+
+  /// Filter the feed by [chip]; tapping the selected chip again (or
+  /// passing null) goes back to the plain feed. A late reply for a chip the
+  /// user has already left is dropped.
+  Future<void> selectChip(HomeChip? chip) async {
+    if (chip == null || chip == selectedChip.value) {
+      selectedChip.value = null;
+      chipContent.clear();
+      chipError.value = false;
+      return;
+    }
+    selectedChip.value = chip;
+    chipContent.clear();
+    chipError.value = false;
+    chipLoading.value = true;
+    try {
+      final sections = await _musicServices.getHome(
+          limit: Get.find<SettingsScreenController>().noOfHomeScreenContent.value,
+          params: chip.params);
+      if (selectedChip.value != chip) return;
+      chipContent.value = _setContentList(List.of(sections as List));
+      chipError.value = chipContent.isEmpty;
+    } catch (e) {
+      printERROR("Home chip ${chip.title} failed: $e");
+      if (selectedChip.value == chip) chipError.value = true;
+    } finally {
+      if (selectedChip.value == chip) chipLoading.value = false;
+    }
+  }
+
+  void _takeChips() {
+    final chips = _musicServices.lastHomeChips;
+    if (chips.isNotEmpty) homeChips.assignAll(chips);
   }
 
   List _setContentList(
@@ -411,7 +465,8 @@ class HomeScreenController extends GetxController {
         "quickPicks": _getContentDataInJson(quickPicks.value.songList,
             isQuickPicks: true),
         "middleContent": _getContentDataInJson(middleContent.toList()),
-        "fixedContent": _getContentDataInJson(fixedContent.toList())
+        "fixedContent": _getContentDataInJson(fixedContent.toList()),
+        "homeChips": homeChips.map((c) => c.toJson()).toList(),
       });
     }
 
