@@ -68,7 +68,7 @@ class _JumpBackInRowState extends State<JumpBackInRow> {
     return LayoutBuilder(builder: (context, constraints) {
       // Phones get the paged cover grid; wide screens keep the shelf.
       if (constraints.maxWidth < 560) {
-        return HomeSpeedDial(title: 'jumpBackIn'.tr, songs: tracks);
+        return HomeSpeedDial(title: 'speedDial'.tr, songs: tracks);
       }
       return _shelf(context, tracks);
     });

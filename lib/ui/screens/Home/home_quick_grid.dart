@@ -1,12 +1,8 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:hive/hive.dart';
 
-import '/models/media_Item_builder.dart';
-import '/models/playlist.dart';
 import '/services/discovery/discovery_service.dart';
-import '/services/discovery/discovery_tag.dart';
 import '/services/discovery/discovery_types.dart';
 import '/services/podcast_progress_service.dart';
 import '/ui/navigator.dart';
@@ -17,9 +13,21 @@ import '/ui/widgets/snackbar.dart';
 import 'home_layout.dart';
 import 'podcast_continue.dart';
 
-/// Top of Home: resume tiles, then library and discovery shortcuts as one
-/// grid of art + title tiles. Phones: library on the left, discovery on the
-/// right. Wide screens: one row each.
+/// Continue listening / continue podcast, shown only when there is
+/// something to resume.
+class HomeResumeRow extends StatelessWidget {
+  const HomeResumeRow({super.key});
+
+  @override
+  Widget build(BuildContext context) => const Padding(
+        padding: EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
+        child: _ResumeRow(),
+      );
+}
+
+/// Riff's own generators (Fresh finds, Rediscover, New releases) and
+/// Explore, as one row of chips under Riff Wave. Library shortcuts live in
+/// the Songs tab.
 class HomeQuickGrid extends StatelessWidget {
   const HomeQuickGrid({super.key});
 
@@ -28,32 +36,6 @@ class HomeQuickGrid extends StatelessWidget {
     final disc = Get.isRegistered<DiscoveryService>()
         ? Get.find<DiscoveryService>()
         : null;
-    final library = <Widget>[
-      _ShortcutTile(
-        title: 'favorites'.tr,
-        icon: Icons.favorite_rounded,
-        colors: const [Color(0xFF4B22D6), Color(0xFF9D85FF)],
-        onTap: () => _openLibraryPlaylist('LIBFAV', 'favorites'.tr),
-        onLongPress: () => _playLibraryBox(context,
-            id: 'LIBFAV', title: 'favorites'.tr, shuffle: true),
-      ),
-      _ShortcutTile(
-        title: 'recentlyPlayed'.tr,
-        icon: Icons.history_rounded,
-        colors: const [Color(0xFF0D4F9E), Color(0xFF45B4F5)],
-        onTap: () => _openLibraryPlaylist('LIBRP', 'recentlyPlayed'.tr),
-        onLongPress: () => _playLibraryBox(context,
-            id: 'LIBRP', title: 'recentlyPlayed'.tr, mostRecentFirst: true),
-      ),
-      _ShortcutTile(
-        title: 'downloads'.tr,
-        icon: Icons.download_done_rounded,
-        colors: const [Color(0xFF0A5E5A), Color(0xFF27C2B4)],
-        onTap: () => _openLibraryPlaylist('SongDownloads', 'downloads'.tr),
-        onLongPress: () => _playLibraryBox(context,
-            id: 'SongDownloads', title: 'downloads'.tr),
-      ),
-    ];
     final discovery = <Widget>[
       _ShortcutTile(
         title: 'freshFinds'.tr,
@@ -94,33 +76,24 @@ class HomeQuickGrid extends StatelessWidget {
       ),
     ];
 
-    return Column(
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
-          child: _ResumeRow(),
-        ),
-        // Six chips are cheap, so build them all rather than lazily.
-        SizedBox(
-          height: 44,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
-            child: Row(
-              children: [
-                for (var i = 0; i < library.length; i++) ...[
-                  if (i > 0) const SizedBox(width: HomeLayout.tileGap),
-                  library[i],
-                ],
-                for (final d in discovery) ...[
-                  const SizedBox(width: HomeLayout.tileGap),
-                  d,
-                ],
+    // A handful of chips: build them all rather than lazily.
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: SizedBox(
+        height: 44,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
+          child: Row(
+            children: [
+              for (var i = 0; i < discovery.length; i++) ...[
+                if (i > 0) const SizedBox(width: HomeLayout.tileGap),
+                discovery[i],
               ],
-            ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -331,14 +304,12 @@ class _ShortcutTile extends StatelessWidget {
     required this.icon,
     required this.colors,
     required this.onTap,
-    this.onLongPress,
   });
 
   final String title;
   final IconData icon;
   final List<Color> colors;
   final VoidCallback onTap;
-  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -348,7 +319,6 @@ class _ShortcutTile extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        onLongPress: onLongPress,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(6, 6, 14, 6),
           child: Row(
@@ -542,56 +512,6 @@ class _GradientArt extends StatelessWidget {
       ),
       child: Center(child: Icon(icon, color: Colors.white, size: 24)),
     );
-  }
-}
-
-void _openLibraryPlaylist(String id, String title) {
-  final pl = Playlist(
-    title: title,
-    playlistId: id,
-    thumbnailUrl: Playlist.thumbPlaceholderUrl,
-    isCloudPlaylist: false,
-  );
-  Get.toNamed(
-    ScreenNavigationSetup.playlistScreen,
-    id: ScreenNavigationSetup.id,
-    arguments: [pl, id],
-  );
-}
-
-/// Play a library Hive box as a queue; an empty box opens the list instead.
-Future<void> _playLibraryBox(
-  BuildContext context, {
-  required String id,
-  required String title,
-  bool shuffle = false,
-  bool mostRecentFirst = false,
-}) async {
-  try {
-    final box = Hive.isBoxOpen(id) ? Hive.box(id) : await Hive.openBox(id);
-    var tracks = <MediaItem>[];
-    for (final raw in box.values) {
-      try {
-        final item = MediaItemBuilder.fromJson(raw);
-        if (item.id.isNotEmpty) tracks.add(item);
-      } catch (_) {}
-    }
-    if (mostRecentFirst) {
-      tracks = tracks.reversed.toList();
-    }
-    if (tracks.isEmpty) {
-      _openLibraryPlaylist(id, title);
-      return;
-    }
-    if (shuffle) {
-      tracks.shuffle();
-    }
-    final ok = await Get.find<PlayerController>()
-        .playPlayListSong(tracks, 0, source: sourceFromPlaylistId(id));
-    if (!ok) snackOperationFailed();
-  } catch (_) {
-    if (!context.mounted) return;
-    _openLibraryPlaylist(id, title);
   }
 }
 

@@ -11,10 +11,10 @@ class HomeLayout {
   static const double gutter = 12;
 
   /// Space above a section title.
-  static const double sectionTop = 24;
+  static const double sectionTop = 22;
 
   /// Space between a section title and its content.
-  static const double headerBottom = 10;
+  static const double headerBottom = 6;
 
   /// Gap between cards on a horizontal shelf.
   static const double cardGap = 12;
@@ -36,6 +36,16 @@ TextStyle homeSectionTitleStyle(BuildContext context) =>
       fontSize: 19,
       letterSpacing: -0.35,
       height: 1.2,
+    );
+
+/// Section label over every shelf: small, bold, upper case and muted, so
+/// the artwork carries the page and the titles just organise it.
+TextStyle homeSectionLabelStyle(BuildContext context) => TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 0.9,
+      height: 1.2,
+      color: homeMutedColor(context),
     );
 
 TextStyle homeCardTitleStyle(BuildContext context) {
@@ -113,8 +123,8 @@ class HomeSectionHeader extends StatelessWidget {
                 children: [
                   Flexible(
                     child: Text(
-                      title,
-                      style: homeSectionTitleStyle(context),
+                      title.toUpperCase(),
+                      style: homeSectionLabelStyle(context),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),

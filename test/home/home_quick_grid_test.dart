@@ -53,7 +53,9 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(411, 914));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(const GetMaterialApp(
-      home: Scaffold(body: SingleChildScrollView(child: HomeQuickGrid())),
+      home: Scaffold(
+          body: SingleChildScrollView(
+              child: Column(children: [HomeResumeRow(), HomeQuickGrid()]))),
     ));
   }
 
@@ -63,8 +65,10 @@ void main() {
     await pumpGrid(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.text('favorites'), findsOneWidget);
-    expect(find.text('downloads'), findsOneWidget);
+    // Library shortcuts live in the Songs tab; Home keeps the generators.
+    expect(find.text('freshFinds'), findsOneWidget);
+    expect(find.text('explore'), findsOneWidget);
+    expect(find.text('favorites'), findsNothing);
     expect(find.text('continueListening'), findsNothing);
   });
 
