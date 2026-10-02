@@ -1,3 +1,27 @@
+# 1.7.119
+
+**The app, laid out the Echo Music way**
+* Phones get Echo's floating tab bar: a pill with Home, Library,
+  Podcasts and Audiobooks and a round Search button beside it. The
+  side rail is gone on phones (tablets keep it). The mini player docks
+  above the bar, and both slide away as the player opens
+* Library is one tab with Songs / Playlists / Albums / Artists chips
+  under the title, like Echo's library filters
+* Home opens with the app name, the greeting under it, and the stats
+  and settings buttons on the right
+* Quick picks is Echo's hero carousel for real now: one big card
+  (290dp tall, like Echo's) centred with the neighbours peeking in on
+  both sides, snapping page by page, with no title over it, moving on
+  by itself every five seconds
+
+**Put it anywhere**
+* Settings › Library & sync › Home layout: drag Home's sections into
+  any order and switch off the ones you don't want (chips, continue
+  listening, quick picks, speed dial, Riff Wave, generators, daily
+  mixes, YouTube Music shelves, your week)
+* Long-press a section on Home to move it up or down, or hide it,
+  without leaving the page
+
 # 1.7.118
 
 **Home**

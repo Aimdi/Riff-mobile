@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
@@ -6,42 +7,56 @@ import 'package:get/get.dart';
 
 import '/services/discovery/discovery_types.dart';
 import '/ui/player/player_controller.dart';
-import '/ui/utils/riff_tokens.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
 import 'home_layout.dart';
 
-/// Compact hero carousel (Echo Music's Quick picks): the centred cover is
-/// full size, its neighbours shrink and dim at the edges, the title sits
-/// over the art, and it moves on by itself every few seconds until touched.
+/// Echo Music's Quick picks: Material's centred hero carousel. One big
+/// card fills the width, the neighbours peek in as slivers on both sides,
+/// pages snap, and it moves on by itself every five seconds (never while
+/// the user is scrolling). Sized like Echo's: width minus the page margin,
+/// 290dp tall, 8dp between cards, no title over it.
 class HomeHeroCarousel extends StatefulWidget {
   const HomeHeroCarousel({
     super.key,
-    required this.title,
     required this.songs,
     this.source = DiscoverySource.home,
   });
 
-  final String title;
   final List<MediaItem> songs;
   final DiscoverySource source;
 
   static const maxItems = 12;
 
-  /// Share of the width the centred card takes.
-  static const viewport = 0.72;
+  /// Echo: `height(290.dp)`.
+  static const height = 290.0;
+
+  /// Visible slice of each neighbour card, plus the page margin.
+  static const sliver = 40.0;
+  static const margin = 16.0;
+
+  /// Echo: `itemSpacing = 8.dp`.
+  static const spacing = 8.0;
+
+  /// Keep the hero a phone-sized card on tablets.
+  static const maxWidth = 560.0;
 
   static const autoAdvance = Duration(seconds: 5);
+
+  /// Share of the viewport one page takes: the centred card plus the two
+  /// slivers either side fill the width.
+  static double viewportFraction(double width) =>
+      ((width - 2 * (margin + sliver)) / width).clamp(0.5, 1.0);
 
   @override
   State<HomeHeroCarousel> createState() => _HomeHeroCarouselState();
 }
 
 class _HomeHeroCarouselState extends State<HomeHeroCarousel> {
-  final _page = PageController(viewportFraction: HomeHeroCarousel.viewport);
+  PageController? _page;
+  double _fraction = 0;
   Timer? _timer;
-  bool _userTouched = false;
 
   List<MediaItem> get _songs {
     final seen = <String>{};
@@ -57,20 +72,36 @@ class _HomeHeroCarouselState extends State<HomeHeroCarousel> {
     _timer = Timer.periodic(HomeHeroCarousel.autoAdvance, (_) => _advance());
   }
 
+  PageController _controllerFor(double width) {
+    final fraction = HomeHeroCarousel.viewportFraction(width);
+    if (_page == null || (fraction - _fraction).abs() > 0.001) {
+      final old = _page;
+      final initial = old?.hasClients == true ? (old!.page ?? 0).round() : 0;
+      _page = PageController(viewportFraction: fraction, initialPage: initial);
+      _fraction = fraction;
+      if (old != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+      }
+    }
+    return _page!;
+  }
+
   void _advance() {
-    if (!mounted || _userTouched || !_page.hasClients) return;
+    final page = _page;
+    if (!mounted || page == null || !page.hasClients) return;
+    if (page.position.isScrollingNotifier.value) return;
     final count = _songs.length;
     if (count < 2) return;
-    final next = ((_page.page ?? 0).round() + 1) % count;
-    _page.animateToPage(next,
-        duration: const Duration(milliseconds: 600),
+    final next = ((page.page ?? 0).round() + 1) % count;
+    page.animateToPage(next,
+        duration: const Duration(milliseconds: 550),
         curve: Curves.easeInOutCubic);
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _page.dispose();
+    _page?.dispose();
     super.dispose();
   }
 
@@ -88,61 +119,51 @@ class _HomeHeroCarouselState extends State<HomeHeroCarousel> {
   Widget build(BuildContext context) {
     final songs = _songs;
     if (songs.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        HomeSectionHeader(widget.title),
-        LayoutBuilder(builder: (context, constraints) {
-          final card = constraints.maxWidth * HomeHeroCarousel.viewport;
-          // Shorter than wide: big enough to lead the page, small enough
-          // that the next section shows on the first screen.
-          final height = (card * 0.82).clamp(160.0, 260.0);
-          return SizedBox(
-            height: height,
-            child: NotificationListener<ScrollStartNotification>(
-              onNotification: (n) {
-                if (n.dragDetails != null) _userTouched = true;
-                return false;
-              },
-              // Pages start at the left gutter (no empty space before the
-              // first card); the next one peeks in on the right.
-              child: PageView.builder(
-                controller: _page,
-                padEnds: false,
-                itemCount: songs.length,
-                itemBuilder: (context, i) => AnimatedBuilder(
-                  animation: _page,
-                  builder: (context, child) {
-                    final page = _page.hasClients && _page.position.haveDimensions
-                        ? (_page.page ?? 0)
-                        : 0.0;
-                    final distance = (page - i).abs().clamp(0.0, 1.0);
-                    return Transform.scale(
-                      scale: 1 - distance * 0.14,
-                      child: Opacity(opacity: 1 - distance * 0.35, child: child),
-                    );
-                  },
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                        left: i == 0 ? HomeLayout.gutter : 5, right: 5),
-                    child: _HeroCard(
+    return Padding(
+      padding: const EdgeInsets.only(top: HomeLayout.sectionTop - 6),
+      child: LayoutBuilder(builder: (context, constraints) {
+        final width = math.min(constraints.maxWidth, HomeHeroCarousel.maxWidth);
+        final controller = _controllerFor(width);
+        return Center(
+          child: SizedBox(
+            width: width,
+            height: HomeHeroCarousel.height,
+            child: PageView.builder(
+              controller: controller,
+              physics: const _SnappingPhysics(),
+              itemCount: songs.length,
+              itemBuilder: (context, i) => Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: HomeHeroCarousel.spacing / 2),
+                child: _HeroCard(
+                  song: songs[i],
+                  onTap: () => _play(songs, i),
+                  onLongPress: () => showCurrentSongSheet(
                       song: songs[i],
-                      onTap: () => _play(songs, i),
-                      onLongPress: () => showCurrentSongSheet(
-                          song: songs[i],
-                          context: Get.find<PlayerController>()
-                              .homeScaffoldkey
-                              .currentContext),
-                    ),
-                  ),
+                      context: Get.find<PlayerController>()
+                          .homeScaffoldkey
+                          .currentContext),
                 ),
               ),
             ),
-          );
-        }),
-      ],
+          ),
+        );
+      }),
     );
   }
+}
+
+/// Page snapping with a little more drag than the default, so a flick
+/// moves one card, not three.
+class _SnappingPhysics extends PageScrollPhysics {
+  const _SnappingPhysics({super.parent});
+
+  @override
+  _SnappingPhysics applyTo(ScrollPhysics? ancestor) =>
+      _SnappingPhysics(parent: buildParent(ancestor));
+
+  @override
+  double get dragStartDistanceMotionThreshold => 3.5;
 }
 
 class _HeroCard extends StatelessWidget {
@@ -152,15 +173,20 @@ class _HeroCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onLongPress;
 
+  /// Echo: `MaterialTheme.shapes.extraLarge`.
+  static const radius = 28.0;
+
   @override
   Widget build(BuildContext context) {
     final player = Get.find<PlayerController>();
+    final theme = Theme.of(context);
     return Material(
       color: homeTileColor(context),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(RiffTokens.radiusLg),
+        borderRadius: BorderRadius.circular(radius),
+        // Echo: 1dp outlineVariant border.
         side: BorderSide(
-            color: (homeMutedColor(context) ?? Colors.grey).withOpacity(0.25)),
+            color: (homeMutedColor(context) ?? Colors.grey).withOpacity(0.28)),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -171,8 +197,11 @@ class _HeroCard extends StatelessWidget {
           children: [
             LayoutBuilder(
               builder: (context, c) => ImageWidget(
-                  song: song, size: c.maxWidth, borderRadius: 0),
+                  song: song,
+                  size: math.max(c.maxWidth, c.maxHeight),
+                  borderRadius: 0),
             ),
+            // Echo: transparent → transparent → black 70%.
             const DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -191,24 +220,24 @@ class _HeroCard extends StatelessWidget {
                   player.buttonState.value == PlayButtonState.playing;
               if (!playing) return const SizedBox.shrink();
               return Positioned(
-                top: 10,
-                right: 10,
+                top: 12,
+                right: 12,
                 child: Container(
-                  width: 30,
-                  height: 30,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.secondary,
+                    color: theme.colorScheme.secondary,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.graphic_eq_rounded,
+                  child: const Icon(Icons.volume_up_rounded,
                       size: 18, color: Colors.black),
                 ),
               );
             }),
             Positioned(
-              left: 14,
-              right: 14,
-              bottom: 12,
+              left: 16,
+              right: 16,
+              bottom: 16,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -218,14 +247,14 @@ class _HeroCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                           fontSize: 17,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                           color: Colors.white)),
                   if ((song.artist ?? '').isNotEmpty)
                     Text(song.artist!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                            fontSize: 13.5, color: Color(0xB3FFFFFF))),
+                            fontSize: 14, color: Color(0xB3FFFFFF))),
                 ],
               ),
             ),

@@ -68,7 +68,7 @@ class SongsLibraryWidget extends StatelessWidget {
                 ],
               );
             }),
-          if (!isBottomNavActive) const _LibraryPinnedRow(),
+          const _LibraryPinnedRow(),
           Obx(() {
             final cloudMode = libSongsController.showCloudSongs.value;
             final cloud = Get.find<CloudMusicService>();

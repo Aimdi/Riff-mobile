@@ -23,6 +23,9 @@ class HomeScreenController extends GetxController {
   final MusicServices _musicServices = Get.find<MusicServices>();
   final isContentFetched = false.obs;
   final tabIndex = 0.obs;
+
+  /// Name of the route on top of the tab navigator (null on the tab root).
+  final nestedRoute = RxnString();
   final networkError = false.obs;
 
   /// Cached Home is on screen because a background refresh failed.

@@ -4,7 +4,9 @@ import 'package:get/get.dart';
 import '../Search/components/desktop_search_bar.dart';
 import '/ui/screens/Search/search_screen_controller.dart';
 import '/ui/widgets/animated_screen_transition.dart';
+import '../../widgets/riff_tab_bar.dart';
 import '../../widgets/side_nav_bar.dart';
+import '../Library/library_shell.dart';
 import '../Library/library.dart';
 import '../Podcasts/podcasts_library.dart';
 import '../Audiobooks/audiobooks_screen.dart';
@@ -27,6 +29,7 @@ import 'home_layout.dart';
 import 'home_mood_chips.dart';
 import 'home_quick_grid.dart';
 import 'home_screen_controller.dart';
+import 'home_sections.dart';
 import 'home_shelves.dart';
 import 'home_stats_card.dart';
 import '../Settings/settings_screen.dart';
@@ -81,7 +84,8 @@ class HomeScreen extends StatelessWidget {
         // and blanks SideNavBar + Body while the FAB Obx still paints.
         body: Row(
           children: <Widget>[
-            const SideNavBar(),
+            // Phones navigate with the floating tab bar at the bottom.
+            if (!RiffShell.usesDockOf(context)) const SideNavBar(),
             Expanded(
               child: Obx(() => AnimatedScreenTransition(
                   enabled: settingsScreenController
@@ -210,6 +214,9 @@ class Body extends StatelessWidget {
           ],
         ),
       );
+    } else if (RiffShell.usesDockOf(context) &&
+        const [1, 4, 5, 6].contains(homeScreenController.tabIndex.value)) {
+      return LibraryShell(tabIndex: homeScreenController.tabIndex.value);
     } else if (homeScreenController.tabIndex.value == 1) {
       return const SongsLibraryWidget();
     } else if (homeScreenController.tabIndex.value == 2) {
@@ -268,61 +275,118 @@ class _HomeFeed extends StatelessWidget {
           ],
         );
       }
+      HomeSectionPrefs.ensureLoaded();
+      // Sections in the user's order (Settings → Home layout, or long-press
+      // a section); hidden ones are skipped.
+      final sections = HomeSectionPrefs.order
+          .where((s) => !HomeSectionPrefs.hidden.contains(s))
+          .toList();
       return ListView(
         padding: EdgeInsets.only(bottom: 200, top: topPadding),
         children: [
-          // Your stuff first (resume + shortcuts), then Wave, recents,
-          // personal mixes / picks, and editorial Explore last.
           Obx(() => home.showingCachedWhileOffline.isTrue
               ? const _OfflineHomeBanner()
               : const SizedBox.shrink()),
           const _HomeHeader(),
-          const HomeMoodChips(),
-          const SizedBox(height: 10),
-          const HomeResumeRow(),
-          const _HomeHero(),
-          const JumpBackInRow(),
-          const RiffWaveHero(),
-          const HomeQuickGrid(),
-          const _HomeZoneB(),
-          const HomeShelves(),
-          const HomeStatsCard(),
+          for (final section in sections)
+            HomeSectionSlot(
+              key: ValueKey(section),
+              section: section,
+              child: _sectionWidget(section),
+            ),
         ],
       );
     });
   }
+
+  static Widget _sectionWidget(HomeSection section) {
+    switch (section) {
+      case HomeSection.chips:
+        return const Padding(
+          padding: EdgeInsets.only(bottom: 10),
+          child: HomeMoodChips(),
+        );
+      case HomeSection.resume:
+        return const HomeResumeRow();
+      case HomeSection.quickPicks:
+        return const _HomeHero();
+      case HomeSection.speedDial:
+        return const JumpBackInRow();
+      case HomeSection.riffWave:
+        return const RiffWaveHero();
+      case HomeSection.generators:
+        return const HomeQuickGrid();
+      case HomeSection.dailyMixes:
+        return const _HomeZoneB();
+      case HomeSection.shelves:
+        return const HomeShelves();
+      case HomeSection.yourWeek:
+        return const HomeStatsCard();
+    }
+  }
 }
 
+/// Echo Music's top bar on Home: the app's name on the left, the tools on
+/// the right. The greeting sits under the name.
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader();
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final usesDock = RiffShell.usesDockOf(context);
+    final fg = theme.textTheme.titleMedium?.color;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 0, 2, 12),
+      padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 0, 2, 10),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
-            child: Text(
-              homeGreetingKey(DateTime.now()).tr,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontSize: 26,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Riff',
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 28,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: -0.6,
-                    height: 1.15,
+                    letterSpacing: -0.8,
+                    height: 1.1,
+                    color: fg,
                   ),
+                ),
+                Text(
+                  homeGreetingKey(DateTime.now()).tr,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: homeCardSubtitleStyle(context).copyWith(
+                      fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+              ],
             ),
           ),
-          if (!GetPlatform.isDesktop)
+          IconButton(
+            tooltip: 'stats'.tr,
+            icon: const Icon(Icons.bar_chart_rounded, size: 24),
+            onPressed: () => Get.toNamed(ScreenNavigationSetup.statsScreen,
+                id: ScreenNavigationSetup.id),
+          ),
+          // Search is in the tab bar on phones; the rail has no search.
+          if (!usesDock && !GetPlatform.isDesktop)
             IconButton(
               tooltip: 'search'.tr,
               icon: const Icon(Icons.search_rounded, size: 26),
-              onPressed: () {
-                Get.toNamed(ScreenNavigationSetup.searchScreen,
-                    id: ScreenNavigationSetup.id);
-              },
+              onPressed: () => Get.toNamed(ScreenNavigationSetup.searchScreen,
+                  id: ScreenNavigationSetup.id),
+            ),
+          if (usesDock)
+            IconButton(
+              tooltip: 'settings'.tr,
+              icon: const Icon(Icons.settings_outlined, size: 24),
+              onPressed: () =>
+                  Get.find<HomeScreenController>().onSideBarTabSelected(7),
             ),
         ],
       ),
@@ -330,7 +394,7 @@ class _HomeHeader extends StatelessWidget {
   }
 }
 
-/// Quick picks as Echo's compact hero carousel.
+/// Quick picks as Echo's hero carousel (no title, as in Echo).
 class _HomeHero extends StatelessWidget {
   const _HomeHero();
 
@@ -340,7 +404,7 @@ class _HomeHero extends StatelessWidget {
     return Obx(() {
       final songs = home.quickPicks.value.songList;
       if (songs.isEmpty) return const SizedBox.shrink();
-      return HomeHeroCarousel(title: 'quickpicks'.tr, songs: songs);
+      return HomeHeroCarousel(songs: songs);
     });
   }
 }

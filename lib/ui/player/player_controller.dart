@@ -33,6 +33,7 @@ import '../../utils/helper.dart';
 import '../../utils/media_item_video.dart';
 import '/models/media_Item_builder.dart';
 import '../screens/Home/home_screen_controller.dart';
+import '../widgets/riff_tab_bar.dart';
 import '../widgets/sliding_up_panel.dart';
 import '/models/durationstate.dart';
 import '/services/music_service.dart';
@@ -1415,9 +1416,11 @@ class PlayerController extends GetxController
     }
 
     if (initFlagForPlayer) {
-      final miniPlayerHeight = isWideScreen ? 105.0 : 75.0;
-      playerPanelMinHeight.value =
-          miniPlayerHeight + Get.mediaQuery.viewPadding.bottom;
+      playerPanelMinHeight.value = RiffShell.panelMinHeight(
+        width: Get.size.width,
+        bottomInset: Get.mediaQuery.viewPadding.bottom,
+        hasSong: true,
+      );
       initFlagForPlayer = false;
     }
   }

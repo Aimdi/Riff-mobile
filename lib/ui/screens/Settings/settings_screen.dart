@@ -686,6 +686,16 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     ListTile(
                       contentPadding: const EdgeInsets.only(left: 5, right: 10),
+                      title: Text("homeLayout".tr),
+                      subtitle: Text("homeLayoutDes".tr,
+                          style: settingsSubtitleStyle(context)),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => Get.toNamed(
+                          ScreenNavigationSetup.homeLayoutScreen,
+                          id: ScreenNavigationSetup.id),
+                    ),
+                    ListTile(
+                      contentPadding: const EdgeInsets.only(left: 5, right: 10),
                       title: Text("homeContentCount".tr),
                       subtitle: Text("homeContentCountDes".tr,
                           style: settingsSubtitleStyle(context)),
