@@ -1,3 +1,11 @@
+# 1.7.118
+
+**Home**
+* The chips under the greeting are YouTube Music's own (Relax,
+  Energize, Workout, Focus, …). Tapping one reloads Home with that
+  mood's shelves; tapping it again brings the usual feed back. Riff's
+  mood chips stay as the fallback when YouTube sends none (offline)
+
 # 1.7.117
 
 **Home, organised the Echo Music way**
