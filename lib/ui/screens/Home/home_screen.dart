@@ -22,6 +22,7 @@ import '../../../services/discovery/discovery_service.dart';
 import '../../../services/discovery/discovery_types.dart';
 import 'home_feed_view_model.dart';
 import 'home_greeting.dart';
+import 'home_hero_carousel.dart';
 import 'home_layout.dart';
 import 'home_mood_chips.dart';
 import 'home_quick_grid.dart';
@@ -257,10 +258,12 @@ class _HomeFeed extends StatelessWidget {
               : const SizedBox.shrink()),
           const _HomeHeader(),
           const HomeMoodChips(),
-          const SizedBox(height: 12),
-          const HomeQuickGrid(),
-          const RiffWaveHero(),
+          const SizedBox(height: 10),
+          const HomeResumeRow(),
+          const _HomeHero(),
           const JumpBackInRow(),
+          const RiffWaveHero(),
+          const HomeQuickGrid(),
           const _HomeZoneB(),
           const HomeShelves(),
           const HomeStatsCard(),
@@ -307,6 +310,21 @@ class _HomeHeader extends StatelessWidget {
   }
 }
 
+/// Quick picks as Echo's compact hero carousel.
+class _HomeHero extends StatelessWidget {
+  const _HomeHero();
+
+  @override
+  Widget build(BuildContext context) {
+    final home = Get.find<HomeScreenController>();
+    return Obx(() {
+      final songs = home.quickPicks.value.songList;
+      if (songs.isEmpty) return const SizedBox.shrink();
+      return HomeHeroCarousel(title: 'quickpicks'.tr, songs: songs);
+    });
+  }
+}
+
 /// Zone B — personalised: daily mixes → one contextual row.
 /// Order, caps, and global dedupe come from [assembleHomeFeedViewModel].
 class _HomeZoneB extends StatelessWidget {
@@ -334,13 +352,7 @@ class _HomeZoneB extends StatelessWidget {
               section: vm.dailyMixes!,
               badge: mixesUpdated ? 'mixesUpdatedBadge'.tr : null,
             ),
-          if (vm.quickPicks != null && vm.quickPicks!.songList.isNotEmpty)
-            HomeSongShelf(
-              title: 'quickpicks'.tr,
-              songs: vm.quickPicks!.songList,
-              scrollController: home.scrollControllerFor('quick_picks'),
-            )
-          else if (vm.dailyMixes == null &&
+          if (vm.dailyMixes == null &&
               vm.contextual == null &&
               home.quickPicks.value.songList.isEmpty)
             const _HomeDiscoverEmptyCard(),

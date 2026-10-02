@@ -1,3 +1,18 @@
+# 1.7.117
+
+**Home, organised the Echo Music way**
+* Section titles are small, bold, upper case and muted, across the app,
+  so the artwork carries the page and the labels just organise it
+* Quick picks is a compact hero carousel: the centred cover leads, the
+  next one peeks in smaller, the title sits over the art, a badge shows
+  what is playing, and it moves on by itself every 5 seconds until you
+  swipe it
+* Speed dial comes right after, and its last tile is a dice that plays
+  the dial shuffled
+* The top is lighter: no library shortcut tiles (Favorites, Recently
+  played and Downloads are in the Songs tab). Fresh finds, Rediscover,
+  New releases and Explore are one row under Riff Wave
+
 # 1.7.116
 
 **Home**

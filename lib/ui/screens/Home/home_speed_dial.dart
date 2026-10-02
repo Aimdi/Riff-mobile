@@ -49,6 +49,14 @@ class _HomeSpeedDialState extends State<HomeSpeedDial> {
     if (!ok) snackOperationFailed();
   }
 
+  /// The dice tile: everything in the dial, shuffled.
+  Future<void> _shuffle() async {
+    final shuffled = List<MediaItem>.of(widget.songs)..shuffle();
+    final ok = await Get.find<PlayerController>()
+        .playPlayListSong(shuffled, 0, source: widget.source);
+    if (!ok) snackOperationFailed();
+  }
+
   void _menu(MediaItem song) {
     final player = Get.find<PlayerController>();
     showCurrentSongSheet(
@@ -96,12 +104,17 @@ class _HomeSpeedDialState extends State<HomeSpeedDial> {
                     runSpacing: gap,
                     children: [
                       for (var i = 0; i < slice.length; i++)
-                        _DialTile(
-                          song: slice[i],
-                          size: tile,
-                          onTap: () => _play(start + i),
-                          onLongPress: () => _menu(slice[i]),
-                        ),
+                        if (p == 0 &&
+                            i == HomeSpeedDial.perPage - 1 &&
+                            songs.length >= HomeSpeedDial.perPage)
+                          _DiceTile(size: tile, onTap: _shuffle)
+                        else
+                          _DialTile(
+                            song: slice[i],
+                            size: tile,
+                            onTap: () => _play(start + i),
+                            onLongPress: () => _menu(slice[i]),
+                          ),
                     ],
                   ),
                 );
@@ -173,6 +186,33 @@ class _DialTile extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Last tile of the first page: plays the dial shuffled.
+class _DiceTile extends StatelessWidget {
+  const _DiceTile({required this.size, required this.onTap});
+  final double size;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.secondary;
+    return SizedBox.square(
+      dimension: size,
+      child: Material(
+        color: homeTileColor(context),
+        borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Tooltip(
+            message: 'shuffle'.tr,
+            child: Icon(Icons.casino_rounded, size: size * 0.38, color: accent),
           ),
         ),
       ),
