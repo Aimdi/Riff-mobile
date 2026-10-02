@@ -5,7 +5,9 @@ import 'package:harmonymusic/models/artist.dart';
 
 import 'package:harmonymusic/ui/screens/Artists/artist_screen.dart';
 import 'screens/Home/explore_screen.dart';
+import 'screens/Home/home_layout_screen.dart';
 import 'screens/Home/home_screen.dart';
+import 'screens/Home/home_screen_controller.dart';
 
 import 'screens/Album/album_screen.dart';
 import 'screens/Playlist/playlist_screen.dart';
@@ -39,6 +41,29 @@ class ScreenNavigationSetup {
   static const seekerScreen = '/seekerScreen';
   static const spotifyBridgeScreen = '/spotifyBridgeScreen';
   static const exploreScreen = '/exploreScreen';
+  static const homeLayoutScreen = '/homeLayoutScreen';
+}
+
+/// Keeps [HomeScreenController.nestedRoute] at the route on top of the tab
+/// navigator, so the floating tab bar can light up Search.
+class _NestedRouteObserver extends NavigatorObserver {
+  void _set(Route<dynamic>? route) {
+    if (!Get.isRegistered<HomeScreenController>()) return;
+    Get.find<HomeScreenController>().nestedRoute.value = route?.settings.name;
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _set(route);
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _set(previousRoute);
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _set(previousRoute);
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) =>
+      _set(newRoute);
 }
 
 class ScreenNavigation extends StatelessWidget {
@@ -48,6 +73,7 @@ class ScreenNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     return Navigator(
         key: Get.nestedKey(ScreenNavigationSetup.id),
+        observers: [_NestedRouteObserver()],
         initialRoute: '/homeScreen',
         onGenerateRoute: (settings) {
           Get.routing.args = settings.arguments;
@@ -129,6 +155,10 @@ class ScreenNavigation extends StatelessWidget {
               return GetPageRoute(
                   page: () => ExploreScreen(focusTitle: focus),
                   settings: settings);
+
+            case ScreenNavigationSetup.homeLayoutScreen:
+              return GetPageRoute(
+                  page: () => const HomeLayoutScreen(), settings: settings);
 
             case ScreenNavigationSetup.searchScreen:
               return GetPageRoute(
