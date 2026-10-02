@@ -5201,6 +5201,7 @@ Map<String, Map<String, String>> get keys => {
     "crashReportTitle": "Riff closed unexpectedly",
     "crashReportDes": "Last time Riff stopped because of a @reason. Copy the details and send them so it can be fixed.",
     "crashReportCopy": "Copy details",
+    "yourWeek": "Your week",
     "moodRelax": "Relax",
     "moodSleep": "Sleep",
     "moodFocus": "Focus",

@@ -1,3 +1,17 @@
+# 1.7.116
+
+**Home**
+* Home is a real timeline again. It fetches nine YouTube Music shelves
+  instead of three, keeps the song shelves ("Listen again", "Forgotten
+  favourites", …) and artist shelves it used to drop, and shows every
+  shelf in full under the speed dial instead of squashing them into a
+  chip row with one rotating carousel
+* Quick picks is an ordinary section again; the paged cover grid comes
+  right after Riff Wave
+* "Your week" at the end: plays per day and your top artist, from the
+  local listening history, opening Stats
+* Explore is a shortcut chip next to Favorites and Recently played
+
 # 1.7.115
 
 **Design**
