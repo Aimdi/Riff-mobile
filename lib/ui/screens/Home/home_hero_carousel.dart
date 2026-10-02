@@ -12,11 +12,11 @@ import '../../widgets/snackbar.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
 import 'home_layout.dart';
 
-/// Echo Music's Quick picks: Material's centred hero carousel. One big
-/// card fills the width, the neighbours peek in as slivers on both sides,
-/// pages snap, and it moves on by itself every five seconds (never while
-/// the user is scrolling). Sized like Echo's: width minus the page margin,
-/// 290dp tall, 8dp between cards, no title over it.
+/// Quick picks as a compact centred carousel (Echo Music's hero carousel,
+/// scaled down): one card in the middle, neighbours peeking in on both
+/// sides, pages snap, and it moves on by itself every five seconds (never
+/// while the user is scrolling). Sits under a section title further down
+/// Home.
 class HomeHeroCarousel extends StatefulWidget {
   const HomeHeroCarousel({
     super.key,
@@ -29,25 +29,22 @@ class HomeHeroCarousel extends StatefulWidget {
 
   static const maxItems = 12;
 
-  /// Echo: `height(290.dp)`.
-  static const height = 290.0;
-
-  /// Visible slice of each neighbour card, plus the page margin.
-  static const sliver = 40.0;
-  static const margin = 16.0;
+  /// Card size: a little wider than tall, about half the phone width.
+  static const cardWidth = 230.0;
+  static const height = 200.0;
 
   /// Echo: `itemSpacing = 8.dp`.
   static const spacing = 8.0;
 
-  /// Keep the hero a phone-sized card on tablets.
-  static const maxWidth = 560.0;
+  /// Keep the strip phone-sized on tablets.
+  static const maxWidth = 640.0;
 
   static const autoAdvance = Duration(seconds: 5);
 
-  /// Share of the viewport one page takes: the centred card plus the two
-  /// slivers either side fill the width.
+  /// Share of the viewport one page takes (card plus its spacing); the
+  /// rest is the neighbours peeking in either side.
   static double viewportFraction(double width) =>
-      ((width - 2 * (margin + sliver)) / width).clamp(0.5, 1.0);
+      ((cardWidth + spacing) / width).clamp(0.3, 1.0);
 
   @override
   State<HomeHeroCarousel> createState() => _HomeHeroCarouselState();
@@ -119,36 +116,41 @@ class _HomeHeroCarouselState extends State<HomeHeroCarousel> {
   Widget build(BuildContext context) {
     final songs = _songs;
     if (songs.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: HomeLayout.sectionTop - 6),
-      child: LayoutBuilder(builder: (context, constraints) {
-        final width = math.min(constraints.maxWidth, HomeHeroCarousel.maxWidth);
-        final controller = _controllerFor(width);
-        return Center(
-          child: SizedBox(
-            width: width,
-            height: HomeHeroCarousel.height,
-            child: PageView.builder(
-              controller: controller,
-              physics: const _SnappingPhysics(),
-              itemCount: songs.length,
-              itemBuilder: (context, i) => Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: HomeHeroCarousel.spacing / 2),
-                child: _HeroCard(
-                  song: songs[i],
-                  onTap: () => _play(songs, i),
-                  onLongPress: () => showCurrentSongSheet(
-                      song: songs[i],
-                      context: Get.find<PlayerController>()
-                          .homeScaffoldkey
-                          .currentContext),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        HomeSectionHeader('quickpicks'.tr),
+        LayoutBuilder(builder: (context, constraints) {
+          final width =
+              math.min(constraints.maxWidth, HomeHeroCarousel.maxWidth);
+          final controller = _controllerFor(width);
+          return Center(
+            child: SizedBox(
+              width: width,
+              height: HomeHeroCarousel.height,
+              child: PageView.builder(
+                controller: controller,
+                physics: const _SnappingPhysics(),
+                itemCount: songs.length,
+                itemBuilder: (context, i) => Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: HomeHeroCarousel.spacing / 2),
+                  child: _HeroCard(
+                    song: songs[i],
+                    onTap: () => _play(songs, i),
+                    onLongPress: () => showCurrentSongSheet(
+                        song: songs[i],
+                        context: Get.find<PlayerController>()
+                            .homeScaffoldkey
+                            .currentContext),
+                  ),
                 ),
               ),
             ),
-          ),
-        );
-      }),
+          );
+        }),
+      ],
     );
   }
 }
@@ -173,8 +175,7 @@ class _HeroCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onLongPress;
 
-  /// Echo: `MaterialTheme.shapes.extraLarge`.
-  static const radius = 28.0;
+  static const radius = 22.0;
 
   @override
   Widget build(BuildContext context) {
@@ -235,9 +236,9 @@ class _HeroCard extends StatelessWidget {
               );
             }),
             Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
+              left: 14,
+              right: 14,
+              bottom: 12,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -246,7 +247,7 @@ class _HeroCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          fontSize: 17,
+                          fontSize: 15,
                           fontWeight: FontWeight.w600,
                           color: Colors.white)),
                   if ((song.artist ?? '').isNotEmpty)
@@ -254,7 +255,7 @@ class _HeroCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                            fontSize: 14, color: Color(0xB3FFFFFF))),
+                            fontSize: 12.5, color: Color(0xB3FFFFFF))),
                 ],
               ),
             ),
