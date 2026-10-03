@@ -271,6 +271,7 @@ Future<void> initHiveDeferred() async {
     safeOpenBox("PodcastBookmarks"),
     safeOpenBox("PodcastShowLibrary"),
     safeOpenBox("PodcastArchived"),
+    safeOpenBox("PodcastInboxCache"),
     safeOpenBox("TrackAnalysisCache"),
     safeOpenBox("PlaylistMixPrefs"),
   ]);

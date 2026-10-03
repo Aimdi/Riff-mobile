@@ -49,6 +49,7 @@ import 'video_mode_controller.dart';
 import '/services/podcast_playback_profile.dart';
 import '/services/podcast_library.dart';
 import '/services/podcast_segments.dart';
+import '/services/podcast_stats.dart';
 import '/services/podcast_transcripts.dart';
 
 class PlayerController extends GetxController
@@ -460,6 +461,9 @@ class PlayerController extends GetxController
     final song = currentSong.value;
     if (song == null || !PodcastProgressService.isPodcastItem(song)) return;
     final total = progressBarStatus.value.total;
+    // Podcast listening stats (podcasts only; music never reaches here).
+    PodcastStatsService.tick(song, position,
+        playing: buttonState.value == PlayButtonState.playing);
 
     // Auto-resume once: a partially-played episode that just started near 0.
     _maybeApplyPendingResume(song, position, total);

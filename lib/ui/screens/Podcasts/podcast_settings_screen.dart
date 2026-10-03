@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '/services/podcast_playback_profile.dart';
 import '../../widgets/cust_switch.dart';
 import '../Home/home_layout.dart';
+import '/ui/player/components/podcast_player_tint.dart';
 import 'podcast_library_ui.dart';
 import 'podcast_playback_controls.dart';
 import 'podcast_segment_ui.dart';
@@ -48,6 +49,36 @@ class PodcastSettingsScreen extends StatelessWidget {
                   const PodcastSegmentSettings(),
                   const SizedBox(height: 28),
                   const PodcastLibrarySettings(),
+                  const SizedBox(height: 28),
+                  Text('podcastPlayerLook'.tr,
+                      style: homeSectionTitleStyle(context)),
+                  const SizedBox(height: 10),
+                  Obx(() {
+                    PodcastPlayerTint.enabledRx.value;
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('podcastTintPlayer'.tr,
+                                  style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 2),
+                              Text('podcastTintPlayerDes'.tr,
+                                  style: homeCardSubtitleStyle(context)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        CustSwitch(
+                          value: PodcastPlayerTint.enabled,
+                          onChanged: PodcastPlayerTint.setEnabled,
+                        ),
+                      ],
+                    );
+                  }),
                   const SizedBox(height: 28),
                   Text('podcastResume'.tr,
                       style: homeSectionTitleStyle(context)),

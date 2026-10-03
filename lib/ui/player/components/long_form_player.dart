@@ -20,6 +20,7 @@ import 'animated_play_button.dart';
 import 'backgroud_image.dart';
 import 'player_control.dart';
 import '/services/podcast_transcripts.dart';
+import 'podcast_player_tint.dart';
 import 'podcast_transcript_sheet.dart';
 import 'standard_player.dart';
 
@@ -47,10 +48,12 @@ class LongFormPlayer extends StatelessWidget {
       final showVideo = song != null &&
           song.canShowPlayerVideo &&
           AlbumArtNLyrics.videoPlaybackEnabledFor(song);
+      // Podcasts: tinted with the show's artwork (audiobooks keep the theme).
+      final base = PodcastPlayerTint.of(song) ?? theme.primaryColor;
       return Stack(
         children: [
           if (showVideo)
-            Positioned.fill(child: ColoredBox(color: theme.primaryColor))
+            Positioned.fill(child: ColoredBox(color: base))
           else ...[
             const BackgroudImage(),
             Positioned.fill(
@@ -60,9 +63,9 @@ class LongFormPlayer extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      theme.primaryColor.withOpacity(0.72),
-                      theme.primaryColor.withOpacity(0.9),
-                      theme.primaryColor,
+                      base.withOpacity(0.72),
+                      base.withOpacity(0.9),
+                      base,
                     ],
                     stops: const [0, 0.55, 0.85],
                   ),
