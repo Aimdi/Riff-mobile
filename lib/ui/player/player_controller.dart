@@ -48,6 +48,7 @@ import 'upcoming_queue.dart';
 import 'video_mode_controller.dart';
 import '/services/podcast_playback_profile.dart';
 import '/services/podcast_segments.dart';
+import '/services/podcast_transcripts.dart';
 
 class PlayerController extends GetxController
     with GetSingleTickerProviderStateMixin {
@@ -485,6 +486,29 @@ class PlayerController extends GetxController
   }
 
   bool _isAbsItem(MediaItem? s) => s != null && s.isAudiobookshelf;
+
+  String? _explicitStartId;
+  int _explicitStartMs = 0;
+
+  /// Play a podcast episode from [position] (a bookmark), or seek there if
+  /// it's already the current episode.
+  Future<bool> playPodcastAt(MediaItem item, Duration position,
+      {String? from}) async {
+    if (currentSong.value?.id == item.id) {
+      seek(position);
+      if (buttonState.value == PlayButtonState.paused) play();
+      return true;
+    }
+    _explicitStartId = item.id;
+    _explicitStartMs = position.inMilliseconds;
+    return playPlayListSong(
+      [item],
+      0,
+      playfrom: PlaylingFrom(
+          type: PlaylingFromType.SELECTION, name: from ?? item.artist ?? ''),
+      source: DiscoverySource.podcast,
+    );
+  }
 
   /// Arm a one-shot seek after playback starts (ABS resume / explicit offset).
   void armResume(String id, int offsetMs) {
@@ -1013,6 +1037,11 @@ class PlayerController extends GetxController
         // Arm auto-resume for the incoming podcast episode (either backend).
         if (!songChanged) {
           // Same item re-emitted: keep the resume state as it is.
+        } else if (_explicitStartId == mediaItem.id) {
+          // Opened from a bookmark: start there, not at the saved position.
+          _pendingResumeId = mediaItem.id;
+          _pendingResumeMs = _explicitStartMs;
+          _explicitStartId = null;
         } else if (PodcastProgressService.isPodcastItem(mediaItem)) {
           _pendingResumeId = mediaItem.id;
           _pendingResumeMs =
@@ -1041,6 +1070,7 @@ class PlayerController extends GetxController
           unawaited(_loadChaptersFor(mediaItem));
           if (mediaItem.isPodcastEpisode) {
             unawaited(_loadPodcastSegmentsFor(mediaItem));
+            unawaited(PodcastTranscriptService.probe(mediaItem));
           } else {
             _clearPodcastSegments();
           }
