@@ -45,6 +45,13 @@ class PodcastQueueController extends GetxController {
     _persist();
   }
 
+  /// Put [item] back at [index] (Undo), or at the end if that's past it.
+  void insertAt(int index, MediaItem item) {
+    if (isQueued(item.id)) return;
+    queue.insert(index.clamp(0, queue.length), item);
+    _persist();
+  }
+
   void removeById(String id) {
     queue.removeWhere((e) => e.id == id);
     _persist();
