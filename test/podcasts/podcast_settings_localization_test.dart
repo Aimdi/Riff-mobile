@@ -26,6 +26,9 @@ void main() {
       'lib/ui/widgets/sleep_timer_bottom_sheet.dart',
       'lib/ui/screens/Podcasts/podcast_segment_ui.dart',
       'lib/ui/player/player_controller.dart',
+      'lib/ui/player/components/podcast_transcript_sheet.dart',
+      'lib/ui/screens/Podcasts/podcast_bookmarks_ui.dart',
+      'lib/ui/screens/Podcasts/podcasts_library.dart',
     ])
       ..._trKeys(File(f).readAsStringSync()),
     // Built from the enum name: 'voiceBoost_${v.name}'.tr

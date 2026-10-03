@@ -19,6 +19,7 @@ import 'albumart_lyrics.dart';
 import 'animated_play_button.dart';
 import 'backgroud_image.dart';
 import 'player_control.dart';
+import '/services/podcast_transcripts.dart';
 import 'podcast_transcript_sheet.dart';
 import 'standard_player.dart';
 
@@ -391,7 +392,8 @@ class _ToolRow extends StatelessWidget {
     return Obx(() {
       final song = pc.currentSong.value;
       final isBook = song?.isAudiobook == true;
-      final transcriptUrl = (song?.extras?['transcriptUrl'] ?? '').toString();
+      final hasTranscript =
+          PodcastTranscriptService.available(song) && song != null;
       final canVideo = song?.canShowPlayerVideo == true;
       final videoOn = canVideo && AlbumArtNLyrics.videoPlaybackEnabledFor(song);
       final settings = Get.find<SettingsScreenController>();
@@ -458,15 +460,11 @@ class _ToolRow extends StatelessWidget {
             else
               tool(Icons.notes_rounded, 'shownotes'.tr,
                   () => openShownotesSheet(pc, context)),
-            if (transcriptUrl.isNotEmpty)
+            if (hasTranscript)
               tool(
                 Icons.subtitles_outlined,
                 'transcript'.tr,
-                () => PodcastTranscriptSheet.open(
-                  context,
-                  url: transcriptUrl,
-                  type: '${song?.extras?['transcriptType'] ?? ''}',
-                ),
+                () => PodcastTranscriptSheet.open(context, song),
               ),
             if (canVideo)
               tool(
