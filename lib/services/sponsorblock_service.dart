@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
 import '../utils/helper.dart';
+import 'podcast_segments.dart';
 
 /// A single SponsorBlock segment (times in seconds).
 class SponsorBlockSegment {
@@ -148,6 +149,42 @@ class SponsorBlockService extends GetxService {
       return const [];
     } catch (e) {
       printERROR('SponsorBlock error: $e');
+      return const [];
+    }
+  }
+
+  /// Podcast episodes from YouTube: the privacy-preserving hash-prefix
+  /// lookup (`/skipSegments/{sha256 prefix}`), filtered to [videoId],
+  /// every category (the podcast settings decide what to do with each),
+  /// cached a day per episode. Failures return nothing and are retried on
+  /// the next play; a 404 (no segments) is cached like an empty answer.
+  Future<List<PodcastSegment>> podcastSegments(String videoId) async {
+    if (videoId.isEmpty) return const [];
+    final now = DateTime.now();
+    final cached = PodcastSegmentStore.cached(videoId, now);
+    if (cached != null) return cached;
+    try {
+      final res = await _dio.get(
+        '$defaultApi/skipSegments/${sponsorBlockHashPrefix(videoId)}',
+        queryParameters: {
+          'categories':
+              jsonEncode([for (final c in SegmentCategory.values) c.apiName]),
+          'actionTypes': jsonEncode(['skip', 'mute']),
+        },
+      );
+      final segs = parseSponsorBlockHashResponse(res.data, videoId);
+      await PodcastSegmentStore.putCache(videoId, segs, now);
+      printINFO('SponsorBlock (podcast): ${segs.length} segments for $videoId');
+      return segs;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        await PodcastSegmentStore.putCache(videoId, const [], now);
+        return const [];
+      }
+      printERROR('SponsorBlock podcast fetch failed: $e');
+      return const [];
+    } catch (e) {
+      printERROR('SponsorBlock podcast error: $e');
       return const [];
     }
   }
