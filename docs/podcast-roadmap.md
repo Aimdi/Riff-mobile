@@ -5,8 +5,8 @@ Settings screen, the music Library, the main Home feed or music-only screens,
 and music playback behaves exactly as before. Ideas are inspired by other
 podcast apps; the UI, names, icons and wording are Riff's own.
 
-Status: **Phase 1 shipped in 1.7.122, Phase 2 implemented (1.7.123).**
-Phases 3–5 are planned; each starts after the previous one is reviewed.
+Status: **Phase 1 shipped in 1.7.122, Phase 2 in 1.7.123, Phase 3
+implemented (1.7.124).** Phases 4–5 are planned; each starts after the previous one is reviewed.
 
 ---
 
@@ -258,7 +258,7 @@ screens.
 
 ---
 
-## Phase 3: Transcripts
+## Phase 3: Transcripts ✅ (1.7.124)
 
 ### Spec
 - Sources, in priority order:
@@ -285,27 +285,29 @@ screens.
   - Tapping a bookmark plays from its timestamp.
   - Share as text: "“quote” — Show, Episode @ mm:ss".
 
-### Plan
-- **Parsing:** much of this exists. Extend `PodcastService.transcript()` and
-  `parseTranscriptDocument`:
-  - map `application/srt` to SRT
-  - add a sentence-merge pass on top of `_coalesceCues`
-  - persist the parsed result in a Hive box `PodcastTranscriptCache`
-- **YouTube captions:** `youtube_explode_dart`'s `closedCaptions` client,
-  already a dependency, behind a `transcriptFor(MediaItem)` facade.
-- **Transcript view:** rework `podcast_transcript_sheet.dart`:
-  - Resync pill, search bar, spoiler blur (`ImageFiltered` per line) and
-    segment spans.
-  - Long-press bookmarking with `HapticFeedback.mediumImpact`.
-- **Bookmarks:**
-  - A new `PodcastBookmarkService` (Hive box `PodcastBookmarks`) with pure
-    helpers for the share text and sorting.
-  - Screens: a per-episode sheet from the player tool row, and a global
-    `PodcastBookmarksScreen` reached from a new Podcasts tab pill, after
-    Downloads.
-- **Entry points:**
-  - Podcast player tool row › Transcript, and › Bookmarks.
-  - Podcasts tab › Bookmarks.
+### What was built and where
+
+| Item | Files / classes | Entry point |
+|---|---|---|
+| Sources and priority | **new** `lib/services/podcast_transcripts.dart`: `transcriptSourceFor(MediaItem)` returns the feed `<podcast:transcript>` first, then YouTube captions for episodes whose id is a video id, else null | n/a |
+| Formats | `PodcastService.parseTranscriptDocument` already read VTT, SRT (any type containing `srt`/`subrip`, so `application/srt` too), Podcasting 2.0 JSON and HTML/plain text (untimed). Tiny cues were already merged into sentence-length lines (`_coalesceCues`) | n/a |
+| Cue model | `PodcastTranscriptCue {startSec, endSec?, speaker?, text}`, now with `toJson`/`fromJson` and `timed` | n/a |
+| YouTube captions | `youtube_explode_dart`'s `closedCaptions` (already a dependency), VTT format. `pickCaptionTrack`: a human track in the app language, then an automatic one, then any human track. Automatic captions repeat the previous line in every cue; `PodcastService.dedupeRollingCaptions` keeps only the new words (`rolling: true`) | n/a |
+| Cache | box `PodcastTranscripts`, keyed by feed URL or `yt:<videoId>`. Only non-empty results are stored, so an offline failure retries next time. It keeps the 40 most recent | n/a |
+| Hide when none | `PodcastTranscriptService.available(item)`: synchronous for feed transcripts. For YouTube episodes, `probe()` checks for caption tracks when the episode starts (`PlayerController`, podcast items only) and the button appears when there are some | podcast player tool row › Transcript |
+| Transcript view | `podcast_transcript_sheet.dart`, rewritten: active line plus auto-scroll; a hand scroll shows the **Resync** pill; tap seeks; long-press bookmarks (`HapticFeedback.mediumImpact` and a "Bookmarked at 12:34" snackbar with **Add note**, inside the sheet's own `ScaffoldMessenger`); search (`transcriptMatches`, `matchRanges`, `stepMatch`, `firstMatchFrom`) with "3 of 12" and up/down; spoiler blur (`ImageFiltered`, remembered in AppPrefs `podcastTranscriptSpoiler`); Phase 2 segments as shaded spans with a coloured edge and a category label. Lines you've bookmarked get a small mark | podcast player tool row › Transcript |
+| Bookmarks | **new** `lib/services/podcast_bookmarks.dart`: `PodcastBookmark {id, episodeId, positionMs, createdAt, quote, note?, episodeTitle, showTitle, episode}` in box `PodcastBookmarks`. `episodeSnapshot` keeps a playable copy of the episode (remote URL instead of a downloaded file path). `formatBookmarkShare` gives "“quote” — Show, Episode @ 12:34" | n/a |
+| Per-episode list | `showEpisodeBookmarksSheet` (`podcast_bookmarks_ui.dart`): "Bookmark this moment", then the list in playback order (tap seeks; ⋮ Share, Add/Edit note, Remove with Undo) | podcast player › ⋮ › Bookmarks in this episode; the bookmarks icon in the transcript header |
+| Bookmark without a transcript | `bookmarkCurrentMoment` | podcast player › ⋮ › Bookmark this moment |
+| Global list | `PodcastBookmarksScreen(embedded: true)`, newest first. Tap plays the episode from that moment (`PlayerController.playPodcastAt`, which starts there instead of the saved position) | Podcasts tab › **Bookmarks** pill (after Downloads) |
+
+**Tests:** `test/podcasts/podcast_transcripts_test.dart` covers `application/srt`,
+sentence merge, rolling-caption dedupe, cue JSON, source priority, caption track
+choice, search helpers, cache rules and loading from the box.
+`test/podcasts/podcast_bookmarks_test.dart` covers share text, the episode
+snapshot, tolerant JSON, sorting and the Hive store. The live suite
+(`yt_e2e_diagnose_test.dart`) checks that a real YouTube video's captions turn
+into a timed transcript, because YouTube is blocked from the build sandbox.
 
 ---
 
