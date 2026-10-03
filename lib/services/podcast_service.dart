@@ -210,9 +210,11 @@ class PodcastService {
   }
 
   /// Parse a transcript document (format sniffed from [type] and content)
-  /// into display-ready cues. Public for unit tests.
+  /// into display-ready cues. Public for unit tests. [rolling] is for
+  /// YouTube's auto-generated captions, where each cue repeats the line
+  /// before it.
   static List<PodcastTranscriptCue> parseTranscriptDocument(String raw,
-      {String type = ''}) {
+      {String type = '', bool rolling = false}) {
     final body = raw.trim();
     if (body.isEmpty) return [];
     List<PodcastTranscriptCue> cues;
@@ -234,6 +236,7 @@ class PodcastService {
     }
     if (cues.isNotEmpty && cues.first.startSec >= 0) {
       cues.sort((a, b) => a.startSec.compareTo(b.startSec));
+      if (rolling) cues = dedupeRollingCaptions(cues);
       cues = _coalesceCues(cues);
     }
     return cues;
@@ -337,6 +340,47 @@ class PodcastService {
         .where((p) => p.isNotEmpty)
         .map((p) => PodcastTranscriptCue(startSec: -1, text: p))
         .toList();
+  }
+
+  /// YouTube auto-captions scroll: every cue starts with the words of the
+  /// one before it, and 10 ms "hold" cues repeat a line on its own. Keep
+  /// only the new words of each cue.
+  static List<PodcastTranscriptCue> dedupeRollingCaptions(
+      List<PodcastTranscriptCue> raw) {
+    final out = <PodcastTranscriptCue>[];
+    var prevWords = const <String>[];
+    for (final c in raw) {
+      if (c.endSec != null && c.endSec! - c.startSec < 0.05) continue;
+      final words = c.text.split(RegExp(r'\s+'));
+      // Longest tail of the previous cue that this cue starts with.
+      var overlap = 0;
+      for (var n = prevWords.length < words.length
+              ? prevWords.length
+              : words.length;
+          n > 0;
+          n--) {
+        var same = true;
+        for (var i = 0; i < n; i++) {
+          if (prevWords[prevWords.length - n + i] != words[i]) {
+            same = false;
+            break;
+          }
+        }
+        if (same) {
+          overlap = n;
+          break;
+        }
+      }
+      prevWords = words;
+      final fresh = words.skip(overlap).join(' ').trim();
+      if (fresh.isEmpty) continue;
+      out.add(PodcastTranscriptCue(
+          startSec: c.startSec,
+          endSec: c.endSec,
+          speaker: c.speaker,
+          text: fresh));
+    }
+    return out;
   }
 
   /// Merge caption-sized cues (SRT/VTT chop sentences into 1-3s chunks) into
@@ -947,6 +991,32 @@ class PodcastTranscriptCue {
   final double? endSec;
   final String? speaker;
   final String text;
+
+  /// Whether the cue has a time (untimed transcripts use -1).
+  bool get timed => startSec >= 0;
+
+  Map<String, dynamic> toJson() => {
+        's': startSec,
+        if (endSec != null) 'e': endSec,
+        if (speaker != null) 'p': speaker,
+        't': text,
+      };
+
+  /// Null for anything that isn't a stored cue.
+  static PodcastTranscriptCue? fromJson(dynamic j) {
+    if (j is! Map) return null;
+    final s = j['s'];
+    final t = j['t'];
+    if (s is! num || t is! String || t.isEmpty) return null;
+    final e = j['e'];
+    final p = j['p'];
+    return PodcastTranscriptCue(
+      startSec: s.toDouble(),
+      endSec: e is num ? e.toDouble() : null,
+      speaker: p is String && p.isNotEmpty ? p : null,
+      text: t,
+    );
+  }
 }
 
 /// One Podcasting 2.0 chapter.
