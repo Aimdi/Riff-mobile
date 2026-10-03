@@ -8,6 +8,7 @@ import '../models/media_Item_builder.dart';
 import '../utils/helper.dart';
 import 'deezer_metadata_service.dart';
 import 'music_service.dart';
+import 'spotify_match_store.dart';
 import 'spotify_match.dart';
 
 /// One track as listed on a public Spotify playlist / album page.
@@ -18,12 +19,18 @@ class SpotifyTrackRef {
     required this.artists,
     this.durationMs,
     this.isrc,
+    this.album,
+    this.artUrl,
   });
 
   final String id;
   final String title;
   final String artists;
   final int? durationMs;
+
+  /// Album name and cover, when the source has them (Web API).
+  final String? album;
+  final String? artUrl;
 
   /// International Standard Recording Code, when the source has one (CSV
   /// exports): searched first, as it names the exact recording.
@@ -204,84 +211,22 @@ class SpotifyImportService extends GetxService {
 
   /// Like [resolveTracksToYtm], but one entry per track (null when nothing
   /// matched), for a matched / unmatched summary.
+  ///
+  /// Each Spotify track is looked up in [SpotifyMatchStore] first (a match
+  /// found before, or one the listener picked), and new matches are stored.
   Future<List<MediaItem?>> resolveTracksDetailed(
     List<SpotifyTrackRef> tracks, {
     void Function(int done, int total)? onProgress,
     int concurrency = 3,
   }) async {
-    final music = Get.find<MusicServices>();
+    await SpotifyMatchStore.open();
     final results = List<MediaItem?>.filled(tracks.length, null);
     var done = 0;
 
     Future<void> resolveOne(int index) async {
       final t = tracks[index];
       try {
-        // The Spotify embed page often omits duration, and duration is the
-        // strongest signal for separating a studio take from a remix, live cut
-        // or sped-up upload. Deezer's public API needs no auth and returns the
-        // canonical length, so fill the gap before scoring. Metadata only —
-        // no audio is fetched from Deezer. Skipped entirely when Spotify
-        // already gave us a duration, so the common path costs nothing.
-        var spotifyDurationMs = t.durationMs;
-        if (spotifyDurationMs == null && _deezer != null) {
-          final meta = await _deezer!.lookup(t.title, t.artists);
-          spotifyDurationMs = meta?.durationMs;
-        }
-
-        Future<List<MediaItem>> candidatesFor(String query) async {
-          final res = await music.search(query, filter: 'songs', limit: 5);
-          // Collect every candidate rather than taking the first hit:
-          // YouTube routinely ranks a remix, live cut, sped-up upload or
-          // karaoke version above the actual recording.
-          final out = <MediaItem>[];
-          for (final entry in res.entries) {
-            if (entry.key == 'params' || entry.key == 'searchEndpoint') {
-              continue;
-            }
-            final list = entry.value;
-            if (list is! List) continue;
-            for (final item in list) {
-              if (item is MediaItem) {
-                out.add(item);
-              } else if (item is Map && item['videoId'] != null) {
-                out.add(MediaItemBuilder.fromJson(item));
-              }
-            }
-          }
-          return out;
-        }
-
-        ScoredCandidate<MediaItem>? pick(List<MediaItem> candidates) =>
-            bestMatch<MediaItem>(
-              candidates,
-              score: (c) => matchScore(
-                spotifyTitle: t.title,
-                spotifyArtists: t.artists,
-                spotifyDurationMs: spotifyDurationMs,
-                candidateTitle: c.title,
-                candidateArtist: c.artist,
-                candidateDuration: c.duration,
-              ),
-            );
-
-        // An ISRC names the exact recording; YouTube Music search finds it
-        // directly for most labelled releases. Still scored, so a stray hit
-        // can't slip through.
-        var candidates = const <MediaItem>[];
-        ScoredCandidate<MediaItem>? scored;
-        if (t.isrc != null) {
-          candidates = await candidatesFor(t.isrc!);
-          scored = pick(candidates);
-        }
-        if (scored == null) {
-          candidates = await candidatesFor(t.searchQuery);
-          scored = pick(candidates);
-        }
-        if (scored == null && candidates.isNotEmpty) {
-          printINFO(
-              'Spotify import: no confident match for "${t.searchQuery}", skipped');
-        }
-        results[index] = scored?.item;
+        results[index] = await resolveTrack(t);
       } catch (e) {
         printERROR('YTM resolve failed for "${t.searchQuery}": $e');
       } finally {
@@ -304,5 +249,91 @@ class SpotifyImportService extends GetxService {
     await Future.wait(List.generate(n, (_) => worker()));
 
     return results;
+  }
+
+  /// One track's YouTube Music match: stored match first, then search
+  /// (ISRC, then title and artist). Null when nothing is close enough.
+  Future<MediaItem?> resolveTrack(SpotifyTrackRef t) async {
+    final cached = SpotifyMatchStore.itemFor(t.id);
+    if (cached != null) return cached;
+    final ranked = await rankCandidates(t, stopAtConfident: true);
+    final best = ranked.isEmpty ? null : ranked.first;
+    if (best == null || best.score < kMinAcceptableMatch) {
+      printINFO(
+          'Spotify import: no confident match for "${t.searchQuery}", skipped');
+      return null;
+    }
+    await SpotifyMatchStore.putAuto(t.id, best.item, best.score);
+    return best.item;
+  }
+
+  /// YouTube Music candidates for [t], best first, each with its score:
+  /// the ISRC search (it names the exact recording), then the title and
+  /// artist search, or [query] instead of both. With [stopAtConfident], the
+  /// second search is skipped when the ISRC already gave an acceptable
+  /// match.
+  Future<List<ScoredCandidate<MediaItem>>> rankCandidates(SpotifyTrackRef t,
+      {String? query, bool stopAtConfident = false}) async {
+    final music = Get.find<MusicServices>();
+    // The Spotify embed page often omits duration, and duration is the
+    // strongest signal for separating a studio take from a remix, live cut
+    // or sped-up upload. Deezer's public API needs no auth and returns the
+    // canonical length, so fill the gap before scoring. Metadata only — no
+    // audio is fetched from Deezer. Skipped entirely when Spotify already
+    // gave us a duration, so the common path costs nothing.
+    var spotifyDurationMs = t.durationMs;
+    if (spotifyDurationMs == null && _deezer != null) {
+      final meta = await _deezer!.lookup(t.title, t.artists);
+      spotifyDurationMs = meta?.durationMs;
+    }
+
+    Future<List<MediaItem>> candidatesFor(String q) async {
+      final res = await music.search(q, filter: 'songs', limit: 5);
+      // Collect every candidate rather than taking the first hit: YouTube
+      // routinely ranks a remix, live cut, sped-up upload or karaoke
+      // version above the actual recording.
+      final out = <MediaItem>[];
+      for (final entry in res.entries) {
+        if (entry.key == 'params' || entry.key == 'searchEndpoint') continue;
+        final list = entry.value;
+        if (list is! List) continue;
+        for (final item in list) {
+          if (item is MediaItem) {
+            out.add(item);
+          } else if (item is Map && item['videoId'] != null) {
+            out.add(MediaItemBuilder.fromJson(item));
+          }
+        }
+      }
+      return out;
+    }
+
+    double score(MediaItem c) => matchScore(
+          spotifyTitle: t.title,
+          spotifyArtists: t.artists,
+          spotifyDurationMs: spotifyDurationMs,
+          candidateTitle: c.title,
+          candidateArtist: c.artist,
+          candidateDuration: c.duration,
+        );
+
+    final seen = <String>{};
+    final ranked = <ScoredCandidate<MediaItem>>[];
+    void addAll(List<MediaItem> items) {
+      for (final c in items) {
+        if (seen.add(c.id)) ranked.add(ScoredCandidate(c, score(c)));
+      }
+    }
+
+    if (query != null) {
+      addAll(await candidatesFor(query));
+    } else {
+      if (t.isrc != null) addAll(await candidatesFor(t.isrc!));
+      final confident = ranked.any((c) => c.score >= kMinAcceptableMatch);
+      if (!(stopAtConfident && confident)) {
+        addAll(await candidatesFor(t.searchQuery));
+      }
+    }
+    return sortCandidates(ranked);
   }
 }
