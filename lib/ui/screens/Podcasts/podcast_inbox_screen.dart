@@ -2,6 +2,9 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/services/podcast_bookmarks.dart';
+import '/services/podcast_download_service.dart';
+import '/services/podcast_library.dart';
 import '/services/podcast_playback_profile.dart';
 
 import '/models/playlist.dart';
@@ -16,6 +19,7 @@ import '/ui/widgets/snackbar.dart';
 import '../Home/home_layout.dart';
 import 'podcast_empty_state.dart';
 import 'podcast_layout.dart';
+import 'podcast_queue_controller.dart';
 import 'podcast_queue_screen.dart';
 import 'podcasts_library_controller.dart';
 
@@ -47,6 +51,9 @@ class PodcastInboxScreen extends StatefulWidget {
 class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
   List<MediaItem> _episodes = [];
   bool _loading = true;
+
+  /// Library filter chip; null shows the normal Inbox.
+  EpisodeFilter? _filter;
 
   @override
   void initState() {
@@ -157,9 +164,36 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
   }
 
   // AntennaPod-style: hide finished episodes from Latest (still in Continue
-  // until cleared; mark-unplayed brings them back).
+  // until cleared; mark-unplayed brings them back). Each show's "Keep
+  // latest" archives its older unplayed episodes here.
   List<MediaItem> _unplayed(List<MediaItem> merged) =>
-      merged.where((e) => !PodcastProgressService.isPlayed(e.id)).toList();
+      PodcastLibrary.applyKeepLatest(merged)
+          .where((e) => !PodcastProgressService.isPlayed(e.id))
+          .toList();
+
+  /// With a chip on: every episode Riff knows about (Inbox, in progress,
+  /// Up Next, downloads, bookmarks) that matches it.
+  List<MediaItem> _filtered(EpisodeFilter f) {
+    final bookmarks = PodcastBookmarkStore.all;
+    final marked = {for (final b in bookmarks) b.episodeId};
+    final all = uniqueEpisodes([
+      _episodes,
+      PodcastProgressService.inProgress()
+          .map(PodcastProgressService.toMediaItem),
+      Get.find<PodcastQueueController>().queue,
+      PodcastDownloadService.downloadedItems(),
+      [
+        for (final b in bookmarks)
+          if (mediaItemFromSnapshot(b.episode) case final m?) m
+      ],
+    ]);
+    return [
+      for (final e in all)
+        if (matchesEpisodeFilter(
+            f, PodcastLibrary.factsFor(e, bookmarked: marked)))
+          e
+    ];
+  }
 
   void _show(List<MediaItem> merged) {
     final inbox = _unplayed(merged);
@@ -214,10 +248,9 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     return all;
   }
 
-  Future<void> _play(int index) async {
-    if (await openInWizeStreamIfPreferred(_episodes[index])) return;
-    final ok =
-        await Get.find<PlayerController>().playPlayListSong(_episodes, index);
+  Future<void> _play(List<MediaItem> list, int index) async {
+    if (await openInWizeStreamIfPreferred(list[index])) return;
+    final ok = await Get.find<PlayerController>().playPlayListSong(list, index);
     if (!ok) snackOperationFailed();
   }
 
@@ -281,8 +314,12 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     if (_loading) {
       return const SongListShimmer(itemCount: 8, topPadding: 8);
     }
-    final continueItems = PodcastProgressService.inProgress().take(8).toList();
-    final empty = _episodes.isEmpty && continueItems.isEmpty;
+    final filter = _filter;
+    final list = filter == null ? _episodes : _filtered(filter);
+    final continueItems = filter != null
+        ? const <Map<String, dynamic>>[]
+        : PodcastProgressService.inProgress().take(8).toList();
+    final empty = list.isEmpty && continueItems.isEmpty;
     return RefreshIndicator(
       onRefresh: () async {
         setState(() => _loading = true);
@@ -294,6 +331,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
         physics: const AlwaysScrollableScrollPhysics(
             parent: BouncingScrollPhysics()),
         slivers: [
+          SliverToBoxAdapter(child: _chips(context)),
           if (continueItems.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: HomeSectionHeader("continueListening".tr, top: 12),
@@ -316,18 +354,21 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
               ),
             ),
           ],
-          if (_episodes.isNotEmpty) ...[
+          if (list.isNotEmpty) ...[
             SliverToBoxAdapter(
-              child: HomeSectionHeader("latestEpisodes".tr,
+              child: HomeSectionHeader(
+                  filter == null
+                      ? "latestEpisodes".tr
+                      : '${_filterLabel(filter)} · ${list.length}',
                   top: continueItems.isEmpty ? 12 : HomeLayout.sectionTop),
             ),
             SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, i) => KeyedSubtree(
-                  key: ValueKey(_episodes[i].id),
-                  child: _row(context, i),
+                  key: ValueKey(list[i].id),
+                  child: _row(context, list, i),
                 ),
-                childCount: _episodes.length,
+                childCount: list.length,
                 addAutomaticKeepAlives: false,
                 addRepaintBoundaries: true,
               ),
@@ -336,7 +377,15 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
           if (empty)
             SliverFillRemaining(
               hasScrollBody: false,
-              child: _emptyState(context),
+              child: filter == null
+                  ? _emptyState(context)
+                  : PodcastEmptyState(
+                      icon: Icons.filter_list_off_rounded,
+                      message: 'noFilteredEpisodes'.tr,
+                      actionLabel: 'clearFilter'.tr,
+                      actionIcon: Icons.close_rounded,
+                      onAction: () => setState(() => _filter = null),
+                    ),
             ),
           const SliverToBoxAdapter(child: SizedBox(height: 200)),
         ],
@@ -370,16 +419,83 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     );
   }
 
-  Widget _row(BuildContext context, int i) {
-    final e = _episodes[i];
+  static String _filterLabel(EpisodeFilter f) => 'episodeFilter_${f.name}'.tr;
+
+  /// New · In progress · Queued · Downloaded · Bookmarked · Short. One at a
+  /// time; tap the selected one again to go back to the Inbox.
+  Widget _chips(BuildContext context) {
+    return SizedBox(
+      height: 42,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(
+            HomeLayout.gutter, 8, HomeLayout.gutter, 2),
+        itemCount: EpisodeFilter.values.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final f = EpisodeFilter.values[i];
+          final on = _filter == f;
+          return _FilterPill(
+            label: _filterLabel(f),
+            selected: on,
+            onTap: () => setState(() => _filter = on ? null : f),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _row(BuildContext context, List<MediaItem> list, int i) {
+    final e = list[i];
     return PodcastEpisodeTile(
       artUrl: Thumbnail(e.artUri?.toString() ?? '').medium,
       title: e.title,
       meta: episodeMetaLine(
           [e.artist, '${e.extras?['date'] ?? ''}', _remainingLabel(e)]),
       progress: PodcastProgressService.progress(e.id),
-      onTap: () => _play(i),
-      onLongPress: () => showAddToQueueSheet(context, e),
+      onTap: () => _play(list, i),
+      onLongPress: () =>
+          showAddToQueueSheet(context, e, onChanged: () => setState(() {})),
+    );
+  }
+}
+
+/// Small outlined filter chip, quieter than the section tabs above it.
+class _FilterPill extends StatelessWidget {
+  const _FilterPill(
+      {required this.label, required this.selected, required this.onTap});
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.secondary;
+    final fg = selected ? accent : (homeMutedColor(context) ?? Colors.grey);
+    return Material(
+      color: selected ? accent.withOpacity(0.14) : Colors.transparent,
+      shape: StadiumBorder(
+          side: BorderSide(
+              color: selected ? accent : fg.withOpacity(0.45), width: 1)),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (selected) ...[
+                Icon(Icons.check_rounded, size: 15, color: accent),
+                const SizedBox(width: 4),
+              ],
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 12.5, fontWeight: FontWeight.w600, color: fg)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

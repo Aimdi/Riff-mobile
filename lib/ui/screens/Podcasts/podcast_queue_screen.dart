@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 
 import '/models/thumbnail.dart';
 import '/services/podcast_download_service.dart';
+import '/services/podcast_library.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/wizestream_service.dart';
 import '../Home/home_layout.dart';
@@ -21,7 +22,11 @@ import 'podcasts_screen.dart';
 /// Long-press action sheet for a podcast episode: queue, download, play next,
 /// mark played, and shownotes. Opens immediately — download/queue state is
 /// resolved inside the builder so the sheet never waits on disk I/O.
-void showAddToQueueSheet(BuildContext context, MediaItem episode) {
+///
+/// [onChanged] runs after an action that changes the episode's state
+/// (played, queued, downloaded) so the list behind can refresh.
+void showAddToQueueSheet(BuildContext context, MediaItem episode,
+    {VoidCallback? onChanged}) {
   HapticFeedback.mediumImpact();
   showModalBottomSheet(
     context: context,
@@ -89,12 +94,24 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode) {
                 },
               ),
               ListTile(
+                leading: const Icon(Icons.queue_music_rounded),
+                title: Text("playLast".tr),
+                subtitle: Text("playLastDes".tr),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  final ok =
+                      await Get.find<PlayerController>().enqueueSong(episode);
+                  snack(ok ? "playLastMsg".tr : "operationFailed".tr);
+                },
+              ),
+              ListTile(
                 leading:
                     Icon(queued ? Icons.playlist_remove : Icons.playlist_add),
                 title: Text(queued ? "removeFromQueue".tr : "addToQueue".tr),
                 onTap: () {
                   queued ? c.removeById(episode.id) : c.add(episode);
                   Navigator.of(ctx).pop();
+                  onChanged?.call();
                   snack(queued ? "removedFromQueue".tr : "addedToQueue".tr);
                 },
               ),
@@ -109,11 +126,13 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode) {
                     if (downloaded) {
                       await PodcastDownloadService.delete(episode.id);
                       snack("downloadRemoved".tr);
+                      onChanged?.call();
                       return;
                     }
                     snack("downloadStarted".tr);
                     final ok = await PodcastDownloadService.download(episode);
                     snack(ok ? "downloadComplete".tr : "downloadFailed".tr);
+                    onChanged?.call();
                   },
                 ),
               ListTile(
@@ -130,8 +149,15 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode) {
                   } else {
                     PodcastProgressService.markAsPlayed(episode.id);
                     snack("markAsPlayed".tr);
+                    // Finished downloads may go, per the show's setting.
+                    PodcastLibrary.sweepDownloads(
+                        currentId: Get.find<PlayerController>()
+                            .currentSong
+                            .value
+                            ?.id);
                   }
                   Navigator.of(ctx).pop();
+                  onChanged?.call();
                 },
               ),
               ListTile(
@@ -295,8 +321,30 @@ class PodcastQueueScreen extends StatelessWidget {
   Widget _row(BuildContext context, PodcastQueueController controller,
       MediaItem e, int i) {
     final art = Thumbnail(e.artUri?.toString() ?? '').medium;
-    return KeyedSubtree(
+    return Dismissible(
       key: ValueKey(e.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        color: Theme.of(context).colorScheme.error.withOpacity(0.18),
+        child: Icon(Icons.playlist_remove_rounded,
+            color: Theme.of(context).colorScheme.error),
+      ),
+      onDismissed: (_) {
+        final index = controller.queue.indexWhere((q) => q.id == e.id);
+        controller.removeById(e.id);
+        ScaffoldMessenger.maybeOf(context)
+          ?..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+            behavior: SnackBarBehavior.floating,
+            content: Text("removedFromQueue".tr),
+            action: SnackBarAction(
+              label: "undo".tr,
+              onPressed: () => controller.insertAt(index, e),
+            ),
+          ));
+      },
       child: PodcastEpisodeTile(
         artUrl: art,
         title: e.title,
