@@ -630,11 +630,11 @@ class MusicServices extends getx.GetxService {
   }
 
   /// Fetch a podcast and its episodes (YouTube Music podcasts).
-  /// [playlistId] may be `PLxxx`, `MPSPPLxxx`, or a full browse id.
+  /// [playlistId] may be `PLxxx`, `MPSPPLxxx`, `VLPLxxx` (search sometimes
+  /// returns that form), or a full browse id.
   Future<Map<String, dynamic>> getPodcast(String playlistId,
       {int limit = 100}) async {
-    final browseId =
-        playlistId.startsWith('MPSP') ? playlistId : 'MPSP$playlistId';
+    final browseId = podcastBrowseId(playlistId);
     final data = _ctx();
     data['browseId'] = browseId;
     final Map<String, dynamic> response =
@@ -1588,4 +1588,13 @@ class MusicServices extends getx.GetxService {
 
 class NetworkError extends Error {
   final message = "Network Error !";
+}
+
+/// YouTube Music podcast browse id for any of the id forms the API hands
+/// out: `PL…`, `VLPL…` (seen in podcast search results) or `MPSPPL…`.
+String podcastBrowseId(String playlistId) {
+  var id = playlistId.trim();
+  if (id.startsWith('MPSP')) return id;
+  if (id.startsWith('VL')) id = id.substring(2);
+  return 'MPSP$id';
 }
