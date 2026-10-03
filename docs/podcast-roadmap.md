@@ -5,8 +5,8 @@ Settings screen, the music Library, the main Home feed or music-only screens,
 and music playback behaves exactly as before. Ideas are inspired by other
 podcast apps; the UI, names, icons and wording are Riff's own.
 
-Status: **Phase 1 implemented (1.7.122).** Phases 2–5 are planned; each
-starts only after the previous one is reviewed.
+Status: **Phase 1 shipped in 1.7.122, Phase 2 implemented (1.7.123).**
+Phases 3–5 are planned; each starts after the previous one is reviewed.
 
 ---
 
@@ -190,7 +190,7 @@ steps, fade curve, Hive-backed prefs) and
 
 ---
 
-## Phase 2: Segment skipping v2
+## Phase 2: Segment skipping v2 ✅ (1.7.123)
 
 ### Spec
 - Unified model: `Segment {id, start, end, category, action, source:
@@ -224,45 +224,37 @@ steps, fade curve, Hive-backed prefs) and
   start/end". They are stored locally and treated like any other segment.
 - Track the total time saved by skipped segments (used in Phase 5 stats).
 
-### Plan
-- **Model:** a new `lib/services/podcast_segments.dart` with `Segment`,
-  `SegmentCategory`, `SegmentAction` and `SegmentSource`. Pure helpers:
-  `mergeSegments`, `segmentsFromChapters` (from `PodcastChapter.isAd` plus
-  title keywords to category), `shouldAutoSkip(prevPos, pos, segment)` and
-  the undo/disabled set. All of these get unit tests.
-- **SponsorBlock:**
-  - Add a podcast path in `SponsorBlockService`, using the `crypto` package
-    already in pubspec: `getSegmentsHashed(videoId)` calls the hash-prefix
-    endpoint and filters to the videoID.
-  - Cache in a Hive box `PodcastSegmentCache` keyed by episode id, with
-    `fetchedAt` and a 24 h TTL.
-  - The music SponsorBlock path stays as it is.
-- **Player:**
-  - `PlayerController` swaps `_maybeSkipAdChapter` and the podcast branch of
-    `_maybeSkipSponsorBlock` for one `_maybeHandleSegment` that runs only
-    for podcast items.
-  - Tracks `_prevPosition` so it only acts on forward entry from before a
-    segment's start (seeking into one does not trigger it).
-  - Mute uses a handler volume custom action.
-- **UI:**
-  - The undo snackbar uses the existing `snackbar()`.
-  - Seek-bar markers extend `PlayerSeekScrubber` / `chapter_marks.dart`, for
-    podcasts only.
-  - Podcast settings gets a "Segment skipping" section with a per-category
-    action picker and colour legend.
-  - Player overflow gets "Mark segment start/end", stored in the
-    `PodcastManualSegments` box.
-- **Settings migration:**
-  - The global Settings › Podcasts "Skip ads" switch is removed, and
-    `podcastAutoSkipAds` maps to `sponsor` = auto-skip or ignore.
-  - The Phase 1 per-show segment switch stays as an on/off master for the
-    show.
-- **Stats:** `PodcastStats.timeSavedSegmentsMs` accumulates in a podcast
-  stats box.
-- **Entry points:**
-  - Podcast settings › Segment skipping.
-  - Podcast player: the skip pill, overflow ⋮ › Mark segment, and the seek
-    bar markers.
+### What was built and where
+
+**SponsorBlock API, checked against its server source** (the wiki is blocked
+from the build sandbox, so this was read from `ajayyy/SponsorBlockServer`):
+- Route: `GET /api/skipSegments/:prefix` (`getSkipSegmentsByHash.ts`). The
+  prefix is 3–32 hex characters. `categories` and `actionTypes` are JSON
+  arrays, defaulting to `["sponsor"]` and `["skip"]`.
+- Answer: `[{videoID, segments: [{segment: [start, end], UUID, category,
+  actionType, videoDuration, locked, votes, description}]}]`, with 404 when
+  no video matches.
+
+| Item | Files / classes | Entry point |
+|---|---|---|
+| Unified model | **new** `lib/services/podcast_segments.dart`: `PodcastSegment`, `SegmentCategory` (8 categories, marker colours), `SegmentAction`, `SegmentSource`; pure `resolveSegments`, `mergeSegments`, `segmentAt`, `enteredFromBefore`, `segmentsFromChapters`, `parseSponsorBlockHashResponse`, `sponsorBlockHashPrefix`, `segmentCacheFresh` | n/a |
+| Chapter ad skip refactor | `segmentsFromChapters`. Ad chapters become `sponsor`; intro, outro, preview and self-promo chapters get their category. `PlayerController._maybeSkipAdChapter` is removed and `_handlePodcastSegments` replaces it | automatic |
+| Toggle moved and migrated | The global Settings › Podcasts "Skip podcast ads" tile is removed. The per-category actions live in AppPrefs `podcastSegmentActions`. Before any are saved, the old `podcastAutoSkipAds` decides sponsor (on means auto-skip, off means Skip button, which is what the switch did). The Phase 1 profile switch is now "Skip segments automatically" (off means everything is only pointed out), per show and global | Podcast settings › Segment skipping |
+| SponsorBlock for YouTube episodes | `SponsorBlockService.podcastSegments(videoId)`: hash-prefix lookup for all 8 categories with skip and mute actions, filtered to the video. It is cached in box `PodcastSegmentCache` with a 24 h TTL (404 is cached as empty, other errors retry next play) and loaded after playback starts. The music SponsorBlock path is unchanged and no longer runs for podcast items | automatic |
+| Per-category actions | `PodcastSegmentStore.actions` / `setAction`; `PodcastSegmentSettings` (`podcast_segment_ui.dart`) | Podcast settings › Segment skipping |
+| Playback logic | `PlayerController._handlePodcastSegments`. It auto-skips only on `enteredFromBefore` (a tick advance of 3 s or less), never twice per session (`_segmentsSkipped`), and never after Undo (`_segmentsDisabled`). Overlaps are merged with the stronger action winning. Mute uses handler custom action `setSegmentMute` | automatic |
+| Undo snackbar | `_showSegmentSkippedSnack` ("Skipped Sponsor · 0:42", Undo) and `undoSegmentSkip` | after each auto-skip |
+| Skip button | `podcastSkipPillLabel` gives "Skip Sponsor", "Skip Intro" and so on in `long_form_player.dart` and `player_control.dart`; `skipAd()` skips the active segment | podcast player, above the seek bar |
+| Seek-bar markers | `_SectionTrackPainter.spans` (`player_control.dart`), filled from `PlayerController.podcastSegments` (podcasts only) | podcast seek bar |
+| Legend | colour dot per category in `PodcastSegmentSettings` | Podcast settings › Segment skipping |
+| Manual segments (RSS) | `markSegmentStart` / `markSegmentEnd(category)`, stored in box `PodcastManualSegments`; `showPodcastSegmentsSheet` lists the episode's segments (tap to seek) and removes your own | podcast player top bar › ⋮ (music keeps the empty slot) |
+| Time saved | `PodcastSegmentStore.addTimeSaved` (box `PodcastStats`, key `segmentSavedMs`). Undo takes the time back | shown in Podcast settings; Phase 5 stats |
+
+**Tests:** `test/podcasts/podcast_segments_test.dart` covers defaults and
+migration, resolve and merge, the entry rule, chapter mapping, the hash
+prefix (pinned against Python's `hashlib`), response filtering, cache TTL,
+JSON round trip and the Hive store. The localization test covers the new
+screens.
 
 ---
 
