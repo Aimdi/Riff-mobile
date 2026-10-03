@@ -9,6 +9,8 @@ import '/models/playling_from.dart';
 import '/services/cloud_music_service.dart';
 import '/services/discovery/discovery_tag.dart';
 import '/services/discovery/discovery_types.dart';
+import '/services/spotify_auth_service.dart';
+import '/ui/screens/Plugins/spotify_pages.dart';
 import '../../navigator.dart';
 import '../../player/play_queue_order.dart';
 import '../../player/player_controller.dart';
@@ -758,7 +760,7 @@ class _LibraryPinnedRow extends StatelessWidget {
         : theme.textTheme.bodySmall?.color;
     final liked = _count('LIBFAV');
     final recent = _count('LIBRP');
-    return Padding(
+    final row = Padding(
       padding: const EdgeInsets.fromLTRB(
           HomeLayout.gutter, 6, HomeLayout.gutter, 0),
       child: Row(
@@ -790,6 +792,25 @@ class _LibraryPinnedRow extends StatelessWidget {
         ],
       ),
     );
+    if (!SpotifyAuthService.isConnected) return row;
+    // Signed in to Spotify: the library is one tap away.
+    return Column(children: [
+      row,
+      Padding(
+        padding: const EdgeInsets.fromLTRB(
+            HomeLayout.gutter, 8, HomeLayout.gutter, 0),
+        child: _PinnedTile(
+          icon: Icons.library_music_outlined,
+          title: 'Spotify',
+          subtitle: 'spotifyLibraryTile'.tr,
+          accent: theme.colorScheme.secondary,
+          muted: muted,
+          onTap: () => Get.toNamed(ScreenNavigationSetup.spotifyBridgeScreen,
+              id: ScreenNavigationSetup.id),
+          onLongPress: () => openSpotifyPage(const SpotifySearchArgs()),
+        ),
+      ),
+    ]);
   }
 }
 

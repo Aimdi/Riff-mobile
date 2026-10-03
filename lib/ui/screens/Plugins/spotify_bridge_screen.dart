@@ -1,5 +1,4 @@
 import '../Home/home_layout.dart';
-import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
@@ -7,23 +6,40 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '/models/media_Item_builder.dart';
 import '/models/playlist.dart';
-import '/models/playling_from.dart';
 import '/services/spotify_api_service.dart';
 import '/services/spotify_auth_service.dart';
 import '/services/spotify_import_service.dart';
-import '/ui/player/player_controller.dart';
 import '/ui/screens/Library/library_controller.dart';
 import '/ui/screens/Settings/spotify_login_screen.dart';
 import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/snackbar.dart';
+import 'spotify_pages.dart';
+import 'spotify_widgets.dart';
 
-/// Spotify bridge: sign in with your own Spotify app, browse your playlists,
-/// and import one into Riff — the tracks are matched and played from Riff's
-/// existing free sources.
+/// Sections of the signed-in hub.
+enum SpotifySection {
+  liked('spotifyLiked'),
+  playlists('spotifyPlaylists'),
+  albums('spotifyAlbums'),
+  artists('spotifyArtists'),
+  topTracks('spotifyTopTracks'),
+  topArtists('spotifyTopArtists'),
+  recent('spotifyRecent');
+
+  const SpotifySection(this.labelKey);
+  final String labelKey;
+}
+
+const _recentScope = 'user-read-recently-played';
+
+/// Spotify: sign in with your own Spotify app, then browse your library
+/// (Liked Songs, playlists, albums, artists, top and recent plays) and
+/// search Spotify. Everything plays through Riff's own player: each track is
+/// matched to YouTube Music, and you can change the match.
 ///
-/// The client id is entered here rather than shipped in the APK: one embedded
-/// id would put every install under a single Spotify app, which is capped at
-/// 25 manually-added users in development mode.
+/// The client id is entered here rather than shipped in the APK: one
+/// embedded id would put every install under a single Spotify app, which is
+/// capped at a handful of users in Development Mode.
 class SpotifyBridgeScreen extends StatefulWidget {
   const SpotifyBridgeScreen({super.key});
 
@@ -33,18 +49,17 @@ class SpotifyBridgeScreen extends StatefulWidget {
 
 class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
   final _clientIdController = TextEditingController();
-  final _connected = false.obs;
-  final _loading = false.obs;
+  var _connected = SpotifyAuthService.isConnected;
+  var _section = SpotifySection.liked;
+  late Future<SpotifyUser?> _me = _loadMe();
+  final _busy = false.obs;
   final _status = ''.obs;
   final _progress = 0.0.obs;
-  final _playlists = <SpotifyPlaylistSummary>[].obs;
 
   @override
   void initState() {
     super.initState();
     _clientIdController.text = SpotifyAuthService.clientId ?? '';
-    _connected.value = SpotifyAuthService.isConnected;
-    if (_connected.value) _loadPlaylists();
   }
 
   @override
@@ -53,7 +68,14 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
     super.dispose();
   }
 
-  SpotifyApiService get _api => SpotifyApiService(auth: SpotifyAuthService());
+  Future<SpotifyUser?> _loadMe() async {
+    if (!_connected) return null;
+    try {
+      return await spotifyApi.fetchMe();
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<void> _saveClientId() async {
     await SpotifyAuthService.setClientId(_clientIdController.text);
@@ -72,109 +94,47 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
     }
     final ok = await Get.to(() => const SpotifyLoginScreen());
     if (ok == true) {
-      _connected.value = true;
-      _status.value = '';
-      await _loadPlaylists();
+      await SpotifyApiService.clearCache();
+      setState(() {
+        _connected = true;
+        _status.value = '';
+        _me = _loadMe();
+      });
     }
   }
 
   Future<void> _signOut() async {
     await SpotifyAuthService.disconnect();
-    _connected.value = false;
-    _playlists.clear();
-    _status.value = '';
-  }
-
-  Future<void> _loadPlaylists() async {
-    _loading.value = true;
-    _status.value = 'spotifyLoadingLibrary'.tr;
-    try {
-      final list = await _api.fetchPlaylists();
-      _playlists.assignAll(list);
-      // An empty list after a successful call is a real, if unusual, state —
-      // distinguish it from a failure so the user is not left guessing.
-      _status.value = list.isEmpty ? 'spotifyNoPlaylists'.tr : '';
-    } catch (e) {
-      _status.value = e.toString().replaceFirst('Exception: ', '');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(snackbar(
-          context,
-          'operationFailed'.tr,
-          size: SanckBarSize.MEDIUM,
-        ));
-      }
-    } finally {
-      _loading.value = false;
-    }
-  }
-
-  Future<List<MediaItem>> _resolvePlaylist(
-      SpotifyPlaylistSummary summary) async {
-    if (!Get.isRegistered<SpotifyImportService>()) {
-      Get.put(SpotifyImportService(), permanent: false);
-    }
-    final importer = Get.find<SpotifyImportService>();
-    final collection = await _api.fetchPlaylistAsImport(summary);
-    if (collection.tracks.isEmpty) {
-      throw StateError('spotifyImportNoMatches'.tr);
-    }
-    _progress.value = 0.15;
-    final items = await importer.resolveTracksToYtm(
-      collection.tracks,
-      onProgress: (done, total) {
-        _progress.value = 0.15 + 0.75 * (done / total);
-        _status.value = '${'spotifyImportResolving'.tr} $done / $total';
-      },
-    );
-    if (items.isEmpty) throw StateError('spotifyImportNoMatches'.tr);
-    return items;
-  }
-
-  Future<void> _play(SpotifyPlaylistSummary summary) async {
-    if (_loading.value) return;
-    _loading.value = true;
-    _progress.value = 0.05;
-    _status.value = 'spotifyImportFetching'.tr;
-    try {
-      final items = await _resolvePlaylist(summary);
-      if (!Get.isRegistered<PlayerController>()) return;
-      final ok = await Get.find<PlayerController>().playPlayListSong(
-        items,
-        0,
-        playfrom: PlaylingFrom(
-          type: PlaylingFromType.PLAYLIST,
-          name: summary.name,
-        ),
-      );
-      if (!ok) {
-        _status.value = 'operationFailed'.tr;
-        if (mounted) snackOperationFailed(context);
-        return;
-      }
-      _progress.value = 1.0;
-      _status.value = '${'play'.tr} · ${items.length} ${'songs'.tr}';
-    } catch (e) {
-      _status.value = e.toString().replaceFirst('Exception: ', '');
-      _progress.value = 0;
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(snackbar(
-          context,
-          'operationFailed'.tr,
-          size: SanckBarSize.MEDIUM,
-        ));
-      }
-    } finally {
-      _loading.value = false;
-    }
+    await SpotifyApiService.clearCache();
+    setState(() {
+      _connected = false;
+      _status.value = '';
+    });
   }
 
   Future<void> _import(SpotifyPlaylistSummary summary) async {
-    if (_loading.value) return;
-    _loading.value = true;
+    if (_busy.value) return;
+    _busy.value = true;
     _progress.value = 0.05;
     _status.value = 'spotifyImportFetching'.tr;
     try {
-      final items = await _resolvePlaylist(summary);
+      if (!Get.isRegistered<SpotifyImportService>()) {
+        Get.put(SpotifyImportService(), permanent: false);
+      }
+      final importer = Get.find<SpotifyImportService>();
+      final collection = await spotifyApi.fetchPlaylistAsImport(summary);
+      if (collection.tracks.isEmpty) {
+        throw StateError('spotifyImportNoMatches'.tr);
+      }
+      _progress.value = 0.15;
+      final items = await importer.resolveTracksToYtm(
+        collection.tracks,
+        onProgress: (done, total) {
+          _progress.value = 0.15 + 0.75 * (done / total);
+          _status.value = '${'spotifyImportResolving'.tr} $done / $total';
+        },
+      );
+      if (items.isEmpty) throw StateError('spotifyImportNoMatches'.tr);
 
       _status.value = 'spotifyImportSaving'.tr;
       _progress.value = 0.95;
@@ -193,18 +153,20 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
       final plBox = await Hive.openBox('LibraryPlaylists');
       await plBox.put(playlistId, playlist.toJson());
       final songsBox = await Hive.openBox(playlistId);
-      for (var i = 0; i < items.length; i++) {
-        await songsBox.put(i, MediaItemBuilder.toJson(items[i]));
-      }
-      await songsBox.close();
-      // plBox (LibraryPlaylists) stays open: Hive shares one instance with
-      // the library, discovery and the add-to-playlist sheet.
+      await songsBox.putAll({
+        for (var i = 0; i < items.length; i++)
+          i: MediaItemBuilder.toJson(items[i]),
+      });
+      // Both boxes stay open: Hive shares one instance with the library,
+      // discovery and the add-to-playlist sheet.
 
-      Get.find<LibraryPlaylistsController>().refreshLib();
+      if (Get.isRegistered<LibraryPlaylistsController>()) {
+        Get.find<LibraryPlaylistsController>().refreshLib();
+      }
 
       _progress.value = 1.0;
       _status.value =
-          '${'spotifyImportDone'.tr} (${items.length}/${summary.trackCount})';
+          '${'spotifyImportDone'.tr} (${items.length}/${collection.tracks.length})';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(snackbar(
           context,
@@ -213,147 +175,304 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
         ));
       }
     } catch (e) {
-      _status.value = e.toString().replaceFirst('Exception: ', '');
+      _status.value = e is StateError ? e.message : spotifyErrorText(e);
       _progress.value = 0;
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(snackbar(
-          context,
-          'operationFailed'.tr,
-          size: SanckBarSize.MEDIUM,
-        ));
-      }
     } finally {
-      _loading.value = false;
+      _busy.value = false;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final accent = Get.find<ThemeController>().accentColor.value;
-
     return Scaffold(
-      backgroundColor: theme.canvasColor,
-      body: Column(children: [
-        RiffPageHeader('spotifyBridge'.tr),
-        Expanded(child: Obx(() {
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-            children: [
-              Text('spotifyBridgeDes'.tr, style: theme.textTheme.bodyMedium),
-              const SizedBox(height: 16),
-
-              // --- client id ---
-              TextField(
-                controller: _clientIdController,
-                enabled: !_loading.value,
-                decoration: InputDecoration(
-                  labelText: 'spotifyClientId'.tr,
-                  hintText: '32-character id from developer.spotify.com',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  suffixIcon: IconButton(
-                    tooltip: 'save'.tr,
-                    icon: const Icon(Icons.check),
-                    onPressed: _loading.value ? null : _saveClientId,
-                  ),
-                ),
+      backgroundColor: Theme.of(context).canvasColor,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          RiffPageHeader('spotifyBridge'.tr, actions: [
+            if (_connected)
+              IconButton(
+                tooltip: 'spotifySearch'.tr,
+                icon: const Icon(Icons.search_rounded),
+                onPressed: () => openSpotifyPage(const SpotifySearchArgs()),
               ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  icon: const Icon(Icons.open_in_new, size: 16),
-                  label: Text('spotifyOpenDashboard'.tr),
-                  onPressed: () => launchUrl(
-                    Uri.parse('https://developer.spotify.com/dashboard'),
-                    mode: LaunchMode.externalApplication,
-                  ),
-                ),
-              ),
-              // The dashboard matches this literally; a mismatch is the most
-              // common reason sign-in fails with an opaque error.
-              SelectableText(
-                '${'spotifyRedirectUri'.tr}: ${SpotifyAuthService.redirectUri}',
-                style: theme.textTheme.bodySmall,
-              ),
-              const SizedBox(height: 20),
-
-              // --- sign in / out ---
-              if (!_connected.value)
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(backgroundColor: accent),
-                  onPressed: _loading.value ? null : _signIn,
-                  icon: const Icon(Icons.login),
-                  label: Text('spotifySignIn'.tr),
-                )
-              else
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text('spotifyConnected'.tr,
-                          style: theme.textTheme.titleSmall),
-                    ),
-                    TextButton(
-                      onPressed: _loading.value ? null : _signOut,
-                      child: Text('spotifySignOut'.tr),
-                    ),
-                    IconButton(
-                      tooltip: 'refresh'.tr,
-                      icon: const Icon(Icons.refresh),
-                      onPressed: _loading.value ? null : _loadPlaylists,
-                    ),
-                  ],
-                ),
-
-              if (_loading.value || _progress.value > 0) ...[
-                const SizedBox(height: 12),
-                LinearProgressIndicator(
-                  value: _progress.value <= 0 || _progress.value >= 1
-                      ? null
-                      : _progress.value,
-                  minHeight: 4,
-                ),
-              ],
-              if (_status.value.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Text(_status.value, style: theme.textTheme.bodySmall),
-              ],
-
-              // --- playlists ---
-              if (_playlists.isNotEmpty) ...[
-                const SizedBox(height: 20),
-                Text('spotifyYourPlaylists'.tr,
-                    style: theme.textTheme.titleMedium),
-                const SizedBox(height: 8),
-                ..._playlists.map((p) => ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      onTap: _loading.value ? null : () => _play(p),
-                      leading: p.coverUrl != null
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(6),
-                              child: Image.network(p.coverUrl!,
-                                  width: 48,
-                                  height: 48,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) =>
-                                      const Icon(Icons.queue_music)),
-                            )
-                          : const Icon(Icons.queue_music),
-                      title: Text(p.name,
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text('${p.trackCount} ${'songs'.tr}'),
-                      trailing: IconButton(
-                        tooltip: 'import'.tr,
-                        icon: const Icon(Icons.cloud_download),
-                        onPressed: _loading.value ? null : () => _import(p),
-                      ),
-                    )),
-              ],
-            ],
-          );
-        })),
-      ]),
+          ]),
+          Expanded(
+            child: Obx(() {
+              // Spotify ending the session sends us back to sign-in.
+              SpotifyAuthService.sessionExpired.value;
+              return _connected && SpotifyAuthService.isConnected
+                  ? _hub(context)
+                  : _setup(context);
+            }),
+          ),
+        ],
+      ),
     );
   }
+
+  // ── Signed out: set up and sign in ─────────────────────────────────
+
+  Widget _setup(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = Get.find<ThemeController>().accentColor.value;
+    return Obx(() => ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          children: [
+            if (SpotifyAuthService.sessionExpired.value)
+              _Banner(
+                  icon: Icons.lock_clock_outlined,
+                  text: 'spotifySessionEnded'.tr),
+            Text('spotifyBridgeDes'.tr, style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _clientIdController,
+              decoration: InputDecoration(
+                labelText: 'spotifyClientId'.tr,
+                hintText: '32-character id from developer.spotify.com',
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                suffixIcon: IconButton(
+                  tooltip: 'save'.tr,
+                  icon: const Icon(Icons.check),
+                  onPressed: _saveClientId,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                icon: const Icon(Icons.open_in_new, size: 16),
+                label: Text('spotifyOpenDashboard'.tr),
+                onPressed: () => launchUrl(
+                  Uri.parse('https://developer.spotify.com/dashboard'),
+                  mode: LaunchMode.externalApplication,
+                ),
+              ),
+            ),
+            // The dashboard matches this literally; a mismatch is the most
+            // common reason sign-in fails with an opaque error.
+            SelectableText(
+              '${'spotifyRedirectUri'.tr}: ${SpotifyAuthService.redirectUri}',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: accent),
+              onPressed: _signIn,
+              icon: const Icon(Icons.login),
+              label: Text('spotifySignIn'.tr),
+            ),
+            if (_status.value.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(_status.value, style: theme.textTheme.bodySmall),
+            ],
+          ],
+        ));
+  }
+
+  // ── Signed in: the library ─────────────────────────────────────────
+
+  Widget _hub(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 0, 4, 0),
+          child: Row(children: [
+            Expanded(
+              child: FutureBuilder<SpotifyUser?>(
+                future: _me,
+                builder: (context, snap) => Text(
+                  snap.data == null
+                      ? 'spotifyConnected'.tr
+                      : 'spotifySignedInAs'.trParams({'name': snap.data!.name}),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: homeCardSubtitleStyle(context),
+                ),
+              ),
+            ),
+            TextButton(onPressed: _signOut, child: Text('spotifySignOut'.tr)),
+          ]),
+        ),
+        SizedBox(
+          height: 44,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
+            children: [
+              for (final s in SpotifySection.values)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(s.labelKey.tr),
+                    selected: s == _section,
+                    onSelected: (_) => setState(() => _section = s),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Obx(() => _busy.value || _status.value.isNotEmpty
+            ? Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    HomeLayout.gutter, 8, HomeLayout.gutter, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (_busy.value)
+                      LinearProgressIndicator(
+                          value: _progress.value <= 0 || _progress.value >= 1
+                              ? null
+                              : _progress.value,
+                          minHeight: 3),
+                    if (_status.value.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(_status.value,
+                            style: homeCardSubtitleStyle(context)),
+                      ),
+                  ],
+                ),
+              )
+            : const SizedBox.shrink()),
+        Expanded(
+          child: KeyedSubtree(
+            key: ValueKey(_section),
+            child: _sectionBody(context, _section),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _tracks(Future<List<SpotifyTrackRef>> Function({bool force}) load,
+          String from) =>
+      SpotifyAsync<List<SpotifyTrackRef>>(
+        load: load,
+        isEmpty: (l) => l.isEmpty,
+        builder: (context, tracks, reload) => RefreshIndicator(
+          onRefresh: reload,
+          child: ListView.builder(
+            padding: const EdgeInsets.only(bottom: 200),
+            itemCount: tracks.length + 1,
+            itemBuilder: (context, i) => i == 0
+                ? SpotifyPlayBar(tracks: tracks, from: from)
+                : SpotifyTrackRow(tracks: tracks, index: i - 1, from: from),
+          ),
+        ),
+      );
+
+  Widget _list<T>(Future<List<T>> Function({bool force}) load,
+          Widget Function(T item) tile) =>
+      SpotifyAsync<List<T>>(
+        load: load,
+        isEmpty: (l) => l.isEmpty,
+        builder: (context, items, reload) => RefreshIndicator(
+          onRefresh: reload,
+          child: ListView.builder(
+            padding: const EdgeInsets.only(bottom: 200),
+            itemCount: items.length,
+            itemBuilder: (context, i) => tile(items[i]),
+          ),
+        ),
+      );
+
+  Widget _sectionBody(BuildContext context, SpotifySection s) {
+    switch (s) {
+      case SpotifySection.liked:
+        return _tracks(spotifyApi.fetchLikedSongs, s.labelKey.tr);
+      case SpotifySection.topTracks:
+        return _tracks(spotifyApi.fetchTopTracks, s.labelKey.tr);
+      case SpotifySection.recent:
+        if (SpotifyAuthService.lacksScope(_recentScope)) {
+          return _Banner(
+            icon: Icons.history_rounded,
+            text: 'spotifyNeedsReconsent'.tr,
+            action:
+                TextButton(onPressed: _signIn, child: Text('spotifySignIn'.tr)),
+          );
+        }
+        return _tracks(spotifyApi.fetchRecentlyPlayed, s.labelKey.tr);
+      case SpotifySection.albums:
+        return _list<SpotifyAlbumSummary>(
+            spotifyApi.fetchSavedAlbums, (a) => SpotifyAlbumTile(album: a));
+      case SpotifySection.artists:
+        return _list<SpotifyArtistSummary>(spotifyApi.fetchFollowedArtists,
+            (a) => SpotifyArtistTile(artist: a));
+      case SpotifySection.topArtists:
+        return _list<SpotifyArtistSummary>(
+            spotifyApi.fetchTopArtists, (a) => SpotifyArtistTile(artist: a));
+      case SpotifySection.playlists:
+        return SpotifyAsync<(List<SpotifyPlaylistSummary>, SpotifyUser?)>(
+          load: ({bool force = false}) async => (
+            await spotifyApi.fetchPlaylists(force: force),
+            await _me,
+          ),
+          isEmpty: (r) => r.$1.isEmpty,
+          emptyText: 'spotifyNoPlaylists'.tr,
+          builder: (context, r, reload) => RefreshIndicator(
+            onRefresh: reload,
+            child: ListView.builder(
+              padding: const EdgeInsets.only(bottom: 200),
+              itemCount: r.$1.length,
+              itemBuilder: (context, i) => _playlistTile(r.$1[i], r.$2),
+            ),
+          ),
+        );
+    }
+  }
+
+  Widget _playlistTile(SpotifyPlaylistSummary p, SpotifyUser? me) {
+    final readable = p.readableBy(me?.id);
+    final sub = [
+      if (p.trackCount > 0) '${p.trackCount} ${'songs'.tr}',
+      if (!readable && (p.ownerName ?? '').isNotEmpty)
+        'spotifyByOwner'.trParams({'name': p.ownerName!}),
+    ].join(' · ');
+    return ListTile(
+      contentPadding: const EdgeInsets.only(left: HomeLayout.gutter, right: 4),
+      leading: SpotifyArt(url: p.coverUrl, icon: Icons.queue_music_rounded),
+      title: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(sub,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: homeCardSubtitleStyle(context)),
+      onTap: () => openSpotifyPage(SpotifyPlaylistArgs(p, readable: readable)),
+      trailing: readable
+          ? Obx(() => IconButton(
+                tooltip: 'import'.tr,
+                icon: const Icon(Icons.download_for_offline_outlined),
+                onPressed: _busy.value ? null : () => _import(p),
+              ))
+          : Icon(Icons.lock_outline_rounded,
+              size: 18, color: homeMutedColor(context)),
+    );
+  }
+}
+
+class _Banner extends StatelessWidget {
+  const _Banner({required this.icon, required this.text, this.action});
+  final IconData icon;
+  final String text;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.fromLTRB(
+            HomeLayout.gutter, 8, HomeLayout.gutter, 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: homeTileColor(context),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(children: [
+          Icon(icon, color: Theme.of(context).colorScheme.secondary),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text)),
+          if (action != null) action!,
+        ]),
+      );
 }

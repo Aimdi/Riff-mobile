@@ -24,6 +24,8 @@ class SecureCredentials {
     'mamId',
     'qbitPass',
     'listenBrainzToken',
+    'spotifyAccessToken',
+    'spotifyRefreshToken',
   ];
 
   /// Nested map fields stored as `mapKey.field` in secure storage.

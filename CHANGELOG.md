@@ -1,3 +1,24 @@
+# 1.7.130
+
+**Spotify, played through Riff**
+* The Spotify plugin is now a full Spotify library: Liked Songs, your
+  playlists, saved albums, followed artists, top tracks and artists,
+  Recently played, and Spotify search. Everything plays in Riff: each song
+  is matched to YouTube Music, songs are matched once and remembered, and
+  playback starts as soon as the first song is found
+* Wrong version (a live take, a cover)? Long-press the song › Change
+  match… and pick the right one; Riff always plays your pick from then on
+* Spotify's song codes (ISRC) are now used to find the exact recording
+* Signed in? A Spotify tile appears in your Library
+* Spotify only shares the songs of playlists you made or collaborate on;
+  others show a note and can be imported by their link if they're public
+* Sign-in tokens now live in the phone's secure storage. When Spotify
+  ends a session (sign-ins last six months), Riff says so and asks you to
+  sign in again. Sign in once more to see Recently played
+* Clear messages when Spotify refuses (Premium needed for the Spotify
+  app's owner, a user not on the app's list, too many requests); Riff
+  waits as long as Spotify asks before trying again
+
 # 1.7.129
 
 **Sync through WebDAV**

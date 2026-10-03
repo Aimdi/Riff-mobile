@@ -3,9 +3,11 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
+import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
 import '../utils/helper.dart';
+import '../utils/secure_credentials.dart';
 
 /// Spotify sign-in using the official Authorization Code + PKCE flow.
 ///
@@ -43,15 +45,24 @@ class SpotifyAuthService {
     'user-library-read',
     'user-follow-read',
     'user-top-read',
+    'user-read-recently-played',
   ];
 
   // ---- stored settings -------------------------------------------------
 
   static const _kClientId = 'spotifyClientId';
-  static const _kAccessToken = 'spotifyAccessToken';
-  static const _kRefreshToken = 'spotifyRefreshToken';
+
+  /// Tokens live in secure storage ([SecureCredentials]); installs that kept
+  /// them in AppPrefs are moved over on start.
+  static const kAccessToken = 'spotifyAccessToken';
+  static const kRefreshToken = 'spotifyRefreshToken';
   static const _kExpiresAt = 'spotifyTokenExpiresAt';
+  static const _kScopes = 'spotifyGrantedScopes';
   static const _kVerifier = 'spotifyPkceVerifier';
+
+  /// Set when Spotify turned the session down (refresh token expired after
+  /// six months, or access revoked): the user has to sign in again.
+  static final sessionExpired = false.obs;
 
   static Box get _box => Hive.box('AppPrefs');
 
@@ -72,9 +83,20 @@ class SpotifyAuthService {
 
   static bool get isConfigured => clientId != null;
 
-  static String? get accessToken => _box.get(_kAccessToken) as String?;
-  static String? get refreshToken => _box.get(_kRefreshToken) as String?;
+  static String? get accessToken => SecureCredentials.get(kAccessToken);
+  static String? get refreshToken => SecureCredentials.get(kRefreshToken);
   static int get expiresAtMs => (_box.get(_kExpiresAt) as int?) ?? 0;
+
+  /// Scopes the current sign-in granted (from the token response).
+  static Set<String> get grantedScopes {
+    final v = _box.get(_kScopes);
+    return v is String && v.isNotEmpty ? v.split(' ').toSet() : const {};
+  }
+
+  /// Whether [scope] needs a fresh sign-in (the session predates it).
+  /// Unknown grants (older sign-ins didn't record them) count as missing.
+  static bool lacksScope(String scope) =>
+      isConnected && !grantedScopes.contains(scope);
 
   static bool get isConnected =>
       (accessToken?.isNotEmpty ?? false) && (refreshToken?.isNotEmpty ?? false);
@@ -85,9 +107,10 @@ class SpotifyAuthService {
       nowMs >= (expiresAtMs - skewMs);
 
   static Future<void> disconnect() async {
-    await _box.delete(_kAccessToken);
-    await _box.delete(_kRefreshToken);
+    await SecureCredentials.delete(kAccessToken);
+    await SecureCredentials.delete(kRefreshToken);
     await _box.delete(_kExpiresAt);
+    await _box.delete(_kScopes);
     await _box.delete(_kVerifier);
   }
 
@@ -170,15 +193,18 @@ class SpotifyAuthService {
     if (access == null || access.isEmpty) {
       throw StateError('Spotify returned no access token');
     }
-    await _box.put(_kAccessToken, access);
+    await SecureCredentials.set(kAccessToken, access);
     // A refresh response may omit refresh_token, which means keep the old one.
     final refresh = json['refresh_token']?.toString();
     if (refresh != null && refresh.isNotEmpty) {
-      await _box.put(_kRefreshToken, refresh);
+      await SecureCredentials.set(kRefreshToken, refresh);
     }
     final expiresIn = json['expires_in'];
     final ttlMs = (expiresIn is num ? expiresIn.toInt() : 3600) * 1000;
     await _box.put(_kExpiresAt, nowMs + ttlMs);
+    final scope = json['scope']?.toString();
+    if (scope != null && scope.isNotEmpty) await _box.put(_kScopes, scope);
+    sessionExpired.value = false;
   }
 
   Map<String, dynamic> _decode(dynamic body) {
@@ -219,7 +245,17 @@ class SpotifyAuthService {
 
   /// Refresh the access token. Returns false when the refresh token is gone or
   /// rejected, which means the user must sign in again.
-  Future<bool> refresh({int? nowMsOverride}) async {
+  ///
+  /// Concurrent callers share one request: Spotify may rotate the refresh
+  /// token, and two refreshes racing with the same old token would make the
+  /// second one fail and sign the user out.
+  Future<bool> refresh({int? nowMsOverride}) =>
+      _refreshing ??= _refresh(nowMsOverride: nowMsOverride)
+          .whenComplete(() => _refreshing = null);
+
+  static Future<bool>? _refreshing;
+
+  Future<bool> _refresh({int? nowMsOverride}) async {
     final id = clientId;
     final rt = refreshToken;
     if (id == null || rt == null || rt.isEmpty) return false;
@@ -235,17 +271,42 @@ class SpotifyAuthService {
           'client_id': id,
         },
       );
-      if (res.statusCode != 200) {
-        printINFO('Spotify refresh rejected (${res.statusCode})');
-        return false;
+      switch (classifyRefresh(res.statusCode ?? 0, res.data)) {
+        case SpotifyRefreshResult.ok:
+          await _storeTokens(_decode(res.data),
+              nowMsOverride ?? DateTime.now().millisecondsSinceEpoch);
+          return true;
+        case SpotifyRefreshResult.revoked:
+          // Spotify: don't retry; discard the token and sign in again.
+          printINFO('Spotify session ended (${res.statusCode}); sign in again');
+          await disconnect();
+          sessionExpired.value = true;
+          return false;
+        case SpotifyRefreshResult.failed:
+          printINFO('Spotify refresh failed (${res.statusCode})');
+          return false;
       }
-      await _storeTokens(_decode(res.data),
-          nowMsOverride ?? DateTime.now().millisecondsSinceEpoch);
-      return true;
     } catch (e) {
       printINFO('Spotify refresh failed: $e');
       return false;
     }
+  }
+
+  /// What a refresh response means. `400 invalid_grant` (and 401) is final:
+  /// the refresh token expired (after six months) or access was revoked.
+  /// Anything else (5xx, a network hiccup) may work next time.
+  static SpotifyRefreshResult classifyRefresh(int status, Object? body) {
+    if (status == 200) return SpotifyRefreshResult.ok;
+    if (status == 401) return SpotifyRefreshResult.revoked;
+    if (status == 400) {
+      try {
+        final j = jsonDecode('$body');
+        if (j is Map && j['error'] == 'invalid_grant') {
+          return SpotifyRefreshResult.revoked;
+        }
+      } catch (_) {}
+    }
+    return SpotifyRefreshResult.failed;
   }
 
   /// A valid access token, refreshing first when needed. Null when the user is
@@ -267,6 +328,8 @@ class SpotifyAuthService {
     return v;
   }
 }
+
+enum SpotifyRefreshResult { ok, revoked, failed }
 
 /// Outcome of the OAuth redirect.
 class SpotifyRedirectResult {
