@@ -4,9 +4,7 @@ import 'package:get/get.dart';
 import '../Search/components/desktop_search_bar.dart';
 import '/ui/screens/Search/search_screen_controller.dart';
 import '/ui/widgets/animated_screen_transition.dart';
-import '../../widgets/riff_tab_bar.dart';
 import '../../widgets/side_nav_bar.dart';
-import '../Library/library_shell.dart';
 import '../Library/library.dart';
 import '../Podcasts/podcasts_library.dart';
 import '../Audiobooks/audiobooks_screen.dart';
@@ -84,8 +82,7 @@ class HomeScreen extends StatelessWidget {
         // and blanks SideNavBar + Body while the FAB Obx still paints.
         body: Row(
           children: <Widget>[
-            // Phones navigate with the floating tab bar at the bottom.
-            if (!RiffShell.usesDockOf(context)) const SideNavBar(),
+            const SideNavBar(),
             Expanded(
               child: Obx(() => AnimatedScreenTransition(
                   enabled: settingsScreenController
@@ -214,9 +211,6 @@ class Body extends StatelessWidget {
           ],
         ),
       );
-    } else if (RiffShell.usesDockOf(context) &&
-        const [1, 4, 5, 6].contains(homeScreenController.tabIndex.value)) {
-      return LibraryShell(tabIndex: homeScreenController.tabIndex.value);
     } else if (homeScreenController.tabIndex.value == 1) {
       return const SongsLibraryWidget();
     } else if (homeScreenController.tabIndex.value == 2) {
@@ -334,7 +328,6 @@ class _HomeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final usesDock = RiffShell.usesDockOf(context);
     final fg = theme.textTheme.titleMedium?.color;
     return Padding(
       padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 0, 2, 10),
@@ -361,8 +354,8 @@ class _HomeHeader extends StatelessWidget {
                   homeGreetingKey(DateTime.now()).tr,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: homeCardSubtitleStyle(context).copyWith(
-                      fontSize: 13, fontWeight: FontWeight.w500),
+                  style: homeCardSubtitleStyle(context)
+                      .copyWith(fontSize: 13, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -373,20 +366,12 @@ class _HomeHeader extends StatelessWidget {
             onPressed: () => Get.toNamed(ScreenNavigationSetup.statsScreen,
                 id: ScreenNavigationSetup.id),
           ),
-          // Search is in the tab bar on phones; the rail has no search.
-          if (!usesDock && !GetPlatform.isDesktop)
+          if (!GetPlatform.isDesktop)
             IconButton(
               tooltip: 'search'.tr,
               icon: const Icon(Icons.search_rounded, size: 26),
               onPressed: () => Get.toNamed(ScreenNavigationSetup.searchScreen,
                   id: ScreenNavigationSetup.id),
-            ),
-          if (usesDock)
-            IconButton(
-              tooltip: 'settings'.tr,
-              icon: const Icon(Icons.settings_outlined, size: 24),
-              onPressed: () =>
-                  Get.find<HomeScreenController>().onSideBarTabSelected(7),
             ),
         ],
       ),

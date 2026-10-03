@@ -23,11 +23,7 @@ import 'animated_play_button.dart';
 import 'playback_error_actions.dart';
 
 class MiniPlayer extends StatelessWidget {
-  const MiniPlayer({super.key, this.docked = false});
-
-  /// Drawn inside the phone dock (above the tab bar): just the pill, the
-  /// dock owns the strip, its height and the panel fade.
-  final bool docked;
+  const MiniPlayer({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -96,25 +92,6 @@ class MiniPlayer extends StatelessWidget {
       ],
     );
 
-    final pill = Material(
-      color: frost,
-      elevation: 10,
-      shadowColor: Colors.black.withOpacity(0.5),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-        side: BorderSide(
-            color: theme.dividerColor.withOpacity(0.7), width: 0.5),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: content,
-    );
-    if (docked) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-        child: pill,
-      );
-    }
-
     return Obx(() {
       return Visibility(
         visible: playerController.isPlayerpanelTopVisible.value,
@@ -135,7 +112,18 @@ class MiniPlayer extends StatelessWidget {
                   12,
                   MediaQuery.viewPaddingOf(context).bottom + 8,
                 ),
-                child: pill,
+                child: Material(
+                  color: frost,
+                  elevation: 10,
+                  shadowColor: Colors.black.withOpacity(0.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    side: BorderSide(
+                        color: theme.dividerColor.withOpacity(0.7), width: 0.5),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: content,
+                ),
               ),
             ),
           ),

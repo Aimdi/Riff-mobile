@@ -10,7 +10,6 @@ import '../ui/navigator.dart';
 import '../ui/player/player.dart';
 import 'player/components/mini_player.dart';
 import 'player/player_controller.dart';
-import 'widgets/riff_tab_bar.dart';
 import 'widgets/sliding_up_panel.dart';
 import 'widgets/snackbar.dart';
 import 'widgets/up_next_queue.dart';
@@ -25,16 +24,14 @@ class Home extends StatelessWidget {
     final homeScreenController = Get.find<HomeScreenController>();
     final size = MediaQuery.of(context).size;
     final isWideScreen = size.width > 800;
-    final usesDock = RiffShell.usesDock(size.width);
-    // Phones: the floating tab bar is always there; the mini player joins
-    // it once a song is loaded. Wider screens: mini player only.
-    final minHeight = RiffShell.panelMinHeight(
-      width: size.width,
-      bottomInset: Get.mediaQuery.padding.bottom,
-      hasSong: !playerController.initFlagForPlayer,
-    );
-    if (usesDock || !playerController.initFlagForPlayer) {
-      playerController.playerPanelMinHeight.value = minHeight;
+    if (!playerController.initFlagForPlayer) {
+      if (isWideScreen) {
+        playerController.playerPanelMinHeight.value =
+            105 + Get.mediaQuery.padding.bottom;
+      } else {
+        playerController.playerPanelMinHeight.value =
+            75 + Get.mediaQuery.padding.bottom;
+      }
     }
     return PopScope(
       canPop: false,
@@ -183,24 +180,18 @@ class Home extends StatelessWidget {
                   controller: playerController.playerPanelController,
                   minHeight: playerController.playerPanelMinHeight.value,
                   maxHeight: size.height,
-                  // No song yet on a phone: the dock is just the tab bar,
-                  // nothing to pull up.
-                  isDraggable: !isWideScreen &&
-                      !(usesDock && playerController.initFlagForPlayer),
+                  isDraggable: !isWideScreen,
                   onSwipeUp: () {
                     playerController.queuePanelController.open();
                   },
                   panel: const Player(),
                   body: const ScreenNavigation(),
-                  header: usesDock
-                      ? const RiffBottomDock()
-                      : !isWideScreen
-                          ? InkWell(
-                              onTap:
-                                  playerController.playerPanelController.open,
-                              child: const MiniPlayer(),
-                            )
-                          : const MiniPlayer(),
+                  header: !isWideScreen
+                      ? InkWell(
+                          onTap: playerController.playerPanelController.open,
+                          child: const MiniPlayer(),
+                        )
+                      : const MiniPlayer(),
                 ))),
       ),
     );

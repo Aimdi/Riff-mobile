@@ -1,3 +1,13 @@
+# 1.7.121
+
+**The side rail is back**
+* Phones use the side rail on the left again (Home, Songs with
+  Playlists / Albums / Artists, Podcasts, Audiobooks, Settings). The
+  floating bottom tab bar and the one-page Library from 1.7.119 are gone
+* The mini player is the full-width strip at the bottom again
+* Home keeps its new layout: Riff Wave and the generators up top, the
+  smaller Quick picks further down, and Settings › Home layout
+
 # 1.7.120
 
 **Home: Riff first, Quick picks further down**
