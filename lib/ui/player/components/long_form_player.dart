@@ -3,6 +3,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/screens/Podcasts/podcast_playback_controls.dart';
+
 import '/models/media_item_extras.dart';
 import '/models/thumbnail.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
@@ -283,19 +285,9 @@ class _Controls extends StatelessWidget {
               onPressed: pc.prev,
               icon: Icon(Icons.skip_previous_rounded, color: fg),
             ),
-            IconButton(
-              tooltip: '−10s',
-              iconSize: 38,
-              onPressed: () => pc.seekBy(const Duration(seconds: -10)),
-              icon: Icon(Icons.replay_10_rounded, color: fg),
-            ),
+            LongFormSkipButton(forward: false, color: fg, size: 38),
             const AnimatedPlayButton(key: Key('longFormPlayButton'), size: 76),
-            IconButton(
-              tooltip: '+30s',
-              iconSize: 38,
-              onPressed: () => pc.seekBy(const Duration(seconds: 30)),
-              icon: Icon(Icons.forward_30_rounded, color: fg),
-            ),
+            LongFormSkipButton(forward: true, color: fg, size: 38),
             IconButton(
               tooltip: 'next'.tr,
               iconSize: 30,
@@ -444,7 +436,10 @@ class _ToolRow extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: Center(child: PlayerSpeedButton(color: fg)),
+              child: Center(
+                  child: pc.isCurrentSongPodcast
+                      ? PodcastSpeedButton(color: fg)
+                      : PlayerSpeedButton(color: fg)),
             ),
             tool(
               sleepOn ? Icons.bedtime : Icons.bedtime_outlined,

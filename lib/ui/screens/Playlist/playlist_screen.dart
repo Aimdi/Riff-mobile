@@ -2,6 +2,8 @@ import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
+import '/services/podcast_playback_profile.dart';
 import '/models/playlist.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -406,6 +408,7 @@ class _PodcastShow extends StatelessWidget {
       final pl = c.playlist.value;
       final episodes = c.songList.toList();
       return PodcastShowView(
+        playbackKey: podcastShowKeyForYoutube(pl.playlistId),
         title: pl.title,
         author: (pl.description ?? '').trim(),
         artUrl: pl.thumbnailUrl,
@@ -432,8 +435,9 @@ class _PodcastShow extends StatelessWidget {
           if (Get.isRegistered<PlaylistMixService>()) {
             Get.find<PlaylistMixService>().deactivatePlayback();
           }
+          // Episodes remember their show so its playback settings apply.
           final ok = await player.playPlayListSong(
-            List<MediaItem>.from(c.songList),
+            [for (final m in c.songList) withPodcastShowId(m, pl.playlistId)],
             i,
             playfrom:
                 PlaylingFrom(name: pl.title, type: PlaylingFromType.PLAYLIST),

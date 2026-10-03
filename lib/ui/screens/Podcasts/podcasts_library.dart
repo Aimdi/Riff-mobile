@@ -396,6 +396,13 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                 onPressed: () => settings.togglePodcastContinuousPlayback(!on),
               );
             }),
+            IconButton(
+              tooltip: 'podcastSettings'.tr,
+              icon: const Icon(Icons.settings_outlined, size: 22),
+              onPressed: () => Get.toNamed(
+                  ScreenNavigationSetup.podcastSettingsScreen,
+                  id: ScreenNavigationSetup.id),
+            ),
           ],
         ),
       ),
