@@ -1,3 +1,21 @@
+# 1.7.128
+
+**Android Auto, Never play, CSV import**
+* Android Auto: long lists (big playlists, your library, a show's
+  episodes) come in pages or in sections of 100, so they no longer fail
+  to open in the car. New in the car: Podcasts, with Continue listening
+  and the shows you follow
+* Never play now covers artists and albums everywhere: Daily Mixes, Riff
+  Wave, radio, autoplay and recommendations all leave them out. A song's
+  menu offers Never play this album, and Never play this artist bans the
+  song's main artist (before, it only matched that exact artist line-up)
+* Settings › Never play is now a full page listing artists, albums and
+  playlists, and songs, each with Allow again (and Undo)
+* Import a playlist from a CSV file: Exportify and TuneMyMusic exports
+  (or any CSV with title and artist columns), from the Spotify import
+  window. ISRC codes in the file are used to find the exact recording,
+  and you get a list of what matched and what didn't
+
 # 1.7.127
 
 **Playback hardening**
