@@ -36,6 +36,10 @@ void main() {
       'lib/ui/screens/Podcasts/podcast_subs_screen.dart',
       'lib/ui/screens/Podcasts/podcast_show_view.dart',
       'lib/ui/screens/Podcasts/podcast_stats_screen.dart',
+      // Not podcast-only, but the same check: Never play and CSV import.
+      'lib/ui/screens/Settings/blacklist_screen.dart',
+      'lib/ui/widgets/spotify_import_dialog.dart',
+      'lib/ui/widgets/songinfo_bottom_sheet.dart',
     ])
       ..._trKeys(File(f).readAsStringSync()),
     // Built from the enum name: 'voiceBoost_${v.name}'.tr

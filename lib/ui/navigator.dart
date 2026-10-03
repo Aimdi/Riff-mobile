@@ -17,6 +17,7 @@ import 'screens/Stats/rewind_screen.dart';
 import 'screens/Podcasts/podcasts_library.dart';
 import 'screens/Podcasts/podcast_settings_screen.dart';
 import 'screens/Podcasts/podcast_stats_screen.dart';
+import 'screens/Settings/blacklist_screen.dart';
 import 'screens/Plugins/plugins_screen.dart';
 import '/ui/screens/Plugins/spotify_bridge_screen.dart';
 import 'screens/Plugins/torrent_search_screen.dart';
@@ -45,6 +46,7 @@ class ScreenNavigationSetup {
   static const homeLayoutScreen = '/homeLayoutScreen';
   static const podcastSettingsScreen = '/podcastSettingsScreen';
   static const podcastStatsScreen = '/podcastStatsScreen';
+  static const blacklistScreen = '/blacklistScreen';
 }
 
 class ScreenNavigation extends StatelessWidget {
@@ -141,6 +143,10 @@ class ScreenNavigation extends StatelessWidget {
               return GetPageRoute(
                   page: () => const PodcastSettingsScreen(),
                   settings: settings);
+
+            case ScreenNavigationSetup.blacklistScreen:
+              return GetPageRoute(
+                  page: () => const BlacklistScreen(), settings: settings);
 
             case ScreenNavigationSetup.podcastStatsScreen:
               return GetPageRoute(

@@ -257,7 +257,7 @@ class MixGenerator {
           // allow near-cluster
         }
         if (repo.shownRecently(vid)) continue;
-        if (BanServiceSafe.isBanned(vid)) continue;
+        if (BanServiceSafe.isTrackBanned(m)) continue;
         seen.add(vid);
         unheardKnown.add(m);
         if (unheardKnown.length >= nUnheardKnown * 2) break;
@@ -276,7 +276,7 @@ class MixGenerator {
         if (vid.isEmpty || seen.contains(vid)) continue;
         if (!repo.isUnheard(vid)) continue;
         if (repo.shownRecently(vid)) continue;
-        if (BanServiceSafe.isBanned(vid)) continue;
+        if (BanServiceSafe.isTrackBanned(m)) continue;
         seen.add(vid);
         adjacent.add(m);
         if (adjacent.length >= nAdjacent * 2) break;
@@ -351,7 +351,7 @@ class MixGenerator {
         if (repo.shownRecently(v2, within: const Duration(days: 365))) {
           continue;
         }
-        if (BanServiceSafe.isBanned(v2)) continue;
+        if (BanServiceSafe.isTrackBanned(m2)) continue;
         seen.add(v2);
         candidates.add(m2);
       }
@@ -543,4 +543,19 @@ class BanServiceSafe {
 
   static bool Function(String)? _banHook;
   static void setBanHook(bool Function(String)? hook) => _banHook = hook;
+
+  /// A candidate track map, checked against song, artist and album bans
+  /// (falls back to the song ban alone without a track hook).
+  static bool isTrackBanned(Map track) {
+    try {
+      final hook = _trackHook;
+      if (hook != null) return hook(track);
+    } catch (_) {
+      return false;
+    }
+    return isBanned('${track['videoId'] ?? ''}');
+  }
+
+  static bool Function(Map)? _trackHook;
+  static void setTrackBanHook(bool Function(Map)? hook) => _trackHook = hook;
 }

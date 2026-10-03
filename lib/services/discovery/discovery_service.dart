@@ -43,6 +43,7 @@ class DiscoveryService extends GetxService {
     await repo.pruneAuxiliary();
 
     BanServiceSafe.setBanHook(BanService.isBanned);
+    BanServiceSafe.setTrackBanHook(BanService.isTrackBlocked);
 
     taste = TasteModel(repo);
     final music = Get.find<MusicServices>();
@@ -339,13 +340,20 @@ class DiscoveryService extends GetxService {
     MediaItem seed, {
     required List<MediaItem> sessionHistory,
     int limit = 24,
-  }) =>
-      engine.smartRadioBatch(
-        seed,
-        exploration: exploration,
-        sessionHistory: sessionHistory,
-        limit: limit,
-      );
+  }) async {
+    final batch = await engine.smartRadioBatch(
+      seed,
+      exploration: exploration,
+      sessionHistory: sessionHistory,
+      limit: limit,
+    );
+    // "Never Play This" (songs, artists, albums) for radio and Riff Wave;
+    // the seed the user picked always stays.
+    return [
+      for (final m in batch)
+        if (m.id == seed.id || !BanService.isMediaItemBlocked(m)) m
+    ];
+  }
 
   Future<List<MediaItem>> moreLikeThisPlayNext(MediaItem seed,
       {int limit = 5}) async {

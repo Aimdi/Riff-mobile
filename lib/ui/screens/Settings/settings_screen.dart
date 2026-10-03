@@ -14,7 +14,6 @@ import '../Library/library_controller.dart';
 import '../../widgets/snackbar.dart';
 import '/ui/widgets/link_piped.dart';
 import '/services/wizestream_service.dart';
-import '/services/ban_service.dart';
 import '/services/crash_report.dart';
 import '/services/better_lyrics_service.dart';
 import '/services/discovery/discovery_service.dart';
@@ -826,12 +825,13 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     ListTile(
                       contentPadding: const EdgeInsets.only(left: 5, right: 10),
-                      title: Text("bannedSongs".tr),
+                      title: Text("blacklistTitle".tr),
                       subtitle: Text("neverPlayThisDes".tr,
                           style: settingsSubtitleStyle(context)),
-                      onTap: () => showDialog(
-                          context: context,
-                          builder: (context) => const BannedSongsDialog()),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Get.toNamed(
+                          ScreenNavigationSetup.blacklistScreen,
+                          id: ScreenNavigationSetup.id),
                     ),
                     ListTile(
                       contentPadding: const EdgeInsets.only(left: 5, right: 10),
@@ -1521,114 +1521,6 @@ Widget radioWidget(
                 : controller.onContentChange),
         title: Text(label),
       ));
-}
-
-/// Manage the "Never Play This" list: shows banned songs with an
-/// unban action for each.
-class BannedSongsDialog extends StatefulWidget {
-  const BannedSongsDialog({super.key});
-
-  @override
-  State<BannedSongsDialog> createState() => _BannedSongsDialogState();
-}
-
-class _BannedSongsDialogState extends State<BannedSongsDialog> {
-  @override
-  Widget build(BuildContext context) {
-    final banned = BanService.all;
-    final bannedArtists = BanService.allArtists;
-    final bannedCollections = BanService.allCollections;
-    return Dialog(
-      child: Container(
-        constraints: const BoxConstraints(maxHeight: 500),
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Text("bannedSongs".tr,
-                  style: Theme.of(context).textTheme.titleMedium),
-            ),
-            if (banned.isEmpty &&
-                bannedArtists.isEmpty &&
-                bannedCollections.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(15),
-                child: Text("noBannedSongs".tr,
-                    style: Theme.of(context).textTheme.bodyMedium),
-              ),
-            Flexible(
-              child: ListView(
-                shrinkWrap: true,
-                children: [
-                  ...bannedCollections.map((c) => ListTile(
-                        visualDensity: const VisualDensity(vertical: -3),
-                        leading: Icon(
-                            c["type"] == "album"
-                                ? Icons.album
-                                : Icons.playlist_play,
-                            size: 20),
-                        title: Text(c["title"], maxLines: 1),
-                        subtitle: Text("bannedCollectionTag".tr,
-                            style: settingsSubtitleStyle(context)),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () async {
-                            final ok =
-                                await BanService.unbanCollection(c["id"]);
-                            if (ok) setState(() {});
-                          },
-                        ),
-                      )),
-                  ...bannedArtists.map((artist) => ListTile(
-                        visualDensity: const VisualDensity(vertical: -3),
-                        leading: const Icon(Icons.person_off, size: 20),
-                        title: Text(artist["name"], maxLines: 1),
-                        subtitle: Text("bannedArtistTag".tr,
-                            style: settingsSubtitleStyle(context)),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () async {
-                            final ok =
-                                await BanService.unbanArtist(artist["key"]);
-                            if (ok) setState(() {});
-                          },
-                        ),
-                      )),
-                  ...banned.map((song) => ListTile(
-                        visualDensity: const VisualDensity(vertical: -3),
-                        title: Text(song["title"], maxLines: 1),
-                        subtitle: Text(song["artist"], maxLines: 1),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () async {
-                            final ok = await BanService.unban(song["id"]);
-                            if (ok) setState(() {});
-                          },
-                        ),
-                      )),
-                ],
-              ),
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 20, top: 5),
-                child: InkWell(
-                  onTap: () => Navigator.of(context).pop(),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text("cancel".tr),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 /// ListenBrainz token entry; an empty token disables scrobbling.
