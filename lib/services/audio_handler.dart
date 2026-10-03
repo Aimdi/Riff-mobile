@@ -23,7 +23,10 @@ import '/services/playlist_mix_service.dart';
 import '/services/audiobookshelf_service.dart';
 import '/services/cloud_music_service.dart';
 import '/services/podcast_progress_service.dart';
+import '/services/android_auto_paging.dart';
 import '/services/playback_hardening.dart';
+import '/services/podcast_service.dart';
+import '/ui/widgets/podcast_play.dart' show podcastEpisodeToMediaItem;
 import '/services/podcast_playback_profile.dart';
 import '/models/media_item_extras.dart';
 import '/services/shuffle_order.dart';
@@ -1690,7 +1693,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     // Only outside browsers (Android Auto, mostly) list the library.
     _lastAutoBrowseAt = DateTime.now();
     unawaited(_refreshCarMode());
-    return _mediaLibrary.getByRootId(parentMediaId);
+    return _mediaLibrary.browse(parentMediaId, options);
   }
 
   @override
@@ -1708,7 +1711,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     customEvent.add({
       'eventType': 'playFromMediaId',
       'songId': mediaId,
-      'libraryId': extras!['libraryId'],
+      // Not every car sends the item's extras back; the player then finds
+      // the list the item was browsed from.
+      'libraryId': extras?['libraryId'] ?? MediaLibrary.listIdFor(mediaId),
     });
   }
 
@@ -2070,8 +2075,117 @@ class MediaLibrary {
   static const songsRootId = 'songs';
   static const favoritesRootId = "LIBFAV";
   static const playlistsRootId = 'playlists';
+  static const podcastsRootId = 'riff_podcasts';
+  static const podcastProgressId = 'aa_pod_progress';
+  static const podcastFeedPrefix = 'aa_pod_feed:';
+
+  /// Podcast episode lists Android Auto browsed, by list id: played from
+  /// there without fetching the feed again.
+  static final autoPodcastLists = <String, List<MediaItem>>{};
+
+  /// Which browsed list an item came from (for cars that don't send the
+  /// item's extras back with "play").
+  static final _browsedFrom = <String, String>{};
+
+  static String? listIdFor(String mediaId) => _browsedFrom[mediaId];
+
+  /// Android Auto `getChildren`: one page when the car asks for pages,
+  /// else the whole list if it's short, or sections ("1–100", …) if not.
+  /// Items carry only small extras, so no answer can outgrow the binder.
+  Future<List<MediaItem>> browse(
+      String id, Map<String, dynamic>? options) async {
+    final section = parseAutoSectionId(id);
+    final listId = section?.parentId ?? id;
+    final all = await getByRootId(listId);
+    if (section != null) {
+      final start = section.start.clamp(0, all.length);
+      final end = (start + autoSectionSize).clamp(0, all.length);
+      return _forCar(listId, all.sublist(start, end));
+    }
+    switch (planAutoBrowse(all.length, options)) {
+      case AutoRange(:final start, :final end):
+        return _forCar(listId, all.sublist(start, end));
+      case AutoSections(:final starts, :final total):
+        return [
+          for (final start in starts)
+            MediaItem(
+              id: autoSectionId(id, start),
+              title: autoSectionLabel(start, total),
+              playable: false,
+            )
+        ];
+    }
+  }
+
+  List<MediaItem> _forCar(String listId, List<MediaItem> items) {
+    if (_browsedFrom.length > 5000) _browsedFrom.clear();
+    return [
+      for (final m in items)
+        () {
+          if (m.playable == true) _browsedFrom[m.id] = listId;
+          return m.copyWith(extras: slimAutoExtras(m.extras));
+        }()
+    ];
+  }
+
+  /// Followed podcasts: Continue listening, then each feed show.
+  Future<List<MediaItem>> getPodcastNodes() async {
+    final nodes = <MediaItem>[
+      MediaItem(
+          id: podcastProgressId,
+          title: "continueListening".tr,
+          playable: false),
+    ];
+    try {
+      for (final s in PodcastService.subscriptions) {
+        final feed = '${s['feedUrl'] ?? ''}';
+        if (feed.isEmpty) continue;
+        nodes.add(MediaItem(
+          id: '$podcastFeedPrefix$feed',
+          title: '${s['title'] ?? ''}',
+          artUri: Uri.tryParse('${s['artwork'] ?? ''}'),
+          playable: false,
+        ));
+      }
+    } catch (_) {}
+    return nodes;
+  }
+
+  Future<List<MediaItem>> getPodcastList(String id) async {
+    List<MediaItem> items = const [];
+    try {
+      if (id == podcastProgressId) {
+        items = PodcastProgressService.inProgress()
+            .map(PodcastProgressService.toMediaItem)
+            .toList();
+      } else if (id.startsWith(podcastFeedPrefix)) {
+        final feed = id.substring(podcastFeedPrefix.length);
+        final sub = PodcastService.subscriptions.firstWhere(
+            (s) => s['feedUrl'] == feed,
+            orElse: () => <String, dynamic>{'feedUrl': feed});
+        final raw = await PodcastService.episodes(
+            feed, '${sub['title'] ?? ''}', '${sub['artwork'] ?? ''}');
+        items = [for (final e in raw) podcastEpisodeToMediaItem(e, sub)];
+      }
+    } catch (e) {
+      printERROR('Android Auto podcasts ($id): $e');
+    }
+    final tagged = [
+      for (final m in items)
+        m.copyWith(
+            playable: true,
+            extras: {...?m.extras, 'libraryId': id, 'discoverySource': 'android_auto'})
+    ];
+    if (autoPodcastLists.length > 20) autoPodcastLists.clear();
+    autoPodcastLists[id] = tagged;
+    return tagged;
+  }
 
   Future<List<MediaItem>> getByRootId(String id) async {
+    if (id == podcastsRootId) return getPodcastNodes();
+    if (id == podcastProgressId || id.startsWith(podcastFeedPrefix)) {
+      return getPodcastList(id);
+    }
     switch (id) {
       case AudioService.browsableRootId:
         return Future.value(getRoot());
@@ -2188,6 +2302,11 @@ class MediaLibrary {
       MediaItem(
         id: playlistsRootId,
         title: "playlists".tr,
+        playable: false,
+      ),
+      MediaItem(
+        id: podcastsRootId,
+        title: "podcasts".tr,
         playable: false,
       ),
       MediaItem(

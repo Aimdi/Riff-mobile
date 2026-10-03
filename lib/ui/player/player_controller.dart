@@ -48,7 +48,7 @@ import 'upcoming_queue.dart';
 import 'video_mode_controller.dart';
 import '/services/podcast_playback_profile.dart';
 import '/services/podcast_library.dart';
-import '/services/audio_handler.dart' show MyAudioHandler;
+import '/services/audio_handler.dart' show MyAudioHandler, MediaLibrary;
 import '/services/playback_hardening.dart';
 import '/services/podcast_segments.dart';
 import '/services/podcast_stats.dart';
@@ -1647,7 +1647,24 @@ class PlayerController extends GetxController
     return true;
   }
 
-  void _playViaAndroidAuto(String songId, String libraryId) {
+  void _playViaAndroidAuto(String songId, String? libraryId) {
+    if (libraryId == null) {
+      printERROR('Android Auto play: no list for $songId');
+      return;
+    }
+    // Podcast lists (Continue listening, a followed show) come from the
+    // browse cache; the long-form queue window keeps them small.
+    if (libraryId.startsWith('aa_pod_')) {
+      () async {
+        final list = MediaLibrary.autoPodcastLists[libraryId] ??
+            await MediaLibrary().getByRootId(libraryId);
+        if (list.isEmpty) return;
+        final i = list.indexWhere((e) => e.id == songId);
+        await playPlayListSong(list, i < 0 ? 0 : i,
+            source: DiscoverySource.androidAuto);
+      }();
+      return;
+    }
     Hive.openBox(libraryId).then((box) async {
       List<MediaItem> songList = [];
       final songJson = box.values.toList();
