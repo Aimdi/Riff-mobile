@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/services/podcast_playback_profile.dart';
+import 'podcast_library_ui.dart';
 import 'podcast_playback_controls.dart';
 
 import '/models/thumbnail.dart';
@@ -239,6 +240,29 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                     showKey: widget.playbackKey!, title: widget.title),
               );
             }),
+          if (widget.playbackKey != null)
+            PopupMenuButton<int>(
+              tooltip: 'moreOptions'.tr,
+              icon: const Icon(Icons.more_vert_rounded, size: 22),
+              onSelected: (v) {
+                switch (v) {
+                  case 0:
+                    showPodcastShowLibrarySheet(context,
+                        showKey: widget.playbackKey!, title: widget.title);
+                  case 1:
+                    markShowListened(context, widget.episodes,
+                        onChanged: () {
+                      if (mounted) setState(() {});
+                    });
+                }
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                    value: 0, child: Text('showLibrarySettings'.tr)),
+                if (widget.episodes.isNotEmpty)
+                  PopupMenuItem(value: 1, child: Text('markAllListened'.tr)),
+              ],
+            ),
         ],
       ),
     );

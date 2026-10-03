@@ -24,6 +24,7 @@ import '../Home/home_layout.dart';
 import 'podcast_category_screen.dart';
 import 'podcast_downloads_screen.dart';
 import 'podcast_layout.dart';
+import '/services/podcast_library.dart';
 import 'podcast_bookmarks_ui.dart';
 import 'podcast_inbox_screen.dart';
 import 'podcast_queue_controller.dart';
@@ -84,6 +85,10 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
     super.initState();
     // Picks up a WizeStream installed since launch.
     if (GetPlatform.isAndroid) WizeStream.refresh();
+    // "After 24 hours" downloads go once their day is up, even if nothing
+    // new has been played since.
+    PodcastLibrary.sweepDownloads(
+        currentId: Get.find<PlayerController>().currentSong.value?.id);
   }
 
   @override
