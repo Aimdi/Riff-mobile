@@ -19,6 +19,7 @@ class PodcastBookmark {
     this.episodeTitle = '',
     this.showTitle = '',
     this.episode = const {},
+    this.updatedAt,
   });
 
   final String id;
@@ -33,7 +34,12 @@ class PodcastBookmark {
   /// Playable snapshot of the episode ([episodeSnapshot]).
   final Map<String, dynamic> episode;
 
-  PodcastBookmark copyWith({String? note, bool clearNote = false}) =>
+  /// Last change after it was made (a note edit), for sync. Null when
+  /// unchanged since [createdAt].
+  final int? updatedAt;
+
+  PodcastBookmark copyWith(
+          {String? note, bool clearNote = false, int? updatedAt}) =>
       PodcastBookmark(
         id: id,
         episodeId: episodeId,
@@ -44,6 +50,7 @@ class PodcastBookmark {
         episodeTitle: episodeTitle,
         showTitle: showTitle,
         episode: episode,
+        updatedAt: updatedAt ?? this.updatedAt,
       );
 
   Map<String, dynamic> toJson() => {
@@ -56,6 +63,7 @@ class PodcastBookmark {
         'episodeTitle': episodeTitle,
         'showTitle': showTitle,
         'episode': episode,
+        if (updatedAt != null) 'updatedAt': updatedAt,
       };
 
   /// Null for anything that isn't a stored bookmark.
@@ -70,6 +78,7 @@ class PodcastBookmark {
     final created = j['createdAt'];
     final note = j['note'];
     final snap = j['episode'];
+    final updated = j['updatedAt'];
     return PodcastBookmark(
       id: id,
       episodeId: ep,
@@ -80,6 +89,7 @@ class PodcastBookmark {
       episodeTitle: '${j['episodeTitle'] ?? ''}',
       showTitle: '${j['showTitle'] ?? ''}',
       episode: snap is Map ? Map<String, dynamic>.from(snap) : const {},
+      updatedAt: updated is num && updated > 0 ? updated.toInt() : null,
     );
   }
 }
@@ -201,12 +211,17 @@ class PodcastBookmarkStore {
     return bm;
   }
 
-  static Future<void> setNote(PodcastBookmark bm, String note) async {
+  static Future<void> setNote(PodcastBookmark bm, String note,
+      {DateTime? now}) async {
     final b = _box;
     if (b == null) return;
     final n = note.trim();
-    await b.put(bm.id,
-        (n.isEmpty ? bm.copyWith(clearNote: true) : bm.copyWith(note: n))
+    final at = (now ?? DateTime.now()).millisecondsSinceEpoch;
+    await b.put(
+        bm.id,
+        (n.isEmpty
+                ? bm.copyWith(clearNote: true, updatedAt: at)
+                : bm.copyWith(note: n, updatedAt: at))
             .toJson());
     rev.value++;
   }

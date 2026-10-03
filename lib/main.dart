@@ -48,6 +48,7 @@ import 'utils/helper.dart';
 import 'utils/hive_safe_open.dart';
 import 'utils/house_keeping.dart';
 import 'utils/secure_credentials.dart';
+import 'services/sync/webdav_sync_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -126,6 +127,9 @@ Future<void> _initAudioAndWarm(Future<void> deferredBoxes) async {
     if (!Get.isRegistered<SmartQueueService>()) {
       Get.put(SmartQueueService().init(), permanent: true);
     }
+    // WebDAV sync (when switched on), after the first screen settles.
+    Future<void>.delayed(
+        const Duration(seconds: 10), WebDavSyncService.maybeAutoSync);
   } catch (e) {
     // Never block the UI on background warm-up failures.
     printERROR('Background warm-up failed: $e');
@@ -274,6 +278,7 @@ Future<void> initHiveDeferred() async {
     safeOpenBox("PodcastInboxCache"),
     safeOpenBox("TrackAnalysisCache"),
     safeOpenBox("PlaylistMixPrefs"),
+    safeOpenBox("SyncLedger"),
   ]);
 }
 
@@ -332,8 +337,11 @@ class LifecycleHandler extends WidgetsBindingObserver {
       Future<void>.delayed(const Duration(seconds: 8), () {
         unawaited(evictSongCacheInBackground());
       });
+      WebDavSyncService.maybeAutoSync();
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
+      // Hand this session's changes to the other devices.
+      WebDavSyncService.maybeAutoSync(leaving: true);
       if (Get.isRegistered<AudioHandler>()) {
         await Get.find<AudioHandler>().customAction("saveSession");
       }

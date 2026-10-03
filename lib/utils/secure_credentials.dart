@@ -30,6 +30,7 @@ class SecureCredentials {
   static const nestedSecrets = <String, String>{
     'cloudMusic': 'password',
     'audiobookshelf': 'token',
+    'webdavSync': 'password',
   };
 
   static Future<void> init() async {
