@@ -48,6 +48,8 @@ import 'upcoming_queue.dart';
 import 'video_mode_controller.dart';
 import '/services/podcast_playback_profile.dart';
 import '/services/podcast_library.dart';
+import '/services/audio_handler.dart' show MyAudioHandler;
+import '/services/playback_hardening.dart';
 import '/services/podcast_segments.dart';
 import '/services/podcast_stats.dart';
 import '/services/podcast_transcripts.dart';
@@ -59,6 +61,13 @@ class PlayerController extends GetxController
   AudioHandler get _audioHandler {
     _audioHandlerOrNull ??= Get.find<AudioHandler>();
     return _audioHandlerOrNull!;
+  }
+
+  /// The real handler (tests use fakes): transport goes through its
+  /// source-tagged entry points.
+  MyAudioHandler? get _tagged {
+    final h = _audioHandler;
+    return h is MyAudioHandler ? h : null;
   }
 
   bool get _audioReady =>
@@ -420,7 +429,7 @@ class PlayerController extends GetxController
       if (_maybeStartSleepFade(oldState.total - position)) {
         // The fade pauses when it is done.
       } else if (timerDurationLeft.value <= 1) {
-        pause();
+        pause(source: PlaybackCommandSource.sleepTimer);
         cancelSleepTimer();
       }
     } else if (isSleepEndOfChapterActive.isTrue) {
@@ -430,7 +439,7 @@ class PlayerController extends GetxController
       if (_maybeStartSleepFade(remaining)) {
         // The fade pauses when it is done.
       } else if (remaining <= const Duration(seconds: 1)) {
-        pause();
+        pause(source: PlaybackCommandSource.sleepTimer);
         cancelSleepTimer();
       }
     }
@@ -766,6 +775,14 @@ class PlayerController extends GetxController
     if (skipped.contains(active.id) || !enteredFromBefore(active, prev, sec)) {
       return;
     }
+    // A seek a person just made (app, notification, Android Auto) wins.
+    if (!autoSkipAllowed(
+        lastSeek: _tagged?.lastUserSeek,
+        nowMs: DateTime.now().millisecondsSinceEpoch,
+        segStartSec: active.start,
+        segEndSec: active.end)) {
+      return;
+    }
     final total = progressBarStatus.value.total;
     if (total > Duration.zero &&
         Duration(milliseconds: (active.end * 1000).round()) >=
@@ -776,19 +793,37 @@ class PlayerController extends GetxController
     _skipSegment(active, fromSec: sec, auto: true);
   }
 
-  void _skipSegment(PodcastSegment s,
-      {required double fromSec, required bool auto}) {
+  Future<void> _skipSegment(PodcastSegment s,
+      {required double fromSec, required bool auto}) async {
     _segmentSeekInFlight = true;
     _prevSegmentSec = s.end;
     activePodcastSegment.value = null;
     printINFO('Podcast segment skip ${s.category.apiName} '
         '${s.start.toStringAsFixed(1)}s → ${s.end.toStringAsFixed(1)}s');
-    seek(Duration(milliseconds: (s.end * 1000).round()));
-    unawaited(PodcastSegmentStore.addTimeSaved(
-        Duration(milliseconds: ((s.end - fromSec) * 1000).round())));
-    Future.delayed(const Duration(milliseconds: 350),
-        () => _segmentSeekInFlight = false);
-    if (auto) _showSegmentSkippedSnack(s, fromSec);
+    final target = Duration(milliseconds: (s.end * 1000).round());
+    final h = _tagged;
+    try {
+      if (auto && h != null && !_videoModeActive) {
+        // Short duck, seek, fade back in; dropped if someone seeks first.
+        final done = await h.autoSkipTo(target,
+            seekSerial: h.userSeekSerial, itemId: currentSong.value?.id);
+        if (!done) {
+          _prevSegmentSec = null;
+          return;
+        }
+      } else {
+        seek(target,
+            source: auto
+                ? PlaybackCommandSource.autoSkip
+                : PlaybackCommandSource.user);
+      }
+      unawaited(PodcastSegmentStore.addTimeSaved(
+          Duration(milliseconds: ((s.end - fromSec) * 1000).round())));
+      if (auto) _showSegmentSkippedSnack(s, fromSec);
+    } finally {
+      Future.delayed(const Duration(milliseconds: 350),
+          () => _segmentSeekInFlight = false);
+    }
   }
 
   void _showSegmentSkippedSnack(PodcastSegment s, double fromSec) {
@@ -928,6 +963,18 @@ class PlayerController extends GetxController
     final target = sb.seekTargetIfInSegment(_sponsorSegments, sec);
     if (target == null) return;
 
+    // A person just sought (or sought into this segment): leave it be for
+    // this pass; it still shows, and the next play skips it as usual.
+    final h = _tagged;
+    if (!autoSkipAllowed(
+        lastSeek: h?.lastUserSeek,
+        nowMs: DateTime.now().millisecondsSinceEpoch,
+        segStartSec: active.start,
+        segEndSec: active.end)) {
+      _lastSkippedSegmentUuid = active.uuid;
+      return;
+    }
+
     // Don't skip past the end of the track — just leave it to natural end.
     final total = progressBarStatus.value.total;
     if (total > Duration.zero &&
@@ -940,10 +987,15 @@ class PlayerController extends GetxController
     sponsorBlockActiveCategory.value = active.category;
     printINFO(
         'SponsorBlock skip ${active.category} ${active.start.toStringAsFixed(1)}s → ${active.end.toStringAsFixed(1)}s');
-    seek(target);
-    Future.delayed(const Duration(milliseconds: 350), () {
-      _sponsorSeekInFlight = false;
-    });
+    final Future<void> skip = h != null && !_videoModeActive
+        ? h
+            .autoSkipTo(target,
+                seekSerial: h.userSeekSerial, itemId: currentSong.value?.id)
+            .then((_) {})
+        : Future.sync(
+            () => seek(target, source: PlaybackCommandSource.autoSkip));
+    skip.whenComplete(() => Future.delayed(
+        const Duration(milliseconds: 350), () => _sponsorSeekInFlight = false));
   }
 
   DateTime? _lastBufferedUiAt;
@@ -1773,17 +1825,19 @@ class PlayerController extends GetxController
       if (!vm.isVideoPlaying.value) vm.playPauseVideo();
       return;
     }
-    _audioHandler.play();
+    final h = _tagged;
+    h != null ? h.playFrom(PlaybackCommandSource.user) : _audioHandler.play();
   }
 
-  void pause() {
+  void pause({PlaybackCommandSource source = PlaybackCommandSource.user}) {
     if (!_audioReady) return;
     if (_videoModeActive) {
       final vm = Get.find<VideoModeController>();
       if (vm.isVideoPlaying.value) vm.playPauseVideo();
       return;
     }
-    _audioHandler.pause();
+    final h = _tagged;
+    h != null ? h.pauseFrom(source) : _audioHandler.pause();
   }
 
   void playPause() {
@@ -1814,7 +1868,8 @@ class PlayerController extends GetxController
   Future<bool> prev() async {
     if (!_audioReady) return false;
     return _handoffVideoThen(() async {
-      final result = await _audioHandler.customAction('skipToPrevious');
+      final result = await _audioHandler
+          .customAction('skipToPrevious', {'source': 'user'});
       return playByIndexDidStart(result);
     });
   }
@@ -1822,18 +1877,21 @@ class PlayerController extends GetxController
   Future<bool> next() async {
     if (!_audioReady) return false;
     return _handoffVideoThen(() async {
-      final result = await _audioHandler.customAction('skipToNext');
+      final result = await _audioHandler
+          .customAction('skipToNext', {'source': 'user'});
       return playByIndexDidStart(result);
     });
   }
 
-  void seek(Duration position) {
+  void seek(Duration position,
+      {PlaybackCommandSource source = PlaybackCommandSource.user}) {
     if (_videoModeActive) {
       Get.find<VideoModeController>().seekVideo(position);
       return;
     }
     if (!_audioReady) return;
-    _audioHandler.seek(position);
+    final h = _tagged;
+    h != null ? h.seekFrom(position, source) : _audioHandler.seek(position);
   }
 
   /// True when the currently playing item is a podcast episode (from the
@@ -2217,7 +2275,9 @@ class PlayerController extends GetxController
         if (timer.tick == timerDuration) {
           sleepTimer?.cancel();
           // A podcast fade pauses by itself.
-          if (!_sleepFadeStarted) pause();
+          if (!_sleepFadeStarted) {
+            pause(source: PlaybackCommandSource.sleepTimer);
+          }
           isSleepTimerActive.value = false;
           timerDuration = 0;
           timerDurationLeft.value = 0;
