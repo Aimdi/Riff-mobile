@@ -17,12 +17,17 @@ class SpotifyTrackRef {
     required this.title,
     required this.artists,
     this.durationMs,
+    this.isrc,
   });
 
   final String id;
   final String title;
   final String artists;
   final int? durationMs;
+
+  /// International Standard Recording Code, when the source has one (CSV
+  /// exports): searched first, as it names the exact recording.
+  final String? isrc;
 
   String get searchQuery {
     // Spotify subtitles use non-breaking spaces between artists.
@@ -191,6 +196,18 @@ class SpotifyImportService extends GetxService {
     List<SpotifyTrackRef> tracks, {
     void Function(int done, int total)? onProgress,
     int concurrency = 3,
+  }) async =>
+      (await resolveTracksDetailed(tracks,
+              onProgress: onProgress, concurrency: concurrency))
+          .whereType<MediaItem>()
+          .toList();
+
+  /// Like [resolveTracksToYtm], but one entry per track (null when nothing
+  /// matched), for a matched / unmatched summary.
+  Future<List<MediaItem?>> resolveTracksDetailed(
+    List<SpotifyTrackRef> tracks, {
+    void Function(int done, int total)? onProgress,
+    int concurrency = 3,
   }) async {
     final music = Get.find<MusicServices>();
     final results = List<MediaItem?>.filled(tracks.length, null);
@@ -211,40 +228,55 @@ class SpotifyImportService extends GetxService {
           spotifyDurationMs = meta?.durationMs;
         }
 
-        final res = await music.search(
-          t.searchQuery,
-          filter: 'songs',
-          limit: 5,
-        );
-        // Collect every candidate rather than taking the first hit: YouTube
-        // routinely ranks a remix, live cut, sped-up upload or karaoke version
-        // above the actual recording, and the old code accepted whichever came
-        // back first.
-        final candidates = <MediaItem>[];
-        for (final entry in res.entries) {
-          if (entry.key == 'params' || entry.key == 'searchEndpoint') continue;
-          final list = entry.value;
-          if (list is! List) continue;
-          for (final item in list) {
-            if (item is MediaItem) {
-              candidates.add(item);
-            } else if (item is Map && item['videoId'] != null) {
-              candidates.add(MediaItemBuilder.fromJson(item));
+        Future<List<MediaItem>> candidatesFor(String query) async {
+          final res = await music.search(query, filter: 'songs', limit: 5);
+          // Collect every candidate rather than taking the first hit:
+          // YouTube routinely ranks a remix, live cut, sped-up upload or
+          // karaoke version above the actual recording.
+          final out = <MediaItem>[];
+          for (final entry in res.entries) {
+            if (entry.key == 'params' || entry.key == 'searchEndpoint') {
+              continue;
+            }
+            final list = entry.value;
+            if (list is! List) continue;
+            for (final item in list) {
+              if (item is MediaItem) {
+                out.add(item);
+              } else if (item is Map && item['videoId'] != null) {
+                out.add(MediaItemBuilder.fromJson(item));
+              }
             }
           }
+          return out;
         }
 
-        final scored = bestMatch<MediaItem>(
-          candidates,
-          score: (c) => matchScore(
-            spotifyTitle: t.title,
-            spotifyArtists: t.artists,
-            spotifyDurationMs: spotifyDurationMs,
-            candidateTitle: c.title,
-            candidateArtist: c.artist,
-            candidateDuration: c.duration,
-          ),
-        );
+        ScoredCandidate<MediaItem>? pick(List<MediaItem> candidates) =>
+            bestMatch<MediaItem>(
+              candidates,
+              score: (c) => matchScore(
+                spotifyTitle: t.title,
+                spotifyArtists: t.artists,
+                spotifyDurationMs: spotifyDurationMs,
+                candidateTitle: c.title,
+                candidateArtist: c.artist,
+                candidateDuration: c.duration,
+              ),
+            );
+
+        // An ISRC names the exact recording; YouTube Music search finds it
+        // directly for most labelled releases. Still scored, so a stray hit
+        // can't slip through.
+        var candidates = const <MediaItem>[];
+        ScoredCandidate<MediaItem>? scored;
+        if (t.isrc != null) {
+          candidates = await candidatesFor(t.isrc!);
+          scored = pick(candidates);
+        }
+        if (scored == null) {
+          candidates = await candidatesFor(t.searchQuery);
+          scored = pick(candidates);
+        }
         if (scored == null && candidates.isNotEmpty) {
           printINFO(
               'Spotify import: no confident match for "${t.searchQuery}", skipped');
@@ -271,6 +303,6 @@ class SpotifyImportService extends GetxService {
     final n = concurrency.clamp(1, 6);
     await Future.wait(List.generate(n, (_) => worker()));
 
-    return results.whereType<MediaItem>().toList();
+    return results;
   }
 }
