@@ -904,24 +904,6 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ),
                   SettingsSearchable(
-                    title: 'skipPodcastAds'.tr,
-                    subtitle: 'skipPodcastAdsDes'.tr,
-                    child: Obx(() {
-                      return ListTile(
-                        contentPadding:
-                            const EdgeInsets.only(left: 5, right: 10),
-                        title: Text("skipPodcastAds".tr),
-                        subtitle: Text("skipPodcastAdsDes".tr,
-                            style: settingsSubtitleStyle(context)),
-                        trailing: CustSwitch(
-                            value: settingsController
-                                .podcastAutoSkipAdsEnabled.value,
-                            onChanged:
-                                settingsController.togglePodcastAutoSkipAds),
-                      );
-                    }),
-                  ),
-                  SettingsSearchable(
                     title: 'podcastContinuousPlayback'.tr,
                     subtitle: 'podcastContinuousPlaybackDes'.tr,
                     child: Obx(() {

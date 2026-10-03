@@ -3,6 +3,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/screens/Podcasts/podcast_segment_ui.dart';
+
 import '/ui/screens/Podcasts/podcast_playback_controls.dart';
 
 import '/models/media_item_extras.dart';
@@ -265,7 +267,7 @@ class _Controls extends StatelessWidget {
                   child: ActionChip(
                     avatar: const Icon(Icons.fast_forward_rounded,
                         size: 18, color: RiffSurfaces.voidBlack),
-                    label: Text('skipAd'.tr,
+                    label: Text(podcastSkipPillLabel(pc),
                         style: const TextStyle(
                             color: RiffSurfaces.voidBlack,
                             fontWeight: FontWeight.w700)),

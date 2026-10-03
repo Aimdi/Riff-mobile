@@ -5,6 +5,7 @@ import '/services/podcast_playback_profile.dart';
 import '../../widgets/cust_switch.dart';
 import '../Home/home_layout.dart';
 import 'podcast_playback_controls.dart';
+import 'podcast_segment_ui.dart';
 
 /// "Podcast settings", opened from the gear in the Podcasts tab header.
 /// Everything here applies to podcast episodes only; music keeps its own
@@ -42,6 +43,8 @@ class PodcastSettingsScreen extends StatelessWidget {
                     profile: defaults,
                     onChanged: savePodcastDefaults,
                   ),
+                  const SizedBox(height: 28),
+                  const PodcastSegmentSettings(),
                   const SizedBox(height: 28),
                   Text('podcastResume'.tr,
                       style: homeSectionTitleStyle(context)),

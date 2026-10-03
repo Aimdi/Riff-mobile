@@ -4,6 +4,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/screens/Podcasts/podcast_segment_ui.dart';
+
 import '/ui/screens/Podcasts/podcast_playback_controls.dart';
 import 'package:ionicons/ionicons.dart';
 import 'package:share_plus/share_plus.dart';
@@ -255,7 +257,7 @@ class PlayerControlWidget extends StatelessWidget {
                         avatar: Icon(Icons.fast_forward,
                             size: 18,
                             color: Theme.of(context).colorScheme.onSecondary),
-                        label: Text('skipAd'.tr,
+                        label: Text(podcastSkipPillLabel(playerController),
                             style: TextStyle(
                                 color:
                                     Theme.of(context).colorScheme.onSecondary,
@@ -869,6 +871,17 @@ class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
           : 0.0;
       final frac = _dragFrac ?? liveFrac;
       final marks = _chapterMarks(controller.chapters, totalMs);
+      // Podcast segments as coloured spans on the track.
+      final spans = totalMs <= 0
+          ? const <(double, double, Color)>[]
+          : [
+              for (final s in controller.podcastSegments)
+                (
+                  (s.start * 1000 / totalMs).clamp(0.0, 1.0),
+                  (s.end * 1000 / totalMs).clamp(0.0, 1.0),
+                  s.category.color,
+                )
+            ];
       final timeStyle = Theme.of(context).textTheme.titleSmall!.copyWith(
             fontSize: 12,
             color: RiffSurfaces.textMuted,
@@ -907,6 +920,7 @@ class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
                     painter: _SectionTrackPainter(
                       progress: frac,
                       marks: marks,
+                      spans: spans,
                       playedColor: played,
                       restColor: rest,
                       thumbColor: RiffSurfaces.textPrimary,
@@ -939,10 +953,14 @@ class _SectionTrackPainter extends CustomPainter {
     required this.playedColor,
     required this.restColor,
     required this.thumbColor,
+    this.spans = const [],
   });
 
   final double progress;
   final List<double> marks;
+
+  /// Podcast segments: (start, end) as fractions, and their colour.
+  final List<(double, double, Color)> spans;
   final Color playedColor;
   final Color restColor;
   final Color thumbColor;
@@ -973,6 +991,15 @@ class _SectionTrackPainter extends CustomPainter {
         );
       }
     }
+    for (final (a, b, color) in spans) {
+      final l = a * size.width, r = b * size.width;
+      if (r - l < 1) continue;
+      canvas.drawRRect(
+        RRect.fromLTRBR(
+            l, top, r, top + _trackH, const Radius.circular(99)),
+        Paint()..color = color.withOpacity(0.9),
+      );
+    }
     final tx =
         (size.width * progress).clamp(_thumb / 2, size.width - _thumb / 2);
     canvas.drawCircle(
@@ -988,7 +1015,16 @@ class _SectionTrackPainter extends CustomPainter {
       old.playedColor != playedColor ||
       old.restColor != restColor ||
       old.thumbColor != thumbColor ||
-      !_listEq(old.marks, marks);
+      !_listEq(old.marks, marks) ||
+      old.spans.length != spans.length ||
+      !_spansEq(old.spans, spans);
+
+  bool _spansEq(List<(double, double, Color)> a, List<(double, double, Color)> b) {
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 
   bool _listEq(List<double> a, List<double> b) {
     if (a.length != b.length) return false;

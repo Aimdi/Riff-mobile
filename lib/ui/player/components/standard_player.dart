@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/screens/Podcasts/podcast_segment_ui.dart';
+
 import '../../screens/Settings/settings_screen_controller.dart';
 import '../../utils/theme_controller.dart';
 import '/models/playling_from.dart';
@@ -218,8 +220,11 @@ class PlayerTopBar extends StatelessWidget {
                 );
               }),
             ),
-            // Balances the collapse button; song options sit by the title.
-            const SizedBox(width: 48),
+            // Podcast episodes: segments menu. Music: balances the collapse
+            // button (song options sit by the title).
+            Obx(() => playerController.isCurrentSongPodcast
+                ? const PodcastPlayerMenuButton()
+                : const SizedBox(width: 48)),
           ],
         ),
       ),
