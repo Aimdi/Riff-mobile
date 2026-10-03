@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/services.dart';
 
 import 'package:hive/hive.dart';
@@ -22,6 +23,7 @@ import '/services/playlist_mix_service.dart';
 import '/services/audiobookshelf_service.dart';
 import '/services/cloud_music_service.dart';
 import '/services/podcast_progress_service.dart';
+import '/services/playback_hardening.dart';
 import '/services/podcast_playback_profile.dart';
 import '/models/media_item_extras.dart';
 import '/services/shuffle_order.dart';
@@ -101,6 +103,23 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   /// Volume to restore when a muted podcast segment ends.
   double? _segmentMuteRestore;
+
+  // ── Command sources and the playback watchdog ────────────────────────
+  /// Inside a media-button press (headset, Bluetooth).
+  int _mediaButtonDepth = 0;
+
+  /// Last time Android Auto (or another browser) listed our library.
+  DateTime? _lastAutoBrowseAt;
+  bool _carMode = false;
+
+  /// The last seek a person made (app, notification, Android Auto), and a
+  /// counter bumped by each; automatic skips check both.
+  SeekRecord? lastUserSeek;
+  int userSeekSerial = 0;
+
+  final _watchdog = PlaybackWatchdog();
+  Timer? _watchdogTimer;
+  int _watchdogTicks = 0;
   bool _mixTransitionInProgress = false;
   bool _startMutedForMix = false;
   /// Song id we already near-end-prefetched, so the 45s listener fires once.
@@ -162,6 +181,176 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       _listenSessionIdStream();
     }
     _listenForPodcastPauses();
+    _listenForWatchdog();
+  }
+
+  /// Source of a command that came from outside the app (notification,
+  /// lock screen, Android Auto, headset).
+  PlaybackCommandSource _externalSource() => classifyExternalCommand(
+        mediaButton: _mediaButtonDepth > 0,
+        carMode: _carMode,
+        lastBrowseAt: _lastAutoBrowseAt,
+        now: DateTime.now(),
+      );
+
+  void _logCommand(String command, PlaybackCommandSource source,
+      [String detail = '']) {
+    if (!kDebugMode) return;
+    printINFO('[transport] $command ← ${source.name}'
+        '${detail.isEmpty ? '' : ' $detail'}');
+  }
+
+  Future<void> _refreshCarMode() async {
+    if (!GetPlatform.isAndroid) return;
+    try {
+      _carMode = await _fxChannel.invokeMethod<bool>('isCarMode') ?? false;
+    } catch (_) {
+      _carMode = false;
+    }
+  }
+
+  /// Headset / Bluetooth buttons arrive here; whatever they trigger is
+  /// tagged [PlaybackCommandSource.system].
+  @override
+  Future<void> click([MediaButton button = MediaButton.media]) async {
+    _mediaButtonDepth++;
+    try {
+      await super.click(button);
+    } finally {
+      _mediaButtonDepth--;
+    }
+  }
+
+  // ── Watchdog ──────────────────────────────────────────────────────────
+
+  /// Runs while the player or the session says something is playing (a
+  /// Dart timer in the audio service's process, so it keeps going with the
+  /// screen off).
+  void _listenForWatchdog() {
+    _player.playingStream.listen((_) => _syncWatchdogTimer());
+    playbackState.listen((_) => _syncWatchdogTimer());
+  }
+
+  void _syncWatchdogTimer() {
+    final wanted = _player.playing || playbackState.value.playing;
+    if (wanted && _watchdogTimer == null) {
+      _watchdog.reset();
+      _watchdogTimer = Timer.periodic(
+          const Duration(seconds: 2), (_) => _watchdogTick());
+    } else if (!wanted && _watchdogTimer != null) {
+      _watchdogTimer!.cancel();
+      _watchdogTimer = null;
+      _watchdog.reset();
+    }
+  }
+
+  static WatchdogProcessing _watchdogProcessing(ProcessingState s) =>
+      switch (s) {
+        ProcessingState.idle => WatchdogProcessing.idle,
+        ProcessingState.loading => WatchdogProcessing.loading,
+        ProcessingState.buffering => WatchdogProcessing.buffering,
+        ProcessingState.ready => WatchdogProcessing.ready,
+        ProcessingState.completed => WatchdogProcessing.completed,
+      };
+
+  bool _watchdogBusy = false;
+
+  Future<void> _watchdogTick() async {
+    if (_watchdogBusy) return;
+    _watchdogBusy = true;
+    try {
+      if (++_watchdogTicks % 5 == 0) unawaited(_refreshCarMode());
+      final videoMode = Get.isRegistered<VideoModeController>() &&
+          Get.find<VideoModeController>().isActive.value;
+      final action = _watchdog.tick(WatchdogSample(
+        nowMs: DateTime.now().millisecondsSinceEpoch,
+        positionMs: _player.position.inMilliseconds,
+        playerPlaying: _player.playing,
+        processing: _watchdogProcessing(_player.processingState),
+        sessionPlaying: playbackState.value.playing,
+        busy: isSongLoading ||
+            videoMode ||
+            _mixTransitionInProgress ||
+            _eofAdvanceInProgress ||
+            _runtimeErrorInFlight ||
+            _sleepFadeRestoreVolume != null ||
+            // The UI shows a playback error; republishing would hide it.
+            playbackState.value.processingState == AudioProcessingState.error,
+      ));
+      switch (action) {
+        case WatchdogAction.none:
+          break;
+        case WatchdogAction.reseek:
+          final at = _player.position;
+          printWarning('Watchdog: stalled at ${at.inMilliseconds}ms, re-seeking');
+          _logCommand('seek', PlaybackCommandSource.watchdog, 'stall');
+          await _player.seek(at);
+        case WatchdogAction.replay:
+          printWarning('Watchdog: still stalled, pause + play');
+          _logCommand('pause+play', PlaybackCommandSource.watchdog, 'stall');
+          final at = _player.position;
+          await _player.pause();
+          await _player.seek(at);
+          await _player.play();
+        case WatchdogAction.giveUp:
+          printERROR('Watchdog: playback stuck at '
+              '${_player.position.inMilliseconds}ms, giving up until it moves');
+        case WatchdogAction.republish:
+          printWarning('Watchdog: session said playing='
+              '${playbackState.value.playing}, player says '
+              '${_player.playing}; resyncing');
+          _publishPlaybackState();
+      }
+    } catch (e) {
+      printERROR('Watchdog tick failed: $e');
+    } finally {
+      _watchdogBusy = false;
+    }
+  }
+
+  // ── Automatic skips ───────────────────────────────────────────────────
+
+  /// Step the volume from [from] to [to] over [length]. Stops early (and
+  /// returns false) when [keepGoing] says so.
+  Future<bool> _rampVolume(double from, double to, Duration length,
+      {Duration step = const Duration(milliseconds: 40),
+      bool Function()? keepGoing}) async {
+    final watch = Stopwatch()..start();
+    while (watch.elapsed < length) {
+      if (keepGoing != null && !keepGoing()) return false;
+      await _player.setVolume(volumeRamp(
+          from: from, to: to, elapsed: watch.elapsed, length: length));
+      await Future<void>.delayed(step);
+    }
+    if (keepGoing != null && !keepGoing()) return false;
+    await _player.setVolume(to);
+    return true;
+  }
+
+  /// Automatic segment skip (podcast segments, SponsorBlock): duck, seek
+  /// to [target], fade back in. Called with the [seekSerial] seen when the
+  /// skip was decided; if a person seeks meanwhile (app, notification,
+  /// Android Auto) or the track changes, the skip is dropped and the
+  /// volume put back. True when it skipped.
+  Future<bool> autoSkipTo(Duration target,
+      {required int seekSerial, required String? itemId}) async {
+    bool valid() => autoSkipStillValid(
+        seekSerialAtStart: seekSerial,
+        seekSerialNow: userSeekSerial,
+        itemAtStart: itemId,
+        itemNow: mediaItem.value?.id);
+    if (!valid()) return false;
+    final base = _player.volume;
+    final ducked = base * autoSkipDuckLevel;
+    if (!await _rampVolume(base, ducked, autoSkipDuck, keepGoing: valid)) {
+      await _player.setVolume(base);
+      _logCommand('autoSkip', PlaybackCommandSource.autoSkip,
+          'dropped: a person sought first');
+      return false;
+    }
+    await seekFrom(target, PlaybackCommandSource.autoSkip);
+    await _rampVolume(ducked, base, autoSkipFadeIn);
+    return true;
   }
 
   /// Smart resume: remember when a podcast episode stopped playing (any
@@ -214,7 +403,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   /// Notification / headset skip for podcast episodes, by the show's
   /// skip lengths. Music keeps the handler default (nothing).
-  Future<void> _podcastSkip({required bool forward}) async {
+  Future<void> _podcastSkip(
+      {required bool forward, required PlaybackCommandSource source}) async {
     final item = mediaItem.value;
     if (item == null || !item.isPodcastEpisode) return;
     final p = PodcastPlaybackPrefs.forItem(item);
@@ -223,14 +413,16 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     final total = _player.duration;
     if (target.isNegative) target = Duration.zero;
     if (total != null && target > total) target = total;
-    await seek(target);
+    await seekFrom(target, source);
   }
 
   @override
-  Future<void> fastForward() => _podcastSkip(forward: true);
+  Future<void> fastForward() =>
+      _podcastSkip(forward: true, source: _externalSource());
 
   @override
-  Future<void> rewind() => _podcastSkip(forward: false);
+  Future<void> rewind() =>
+      _podcastSkip(forward: false, source: _externalSource());
 
   Future<void> _createCacheDir() async {
     _cacheDir = (await getTemporaryDirectory()).path;
@@ -290,6 +482,23 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         if (id != null) _resetStreamRetryBudget(songId: id);
         _consecutiveResolveFails = 0;
       }
+      _publishPlaybackState();
+
+      //print("set ${playbackState.value.queueIndex},${event.currentIndex}");
+    }, onError: (Object e, StackTrace st) async {
+      if (e is PlayerException) {
+        printERROR('Error code: ${e.code}');
+        printERROR('Error message: ${e.message}');
+      } else {
+        printERROR('An error occurred: $e');
+      }
+      await _handleRuntimePlaybackError(e, position: _player.position);
+    });
+  }
+
+  /// Media session state from the player's real state (notification,
+  /// Android Auto, lock screen and the app's UI all read it).
+  void _publishPlaybackState() {
       final playing = _player.playing;
       final podcast = mediaItem.value?.isPodcastEpisode ?? false;
       playbackState.add(playbackState.value.copyWith(
@@ -334,17 +543,6 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         speed: _player.speed,
         queueIndex: currentIndex,
       ));
-
-      //print("set ${playbackState.value.queueIndex},${event.currentIndex}");
-    }, onError: (Object e, StackTrace st) async {
-      if (e is PlayerException) {
-        printERROR('Error code: ${e.code}');
-        printERROR('Error message: ${e.message}');
-      } else {
-        printERROR('An error occurred: $e');
-      }
-      await _handleRuntimePlaybackError(e, position: _player.position);
-    });
   }
 
   String? _currentQueueSongId() {
@@ -412,7 +610,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         nextIndex: next,
         loopOne: loopModeEnabled,
       )) {
-        await skipToNext();
+        await skipToNextResult(source: PlaybackCommandSource.system);
         return true;
       }
       return false;
@@ -464,7 +662,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     )) {
       printINFO(
           'playByIndex: track will not resolve, skipping to next (fail $_consecutiveResolveFails)');
-      await skipToNext();
+      await skipToNextResult(source: PlaybackCommandSource.system);
       return true;
     }
     currentSongUrl = null;
@@ -513,7 +711,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
                       .advancePlaybackIndex(nextIndex);
                 }
                 _startMutedForMix = true;
-                await skipToNext();
+                await skipToNextResult(source: PlaybackCommandSource.system);
                 await _mixFadeTo(_baseVolume, style.fadeDuration);
               }
             } finally {
@@ -637,7 +835,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
       }
 
-      await skipToNext();
+      await skipToNextResult(source: PlaybackCommandSource.system);
     } finally {
       _eofAdvanceInProgress = false;
     }
@@ -767,8 +965,12 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     mediaItem.add(currentSong);
   }
 
+  /// From the notification, lock screen, Android Auto or a headset.
   @override
-  Future<void> play() async {
+  Future<void> play() => playFrom(_externalSource());
+
+  Future<void> playFrom(PlaybackCommandSource source) async {
+    _logCommand('play', source);
     // Video mode's engine owns playback (and plays the audio itself):
     // ignore stray transport (e.g. media notification) so the paused
     // audio pipeline can't start underneath the video.
@@ -819,10 +1021,27 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   }
 
   @override
-  Future<void> pause() => _player.pause();
+  Future<void> pause() => pauseFrom(_externalSource());
+
+  Future<void> pauseFrom(PlaybackCommandSource source) {
+    _logCommand('pause', source);
+    return _player.pause();
+  }
 
   @override
-  Future<void> seek(Duration position) async {
+  Future<void> seek(Duration position) =>
+      seekFrom(position, _externalSource());
+
+  Future<void> seekFrom(Duration position, PlaybackCommandSource source) async {
+    _logCommand('seek', source, '→ ${position.inMilliseconds}ms');
+    if (source.isUserIntent) {
+      userSeekSerial++;
+      lastUserSeek = SeekRecord(
+          source: source,
+          atMs: DateTime.now().millisecondsSinceEpoch,
+          targetMs: position.inMilliseconds);
+    }
+    _watchdog.reset();
     await _player.seek(position);
     // Notification / OS seeks bypass PlayerController.seek — still nudge video.
     if (Get.isRegistered<PlayerController>()) {
@@ -833,6 +1052,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   @override
   Future<void> skipToQueueItem(int index) async {
     if (index < 0 || index >= queue.value.length) return;
+    _logCommand('skipToQueueItem', _externalSource(), '#$index');
     await customAction("playByIndex", {'index': index});
   }
 
@@ -921,11 +1141,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   @override
   Future<void> skipToNext() async {
-    await skipToNextResult();
+    await skipToNextResult(source: _externalSource());
   }
 
   /// True when skip started another track (or radio extend). Last-track pause is false.
-  Future<bool> skipToNextResult() async {
+  Future<bool> skipToNextResult(
+      {PlaybackCommandSource source = PlaybackCommandSource.system}) async {
+    _logCommand('skipToNext', source);
     final from = currentIndex is int ? currentIndex as int : -1;
     final index = _getNextSongIndex(advance: true);
     if (skipNextDidAdvance(fromIndex: from, toIndex: index)) {
@@ -945,11 +1167,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   @override
   Future<void> skipToPrevious() async {
-    await skipToPreviousResult();
+    await skipToPreviousResult(source: _externalSource());
   }
 
   /// True when previous restarted the track or started the prior item.
-  Future<bool> skipToPreviousResult() async {
+  Future<bool> skipToPreviousResult(
+      {PlaybackCommandSource source = PlaybackCommandSource.system}) async {
+    _logCommand('skipToPrevious', source);
     if (shouldRestartOnPrevious(_player.position)) {
       _player.seek(Duration.zero);
       return true;
@@ -1002,10 +1226,12 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         break;
 
       case 'skipToNext':
-        return skipToNextResult();
+        return skipToNextResult(
+            source: PlaybackCommandSource.parse(extras?['source']));
 
       case 'skipToPrevious':
-        return skipToPreviousResult();
+        return skipToPreviousResult(
+            source: PlaybackCommandSource.parse(extras?['source']));
 
       case 'playByIndex':
         final songIndex = coercePlayByIndex(extras!['index']);
@@ -1334,15 +1560,15 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         final length = Duration(milliseconds: ms.clamp(0, 60000));
         final token = ++_sleepFadeToken;
         final restore = _sleepFadeRestoreVolume ??= _player.volume;
-        final watch = Stopwatch()..start();
-        while (watch.elapsed < length) {
-          if (token != _sleepFadeToken) return false;
-          await _player
-              .setVolume(restore * sleepFadeFactor(watch.elapsed, length));
-          await Future<void>.delayed(const Duration(milliseconds: 250));
+        _logCommand('fade-out', PlaybackCommandSource.sleepTimer,
+            '${length.inMilliseconds}ms');
+        // Same ramp as the auto-skip duck, in coarser steps.
+        if (!await _rampVolume(restore, 0, length,
+            step: const Duration(milliseconds: 250),
+            keepGoing: () => token == _sleepFadeToken)) {
+          return false;
         }
-        if (token != _sleepFadeToken) return false;
-        await _player.pause();
+        await pauseFrom(PlaybackCommandSource.sleepTimer);
         await _player.setVolume(restore);
         _sleepFadeRestoreVolume = null;
         return true;
@@ -1461,6 +1687,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   @override
   Future<List<MediaItem>> getChildren(String parentMediaId,
       [Map<String, dynamic>? options]) async {
+    // Only outside browsers (Android Auto, mostly) list the library.
+    _lastAutoBrowseAt = DateTime.now();
+    unawaited(_refreshCarMode());
     return _mediaLibrary.getByRootId(parentMediaId);
   }
 
@@ -1496,6 +1725,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   @override
   Future<void> stop() async {
+    _logCommand('stop', _externalSource());
     await _player.stop();
     return super.stop();
   }

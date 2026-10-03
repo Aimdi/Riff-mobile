@@ -83,6 +83,7 @@ class MainActivity : AudioServiceActivity() {
         // Stream resolution + audio effects. Holds no activity and stays
         // registered after this activity goes: the Dart audio handler keeps
         // resolving tracks while the engine runs in the background.
+        NewPipeChannel.appContext = applicationContext
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "riff/newpipe"

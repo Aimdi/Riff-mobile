@@ -1,5 +1,8 @@
 package com.anandnet.harmonymusic
 
+import android.app.UiModeManager
+import android.content.Context
+import android.content.res.Configuration
 import android.os.Handler
 import android.os.Looper
 import io.flutter.plugin.common.MethodCall
@@ -27,6 +30,10 @@ object NewPipeChannel : MethodChannel.MethodCallHandler {
 
     private val main = Handler(Looper.getMainLooper())
 
+    /** Application context (never an activity), for system services. */
+    @Volatile
+    var appContext: Context? = null
+
     /**
      * A few resolutions run side by side so a user's skip doesn't queue
      * behind prefetches (each can take up to a connect + read timeout).
@@ -50,6 +57,14 @@ object NewPipeChannel : MethodChannel.MethodCallHandler {
         when (call.method) {
             "getAudioStreams", "getMuxedVideoStreams", "getVideoStreams" ->
                 resolve(call, result)
+            // Car UI mode (Android Auto on the phone): the Dart audio handler
+            // uses it to tell Android Auto commands from notification ones.
+            "isCarMode" -> {
+                val ui = appContext?.getSystemService(Context.UI_MODE_SERVICE)
+                    as? UiModeManager
+                result.success(
+                    ui?.currentModeType == Configuration.UI_MODE_TYPE_CAR)
+            }
             "getCookies" -> {
                 val url = call.argument<String>("url")
                 if (url.isNullOrEmpty()) {
