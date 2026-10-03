@@ -46,6 +46,7 @@ import '/ui/player/progress_ui_throttle.dart';
 import '/ui/player/radio_continuation.dart';
 import 'upcoming_queue.dart';
 import 'video_mode_controller.dart';
+import '/services/podcast_playback_profile.dart';
 
 class PlayerController extends GetxController
     with GetSingleTickerProviderStateMixin {
@@ -111,6 +112,16 @@ class PlayerController extends GetxController
   final timerDurationLeft = 0.obs;
   final isSleepTimerActive = false.obs;
   final isSleepEndOfSongActive = false.obs;
+
+  /// Podcast sleep timer set to the end of the current chapter.
+  final isSleepEndOfChapterActive = false.obs;
+  Duration? _sleepChapterEnd;
+
+  /// A podcast sleep timer is fading out (the handler pauses at the end).
+  bool _sleepFadeStarted = false;
+
+  /// Podcast sleep timers fade the volume out over this before pausing.
+  static const sleepFadeLength = Duration(seconds: 10);
   final volume = 100.obs;
 
   final progressBarStatus = ProgressBarState(
@@ -171,6 +182,41 @@ class PlayerController extends GetxController
   bool get hasChapters => chapters.isNotEmpty;
 
   Box get _prefs => HiveBoxes.prefs();
+
+  /// Segment skipping for what is playing: the show's setting for podcast
+  /// episodes, the global ad-skip toggle otherwise.
+  bool get _segmentSkipOn =>
+      isCurrentSongPodcast ? currentPodcastProfile.segmentSkip : podcastAutoSkipAds;
+
+  /// Playback profile of the current podcast episode's show.
+  PodcastPlaybackProfile get currentPodcastProfile {
+    final s = currentSong.value;
+    return s == null
+        ? PodcastPlaybackPrefs.globalDefaults
+        : PodcastPlaybackPrefs.forItem(s);
+  }
+
+  /// Edits the current episode's profile where it lives (the show's
+  /// overrides, else the podcast defaults) and applies it right away.
+  Future<void> updateCurrentPodcastProfile(
+      PodcastPlaybackProfile Function(PodcastPlaybackProfile) edit) async {
+    final s = currentSong.value;
+    if (s == null || !s.isPodcastEpisode) return;
+    final key = podcastShowKey(s);
+    await PodcastPlaybackPrefs.saveForShow(
+        key, edit(PodcastPlaybackPrefs.forShow(key)));
+    await refreshPlaybackProfile();
+  }
+
+  /// Re-applies podcast speed / trim silence / voice boost to what is
+  /// playing (after a podcast settings change).
+  Future<void> refreshPlaybackProfile() async {
+    await _audioHandler.customAction('refreshPlaybackProfile');
+    if (_videoModeActive && isCurrentSongPodcast) {
+      Get.find<VideoModeController>()
+          .setVideoSpeed(currentPodcastProfile.speed);
+    }
+  }
 
   bool get podcastAutoSkipAds =>
       _prefs.get('podcastAutoSkipAds', defaultValue: true);
@@ -369,7 +415,19 @@ class PlayerController extends GetxController
     final oldState = progressBarStatus.value;
     if (isSleepEndOfSongActive.isTrue) {
       timerDurationLeft.value = oldState.total.inSeconds - position.inSeconds;
-      if (timerDurationLeft.value <= 1) {
+      if (_maybeStartSleepFade(oldState.total - position)) {
+        // The fade pauses when it is done.
+      } else if (timerDurationLeft.value <= 1) {
+        pause();
+        cancelSleepTimer();
+      }
+    } else if (isSleepEndOfChapterActive.isTrue) {
+      final end = _sleepChapterEnd ?? oldState.total;
+      final remaining = end - position;
+      timerDurationLeft.value = remaining.inSeconds.clamp(0, 1 << 30);
+      if (_maybeStartSleepFade(remaining)) {
+        // The fade pauses when it is done.
+      } else if (remaining <= const Duration(seconds: 1)) {
         pause();
         cancelSleepTimer();
       }
@@ -580,7 +638,7 @@ class PlayerController extends GetxController
     final current = _chapterAt(sec);
     final isAd = current?.isAd ?? false;
     if (inAdChapter.value != isAd) inAdChapter.value = isAd;
-    if (!isAd || !podcastAutoSkipAds || _chapterSeekInFlight) return;
+    if (!isAd || !_segmentSkipOn || _chapterSeekInFlight) return;
     final target = _endOfChapter(current!);
     if (target == null) return;
     final total = progressBarStatus.value.total;
@@ -646,6 +704,8 @@ class PlayerController extends GetxController
       return;
     }
     if (active.uuid == _lastSkippedSegmentUuid) return;
+    // A podcast show can turn segment skipping off for itself.
+    if (isCurrentSongPodcast && !_segmentSkipOn) return;
 
     final target = sb.seekTargetIfInSegment(_sponsorSegments, sec);
     if (target == null) return;
@@ -1872,15 +1932,61 @@ class PlayerController extends GetxController
     isSleepEndOfSongActive.value = true;
   }
 
+  /// Podcasts with chapters: sleep when the chapter playing now ends (the
+  /// end of the episode in the last chapter).
+  void sleepEndOfChapter() {
+    final pos = progressBarStatus.value.current;
+    final current = _chapterAt(pos.inMilliseconds / 1000.0);
+    _sleepChapterEnd = current == null ? null : _endOfChapter(current);
+    isSleepTimerActive.value = true;
+    isSleepEndOfChapterActive.value = true;
+  }
+
+  /// Podcasts (audio only): once less than [sleepFadeLength] of wall-clock
+  /// time is left, fade out and let the handler pause. True while a fade
+  /// owns the stop.
+  bool _maybeStartSleepFade(Duration remainingContent) {
+    if (_sleepFadeStarted) return true;
+    if (!isCurrentSongPodcast || _videoModeActive) return false;
+    final speed = _audioHandler.playbackState.value.speed;
+    // Stop a second before the end so the episode can't roll on to the
+    // next one while fading.
+    final wall = wallClockRemaining(remainingContent, speed) -
+        const Duration(seconds: 1);
+    if (wall > sleepFadeLength || wall <= Duration.zero) return false;
+    _startSleepFade(wall);
+    return true;
+  }
+
+  void _startSleepFade(Duration length) {
+    _sleepFadeStarted = true;
+    _audioHandler.customAction(
+        'sleepFadePause', {'ms': length.inMilliseconds}).then((done) {
+      if (done == true && _sleepFadeStarted) {
+        _sleepFadeStarted = false;
+        cancelSleepTimer();
+      }
+    });
+  }
+
   bool startSleepTimer(int minutes) {
     if (!canArmSleepTimer(minutes)) return false;
     timerDuration = minutes * 60;
     isSleepTimerActive.value = true;
     if ((sleepTimer != null && !sleepTimer!.isActive) || sleepTimer == null) {
       sleepTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        final left = timerDuration - timer.tick;
+        if (left > 0 &&
+            !_sleepFadeStarted &&
+            isCurrentSongPodcast &&
+            !_videoModeActive &&
+            left <= sleepFadeLength.inSeconds) {
+          _startSleepFade(Duration(seconds: left));
+        }
         if (timer.tick == timerDuration) {
           sleepTimer?.cancel();
-          pause();
+          // A podcast fade pauses by itself.
+          if (!_sleepFadeStarted) pause();
           isSleepTimerActive.value = false;
           timerDuration = 0;
           timerDurationLeft.value = 0;
@@ -1894,12 +2000,24 @@ class PlayerController extends GetxController
 
   void addFiveMinutes() {
     timerDuration += 300;
+    _cancelSleepFade();
+  }
+
+  void _cancelSleepFade() {
+    if (!_sleepFadeStarted) return;
+    _sleepFadeStarted = false;
+    _audioHandler.customAction('cancelSleepFade');
   }
 
   void cancelSleepTimer() {
+    _cancelSleepFade();
     if (isSleepEndOfSongActive.isTrue) {
       isSleepEndOfSongActive.value = false;
     }
+    if (isSleepEndOfChapterActive.isTrue) {
+      isSleepEndOfChapterActive.value = false;
+    }
+    _sleepChapterEnd = null;
     sleepTimer?.cancel();
     isSleepTimerActive.value = false;
     timerDuration = 0;

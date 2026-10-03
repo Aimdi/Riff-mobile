@@ -166,7 +166,10 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
         return false;
       }
       final position = _pc.progressBarStatus.value.current;
-      final speed = _settings?.playbackSpeed.value ?? 1.0;
+      // Podcast episodes play at their show's speed, music at the app's.
+      final speed = _pc.isCurrentSongPodcast
+          ? _pc.currentPodcastProfile.speed
+          : _settings?.playbackSpeed.value ?? 1.0;
       videoAspect.value = video.aspectRatio;
       VideoEngine engine;
       try {
