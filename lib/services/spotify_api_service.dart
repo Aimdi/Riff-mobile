@@ -1,21 +1,113 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:hive/hive.dart';
 
 import '../utils/helper.dart';
 import 'spotify_auth_service.dart';
 import 'spotify_import_service.dart';
 
+/// Why a Spotify Web API call failed, for a message the user can act on.
+enum SpotifyErrorKind {
+  /// Not signed in, or the session ended (sign in again).
+  signedOut,
+
+  /// 403: the app owner's Premium lapsed, the user isn't on the app's
+  /// user list, or the endpoint isn't available to Development Mode apps.
+  forbidden,
+
+  /// 404.
+  notFound,
+
+  /// 429 that didn't clear after waiting as asked.
+  rateLimited,
+
+  /// 429 with `reason: QUOTA_EXCEEDED`: the developer account's quota is
+  /// used up; wait longer.
+  quotaExceeded,
+
+  /// 5xx and other answers.
+  server,
+
+  /// No answer.
+  network,
+}
+
+class SpotifyApiException implements Exception {
+  const SpotifyApiException(this.kind, {this.status, this.retryAfter});
+  final SpotifyErrorKind kind;
+  final int? status;
+
+  /// For [SpotifyErrorKind.rateLimited] / [SpotifyErrorKind.quotaExceeded]:
+  /// how long until it's worth trying again, when known.
+  final Duration? retryAfter;
+
+  @override
+  String toString() => 'SpotifyApiException(${kind.name}, $status)';
+}
+
+/// What a non-200 answer means.
+SpotifyErrorKind classifySpotifyError(int status, Object? body) {
+  if (status == 401) return SpotifyErrorKind.signedOut;
+  if (status == 403) return SpotifyErrorKind.forbidden;
+  if (status == 404) return SpotifyErrorKind.notFound;
+  if (status == 429) {
+    return isQuotaExceeded(body)
+        ? SpotifyErrorKind.quotaExceeded
+        : SpotifyErrorKind.rateLimited;
+  }
+  return SpotifyErrorKind.server;
+}
+
+/// `{"error":{"status":429,"message":"Too many requests",
+/// "reason":"QUOTA_EXCEEDED"}}`.
+bool isQuotaExceeded(Object? body) {
+  try {
+    final j = body is Map ? body : jsonDecode('$body');
+    final e = j is Map ? j['error'] : null;
+    return e is Map && e['reason'] == 'QUOTA_EXCEEDED';
+  } catch (_) {
+    return false;
+  }
+}
+
+/// `Retry-After` in seconds (Spotify sends seconds).
+Duration? parseRetryAfter(String? header) {
+  final s = int.tryParse((header ?? '').trim());
+  return s == null || s < 0 ? null : Duration(seconds: s);
+}
+
+/// How long to wait before retry [attempt] (0-based) of a 429: what the
+/// server asked for, else 1 s, 2 s, 4 s.
+Duration rateLimitDelay(Duration? retryAfter, int attempt) =>
+    retryAfter ?? Duration(seconds: 1 << attempt.clamp(0, 5));
+
+/// Whether a cached answer stored at [storedAtMs] is still good.
+bool spotifyCacheFresh(int storedAtMs, int nowMs, Duration ttl) =>
+    nowMs >= storedAtMs && nowMs - storedAtMs < ttl.inMilliseconds;
+
 /// Reads the signed-in user's own Spotify library through the documented
-/// public Web API (`api.spotify.com/v1`).
+/// public Web API (`api.spotify.com/v1`), within what Development Mode apps
+/// may use since February 2026: no batch lookups, artist top tracks,
+/// browse, recommendations or related artists; search returns at most 10
+/// per page; playlist contents only for playlists the user owns or
+/// collaborates on.
 ///
-/// Everything is returned as the same [SpotifyTrackRef] / [SpotifyPlaylistImport]
-/// shapes the existing public-playlist import already produces, so the tracks
-/// flow straight into `SpotifyImportService.resolveTracksToYtm` and reuse the
-/// candidate scoring rather than growing a parallel pipeline.
+/// Tracks come back as the same [SpotifyTrackRef]s the public import
+/// produces, so they flow into `SpotifyImportService` for matching.
 class SpotifyApiService {
-  SpotifyApiService({required SpotifyAuthService auth, Dio? dio})
-      : _auth = auth,
+  SpotifyApiService({
+    required SpotifyAuthService auth,
+    Dio? dio,
+    Future<String?> Function()? token,
+    Future<bool> Function()? refresh,
+    Future<void> Function(Duration)? sleep,
+    bool useCache = true,
+  })  : _token = token ?? auth.validAccessToken,
+        _refresh = refresh ?? auth.refresh,
+        _sleep = sleep ?? Future<void>.delayed,
+        _useCache = useCache,
         _dio = dio ??
             Dio(BaseOptions(
               connectTimeout: const Duration(seconds: 15),
@@ -23,26 +115,69 @@ class SpotifyApiService {
               responseType: ResponseType.plain,
             ));
 
-  final SpotifyAuthService _auth;
+  final Future<String?> Function() _token;
+  final Future<bool> Function() _refresh;
+  final Future<void> Function(Duration) _sleep;
+  final bool _useCache;
   final Dio _dio;
 
   static const base = 'https://api.spotify.com/v1';
 
-  /// Spotify caps `limit` at 50 for these endpoints; asking for more is a 400.
+  /// Spotify caps `limit` at 50 for library endpoints.
   static const pageSize = 50;
+
+  /// Search returns at most 10 per page for Development Mode apps.
+  static const searchPageSize = 10;
+
+  /// Library and profile answers are kept this long.
+  static const libraryTtl = Duration(hours: 6);
+
+  /// Waits longer than this aren't done in place; the call fails with the
+  /// time to wait instead.
+  static const maxInlineWait = Duration(seconds: 30);
+
+  /// After QUOTA_EXCEEDED, no calls for this long.
+  static const quotaCooldown = Duration(minutes: 10);
+
+  static int _cooldownUntilMs = 0;
+
+  /// Tests: forget a quota cooldown.
+  @visibleForTesting
+  static void resetCooldown() => _cooldownUntilMs = 0;
+
+  static const cacheBox = 'SpotifyCache';
 
   // ---- pure parsing ----------------------------------------------------
 
-  /// Parse a track out of a playlist/saved-tracks item.
+  static String _joinArtists(Object? artists) => artists is List
+      ? artists
+          .map((a) => (a is Map ? a['name']?.toString() : null))
+          .whereType<String>()
+          .where((s) => s.isNotEmpty)
+          .join(', ')
+      : '';
+
+  static String? _firstImage(Object? images) {
+    if (images is List && images.isNotEmpty && images.first is Map) {
+      final u = (images.first as Map)['url'];
+      if (u is String && u.isNotEmpty) return u;
+    }
+    return null;
+  }
+
+  /// Parse a track out of a playlist/saved-tracks/recently-played item.
   ///
   /// Returns null for the entries Spotify legitimately includes but that cannot
   /// be played: removed tracks (`track: null`), local files, and podcast
-  /// episodes appearing in a playlist.
-  static SpotifyTrackRef? parseTrackItem(dynamic item) {
+  /// episodes appearing in a playlist. [album] fills in album name and art
+  /// for album track lists, whose tracks don't carry them.
+  static SpotifyTrackRef? parseTrackItem(dynamic item, {Map? album}) {
     if (item is! Map) return null;
-    // Saved-tracks and playlist-items both nest the track under `track`;
-    // a raw track object is accepted too.
-    final t = item['track'] ?? item;
+    // Playlist items nest the track under `item` (since 2026) or `track`;
+    // saved tracks under `track`; a raw track object is accepted too.
+    final t = item.containsKey('item')
+        ? item['item']
+        : (item.containsKey('track') ? item['track'] : item);
     if (t is! Map) return null;
     if (t['is_local'] == true) return null;
     if ((t['type']?.toString() ?? 'track') != 'track') return null;
@@ -51,38 +186,41 @@ class SpotifyApiService {
     if (name.isEmpty) return null;
 
     final id = t['id']?.toString() ?? '';
-    final artists = (t['artists'] is List)
-        ? (t['artists'] as List)
-            .map((a) => (a is Map ? a['name']?.toString() : null))
-            .whereType<String>()
-            .where((s) => s.isNotEmpty)
-            .join(', ')
-        : '';
+    final al = t['album'] is Map ? t['album'] as Map : album;
+    final ext = t['external_ids'];
+    final isrc = ext is Map ? ext['isrc']?.toString().toUpperCase() : null;
 
     final durMs = t['duration_ms'];
     return SpotifyTrackRef(
       id: id,
       title: name,
-      artists: artists,
+      artists: _joinArtists(t['artists']),
       durationMs: (durMs is num && durMs > 0) ? durMs.toInt() : null,
+      isrc: isrc != null && isrc.isNotEmpty ? isrc : null,
+      album: al?['name']?.toString(),
+      artUrl: _firstImage(al?['images']),
     );
   }
 
   /// Parse one page of items into track refs, skipping unplayable entries.
-  static List<SpotifyTrackRef> parseTrackPage(String body) {
+  static List<SpotifyTrackRef> parseTrackPage(String body, {Map? album}) {
     final json = _tryDecode(body);
     if (json == null) return const [];
     final items = json['items'];
     if (items is! List) return const [];
     return items
-        .map(parseTrackItem)
+        .map((i) => parseTrackItem(i, album: album))
         .whereType<SpotifyTrackRef>()
         .toList(growable: false);
   }
 
   /// The `next` URL of a paged response, or null on the last page.
-  static String? nextPageUrl(String body) {
-    final json = _tryDecode(body);
+  static String? nextPageUrl(String body, {String? under}) {
+    var json = _tryDecode(body);
+    if (under != null) {
+      final inner = json?[under];
+      json = inner is Map ? Map<String, dynamic>.from(inner) : null;
+    }
     final next = json?['next'];
     return (next is String && next.isNotEmpty) ? next : null;
   }
@@ -98,20 +236,74 @@ class SpotifyApiService {
       final id = p['id']?.toString();
       final name = p['name']?.toString();
       if (id == null || id.isEmpty || name == null || name.isEmpty) continue;
-      String? cover;
-      final images = p['images'];
-      if (images is List && images.isNotEmpty && images.first is Map) {
-        cover = images.first['url']?.toString();
-      }
-      final total = p['tracks'] is Map ? p['tracks']['total'] : null;
+      // `items` since 2026, `tracks` before.
+      final counter = p['items'] is Map ? p['items'] : p['tracks'];
+      final total = counter is Map ? counter['total'] : null;
+      final owner = p['owner'];
       out.add(SpotifyPlaylistSummary(
         id: id,
         name: name,
-        coverUrl: cover,
+        coverUrl: _firstImage(p['images']),
         trackCount: total is num ? total.toInt() : 0,
+        ownerId: owner is Map ? owner['id']?.toString() : null,
+        ownerName: owner is Map ? owner['display_name']?.toString() : null,
+        collaborative: p['collaborative'] == true,
       ));
     }
     return out;
+  }
+
+  static SpotifyAlbumSummary? parseAlbum(dynamic a) {
+    if (a is Map && a['album'] is Map) a = a['album'];
+    if (a is! Map) return null;
+    final id = a['id']?.toString() ?? '';
+    final name = a['name']?.toString() ?? '';
+    if (id.isEmpty || name.isEmpty) return null;
+    final date = a['release_date']?.toString() ?? '';
+    final total = a['total_tracks'];
+    return SpotifyAlbumSummary(
+      id: id,
+      name: name,
+      artists: _joinArtists(a['artists']),
+      coverUrl: _firstImage(a['images']),
+      year: date.length >= 4 ? date.substring(0, 4) : null,
+      trackCount: total is num ? total.toInt() : 0,
+    );
+  }
+
+  static SpotifyArtistSummary? parseArtist(dynamic a) {
+    if (a is! Map) return null;
+    final id = a['id']?.toString() ?? '';
+    final name = a['name']?.toString() ?? '';
+    if (id.isEmpty || name.isEmpty) return null;
+    return SpotifyArtistSummary(
+        id: id, name: name, imageUrl: _firstImage(a['images']));
+  }
+
+  static List<T> _parseList<T>(Object? items, T? Function(dynamic) parse) => [
+        if (items is List)
+          for (final i in items)
+            if (parse(i) case final T v) v
+      ];
+
+  static SpotifyUser? parseUser(String body) {
+    final j = _tryDecode(body);
+    final id = j?['id']?.toString() ?? '';
+    if (id.isEmpty) return null;
+    return SpotifyUser(id: id, name: j?['display_name']?.toString() ?? id);
+  }
+
+  /// One page of search results (tracks, albums, artists).
+  static SpotifySearchPage parseSearch(String body) {
+    final j = _tryDecode(body) ?? const {};
+    Map sec(String k) => j[k] is Map ? j[k] as Map : const {};
+    bool more(String k) => sec(k)['next'] is String;
+    return SpotifySearchPage(
+      tracks: _parseList(sec('tracks')['items'], (i) => parseTrackItem(i)),
+      albums: _parseList(sec('albums')['items'], parseAlbum),
+      artists: _parseList(sec('artists')['items'], parseArtist),
+      hasMore: more('tracks') || more('albums') || more('artists'),
+    );
   }
 
   static Map<String, dynamic>? _tryDecode(String body) {
@@ -123,36 +315,116 @@ class SpotifyApiService {
     }
   }
 
-  // ---- network ---------------------------------------------------------
+  // ---- cache -----------------------------------------------------------
 
-  Future<String?> _get(String url) async {
-    final token = await _auth.validAccessToken();
-    if (token == null) return null;
-    final res = await _dio.get(
-      url,
-      options: Options(
-        headers: {'Authorization': 'Bearer $token'},
-        validateStatus: (_) => true,
-      ),
-    );
-    if (res.statusCode == 200) return res.data.toString();
-    printINFO('Spotify API ${res.statusCode} for $url');
-    return null;
+  static Future<Box?> _cache() async {
+    try {
+      return Hive.isBoxOpen(cacheBox)
+          ? Hive.box(cacheBox)
+          : await Hive.openBox(cacheBox);
+    } catch (_) {
+      return null;
+    }
   }
 
-  /// Follow `next` links until the library is exhausted. [maxPages] is a
-  /// runaway guard, not a product limit — it is generous enough for very large
-  /// libraries and is logged if ever reached.
-  Future<List<SpotifyTrackRef>> _pagedTracks(String firstUrl,
-      {int maxPages = 100}) async {
-    final out = <SpotifyTrackRef>[];
+  /// Forget every cached answer (sign-out, account switch).
+  static Future<void> clearCache() async => (await _cache())?.clear();
+
+  // ---- network ---------------------------------------------------------
+
+  /// GET [url]. A 401 refreshes the session once and retries; a 429 waits
+  /// as long as Spotify asks (up to [maxInlineWait]) and retries twice;
+  /// QUOTA_EXCEEDED stops all calls for [quotaCooldown]. With [ttl], a
+  /// cached answer younger than that is used unless [force].
+  Future<String> _get(String url, {Duration? ttl, bool force = false}) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final box = _useCache && ttl != null ? await _cache() : null;
+    if (box != null && !force) {
+      final hit = box.get(url);
+      if (hit is Map &&
+          hit['at'] is int &&
+          hit['body'] is String &&
+          spotifyCacheFresh(hit['at'] as int, now, ttl!)) {
+        return hit['body'] as String;
+      }
+    }
+    if (now < _cooldownUntilMs) {
+      throw SpotifyApiException(SpotifyErrorKind.quotaExceeded,
+          status: 429,
+          retryAfter: Duration(milliseconds: _cooldownUntilMs - now));
+    }
+    var token = await _token();
+    if (token == null) {
+      throw const SpotifyApiException(SpotifyErrorKind.signedOut);
+    }
+    var refreshed = false;
+    for (var attempt = 0;; attempt++) {
+      final Response res;
+      try {
+        res = await _dio.get(
+          url,
+          options: Options(
+            headers: {'Authorization': 'Bearer $token'},
+            validateStatus: (_) => true,
+          ),
+        );
+      } on DioException {
+        throw const SpotifyApiException(SpotifyErrorKind.network);
+      }
+      final status = res.statusCode ?? 0;
+      if (status == 200) {
+        final body = '${res.data}';
+        await box?.put(url, {'at': now, 'body': body});
+        return body;
+      }
+      final kind = classifySpotifyError(status, res.data);
+      if (kind == SpotifyErrorKind.signedOut && !refreshed) {
+        refreshed = true;
+        if (await _refresh()) {
+          token = await _token();
+          if (token != null) continue;
+        }
+        throw const SpotifyApiException(SpotifyErrorKind.signedOut,
+            status: 401);
+      }
+      final wait = parseRetryAfter(res.headers.value('retry-after'));
+      if (kind == SpotifyErrorKind.quotaExceeded) {
+        final cool =
+            wait != null && wait > quotaCooldown ? wait : quotaCooldown;
+        _cooldownUntilMs =
+            DateTime.now().millisecondsSinceEpoch + cool.inMilliseconds;
+        throw SpotifyApiException(kind, status: status, retryAfter: cool);
+      }
+      if (kind == SpotifyErrorKind.rateLimited) {
+        final delay = rateLimitDelay(wait, attempt);
+        if (attempt < 2 && delay <= maxInlineWait) {
+          await _sleep(delay);
+          continue;
+        }
+        throw SpotifyApiException(kind, status: status, retryAfter: delay);
+      }
+      printINFO('Spotify API $status for $url');
+      throw SpotifyApiException(kind, status: status);
+    }
+  }
+
+  /// Follow `next` links. [maxPages] is a runaway guard, not a product
+  /// limit.
+  Future<List<T>> _paged<T>(
+    String firstUrl,
+    List<T> Function(String body) parse, {
+    String? nextUnder,
+    int maxPages = 100,
+    Duration? ttl = libraryTtl,
+    bool force = false,
+  }) async {
+    final out = <T>[];
     String? url = firstUrl;
     var pages = 0;
     while (url != null && pages < maxPages) {
-      final body = await _get(url);
-      if (body == null) break;
-      out.addAll(parseTrackPage(body));
-      url = nextPageUrl(body);
+      final body = await _get(url, ttl: ttl, force: force);
+      out.addAll(parse(body));
+      url = nextPageUrl(body, under: nextUnder);
       pages++;
     }
     if (url != null) {
@@ -161,29 +433,112 @@ class SpotifyApiService {
     return out;
   }
 
+  /// The signed-in user (id and name).
+  Future<SpotifyUser?> fetchMe({bool force = false}) async =>
+      parseUser(await _get('$base/me', ttl: libraryTtl, force: force));
+
   /// The user's own + followed playlists.
   Future<List<SpotifyPlaylistSummary>> fetchPlaylists(
-      {int maxPages = 40}) async {
-    final out = <SpotifyPlaylistSummary>[];
-    String? url = '$base/me/playlists?limit=$pageSize';
-    var pages = 0;
-    while (url != null && pages < maxPages) {
-      final body = await _get(url);
-      if (body == null) break;
-      out.addAll(parsePlaylistPage(body));
-      url = nextPageUrl(body);
-      pages++;
+          {int maxPages = 40, bool force = false}) =>
+      _paged('$base/me/playlists?limit=$pageSize', parsePlaylistPage,
+          maxPages: maxPages, force: force);
+
+  /// Every track in a playlist the user owns or collaborates on (Spotify
+  /// returns no contents for others).
+  Future<List<SpotifyTrackRef>> fetchPlaylistTracks(String playlistId,
+      {bool force = false}) async {
+    try {
+      return await _paged(
+          '$base/playlists/$playlistId/items?limit=$pageSize', parseTrackPage,
+          force: force);
+    } on SpotifyApiException catch (e) {
+      // Older API deployments only know `/tracks`.
+      if (e.kind != SpotifyErrorKind.notFound) rethrow;
+      return _paged(
+          '$base/playlists/$playlistId/tracks?limit=$pageSize', parseTrackPage,
+          force: force);
+    }
+  }
+
+  /// The user's Liked Songs.
+  Future<List<SpotifyTrackRef>> fetchLikedSongs({bool force = false}) =>
+      _paged('$base/me/tracks?limit=$pageSize', parseTrackPage, force: force);
+
+  /// Saved albums.
+  Future<List<SpotifyAlbumSummary>> fetchSavedAlbums({bool force = false}) =>
+      _paged('$base/me/albums?limit=$pageSize',
+          (b) => _parseList(_tryDecode(b)?['items'], parseAlbum),
+          force: force);
+
+  /// An album's tracks, with the album's name and cover filled in.
+  Future<List<SpotifyTrackRef>> fetchAlbumTracks(String albumId,
+      {bool force = false}) async {
+    final body =
+        await _get('$base/albums/$albumId', ttl: libraryTtl, force: force);
+    final album = _tryDecode(body);
+    if (album == null) return const [];
+    final tracks = album['tracks'];
+    final first = tracks is Map ? tracks['items'] : null;
+    final out = <SpotifyTrackRef>[
+      for (final t in (first is List ? first : const []))
+        if (parseTrackItem(t, album: album) case final r?) r
+    ];
+    final next = tracks is Map ? tracks['next'] : null;
+    if (next is String && next.isNotEmpty) {
+      out.addAll(await _paged(next, (b) => parseTrackPage(b, album: album),
+          force: force));
     }
     return out;
   }
 
-  /// Every track in one playlist.
-  Future<List<SpotifyTrackRef>> fetchPlaylistTracks(String playlistId) =>
-      _pagedTracks('$base/playlists/$playlistId/tracks?limit=$pageSize');
+  /// Followed artists (cursor-paged under `artists`).
+  Future<List<SpotifyArtistSummary>> fetchFollowedArtists(
+          {bool force = false}) =>
+      _paged(
+          '$base/me/following?type=artist&limit=$pageSize',
+          (b) => _parseList(
+              (_tryDecode(b)?['artists'] as Map?)?['items'], parseArtist),
+          nextUnder: 'artists',
+          force: force);
 
-  /// The user's Liked Songs.
-  Future<List<SpotifyTrackRef>> fetchLikedSongs() =>
-      _pagedTracks('$base/me/tracks?limit=$pageSize');
+  /// An artist's albums and singles.
+  Future<List<SpotifyAlbumSummary>> fetchArtistAlbums(String artistId,
+          {bool force = false}) =>
+      _paged(
+          '$base/artists/$artistId/albums?include_groups=album,single'
+          '&limit=$searchPageSize',
+          (b) => _parseList(_tryDecode(b)?['items'], parseAlbum),
+          maxPages: 10,
+          force: force);
+
+  /// Top tracks over roughly the last six months.
+  Future<List<SpotifyTrackRef>> fetchTopTracks({bool force = false}) => _paged(
+      '$base/me/top/tracks?limit=$pageSize&time_range=medium_term',
+      parseTrackPage,
+      maxPages: 1,
+      force: force);
+
+  /// Top artists over roughly the last six months.
+  Future<List<SpotifyArtistSummary>> fetchTopArtists({bool force = false}) =>
+      _paged('$base/me/top/artists?limit=$pageSize&time_range=medium_term',
+          (b) => _parseList(_tryDecode(b)?['items'], parseArtist),
+          maxPages: 1, force: force);
+
+  /// The last 50 plays (kept for a few minutes only).
+  Future<List<SpotifyTrackRef>> fetchRecentlyPlayed({bool force = false}) =>
+      _paged('$base/me/player/recently-played?limit=$pageSize', parseTrackPage,
+          maxPages: 1, ttl: const Duration(minutes: 5), force: force);
+
+  /// One page of search results (at most 10 of each kind).
+  Future<SpotifySearchPage> search(String query, {int offset = 0}) async {
+    final uri = Uri.parse('$base/search').replace(queryParameters: {
+      'q': query,
+      'type': 'track,album,artist',
+      'limit': '$searchPageSize',
+      'offset': '$offset',
+    });
+    return parseSearch(await _get(uri.toString()));
+  }
 
   /// Convenience: a playlist as the same shape the public import produces.
   Future<SpotifyPlaylistImport> fetchPlaylistAsImport(
@@ -199,6 +554,12 @@ class SpotifyApiService {
   }
 }
 
+class SpotifyUser {
+  const SpotifyUser({required this.id, required this.name});
+  final String id;
+  final String name;
+}
+
 /// A playlist as listed on the user's account, before its tracks are fetched.
 class SpotifyPlaylistSummary {
   const SpotifyPlaylistSummary({
@@ -206,10 +567,59 @@ class SpotifyPlaylistSummary {
     required this.name,
     this.coverUrl,
     this.trackCount = 0,
+    this.ownerId,
+    this.ownerName,
+    this.collaborative = false,
   });
 
   final String id;
   final String name;
   final String? coverUrl;
   final int trackCount;
+  final String? ownerId;
+  final String? ownerName;
+  final bool collaborative;
+
+  /// Spotify returns the contents only of playlists the user owns or
+  /// collaborates on.
+  bool readableBy(String? userId) =>
+      collaborative || (userId != null && ownerId == userId);
+}
+
+class SpotifyAlbumSummary {
+  const SpotifyAlbumSummary({
+    required this.id,
+    required this.name,
+    this.artists = '',
+    this.coverUrl,
+    this.year,
+    this.trackCount = 0,
+  });
+  final String id;
+  final String name;
+  final String artists;
+  final String? coverUrl;
+  final String? year;
+  final int trackCount;
+}
+
+class SpotifyArtistSummary {
+  const SpotifyArtistSummary(
+      {required this.id, required this.name, this.imageUrl});
+  final String id;
+  final String name;
+  final String? imageUrl;
+}
+
+class SpotifySearchPage {
+  const SpotifySearchPage({
+    this.tracks = const [],
+    this.albums = const [],
+    this.artists = const [],
+    this.hasMore = false,
+  });
+  final List<SpotifyTrackRef> tracks;
+  final List<SpotifyAlbumSummary> albums;
+  final List<SpotifyArtistSummary> artists;
+  final bool hasMore;
 }

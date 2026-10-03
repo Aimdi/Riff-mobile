@@ -140,3 +140,17 @@ ScoredCandidate<T>? bestMatch<T>(
   if (best == null || best.score < minScore) return null;
   return best;
 }
+
+/// [candidates] best first. Equal scores keep their order (YouTube Music's
+/// own ranking), as in [bestMatch].
+List<ScoredCandidate<T>> sortCandidates<T>(
+    List<ScoredCandidate<T>> candidates) {
+  final indexed = [
+    for (var i = 0; i < candidates.length; i++) (i, candidates[i])
+  ];
+  indexed.sort((a, b) {
+    final c = b.$2.score.compareTo(a.$2.score);
+    return c != 0 ? c : a.$1.compareTo(b.$1);
+  });
+  return [for (final e in indexed) e.$2];
+}

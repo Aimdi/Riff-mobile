@@ -20,14 +20,17 @@ import 'common_dialog_widget.dart';
 /// Dialog: paste a public Spotify playlist/album URL → resolve on YTM → save
 /// as a local Riff playlist (Spotube-style metadata bridge).
 class SpotifyImportDialog extends StatefulWidget {
-  const SpotifyImportDialog({super.key});
+  const SpotifyImportDialog({super.key, this.initialUrl});
+
+  /// Link to fill in (from the Spotify hub).
+  final String? initialUrl;
 
   @override
   State<SpotifyImportDialog> createState() => _SpotifyImportDialogState();
 }
 
 class _SpotifyImportDialogState extends State<SpotifyImportDialog> {
-  final _urlController = TextEditingController();
+  late final _urlController = TextEditingController(text: widget.initialUrl);
   final _busy = false.obs;
   final _status = ''.obs;
   final _progress = 0.0.obs;
