@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/services/spotify_api_service.dart';
+import '/services/spotify_auth_service.dart';
 import '/services/spotify_import_service.dart';
 import '/services/spotify_match.dart';
 import '/services/spotify_match_store.dart';
 import '/services/spotify_playback.dart';
+import '/services/spotify_radio.dart';
 import '../Home/home_layout.dart';
 
 /// Localisation key of the message for a failed Spotify call.
@@ -260,6 +262,11 @@ class _SpotifyTrackRowState extends State<SpotifyTrackRow> {
             onTap: () => Navigator.of(ctx).pop('play'),
           ),
           ListTile(
+            leading: const Icon(Icons.radio_rounded),
+            title: Text('spotifyRadioFromSong'.tr),
+            onTap: () => Navigator.of(ctx).pop('radio'),
+          ),
+          ListTile(
             leading: const Icon(Icons.swap_horiz_rounded),
             title: Text('spotifyChangeMatch'.tr),
             onTap: () => Navigator.of(ctx).pop('change'),
@@ -278,6 +285,8 @@ class _SpotifyTrackRowState extends State<SpotifyTrackRow> {
       case 'play':
         await playSpotifyTracks(context, widget.tracks,
             start: widget.index, from: widget.from);
+      case 'radio':
+        await startSpotifyRadio(context, seed: t);
       case 'change':
         await showSpotifyChangeMatch(context, t);
       case 'forget':
@@ -458,5 +467,59 @@ class _ChangeMatchSheetState extends State<_ChangeMatchSheet> {
         ),
       ),
     );
+  }
+}
+
+/// Play a Spotify radio built from the user's top tracks, recent plays and
+/// Liked Songs (from [seed]'s artist and its genres when given).
+Future<void> startSpotifyRadio(BuildContext context,
+    {SpotifyTrackRef? seed}) async {
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  messenger?.showSnackBar(SnackBar(
+      behavior: SnackBarBehavior.floating,
+      content: Text('spotifyRadioBuilding'.tr)));
+  final api = SpotifyApiService(auth: SpotifyAuthService());
+  Future<List<T>> orEmpty<T>(Future<List<T>> f) async {
+    try {
+      return await f;
+    } catch (_) {
+      return <T>[];
+    }
+  }
+
+  try {
+    final top = await api.fetchTopTracks();
+    final results = await Future.wait([
+      orEmpty(api.fetchRecentlyPlayed()),
+      orEmpty(api.fetchLikedSongs()),
+    ]);
+    final artists = [
+      ...await orEmpty(api.fetchTopArtists()),
+      ...await orEmpty(api.fetchFollowedArtists()),
+    ];
+    final radio = buildSpotifyRadio(
+      top: top,
+      recent: results[0],
+      liked: results[1],
+      seed: seed,
+      genresByArtist: {
+        for (final a in artists) a.name.toLowerCase(): a.genres.toSet()
+      },
+    );
+    if (!context.mounted) return;
+    if (radio.isEmpty) {
+      messenger?.showSnackBar(SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text('spotifyRadioEmpty'.tr)));
+      return;
+    }
+    await playSpotifyTracks(context, radio,
+        from: seed == null
+            ? 'spotifyRadio'.tr
+            : 'spotifyRadioOf'.trParams({'name': seed.title}));
+  } catch (e) {
+    messenger?.showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text(spotifyErrorText(e))));
   }
 }

@@ -49,6 +49,7 @@ import 'video_mode_controller.dart';
 import '/services/podcast_playback_profile.dart';
 import '/services/podcast_library.dart';
 import '/services/audio_handler.dart' show MyAudioHandler, MediaLibrary;
+import '/services/spotify_like_sync.dart';
 import '/services/playback_hardening.dart';
 import '/services/podcast_segments.dart';
 import '/services/podcast_stats.dart';
@@ -2094,6 +2095,8 @@ class PlayerController extends GetxController
     if (Get.isRegistered<DiscoveryService>()) {
       Get.find<DiscoveryService>().onFavorite(song, add: nextAdding);
     }
+    // Mirror to Spotify's Liked Songs when like sync is on.
+    unawaited(SpotifyLikeSync.onFavorite(song, add: nextAdding));
     if (nextAdding &&
         Get.find<SettingsScreenController>()
             .autoDownloadFavoriteSongEnabled

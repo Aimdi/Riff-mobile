@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -9,6 +11,7 @@ import 'package:widget_marquee/widget_marquee.dart';
 import '../../services/discovery/discovery_service.dart';
 import '../../services/downloader.dart';
 import '../../services/piped_service.dart';
+import '../../services/spotify_like_sync.dart';
 import '/models/media_Item_builder.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/screens/Library/library_controller.dart';
@@ -121,6 +124,7 @@ Future<bool> addSongsToLikedSongs(List<MediaItem> songs) async {
     if (Get.isRegistered<DiscoveryService>()) {
       Get.find<DiscoveryService>().onFavorite(song, add: true);
     }
+    unawaited(SpotifyLikeSync.onFavorite(song, add: true));
     if (Get.isRegistered<SettingsScreenController>() &&
         Get.find<SettingsScreenController>()
             .autoDownloadFavoriteSongEnabled

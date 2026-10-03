@@ -9,6 +9,8 @@ import '/models/playlist.dart';
 import '/services/spotify_api_service.dart';
 import '/services/spotify_auth_service.dart';
 import '/services/spotify_import_service.dart';
+import '/services/spotify_like_sync.dart';
+import '/ui/widgets/add_to_playlist.dart' show addSongsToLikedSongs;
 import '/ui/screens/Library/library_controller.dart';
 import '/ui/screens/Settings/spotify_login_screen.dart';
 import '/ui/utils/theme_controller.dart';
@@ -60,6 +62,10 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
   void initState() {
     super.initState();
     _clientIdController.text = SpotifyAuthService.clientId ?? '';
+    // Send any like changes still waiting.
+    if (_connected) {
+      SpotifyLikeSync.flushSoon(delay: const Duration(seconds: 2));
+    }
   }
 
   @override
@@ -105,6 +111,7 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
 
   Future<void> _signOut() async {
     await SpotifyAuthService.disconnect();
+    await SpotifyLikeSync.forgetAccount();
     await SpotifyApiService.clearCache();
     setState(() {
       _connected = false;
@@ -182,6 +189,112 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
     }
   }
 
+  Future<void> _setLikeSync(bool on) async {
+    await SpotifyLikeSync.setEnabled(on);
+    if (!on || SpotifyLikeSync.hasWriteAccess || !mounted) return;
+    // The current sign-in can only read: ask for write access.
+    final again = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('spotifyLikeSync'.tr),
+        content: Text('spotifyLikeSyncSignIn'.tr),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text('cancel'.tr)),
+          FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text('spotifySignIn'.tr)),
+        ],
+      ),
+    );
+    if (again == true) {
+      await _signIn();
+    }
+    if (!SpotifyLikeSync.hasWriteAccess) {
+      await SpotifyLikeSync.setEnabled(false);
+    } else {
+      SpotifyLikeSync.flushSoon(delay: const Duration(seconds: 2));
+    }
+  }
+
+  Future<void> _importLikes() async {
+    if (_busy.value) return;
+    _busy.value = true;
+    _progress.value = 0.05;
+    _status.value = 'spotifyImportFetching'.tr;
+    try {
+      final (added, total) = await SpotifyLikeSync.importLikesToFavorites(
+        addSongsToLikedSongs,
+        onProgress: (done, total) {
+          _progress.value = done / total;
+          _status.value = '${'spotifyImportResolving'.tr} $done / $total';
+        },
+      );
+      _status.value = 'spotifyImportLikesDone'
+          .trParams({'added': '$added', 'total': '$total'});
+    } catch (e) {
+      _status.value = spotifyErrorText(e);
+    } finally {
+      _busy.value = false;
+      _progress.value = 0;
+    }
+  }
+
+  void _showSettings() {
+    showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => SafeArea(
+          child: Wrap(children: [
+            SwitchListTile(
+              secondary: const Icon(Icons.favorite_border_rounded),
+              title: Text('spotifyLikeSync'.tr),
+              subtitle: Text('spotifyLikeSyncDes'.tr,
+                  style: homeCardSubtitleStyle(ctx)),
+              value: SpotifyLikeSync.enabled,
+              onChanged: (v) async {
+                Navigator.of(ctx).pop();
+                await _setLikeSync(v);
+              },
+            ),
+            Obx(() {
+              final n = SpotifyLikeSync.pending.value;
+              final err = SpotifyLikeSync.lastError.value;
+              if (!SpotifyLikeSync.enabled || (n == 0 && err.isEmpty)) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(72, 0, 16, 8),
+                child: Text(
+                    [
+                      if (n > 0) 'spotifyLikeSyncPending'.trParams({'n': '$n'}),
+                      if (err.isNotEmpty)
+                        spotifyErrorKey(SpotifyErrorKind.values.firstWhere(
+                                (k) => k.name == err,
+                                orElse: () => SpotifyErrorKind.server))
+                            .trParams({'s': '0', 'm': '10'}),
+                    ].join('\n'),
+                    style: homeCardSubtitleStyle(ctx)),
+              );
+            }),
+            ListTile(
+              leading: const Icon(Icons.playlist_add_check_rounded),
+              title: Text('spotifyImportLikes'.tr),
+              subtitle: Text('spotifyImportLikesDes'.tr,
+                  style: homeCardSubtitleStyle(ctx)),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _importLikes();
+              },
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -190,12 +303,23 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           RiffPageHeader('spotifyBridge'.tr, actions: [
-            if (_connected)
+            if (_connected) ...[
+              IconButton(
+                tooltip: 'spotifyRadio'.tr,
+                icon: const Icon(Icons.radio_rounded),
+                onPressed: () => startSpotifyRadio(context),
+              ),
               IconButton(
                 tooltip: 'spotifySearch'.tr,
                 icon: const Icon(Icons.search_rounded),
                 onPressed: () => openSpotifyPage(const SpotifySearchArgs()),
               ),
+              IconButton(
+                tooltip: 'spotifySettings'.tr,
+                icon: const Icon(Icons.tune_rounded),
+                onPressed: _showSettings,
+              ),
+            ],
           ]),
           Expanded(
             child: Obx(() {

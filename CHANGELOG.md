@@ -1,3 +1,19 @@
+# 1.7.131
+
+**Spotify: likes and radio**
+* New in Spotify settings (the sliders icon in the Spotify screen): Send
+  likes to Spotify. Off until you turn it on. Songs you like in Riff go
+  into your Spotify Liked Songs a few seconds later, and come out again if
+  you unlike them in Riff. Songs you liked on Spotify yourself are never
+  removed by Riff. Spotify asks for one more permission the first time
+* Add Spotify Liked Songs to Favorites: finds each song on YouTube Music
+  and adds it to your Riff Favorites in one go
+* Spotify radio (the radio icon): a mix from your Spotify top tracks,
+  recent plays and Liked Songs, at most 3 songs per artist and never the
+  same artist twice in a row when it can be helped. Long-press a Spotify
+  song for a radio from that song: its artist first, then artists in the
+  same genres
+
 # 1.7.130
 
 **Spotify, played through Riff**

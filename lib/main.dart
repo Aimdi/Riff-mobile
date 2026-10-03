@@ -49,6 +49,7 @@ import 'utils/hive_safe_open.dart';
 import 'utils/house_keeping.dart';
 import 'utils/secure_credentials.dart';
 import 'services/sync/webdav_sync_service.dart';
+import 'services/spotify_like_sync.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -130,6 +131,8 @@ Future<void> _initAudioAndWarm(Future<void> deferredBoxes) async {
     // WebDAV sync (when switched on), after the first screen settles.
     Future<void>.delayed(
         const Duration(seconds: 10), WebDavSyncService.maybeAutoSync);
+    // Spotify like changes left over from last time.
+    SpotifyLikeSync.flushSoon(delay: const Duration(seconds: 20));
   } catch (e) {
     // Never block the UI on background warm-up failures.
     printERROR('Background warm-up failed: $e');
