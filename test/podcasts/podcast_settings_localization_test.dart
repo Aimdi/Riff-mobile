@@ -35,6 +35,7 @@ void main() {
       'lib/ui/screens/Podcasts/podcast_queue_screen.dart',
       'lib/ui/screens/Podcasts/podcast_subs_screen.dart',
       'lib/ui/screens/Podcasts/podcast_show_view.dart',
+      'lib/ui/screens/Podcasts/podcast_stats_screen.dart',
     ])
       ..._trKeys(File(f).readAsStringSync()),
     // Built from the enum name: 'voiceBoost_${v.name}'.tr
