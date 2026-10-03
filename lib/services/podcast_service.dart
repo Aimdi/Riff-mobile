@@ -604,6 +604,8 @@ class PodcastService {
       'author': podcast['author'],
       'artwork': podcast['artwork'],
       'feedUrl': podcast['feedUrl'],
+      // For sync (docs/sync-format.md): when this subscription was made.
+      'subscribedAt': DateTime.now().millisecondsSinceEpoch,
     });
     subsRev.value++;
   }

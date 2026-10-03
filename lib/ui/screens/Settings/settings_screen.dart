@@ -1107,6 +1107,16 @@ class SettingsScreen extends StatelessWidget {
                   children: [
                     ListTile(
                       contentPadding: const EdgeInsets.only(left: 5, right: 10),
+                      title: Text("syncTitle".tr),
+                      subtitle: Text("syncSettingDes".tr,
+                          style: settingsSubtitleStyle(context)),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Get.toNamed(
+                          ScreenNavigationSetup.webDavSyncScreen,
+                          id: ScreenNavigationSetup.id),
+                    ),
+                    ListTile(
+                      contentPadding: const EdgeInsets.only(left: 5, right: 10),
                       title: Text("backupAppData".tr),
                       subtitle: Text(
                         "backupSettingsAndPlaylistsDes".tr,

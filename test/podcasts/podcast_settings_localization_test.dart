@@ -38,6 +38,7 @@ void main() {
       'lib/ui/screens/Podcasts/podcast_stats_screen.dart',
       // Not podcast-only, but the same check: Never play and CSV import.
       'lib/ui/screens/Settings/blacklist_screen.dart',
+      'lib/ui/screens/Settings/webdav_sync_screen.dart',
       'lib/ui/widgets/spotify_import_dialog.dart',
       'lib/ui/widgets/songinfo_bottom_sheet.dart',
     ])

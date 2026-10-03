@@ -1,3 +1,23 @@
+# 1.7.129
+
+**Sync through WebDAV**
+* New: Settings › Advanced › Sync. Connect a WebDAV folder you own
+  (Nextcloud, ownCloud, a NAS, …) and Riff keeps your podcast
+  subscriptions, where you are in each episode and which you finished,
+  bookmarks, the segments you marked, your playlists and Favorites the
+  same on all your devices
+* Test the connection before saving; the password is kept in the
+  phone's secure storage. Sync now, or turn on Sync automatically (when
+  Riff opens and when you leave it)
+* The files are plain JSON, plus an OPML subscription list that other
+  podcast apps can import, in a Riff folder on your server. The format is
+  documented in docs/sync-format.md, so Riff on the desktop can use the
+  same folder
+* Edits made on two devices are merged item by item, and the later edit
+  wins. Deleted items stay deleted everywhere. If two devices sync at the
+  same moment, Riff reads the file again and merges once more, so nothing
+  is overwritten
+
 # 1.7.128
 
 **Android Auto, Never play, CSV import**

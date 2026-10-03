@@ -18,6 +18,7 @@ import 'screens/Podcasts/podcasts_library.dart';
 import 'screens/Podcasts/podcast_settings_screen.dart';
 import 'screens/Podcasts/podcast_stats_screen.dart';
 import 'screens/Settings/blacklist_screen.dart';
+import 'screens/Settings/webdav_sync_screen.dart';
 import 'screens/Plugins/plugins_screen.dart';
 import '/ui/screens/Plugins/spotify_bridge_screen.dart';
 import 'screens/Plugins/torrent_search_screen.dart';
@@ -47,6 +48,7 @@ class ScreenNavigationSetup {
   static const podcastSettingsScreen = '/podcastSettingsScreen';
   static const podcastStatsScreen = '/podcastStatsScreen';
   static const blacklistScreen = '/blacklistScreen';
+  static const webDavSyncScreen = '/webDavSyncScreen';
 }
 
 class ScreenNavigation extends StatelessWidget {
@@ -147,6 +149,10 @@ class ScreenNavigation extends StatelessWidget {
             case ScreenNavigationSetup.blacklistScreen:
               return GetPageRoute(
                   page: () => const BlacklistScreen(), settings: settings);
+
+            case ScreenNavigationSetup.webDavSyncScreen:
+              return GetPageRoute(
+                  page: () => const WebDavSyncScreen(), settings: settings);
 
             case ScreenNavigationSetup.podcastStatsScreen:
               return GetPageRoute(
