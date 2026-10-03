@@ -5,8 +5,8 @@ Settings screen, the music Library, the main Home feed or music-only screens,
 and music playback behaves exactly as before. Ideas are inspired by other
 podcast apps; the UI, names, icons and wording are Riff's own.
 
-Status: **Phase 1 shipped in 1.7.122, Phase 2 in 1.7.123, Phase 3
-implemented (1.7.124).** Phases 4–5 are planned; each starts after the previous one is reviewed.
+Status: **Phase 1 shipped in 1.7.122, Phase 2 in 1.7.123, Phase 3 in
+1.7.124, Phase 4 implemented (1.7.125).** Phase 5 is planned; each starts after the previous one is reviewed.
 
 ---
 
@@ -311,7 +311,7 @@ into a timed transcript, because YouTube is blocked from the build sandbox.
 
 ---
 
-## Phase 4: Queue and library hygiene
+## Phase 4: Queue and library hygiene ✅ (1.7.125)
 
 Podcast library and subscription views only.
 
@@ -333,36 +333,22 @@ Podcast library and subscription views only.
   - The playback queue is shared with music, so these only touch podcast
     items.
 
-### Plan
-- **Keep latest N:**
-  - Stored in the Phase 1 per-show box `PodcastShowPrefs`, which gains a
-    `keepLatest` field.
-  - Pure `applyKeepLatest(episodes, n, played)` gets unit tests.
-  - Archive in box `PodcastArchived` and apply it in the Inbox merge
-    (`podcast_inbox_screen.dart`) and `PodcastQueueController`.
-- **Mark all as listened:** a show page overflow action that calls
-  `PodcastProgressService.markPlayed` for all episodes, with a snapshot for
-  Undo.
-- **Auto-delete:** a hook in `PodcastProgressService.save` when an episode
-  turns played, plus a sweep on start for the 24 h option.
-  `PodcastDownloadService.delete` already keeps the other data.
-- **Filter chips:** Inbox and Subscriptions in `podcasts_library.dart`, with
-  pure filter predicates.
-- **Folders:**
-  - Extend `PodcastFolder.podcastIds` to RSS feed URLs (prefix `rss:`) with
-    a migration that keeps the old ids.
-  - Add a reorder (`ReorderableListView`) in `podcast_subs_screen.dart`.
-- **OPML:** `lib/services/opml.dart`. A pure `parseOpml` / `buildOpml` with
-  tests, using the `xml` package already in pubspec, `file_picker` and
-  `share_plus`. Lives in Podcast settings › Import / Export.
-- **Up Next:** already reorderable (`PodcastQueueScreen`). Add a
-  `Dismissible` for swipe to remove, and "Play last" next to "Play next" in
-  `showAddToQueueSheet`. Shared-queue edits go through the handler's
-  `addPlayNextItem` and append, filtered to podcast items.
-- **Entry points:**
-  - Show page ⋮: Keep latest, Mark all as listened, Auto-delete.
-  - Podcast settings: defaults, OPML.
-  - Podcasts tab: chips, folders.
+### What was built and where
+
+| Item | Files / classes | Entry point |
+|---|---|---|
+| Keep latest N | **new** `lib/services/podcast_library.dart`: pure `episodesToArchive` (newest N unplayed stay; played ones don't count; started ones are never archived). `PodcastLibrary.applyKeepLatest` groups the merged Inbox by show key, archives into box `PodcastArchived` (`{at, show}`) and takes archived episodes out of the Queue. Per-show values live in the new box `PodcastShowLibrary` (not `PodcastShowPrefs`, which holds playback profiles); the default is AppPrefs `podcastKeepLatest` (0 = all). Changing a limit clears that show's archive so the new one applies cleanly. Archived episodes stay on the show page | show page ⋮ › Episodes and downloads; Podcast settings › Episodes and downloads |
+| Mark all as listened | `PodcastLibrary.markAllListened` returns a `ListenedSnapshot` (ids, saved positions, Queue entries with their index); `undoMarkAll` restores all three. `markShowListened` shows the snackbar with Undo | show page ⋮ › Mark all as listened |
+| Auto-delete downloads | `AutoDeletePolicy {never, immediately, after24h}`, pure `downloadDueForDeletion` (never the episode playing). `PodcastLibrary.sweepDownloads` runs when a new item starts playing, when the Podcasts tab opens, after Mark as played and after changing the setting. It uses the `PodcastPlayed` timestamp. Default AppPrefs `podcastAutoDelete`; per show in `PodcastShowLibrary`. Bookmarks keep a remote copy of the episode, so they're unaffected | same two places as Keep latest |
+| Filter chips | `EpisodeFilter` + pure `matchesEpisodeFilter` / `EpisodeFacts`. With a chip on, the Inbox lists every episode Riff knows (Inbox, in progress, Queue, downloads, bookmarks; `uniqueEpisodes`) that matches. Small outlined chips under the section tabs; tap again to clear | Podcasts tab › Inbox |
+| Folders | Feed shows can be filed (`rss:<feedUrl>` ids via `podcastFolderIdForFeed`; YouTube playlistIds unchanged, so no migration is needed). Long-press a feed show for its folder sheet (with Unsubscribe, which also removes it from folders). Folder screen lists feed shows. Drag to reorder: `PodcastFolderController.move` / pure `reorderList`, in a sheet | Podcasts tab › Subscriptions (⇅ icon when there are 2+ folders) |
+| OPML | **new** `lib/services/opml.dart`: `parseOpml` (nested outlines, any-case `xmlUrl`, http(s) only, duplicates dropped) and `buildOpml` (OPML 2.0, RFC 822 date). Import uses `file_picker` and skips shows already followed; export shares `riff-podcasts.opml` with `share_plus`. YouTube-followed shows have no feed and aren't exported | Podcast settings › Import and export |
+| Queue | Swipe to remove (`Dismissible`) with Undo (`PodcastQueueController.insertAt`). Episode sheet: **Play last** (`enqueueSong`) next to Play next; it only adds the chosen episode | Podcasts tab › Queue; episode long-press |
+
+**Tests:** `test/podcasts/podcast_library_test.dart` covers keep-latest
+selection and ordering, auto-delete rules, every filter, the mark-all plan,
+OPML parse/build round trip, folder ids and reordering, and the Hive store
+(defaults, overrides, archive per show and clearing, mark all plus undo).
 
 ---
 

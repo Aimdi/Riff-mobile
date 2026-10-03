@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '/services/podcast_playback_profile.dart';
 import '../../widgets/cust_switch.dart';
 import '../Home/home_layout.dart';
+import 'podcast_library_ui.dart';
 import 'podcast_playback_controls.dart';
 import 'podcast_segment_ui.dart';
 
@@ -45,6 +46,8 @@ class PodcastSettingsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 28),
                   const PodcastSegmentSettings(),
+                  const SizedBox(height: 28),
+                  const PodcastLibrarySettings(),
                   const SizedBox(height: 28),
                   Text('podcastResume'.tr,
                       style: homeSectionTitleStyle(context)),

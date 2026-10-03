@@ -47,6 +47,7 @@ import '/ui/player/radio_continuation.dart';
 import 'upcoming_queue.dart';
 import 'video_mode_controller.dart';
 import '/services/podcast_playback_profile.dart';
+import '/services/podcast_library.dart';
 import '/services/podcast_segments.dart';
 import '/services/podcast_transcripts.dart';
 
@@ -1064,6 +1065,8 @@ class PlayerController extends GetxController
         // while this callback is suspended is rejected.
         final isNewPlay = _playLogGate.accept(mediaItem.id);
         if (isNewPlay) {
+          // Finished podcast downloads whose show auto-deletes them.
+          unawaited(PodcastLibrary.sweepDownloads(currentId: mediaItem.id));
           // Fire-and-forget SponsorBlock load for this video id.
           unawaited(_loadSponsorBlockFor(mediaItem.id));
           // Podcast chapters and segments (SponsorBlock, manual marks).

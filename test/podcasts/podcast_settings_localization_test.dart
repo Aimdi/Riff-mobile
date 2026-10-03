@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:harmonymusic/services/podcast_library.dart';
 import 'package:harmonymusic/services/podcast_playback_profile.dart';
 import 'package:harmonymusic/services/podcast_segments.dart';
 import 'package:harmonymusic/utils/get_localization.dart';
@@ -29,6 +30,11 @@ void main() {
       'lib/ui/player/components/podcast_transcript_sheet.dart',
       'lib/ui/screens/Podcasts/podcast_bookmarks_ui.dart',
       'lib/ui/screens/Podcasts/podcasts_library.dart',
+      'lib/ui/screens/Podcasts/podcast_library_ui.dart',
+      'lib/ui/screens/Podcasts/podcast_inbox_screen.dart',
+      'lib/ui/screens/Podcasts/podcast_queue_screen.dart',
+      'lib/ui/screens/Podcasts/podcast_subs_screen.dart',
+      'lib/ui/screens/Podcasts/podcast_show_view.dart',
     ])
       ..._trKeys(File(f).readAsStringSync()),
     // Built from the enum name: 'voiceBoost_${v.name}'.tr
@@ -37,6 +43,9 @@ void main() {
     for (final c in SegmentCategory.values) ...[c.labelKey, '${c.labelKey}Des'],
     for (final a in SegmentAction.values) 'segAction_${a.name}',
     for (final s in SegmentSource.values) 'segSource_${s.name}',
+    // Library filter chips and auto-delete choices, from enum names.
+    for (final f in EpisodeFilter.values) 'episodeFilter_${f.name}',
+    for (final p in AutoDeletePolicy.values) 'autoDelete_${p.name}',
   };
 
   test('podcast playback strings exist in English', () {

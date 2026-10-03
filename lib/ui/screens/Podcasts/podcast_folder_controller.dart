@@ -25,8 +25,27 @@ class PodcastFolderColors {
       swatches[index.clamp(0, swatches.length - 1)];
 }
 
+/// Folder id for a feed (RSS) show. YouTube library shows use their
+/// playlistId as before, so folders saved by older versions keep working.
+String podcastFolderIdForFeed(String feedUrl) => 'rss:$feedUrl';
+
+/// The feed URL in a folder entry, or null for a YouTube show.
+String? feedUrlFromFolderId(String id) =>
+    id.startsWith('rss:') ? id.substring(4) : null;
+
+/// Move an item in a list the way ReorderableListView reports it.
+List<T> reorderList<T>(List<T> list, int oldIndex, int newIndex) {
+  final out = List<T>.of(list);
+  if (oldIndex < 0 || oldIndex >= out.length) return out;
+  if (newIndex > oldIndex) newIndex -= 1;
+  final item = out.removeAt(oldIndex);
+  out.insert(newIndex.clamp(0, out.length), item);
+  return out;
+}
+
 /// A named folder grouping podcast subscriptions (Spotify-style). Stores only
-/// the shows' playlistIds; the show data itself lives in LibraryPodcasts.
+/// show ids (YouTube playlistIds, or `rss:<feed>` for feed shows); the show
+/// data itself lives in LibraryPodcasts and the feed subscriptions.
 class PodcastFolder {
   PodcastFolder(this.id, this.name, this.podcastIds, {this.colorIndex = 0});
   final String id;
@@ -111,6 +130,12 @@ class PodcastFolderController extends GetxController {
     f.colorIndex =
         colorIndex.clamp(0, PodcastFolderColors.swatches.length - 1);
     folders.refresh();
+    _persist();
+  }
+
+  /// Drag to reorder (ReorderableListView indices).
+  void move(int oldIndex, int newIndex) {
+    folders.assignAll(reorderList(folders, oldIndex, newIndex));
     _persist();
   }
 

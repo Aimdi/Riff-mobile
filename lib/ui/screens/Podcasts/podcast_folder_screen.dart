@@ -2,6 +2,7 @@ import '../Home/home_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/services/podcast_service.dart';
 import 'podcast_cover_tile.dart';
 import 'podcast_folder_controller.dart';
 import 'podcast_subs_screen.dart';
@@ -43,7 +44,12 @@ class PodcastFolderScreen extends StatelessWidget {
           final items = lib.libraryPodcasts
               .where((p) => ids.contains(p.playlistId))
               .toList();
-          if (items.isEmpty) {
+          PodcastService.subsRev.value;
+          final feeds = [
+            for (final r in PodcastService.subscriptions)
+              if (ids.contains(podcastFolderIdForFeed('${r['feedUrl']}'))) r
+          ];
+          if (items.isEmpty && feeds.isEmpty) {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -60,8 +66,19 @@ class PodcastFolderScreen extends StatelessWidget {
               padding: kPodcastSubsGridPadding,
               gridDelegate: podcastSubsGridDelegate(constraints.maxWidth,
                   textScaler: MediaQuery.textScalerOf(context)),
-              itemCount: items.length,
+              itemCount: items.length + feeds.length,
               itemBuilder: (context, index) {
+                if (index >= items.length) {
+                  final rss = feeds[index - items.length];
+                  return PodcastCoverTile(
+                    title: '${rss['title'] ?? ''}',
+                    subtitle: '${rss['author'] ?? ''}',
+                    imageUrl: rssArtworkUrl(rss),
+                    onTap: () => playOrOpenRssPodcast(rss),
+                    onPlay: () => playOrOpenRssPodcast(rss),
+                    onLongPress: () => showRssPodcastSheet(context, rss),
+                  );
+                }
                 final podcast = items[index];
                 return PodcastCoverTile(
                   title: podcast.title,

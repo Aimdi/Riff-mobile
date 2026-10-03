@@ -1,3 +1,23 @@
+# 1.7.125
+
+**Podcasts: a tidier library**
+* Keep latest episodes: choose how many unplayed episodes of a show stay
+  in the Inbox and Queue (1, 3, 5, 10 or all). Older ones step aside when
+  new ones arrive; they're still on the show's page, and episodes you've
+  started are never moved. Set a default in Podcast settings, or per show
+  from the menu at the top of its page
+* Delete downloads after listening: never, right away, or after 24 hours.
+  Default in Podcast settings, per show from its page. Bookmarks stay
+* Mark all as listened, from a show's page menu, with Undo
+* Filters in the Inbox: New, In progress, Queued, Downloaded, Bookmarked
+  and Under 20 min
+* Folders can now hold shows you follow by feed too (long-press a show in
+  Subscriptions), and you can drag folders into order
+* Import and export your podcast subscriptions as OPML, in Podcast
+  settings, to move between podcast apps
+* Queue: swipe an episode away to remove it (with Undo). The episode menu
+  has Play last next to Play next
+
 # 1.7.124
 
 **Podcasts: transcripts and bookmarks**

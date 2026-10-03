@@ -15,6 +15,39 @@ import 'podcasts_library_controller.dart';
 /// Long-press a podcast show anywhere it's listed to file it into folders.
 /// Reused by the Subscriptions screen and the main Podcasts library grid.
 void showPodcastFolderSheet(BuildContext context, Playlist podcast) {
+  _folderSheet(context, podcast.playlistId, podcast.title, [
+    if (WizeStream.isInstalled && WizeStream.showUrlFor(podcast) != null)
+      (ctx) => ListTile(
+            leading: const Icon(Icons.open_in_new_rounded),
+            title: Text("openInWizeStream".tr),
+            onTap: () {
+              Navigator.of(ctx).pop();
+              WizeStream.open(WizeStream.showUrlFor(podcast)!);
+            },
+          ),
+  ]);
+}
+
+/// Long-press a feed (RSS) show: file it into folders, or unfollow it.
+void showRssPodcastSheet(BuildContext context, Map<String, dynamic> rss) {
+  final feed = '${rss['feedUrl'] ?? ''}';
+  if (feed.isEmpty) return;
+  _folderSheet(context, podcastFolderIdForFeed(feed), '${rss['title'] ?? ''}', [
+    (ctx) => ListTile(
+          leading: const Icon(Icons.remove_circle_outline),
+          title: Text('unsubscribe'.tr),
+          onTap: () async {
+            Get.find<PodcastFolderController>()
+                .removeEverywhere(podcastFolderIdForFeed(feed));
+            await PodcastService.unsubscribe(feed);
+            if (ctx.mounted) Navigator.of(ctx).pop();
+          },
+        ),
+  ]);
+}
+
+void _folderSheet(BuildContext context, String id, String title,
+    List<Widget Function(BuildContext)> extra) {
   final fc = Get.find<PodcastFolderController>();
   showModalBottomSheet(
     context: context,
@@ -32,7 +65,7 @@ void showPodcastFolderSheet(BuildContext context, Playlist podcast) {
                   children: [
                     Expanded(
                       child: Text(
-                        "${'addToFolder'.tr} · ${podcast.title}",
+                        "${'addToFolder'.tr} · $title",
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(ctx).textTheme.titleMedium,
@@ -49,32 +82,71 @@ void showPodcastFolderSheet(BuildContext context, Playlist podcast) {
                       style: Theme.of(ctx).textTheme.bodySmall),
                 ),
               ...fc.folders.map((f) => CheckboxListTile(
-                    value: fc.contains(f.id, podcast.playlistId),
-                    onChanged: (_) => fc.toggle(f.id, podcast.playlistId),
+                    value: fc.contains(f.id, id),
+                    onChanged: (_) => fc.toggle(f.id, id),
                     title: Text(f.name),
                     secondary: Icon(Icons.folder_rounded, color: f.color),
                   )),
-              if (WizeStream.isInstalled &&
-                  WizeStream.showUrlFor(podcast) != null)
-                ListTile(
-                  leading: const Icon(Icons.open_in_new_rounded),
-                  title: Text("openInWizeStream".tr),
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    WizeStream.open(WizeStream.showUrlFor(podcast)!);
-                  },
-                ),
               ListTile(
                 leading: const Icon(Icons.create_new_folder_outlined),
                 title: Text("newFolder".tr),
                 onTap: () {
                   Navigator.of(ctx).pop();
-                  showNewPodcastFolderDialog(context,
-                      assignPodcastId: podcast.playlistId);
+                  showNewPodcastFolderDialog(context, assignPodcastId: id);
                 },
               ),
+              for (final b in extra) b(ctx),
             ],
           )),
+    ),
+  );
+}
+
+/// Drag folders into the order they show in Subscriptions.
+void showReorderFoldersSheet(BuildContext context) {
+  final fc = Get.find<PodcastFolderController>();
+  showModalBottomSheet(
+    context: context,
+    useRootNavigator: true,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: ConstrainedBox(
+        constraints:
+            BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * 0.7),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+              child: Text('reorderFolders'.tr,
+                  style: Theme.of(ctx).textTheme.titleMedium),
+            ),
+            Flexible(
+              child: Obx(() => ReorderableListView.builder(
+                    shrinkWrap: true,
+                    itemCount: fc.folders.length,
+                    onReorder: fc.move,
+                    itemBuilder: (_, i) {
+                      final f = fc.folders[i];
+                      return ListTile(
+                        key: ValueKey(f.id),
+                        leading: Icon(Icons.folder_rounded, color: f.color),
+                        title: Text(f.name),
+                        trailing: ReorderableDragStartListener(
+                          index: i,
+                          child: const Icon(Icons.drag_handle_rounded),
+                        ),
+                      );
+                    },
+                  )),
+            ),
+          ],
+        ),
+      ),
     ),
   );
 }
@@ -238,7 +310,7 @@ class PodcastSubsScreen extends StatelessWidget {
               imageUrl: rssArtworkUrl(rss),
               onTap: () => playOrOpenRssPodcast(rss),
               onPlay: () => playOrOpenRssPodcast(rss),
-              onLongPress: () => _confirmUnfollowRss(context, rss),
+              onLongPress: () => showRssPodcastSheet(context, rss),
             );
           },
         );
@@ -271,6 +343,12 @@ class PodcastSubsScreen extends StatelessWidget {
                             .copyWith(fontSize: 13),
                       ),
                     ),
+                    if (folders.folders.length > 1)
+                      IconButton(
+                        tooltip: 'reorderFolders'.tr,
+                        icon: const Icon(Icons.swap_vert_rounded, size: 22),
+                        onPressed: () => showReorderFoldersSheet(context),
+                      ),
                     TextButton.icon(
                       style: TextButton.styleFrom(
                         foregroundColor:
@@ -293,6 +371,13 @@ class PodcastSubsScreen extends StatelessWidget {
     return Scaffold(
       body: Column(children: [
         RiffPageHeader("subscriptions".tr, actions: [
+          Obx(() => folders.folders.length > 1
+              ? IconButton(
+                  tooltip: 'reorderFolders'.tr,
+                  icon: const Icon(Icons.swap_vert_rounded),
+                  onPressed: () => showReorderFoldersSheet(context),
+                )
+              : const SizedBox.shrink()),
           IconButton(
             tooltip: "newFolder".tr,
             icon: const Icon(Icons.create_new_folder_outlined),
@@ -370,25 +455,4 @@ class PodcastSubsScreen extends StatelessWidget {
       ),
     );
   }
-}
-
-void _confirmUnfollowRss(BuildContext context, Map<String, dynamic> podcast) {
-  showModalBottomSheet(
-    context: context,
-    useRootNavigator: true,
-    builder: (ctx) => SafeArea(
-      child: Wrap(children: [
-        ListTile(
-          leading: const Icon(Icons.remove_circle_outline),
-          title: Text('${'subscribed'.tr} · ${podcast['title'] ?? ''}',
-              maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text('unsubscribe'.tr),
-          onTap: () async {
-            await PodcastService.unsubscribe('${podcast['feedUrl']}');
-            if (ctx.mounted) Navigator.of(ctx).pop();
-          },
-        ),
-      ]),
-    ),
-  );
 }
