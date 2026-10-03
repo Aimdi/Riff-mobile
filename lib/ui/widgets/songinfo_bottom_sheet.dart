@@ -413,17 +413,35 @@ class SongInfoBottomSheet extends StatelessWidget {
                     size: SanckBarSize.BIG);
               },
             ),
-            if (song.artist != null && song.artist!.isNotEmpty)
+            if (BanService.primaryArtist(song) case final artist?)
               RiffSheetTile(
                 icon: Icons.person_off_outlined,
                 title: "neverPlayArtist".tr,
+                subtitle: artist,
                 destructive: true,
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final ok = await BanService.banArtist(song.artist!);
+                  final ok = await BanService.banArtist(artist);
                   snack(
                       ok
-                          ? "${"artistBannedMsg".tr} ${song.artist}"
+                          ? "${"artistBannedMsg".tr} $artist"
+                          : "operationFailed".tr,
+                      size: SanckBarSize.BIG);
+                },
+              ),
+            if (_albumOf(song) case final album?)
+              RiffSheetTile(
+                icon: Icons.album_outlined,
+                title: "neverPlayAlbum".tr,
+                subtitle: album.name,
+                destructive: true,
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  final ok = await BanService.banCollection(
+                      album.id, album.name, "album");
+                  snack(
+                      ok
+                          ? "${"collectionBannedMsg".tr} ${album.name}"
                           : "operationFailed".tr,
                       size: SanckBarSize.BIG);
                 },
@@ -554,4 +572,14 @@ mixin RemoveSongFromPlaylistMixin {
     // it here, or the player and other screens using it fail mid-write.
     return true;
   }
+}
+
+/// The song's album (browse id + name), when it has one.
+({String id, String name})? _albumOf(MediaItem song) {
+  final a = song.extras?['album'];
+  if (a is Map && a['id'] is String && '${a['id']}'.isNotEmpty) {
+    final name = '${a['name'] ?? song.album ?? ''}'.trim();
+    return (id: a['id'] as String, name: name.isEmpty ? '${a['id']}' : name);
+  }
+  return null;
 }

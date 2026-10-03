@@ -6,6 +6,59 @@ import 'package:hive/hive.dart';
 /// artist — are kept out of radio / up-next suggestions. Explicitly
 /// playing a banned item still works; the ban only silences
 /// recommendations.
+/// Artist names in a raw track map: `artists: [{name}]`, else `artist`.
+List<String> trackArtistNames(Map t) {
+  final artists = t['artists'];
+  if (artists is List) {
+    return [
+      for (final a in artists)
+        if (a is Map && '${a['name'] ?? ''}'.trim().isNotEmpty)
+          '${a['name']}'.trim()
+        else if (a is String && a.trim().isNotEmpty)
+          a.trim()
+    ];
+  }
+  final one = '${t['artist'] ?? ''}'.trim();
+  return one.isEmpty ? const [] : [one];
+}
+
+/// Album browse id in a raw track map (`album: {id}` or `albumId`).
+String? trackAlbumId(Map t) {
+  final album = t['album'];
+  if (album is Map && album['id'] is String && '${album['id']}'.isNotEmpty) {
+    return album['id'] as String;
+  }
+  final id = t['albumId'];
+  return id is String && id.isNotEmpty ? id : null;
+}
+
+/// The single artists in a credit like "A, B & C feat. D".
+List<String> splitArtistCredit(String credit) => credit
+    .split(RegExp(r'\s*(?:,|&|\s(?:feat\.?|ft\.)(?=\s))\s*',
+        caseSensitive: false))
+    .map((a) => a.trim())
+    .where((a) => a.isNotEmpty)
+    .toList();
+
+/// Whether a recommendation should be kept out: the song is banned, any of
+/// its artists is, or its album is.
+bool trackBlocked({
+  required String? videoId,
+  required Iterable<String> artistNames,
+  String? albumId,
+  required bool Function(String id) songBanned,
+  required bool Function(String artist) artistBanned,
+  required bool Function(String id) collectionBanned,
+}) {
+  if (videoId != null && videoId.isNotEmpty && songBanned(videoId)) {
+    return true;
+  }
+  for (final a in artistNames) {
+    if (artistBanned(a)) return true;
+  }
+  return albumId != null && albumId.isNotEmpty && collectionBanned(albumId);
+}
+
 class BanService {
   BanService._();
 
@@ -32,6 +85,12 @@ class BanService {
     return true;
   }
 
+  /// Ban by id with the stored details (Undo in the Never play list).
+  static Future<void> banRaw(String id, String title, String artist) async {
+    if (!Hive.isBoxOpen("BannedSongs")) return;
+    await _box.put(id, {"title": title, "artist": artist});
+  }
+
   static Future<bool> unban(String songId) async {
     if (!Hive.isBoxOpen("BannedSongs")) return false;
     await _box.delete(songId);
@@ -48,12 +107,47 @@ class BanService {
     if (artist == null || artist.isEmpty || box == null || box.isEmpty) {
       return false;
     }
-    // Match any individual artist within a "feat."/multi-artist string.
-    for (final part in artist.split(RegExp(r'[,&]'))) {
+    // The whole credit (older bans stored "A, B & C" as one entry), then
+    // each artist within a multi-artist / "feat." credit.
+    if (box.containsKey(_artistKey(artist))) return true;
+    for (final part in splitArtistCredit(artist)) {
       if (box.containsKey(_artistKey(part))) return true;
     }
     return false;
   }
+
+  /// The artist "Never play this artist" bans for [song]: the first credited
+  /// artist, not the whole "A, B & C" credit (which would only ever match
+  /// that exact combination).
+  static String? primaryArtist(MediaItem song) {
+    final names = trackArtistNames({
+      'artists': song.extras?['artists'],
+      'artist': song.artist,
+    });
+    if (names.isNotEmpty) {
+      final parts = splitArtistCredit(names.first);
+      return parts.isNotEmpty ? parts.first : names.first;
+    }
+    return null;
+  }
+
+  /// Raw track map (YouTube Music shape) blocked by any ban.
+  static bool isTrackBlocked(Map t) => trackBlocked(
+        videoId: t['videoId']?.toString(),
+        artistNames: trackArtistNames(t),
+        albumId: trackAlbumId(t),
+        songBanned: isBanned,
+        artistBanned: isArtistBanned,
+        collectionBanned: isCollectionBanned,
+      );
+
+  /// [MediaItem] blocked by any ban.
+  static bool isMediaItemBlocked(MediaItem m) => isTrackBlocked({
+        'videoId': m.id,
+        'artists': m.extras?['artists'],
+        'artist': m.artist,
+        'album': m.extras?['album'],
+      });
 
   /// Hive box is open and can accept a ban write.
   static bool canWriteBan(Box? box) => box != null;
@@ -139,23 +233,22 @@ class BanService {
           })
       .toList();
 
-  /// Removes banned songs (and songs by banned artists) from a raw track
+  /// Removes banned songs (and songs by banned artists or from banned
+  /// albums) from a raw track
   /// list (maps with 'videoId' / 'artists'). [keepVideoId] survives the
   /// filter so an explicitly requested song is never dropped from its own
   /// watch playlist.
   static List<dynamic> filterTracks(List<dynamic> tracks,
       {String? keepVideoId}) {
-    if (_box.isEmpty && (_artistBox?.isEmpty ?? true)) return tracks;
+    if ((!Hive.isBoxOpen("BannedSongs") || _box.isEmpty) &&
+        (_artistBox?.isEmpty ?? true) &&
+        (_collectionBox?.isEmpty ?? true)) {
+      return tracks;
+    }
     return tracks.where((t) {
+      if (t is! Map) return true;
       if (t['videoId'] == keepVideoId) return true;
-      if (_box.containsKey(t['videoId'])) return false;
-      final artists = t['artists'];
-      if (artists is List) {
-        for (final a in artists) {
-          if (a is Map && isArtistBanned(a['name']?.toString())) return false;
-        }
-      }
-      return true;
+      return !isTrackBlocked(t);
     }).toList();
   }
 }

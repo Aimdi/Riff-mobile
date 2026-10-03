@@ -283,7 +283,7 @@ class DiscoveryEngine {
       final videoId = m['videoId'] as String? ?? '';
       if (videoId.isEmpty || videoId == seedVideoId) continue;
       if (excludeIds != null && excludeIds.contains(videoId)) continue;
-      if (BanServiceSafe.isBanned(videoId)) continue;
+      if (BanServiceSafe.isTrackBanned(m)) continue;
 
       final title = m['title'] as String? ?? '';
       final artist = _artistOf(m);
