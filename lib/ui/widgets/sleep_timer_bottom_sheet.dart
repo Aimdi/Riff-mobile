@@ -51,7 +51,10 @@ class SleepTimerBottomSheet extends StatelessWidget {
       padding: EdgeInsets.only(bottom: Get.mediaQuery.padding.bottom + 12),
       child: Obx(() {
         final active = playerController.isSleepTimerActive.isTrue;
-        final endOfSong = playerController.isSleepEndOfSongActive.isTrue;
+        final endOfChapter =
+            playerController.isSleepEndOfChapterActive.isTrue;
+        final endOfSong =
+            playerController.isSleepEndOfSongActive.isTrue || endOfChapter;
         final left = playerController.timerDurationLeft.value;
         final endLabel =
             sleepEndLabelKey(longForm: playerController.usesLongFormTransport)
@@ -67,7 +70,11 @@ class SleepTimerBottomSheet extends StatelessWidget {
               const SizedBox(height: 8),
               Center(
                 child: Text(
-                  endOfSong ? endLabel : _clock(left),
+                  endOfChapter
+                      ? 'endOfThisChapter'.tr
+                      : endOfSong
+                          ? endLabel
+                          : _clock(left),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: endOfSong ? 22 : 52,
@@ -146,6 +153,24 @@ class SleepTimerBottomSheet extends StatelessWidget {
                   playerController.sleepEndOfSong();
                 },
               ),
+              // Podcast episodes with chapters can also stop at the end of
+              // the chapter playing now.
+              if (playerController.isCurrentSongPodcast &&
+                  playerController.chapters.isNotEmpty)
+                RiffSheetTile(
+                  icon: Icons.bookmark_border_rounded,
+                  title: 'endOfThisChapter'.tr,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    playerController.sleepEndOfChapter();
+                  },
+                ),
+              if (playerController.isCurrentSongPodcast)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                  child: Text('podcastSleepFadeNote'.tr,
+                      style: homeCardSubtitleStyle(context)),
+                ),
             ],
           ],
         );

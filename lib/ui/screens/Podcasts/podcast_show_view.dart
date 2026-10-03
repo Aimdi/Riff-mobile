@@ -3,6 +3,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/services/podcast_playback_profile.dart';
+import 'podcast_playback_controls.dart';
+
 import '/models/thumbnail.dart';
 import '/services/podcast_progress_service.dart';
 import '/ui/player/player_controller.dart';
@@ -44,6 +47,7 @@ class PodcastShowView extends StatefulWidget {
     this.onEpisodeLongPress,
     this.onBack,
     this.footer,
+    this.playbackKey,
   });
 
   final String title;
@@ -62,6 +66,10 @@ class PodcastShowView extends StatefulWidget {
   final void Function(MediaItem episode)? onEpisodeLongPress;
   final VoidCallback? onBack;
   final Widget? footer;
+
+  /// Key this show's playback settings are stored under (feed URL or
+  /// `yt:<playlist>`); null hides the Playback settings button.
+  final String? playbackKey;
 
   @override
   State<PodcastShowView> createState() => _PodcastShowViewState();
@@ -217,6 +225,20 @@ class _PodcastShowViewState extends State<PodcastShowView> {
               ),
             ),
           ),
+          if (widget.playbackKey != null)
+            Obx(() {
+              PodcastPlaybackPrefs.rev.value;
+              final custom =
+                  PodcastPlaybackPrefs.hasShowOverride(widget.playbackKey);
+              return IconButton(
+                tooltip: 'playbackSettings'.tr,
+                icon: Icon(Icons.tune_rounded,
+                    size: 22,
+                    color: custom ? theme.colorScheme.secondary : null),
+                onPressed: () => showPodcastShowPlaybackSheet(context,
+                    showKey: widget.playbackKey!, title: widget.title),
+              );
+            }),
         ],
       ),
     );

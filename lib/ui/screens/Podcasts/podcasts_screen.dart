@@ -4,6 +4,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/services/podcast_playback_profile.dart';
+
 import '/models/thumbnail.dart';
 import '/services/discovery/discovery_types.dart';
 import '/services/podcast_service.dart';
@@ -277,6 +279,8 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
       PodcastService.subsRev.value;
       final feed = (widget.podcast['feedUrl'] ?? '').toString();
       return PodcastShowView(
+        playbackKey:
+            podcastShowKeyForFeed(widget.podcast['feedUrl']?.toString()),
         title: (widget.podcast['title'] ?? '').toString(),
         author: (widget.podcast['author'] ?? '').toString(),
         artUrl: (widget.podcast['artwork'] ?? '').toString(),

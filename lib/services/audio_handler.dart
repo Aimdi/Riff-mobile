@@ -22,6 +22,8 @@ import '/services/playlist_mix_service.dart';
 import '/services/audiobookshelf_service.dart';
 import '/services/cloud_music_service.dart';
 import '/services/podcast_progress_service.dart';
+import '/services/podcast_playback_profile.dart';
+import '/models/media_item_extras.dart';
 import '/services/shuffle_order.dart';
 import '/services/stream_service.dart';
 import '/ui/screens/Podcasts/podcast_queue_controller.dart';
@@ -85,6 +87,17 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   // var networkErrorPause = false;
   bool isSongLoading = true;
   double _baseVolume = 1.0;
+
+  /// Podcast voice boost in mB while a podcast episode plays (null: the
+  /// user's own volume boost applies, as for music).
+  int? _podcastLoudnessMb;
+
+  /// When the current podcast episode was paused, for smart resume.
+  DateTime? _podcastPausedAt;
+
+  /// Bumped to cancel a running sleep-timer fade.
+  int _sleepFadeToken = 0;
+  double? _sleepFadeRestoreVolume;
   bool _mixTransitionInProgress = false;
   bool _startMutedForMix = false;
   /// Song id we already near-end-prefetched, so the 45s listener fires once.
@@ -145,7 +158,76 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     if (GetPlatform.isAndroid) {
       _listenSessionIdStream();
     }
+    _listenForPodcastPauses();
   }
+
+  /// Smart resume: remember when a podcast episode stopped playing (any
+  /// cause: pause button, notification, headset, audio focus); forget it
+  /// once playback runs again.
+  void _listenForPodcastPauses() {
+    _player.playingStream.listen((playing) {
+      if (playing) {
+        _podcastPausedAt = null;
+        return;
+      }
+      final item = mediaItem.value;
+      if (item == null || !item.isPodcastEpisode || isSongLoading) return;
+      if (_player.processingState == ProcessingState.completed) return;
+      _podcastPausedAt ??= DateTime.now();
+    });
+  }
+
+  /// Podcast playback profile (speed, trim silence, voice boost) for
+  /// [item]; any other item gets music's own settings back.
+  Future<void> _applyPlaybackProfile(MediaItem? item) async {
+    try {
+      if (item != null && item.isPodcastEpisode) {
+        final p = PodcastPlaybackPrefs.forItem(item);
+        await _player.setSpeed(p.speed);
+        await _player
+            .setSkipSilenceEnabled(GetPlatform.isAndroid && p.trimSilence);
+        final boost = p.voiceBoost == PodcastVoiceBoost.off
+            ? null
+            : p.voiceBoost.loudnessMb;
+        if (boost != _podcastLoudnessMb) {
+          _podcastLoudnessMb = boost;
+          if (GetPlatform.isAndroid) _applyAudioFx();
+        }
+      } else {
+        final prefs = Hive.box("AppPrefs");
+        await _player
+            .setSpeed((prefs.get("playbackSpeed") ?? 1.0).toDouble());
+        await _player
+            .setSkipSilenceEnabled(prefs.get("skipSilenceEnabled") ?? false);
+        if (_podcastLoudnessMb != null) {
+          _podcastLoudnessMb = null;
+          if (GetPlatform.isAndroid) _applyAudioFx();
+        }
+      }
+    } catch (e) {
+      printERROR('applyPlaybackProfile: $e');
+    }
+  }
+
+  /// Notification / headset skip for podcast episodes, by the show's
+  /// skip lengths. Music keeps the handler default (nothing).
+  Future<void> _podcastSkip({required bool forward}) async {
+    final item = mediaItem.value;
+    if (item == null || !item.isPodcastEpisode) return;
+    final p = PodcastPlaybackPrefs.forItem(item);
+    var target = _player.position +
+        Duration(seconds: forward ? p.skipForwardSec : -p.skipBackSec);
+    final total = _player.duration;
+    if (target.isNegative) target = Duration.zero;
+    if (total != null && target > total) target = total;
+    await seek(target);
+  }
+
+  @override
+  Future<void> fastForward() => _podcastSkip(forward: true);
+
+  @override
+  Future<void> rewind() => _podcastSkip(forward: false);
 
   Future<void> _createCacheDir() async {
     _cacheDir = (await getTemporaryDirectory()).path;
@@ -183,10 +265,19 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     _fxChannel.invokeMethod('setAudioFx', {
       'sessionId': id,
       'bass': box.get("bassBoost") ?? 0,
-      'loudnessMb': box.get("volumeBoostMb") ?? 0,
+      'loudnessMb': _effectiveLoudnessMb(box.get("volumeBoostMb")),
       'reverb': box.get("reverbPreset") ?? 0,
       'virtualizer': box.get("virtualizer") ?? 0,
     });
+  }
+
+  /// The user's volume boost, raised to the podcast voice boost while a
+  /// podcast episode with voice boost plays.
+  int _effectiveLoudnessMb(Object? userMb) {
+    final user = userMb is num ? userMb.toInt() : 0;
+    final voice = _podcastLoudnessMb;
+    if (voice == null) return user;
+    return max(user, voice);
   }
 
   void _notifyAudioHandlerAboutPlaybackEvents() {
@@ -197,12 +288,22 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         _consecutiveResolveFails = 0;
       }
       final playing = _player.playing;
+      final podcast = mediaItem.value?.isPodcastEpisode ?? false;
       playbackState.add(playbackState.value.copyWith(
-        controls: [
-          MediaControl.skipToPrevious,
-          if (playing) MediaControl.pause else MediaControl.play,
-          MediaControl.skipToNext,
-        ],
+        // Podcast episodes: skip back / forward by the show's lengths
+        // (rewind / fastForward). Music keeps previous / next.
+        controls: podcast
+            ? [
+                MediaControl.rewind,
+                if (playing) MediaControl.pause else MediaControl.play,
+                MediaControl.fastForward,
+                MediaControl.skipToNext,
+              ]
+            : [
+                MediaControl.skipToPrevious,
+                if (playing) MediaControl.pause else MediaControl.play,
+                MediaControl.skipToNext,
+              ],
         systemActions: const {
           MediaAction.seek,
         },
@@ -690,12 +791,28 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     //   await _player.play();
     //   return;
     // }
+    await _maybeSmartResume();
     try {
       await _player.play();
     } catch (e) {
       printERROR('play() player start failed: $e');
       await _handleRuntimePlaybackError(e, position: _player.position);
     }
+  }
+
+  /// Podcasts only: after a pause, step back a little (longer pause,
+  /// longer step) so the sentence that was cut off plays again.
+  Future<void> _maybeSmartResume() async {
+    final pausedAt = _podcastPausedAt;
+    _podcastPausedAt = null;
+    final item = mediaItem.value;
+    if (pausedAt == null || item == null || !item.isPodcastEpisode) return;
+    if (!PodcastPlaybackPrefs.smartResume) return;
+    final rewind = smartResumeRewind(DateTime.now().difference(pausedAt));
+    if (rewind == Duration.zero) return;
+    try {
+      await _player.seek(smartResumeTarget(_player.position, rewind));
+    } catch (_) {}
   }
 
   @override
@@ -913,6 +1030,10 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
 
         mediaItem.add(currentSong);
+        _podcastPausedAt = null;
+        // Podcast episodes play with their show's profile (this is also the
+        // queue auto-advance path); anything else gets music's settings.
+        await _applyPlaybackProfile(currentSong);
         late HMStreamingData streamInfo;
         var resolveFailed = false;
         try {
@@ -1060,6 +1181,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         await _playList.clear();
         mediaItem.add(currMed);
         queue.add([currMed]);
+        _podcastPausedAt = null;
+        await _applyPlaybackProfile(currMed);
         late final HMStreamingData streamInfo;
         try {
           streamInfo = await futureStreamInfo;
@@ -1183,6 +1306,37 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
       case 'saveSession':
         await saveSessionData();
+        break;
+
+      case 'refreshPlaybackProfile':
+        // Podcast settings changed while something is playing.
+        await _applyPlaybackProfile(mediaItem.value);
+        break;
+
+      case 'sleepFadePause':
+        // Podcast sleep timer: fade out, pause, put the volume back.
+        final ms = (extras?['ms'] as num?)?.toInt() ?? 10000;
+        final length = Duration(milliseconds: ms.clamp(0, 60000));
+        final token = ++_sleepFadeToken;
+        final restore = _sleepFadeRestoreVolume ??= _player.volume;
+        final watch = Stopwatch()..start();
+        while (watch.elapsed < length) {
+          if (token != _sleepFadeToken) return false;
+          await _player
+              .setVolume(restore * sleepFadeFactor(watch.elapsed, length));
+          await Future<void>.delayed(const Duration(milliseconds: 250));
+        }
+        if (token != _sleepFadeToken) return false;
+        await _player.pause();
+        await _player.setVolume(restore);
+        _sleepFadeRestoreVolume = null;
+        return true;
+
+      case 'cancelSleepFade':
+        _sleepFadeToken++;
+        final restore = _sleepFadeRestoreVolume;
+        _sleepFadeRestoreVolume = null;
+        if (restore != null) await _player.setVolume(restore);
         break;
 
       case 'setVolume':

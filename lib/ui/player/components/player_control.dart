@@ -3,6 +3,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
+import '/ui/screens/Podcasts/podcast_playback_controls.dart';
 import 'package:ionicons/ionicons.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:widget_marquee/widget_marquee.dart';
@@ -267,22 +269,12 @@ class PlayerControlWidget extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            PlayerSpeedButton(color: color),
-            IconButton(
-              tooltip: '−10s',
-              iconSize: 34,
-              onPressed: () =>
-                  playerController.seekBy(const Duration(seconds: -10)),
-              icon: Icon(Icons.replay_10_rounded, color: color),
-            ),
+            playerController.isCurrentSongPodcast
+                ? PodcastSpeedButton(color: color)
+                : PlayerSpeedButton(color: color),
+            LongFormSkipButton(forward: false, color: color, size: 34),
             const AnimatedPlayButton(key: Key('podcastPlayButton'), size: 68),
-            IconButton(
-              tooltip: '+30s',
-              iconSize: 34,
-              onPressed: () =>
-                  playerController.seekBy(const Duration(seconds: 30)),
-              icon: Icon(Icons.forward_30_rounded, color: color),
-            ),
+            LongFormSkipButton(forward: true, color: color, size: 34),
             _nextButton(playerController, context),
           ],
         ),

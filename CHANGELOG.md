@@ -1,3 +1,29 @@
+# 1.7.122
+
+**Podcasts: playback settings per show**
+* New Podcast settings page, from the gear in the Podcasts tab header.
+  It sets how podcast episodes play: speed (0.5× to 3×), skip back and
+  skip forward lengths, trim silence, voice boost and ad skipping.
+  Music keeps its own speed and settings
+* Each show can have its own playback settings: tap the sliders icon on
+  the show's page. "Use global defaults" goes back to the Podcast
+  settings
+* Episodes play with their show's settings, also when the next episode
+  starts by itself. Switching to music puts music's settings back
+* The podcast player's skip buttons use the show's lengths, and the
+  media notification gets skip back / skip forward buttons for podcasts
+* The speed button in the podcast player opens a speed picker with a
+  slider and quick choices
+* Smart resume: after a pause, an episode goes back a few seconds (more
+  after a longer pause) so you don't lose the thread. On by default, in
+  Podcast settings
+* Sleep timer for podcasts: stop at the end of the current chapter, and
+  episodes fade out over the last 10 seconds instead of cutting off
+* Your current speed and trim-silence settings carry over as the new
+  podcast defaults, so nothing changes until you change it
+* Fixed: some YouTube Music podcasts opened with no episodes (the show
+  was found under a different id form)
+
 # 1.7.121
 
 **The side rail is back**

@@ -15,6 +15,7 @@ import 'screens/Search/search_screen.dart';
 import 'screens/Stats/stats_screen.dart';
 import 'screens/Stats/rewind_screen.dart';
 import 'screens/Podcasts/podcasts_library.dart';
+import 'screens/Podcasts/podcast_settings_screen.dart';
 import 'screens/Plugins/plugins_screen.dart';
 import '/ui/screens/Plugins/spotify_bridge_screen.dart';
 import 'screens/Plugins/torrent_search_screen.dart';
@@ -41,6 +42,7 @@ class ScreenNavigationSetup {
   static const spotifyBridgeScreen = '/spotifyBridgeScreen';
   static const exploreScreen = '/exploreScreen';
   static const homeLayoutScreen = '/homeLayoutScreen';
+  static const podcastSettingsScreen = '/podcastSettingsScreen';
 }
 
 class ScreenNavigation extends StatelessWidget {
@@ -131,6 +133,11 @@ class ScreenNavigation extends StatelessWidget {
                   : null;
               return GetPageRoute(
                   page: () => ExploreScreen(focusTitle: focus),
+                  settings: settings);
+
+            case ScreenNavigationSetup.podcastSettingsScreen:
+              return GetPageRoute(
+                  page: () => const PodcastSettingsScreen(),
                   settings: settings);
 
             case ScreenNavigationSetup.homeLayoutScreen:

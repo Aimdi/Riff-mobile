@@ -2,6 +2,8 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/services/podcast_playback_profile.dart';
+
 import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/music_service.dart';
@@ -110,10 +112,16 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
         if (p.kind == 'yt_channel' ||
             RegExp(r'^UC[\w-]{20,}$').hasMatch(p.playlistId)) {
           final data = await ms.getChannelAsPodcast(p.playlistId, limit: 15);
-          return List<MediaItem>.from(data['tracks'] ?? const []);
+          return [
+            for (final m in List<MediaItem>.from(data['tracks'] ?? const []))
+              withPodcastShowId(m, p.playlistId)
+          ];
         }
         final data = await ms.getPodcast(p.playlistId, limit: 15);
-        return List<MediaItem>.from(data['tracks'] ?? const []);
+        return [
+          for (final m in List<MediaItem>.from(data['tracks'] ?? const []))
+            withPodcastShowId(m, p.playlistId)
+        ];
       } catch (_) {
         return <MediaItem>[];
       }
