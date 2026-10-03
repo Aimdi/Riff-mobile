@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/services/podcast_playback_profile.dart';
+import 'package:harmonymusic/services/podcast_segments.dart';
 import 'package:harmonymusic/utils/get_localization.dart';
 
 /// `.tr` falls back to the key itself, so a missing string ships as
@@ -23,10 +24,16 @@ void main() {
       'lib/ui/screens/Podcasts/podcast_playback_controls.dart',
       'lib/ui/screens/Podcasts/podcast_settings_screen.dart',
       'lib/ui/widgets/sleep_timer_bottom_sheet.dart',
+      'lib/ui/screens/Podcasts/podcast_segment_ui.dart',
+      'lib/ui/player/player_controller.dart',
     ])
       ..._trKeys(File(f).readAsStringSync()),
     // Built from the enum name: 'voiceBoost_${v.name}'.tr
     for (final v in PodcastVoiceBoost.values) 'voiceBoost_${v.name}',
+    // Segment category / action / source names built from enums.
+    for (final c in SegmentCategory.values) ...[c.labelKey, '${c.labelKey}Des'],
+    for (final a in SegmentAction.values) 'segAction_${a.name}',
+    for (final s in SegmentSource.values) 'segSource_${s.name}',
   };
 
   test('podcast playback strings exist in English', () {

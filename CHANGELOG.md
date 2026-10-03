@@ -1,3 +1,28 @@
+# 1.7.123
+
+**Podcasts: smarter segment skipping**
+* Podcast settings › Segment skipping: choose what happens with each
+  kind of segment (sponsor, self-promotion, like / subscribe reminders,
+  intro, outro, preview / recap, off-topic tangent, non-speech music):
+  skip automatically, show a Skip button, mute, or ignore. Sponsors are
+  skipped, self-promotion and reminders get a button, the rest is left
+  alone unless you change it
+* YouTube podcast episodes now use SponsorBlock with its private lookup
+  (only a short hash of the episode is sent), remembered for a day. RSS
+  episodes use the show's own chapters, as before
+* Segments show as coloured marks on the podcast seek bar; the colours
+  are listed in Podcast settings
+* After an automatic skip a message says what was skipped and for how
+  long, with Undo to go back and hear it
+* Skipping only happens when playback runs into a segment; jumping into
+  the middle of one plays it, and nothing is skipped twice
+* Mark your own segments: podcast player › ⋮ › Mark segment start /
+  end. The same menu lists the episode's segments
+* The "Skip podcast ads" switch moved from Settings into Podcast
+  settings, keeping your choice. Each show can still turn automatic
+  skipping off on its page
+* Riff counts the listening time skipping saves you
+
 # 1.7.122
 
 **Podcasts: playback settings per show**

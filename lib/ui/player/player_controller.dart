@@ -47,6 +47,7 @@ import '/ui/player/radio_continuation.dart';
 import 'upcoming_queue.dart';
 import 'video_mode_controller.dart';
 import '/services/podcast_playback_profile.dart';
+import '/services/podcast_segments.dart';
 
 class PlayerController extends GetxController
     with GetSingleTickerProviderStateMixin {
@@ -176,17 +177,11 @@ class PlayerController extends GetxController
   /// Podcasting 2.0 chapters for the current podcast episode (ad auto-skip).
   final chapters = <PodcastChapter>[].obs;
   String? _chaptersForSongId;
-  bool _chapterSeekInFlight = false;
   // True while playback is inside an ad chapter (drives the "Skip ad" chip).
   final inAdChapter = false.obs;
   bool get hasChapters => chapters.isNotEmpty;
 
   Box get _prefs => HiveBoxes.prefs();
-
-  /// Segment skipping for what is playing: the show's setting for podcast
-  /// episodes, the global ad-skip toggle otherwise.
-  bool get _segmentSkipOn =>
-      isCurrentSongPodcast ? currentPodcastProfile.segmentSkip : podcastAutoSkipAds;
 
   /// Playback profile of the current podcast episode's show.
   PodcastPlaybackProfile get currentPodcastProfile {
@@ -240,6 +235,10 @@ class PlayerController extends GetxController
   @override
   onInit() {
     _init();
+    // Podcast segments follow chapters, settings and manual marks.
+    ever(chapters, (_) => _rebuildPodcastSegments());
+    ever(PodcastSegmentStore.rev, (_) => _rebuildPodcastSegments());
+    ever(PodcastPlaybackPrefs.rev, (_) => _rebuildPodcastSegments());
     super.onInit();
   }
 
@@ -437,7 +436,7 @@ class PlayerController extends GetxController
       Get.find<DiscoveryService>().onPositionTick(position.inMilliseconds);
     }
     _maybeSkipSponsorBlock(position);
-    _maybeSkipAdChapter(position);
+    _handlePodcastSegments(position);
     _handlePodcastProgress(position);
     _handleAbsProgress(position);
 
@@ -629,34 +628,223 @@ class PlayerController extends GetxController
     return null;
   }
 
-  void _maybeSkipAdChapter(Duration position) {
-    if (chapters.isEmpty) {
-      if (inAdChapter.isTrue) inAdChapter.value = false;
+
+  // ---- Podcast segments: chapters, SponsorBlock, manual marks ----
+
+  /// The current episode's segments, resolved against the podcast segment
+  /// settings: ignored ones dropped, overlapping ones merged.
+  final podcastSegments = <PodcastSegment>[].obs;
+
+  /// The segment playing now that the Skip pill offers to jump over.
+  final activePodcastSegment = Rxn<PodcastSegment>();
+
+  /// Start of a segment being marked by hand (seconds), until its end is.
+  final manualSegmentStart = Rxn<double>();
+
+  String? _segmentsForId;
+  List<PodcastSegment> _sbPodcastSegments = const [];
+  double? _prevSegmentSec;
+  bool _segmentSeekInFlight = false;
+  bool _segmentMuted = false;
+  bool _segmentsDurationKnown = false;
+
+  /// Per episode, for this app session: segments already auto-skipped
+  /// (never twice) and segments the user undid (left alone from then on).
+  final Map<String, Set<String>> _segmentsSkipped = {};
+  final Map<String, Set<String>> _segmentsDisabled = {};
+
+  void _clearPodcastSegments() {
+    _segmentsForId = null;
+    _sbPodcastSegments = const [];
+    if (podcastSegments.isNotEmpty) podcastSegments.clear();
+    activePodcastSegment.value = null;
+    manualSegmentStart.value = null;
+    _setSegmentMute(false);
+  }
+
+  Future<void> _loadPodcastSegmentsFor(MediaItem item) async {
+    _clearPodcastSegments();
+    _segmentsForId = item.id;
+    _prevSegmentSec = null;
+    _segmentsDurationKnown = false;
+    _rebuildPodcastSegments();
+    // YouTube-sourced episodes: SponsorBlock, in the background.
+    if (looksLikeYoutubeVideoId(item.id) &&
+        Get.isRegistered<SponsorBlockService>()) {
+      final segs =
+          await Get.find<SponsorBlockService>().podcastSegments(item.id);
+      if (_segmentsForId != item.id) return;
+      _sbPodcastSegments = segs;
+      _rebuildPodcastSegments();
+    }
+  }
+
+  void _rebuildPodcastSegments() {
+    final item = currentSong.value;
+    if (item == null || !item.isPodcastEpisode || item.id != _segmentsForId) {
       return;
+    }
+    final totalMs = progressBarStatus.value.total.inMilliseconds;
+    final durSec = (totalMs > 0
+            ? totalMs
+            : (item.duration?.inMilliseconds ?? 0)) /
+        1000.0;
+    podcastSegments.assignAll(resolveSegments(
+      [
+        ...segmentsFromChapters(chapters, durSec),
+        ..._sbPodcastSegments,
+        ...PodcastSegmentStore.manual(item.id),
+      ],
+      PodcastSegmentStore.actions,
+      skippingOn: currentPodcastProfile.segmentSkip,
+    ));
+  }
+
+  /// One position tick of a podcast episode: mute, the Skip pill, and the
+  /// auto-skip (only when playback runs into a segment from before it,
+  /// never twice, never a segment the user undid).
+  void _handlePodcastSegments(Duration position) {
+    final item = currentSong.value;
+    if (item == null || !item.isPodcastEpisode) return;
+    if (!_segmentsDurationKnown &&
+        progressBarStatus.value.total > Duration.zero) {
+      _segmentsDurationKnown = true;
+      _rebuildPodcastSegments();
     }
     final sec = position.inMilliseconds / 1000.0;
-    final current = _chapterAt(sec);
-    final isAd = current?.isAd ?? false;
-    if (inAdChapter.value != isAd) inAdChapter.value = isAd;
-    if (!isAd || !_segmentSkipOn || _chapterSeekInFlight) return;
-    final target = _endOfChapter(current!);
-    if (target == null) return;
-    final total = progressBarStatus.value.total;
-    if (total > Duration.zero &&
-        target >= total - const Duration(milliseconds: 400)) {
+    final prev = _prevSegmentSec ?? sec;
+    _prevSegmentSec = sec;
+    final disabled = _segmentsDisabled[item.id] ?? const <String>{};
+    var active = podcastSegments.isEmpty
+        ? null
+        : segmentAt(podcastSegments, sec);
+    if (active != null && disabled.contains(active.id)) active = null;
+
+    _setSegmentMute(active?.action == SegmentAction.mute);
+    final pill =
+        active != null && active.action != SegmentAction.mute ? active : null;
+    if (activePodcastSegment.value?.id != pill?.id) {
+      activePodcastSegment.value = pill;
+    }
+    if (inAdChapter.value != (pill != null)) inAdChapter.value = pill != null;
+
+    if (active == null ||
+        active.action != SegmentAction.autoSkip ||
+        _segmentSeekInFlight) {
       return;
     }
-    _chapterSeekInFlight = true;
-    printINFO('Ad chapter skip "${current.title}" → ${target.inSeconds}s');
-    seek(target);
-    Future.delayed(
-        const Duration(milliseconds: 350), () => _chapterSeekInFlight = false);
+    final skipped = _segmentsSkipped.putIfAbsent(item.id, () => <String>{});
+    if (skipped.contains(active.id) || !enteredFromBefore(active, prev, sec)) {
+      return;
+    }
+    final total = progressBarStatus.value.total;
+    if (total > Duration.zero &&
+        Duration(milliseconds: (active.end * 1000).round()) >=
+            total - const Duration(milliseconds: 400)) {
+      return;
+    }
+    skipped.add(active.id);
+    _skipSegment(active, fromSec: sec, auto: true);
+  }
+
+  void _skipSegment(PodcastSegment s,
+      {required double fromSec, required bool auto}) {
+    _segmentSeekInFlight = true;
+    _prevSegmentSec = s.end;
+    activePodcastSegment.value = null;
+    printINFO('Podcast segment skip ${s.category.apiName} '
+        '${s.start.toStringAsFixed(1)}s → ${s.end.toStringAsFixed(1)}s');
+    seek(Duration(milliseconds: (s.end * 1000).round()));
+    unawaited(PodcastSegmentStore.addTimeSaved(
+        Duration(milliseconds: ((s.end - fromSec) * 1000).round())));
+    Future.delayed(const Duration(milliseconds: 350),
+        () => _segmentSeekInFlight = false);
+    if (auto) _showSegmentSkippedSnack(s, fromSec);
+  }
+
+  void _showSegmentSkippedSnack(PodcastSegment s, double fromSec) {
+    final ctx = homeScaffoldkey.currentContext;
+    if (ctx == null) return;
+    final messenger = ScaffoldMessenger.maybeOf(ctx);
+    if (messenger == null) return;
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 5),
+      content: Text('segmentSkipped'.trParams({
+        'category': s.category.labelKey.tr,
+        'length': formatSegmentLength(s.end - fromSec),
+      })),
+      action: SnackBarAction(
+        label: 'undo'.tr,
+        onPressed: () => undoSegmentSkip(s, fromSec),
+      ),
+    ));
+  }
+
+  /// Undo an auto-skip: back to the segment start, and leave this segment
+  /// alone for the rest of the session.
+  void undoSegmentSkip(PodcastSegment s, double fromSec) {
+    final id = currentSong.value?.id;
+    if (id == null) return;
+    _segmentsDisabled.putIfAbsent(id, () => <String>{}).add(s.id);
+    unawaited(PodcastSegmentStore.addTimeSaved(
+        -Duration(milliseconds: ((s.end - fromSec) * 1000).round())));
+    _prevSegmentSec = s.start;
+    seek(Duration(milliseconds: (s.start * 1000).round()));
+  }
+
+  void _setSegmentMute(bool muted) {
+    if (muted == _segmentMuted) return;
+    _segmentMuted = muted;
+    _audioHandler.customAction('setSegmentMute', {'muted': muted});
+  }
+
+  /// Manual segments (RSS episodes): first call marks the start, second
+  /// stores the segment with [category].
+  bool get canMarkSegments {
+    final s = currentSong.value;
+    return s != null && s.isPodcastEpisode && s.id.startsWith('podcast_');
+  }
+
+  void markSegmentStart() {
+    manualSegmentStart.value =
+        progressBarStatus.value.current.inMilliseconds / 1000.0;
+  }
+
+  Future<bool> markSegmentEnd(SegmentCategory category) async {
+    final s = currentSong.value;
+    final start = manualSegmentStart.value;
+    if (s == null || start == null) return false;
+    final end = progressBarStatus.value.current.inMilliseconds / 1000.0;
+    manualSegmentStart.value = null;
+    final a = end < start ? end : start, b = end < start ? start : end;
+    if (b - a < 1) return false;
+    await PodcastSegmentStore.addManual(
+        s.id,
+        PodcastSegment(
+          id: 'm_${DateTime.now().millisecondsSinceEpoch}',
+          start: a,
+          end: b,
+          category: category,
+          source: SegmentSource.manual,
+        ));
+    // Marked while inside it: don't jump away from what was just marked.
+    _segmentsSkipped.remove(s.id);
+    return true;
   }
 
   /// Manual "Skip ad": jump past the current ad chapter if in one, else jump
   /// forward 30s (universal fallback for feeds without chapters).
   void skipAd() {
     final sec = progressBarStatus.value.current.inMilliseconds / 1000.0;
+    final seg = activePodcastSegment.value;
+    final id = currentSong.value?.id;
+    if (seg != null && id != null) {
+      _segmentsSkipped.putIfAbsent(id, () => <String>{}).add(seg.id);
+      _skipSegment(seg, fromSec: sec, auto: false);
+      return;
+    }
     final current = _chapterAt(sec);
     if (current != null && current.isAd) {
       final target = _endOfChapter(current);
@@ -673,6 +861,8 @@ class PlayerController extends GetxController
     _sponsorSegments = const [];
     _lastSkippedSegmentUuid = null;
     sponsorBlockActiveCategory.value = null;
+    // Podcast episodes use the podcast segment engine instead.
+    if (isCurrentSongPodcast) return;
     if (!Get.isRegistered<SponsorBlockService>()) return;
     final sb = Get.find<SponsorBlockService>();
     if (!sb.enabled) return;
@@ -704,8 +894,7 @@ class PlayerController extends GetxController
       return;
     }
     if (active.uuid == _lastSkippedSegmentUuid) return;
-    // A podcast show can turn segment skipping off for itself.
-    if (isCurrentSongPodcast && !_segmentSkipOn) return;
+    if (isCurrentSongPodcast) return;
 
     final target = sb.seekTargetIfInSegment(_sponsorSegments, sec);
     if (target == null) return;
@@ -848,8 +1037,13 @@ class PlayerController extends GetxController
         if (isNewPlay) {
           // Fire-and-forget SponsorBlock load for this video id.
           unawaited(_loadSponsorBlockFor(mediaItem.id));
-          // Podcast chapters (ad auto-skip) for this episode.
+          // Podcast chapters and segments (SponsorBlock, manual marks).
           unawaited(_loadChaptersFor(mediaItem));
+          if (mediaItem.isPodcastEpisode) {
+            unawaited(_loadPodcastSegmentsFor(mediaItem));
+          } else {
+            _clearPodcastSegments();
+          }
         }
         await _checkFav();
         if (isNewPlay) {
