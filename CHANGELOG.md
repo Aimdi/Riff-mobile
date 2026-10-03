@@ -1,3 +1,22 @@
+# 1.7.127
+
+**Playback hardening**
+* Riff now keeps track of who asked for each play, pause, seek and skip
+  (you in the app, the notification or lock screen, Android Auto, a
+  headset, the sleep timer, automatic skipping)
+* A playback watchdog checks every couple of seconds while something
+  plays, screen off included. If the position stops moving while the
+  player says it's playing, it gets it going again (seek in place, then
+  pause and play); if the notification or app shows the wrong play/pause
+  state, it corrects it. It never restarts something the system paused
+  (a call, another app)
+* Automatic skips (podcast segments and SponsorBlock) no longer override
+  a seek you just made, whether from the app, the notification or Android
+  Auto, and leave a segment alone for a minute when you jump to just
+  before it
+* Automatic skips duck the sound for a moment and fade back in instead
+  of cutting hard
+
 # 1.7.126
 
 **Podcasts: smart touches**
