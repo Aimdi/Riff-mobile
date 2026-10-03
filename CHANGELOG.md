@@ -1,3 +1,19 @@
+# 1.7.126
+
+**Podcasts: smart touches**
+* Expected today: at the top of the Inbox, the shows you follow that
+  usually release on this day, with roughly when. It needs a few weeks of
+  history from the show's feed; YouTube shows don't give release times, so
+  they don't appear. Once the episode is out it shows up in the list
+* The podcast player takes its colour from the episode's artwork. Turn it
+  off in Podcast settings › Player. Music keeps your theme
+* The Podcasts tab opens straight onto your last Inbox, even after
+  restarting the app, and refreshes behind it with a thin bar at the top
+  instead of a loading screen
+* Listening stats (chart icon in the Podcasts tab): time listened, time
+  saved by faster playback and by skipping, your listening streak and top
+  shows. Share them as a picture. Podcasts only
+
 # 1.7.125
 
 **Podcasts: a tidier library**

@@ -6,7 +6,8 @@ and music playback behaves exactly as before. Ideas are inspired by other
 podcast apps; the UI, names, icons and wording are Riff's own.
 
 Status: **Phase 1 shipped in 1.7.122, Phase 2 in 1.7.123, Phase 3 in
-1.7.124, Phase 4 implemented (1.7.125).** Phase 5 is planned; each starts after the previous one is reviewed.
+1.7.124, Phase 4 in 1.7.125, Phase 5 implemented (1.7.126).** All planned
+phases are done; each starts after the previous one is reviewed.
 
 ---
 
@@ -352,7 +353,7 @@ OPML parse/build round trip, folder ids and reordering, and the Hive store
 
 ---
 
-## Phase 5: Smart touches (Podcasts tab)
+## Phase 5: Smart touches (Podcasts tab) ✅ (1.7.126)
 
 ### Spec
 - **"Expected today"**, built as a pure function with unit tests:
@@ -372,24 +373,20 @@ OPML parse/build round trip, folder ids and reordering, and the Hive store
   - listening streak
   - optional share as an image
 
-### Plan
-- **Expected today:** `lib/services/podcast_release_predictor.dart` with a
-  pure `predictToday(List<DateTime> pubDates, DateTime now)` and tests. The
-  row goes at the top of the Inbox (`podcast_inbox_screen.dart`) and reads
-  `pubDateMs` from cached feed results.
-- **Tinted player:** `LongFormPlayer` reads `ThemeController.setTheme`
-  output (`primaryColor`) for its background gradient, for podcasts only.
-- **Cache-first:** the Inbox already has a 15 min cache (`freshInbox`). Make
-  it show stale data instantly with a thin top progress bar while
-  refreshing. The same applies to Subscriptions.
-- **Stats:** a `PodcastStatsService` (Hive box `PodcastStats`) fed by
-  `PlayerController._handlePodcastProgress`, including time saved from
-  speed and from Phase 2 skips. It gets a `PodcastStatsScreen` reached from
-  the Podcasts tab header (chart icon), with share via `RepaintBoundary`
-  and `share_plus`.
-- **Entry points:**
-  - Podcasts tab › Inbox top row (Expected today).
-  - Header › stats icon.
+### What was built and where
+
+| Item | Files / classes | Entry point |
+|---|---|---|
+| Expected today | **new** `lib/services/podcast_release_predictor.dart`: pure `predictToday(pubDates, now)` (newest 10 in local time, at least 4, ≥60% on today's weekday or a daily cadence of mostly 18–30 h gaps; no guess if today's is already out, if the show has gone quiet (15 days, or 3 for daily) or for a weekdays-only show at the weekend; time = median time of day, rounded to 15 min). `expectedShows(merged, now)` groups the cached Inbox by show. Episodes without `pubDateMs` (most YouTube shelves) can't count | Podcasts tab › Inbox, top row |
+| Tinted player | **new** `lib/ui/player/components/podcast_player_tint.dart`: `PodcastPlayerTint` runs `PaletteGenerator` on the episode art (64×64) and `podcastPlayerTint` keeps it dark (HSL lightness 0.06–0.16, saturation ≤0.55). `LongFormPlayer` uses it for podcasts only. With the dynamic theme on, the theme already follows the art, so it stays out of the way. The app theme is never changed, so music screens are untouched. Switch: AppPrefs `podcastTintPlayer` (default on) | Podcast settings › Player |
+| Cache-first Inbox | **new** `lib/services/podcast_inbox_cache.dart` (box `PodcastInboxCache`, keyed by the subscription set, ≤250 episodes, notes trimmed to 1500 chars). The Inbox opens on the memory or saved copy whatever its age and refreshes behind it with a 2 px progress bar. Pull-to-refresh and the header refresh no longer blank the list, and a refresh that fails everywhere (offline) keeps what's shown. The shimmer only appears on the very first load | Podcasts tab › Inbox |
+| Listening stats | **new** `lib/services/podcast_stats.dart`: `PodcastStatsService.tick` is fed from `PlayerController._handlePodcastProgress` (podcast items only). Pure `listenDelta` ignores pauses, seeks and sleeps; wall time vs episode time gives "saved by speed". Totals, per-day and per-show values go in box `PodcastStats`, flushed every 30 s and on pause. Pure `listeningStreak` and `topShows`. **New** `PodcastStatsScreen`: time listened, saved by speed, saved by skipping (Phase 2 counter), streak, top 5 shows; share as PNG via `RepaintBoundary` + `share_plus` | Podcasts tab header › chart icon |
+
+**Tests:** `test/podcasts/podcast_smart_test.dart` covers the predictor
+(weekly, threshold, minimum points, already out, daily, weekdays-only,
+quiet shows, history window), grouping by show, the stats tick rules,
+streaks, top shows, the stats store, the Inbox cache round trip and the
+tint range.
 
 ---
 
