@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/services/podcast_bookmarks.dart';
 import '/services/podcast_segments.dart';
 import '/ui/navigator.dart';
 import '/ui/player/player_controller.dart';
 import '../../widgets/riff_sheet.dart';
 import '../../widgets/snackbar.dart';
 import '../Home/home_layout.dart';
+import 'podcast_bookmarks_ui.dart';
 
 /// "Skip sponsor", "Skip intro"… for the pill in the podcast player.
 String podcastSkipPillLabel(PlayerController pc) {
@@ -18,7 +20,7 @@ String podcastSkipPillLabel(PlayerController pc) {
 String _clock(double sec) => formatSegmentLength(sec);
 
 /// Overflow button in the podcast player's top bar (music keeps the empty
-/// slot): this episode's segments and marking new ones.
+/// slot): bookmarks, this episode's segments and marking new ones.
 class PodcastPlayerMenuButton extends StatelessWidget {
   const PodcastPlayerMenuButton({super.key});
 
@@ -53,10 +55,31 @@ Future<void> showPodcastSegmentsSheet(BuildContext context) {
               ? const <PodcastSegment>[]
               : PodcastSegmentStore.manual(item.id);
           final pending = pc.manualSegmentStart.value;
+          PodcastBookmarkStore.rev.value;
+          final bookmarks =
+              item == null ? 0 : PodcastBookmarkStore.forEpisode(item.id).length;
           return ListView(
             shrinkWrap: true,
             children: [
               const RiffSheetHandle(),
+              RiffSheetTile(
+                icon: Icons.bookmark_add_outlined,
+                title: 'bookmarkThisMoment'.tr,
+                onTap: () {
+                  Navigator.of(sheet).pop();
+                  bookmarkCurrentMoment(context);
+                },
+              ),
+              RiffSheetTile(
+                icon: Icons.bookmarks_outlined,
+                title: 'episodeBookmarks'.tr,
+                trailing: bookmarks > 0 ? Text('$bookmarks') : null,
+                onTap: () {
+                  Navigator.of(sheet).pop();
+                  showEpisodeBookmarksSheet(context);
+                },
+              ),
+              const RiffSheetDivider(),
               RiffSheetTitle('segmentsTitle'.tr,
                   subtitle: 'segmentsSubtitle'.tr),
               if (pc.canMarkSegments)

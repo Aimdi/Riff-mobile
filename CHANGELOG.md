@@ -1,3 +1,24 @@
+# 1.7.124
+
+**Podcasts: transcripts and bookmarks**
+* YouTube podcast episodes now have transcripts too, made from the
+  video's captions. Feed transcripts still come first. The Transcript
+  button only shows when an episode has one
+* Transcripts are kept on the phone after the first time you open them
+* In the transcript: the current line follows playback. Scroll away
+  and a Resync button brings you back. Tap a line to jump there
+* Search the transcript, with the number of matches and up / down to
+  step through them
+* The eye button hides what's ahead (blurs the lines you haven't heard
+  yet)
+* Sponsor reads, intros and other segments are shaded in the transcript
+  with their seek-bar colour and name
+* Long-press a line to bookmark it, and add a note if you like.
+  Podcast player › ⋮ › Bookmark this moment works without a transcript
+* Bookmarks in this episode: in the podcast player's ⋮ menu and the
+  transcript header. All bookmarks: the new Bookmarks tab in Podcasts.
+  Tap one to play from that moment, or share it as a quote
+
 # 1.7.123
 
 **Podcasts: smarter segment skipping**

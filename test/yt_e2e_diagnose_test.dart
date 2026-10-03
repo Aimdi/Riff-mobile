@@ -30,6 +30,7 @@ import 'package:harmonymusic/services/free_audiobook_service.dart';
 import 'package:harmonymusic/services/kugou_lyrics_service.dart';
 import 'package:harmonymusic/services/music_service.dart';
 import 'package:harmonymusic/services/podcast_service.dart';
+import 'package:harmonymusic/services/podcast_transcripts.dart';
 import 'package:harmonymusic/services/stream_service.dart';
 
 Future<MusicServices> _makeService() async {
@@ -50,6 +51,7 @@ void main() {
     await Hive.openBox('BannedSongs');
     await Hive.openBox('BannedArtists');
     await Hive.openBox('PodcastSubs');
+    await Hive.openBox(PodcastTranscriptService.box);
   });
 
   test('home feed loads and parses', () async {
@@ -252,4 +254,18 @@ void main() {
       client.close(force: true);
     }
   }, timeout: const Timeout(Duration(minutes: 3)));
+
+  test('YouTube captions become a podcast transcript', () async {
+    const item = MediaItem(
+        id: 'jNQXAC9IVRw', title: 'Me at the zoo', extras: {'isPodcast': true});
+    await PodcastTranscriptService.probe(item);
+    final t = await PodcastTranscriptService.load(item);
+    // ignore: avoid_print
+    print('YT TRANSCRIPT: available=${PodcastTranscriptService.available(item)} '
+        'cues=${t.cues.length} auto=${t.auto} first='
+        '${t.cues.isNotEmpty ? "${t.cues.first.startSec} ${t.cues.first.text}" : "none"}');
+    expect(PodcastTranscriptService.available(item), isTrue);
+    expect(t.cues, isNotEmpty);
+    expect(t.timed, isTrue);
+  }, timeout: const Timeout(Duration(minutes: 2)));
 }

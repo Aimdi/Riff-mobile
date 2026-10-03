@@ -24,6 +24,7 @@ import '../Home/home_layout.dart';
 import 'podcast_category_screen.dart';
 import 'podcast_downloads_screen.dart';
 import 'podcast_layout.dart';
+import 'podcast_bookmarks_ui.dart';
 import 'podcast_inbox_screen.dart';
 import 'podcast_queue_controller.dart';
 import 'podcast_queue_screen.dart';
@@ -145,6 +146,9 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               if (_section == 4) {
                 // Discover tab: search + discovery rows + categories.
                 return _discoverView(controller, itemWidth, itemHeight);
+              }
+              if (_section == 6) {
+                return const PodcastBookmarksScreen(embedded: true);
               }
               if (_section == 5) {
                 return PodcastDownloadsScreen(
@@ -409,7 +413,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
     );
   }
 
-  /// Inbox · Queue · Subscriptions · Discover · Downloads as pill tabs.
+  /// Inbox · Queue · Subscriptions · Discover · Downloads · Bookmarks as
+  /// pill tabs.
   Widget _tabs(BuildContext context) {
     final tabs = <(int, String)>[
       (1, 'podcastInbox'.tr),
@@ -417,6 +422,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
       (3, 'subscriptions'.tr),
       (4, 'discover'.tr),
       (5, 'downloads'.tr),
+      (6, 'bookmarks'.tr),
     ];
     return SizedBox(
       height: 36,

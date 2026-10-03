@@ -12,6 +12,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
 import '/ui/player/components/animated_play_button.dart';
+import '/services/podcast_transcripts.dart';
 import '/ui/player/components/podcast_transcript_sheet.dart';
 import '/ui/utils/riff_tokens.dart';
 import '/ui/utils/theme_controller.dart';
@@ -145,7 +146,8 @@ class PlayerControlWidget extends StatelessWidget {
   Widget _podcastActions(
       PlayerController playerController, BuildContext context) {
     final song = playerController.currentSong.value;
-    final transcriptUrl = (song?.extras?['transcriptUrl'] ?? '').toString();
+    final hasTranscript =
+        PodcastTranscriptService.available(song) && song != null;
     final settings = Get.find<SettingsScreenController>();
     final autoOn = settings.podcastContinuousPlaybackEnabled.value;
     final isPodcast = playerController.isCurrentSongPodcast;
@@ -169,15 +171,11 @@ class PlayerControlWidget extends StatelessWidget {
           tooltip: 'chapters'.tr,
           onTap: () => _openChapters(playerController, context),
         ),
-      if (transcriptUrl.isNotEmpty)
+      if (hasTranscript)
         PlayerAction(
           icon: Icons.subtitles_outlined,
           tooltip: 'transcript'.tr,
-          onTap: () => PodcastTranscriptSheet.open(
-            context,
-            url: transcriptUrl,
-            type: '${song?.extras?['transcriptType'] ?? ''}',
-          ),
+          onTap: () => PodcastTranscriptSheet.open(context, song),
         ),
       _sleepAction(playerController, context),
     ]);
