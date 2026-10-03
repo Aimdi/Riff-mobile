@@ -4,7 +4,9 @@ import 'package:get/get.dart';
 
 import '/services/podcast_bookmarks.dart';
 import '/services/podcast_download_service.dart';
+import '/services/podcast_inbox_cache.dart';
 import '/services/podcast_library.dart';
+import '/services/podcast_release_predictor.dart';
 import '/services/podcast_playback_profile.dart';
 
 import '/models/playlist.dart';
@@ -52,29 +54,67 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
   List<MediaItem> _episodes = [];
   bool _loading = true;
 
+  /// Every followed show's recent episodes, played ones included (for
+  /// "Expected today").
+  List<MediaItem> _merged = const [];
+
+  /// Refreshing behind what's on screen (thin bar at the top).
+  bool _refreshing = false;
+
   /// Library filter chip; null shows the normal Inbox.
   EpisodeFilter? _filter;
 
   @override
   void initState() {
     super.initState();
-    // A fresh cached inbox renders on the first frame, without the shimmer.
+    // Cache first: whatever Inbox we have renders on the first frame (the
+    // shimmer only shows the very first time). A stale one refreshes
+    // behind it.
     final cached = _freshCache();
     if (cached != null) {
+      _merged = cached;
       _episodes = _unplayed(cached);
       _loading = false;
+      return;
+    }
+    final stale = _staleCache();
+    if (stale != null && stale.isNotEmpty) {
+      _merged = stale;
+      _episodes = _unplayed(stale);
+      _loading = false;
+      _refresh(fromInit: true);
     } else {
       _load();
     }
   }
 
+  /// Any earlier Inbox for the current subscriptions, however old: this
+  /// session's, else the one saved on the phone.
+  List<MediaItem>? _staleCache() {
+    final lib = Get.find<LibraryPodcastsController>();
+    final key =
+        _subsKey(lib.libraryPodcasts.toList(), PodcastService.subscriptions);
+    if (lib.inboxSubsKey == key && lib.inboxEpisodes != null) {
+      return lib.inboxEpisodes;
+    }
+    return PodcastInboxCache.load(key)?.items;
+  }
+
+  /// [fromInit]: called from initState, where setState isn't allowed (the
+  /// first build picks the flag up anyway).
+  void _refresh({bool fromInit = false}) {
+    if (_refreshing) return;
+    _refreshing = true;
+    if (!fromInit && mounted) setState(() {});
+    _load(force: true).whenComplete(() {
+      if (mounted) setState(() => _refreshing = false);
+    });
+  }
+
   @override
   void didUpdateWidget(covariant PodcastInboxScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.refreshNonce != widget.refreshNonce) {
-      setState(() => _loading = true);
-      _load(force: true);
-    }
+    if (oldWidget.refreshNonce != widget.refreshNonce) _refresh();
   }
 
   /// Feeds fetched at once; the rest queue behind them.
@@ -159,7 +199,13 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     final lists =
         await mapWithConcurrency(tasks, _fetchConcurrency, (t) => t());
     final merged = _mergeNewestFirst(lists.where((l) => l.isNotEmpty).toList());
+    // Offline or every feed failed: keep what's on screen.
+    if (merged.isEmpty && _merged.isNotEmpty) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
     lib.storeInbox(merged, subsKey);
+    PodcastInboxCache.save(merged, subsKey);
     _show(merged);
   }
 
@@ -199,6 +245,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     final inbox = _unplayed(merged);
     if (mounted) {
       setState(() {
+        _merged = merged;
         _episodes = inbox;
         _loading = false;
       });
@@ -319,10 +366,13 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     final continueItems = filter != null
         ? const <Map<String, dynamic>>[]
         : PodcastProgressService.inProgress().take(8).toList();
+    final expected = filter == null
+        ? expectedShows(_merged, DateTime.now())
+        : const <ExpectedShow>[];
     final empty = list.isEmpty && continueItems.isEmpty;
     return RefreshIndicator(
       onRefresh: () async {
-        setState(() => _loading = true);
+        // The list stays; the pull indicator shows progress.
         await _load(force: true);
       },
       // Lazy slivers — avoid building hundreds of episode rows + images
@@ -331,7 +381,21 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
         physics: const AlwaysScrollableScrollPhysics(
             parent: BouncingScrollPhysics()),
         slivers: [
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 2,
+              child: _refreshing
+                  ? const LinearProgressIndicator(minHeight: 2)
+                  : null,
+            ),
+          ),
           SliverToBoxAdapter(child: _chips(context)),
+          if (filter == null && expected.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: HomeSectionHeader('expectedToday'.tr, top: 12),
+            ),
+            SliverToBoxAdapter(child: _expectedRow(context, expected)),
+          ],
           if (continueItems.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: HomeSectionHeader("continueListening".tr, top: 12),
@@ -420,6 +484,74 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
   }
 
   static String _filterLabel(EpisodeFilter f) => 'episodeFilter_${f.name}'.tr;
+
+  /// "Expected today": followed shows whose usual release day is today,
+  /// with roughly when. The new episode joins the list once it's out.
+  Widget _expectedRow(BuildContext context, List<ExpectedShow> shows) {
+    final loc = MaterialLocalizations.of(context);
+    final use24h = MediaQuery.alwaysUse24HourFormatOf(context);
+    return SizedBox(
+      height: 64,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
+        itemCount: shows.length,
+        separatorBuilder: (_, __) => const SizedBox(width: HomeLayout.cardGap),
+        itemBuilder: (context, i) {
+          final s = shows[i];
+          final time = loc.formatTimeOfDay(
+              TimeOfDay(hour: s.prediction.hour, minute: s.prediction.minute),
+              alwaysUse24HourFormat: use24h);
+          return Container(
+            width: 230,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: homeTileColor(context),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.fromBorderSide(homeTileBorder(context)),
+            ),
+            child: Row(
+              children: [
+                PodcastArt(
+                    url: Thumbnail(s.artUri ?? '').medium, size: 48),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(s.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(Icons.schedule_rounded,
+                              size: 14,
+                              color: Theme.of(context).colorScheme.secondary),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'expectedAround'.trParams({'time': time}),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: homeCardSubtitleStyle(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   /// New · In progress · Queued · Downloaded · Bookmarked · Short. One at a
   /// time; tap the selected one again to go back to the Inbox.
