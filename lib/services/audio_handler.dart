@@ -98,6 +98,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   /// Bumped to cancel a running sleep-timer fade.
   int _sleepFadeToken = 0;
   double? _sleepFadeRestoreVolume;
+
+  /// Volume to restore when a muted podcast segment ends.
+  double? _segmentMuteRestore;
   bool _mixTransitionInProgress = false;
   bool _startMutedForMix = false;
   /// Song id we already near-end-prefetched, so the 45s listener fires once.
@@ -1306,6 +1309,18 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
       case 'saveSession':
         await saveSessionData();
+        break;
+
+      case 'setSegmentMute':
+        // Podcast segments set to "Mute": silence, then the old volume.
+        if (extras?['muted'] == true) {
+          _segmentMuteRestore ??= _player.volume;
+          await _player.setVolume(0);
+        } else {
+          final restore = _segmentMuteRestore;
+          _segmentMuteRestore = null;
+          if (restore != null) await _player.setVolume(restore);
+        }
         break;
 
       case 'refreshPlaybackProfile':
