@@ -29,7 +29,10 @@ class RiffPalette {
 
   /// The accent at 12% over black: selected chips, now-playing rows.
   static Color accentMuted(Color accent) =>
-      Color.alphaBlend(accent.withOpacity(0.12), bg);
+      Color.alphaBlend(accent.withOpacity(accentMutedOpacity), bg);
+
+  /// Accent share in [accentMuted].
+  static const double accentMutedOpacity = 0.12;
 }
 
 /// Corner radii (§4.3).
@@ -53,6 +56,9 @@ class RiffDurations {
 
   /// Page-header hairline fading in/out as content scrolls under it.
   static const Duration headerHairline = Duration(milliseconds: 200);
+
+  /// One full loading-skeleton opacity pulse, 0.5 → 1.0 → 0.5 (§5.13).
+  static const Duration skeletonPulse = Duration(milliseconds: 1200);
   static const Curve selectCurve = Curves.easeOutCubic;
 }
 
@@ -67,12 +73,27 @@ class RiffComponentSizes {
   static const double trailingIcon = 20;
   static const double railIcon = 24;
 
+  /// Album / playlist header artwork (§5 Phase 5; keeps the current size).
+  static const double collectionArt = 96;
+
+  /// Round accent Play on album / playlist / artist headers and its glyph
+  /// (keep their current size).
+  static const double collectionPlay = 52;
+  static const double collectionPlayIcon = 32;
+
   /// Songs accordion children (Playlists / Albums / Artists).
   static const double railSubIcon = 20;
 
   /// Circular press highlight behind a rail glyph.
   static const double railHighlight = 40;
   static const double iconHit = 40;
+
+  /// Tab indicator bar height (§5.7).
+  static const double tabIndicator = 4;
+
+  /// Hairline under a tab strip. (A TabBar divider can't be 0 = one
+  /// physical pixel like a Divider, so half a logical pixel.)
+  static const double tabDivider = 0.5;
   static const double buttonCompact = 36;
   static const double button = 40;
   static const double chip = 32;
@@ -80,6 +101,20 @@ class RiffComponentSizes {
   static const double handleWidth = 36;
   static const double handleHeight = 4;
   static const double skipPill = 36;
+
+  /// Compact hit box of a list row's trailing icons (heart, ⋮), so they fit
+  /// the 48dp row content height.
+  static const double rowIconHit = 32;
+
+  /// Play badge glyph over row / wide-tile artwork (keeps its current size).
+  static const double artPlayBadge = 22;
+
+  /// Fixed list extents (keep the current sizes): song rows, wide
+  /// album/playlist rows (and their artwork), artist rows.
+  static const double songRowExtent = 75;
+  static const double wideRowExtent = 96;
+  static const double wideRowArt = 76;
+  static const double artistRowExtent = 72;
 }
 
 /// Theme-dependent colours Material's [ColorScheme] has no slot for.
@@ -117,8 +152,14 @@ class RiffColors extends ThemeExtension<RiffColors> {
   /// carry one (light, album colour).
   static RiffColors of(BuildContext context) {
     final theme = Theme.of(context);
-    return theme.extension<RiffColors>() ??
-        RiffColors.forAccent(theme.colorScheme.secondary);
+    final own = theme.extension<RiffColors>();
+    if (own != null) return own;
+    // Tint over the theme's own surface (white on the light theme).
+    final accent = theme.colorScheme.secondary;
+    return RiffColors.forAccent(accent).copyWith(
+        accentMuted: Color.alphaBlend(
+            accent.withOpacity(RiffPalette.accentMutedOpacity),
+            theme.colorScheme.surface));
   }
 
   @override
