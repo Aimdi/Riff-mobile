@@ -113,7 +113,6 @@ Future<void> showPodcastSegmentsSheet(BuildContext context) {
     useRootNavigator: true,
     isScrollControlled: true,
     constraints: const BoxConstraints(maxWidth: 520),
-    shape: riffSheetShape,
     builder: (sheet) => SafeArea(
       top: false,
       child: ConstrainedBox(
@@ -212,6 +211,7 @@ Future<void> showPodcastSegmentsSheet(BuildContext context) {
                 for (final m in manual)
                   RiffSheetTile(
                     icon: Icons.delete_outline_rounded,
+                    destructive: true,
                     title: 'removeMarkedSegment'.trParams({
                       'range': '${_clock(m.start)}–${_clock(m.end)}',
                     }),
@@ -230,7 +230,7 @@ Future<void> showPodcastSegmentsSheet(BuildContext context) {
                       id: ScreenNavigationSetup.id);
                 },
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: RiffSpacing.sm),
             ],
           );
         }),
@@ -244,7 +244,6 @@ Future<SegmentCategory?> _pickCategory(BuildContext context) {
     context: context,
     useRootNavigator: true,
     constraints: const BoxConstraints(maxWidth: 520),
-    shape: riffSheetShape,
     builder: (sheet) => SafeArea(
       top: false,
       child: SingleChildScrollView(
@@ -256,6 +255,7 @@ Future<SegmentCategory?> _pickCategory(BuildContext context) {
             for (final c in SegmentCategory.values)
               ListTile(
                 leading: _Dot(color: c.color),
+                titleTextStyle: Theme.of(sheet).textTheme.bodyLarge,
                 title: Text(c.labelKey.tr),
                 onTap: () => Navigator.of(sheet).pop(c),
               ),
@@ -291,7 +291,7 @@ class _SegmentRow extends StatelessWidget {
     final what =
         ignored ? 'segAction_ignore'.tr : 'segAction_${s.action.name}'.tr;
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+      contentPadding: const EdgeInsets.symmetric(horizontal: RiffSpacing.lg),
       leading: _Dot(color: s.category.color),
       title: Text(s.category.labelKey.tr),
       subtitle: Text(

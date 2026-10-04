@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '/models/playlist.dart';
@@ -17,6 +18,7 @@ import 'podcasts_library_controller.dart';
 /// Long-press a podcast show anywhere it's listed to file it into folders.
 /// Reused by the Subscriptions screen and the main Podcasts library grid.
 void showPodcastFolderSheet(BuildContext context, Playlist podcast) {
+  HapticFeedback.mediumImpact();
   _folderSheet(context, podcast.playlistId, podcast.title, [
     if (WizeStream.isInstalled && WizeStream.showUrlFor(podcast) != null)
       (ctx) => ListTile(
@@ -34,8 +36,11 @@ void showPodcastFolderSheet(BuildContext context, Playlist podcast) {
 void showRssPodcastSheet(BuildContext context, Map<String, dynamic> rss) {
   final feed = '${rss['feedUrl'] ?? ''}';
   if (feed.isEmpty) return;
+  HapticFeedback.mediumImpact();
   _folderSheet(context, podcastFolderIdForFeed(feed), '${rss['title'] ?? ''}', [
     (ctx) => ListTile(
+          iconColor: Theme.of(ctx).colorScheme.error,
+          textColor: Theme.of(ctx).colorScheme.error,
           leading: const Icon(Icons.remove_circle_outline),
           title: Text('unsubscribe'.tr),
           onTap: () async {
@@ -54,11 +59,10 @@ void _folderSheet(BuildContext context, String id, String title,
   showModalBottomSheet(
     context: context,
     useRootNavigator: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-    ),
     builder: (ctx) => SafeArea(
-      child: Obx(() => Column(
+      child: Obx(() => _sheetRows(
+          ctx,
+          Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Padding(
@@ -74,7 +78,7 @@ void _folderSheet(BuildContext context, String id, String title,
                         "${'addToFolder'.tr} · $title",
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(ctx).textTheme.titleMedium,
+                        style: Theme.of(ctx).textTheme.titleLarge,
                       ),
                     ),
                   ],
@@ -82,8 +86,8 @@ void _folderSheet(BuildContext context, String id, String title,
               ),
               if (fc.folders.isEmpty)
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: RiffSpacing.lg, vertical: RiffSpacing.xs),
                   child: Text('noFoldersYet'.tr,
                       style: Theme.of(ctx).textTheme.bodySmall),
                 ),
@@ -103,10 +107,21 @@ void _folderSheet(BuildContext context, String id, String title,
               ),
               for (final b in extra) b(ctx),
             ],
-          )),
+          ))),
     ),
   );
 }
+
+/// Sheet rows per RIFF_UI_RESTYLE.md §5.10: 15/400 labels and 22 dp icons
+/// in the primary text colour.
+Widget _sheetRows(BuildContext ctx, Widget child) => ListTileTheme.merge(
+      titleTextStyle: Theme.of(ctx).textTheme.bodyLarge,
+      iconColor: Theme.of(ctx).colorScheme.onSurface,
+      child: IconTheme.merge(
+        data: const IconThemeData(size: RiffComponentSizes.headerIcon),
+        child: child,
+      ),
+    );
 
 /// Drag folders into the order they show in Subscriptions.
 void showReorderFoldersSheet(BuildContext context) {
@@ -115,9 +130,6 @@ void showReorderFoldersSheet(BuildContext context) {
     context: context,
     useRootNavigator: true,
     isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-    ),
     builder: (ctx) => SafeArea(
       child: ConstrainedBox(
         constraints:
@@ -133,7 +145,7 @@ void showReorderFoldersSheet(BuildContext context) {
                   right: RiffSpacing.lg,
                   bottom: RiffSpacing.sm),
               child: Text('reorderFolders'.tr,
-                  style: Theme.of(ctx).textTheme.titleMedium),
+                  style: Theme.of(ctx).textTheme.titleLarge),
             ),
             Flexible(
               child: Obx(() => ReorderableListView.builder(
@@ -181,13 +193,12 @@ void showNewPodcastFolderDialog(BuildContext context,
                 autofocus: true,
                 decoration: InputDecoration(
                   labelText: "folderName".tr,
-                  border: const OutlineInputBorder(),
                   isDense: true,
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: RiffSpacing.md),
               Text("folderColor".tr, style: Theme.of(ctx).textTheme.titleSmall),
-              const SizedBox(height: 8),
+              const SizedBox(height: RiffSpacing.sm),
               _FolderColorPicker(
                 selected: colorIndex,
                 onChanged: (i) => setLocal(() => colorIndex = i),
@@ -226,8 +237,8 @@ class _FolderColorPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: RiffSpacing.sm,
+      runSpacing: RiffSpacing.sm,
       children: [
         for (var i = 0; i < PodcastFolderColors.swatches.length; i++)
           GestureDetector(
@@ -431,6 +442,7 @@ class PodcastSubsScreen extends StatelessWidget {
 
   void _folderOptions(
       BuildContext context, PodcastFolderController fc, PodcastFolder folder) {
+    HapticFeedback.mediumImpact();
     showModalBottomSheet(
       context: context,
       useRootNavigator: true,
@@ -448,19 +460,23 @@ class PodcastSubsScreen extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(current.name, style: Theme.of(ctx).textTheme.titleMedium),
-                const SizedBox(height: 12),
+                Text(current.name, style: Theme.of(ctx).textTheme.titleLarge),
+                const SizedBox(height: RiffSpacing.md),
                 Text("folderColor".tr,
                     style: Theme.of(ctx).textTheme.titleSmall),
-                const SizedBox(height: 8),
+                const SizedBox(height: RiffSpacing.sm),
                 _FolderColorPicker(
                   selected: current.colorIndex,
                   onChanged: (i) => fc.setColor(current.id, i),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: RiffSpacing.sm),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.delete_outline),
+                  iconColor: Theme.of(ctx).colorScheme.error,
+                  textColor: Theme.of(ctx).colorScheme.error,
+                  titleTextStyle: Theme.of(ctx).textTheme.bodyLarge,
+                  leading: const Icon(Icons.delete_outline,
+                      size: RiffComponentSizes.headerIcon),
                   title: Text("deleteFolder".tr),
                   onTap: () {
                     fc.deleteFolder(current.id);

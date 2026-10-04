@@ -36,9 +36,6 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode,
     // navigator sheets were leaving Download under the playing bar.
     useRootNavigator: true,
     isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-    ),
     builder: (ctx) {
       final c = Get.find<PodcastQueueController>();
       final queued = c.isQueued(episode.id);
@@ -57,170 +54,191 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode,
       return SafeArea(
         child: Padding(
           padding: EdgeInsets.only(
-            top: 8,
+            top: RiffSpacing.sm,
             // Root navigator already clears the mini player — only safe area.
-            bottom: 8 + sheetBottomInset(ctx, liftAboveMiniPlayer: false),
+            bottom: RiffSpacing.sm +
+                sheetBottomInset(ctx, liftAboveMiniPlayer: false),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                  color: Theme.of(ctx).dividerColor,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              if (WizeStream.isInstalled &&
-                  WizeStream.watchUrlFor(episode) != null)
-                ListTile(
-                  leading: const Icon(Icons.open_in_new_rounded),
-                  title: Text("openInWizeStream".tr),
-                  onTap: () async {
-                    Navigator.of(ctx).pop();
-                    final ok =
-                        await WizeStream.open(WizeStream.watchUrlFor(episode)!);
-                    if (!ok) snack("operationFailed".tr);
-                  },
-                ),
-              ListTile(
-                leading: const Icon(Icons.playlist_play),
-                title: Text("playNext".tr),
-                onTap: () async {
-                  Navigator.of(ctx).pop();
-                  final ok =
-                      await Get.find<PlayerController>().playNext(episode);
-                  snack(ok ? "playnextMsg".tr : "operationFailed".tr);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.queue_music_rounded),
-                title: Text("playLast".tr),
-                subtitle: Text("playLastDes".tr),
-                onTap: () async {
-                  Navigator.of(ctx).pop();
-                  final ok =
-                      await Get.find<PlayerController>().enqueueSong(episode);
-                  snack(ok ? "playLastMsg".tr : "operationFailed".tr);
-                },
-              ),
-              ListTile(
-                leading:
-                    Icon(queued ? Icons.playlist_remove : Icons.playlist_add),
-                title: Text(queued ? "removeFromQueue".tr : "addToQueue".tr),
-                onTap: () {
-                  queued ? c.removeById(episode.id) : c.add(episode);
-                  Navigator.of(ctx).pop();
-                  onChanged?.call();
-                  snack(queued ? "removedFromQueue".tr : "addedToQueue".tr);
-                },
-              ),
-              if (canDownload || downloaded)
-                ListTile(
-                  leading: Icon(downloaded
-                      ? Icons.delete_outline
-                      : Icons.download_outlined),
-                  title: Text(downloaded ? "removeDownload".tr : "download".tr),
-                  onTap: () async {
-                    Navigator.of(ctx).pop();
-                    if (downloaded) {
-                      await PodcastDownloadService.delete(episode.id);
-                      snack("downloadRemoved".tr);
+          // Sheet rows per RIFF_UI_RESTYLE.md §5.10.
+          child: ListTileTheme.merge(
+            titleTextStyle: Theme.of(ctx).textTheme.bodyLarge,
+            iconColor: Theme.of(ctx).colorScheme.onSurface,
+            child: IconTheme.merge(
+              data: const IconThemeData(size: RiffComponentSizes.headerIcon),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: RiffComponentSizes.handleWidth,
+                    height: RiffComponentSizes.handleHeight,
+                    margin: const EdgeInsets.only(bottom: RiffSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: RiffColors.of(ctx).handle,
+                      borderRadius: BorderRadius.circular(RiffRadii.pill),
+                    ),
+                  ),
+                  if (WizeStream.isInstalled &&
+                      WizeStream.watchUrlFor(episode) != null)
+                    ListTile(
+                      leading: const Icon(Icons.open_in_new_rounded),
+                      title: Text("openInWizeStream".tr),
+                      onTap: () async {
+                        Navigator.of(ctx).pop();
+                        final ok = await WizeStream.open(
+                            WizeStream.watchUrlFor(episode)!);
+                        if (!ok) snack("operationFailed".tr);
+                      },
+                    ),
+                  ListTile(
+                    leading: const Icon(Icons.playlist_play),
+                    title: Text("playNext".tr),
+                    onTap: () async {
+                      HapticFeedback.lightImpact();
+                      Navigator.of(ctx).pop();
+                      final ok =
+                          await Get.find<PlayerController>().playNext(episode);
+                      snack(ok ? "playnextMsg".tr : "operationFailed".tr);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.queue_music_rounded),
+                    title: Text("playLast".tr),
+                    subtitle: Text("playLastDes".tr),
+                    onTap: () async {
+                      HapticFeedback.lightImpact();
+                      Navigator.of(ctx).pop();
+                      final ok = await Get.find<PlayerController>()
+                          .enqueueSong(episode);
+                      snack(ok ? "playLastMsg".tr : "operationFailed".tr);
+                    },
+                  ),
+                  ListTile(
+                    iconColor: queued ? Theme.of(ctx).colorScheme.error : null,
+                    textColor: queued ? Theme.of(ctx).colorScheme.error : null,
+                    leading: Icon(
+                        queued ? Icons.playlist_remove : Icons.playlist_add),
+                    title:
+                        Text(queued ? "removeFromQueue".tr : "addToQueue".tr),
+                    onTap: () {
+                      if (!queued) HapticFeedback.lightImpact();
+                      queued ? c.removeById(episode.id) : c.add(episode);
+                      Navigator.of(ctx).pop();
                       onChanged?.call();
-                      return;
-                    }
-                    snack("downloadStarted".tr);
-                    final ok = await PodcastDownloadService.download(episode);
-                    snack(ok ? "downloadComplete".tr : "downloadFailed".tr);
-                    onChanged?.call();
-                  },
-                ),
-              ListTile(
-                leading: Icon(PodcastProgressService.isPlayed(episode.id)
-                    ? Icons.remove_done
-                    : Icons.check_circle_outline),
-                title: Text(PodcastProgressService.isPlayed(episode.id)
-                    ? "markAsUnplayed".tr
-                    : "markAsPlayed".tr),
-                onTap: () {
-                  if (PodcastProgressService.isPlayed(episode.id)) {
-                    PodcastProgressService.markUnplayed(episode.id);
-                    snack("markAsUnplayed".tr);
-                  } else {
-                    PodcastProgressService.markAsPlayed(episode.id);
-                    snack("markAsPlayed".tr);
-                    // Finished downloads may go, per the show's setting.
-                    PodcastLibrary.sweepDownloads(
-                        currentId:
-                            Get.find<PlayerController>().currentSong.value?.id);
-                  }
-                  Navigator.of(ctx).pop();
-                  onChanged?.call();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.notes_outlined),
-                title: Text("shownotes".tr),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  showModalBottomSheet(
-                    context: context,
-                    useRootNavigator: true,
-                    isScrollControlled: true,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(12)),
+                      snack(queued ? "removedFromQueue".tr : "addedToQueue".tr);
+                    },
+                  ),
+                  if (canDownload || downloaded)
+                    ListTile(
+                      iconColor:
+                          downloaded ? Theme.of(ctx).colorScheme.error : null,
+                      textColor:
+                          downloaded ? Theme.of(ctx).colorScheme.error : null,
+                      leading: Icon(downloaded
+                          ? Icons.delete_outline
+                          : Icons.download_outlined),
+                      title: Text(
+                          downloaded ? "removeDownload".tr : "download".tr),
+                      onTap: () async {
+                        Navigator.of(ctx).pop();
+                        if (downloaded) {
+                          await PodcastDownloadService.delete(episode.id);
+                          snack("downloadRemoved".tr);
+                          onChanged?.call();
+                          return;
+                        }
+                        HapticFeedback.lightImpact();
+                        snack("downloadStarted".tr);
+                        final ok =
+                            await PodcastDownloadService.download(episode);
+                        snack(ok ? "downloadComplete".tr : "downloadFailed".tr);
+                        onChanged?.call();
+                      },
                     ),
-                    builder: (sctx) => DraggableScrollableSheet(
-                      expand: false,
-                      initialChildSize: 0.55,
-                      minChildSize: 0.35,
-                      maxChildSize: 0.9,
-                      builder: (_, scrollCtrl) => SingleChildScrollView(
-                        controller: scrollCtrl,
-                        padding: const EdgeInsets.only(
-                            left: RiffSpacing.xl,
-                            top: RiffSpacing.lg,
-                            right: RiffSpacing.xl,
-                            bottom: RiffSpacing.unit * 10),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(episode.title,
-                                style: Theme.of(sctx).textTheme.titleLarge),
-                            if ((episode.artist ?? '').isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(episode.artist!,
-                                  style: Theme.of(sctx).textTheme.titleSmall),
-                            ],
-                            const Divider(height: 24),
-                            Text(
-                              notes.isEmpty ? "noShownotes".tr : notes,
-                              style: Theme.of(sctx).textTheme.bodyMedium,
+                  ListTile(
+                    leading: Icon(PodcastProgressService.isPlayed(episode.id)
+                        ? Icons.remove_done
+                        : Icons.check_circle_outline),
+                    title: Text(PodcastProgressService.isPlayed(episode.id)
+                        ? "markAsUnplayed".tr
+                        : "markAsPlayed".tr),
+                    onTap: () {
+                      if (PodcastProgressService.isPlayed(episode.id)) {
+                        PodcastProgressService.markUnplayed(episode.id);
+                        snack("markAsUnplayed".tr);
+                      } else {
+                        PodcastProgressService.markAsPlayed(episode.id);
+                        snack("markAsPlayed".tr);
+                        // Finished downloads may go, per the show's setting.
+                        PodcastLibrary.sweepDownloads(
+                            currentId: Get.find<PlayerController>()
+                                .currentSong
+                                .value
+                                ?.id);
+                      }
+                      Navigator.of(ctx).pop();
+                      onChanged?.call();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.notes_outlined),
+                    title: Text("shownotes".tr),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      showModalBottomSheet(
+                        context: context,
+                        useRootNavigator: true,
+                        isScrollControlled: true,
+                        builder: (sctx) => DraggableScrollableSheet(
+                          expand: false,
+                          initialChildSize: 0.55,
+                          minChildSize: 0.35,
+                          maxChildSize: 0.9,
+                          builder: (_, scrollCtrl) => SingleChildScrollView(
+                            controller: scrollCtrl,
+                            padding: const EdgeInsets.only(
+                                left: RiffSpacing.xl,
+                                top: RiffSpacing.lg,
+                                right: RiffSpacing.xl,
+                                bottom: RiffSpacing.unit * 10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(episode.title,
+                                    style: Theme.of(sctx).textTheme.titleLarge),
+                                if ((episode.artist ?? '').isNotEmpty) ...[
+                                  const SizedBox(height: RiffSpacing.xs),
+                                  Text(episode.artist!,
+                                      style:
+                                          Theme.of(sctx).textTheme.titleSmall),
+                                ],
+                                const Divider(height: RiffSpacing.xxl),
+                                Text(
+                                  notes.isEmpty ? "noShownotes".tr : notes,
+                                  style: Theme.of(sctx).textTheme.bodyLarge,
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
-                      ),
+                      );
+                    },
+                  ),
+                  if (feedUrl.isNotEmpty)
+                    ListTile(
+                      leading: const Icon(Icons.podcasts_outlined),
+                      title: Text("openShow".tr),
+                      onTap: () {
+                        Navigator.of(ctx).pop();
+                        Get.to(() => PodcastEpisodesScreen(podcast: {
+                              'feedUrl': feedUrl,
+                              'title': episode.artist ?? '',
+                              'artwork': episode.artUri?.toString() ?? '',
+                            }));
+                      },
                     ),
-                  );
-                },
+                ],
               ),
-              if (feedUrl.isNotEmpty)
-                ListTile(
-                  leading: const Icon(Icons.podcasts_outlined),
-                  title: Text("openShow".tr),
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    Get.to(() => PodcastEpisodesScreen(podcast: {
-                          'feedUrl': feedUrl,
-                          'title': episode.artist ?? '',
-                          'artwork': episode.artUri?.toString() ?? '',
-                        }));
-                  },
-                ),
-            ],
+            ),
           ),
         ),
       );
