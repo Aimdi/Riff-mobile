@@ -34,6 +34,10 @@ class RiffPalette {
   /// Accent share in [accentMuted].
   static const double accentMutedOpacity = 0.12;
 
+  /// Active rail item: accent fill and outline strengths.
+  static const double railActiveFillOpacity = 0.16;
+  static const double railActiveBorderOpacity = 0.28;
+
   /// Most any album-art or colour layer may show through the full-player
   /// background (CLAUDE.md rule 4: ≤ 20% over black).
   static const double playerTintOpacity = 0.2;
@@ -82,6 +86,17 @@ class RiffComponentSizes {
   static const double headerIcon = 22;
   static const double trailingIcon = 20;
   static const double railIcon = 24;
+
+  /// Side rail, pre-restyle look (kept by request): 22 dp glyph in an
+  /// 8 dp-padded box (Songs children: 18 in 6), radius 12 with a 0.5 dp
+  /// outline when active, 6 dp to the rotated label, 14 dp press shape.
+  static const double railGlyph = 22;
+  static const double railSubGlyph = 18;
+  static const double railSubPillPadding = 6;
+  static const double railPillRadius = 12;
+  static const double railPillBorder = 0.5;
+  static const double railLabelGap = 6;
+  static const double railItemRadius = 14;
 
   /// Album / playlist header artwork (§5 Phase 5; keeps the current size).
   static const double collectionArt = 96;
