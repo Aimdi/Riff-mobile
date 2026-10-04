@@ -5,6 +5,9 @@ import 'package:get/get.dart';
 import '/services/audiobook_catalog_service.dart';
 import '/services/audiobook_progress_service.dart';
 import '/services/free_audiobook_service.dart';
+import '/ui/theme/palettes/audiobook_genres.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/ui/utils/riff_tokens.dart';
 import '../Home/home_layout.dart';
 import '../Podcasts/podcast_layout.dart';
@@ -71,7 +74,8 @@ class AudiobookCover extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: p,
                   minHeight: 3,
-                  backgroundColor: Colors.black.withOpacity(0.45),
+                  backgroundColor:
+                      RiffColors.of(context).scrim.withOpacity(0.45),
                   valueColor: AlwaysStoppedAnimation(
                       Theme.of(context).colorScheme.secondary),
                 ),
@@ -147,8 +151,11 @@ class AudiobookRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-            HomeLayout.gutter, 8, HomeLayout.gutter - 4, 8),
+        padding: const EdgeInsets.only(
+            left: HomeLayout.gutter,
+            top: RiffSpacing.sm,
+            right: HomeLayout.gutter - RiffSpacing.xs,
+            bottom: RiffSpacing.sm),
         child: Row(
           children: [
             AudiobookCover(url: cover, size: 56),
@@ -162,8 +169,8 @@ class AudiobookRow extends StatelessWidget {
                     title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: homeCardTitleStyle(context)
-                        .copyWith(fontSize: 14.5, height: 1.25),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: Theme.of(context).textTheme.titleMedium?.color),
                   ),
                   if (subtitle.isNotEmpty) ...[
                     const SizedBox(height: 3),
@@ -171,8 +178,10 @@ class AudiobookRow extends StatelessWidget {
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: homeCardSubtitleStyle(context)
-                          .copyWith(fontSize: 12.5),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: homeMutedColor(context)),
                     ),
                   ],
                 ],
@@ -226,24 +235,14 @@ class AudiobookGenreTile extends StatelessWidget {
   final int index;
   final VoidCallback? onTap;
 
-  static const _colors = <Color>[
-    Color(0xFF1E3264),
-    Color(0xFF8D67AB),
-    Color(0xFFE13300),
-    Color(0xFF148A08),
-    Color(0xFF503750),
-    Color(0xFF8C1932),
-    Color(0xFF0D73EC),
-    Color(0xFFBA5D07),
-    Color(0xFF477D95),
-    Color(0xFF27856A),
-  ];
+  static const _colors = AudiobookGenrePalette.tiles;
 
   @override
   Widget build(BuildContext context) {
     final color = _colors[index % _colors.length];
+    final riff = RiffColors.of(context);
     return Material(
-      color: Color.alphaBlend(Colors.black.withOpacity(0.18), color),
+      color: Color.alphaBlend(riff.scrim.withOpacity(0.18), color),
       borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -256,12 +255,10 @@ class AudiobookGenreTile extends StatelessWidget {
               label,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-                height: 1.15,
-              ),
+              style: Theme.of(context)
+                  .textTheme
+                  .labelMedium
+                  ?.copyWith(color: riff.onImage),
             ),
           ),
         ),
@@ -292,8 +289,11 @@ class AudiobookSearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding:
-          const EdgeInsets.fromLTRB(HomeLayout.gutter, 4, HomeLayout.gutter, 8),
+      padding: const EdgeInsets.only(
+          left: HomeLayout.gutter,
+          top: RiffSpacing.xs,
+          right: HomeLayout.gutter,
+          bottom: RiffSpacing.sm),
       child: SizedBox(
         height: 44,
         child: TextField(
@@ -302,7 +302,7 @@ class AudiobookSearchField extends StatelessWidget {
           autofocus: autofocus,
           textInputAction: TextInputAction.search,
           onSubmitted: onSubmitted,
-          style: const TextStyle(fontSize: 15),
+          style: Theme.of(context).textTheme.bodyLarge,
           decoration: InputDecoration(
             hintText: hint,
             filled: true,

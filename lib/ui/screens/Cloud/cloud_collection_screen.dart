@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import '/services/cloud_music_service.dart';
 import '/services/discovery/discovery_types.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import '/ui/widgets/snackbar.dart';
 import 'cloud_screen.dart';
@@ -107,7 +108,11 @@ class _CloudCollectionScreenState extends State<CloudCollectionScreen> {
     final cloud = Get.find<CloudMusicService>();
     final cover = cloud.coverUrl(d.coverArt, size: 600);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 200),
+      padding: const EdgeInsets.only(
+          left: RiffSpacing.lg,
+          top: RiffSpacing.sm,
+          right: RiffSpacing.lg,
+          bottom: RiffSpacing.listEnd),
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,

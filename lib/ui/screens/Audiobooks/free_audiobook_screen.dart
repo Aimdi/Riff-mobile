@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '/services/audiobook_progress_service.dart';
 import '/services/free_audiobook_service.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/ui/utils/riff_tokens.dart';
 import '/ui/utils/theme_controller.dart';
 import '../Home/home_layout.dart';
@@ -95,8 +96,10 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
             _chapters(context, _detail!),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    HomeLayout.gutter, 20, HomeLayout.gutter, 0),
+                padding: const EdgeInsets.only(
+                    left: HomeLayout.gutter,
+                    top: RiffSpacing.xl,
+                    right: HomeLayout.gutter),
                 child: Text(
                   'publicDomainNote'.tr,
                   style: homeCardSubtitleStyle(context),
@@ -125,8 +128,10 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
     final width = MediaQuery.sizeOf(context).width;
     final cover = (width * 0.52).clamp(160.0, 240.0);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          HomeLayout.gutter + 8, 0, HomeLayout.gutter + 8, 8),
+      padding: const EdgeInsets.only(
+          left: HomeLayout.gutter + RiffSpacing.sm,
+          right: HomeLayout.gutter + RiffSpacing.sm,
+          bottom: RiffSpacing.sm),
       child: Column(
         children: [
           AudiobookCover(
@@ -144,8 +149,8 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
             Text(
               book.author,
               textAlign: TextAlign.center,
-              style: homeCardSubtitleStyle(context)
-                  .copyWith(fontSize: 14.5, height: 1.3),
+              style: theme.textTheme.bodyLarge
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
           ],
           if (meta.isNotEmpty) ...[
@@ -165,6 +170,7 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
                 disabledBackgroundColor:
                     theme.colorScheme.secondary.withOpacity(0.35),
                 shape: const StadiumBorder(),
+                textStyle: theme.textTheme.titleMedium,
               ),
               onPressed: d == null || d.chapters.isEmpty ? null : () => _play(),
               icon: const Icon(Icons.play_arrow_rounded, size: 26),
@@ -175,8 +181,6 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
                             'total': '${d.chapters.length}'
                           })}'
                     : 'play'.tr,
-                style: const TextStyle(
-                    fontSize: 15.5, fontWeight: FontWeight.w700),
               ),
             ),
           ),
@@ -191,8 +195,10 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
         .bodyMedium
         ?.copyWith(height: 1.45, color: homeMutedColor(context));
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          HomeLayout.gutter, 10, HomeLayout.gutter, 0),
+      padding: const EdgeInsets.only(
+          left: HomeLayout.gutter,
+          top: RiffSpacing.md,
+          right: HomeLayout.gutter),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -212,11 +218,9 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
                 const SizedBox(height: 4),
                 Text(
                   _expanded ? 'showLess'.tr : 'readMore'.tr,
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.titleMedium?.color,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                  ),
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: Theme.of(context).textTheme.titleMedium?.color,
+                      ),
                 ),
               ],
             ),
@@ -237,8 +241,9 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
                     ),
                     child: Text(
                       s[0].toUpperCase() + s.substring(1),
-                      style: homeCardSubtitleStyle(context)
-                          .copyWith(fontSize: 12.5),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                   ),
               ],
@@ -264,8 +269,8 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
             return InkWell(
               onTap: () => _play(index: i),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    HomeLayout.gutter, 10, HomeLayout.gutter, 10),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: HomeLayout.gutter, vertical: RiffSpacing.md),
                 child: Row(
                   children: [
                     SizedBox(
@@ -275,8 +280,13 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
                               size: 20, color: accent)
                           : Text(
                               '${i + 1}',
-                              style: homeCardSubtitleStyle(context)
-                                  .copyWith(fontSize: 13.5),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant),
                             ),
                     ),
                     Expanded(
@@ -287,11 +297,17 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
                             c.title,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: homeCardTitleStyle(context).copyWith(
-                              fontSize: 14.5,
-                              height: 1.25,
-                              color: playing ? accent : null,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelMedium
+                                ?.copyWith(
+                                  color: playing
+                                      ? accent
+                                      : Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.color,
+                                ),
                           ),
                           if (p != null && p > 0.02 && p < 0.98) ...[
                             const SizedBox(height: 6),
@@ -330,7 +346,8 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
         children: [
           Text('bookLoadFailed'.tr,
               textAlign: TextAlign.center,
-              style: homeCardSubtitleStyle(context).copyWith(fontSize: 14)),
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
           const SizedBox(height: 8),
           TextButton.icon(
             onPressed: _load,

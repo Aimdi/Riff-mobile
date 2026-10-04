@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/services/free_audiobook_service.dart';
+import '/ui/theme/riff_spacing.dart';
 import '../Home/home_layout.dart';
 import '../Library/library.dart' show libraryGridMetrics;
 import 'audiobook_widgets.dart';
@@ -54,8 +55,10 @@ class _FreeAudiobookListScreenState extends State<FreeAudiobookListScreen> {
                     children: [
                       Text('freeLibraryOffline'.tr,
                           textAlign: TextAlign.center,
-                          style: homeCardSubtitleStyle(context)
-                              .copyWith(fontSize: 14)),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyLarge
+                              ?.copyWith(color: homeMutedColor(context))),
                       TextButton.icon(
                         onPressed: _fetch,
                         icon: const Icon(Icons.refresh_rounded),
@@ -67,8 +70,11 @@ class _FreeAudiobookListScreenState extends State<FreeAudiobookListScreen> {
               : LayoutBuilder(builder: (context, box) {
                   final grid = libraryGridMetrics(box.maxWidth);
                   return GridView.builder(
-                    padding: const EdgeInsets.fromLTRB(
-                        HomeLayout.gutter, 6, HomeLayout.gutter, 200),
+                    padding: const EdgeInsets.only(
+                        left: HomeLayout.gutter,
+                        top: RiffSpacing.sm,
+                        right: HomeLayout.gutter,
+                        bottom: RiffSpacing.listEnd),
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: grid.columns,
                       crossAxisSpacing: HomeLayout.cardGap,

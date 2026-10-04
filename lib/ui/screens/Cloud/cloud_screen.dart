@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/services/cloud_music_service.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/services/discovery/discovery_types.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
@@ -28,10 +29,12 @@ class CloudScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-                HomeLayout.gutter, 0, HomeLayout.gutter, 8),
-            child: Text('cloud'.tr,
-                style: Theme.of(context).textTheme.titleLarge),
+            padding: const EdgeInsets.only(
+                left: HomeLayout.gutter,
+                right: HomeLayout.gutter,
+                bottom: RiffSpacing.sm),
+            child:
+                Text('cloud'.tr, style: Theme.of(context).textTheme.titleLarge),
           ),
           Expanded(
             child: Padding(
@@ -245,7 +248,8 @@ class _CloudLibraryViewState extends State<_CloudLibraryView> {
               hintText: 'search'.tr,
               prefixIcon: const Icon(Icons.search, size: 20),
               isDense: true,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               suffixIcon: IconButton(
                 icon: const Icon(Icons.clear, size: 18),
                 onPressed: _clearSearch,
@@ -261,7 +265,8 @@ class _CloudLibraryViewState extends State<_CloudLibraryView> {
             padding: const EdgeInsets.only(left: 2, right: 8),
             child: Row(
               children: [
-                _cloudTab(icon: Icons.album_outlined, label: 'albums'.tr, mode: 0),
+                _cloudTab(
+                    icon: Icons.album_outlined, label: 'albums'.tr, mode: 0),
                 const SizedBox(width: 16),
                 _cloudTab(
                     icon: Icons.library_music_outlined,
@@ -315,9 +320,7 @@ class _CloudLibraryViewState extends State<_CloudLibraryView> {
             const SizedBox(width: 6),
             Text(
               label,
-              style: theme.textTheme.titleSmall?.copyWith(
-                  color: color,
-                  fontWeight: active ? FontWeight.w700 : FontWeight.w600),
+              style: theme.textTheme.labelMedium?.copyWith(color: color),
             ),
           ],
         ),
@@ -633,9 +636,9 @@ class CloudSongTile extends StatelessWidget {
         },
       ),
       onTap: () async {
-        final ok = await Get.find<PlayerController>()
-            .playPlayListSong(cloud.toMediaItems(songs), index,
-                source: DiscoverySource.cloud);
+        final ok = await Get.find<PlayerController>().playPlayListSong(
+            cloud.toMediaItems(songs), index,
+            source: DiscoverySource.cloud);
         if (!ok) snackOperationFailed();
       },
     );

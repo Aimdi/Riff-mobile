@@ -9,6 +9,8 @@ import '/models/playlist.dart';
 import '/models/playling_from.dart';
 import '/models/thumbnail.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/collection_play.dart';
 import '/ui/screens/Podcasts/podcasts_library_controller.dart';
@@ -104,7 +106,10 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
         padding: const EdgeInsets.symmetric(horizontal: 10),
       ),
       child: Text('viewAll'.tr,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          style: Theme.of(context)
+              .textTheme
+              .labelMedium
+              ?.copyWith(color: homeMutedColor(context))),
     );
   }
 
@@ -174,8 +179,10 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                     onPressed: () =>
                         setState(() => _popularExpanded = !_popularExpanded),
                     child: Text(_popularExpanded ? 'showLess'.tr : 'seeMore'.tr,
-                        style: const TextStyle(
-                            fontSize: 13.5, fontWeight: FontWeight.w600)),
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelMedium
+                            ?.copyWith(color: homeMutedColor(context))),
                   ),
                 ),
               ),
@@ -214,7 +221,7 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
     Widget circle(Widget child) => Padding(
           padding: const EdgeInsets.all(6),
           child: Material(
-            color: Colors.black.withOpacity(0.35),
+            color: RiffColors.of(context).scrim.withOpacity(0.35),
             shape: const CircleBorder(),
             clipBehavior: Clip.antiAlias,
             child: child,
@@ -229,8 +236,8 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
       automaticallyImplyLeading: false,
       leading: circle(IconButton(
         tooltip: 'back'.tr,
-        icon: const Icon(Icons.arrow_back_ios_new_rounded,
-            size: 18, color: Colors.white),
+        icon: Icon(Icons.arrow_back_ios_new_rounded,
+            size: 18, color: RiffColors.of(context).onImage),
         onPressed: () =>
             Get.nestedKey(ScreenNavigationSetup.id)!.currentState!.pop(),
       )),
@@ -244,8 +251,10 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
             .clamp(0.0, 1.0);
         final left = HomeLayout.gutter + (1 - t) * (56 - HomeLayout.gutter);
         return FlexibleSpaceBar(
-          titlePadding:
-              EdgeInsets.fromLTRB(left, 0, HomeLayout.gutter, 12 + (1 - t) * 4),
+          titlePadding: EdgeInsets.only(
+              left: left,
+              right: HomeLayout.gutter,
+              bottom: RiffSpacing.md + (1 - t) * RiffSpacing.xs),
           expandedTitleScale: 1.6,
           title: Text(
             c.artist_.name,
@@ -253,11 +262,7 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
             overflow: TextOverflow.ellipsis,
             // The hero fades into the page colour behind the title, so the
             // page's own text colour reads on both themes.
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-              fontSize: 20,
-              letterSpacing: -0.4,
-            ),
+            style: theme.textTheme.titleLarge,
           ),
           background: Stack(
             fit: StackFit.expand,
@@ -278,7 +283,7 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black.withOpacity(0.25),
+                      RiffColors.of(context).scrim.withOpacity(0.25),
                       Colors.transparent,
                       theme.scaffoldBackgroundColor.withOpacity(0.85),
                       theme.scaffoldBackgroundColor,
@@ -299,13 +304,15 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
     final accent = theme.colorScheme.secondary;
     final subs = (c.artist_.subscribers ?? '').trim();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 0, 8, 0),
+      padding:
+          const EdgeInsets.only(left: HomeLayout.gutter, right: RiffSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (subs.isNotEmpty && !subs.startsWith('null'))
             Text(subs,
-                style: homeCardSubtitleStyle(context).copyWith(fontSize: 13)),
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: homeMutedColor(context))),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -320,15 +327,18 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                     side: BorderSide(
                         color: following
                             ? accent.withOpacity(0.6)
-                            : (homeMutedColor(context) ?? Colors.grey)
+                            : (homeMutedColor(context) ??
+                                    theme.colorScheme.onSurfaceVariant)
                                 .withOpacity(0.6)),
                     shape: const StadiumBorder(),
                     visualDensity: VisualDensity.compact,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                   ),
                   child: Text(following ? 'following'.tr : 'follow'.tr,
-                      style: const TextStyle(
-                          fontSize: 13.5, fontWeight: FontWeight.w700)),
+                      style: theme.textTheme.labelMedium?.copyWith(
+                          color: following
+                              ? accent
+                              : theme.textTheme.titleMedium?.color)),
                 );
               }),
               _moreMenu(context, songs),
@@ -462,14 +472,19 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
       onTap: () => _playSongs(songs, i),
       onLongPress: () => _openSongMenu(context, song),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 6, 0, 6),
+        padding: const EdgeInsets.only(
+            left: HomeLayout.gutter,
+            top: RiffSpacing.sm,
+            bottom: RiffSpacing.sm),
         child: Row(
           children: [
             SizedBox(
               width: 22,
               child: Text('${i + 1}',
-                  style:
-                      homeCardSubtitleStyle(context).copyWith(fontSize: 13.5)),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(color: homeMutedColor(context))),
             ),
             const SizedBox(width: 6),
             ClipRRect(
@@ -496,9 +511,7 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                   Obx(() => Text(song.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: homeCardTitleStyle(context).copyWith(
-                          fontSize: 15,
-                          height: 1.25,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           color: player.currentSong.value?.id == song.id
                               ? accent
                               : null))),
@@ -507,8 +520,10 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                     Text(subtitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: homeCardSubtitleStyle(context)
-                            .copyWith(fontSize: 12.5)),
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(color: homeMutedColor(context))),
                   ],
                 ],
               ),
@@ -734,11 +749,9 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                 const SizedBox(height: 4),
                 Text(
                   _aboutExpanded ? 'showLess'.tr : 'readMore'.tr,
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.titleMedium?.color,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                  ),
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: Theme.of(context).textTheme.titleMedium?.color,
+                      ),
                 ),
               ],
             ),
