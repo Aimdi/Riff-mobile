@@ -1,3 +1,17 @@
+# 1.7.139
+
+**New look, step 5: lists**
+* Song rows across Library, albums, playlists, artists, search and the
+  queue share one style: 48 dp covers, bold titles, grey details, thin
+  dividers, and the playing song tinted with its title in your accent
+* Search has a slimmer pill-shaped field and outlined result filters;
+  recent searches are plain rows
+* Album, playlist and artist headers use bigger bold titles, flat covers
+  without shadows, and a Play button in your accent
+* Tabs show a short accent bar under the active label
+* Loading placeholders gently pulse instead of shimmering
+* Nothing moved: same screens, rows and buttons in the same order
+
 # 1.7.138
 
 **New look, step 4: Home**
