@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:hive/hive.dart';
@@ -99,16 +100,12 @@ class AlbumArtNLyrics extends StatelessWidget {
                         playerController.homeScaffoldkey.currentContext ??
                             Get.context;
                     if (sheetContext == null) return;
+                    HapticFeedback.mediumImpact();
                     showModalBottomSheet(
                       useRootNavigator: true,
                       constraints: const BoxConstraints(maxWidth: 500),
-                      shape: const RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.vertical(top: Radius.circular(10.0)),
-                      ),
                       isScrollControlled: true,
                       context: sheetContext,
-                      barrierColor: RiffColors.of(context).scrim.withAlpha(100),
                       builder: (context) => SongInfoBottomSheet(
                         song,
                         calledFromPlayer: true,

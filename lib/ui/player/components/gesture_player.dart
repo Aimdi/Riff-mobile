@@ -44,10 +44,13 @@ class GesturePlayer extends StatelessWidget {
             }
           },
           onDoubleTap: pc.playPause,
-          onLongPress: () => showCurrentSongSheet(
-            song: pc.currentSong.value,
-            context: pc.homeScaffoldkey.currentContext,
-          ),
+          onLongPress: () {
+            HapticFeedback.mediumImpact();
+            showCurrentSongSheet(
+              song: pc.currentSong.value,
+              context: pc.homeScaffoldkey.currentContext,
+            );
+          },
           child: const BackgroudImage(),
         ),
         // Readable bottom: fade the cover into the page colour.

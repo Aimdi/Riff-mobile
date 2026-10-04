@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '/ui/screens/Podcasts/podcast_segment_ui.dart';
@@ -310,7 +311,10 @@ class _HeroArtRegion extends StatelessWidget {
             playerController.showLyrics();
           }
         },
-        onLongPress: () => openNowPlayingSheet(playerController),
+        onLongPress: () {
+          HapticFeedback.mediumImpact();
+          openNowPlayingSheet(playerController);
+        },
         onHorizontalDragEnd: (details) {
           if (lyricsOn) return;
           final v = details.primaryVelocity ?? 0;
@@ -407,12 +411,8 @@ void openNowPlayingSheet(PlayerController playerController) {
   showModalBottomSheet(
     useRootNavigator: true,
     constraints: const BoxConstraints(maxWidth: 500),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
-    ),
     isScrollControlled: true,
     context: sheetContext,
-    barrierColor: RiffColors.of(sheetContext).scrim.withAlpha(100),
     builder: (context) => SongInfoBottomSheet(song, calledFromPlayer: true),
   ).whenComplete(() => Get.delete<SongInfoController>());
 }

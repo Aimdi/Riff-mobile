@@ -295,9 +295,6 @@ void openChaptersSheet(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-    ),
     builder: (ctx) => DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.55,
@@ -334,9 +331,10 @@ void openChaptersSheet(
             return ListTile(
               leading: Icon(
                 c.isAd ? Icons.campaign_outlined : Icons.play_arrow_rounded,
+                size: RiffComponentSizes.headerIcon,
                 color: c.isAd
                     ? Theme.of(ctx).colorScheme.error
-                    : Theme.of(ctx).colorScheme.secondary,
+                    : Theme.of(ctx).colorScheme.onSurface,
               ),
               title:
                   Text(c.title, maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -363,9 +361,6 @@ void openShownotesSheet(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-    ),
     builder: (ctx) => DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.6,
@@ -381,12 +376,12 @@ void openShownotesSheet(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(song?.title ?? '', style: Theme.of(ctx).textTheme.titleLarge),
-            const SizedBox(height: 4),
+            const SizedBox(height: RiffSpacing.xs),
             Text(song?.artist ?? '', style: Theme.of(ctx).textTheme.titleSmall),
-            const Divider(height: 24),
+            const Divider(height: RiffSpacing.xxl),
             Text(
               notes.isEmpty ? "noShownotes".tr : notes,
-              style: Theme.of(ctx).textTheme.bodyMedium,
+              style: Theme.of(ctx).textTheme.bodyLarge,
             ),
           ],
         ),
