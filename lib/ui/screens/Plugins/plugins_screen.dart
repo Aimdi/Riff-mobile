@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '/services/plugin_service.dart';
 import '/ui/navigator.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/snackbar.dart';
 import '../../utils/riff_tokens.dart';
@@ -163,8 +164,12 @@ class _PluginOfferTile extends StatelessWidget {
         builder: (ctx) => AlertDialog(
           content: Row(
             children: [
-              const CircularProgressIndicator(),
-              const SizedBox(width: 20),
+              const SizedBox.square(
+                dimension: RiffComponentSizes.spinner,
+                child: CircularProgressIndicator(
+                    strokeWidth: RiffComponentSizes.spinnerStroke),
+              ),
+              const SizedBox(width: RiffSpacing.xl),
               Expanded(child: Text('soulseekInstalling'.tr)),
             ],
           ),

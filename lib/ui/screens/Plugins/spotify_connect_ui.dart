@@ -6,6 +6,7 @@ import '/services/spotify_connect.dart';
 import '/services/spotify_connect_models.dart';
 import '/services/spotify_import_service.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '../Home/home_layout.dart';
 import 'spotify_widgets.dart';
 
@@ -35,22 +36,30 @@ Future<SpotifyDevice?> pickSpotifyDevice(
     context: context,
     useRootNavigator: true,
     builder: (ctx) => SafeArea(
-      child: Wrap(children: [
-        ListTile(
-            title: Text('spotifyPickDevice'.tr,
-                style: homeSectionTitleStyle(ctx))),
-        for (final d in devices)
-          ListTile(
-            enabled: !d.isRestricted,
-            leading: Icon(spotifyDeviceIcon(d.type)),
-            title: Text(d.name),
-            subtitle: d.isActive ? Text('spotifyDeviceActive'.tr) : null,
-            trailing: d.id == SpotifyConnect.preferredDeviceId
-                ? const Icon(Icons.check_rounded)
-                : null,
-            onTap: () => Navigator.of(ctx).pop(d),
-          ),
-      ]),
+      // Sheet rows per RIFF_UI_RESTYLE.md §5.10.
+      child: ListTileTheme.merge(
+        titleTextStyle: Theme.of(ctx).textTheme.bodyLarge,
+        iconColor: Theme.of(ctx).colorScheme.onSurface,
+        child: IconTheme.merge(
+          data: const IconThemeData(size: RiffComponentSizes.headerIcon),
+          child: Wrap(children: [
+            ListTile(
+                title: Text('spotifyPickDevice'.tr,
+                    style: Theme.of(ctx).textTheme.titleLarge)),
+            for (final d in devices)
+              ListTile(
+                enabled: !d.isRestricted,
+                leading: Icon(spotifyDeviceIcon(d.type)),
+                title: Text(d.name),
+                subtitle: d.isActive ? Text('spotifyDeviceActive'.tr) : null,
+                trailing: d.id == SpotifyConnect.preferredDeviceId
+                    ? const Icon(Icons.check_rounded)
+                    : null,
+                onTap: () => Navigator.of(ctx).pop(d),
+              ),
+          ]),
+        ),
+      ),
     ),
   );
 }

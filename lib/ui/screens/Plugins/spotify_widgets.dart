@@ -1,6 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '/services/spotify_api_service.dart';
@@ -12,6 +13,7 @@ import '/services/spotify_match_store.dart';
 import '/services/spotify_playback.dart';
 import '/services/spotify_radio.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '../Home/home_layout.dart';
 import 'spotify_connect_ui.dart';
 
@@ -276,35 +278,43 @@ class _SpotifyTrackRowState extends State<SpotifyTrackRow> {
       context: context,
       useRootNavigator: true,
       builder: (ctx) => SafeArea(
-        child: Wrap(children: [
-          ListTile(
-            leading: const Icon(Icons.play_arrow_rounded),
-            title: Text('play'.tr),
-            onTap: () => Navigator.of(ctx).pop('play'),
+        // Sheet rows per RIFF_UI_RESTYLE.md §5.10.
+        child: ListTileTheme.merge(
+          titleTextStyle: Theme.of(ctx).textTheme.bodyLarge,
+          iconColor: Theme.of(ctx).colorScheme.onSurface,
+          child: IconTheme.merge(
+            data: const IconThemeData(size: RiffComponentSizes.headerIcon),
+            child: Wrap(children: [
+              ListTile(
+                leading: const Icon(Icons.play_arrow_rounded),
+                title: Text('play'.tr),
+                onTap: () => Navigator.of(ctx).pop('play'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.radio_rounded),
+                title: Text('spotifyRadioFromSong'.tr),
+                onTap: () => Navigator.of(ctx).pop('radio'),
+              ),
+              if (SpotifyConnect.enabled)
+                ListTile(
+                  leading: const Icon(Icons.speaker_group_rounded),
+                  title: Text('spotifyPlayOnDevice'.tr),
+                  onTap: () => Navigator.of(ctx).pop('device'),
+                ),
+              ListTile(
+                leading: const Icon(Icons.swap_horiz_rounded),
+                title: Text('spotifyChangeMatch'.tr),
+                onTap: () => Navigator.of(ctx).pop('change'),
+              ),
+              if (match != null)
+                ListTile(
+                  leading: const Icon(Icons.restart_alt_rounded),
+                  title: Text('spotifyForgetMatch'.tr),
+                  onTap: () => Navigator.of(ctx).pop('forget'),
+                ),
+            ]),
           ),
-          ListTile(
-            leading: const Icon(Icons.radio_rounded),
-            title: Text('spotifyRadioFromSong'.tr),
-            onTap: () => Navigator.of(ctx).pop('radio'),
-          ),
-          if (SpotifyConnect.enabled)
-            ListTile(
-              leading: const Icon(Icons.speaker_group_rounded),
-              title: Text('spotifyPlayOnDevice'.tr),
-              onTap: () => Navigator.of(ctx).pop('device'),
-            ),
-          ListTile(
-            leading: const Icon(Icons.swap_horiz_rounded),
-            title: Text('spotifyChangeMatch'.tr),
-            onTap: () => Navigator.of(ctx).pop('change'),
-          ),
-          if (match != null)
-            ListTile(
-              leading: const Icon(Icons.restart_alt_rounded),
-              title: Text('spotifyForgetMatch'.tr),
-              onTap: () => Navigator.of(ctx).pop('forget'),
-            ),
-        ]),
+        ),
       ),
     );
     if (!mounted) return;
@@ -341,7 +351,10 @@ class _SpotifyTrackRowState extends State<SpotifyTrackRow> {
           style: homeCardSubtitleStyle(context)),
       onTap: () => playSpotifyTracks(context, widget.tracks,
           start: widget.index, from: widget.from),
-      onLongPress: _menu,
+      onLongPress: () {
+        HapticFeedback.mediumImpact();
+        _menu();
+      },
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -449,7 +462,7 @@ class _ChangeMatchSheetState extends State<_ChangeMatchSheet> {
                   isDense: true,
                   prefixIcon: const Icon(Icons.search_rounded),
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(RiffRadii.pill)),
                 ),
                 onSubmitted: (q) => setState(() => _future = _search(q)),
               ),
