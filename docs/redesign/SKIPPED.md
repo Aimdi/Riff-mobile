@@ -29,6 +29,13 @@ elements (or can't be done on this SDK), and what was done instead.
 | 6 | Heart glyph colours off-state | It is drawn by `favorite_heart_button.dart` (shared with rows) | unchanged until Phase 8; haptic added at the player call sites |
 | 6 | Mini player play/pause on desktop | The wide layout's play button is a 58 dp accent circle (a play button, allowed to be accent) | kept; phone mini player uses the plain 28 dp glyph |
 | 6 | Spacings off the 4-point scale in the player column (10/14/6/3, landscape 90/10, 65 dp queue strip) | Snapping them would move controls | left as they are |
+| 7 | Show header cover-art wash | A blurred art wash behind the show header broke rule 4 (background always black; art tint only in the full player) | removed; header on black |
+| 7 | Episode/continue-card spacing | Off-grid values (18, 10, 6, 3) snapped to the 4-point scale | moves rows by a few dp; no fixed extents involved |
+| 7 | Show-search result art 48 | Those are wide 72 dp-art rows; 48 would change the row layout | kept at 72 |
+| 7 | Now-playing state on Inbox/Queue rows | The episode tile has no now-playing indicator today | not added (the show page rows, which have one, get the accentMuted tint) |
+| 7 | Store browse grid titles one line | Fixed-aspect grid; one line would cut titles that fit today | two lines kept |
+| 7 | Rating stars and genre/category tiles | Content colours (data palettes), not chrome | kept; only radius/spacing changed |
+| 7 | Sheets and dialogs in podcasts/audiobooks | Phase 8 | untouched |
 
 ## Known side effects of Phase 1 (to settle in later phases)
 
