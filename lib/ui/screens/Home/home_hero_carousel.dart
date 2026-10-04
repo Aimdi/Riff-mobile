@@ -7,6 +7,7 @@ import '/ui/player/player_controller.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
+import '/ui/theme/riff_tokens.dart';
 import 'home_metrics.dart';
 
 /// Quick picks as a hero carousel: one large item 16dp from the rail, a
@@ -146,6 +147,7 @@ class _HeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final riff = RiffColors.of(context);
     final player = Get.find<PlayerController>();
     final label = [song.title, if ((song.artist ?? '').isNotEmpty) song.artist]
         .join(', ');
@@ -166,13 +168,16 @@ class _HeroCard extends StatelessWidget {
               fit: StackFit.expand,
               children: [
                 ImageWidget(song: song, size: c.maxWidth, borderRadius: 0),
-                const DecoratedBox(
+                DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      stops: [0.35, 1],
-                      colors: [Colors.transparent, Color(0xCC000000)],
+                      stops: const [0.35, 1],
+                      colors: [
+                        Colors.transparent,
+                        riff.scrim.withOpacity(0.8),
+                      ],
                     ),
                   ),
                 ),
@@ -187,15 +192,14 @@ class _HeroCard extends StatelessWidget {
                       Text(song.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white)),
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(color: riff.onImage)),
                       if ((song.artist ?? '').isNotEmpty)
                         Text(song.artist!,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: const Color(0xCCFFFFFF))),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                color: riff.onImage.withOpacity(0.8))),
                     ],
                   ),
                 ),
@@ -217,7 +221,7 @@ class _HeroCard extends StatelessWidget {
                             playing
                                 ? Icons.pause_rounded
                                 : Icons.play_arrow_rounded,
-                            color: Colors.black,
+                            color: theme.colorScheme.onPrimary,
                             size: 26,
                           ),
                         ),

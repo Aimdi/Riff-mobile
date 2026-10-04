@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../theme/riff_spacing.dart';
 import '../../utils/riff_tokens.dart';
 
 /// One set of Home spacing / type values so every shelf lines up.
@@ -8,16 +9,16 @@ class HomeLayout {
   HomeLayout._();
 
   /// Horizontal page padding next to the side rail.
-  static const double gutter = 12;
+  static const double gutter = RiffSpacing.gutter;
 
   /// Space above a section title.
-  static const double sectionTop = 22;
+  static const double sectionTop = RiffSpacing.xxl;
 
   /// Space between a section title and its content.
-  static const double headerBottom = 6;
+  static const double headerBottom = RiffSpacing.sm;
 
   /// Gap between cards on a horizontal shelf.
-  static const double cardGap = 12;
+  static const double cardGap = RiffSpacing.cardGap;
 
   /// Square art on song shelves (Jump back in, discovery rows).
   static const double shelfCard = 128;
@@ -27,64 +28,43 @@ class HomeLayout {
 
   /// Quick-access grid tile.
   static const double tileHeight = 56;
-  static const double tileGap = 8;
+  static const double tileGap = RiffSpacing.gridGap;
 }
 
 TextStyle homeSectionTitleStyle(BuildContext context) =>
-    (Theme.of(context).textTheme.titleLarge ?? const TextStyle()).copyWith(
-      fontWeight: FontWeight.w700,
-      fontSize: 19,
-      letterSpacing: -0.35,
-      height: 1.2,
-    );
+    Theme.of(context).textTheme.titleLarge ?? const TextStyle();
 
 /// Section label over every shelf: small, bold, upper case and muted, so
 /// the artwork carries the page and the titles just organise it.
-TextStyle homeSectionLabelStyle(BuildContext context) => TextStyle(
-      fontSize: 14,
-      fontWeight: FontWeight.w800,
-      letterSpacing: 0.9,
-      height: 1.2,
-      color: homeMutedColor(context),
-    );
+TextStyle homeSectionLabelStyle(BuildContext context) =>
+    (Theme.of(context).textTheme.labelSmall ?? const TextStyle())
+        .copyWith(color: homeMutedColor(context));
 
-TextStyle homeCardTitleStyle(BuildContext context) {
-  final theme = Theme.of(context);
-  return (theme.textTheme.titleSmall ?? const TextStyle()).copyWith(
-    color: theme.textTheme.titleMedium?.color,
-    fontWeight: FontWeight.w600,
-    fontSize: 13.5,
-    height: 1.2,
-    letterSpacing: -0.1,
-  );
-}
+TextStyle homeCardTitleStyle(BuildContext context) =>
+    Theme.of(context).textTheme.titleMedium ?? const TextStyle();
 
 /// Muted secondary text that works on Pitch Black, light and album themes.
 Color? homeMutedColor(BuildContext context) =>
-    Theme.of(context).textTheme.titleSmall?.color;
+    Theme.of(context).colorScheme.onSurfaceVariant;
 
 TextStyle homeCardSubtitleStyle(BuildContext context) =>
-    (Theme.of(context).textTheme.bodySmall ?? const TextStyle()).copyWith(
-      color: homeMutedColor(context),
-      fontWeight: FontWeight.w400,
-      fontSize: 12,
-      height: 1.25,
-    );
+    (Theme.of(context).textTheme.bodyMedium ?? const TextStyle())
+        .copyWith(color: homeMutedColor(context));
 
 /// Raised tile surface: a step above the page on dark themes, a white card
 /// with a hairline on the light theme.
 Color homeTileColor(BuildContext context) {
   final theme = Theme.of(context);
   return theme.brightness == Brightness.dark
-      ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
-      : theme.cardColor;
+      ? theme.colorScheme.surfaceContainerLow
+      : theme.colorScheme.surfaceContainerLowest;
 }
 
 BorderSide homeTileBorder(BuildContext context) {
   final theme = Theme.of(context);
   return theme.brightness == Brightness.dark
       ? BorderSide.none
-      : BorderSide(color: theme.dividerColor, width: 1);
+      : BorderSide(color: theme.colorScheme.outlineVariant, width: 1);
 }
 
 /// Section title row shared by every Home shelf.
@@ -108,11 +88,11 @@ class HomeSectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent = Theme.of(context).colorScheme.secondary;
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-        HomeLayout.gutter,
-        top,
-        trailing == null ? HomeLayout.gutter : 2,
-        HomeLayout.headerBottom,
+      padding: EdgeInsets.only(
+        left: HomeLayout.gutter,
+        top: top,
+        right: trailing == null ? HomeLayout.gutter : RiffSpacing.xxs,
+        bottom: HomeLayout.headerBottom,
       ),
       child: SizedBox(
         height: 30,
@@ -140,12 +120,10 @@ class HomeSectionHeader extends StatelessWidget {
                       ),
                       child: Text(
                         badge!,
-                        style: TextStyle(
-                          color: accent,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.2,
-                        ),
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelSmall
+                            ?.copyWith(color: accent),
                       ),
                     ),
                   ],
@@ -296,7 +274,12 @@ class RiffPageHeader extends StatelessWidget {
     final top = MediaQuery.paddingOf(context).top;
     final fg = Theme.of(context).textTheme.titleMedium?.color;
     return Padding(
-      padding: EdgeInsets.fromLTRB(2, top + 8, 8, 6),
+      padding: EdgeInsets.only(
+        left: RiffSpacing.xxs,
+        top: top + RiffSpacing.sm,
+        right: RiffSpacing.sm,
+        bottom: RiffSpacing.sm,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -313,11 +296,10 @@ class RiffPageHeader extends StatelessWidget {
                 Text(title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.6,
-                        color: fg)),
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineMedium
+                        ?.copyWith(color: fg)),
                 if (subtitle != null && subtitle!.isNotEmpty)
                   Text(subtitle!,
                       maxLines: 1,

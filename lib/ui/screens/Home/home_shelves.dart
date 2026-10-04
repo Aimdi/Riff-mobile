@@ -71,17 +71,14 @@ class ShelfCardSize {
 
 TextStyle _titleStyle(BuildContext context) {
   final theme = Theme.of(context);
-  return (theme.textTheme.titleSmall ?? const TextStyle()).copyWith(
-    fontSize: 14,
-    height: 1.3,
-    fontWeight: FontWeight.w600,
+  return (theme.textTheme.labelMedium ?? const TextStyle()).copyWith(
     color: theme.colorScheme.onSurface,
   );
 }
 
 TextStyle _subtitleStyle(BuildContext context) =>
     (Theme.of(context).textTheme.bodySmall ?? const TextStyle())
-        .copyWith(fontSize: 12, height: 1.35, color: riffMuted(context));
+        .copyWith(color: riffMuted(context));
 
 /// One shelf: the shared header, then a horizontal list that starts 16dp
 /// in and scrolls to the screen edge, cards 12dp apart.

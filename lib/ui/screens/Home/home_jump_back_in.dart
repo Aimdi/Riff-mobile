@@ -34,8 +34,10 @@ class HomeJumpBackIn extends StatelessWidget {
     final single = resumables.length == 1;
     final width = single ? metrics.inner : metrics.jumpTile;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          RiffSpacing.gutter, 8, RiffSpacing.gutter, 0),
+      padding: const EdgeInsets.only(
+          left: RiffSpacing.gutter,
+          top: RiffSpacing.sm,
+          right: RiffSpacing.gutter),
       child: Wrap(
         spacing: RiffSpacing.gridGap,
         runSpacing: RiffSpacing.gridGap,
@@ -175,10 +177,7 @@ class JumpBackInTile extends StatelessWidget {
                           item.title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontSize: 14,
-                            height: 1.25,
-                            fontWeight: FontWeight.w500,
+                          style: theme.textTheme.bodyLarge?.copyWith(
                             color: theme.colorScheme.onSurface,
                           ),
                         ),

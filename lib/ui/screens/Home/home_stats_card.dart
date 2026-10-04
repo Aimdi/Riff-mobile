@@ -67,7 +67,6 @@ class HomeStatsCard extends StatelessWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: theme.textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.w700,
                                       color: theme.colorScheme.onSurface)),
                               if (line2 != null) ...[
                                 const SizedBox(height: 2),
@@ -91,8 +90,9 @@ class HomeStatsCard extends StatelessWidget {
                                   padding: const EdgeInsets.only(left: 4),
                                   child: Container(
                                     width: 8,
-                                    height: (4 + 44 * (d['plays'] as int) / peak)
-                                        .toDouble(),
+                                    height:
+                                        (4 + 44 * (d['plays'] as int) / peak)
+                                            .toDouble(),
                                     decoration: BoxDecoration(
                                       color: (d['plays'] as int) > 0
                                           ? accent

@@ -9,6 +9,8 @@ import '/services/music_service.dart';
 import '/ui/player/player_controller.dart';
 import '../../widgets/collection_play.dart';
 import '../../widgets/snackbar.dart';
+import '/ui/theme/palettes/home_stations.dart';
+import '/ui/theme/riff_tokens.dart';
 import 'home_metrics.dart';
 
 /// One station under Riff Wave. Every chip starts playback.
@@ -24,21 +26,20 @@ class HomeStation {
 }
 
 const homeStations = [
-  HomeStation('freshFinds', Icons.auto_awesome_rounded,
-      [Color(0xFF0B6B31), Color(0xFF2BD66B)]),
-  HomeStation('rediscover', Icons.replay_rounded,
-      [Color(0xFFA2400F), Color(0xFFFF9A45)]),
-  HomeStation('stationEnergize', Icons.bolt_rounded,
-      [Color(0xFFB8860B), Color(0xFFFFD54A)],
+  HomeStation(
+      'freshFinds', Icons.auto_awesome_rounded, HomeStationPalette.freshFinds),
+  HomeStation(
+      'rediscover', Icons.replay_rounded, HomeStationPalette.rediscover),
+  HomeStation(
+      'stationEnergize', Icons.bolt_rounded, HomeStationPalette.energize,
       query: 'energize mix'),
   HomeStation('stationFeelGood', Icons.sentiment_satisfied_alt_rounded,
-      [Color(0xFFB0306A), Color(0xFFFF7EB6)],
+      HomeStationPalette.feelGood,
       query: 'feel good mix'),
-  HomeStation(
-      'stationRelax', Icons.spa_rounded, [Color(0xFF1E5AA8), Color(0xFF6FB1FF)],
+  HomeStation('stationRelax', Icons.spa_rounded, HomeStationPalette.relax,
       query: 'relax chill mix'),
   HomeStation('stationWorkout', Icons.fitness_center_rounded,
-      [Color(0xFF8E1540), Color(0xFFFF5A8A)],
+      HomeStationPalette.workout,
       query: 'workout mix'),
 ];
 
@@ -137,6 +138,7 @@ class _StationChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final riff = RiffColors.of(context);
     final label = station.key.tr;
     return Semantics(
       button: true,
@@ -153,7 +155,11 @@ class _StationChip extends StatelessWidget {
             child: Center(
               child: Container(
                 height: RiffSizes.chipHeight,
-                padding: const EdgeInsets.fromLTRB(4, 4, 14, 4),
+                padding: const EdgeInsets.only(
+                    left: RiffSpacing.xs,
+                    top: RiffSpacing.xs,
+                    right: RiffSpacing.lg,
+                    bottom: RiffSpacing.xs),
                 decoration: ShapeDecoration(
                   color: theme.colorScheme.surfaceContainerHigh,
                   shape: const StadiumBorder(),
@@ -173,18 +179,17 @@ class _StationChip extends StatelessWidget {
                         ),
                       ),
                       child: busy
-                          ? const Padding(
-                              padding: EdgeInsets.all(8),
+                          ? Padding(
+                              padding: const EdgeInsets.all(8),
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white),
+                                  strokeWidth: 2, color: riff.onImage),
                             )
-                          : Icon(station.icon, color: Colors.white, size: 18),
+                          : Icon(station.icon, color: riff.onImage, size: 18),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       label,
                       style: theme.textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
