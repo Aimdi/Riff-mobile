@@ -2,6 +2,7 @@ import '/ui/player/long_form_queue.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '/ui/screens/Podcasts/podcast_segment_ui.dart';
@@ -14,7 +15,6 @@ import 'package:widget_marquee/widget_marquee.dart';
 import '/ui/player/components/animated_play_button.dart';
 import '/services/podcast_transcripts.dart';
 import '/ui/player/components/podcast_transcript_sheet.dart';
-import '/ui/utils/riff_tokens.dart';
 import '/ui/utils/theme_controller.dart';
 import '/utils/content_filters.dart';
 import '/services/podcast_service.dart' show PodcastChapter;
@@ -31,6 +31,7 @@ import '../player_media_nav.dart';
 import 'playback_error_actions.dart';
 import 'standard_player.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_theme.dart';
 import '/ui/theme/riff_tokens.dart';
 
 class PlayerControlWidget extends StatelessWidget {
@@ -61,7 +62,12 @@ class PlayerControlWidget extends StatelessWidget {
               _RoundAction(
                 child: FavoriteHeartButton(
                   isFav: playerController.isCurrentSongFav,
-                  onToggleFav: playerController.toggleFavourite,
+                  onToggleFav: () {
+                    if (playerController.isCurrentSongFav.isFalse) {
+                      HapticFeedback.lightImpact();
+                    }
+                    playerController.toggleFavourite();
+                  },
                   song: () => playerController.currentSong.value,
                   iconSize: 24,
                   padding: EdgeInsets.zero,
@@ -110,7 +116,12 @@ class PlayerControlWidget extends StatelessWidget {
         activeIcon: Icons.lyrics,
         tooltip: 'lyrics'.tr,
         active: playerController.showLyricsflag.isTrue,
-        onTap: playerController.showLyrics,
+        onTap: () {
+          if (playerController.showLyricsflag.isFalse) {
+            HapticFeedback.lightImpact();
+          }
+          playerController.showLyrics();
+        },
       ),
       _sleepAction(playerController, context),
       PlayerAction(
@@ -200,7 +211,8 @@ class PlayerControlWidget extends StatelessWidget {
 
   Widget _musicControls(
       PlayerController playerController, BuildContext context) {
-    final fg = Theme.of(context).textTheme.titleMedium!.color!;
+    final scheme = Theme.of(context).colorScheme;
+    final fg = scheme.onSurface;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -214,7 +226,10 @@ class PlayerControlWidget extends StatelessWidget {
                   color: fg,
                 ))),
         _previousButton(playerController, context),
-        const AnimatedPlayButton(key: Key("playButton"), size: 68),
+        AnimatedPlayButton(
+            key: const Key("playButton"),
+            size: 68,
+            iconColor: scheme.onSecondary),
         _nextButton(playerController, context),
         Obx(() {
           final state = playerController.repeatState;
@@ -404,7 +419,7 @@ Widget _previousButton(
     tooltip: 'previous'.tr,
     icon: Icon(
       Icons.skip_previous_rounded,
-      color: Theme.of(context).textTheme.titleMedium!.color,
+      color: Theme.of(context).colorScheme.onSurface,
     ),
     iconSize: 42,
     onPressed: playerController.prev,
@@ -428,7 +443,7 @@ class PlaybackErrorBanner extends StatelessWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: theme.colorScheme.error.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+            borderRadius: BorderRadius.circular(RiffRadii.sm),
             border: Border.all(
                 color: theme.colorScheme.error.withOpacity(0.35), width: 1),
           ),
@@ -449,7 +464,7 @@ class PlaybackErrorBanner extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: theme.textTheme.titleMedium?.color),
+                        ?.copyWith(color: theme.colorScheme.onSurface),
                   ),
                 ),
                 PlaybackErrorActions(
@@ -559,9 +574,8 @@ class PlayerActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = Theme.of(context).textTheme.titleMedium?.color ??
-        RiffSurfaces.textPrimary;
-    final accent = Theme.of(context).colorScheme.secondary;
+    final scheme = Theme.of(context).colorScheme;
+    final accent = scheme.secondary;
     return Row(
       children: [
         for (final a in actions)
@@ -578,9 +592,9 @@ class PlayerActionBar extends StatelessWidget {
                     children: [
                       Icon(
                         a.active ? (a.activeIcon ?? a.icon) : a.icon,
-                        size: 22,
+                        size: RiffComponentSizes.trailingIcon,
                         semanticLabel: a.tooltip,
-                        color: a.active ? accent : fg.withOpacity(0.72),
+                        color: a.active ? accent : scheme.onSurfaceVariant,
                       ),
                       if (a.active && (a.badge ?? '').isNotEmpty)
                         Text(
@@ -601,17 +615,15 @@ class PlayerActionBar extends StatelessWidget {
   }
 }
 
-/// Frosted circle behind the title-row buttons (song options, like).
+/// Raised circle behind the title-row buttons (song options, like).
 class _RoundAction extends StatelessWidget {
   const _RoundAction({required this.child});
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final fg = Theme.of(context).textTheme.titleMedium?.color ??
-        RiffSurfaces.textPrimary;
     return Material(
-      color: fg.withOpacity(0.12),
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
       shape: const CircleBorder(),
       clipBehavior: Clip.antiAlias,
       child: child,
@@ -619,7 +631,7 @@ class _RoundAction extends StatelessWidget {
   }
 }
 
-/// Shuffle / repeat: full colour with an accent dot when on, dimmed when off.
+/// Shuffle / repeat: accent with an accent dot when on, text colour when off.
 class _ToggleIcon extends StatelessWidget {
   const _ToggleIcon(
       {required this.icon, required this.on, required this.color});
@@ -636,7 +648,7 @@ class _ToggleIcon extends StatelessWidget {
         clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
-          Icon(icon, size: 22, color: on ? accent : color.withOpacity(0.5)),
+          Icon(icon, size: 22, color: on ? accent : color),
           if (on)
             Positioned(
               bottom: -8,
@@ -661,8 +673,10 @@ class _TitleBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = Theme.of(context).textTheme.titleMedium?.color ??
-        RiffSurfaces.textPrimary;
+    final theme = Theme.of(context);
+    final titleStyle = RiffTextStyles.of(context).playerTitle;
+    final artistStyle = theme.textTheme.bodyLarge
+        ?.copyWith(color: theme.colorScheme.onSurfaceVariant);
     final mask = RiffColors.of(context).onImage;
     return ShaderMask(
       // Fade the right edge so a scrolling title doesn't hard-clip.
@@ -711,10 +725,7 @@ class _TitleBlock extends StatelessWidget {
                     child: Text(
                       title,
                       maxLines: 1,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge
-                          ?.copyWith(color: fg),
+                      style: titleStyle,
                     ),
                   ),
                 ),
@@ -729,10 +740,7 @@ class _TitleBlock extends StatelessWidget {
                     child: Text(
                       artist,
                       maxLines: 1,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyLarge
-                          ?.copyWith(color: fg.withOpacity(0.66)),
+                      style: artistStyle,
                     ),
                   ),
                 ),
@@ -761,8 +769,8 @@ Widget _nextButton(PlayerController playerController, BuildContext context) {
         icon: Icon(
           Icons.skip_next_rounded,
           color: !canNext
-              ? Theme.of(context).textTheme.titleLarge!.color!.withOpacity(0.2)
-              : Theme.of(context).textTheme.titleMedium!.color,
+              ? Theme.of(context).colorScheme.onSurface.withOpacity(0.2)
+              : Theme.of(context).colorScheme.onSurface,
         ),
         iconSize: 42,
         onPressed: canNext ? playerController.next : null);
@@ -794,6 +802,9 @@ class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
   double? _dragFrac;
   Duration? _dragPosition;
   Duration? _seekTarget;
+
+  /// Finger down on the bar: the thumb shows only then.
+  bool _dragging = false;
   Timer? _seekHold;
 
   // Chapter marks only change with the episode's chapters / duration, not
@@ -825,6 +836,7 @@ class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
     _seekHold?.cancel();
     _seekTarget = null;
     setState(() {
+      _dragging = true;
       _dragFrac = f;
       _dragPosition = pos;
     });
@@ -834,6 +846,7 @@ class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
   /// a position near it (or a short timeout), so it doesn't snap back to the
   /// pre-seek position for a few ticks.
   void _commitScrub(PlayerController c) {
+    if (_dragging) setState(() => _dragging = false);
     final pos = _dragPosition;
     if (pos == null) return _endScrub();
     c.seek(pos);
@@ -847,8 +860,9 @@ class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
   void _endScrub() {
     _seekHold?.cancel();
     _seekTarget = null;
-    if (_dragFrac == null && _dragPosition == null) return;
+    if (_dragFrac == null && _dragPosition == null && !_dragging) return;
     setState(() {
+      _dragging = false;
       _dragFrac = null;
       _dragPosition = null;
     });
@@ -890,17 +904,13 @@ class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
                   s.category.color,
                 )
             ];
-      final timeStyle = Theme.of(context)
-          .textTheme
-          .bodySmall!
-          .copyWith(color: RiffSurfaces.textMuted);
+      final theme = Theme.of(context);
+      final timeStyle = theme.textTheme.labelSmall!
+          .copyWith(color: theme.colorScheme.onSurfaceVariant);
       final currentLabel = _fmtDuration(_dragPosition ?? status.current);
       final totalLabel = _fmtDuration(status.total, allowZero: false);
-      final played = Theme.of(context).sliderTheme.activeTrackColor ??
-          Theme.of(context).colorScheme.secondary;
-      final rest = (Theme.of(context).sliderTheme.inactiveTrackColor ??
-              RiffSurfaces.hairline)
-          .withOpacity(0.55);
+      final played = theme.colorScheme.secondary;
+      final rest = theme.colorScheme.outlineVariant;
 
       return Padding(
         padding: EdgeInsets.zero,
@@ -930,13 +940,14 @@ class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
                       spans: spans,
                       playedColor: played,
                       restColor: rest,
-                      thumbColor: RiffSurfaces.textPrimary,
+                      thumbColor: played,
+                      showThumb: _dragging,
                     ),
                   ),
                 ),
               );
             }),
-            const SizedBox(height: 2),
+            const SizedBox(height: RiffSpacing.xxs),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -952,7 +963,8 @@ class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
 }
 
 /// Spotify-style rounded track. [marks] are 0–1 chapter boundaries that
-/// punch a gap so each section reads as its own pill.
+/// punch a gap so each section reads as its own pill. The thumb is drawn
+/// only while [showThumb] (the user is dragging).
 class _SectionTrackPainter extends CustomPainter {
   _SectionTrackPainter({
     required this.progress,
@@ -960,6 +972,7 @@ class _SectionTrackPainter extends CustomPainter {
     required this.playedColor,
     required this.restColor,
     required this.thumbColor,
+    required this.showThumb,
     this.spans = const [],
   });
 
@@ -971,10 +984,12 @@ class _SectionTrackPainter extends CustomPainter {
   final Color playedColor;
   final Color restColor;
   final Color thumbColor;
+  final bool showThumb;
 
   static const _gap = 3.0;
-  static const _trackH = 4.0;
-  static const _thumb = 13.0;
+  static const _trackH = RiffComponentSizes.seekTrack;
+  static const _thumb = RiffComponentSizes.seekThumb;
+  static const _round = Radius.circular(RiffRadii.pill);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -986,14 +1001,12 @@ class _SectionTrackPainter extends CustomPainter {
       final right =
           bounds[i + 1] * size.width - (i == bounds.length - 2 ? 0 : _gap / 2);
       if (right - left < 1) continue;
-      final rect = RRect.fromLTRBR(
-          left, top, right, top + _trackH, const Radius.circular(99));
+      final rect = RRect.fromLTRBR(left, top, right, top + _trackH, _round);
       canvas.drawRRect(rect, Paint()..color = restColor);
       final playedRight = (size.width * progress).clamp(left, right);
       if (playedRight > left + 0.5) {
         canvas.drawRRect(
-          RRect.fromLTRBR(
-              left, top, playedRight, top + _trackH, const Radius.circular(99)),
+          RRect.fromLTRBR(left, top, playedRight, top + _trackH, _round),
           Paint()..color = playedColor,
         );
       }
@@ -1002,10 +1015,11 @@ class _SectionTrackPainter extends CustomPainter {
       final l = a * size.width, r = b * size.width;
       if (r - l < 1) continue;
       canvas.drawRRect(
-        RRect.fromLTRBR(l, top, r, top + _trackH, const Radius.circular(99)),
+        RRect.fromLTRBR(l, top, r, top + _trackH, _round),
         Paint()..color = color.withOpacity(0.9),
       );
     }
+    if (!showThumb) return;
     final tx =
         (size.width * progress).clamp(_thumb / 2, size.width - _thumb / 2);
     canvas.drawCircle(
@@ -1021,6 +1035,7 @@ class _SectionTrackPainter extends CustomPainter {
       old.playedColor != playedColor ||
       old.restColor != restColor ||
       old.thumbColor != thumbColor ||
+      old.showThumb != showThumb ||
       !_listEq(old.marks, marks) ||
       old.spans.length != spans.length ||
       !_spansEq(old.spans, spans);

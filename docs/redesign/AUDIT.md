@@ -186,3 +186,16 @@ metrics now measure the TextTheme slot their text uses
   collection/artist headers §5.5, skeleton pulse §5.13
   (`RiffSkeletonPulse`). Adjustments are in `SKIPPED.md`.
 - Screenshots: `docs/redesign/phase5/`.
+
+## Phase 6 result (players)
+
+- Mini player (`mini_player.dart`, `mini_player_progress_bar.dart`):
+  floating card on surface1 with a hairline, 40 dp art, titleMedium /
+  bodyMedium, 28/24 transport, 2 px accent progress.
+- Full player (`standard_player.dart`, `gesture_player.dart`,
+  `player_control.dart`, backdrops, lyrics): black page, album art tint
+  ≤ 20% at the top (`RiffPalette.playerTintOpacity`), title
+  `RiffTextStyles.playerTitle`, 2 dp seek track with the thumb only while
+  dragging, accent toggles + light haptics, lyrics titleLarge with 60%
+  for other lines. PlayerController, SlidingUpPanel and gestures
+  untouched. Adjustments in `SKIPPED.md`; screenshots in `phase6/`.

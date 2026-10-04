@@ -33,6 +33,13 @@ class RiffPalette {
 
   /// Accent share in [accentMuted].
   static const double accentMutedOpacity = 0.12;
+
+  /// Most any album-art or colour layer may show through the full-player
+  /// background (CLAUDE.md rule 4: ≤ 20% over black).
+  static const double playerTintOpacity = 0.2;
+
+  /// Lyrics lines other than the current one (secondary text at 60%).
+  static const double lyricsDimOpacity = 0.6;
 }
 
 /// Corner radii (§4.3).
@@ -43,6 +50,9 @@ class RiffRadii {
   static const double sm = 8;
   static const double lg = 16;
   static const double pill = 999;
+
+  /// Floating mini-player card corners (keeps its current shape).
+  static const double miniPlayer = 24;
 }
 
 /// Motion (§4.7).
@@ -102,6 +112,10 @@ class RiffComponentSizes {
   static const double handleHeight = 4;
   static const double skipPill = 36;
 
+  /// Full-player seek bar: track height and the thumb shown while dragging.
+  static const double seekTrack = 2;
+  static const double seekThumb = 12;
+
   /// Compact hit box of a list row's trailing icons (heart, ⋮), so they fit
   /// the 48dp row content height.
   static const double rowIconHit = 32;
@@ -115,6 +129,27 @@ class RiffComponentSizes {
   static const double wideRowExtent = 96;
   static const double wideRowArt = 76;
   static const double artistRowExtent = 72;
+
+  /// Mini player (§5 Phase 6): play/pause and skip glyphs, the fixed hit
+  /// widths of the skip buttons and play/pause (keep the current sizes), the
+  /// height of each text line, the playback-error glyph and the thin
+  /// progress line along the card's bottom edge.
+  static const double miniPlayIcon = 28;
+  static const double miniNextIcon = 24;
+  static const double miniSkipHit = 28;
+  static const double miniPlayHit = 38;
+  static const double miniLine = 20;
+  static const double miniErrorIcon = 14;
+  static const double miniProgress = 2;
+
+  /// Wide (desktop) mini player: skip glyphs, their hit widths, the
+  /// accent play circle and its glyph (keep the current sizes), and the
+  /// seek-bar thumb (§5 Phase 6: 12 across).
+  static const double miniWideSkipIcon = 35;
+  static const double miniWideSkipHit = 40;
+  static const double miniWidePlay = 58;
+  static const double miniWidePlayIcon = 30;
+  static const double miniWideThumb = 6;
 }
 
 /// Theme-dependent colours Material's [ColorScheme] has no slot for.

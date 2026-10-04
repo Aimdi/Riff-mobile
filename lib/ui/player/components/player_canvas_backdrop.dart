@@ -2,9 +2,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '/ui/theme/riff_tokens.dart';
+
 /// Subtle ambient motion behind album art (Echo Canvas–lite).
 ///
-/// Slow drifting gradient blobs — no network, low GPU cost.
+/// Slow drifting gradient blobs — no network, low GPU cost. Together the
+/// blobs stay within [RiffPalette.playerTintOpacity] over the page colour.
 class PlayerCanvasBackdrop extends StatefulWidget {
   const PlayerCanvasBackdrop({super.key});
 
@@ -34,7 +37,9 @@ class _PlayerCanvasBackdropState extends State<PlayerCanvasBackdrop>
   @override
   Widget build(BuildContext context) {
     final accent = Theme.of(context).colorScheme.secondary;
-    final bg = Theme.of(context).scaffoldBackgroundColor;
+    final bg = Theme.of(context).colorScheme.surface;
+    // Split the 20% cap between the two blobs (same 3:2 balance as before).
+    const tint = RiffPalette.playerTintOpacity;
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (context, _) {
@@ -52,7 +57,7 @@ class _PlayerCanvasBackdropState extends State<PlayerCanvasBackdrop>
                     ),
                     radius: 1.1,
                     colors: [
-                      accent.withOpacity(0.28),
+                      accent.withOpacity(tint * 0.6),
                       bg.withOpacity(0.0),
                     ],
                   ),
@@ -67,7 +72,7 @@ class _PlayerCanvasBackdropState extends State<PlayerCanvasBackdrop>
                     ),
                     radius: 0.95,
                     colors: [
-                      accent.withOpacity(0.18),
+                      accent.withOpacity(tint * 0.4),
                       Colors.transparent,
                     ],
                   ),

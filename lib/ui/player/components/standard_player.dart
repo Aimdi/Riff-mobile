@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import '/ui/screens/Podcasts/podcast_segment_ui.dart';
 
 import '../../screens/Settings/settings_screen_controller.dart';
-import '../../utils/theme_controller.dart';
 import '/models/playling_from.dart';
 import '/utils/media_item_video.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
@@ -16,6 +15,7 @@ import 'lyrics_widget.dart';
 import 'player_video_surface.dart';
 import 'player_canvas_backdrop.dart';
 import 'player_control.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 
 /// Standard player widget
@@ -37,32 +37,42 @@ class StandardPlayer extends StatelessWidget {
       final canvasOn = Get.isRegistered<SettingsScreenController>() &&
           Get.find<SettingsScreenController>().playerCanvas.isTrue;
 
+      final bg = Theme.of(context).colorScheme.surface;
       return Stack(
         children: [
           // Skip HQ album-art decode + blur under live video — solid scrim only.
           if (showVideo) ...[
             Positioned.fill(
-              child: ColoredBox(
-                color: Theme.of(context).primaryColor,
-              ),
+              child: ColoredBox(color: bg),
             ),
           ] else ...[
+            Positioned.fill(child: ColoredBox(color: bg)),
             const BackgroudImage(),
-            if (canvasOn)
-              const Positioned.fill(
-                child: RepaintBoundary(child: PlayerCanvasBackdrop()),
-              ),
-            // Lighter than BackdropFilter blur — solid tint keeps art readable
-            // without per-frame save-layer cost while the panel animates.
+            // Lighter than BackdropFilter blur — the page colour over the
+            // art lets at most 20% of it through at the top, none lower
+            // down, without per-frame save-layer cost while the panel
+            // animates.
             Stack(
               children: [
                 Positioned.fill(
-                  child: Container(
+                  child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor.withOpacity(0.82),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          bg.withOpacity(1 - RiffPalette.playerTintOpacity),
+                          bg,
+                        ],
+                        stops: const [0, 0.6],
+                      ),
                     ),
                   ),
                 ),
+                if (canvasOn)
+                  const Positioned.fill(
+                    child: RepaintBoundary(child: PlayerCanvasBackdrop()),
+                  ),
                 // Portrait: the cover fills the top of the screen and fades
                 // into the tinted backdrop where the controls start.
                 if (!context.isLandscape)
@@ -80,10 +90,10 @@ class StandardPlayer extends StatelessWidget {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Theme.of(context).primaryColor,
-                          Theme.of(context).primaryColor,
-                          Theme.of(context).primaryColor.withOpacity(0.4),
-                          Theme.of(context).primaryColor.withOpacity(0),
+                          bg,
+                          bg,
+                          bg.withOpacity(0.4),
+                          bg.withOpacity(0),
                         ],
                         begin: Alignment.bottomCenter,
                         end: Alignment.topCenter,
@@ -97,7 +107,7 @@ class StandardPlayer extends StatelessWidget {
           ],
 
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.xxl),
             child: (context.isLandscape)
                 ? Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -105,7 +115,8 @@ class StandardPlayer extends StatelessWidget {
                       SizedBox(
                         width: size.width * .45,
                         child: Padding(
-                          padding: const EdgeInsets.only(bottom: 90.0, top: 40),
+                          padding: const EdgeInsets.only(
+                              bottom: 90.0, top: RiffSpacing.unit * 10),
                           child: Center(
                             child: AlbumArtNLyrics(
                               playerArtImageSize: size.width * .29,
@@ -119,7 +130,8 @@ class StandardPlayer extends StatelessWidget {
                           padding: EdgeInsets.only(
                               left: 10.0,
                               right: 10,
-                              bottom: 80 + Get.mediaQuery.padding.bottom),
+                              bottom: RiffSpacing.unit * 20 +
+                                  Get.mediaQuery.padding.bottom),
                           child: const PlayerControlWidget(),
                         ),
                       )
@@ -136,10 +148,11 @@ class StandardPlayer extends StatelessWidget {
                         child: _HeroArtRegion(
                             isVideo: isVideo, showVideo: showVideo),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: RiffSpacing.sm),
                       Padding(
                         padding: EdgeInsets.only(
-                            bottom: 80 + Get.mediaQuery.padding.bottom),
+                            bottom: RiffSpacing.unit * 20 +
+                                Get.mediaQuery.padding.bottom),
                         child: Container(
                           constraints: const BoxConstraints(maxWidth: 500),
                           child: const PlayerControlWidget(),
@@ -167,13 +180,14 @@ class PlayerTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final playerController = Get.find<PlayerController>();
-    final fg = Theme.of(context).textTheme.titleMedium?.color ??
-        RiffSurfaces.textPrimary;
+    final fg = Theme.of(context).colorScheme.onSurface;
     return Padding(
       padding: EdgeInsets.only(
-          top: Get.mediaQuery.padding.top + 8, left: 8, right: 8),
+          top: Get.mediaQuery.padding.top + RiffSpacing.sm,
+          left: RiffSpacing.sm,
+          right: RiffSpacing.sm),
       child: SizedBox(
-        height: height - 8,
+        height: height - RiffSpacing.sm,
         child: Row(
           children: [
             IconButton(
@@ -200,7 +214,7 @@ class PlayerTopBar extends StatelessWidget {
                           ?.copyWith(color: fg.withOpacity(0.6)),
                     ),
                     if (label.name.isNotEmpty) ...[
-                      const SizedBox(height: 2),
+                      const SizedBox(height: RiffSpacing.xxs),
                       Text(
                         label.name,
                         maxLines: 1,
@@ -220,7 +234,7 @@ class PlayerTopBar extends StatelessWidget {
             // button (song options sit by the title).
             Obx(() => playerController.isCurrentSongPodcast
                 ? const PodcastPlayerMenuButton()
-                : const SizedBox(width: 48)),
+                : const SizedBox(width: RiffSizes.touch)),
           ],
         ),
       ),
@@ -284,6 +298,9 @@ class _HeroArtRegion extends StatelessWidget {
       final song = playerController.currentSong.value;
       final lyricsOn = playerController.showLyricsflag.isTrue;
       if (song == null) return const SizedBox.shrink();
+      // Lyrics dim the cover with the page colour, so their text reads in
+      // the page's text colours.
+      final page = Theme.of(context).colorScheme.surface;
       return GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
@@ -322,7 +339,7 @@ class _HeroArtRegion extends StatelessWidget {
                 ),
               if (lyricsOn)
                 ColoredBox(
-                  color: RiffSurfaces.voidBlack.withOpacity(0.78),
+                  color: page.withOpacity(0.78),
                   child: Stack(
                     children: [
                       LyricsWidget(
@@ -335,10 +352,10 @@ class _HeroArtRegion extends StatelessWidget {
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
                               colors: [
-                                RiffSurfaces.voidBlack.withOpacity(0.9),
+                                page.withOpacity(0.9),
                                 Colors.transparent,
                                 Colors.transparent,
-                                RiffSurfaces.voidBlack.withOpacity(0.9),
+                                page.withOpacity(0.9),
                               ],
                               stops: const [0, 0.2, 0.8, 1],
                             ),
@@ -353,8 +370,8 @@ class _HeroArtRegion extends StatelessWidget {
                     alignment: Alignment.topCenter, child: LyricsSwitch()),
               if (song.canShowPlayerVideo && !showVideo)
                 Positioned(
-                  right: 16,
-                  top: 8,
+                  right: RiffSpacing.lg,
+                  top: RiffSpacing.sm,
                   child: PlayerVideoEnableButton(
                     onShow: () async {
                       await AlbumArtNLyrics.setVideoPlaybackEnabled(song, true);

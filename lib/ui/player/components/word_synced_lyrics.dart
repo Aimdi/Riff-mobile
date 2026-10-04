@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '/services/better_lyrics_service.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 
 /// Word-level synced lyrics from Better Lyrics TTML.
@@ -108,7 +109,7 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
           style: Theme.of(context)
               .textTheme
               .titleMedium
-              ?.copyWith(color: RiffColors.of(context).onImage),
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurface),
         ),
       );
     }
@@ -116,7 +117,8 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
 
     return ListView.builder(
       physics: const BouncingScrollPhysics(),
-      padding: widget.padding.add(const EdgeInsets.symmetric(vertical: 24)),
+      padding: widget.padding
+          .add(const EdgeInsets.symmetric(vertical: RiffSpacing.xxl)),
       controller: _scroll,
       itemCount: _lines.length,
       addAutomaticKeepAlives: false,
@@ -178,6 +180,7 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
                       (w.endSec == null || posSec < w.endSec!),
                   isPast: isPast ||
                       (isActive && posSec >= (w.endSec ?? w.beginSec)),
+                  inActiveLine: isActive,
                 ),
               ),
           ],
@@ -187,50 +190,45 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
     );
   }
 
+  /// Lines are `titleLarge`: the current one in the text colour, the
+  /// others (sung or still to come) in the secondary colour at 60%.
   TextStyle _lineStyle(
     BuildContext context,
     Color accent, {
     required bool isActive,
     required bool isPast,
   }) {
-    final text = Theme.of(context).textTheme;
-    final onImage = RiffColors.of(context).onImage;
-    final base = text.titleMedium!;
-    if (isActive) {
-      // Active line grows relative to the theme slot (computed size).
-      return base.copyWith(
-        color: onImage,
-        fontSize: (base.fontSize ?? 16) + 2,
-      );
-    }
-    return text.bodyLarge!.copyWith(
-      color: onImage.withOpacity(isPast ? 0.35 : 0.55),
+    final theme = Theme.of(context);
+    final base = theme.textTheme.titleLarge!;
+    if (isActive) return base.copyWith(color: theme.colorScheme.onSurface);
+    return base.copyWith(
+      color: theme.colorScheme.onSurfaceVariant
+          .withOpacity(RiffPalette.lyricsDimOpacity),
     );
   }
 
+  /// Words of a word-timed line: as [_lineStyle], except the word being
+  /// sung, which is drawn in the accent (playback progress) and grows a
+  /// little for karaoke emphasis (computed size, documented exception).
   TextStyle _wordStyle(
     BuildContext context,
     Color accent, {
     required bool isActive,
     required bool isPast,
+    required bool inActiveLine,
   }) {
-    final text = Theme.of(context).textTheme;
-    final onImage = RiffColors.of(context).onImage;
-    final base = text.titleMedium!;
     if (isActive) {
-      // Active word grows relative to the theme slot (computed size).
+      final base = Theme.of(context).textTheme.titleLarge!;
       return base.copyWith(
         color: accent,
-        fontSize: (base.fontSize ?? 16) + 3,
+        fontSize: (base.fontSize ?? _fallbackSize) + _activeWordGrowth,
       );
     }
-    if (isPast) {
-      return text.bodyLarge!.copyWith(
-        color: onImage.withOpacity(0.45),
-      );
-    }
-    return text.bodyLarge!.copyWith(
-      color: onImage.withOpacity(0.55),
-    );
+    return _lineStyle(context, accent, isActive: inActiveLine, isPast: isPast);
   }
+
+  /// Emphasis of the word being sung over the line size (was +1 over the
+  /// active line before the restyle, kept).
+  static const double _activeWordGrowth = 1;
+  static const double _fallbackSize = 20;
 }

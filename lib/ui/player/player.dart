@@ -6,8 +6,7 @@ import '/ui/player/components/long_form_player.dart';
 import '/ui/player/components/standard_player.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/theme/riff_spacing.dart';
-import '/ui/utils/riff_tokens.dart';
-import '/ui/utils/theme_controller.dart';
+import '/ui/theme/riff_tokens.dart';
 import '../../utils/helper.dart';
 import '../widgets/add_to_playlist.dart';
 import '../widgets/snackbar.dart';
@@ -56,13 +55,11 @@ class Player extends StatelessWidget {
               }
             },
             child: Container(
-                decoration: const BoxDecoration(
-                  color: RiffSurfaces.elevated,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
                   border: Border(
                     top: BorderSide(
-                      color: RiffSurfaces.hairline,
-                      width: RiffTokens.hairline,
-                    ),
+                        color: Theme.of(context).dividerColor, width: 0),
                   ),
                 ),
                 child: Column(
@@ -73,11 +70,12 @@ class Player extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Container(
-                            width: 36,
-                            height: 4,
+                            width: RiffComponentSizes.handleWidth,
+                            height: RiffComponentSizes.handleHeight,
                             decoration: BoxDecoration(
-                              color: RiffSurfaces.hairline,
-                              borderRadius: BorderRadius.circular(2),
+                              color: RiffColors.of(context).handle,
+                              borderRadius:
+                                  BorderRadius.circular(RiffRadii.pill),
                             ),
                           ),
                           const SizedBox(height: 6),
@@ -87,7 +85,9 @@ class Player extends StatelessWidget {
                                 .textTheme
                                 .labelMedium
                                 ?.copyWith(
-                                  color: RiffSurfaces.textMuted,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
                                 ),
                           ),
                           Obx(() {
@@ -110,8 +110,9 @@ class Player extends StatelessWidget {
                                     .textTheme
                                     .bodySmall
                                     ?.copyWith(
-                                      color: RiffSurfaces.textPrimary
-                                          .withOpacity(0.85),
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
                                     ),
                               ),
                             );
@@ -143,20 +144,16 @@ class Player extends StatelessWidget {
                   child: Builder(builder: (context) {
                     final theme = Theme.of(context);
                     // Opaque, so queue rows never show through the footer.
-                    final frost = Color.alphaBlend(
-                        theme.cardColor, theme.scaffoldBackgroundColor);
                     return Container(
                       padding: EdgeInsets.only(
-                          left: 20,
-                          right: 8,
+                          left: RiffSpacing.xl,
+                          right: RiffSpacing.sm,
                           bottom: Get.mediaQuery.padding.bottom),
                       decoration: BoxDecoration(
-                          color: frost,
-                          border: const Border(
-                            top: BorderSide(
-                              color: RiffSurfaces.hairline,
-                              width: RiffTokens.hairline,
-                            ),
+                          color: theme.colorScheme.surfaceContainerLow,
+                          border: Border(
+                            top:
+                                BorderSide(color: theme.dividerColor, width: 0),
                           )),
                       height: 60 + Get.mediaQuery.padding.bottom,
                       child: Row(
@@ -171,7 +168,9 @@ class Player extends StatelessWidget {
                                 style: Theme.of(context)
                                     .textTheme
                                     .labelMedium
-                                    ?.copyWith(color: RiffSurfaces.textMuted),
+                                    ?.copyWith(
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant),
                               ),
                             ),
                           ),
@@ -285,17 +284,18 @@ class _QueueBarButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = Theme.of(context).colorScheme.secondary;
+    final scheme = Theme.of(context).colorScheme;
+    final accent = scheme.secondary;
     return IconButton(
       tooltip: tooltip,
       onPressed: onTap,
-      iconSize: 22,
+      iconSize: RiffComponentSizes.headerIcon,
       isSelected: active,
       style: IconButton.styleFrom(
-        backgroundColor: active ? accent.withOpacity(0.16) : Colors.transparent,
+        backgroundColor:
+            active ? RiffColors.of(context).accentMuted : Colors.transparent,
       ),
-      icon: Icon(icon,
-          color: active ? accent : RiffSurfaces.textPrimary.withOpacity(0.8)),
+      icon: Icon(icon, color: active ? accent : scheme.onSurface),
     );
   }
 }

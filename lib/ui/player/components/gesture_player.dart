@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -6,7 +7,6 @@ import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/lyrics_dialog.dart';
 import '../../widgets/sleep_timer_bottom_sheet.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
-import '../../utils/theme_controller.dart';
 import '/utils/content_filters.dart';
 import '../player_controller.dart';
 import 'animated_play_button.dart';
@@ -14,6 +14,7 @@ import 'backgroud_image.dart';
 import 'player_control.dart';
 import 'standard_player.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_theme.dart';
 import '/ui/theme/riff_tokens.dart';
 
 /// Full-bleed cover player: the artwork fills the screen and is the control
@@ -28,6 +29,7 @@ class GesturePlayer extends StatelessWidget {
     final pc = Get.find<PlayerController>();
     final theme = Theme.of(context);
     final accent = theme.colorScheme.secondary;
+    final page = theme.colorScheme.surface;
     final riff = RiffColors.of(context);
     final bottomInset = Get.mediaQuery.padding.bottom;
     return Stack(
@@ -58,8 +60,8 @@ class GesturePlayer extends StatelessWidget {
                 colors: [
                   riff.scrim.withOpacity(0.35),
                   Colors.transparent,
-                  theme.primaryColor.withOpacity(0.85),
-                  theme.primaryColor,
+                  page.withOpacity(0.85),
+                  page,
                 ],
                 stops: const [0, 0.25, 0.62, 0.85],
               ),
@@ -118,29 +120,30 @@ class GesturePlayer extends StatelessWidget {
                                 (song?.title ?? '').isEmpty ? '—' : song!.title,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.headlineSmall?.copyWith(
-                                  color: theme.textTheme.titleLarge?.color,
-                                ),
+                                style: RiffTextStyles.of(context).playerTitle,
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: RiffSpacing.xs),
                               Text(
                                 song?.artist ?? '',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.bodyLarge?.copyWith(
-                                  color: (theme.textTheme.titleMedium?.color ??
-                                          RiffSurfaces.textPrimary)
-                                      .withOpacity(0.7),
+                                  color: theme.colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
                           );
                         }),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: RiffSpacing.sm),
                       FavoriteHeartButton(
                         isFav: pc.isCurrentSongFav,
-                        onToggleFav: pc.toggleFavourite,
+                        onToggleFav: () {
+                          if (pc.isCurrentSongFav.isFalse) {
+                            HapticFeedback.lightImpact();
+                          }
+                          pc.toggleFavourite();
+                        },
                         song: () => pc.currentSong.value,
                         iconSize: 28,
                       ),
@@ -170,9 +173,9 @@ class _Transport extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = Theme.of(context).textTheme.titleMedium?.color ??
-        RiffSurfaces.textPrimary;
-    final accent = Theme.of(context).colorScheme.secondary;
+    final scheme = Theme.of(context).colorScheme;
+    final fg = scheme.onSurface;
+    final accent = scheme.secondary;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -181,9 +184,7 @@ class _Transport extends StatelessWidget {
               iconSize: 24,
               onPressed: pc.toggleShuffleMode,
               icon: Icon(Icons.shuffle_rounded,
-                  color: pc.isShuffleModeEnabled.value
-                      ? accent
-                      : fg.withOpacity(0.75)),
+                  color: pc.isShuffleModeEnabled.value ? accent : fg),
             )),
         IconButton(
           tooltip: 'previous'.tr,
@@ -191,7 +192,10 @@ class _Transport extends StatelessWidget {
           onPressed: pc.prev,
           icon: Icon(Icons.skip_previous_rounded, color: fg),
         ),
-        const AnimatedPlayButton(key: Key('gesturePlayButton'), size: 68),
+        AnimatedPlayButton(
+            key: const Key('gesturePlayButton'),
+            size: 68,
+            iconColor: scheme.onSecondary),
         IconButton(
           tooltip: 'next'.tr,
           iconSize: 38,
@@ -210,7 +214,7 @@ class _Transport extends StatelessWidget {
             onPressed: pc.cycleRepeatMode,
             icon: Icon(
               state == 2 ? Icons.repeat_one_rounded : Icons.repeat_rounded,
-              color: state != 0 ? accent : fg.withOpacity(0.75),
+              color: state != 0 ? accent : fg,
             ),
           );
         }),
@@ -236,6 +240,7 @@ class _Actions extends StatelessWidget {
           tooltip: 'lyrics'.tr,
           active: pc.showLyricsflag.isTrue,
           onTap: () {
+            if (pc.showLyricsflag.isFalse) HapticFeedback.lightImpact();
             pc.showLyrics();
             pc.isDesktopLyricsDialogOpen = true;
             showDialog(

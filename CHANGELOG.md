@@ -1,3 +1,17 @@
+# 1.7.140
+
+**New look, step 6: players**
+* The mini player is a flat dark card with a thin outline, a smaller
+  cover, and plain play and next buttons; its progress line is thinner
+* The full player sits on black; the cover's colour only softly tints the
+  top
+* Bigger, bolder track title; the seek bar is a thin line and its handle
+  only appears while you drag
+* Shuffle, repeat and the action row light up in your accent when on;
+  liking a song or turning on lyrics gives a light tap
+* Lyrics use one bold size, with the lines around the current one dimmed
+* Nothing moved: same buttons in the same places, same gestures
+
 # 1.7.139
 
 **New look, step 5: lists**
