@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
 
-import '../screens/Home/home_layout.dart';
-import '../utils/riff_tokens.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 
 /// Shared look for bottom sheets: a drag handle, an optional title, rows of
 /// actions and an optional row of big quick actions. Every sheet in the app
 /// (song menu, sleep timer, add to playlist, sort, …) is built from these so
 /// they read as one family.
 
-/// Shape for [showModalBottomSheet]: rounded top, like the player cards.
+/// Shape for [showModalBottomSheet]: the theme's 16dp rounded top (§5.10).
 const riffSheetShape = RoundedRectangleBorder(
-  borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+  borderRadius: BorderRadius.vertical(top: Radius.circular(RiffRadii.lg)),
 );
 
-/// The pill at the top of a sheet.
+/// The pill at the top of a sheet: 36 × 4, 8dp from the top (§5.10).
 class RiffSheetHandle extends StatelessWidget {
   const RiffSheetHandle({super.key});
 
@@ -22,13 +21,13 @@ class RiffSheetHandle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Container(
-        width: 36,
-        height: 4,
-        margin: const EdgeInsets.only(top: 10, bottom: 6),
+        width: RiffComponentSizes.handleWidth,
+        height: RiffComponentSizes.handleHeight,
+        margin:
+            const EdgeInsets.only(top: RiffSpacing.sm, bottom: RiffSpacing.sm),
         decoration: BoxDecoration(
-          color:
-              Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.45),
-          borderRadius: BorderRadius.circular(2),
+          color: RiffColors.of(context).handle,
+          borderRadius: BorderRadius.circular(RiffRadii.pill),
         ),
       ),
     );
@@ -44,11 +43,10 @@ class RiffSheetTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = Theme.of(context).textTheme.titleMedium?.color ??
-        Theme.of(context).colorScheme.onSurface;
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(
-          left: RiffSpacing.xl,
+          left: RiffSpacing.lg,
           top: RiffSpacing.sm,
           right: RiffSpacing.md,
           bottom: RiffSpacing.sm),
@@ -61,16 +59,15 @@ class RiffSheetTitle extends StatelessWidget {
                 Text(title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(color: fg)),
+                    style: theme.textTheme.titleLarge
+                        ?.copyWith(color: theme.colorScheme.onSurface)),
                 if (subtitle != null && subtitle!.isNotEmpty) ...[
-                  const SizedBox(height: 2),
+                  const SizedBox(height: RiffSpacing.xxs),
                   Text(subtitle!,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: homeCardSubtitleStyle(context)),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant)),
                 ],
               ],
             ),
@@ -82,8 +79,9 @@ class RiffSheetTitle extends StatelessWidget {
   }
 }
 
-/// One action row: icon, title, optional subtitle and trailing widget.
-/// [destructive] tints it red (remove, delete, never play).
+/// One action row (§5.10): min height 52, 16dp sides, 22dp icon and a
+/// bodyLarge label in the primary text colour, optional subtitle and
+/// trailing widget. [destructive] tints it red (remove, delete, never play).
 class RiffSheetTile extends StatelessWidget {
   const RiffSheetTile({
     super.key,
@@ -104,20 +102,20 @@ class RiffSheetTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final base =
-        theme.textTheme.titleMedium?.color ?? theme.colorScheme.onSurface;
-    final fg = destructive ? theme.colorScheme.error : base;
+    final fg =
+        destructive ? theme.colorScheme.error : theme.colorScheme.onSurface;
     return InkWell(
       onTap: onTap,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 52),
+        constraints:
+            const BoxConstraints(minHeight: RiffComponentSizes.sheetRow),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          padding: const EdgeInsets.symmetric(
+              horizontal: RiffSpacing.lg, vertical: RiffSpacing.sm),
           child: Row(
             children: [
-              Icon(icon,
-                  size: 22, color: destructive ? fg : base.withOpacity(0.78)),
-              const SizedBox(width: 18),
+              Icon(icon, size: RiffComponentSizes.sheetIcon, color: fg),
+              const SizedBox(width: RiffSpacing.lg),
               Expanded(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -129,16 +127,20 @@ class RiffSheetTile extends StatelessWidget {
                         style: theme.textTheme.bodyLarge?.copyWith(color: fg)),
                     if (subtitle != null && subtitle!.isNotEmpty)
                       Padding(
-                        padding: const EdgeInsets.only(top: 2),
+                        padding: const EdgeInsets.only(top: RiffSpacing.xxs),
                         child: Text(subtitle!,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: homeCardSubtitleStyle(context)),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant)),
                       ),
                   ],
                 ),
               ),
-              if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+              if (trailing != null) ...[
+                const SizedBox(width: RiffSpacing.sm),
+                trailing!
+              ],
             ],
           ),
         ),
@@ -147,19 +149,16 @@ class RiffSheetTile extends StatelessWidget {
   }
 }
 
-/// Thin separator between groups of rows.
+/// Full-width hairline between groups of rows (§5.10). Keeps its 9dp
+/// footprint; the line itself is one physical pixel in the divider colour.
 class RiffSheetDivider extends StatelessWidget {
   const RiffSheetDivider({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      child: Divider(
-        height: 1,
-        thickness: 1,
-        color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.18),
-      ),
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: RiffSpacing.xs),
+      child: Divider(height: 1),
     );
   }
 }
@@ -180,37 +179,40 @@ class RiffQuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = Theme.of(context).textTheme.titleMedium?.color ??
-        Theme.of(context).colorScheme.onSurface;
+    final theme = Theme.of(context);
+    final fg = theme.colorScheme.onSurface;
     return Padding(
       padding: const EdgeInsets.symmetric(
           horizontal: RiffSpacing.lg, vertical: RiffSpacing.sm),
-      child: Row(
+      // Equal-height tiles: the row is as tall as its tallest label.
+      child: IntrinsicHeight(
+          child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < actions.length; i++) ...[
-            if (i > 0) const SizedBox(width: 8),
+            if (i > 0) const SizedBox(width: RiffSpacing.sm),
             Expanded(
               child: Material(
-                color: homeTileColor(context),
-                borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
+                // One step above the sheet's surface1, flat, radius 8.
+                color: RiffColors.of(context).surface2,
+                borderRadius: BorderRadius.circular(RiffRadii.sm),
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(
                   onTap: actions[i].onTap,
                   child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: RiffSpacing.md, horizontal: RiffSpacing.xs),
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(actions[i].icon, size: 24, color: fg),
-                        const SizedBox(height: 6),
+                        Icon(actions[i].icon,
+                            size: RiffComponentSizes.sheetQuickIcon, color: fg),
+                        const SizedBox(height: RiffSpacing.xs),
                         Text(actions[i].label,
                             maxLines: 2,
                             textAlign: TextAlign.center,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
+                            style: theme.textTheme.labelSmall
                                 ?.copyWith(color: fg)),
                       ],
                     ),
@@ -220,13 +222,14 @@ class RiffQuickActions extends StatelessWidget {
             ),
           ],
         ],
-      ),
+      )),
     );
   }
 }
 
-/// Small rounded chip, for choices inside a sheet (sleep timer lengths,
-/// "open in" targets, …).
+/// Small pill chip, for choices inside a sheet (sleep timer lengths,
+/// "open in" targets, …). Styled per §5.6: 32 tall, 12dp sides, divider
+/// outline; selected = accentMuted fill, accent outline and text.
 class RiffChoiceChip extends StatelessWidget {
   const RiffChoiceChip(
       {super.key,
@@ -243,28 +246,30 @@ class RiffChoiceChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.secondary;
-    final fg = selected
-        ? theme.colorScheme.onPrimary
-        : (theme.textTheme.titleMedium?.color ?? theme.colorScheme.onSurface);
+    final fg = selected ? accent : theme.colorScheme.onSurface;
     return Material(
-      color: selected ? accent : homeTileColor(context),
+      color: selected ? RiffColors.of(context).accentMuted : Colors.transparent,
       shape: StadiumBorder(
-          side: selected ? BorderSide.none : homeTileBorder(context)),
+          side: BorderSide(color: selected ? accent : theme.dividerColor)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(icon, size: 18, color: fg),
-                const SizedBox(width: 6),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: RiffSizes.chipHeight),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon,
+                      size: RiffComponentSizes.chipLeadingIcon, color: fg),
+                  const SizedBox(width: RiffSpacing.xs),
+                ],
+                Text(label,
+                    style: theme.textTheme.labelMedium?.copyWith(color: fg)),
               ],
-              Text(label,
-                  style: theme.textTheme.labelMedium?.copyWith(color: fg)),
-            ],
+            ),
           ),
         ),
       ),

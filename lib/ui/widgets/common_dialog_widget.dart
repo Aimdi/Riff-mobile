@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../screens/Home/home_layout.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 
+/// The app's dialog frame. Background, 16dp radius, barrier and text
+/// styles come from the theme's [DialogTheme] (§5.11).
 class CommonDialog extends StatelessWidget {
   const CommonDialog({super.key, this.child, this.maxWidth = 500});
   final double maxWidth;
@@ -12,17 +15,14 @@ class CommonDialog extends StatelessWidget {
     return Align(
       child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: maxWidth),
-          child: Dialog(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-            child: child,
-          )),
+          child: Dialog(child: child)),
     );
   }
 }
 
-/// Dialog heading: an optional accent icon badge over a bold title, the
-/// same family as the sheet titles.
+/// Dialog heading: an optional icon badge over a titleLarge title, the
+/// same family as the sheet titles. The badge is a flat surface2 circle
+/// (the accent is kept for interactive things, §2.5).
 class RiffDialogTitle extends StatelessWidget {
   const RiffDialogTitle(this.title, {super.key, this.icon, this.subtitle});
   final String title;
@@ -32,41 +32,42 @@ class RiffDialogTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final fg =
-        theme.textTheme.titleMedium?.color ?? theme.colorScheme.onSurface;
-    final accent = theme.colorScheme.secondary;
+    final fg = theme.colorScheme.onSurface;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (icon != null) ...[
           Container(
-            width: 52,
-            height: 52,
+            width: RiffComponentSizes.dialogBadge,
+            height: RiffComponentSizes.dialogBadge,
             decoration: BoxDecoration(
-              color: accent.withOpacity(0.16),
+              color: RiffColors.of(context).surface2,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: accent, size: 26),
+            child:
+                Icon(icon, color: fg, size: RiffComponentSizes.dialogBadgeIcon),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: RiffSpacing.md),
         ],
         Text(title,
             textAlign: TextAlign.center,
             style: theme.textTheme.titleLarge?.copyWith(color: fg)),
         if (subtitle != null && subtitle!.isNotEmpty) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: RiffSpacing.xs),
+          // Dialog body text: primary colour on surface1 (§5.11).
           Text(subtitle!,
               textAlign: TextAlign.center,
-              style: homeCardSubtitleStyle(context)),
+              style: theme.textTheme.bodyLarge?.copyWith(color: fg)),
         ],
       ],
     );
   }
 }
 
-/// Full-width dialog button: accent-filled for the main action, a quiet
-/// text button otherwise. A null [onPressed] keeps the space but hides the
-/// label (for "working…" states).
+/// Full-width dialog button (§5.5): a pill [FilledButton] for the main
+/// action, a [TextButton] otherwise; colours and text from the button
+/// themes. A null [onPressed] keeps the space but hides the label (for
+/// "working…" states).
 class RiffDialogButton extends StatelessWidget {
   const RiffDialogButton(this.label,
       {super.key, required this.onPressed, this.primary = true});
@@ -76,32 +77,18 @@ class RiffDialogButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final fg =
-        theme.textTheme.titleMedium?.color ?? theme.colorScheme.onSurface;
-    const shape = StadiumBorder();
     final text = Text(label);
-    final labelStyle = theme.textTheme.labelLarge;
+    const size = Size.fromHeight(RiffComponentSizes.button);
     if (!primary) {
       return TextButton(
         onPressed: onPressed,
-        style: TextButton.styleFrom(
-            foregroundColor: fg,
-            textStyle: labelStyle,
-            minimumSize: const Size.fromHeight(46),
-            shape: shape),
+        style: TextButton.styleFrom(minimumSize: size),
         child: text,
       );
     }
     return FilledButton(
       onPressed: onPressed,
-      style: FilledButton.styleFrom(
-          backgroundColor: theme.colorScheme.secondary,
-          foregroundColor: theme.colorScheme.onPrimary,
-          textStyle: labelStyle,
-          disabledBackgroundColor: homeTileColor(context),
-          minimumSize: const Size.fromHeight(48),
-          shape: shape),
+      style: FilledButton.styleFrom(minimumSize: size),
       child: text,
     );
   }

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/ui/player/play_queue_order.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/ui/player/player_controller.dart';
 
 enum SanckBarSize { BIG, MEDIUM, SMALL }
@@ -22,34 +24,36 @@ void snackOperationFailed([BuildContext? context]) {
   );
 }
 
+/// The app's snackbar (§5.12): floating, 16dp side margins, radius 8,
+/// accent fill, 15/600 text in the on-accent colour. It sits above the
+/// mini player, or near the top when [top] is set. [size] is kept for
+/// existing callers; the width now follows the 16dp margins.
 SnackBar snackbar(BuildContext context, String text,
     {SanckBarSize size = SanckBarSize.MEDIUM,
     Duration duration = const Duration(seconds: 1),
     bool top = false}) {
-  final scrWidth = MediaQuery.of(context).size.width;
-  final hrMargin = size == SanckBarSize.BIG
-      ? (scrWidth - 300) / 2
-      : size == SanckBarSize.MEDIUM
-          ? (scrWidth - 200) / 2
-          : (scrWidth - 100) / 2;
+  final theme = Theme.of(context);
+  final onAccent = theme.colorScheme.onSecondary;
   return SnackBar(
-    backgroundColor: Theme.of(context).colorScheme.secondary,
+    backgroundColor: theme.colorScheme.secondary,
     content: Center(
       child: Text(
         text,
-        style: TextStyle(
-            // Text on the accent fill (§5.12).
-            color: Theme.of(context).colorScheme.onSecondary),
+        style: (theme.snackBarTheme.contentTextStyle ??
+                theme.textTheme.labelMedium)
+            ?.copyWith(color: onAccent),
       ),
     ),
-    //width: width,
-
     margin: EdgeInsets.only(
-        bottom: top ? MediaQuery.of(context).size.height * 0.8 : 100,
-        left: hrMargin,
-        right: hrMargin),
+        bottom: top
+            ? MediaQuery.of(context).size.height * 0.8
+            : RiffSpacing.snackbarBottom,
+        left: RiffSpacing.lg,
+        right: RiffSpacing.lg),
     behavior: SnackBarBehavior.floating,
     duration: duration,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    elevation: 0,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(RiffRadii.sm))),
   );
 }
