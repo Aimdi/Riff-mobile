@@ -9,8 +9,7 @@ import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/player/components/lyrics_widget.dart';
 import '/ui/player/components/player_video_surface.dart';
 import '/ui/player/player_controller.dart';
-import '/ui/utils/riff_tokens.dart';
-import '/ui/utils/theme_controller.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/utils/media_item_video.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
@@ -53,6 +52,9 @@ class AlbumArtNLyrics extends StatelessWidget {
       final song = playerController.currentSong.value;
       if (song == null) return const SizedBox.shrink();
 
+      // Lyrics dim the cover with the page colour, so their text reads in
+      // the page's text colours.
+      final page = Theme.of(context).colorScheme.surface;
       final canVideo = song.canShowPlayerVideo;
       final isVideo = canVideo && videoPlaybackEnabledFor(song);
       // Spotify-style: videos use a 16:9 frame, songs keep the square cover.
@@ -142,32 +144,23 @@ class AlbumArtNLyrics extends StatelessWidget {
                           },
                         )
                       : DecoratedBox(
+                          // Flat artwork: no shadow (§2.1).
                           decoration: BoxDecoration(
-                            borderRadius:
-                                BorderRadius.circular(RiffTokens.radiusLg),
-                            boxShadow: [
-                              BoxShadow(
-                                color: RiffColors.of(context)
-                                    .scrim
-                                    .withOpacity(0.45),
-                                blurRadius: 28,
-                                offset: const Offset(0, 14),
-                              ),
-                            ],
+                            borderRadius: BorderRadius.circular(RiffRadii.sm),
                           ),
                           child: ImageWidget(
                             size: playerArtImageSize,
                             song: song,
                             isPlayerArtImage: true,
-                            borderRadius: RiffTokens.radiusLg,
+                            borderRadius: RiffRadii.sm,
                           ),
                         ),
                 ),
                 // Opt-in muted surface: stays off until the user taps show-video.
                 if (canVideo && !isVideo)
                   Positioned(
-                    right: 8,
-                    top: 8,
+                    right: RiffSpacing.sm,
+                    top: RiffSpacing.sm,
                     child: PlayerVideoEnableButton(
                       onShow: () async {
                         await AlbumArtNLyrics.setVideoPlaybackEnabled(
@@ -185,9 +178,8 @@ class AlbumArtNLyrics extends StatelessWidget {
                           height: height,
                           width: width,
                           decoration: BoxDecoration(
-                            color: RiffSurfaces.voidBlack.withOpacity(0.82),
-                            borderRadius:
-                                BorderRadius.circular(RiffTokens.radiusLg),
+                            color: page.withOpacity(0.82),
+                            borderRadius: BorderRadius.circular(RiffRadii.sm),
                           ),
                           child: Stack(
                             children: [
@@ -197,18 +189,17 @@ class AlbumArtNLyrics extends StatelessWidget {
                               IgnorePointer(
                                 child: Container(
                                   decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(
-                                        RiffTokens.radiusLg),
+                                    borderRadius:
+                                        BorderRadius.circular(RiffRadii.sm),
                                     gradient: LinearGradient(
                                       begin: Alignment.topCenter,
                                       end: Alignment.bottomCenter,
                                       colors: [
-                                        RiffSurfaces.voidBlack
-                                            .withOpacity(0.90),
+                                        page.withOpacity(0.90),
                                         Colors.transparent,
                                         Colors.transparent,
                                         Colors.transparent,
-                                        RiffSurfaces.voidBlack.withOpacity(0.90)
+                                        page.withOpacity(0.90)
                                       ],
                                       stops: const [0, 0.2, 0.5, 0.8, 1],
                                     ),

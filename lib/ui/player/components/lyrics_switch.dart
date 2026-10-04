@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:harmonymusic/ui/utils/theme_controller.dart';
 import 'package:toggle_switch/toggle_switch.dart';
 
 import '../player_controller.dart';
@@ -11,7 +10,8 @@ class LyricsSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final PlayerController playerController = Get.find<PlayerController>();
-    final accent = Theme.of(context).colorScheme.secondary;
+    final scheme = Theme.of(context).colorScheme;
+    final accent = scheme.secondary;
     return Obx(
       () => playerController.showLyricsflag.value
           ? Padding(
@@ -23,9 +23,9 @@ class LyricsSwitch extends StatelessWidget {
                   [accent],
                   [accent],
                 ],
-                activeFgColor: RiffSurfaces.voidBlack,
-                inactiveBgColor: RiffSurfaces.elevated,
-                inactiveFgColor: RiffSurfaces.textMuted,
+                activeFgColor: scheme.onSecondary,
+                inactiveBgColor: scheme.surfaceContainerLow,
+                inactiveFgColor: scheme.onSurfaceVariant,
                 initialLabelIndex: playerController.lyricsMode.value,
                 totalSwitches: 2,
                 labels: ['synced'.tr, 'plain'.tr],
