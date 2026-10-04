@@ -50,6 +50,8 @@ class RiffDurations {
   static const Duration select = Duration(milliseconds: 200);
   static const Duration sheet = Duration(milliseconds: 250);
   static const Duration page = Duration(milliseconds: 250);
+  /// Page-header hairline fading in/out as content scrolls under it.
+  static const Duration headerHairline = Duration(milliseconds: 200);
   static const Curve selectCurve = Curves.easeOutCubic;
 }
 
@@ -63,6 +65,10 @@ class RiffComponentSizes {
   static const double headerIcon = 22;
   static const double trailingIcon = 20;
   static const double railIcon = 24;
+  /// Songs accordion children (Playlists / Albums / Artists).
+  static const double railSubIcon = 20;
+  /// Circular press highlight behind a rail glyph.
+  static const double railHighlight = 40;
   static const double iconHit = 40;
   static const double buttonCompact = 36;
   static const double button = 40;
