@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shimmer/shimmer.dart';
 
+import '/ui/theme/riff_tokens.dart';
 import 'basic_container.dart';
 
 class SongListShimmer extends StatelessWidget {
@@ -10,10 +10,7 @@ class SongListShimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Shimmer.fromColors(
-      baseColor: scheme.surfaceContainerHighest.withOpacity(0.45),
-      highlightColor: scheme.surface.withOpacity(0.75),
+    return RiffSkeletonPulse(
       child: ListView.builder(
           itemCount: itemCount,
           padding: EdgeInsets.only(top: topPadding, left: 0),
@@ -23,12 +20,13 @@ class SongListShimmer extends StatelessWidget {
     );
   }
 
+  /// Row thumbnails and text lines use the row's thumbnail radius (§4.3).
   Widget _listTile() {
     return const ListTile(
-      leading: BasicShimmerContainer(Size(50, 50)),
-      title: BasicShimmerContainer(Size(90, 20)),
-      subtitle: BasicShimmerContainer(Size(40, 15)),
-      trailing: BasicShimmerContainer(Size(50, 20)),
+      leading: BasicShimmerContainer(Size(50, 50), radius: RiffRadii.xs),
+      title: BasicShimmerContainer(Size(90, 20), radius: RiffRadii.xs),
+      subtitle: BasicShimmerContainer(Size(40, 15), radius: RiffRadii.xs),
+      trailing: BasicShimmerContainer(Size(50, 20), radius: RiffRadii.xs),
     );
   }
 }
