@@ -23,6 +23,8 @@ import '/services/podcast_transcripts.dart';
 import 'podcast_player_tint.dart';
 import 'podcast_transcript_sheet.dart';
 import 'standard_player.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 
 /// Now-playing screen for podcasts and audiobooks: the episode or chapter
 /// is what matters, so the layout is built around position and pacing
@@ -148,7 +150,7 @@ class _Art extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.45),
+                color: RiffColors.of(context).scrim.withOpacity(0.45),
                 blurRadius: 32,
                 offset: const Offset(0, 14),
               ),
@@ -200,6 +202,7 @@ class _Controls extends StatelessWidget {
     final theme = Theme.of(context);
     final fg = theme.textTheme.titleMedium?.color ?? RiffSurfaces.textPrimary;
     final accent = theme.colorScheme.secondary;
+    final onAccent = theme.colorScheme.onPrimary;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -220,12 +223,7 @@ class _Controls extends StatelessWidget {
                 ),
                 child: Text(
                   (isBook ? 'audiobookLabel' : 'podcastLabel').tr.toUpperCase(),
-                  style: TextStyle(
-                    color: accent,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.0,
-                  ),
+                  style: theme.textTheme.labelSmall?.copyWith(color: accent),
                 ),
               ),
               const SizedBox(height: 10),
@@ -234,12 +232,7 @@ class _Controls extends StatelessWidget {
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  height: 1.2,
-                  letterSpacing: -0.3,
-                ),
+                style: theme.textTheme.titleLarge,
               ),
               if (show.trim().isNotEmpty) ...[
                 const SizedBox(height: 4),
@@ -248,11 +241,8 @@ class _Controls extends StatelessWidget {
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: fg.withOpacity(0.7),
-                  ),
+                  style: theme.textTheme.bodyLarge
+                      ?.copyWith(color: fg.withOpacity(0.7)),
                 ),
               ],
             ],
@@ -269,12 +259,11 @@ class _Controls extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: ActionChip(
-                    avatar: const Icon(Icons.fast_forward_rounded,
-                        size: 18, color: RiffSurfaces.voidBlack),
+                    avatar: Icon(Icons.fast_forward_rounded,
+                        size: 18, color: onAccent),
                     label: Text(podcastSkipPillLabel(pc),
-                        style: const TextStyle(
-                            color: RiffSurfaces.voidBlack,
-                            fontWeight: FontWeight.w700)),
+                        style: theme.textTheme.labelMedium
+                            ?.copyWith(color: onAccent)),
                     backgroundColor: accent,
                     onPressed: pc.skipAd,
                   ),
@@ -317,8 +306,9 @@ class _ChapterLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pc = Get.find<PlayerController>();
-    final fg = Theme.of(context).textTheme.titleMedium?.color ??
-        RiffSurfaces.textPrimary;
+    final theme = Theme.of(context);
+    final fg = theme.textTheme.titleMedium?.color ?? RiffSurfaces.textPrimary;
+    final riff = RiffColors.of(context);
     return Obx(() {
       final song = pc.currentSong.value;
       String label = '';
@@ -343,13 +333,17 @@ class _ChapterLine extends StatelessWidget {
       if (label.isEmpty) return const SizedBox(height: 0);
       return Center(
         child: Material(
-          color: Colors.white.withOpacity(0.08),
+          color: riff.onImage.withOpacity(0.08),
           shape: const StadiumBorder(),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 6, 8, 6),
+              padding: const EdgeInsets.only(
+                  left: RiffSpacing.md,
+                  top: RiffSpacing.sm,
+                  right: RiffSpacing.sm,
+                  bottom: RiffSpacing.sm),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -363,11 +357,8 @@ class _ChapterLine extends StatelessWidget {
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: fg.withOpacity(0.9),
-                      ),
+                      style: theme.textTheme.labelMedium
+                          ?.copyWith(color: fg.withOpacity(0.9)),
                     ),
                   ),
                   Icon(Icons.chevron_right_rounded,
@@ -421,11 +412,7 @@ class _ToolRow extends StatelessWidget {
                     badge ?? label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: c,
-                    ),
+                    style: theme.textTheme.labelSmall?.copyWith(color: c),
                   ),
                 ],
               ),
@@ -436,7 +423,7 @@ class _ToolRow extends StatelessWidget {
 
       return Container(
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.06),
+          color: RiffColors.of(context).onImage.withOpacity(0.06),
           borderRadius: BorderRadius.circular(16),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -514,12 +501,18 @@ void openQueueChaptersSheet(BuildContext context) {
         final accent = Theme.of(ctx).colorScheme.secondary;
         return ListView.builder(
           controller: scroll,
-          padding: const EdgeInsets.fromLTRB(8, 0, 8, 32),
+          padding: const EdgeInsets.only(
+              left: RiffSpacing.sm,
+              right: RiffSpacing.sm,
+              bottom: RiffSpacing.x3l),
           itemCount: queue.length + 1,
           itemBuilder: (ctx, i) {
             if (i == 0) {
               return Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                padding: const EdgeInsets.only(
+                    left: RiffSpacing.md,
+                    right: RiffSpacing.md,
+                    bottom: RiffSpacing.md),
                 child: Text('chapters'.tr,
                     style: Theme.of(ctx).textTheme.titleLarge),
               );
@@ -540,10 +533,10 @@ void openQueueChaptersSheet(BuildContext context) {
                 m.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: playing ? accent : null,
-                  fontWeight: playing ? FontWeight.w700 : FontWeight.w500,
-                ),
+                style: (playing
+                        ? Theme.of(ctx).textTheme.titleMedium
+                        : Theme.of(ctx).textTheme.bodyLarge)
+                    ?.copyWith(color: playing ? accent : null),
               ),
               trailing: d == null
                   ? null

@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../../widgets/loader.dart';
 import '../player_controller.dart';
 import 'word_synced_lyrics.dart';
+import '/ui/theme/riff_tokens.dart';
 
 class LyricsWidget extends StatelessWidget {
   final EdgeInsetsGeometry padding;
@@ -36,7 +37,7 @@ class LyricsWidget extends StatelessWidget {
                       : Theme.of(context)
                           .textTheme
                           .titleMedium!
-                          .copyWith(color: Colors.white),
+                          .copyWith(color: RiffColors.of(context).onImage),
                 ),
               ),
             ),
@@ -67,7 +68,7 @@ class LyricsWidget extends StatelessWidget {
                       : Theme.of(context)
                           .textTheme
                           .titleMedium!
-                          .copyWith(color: Colors.white),
+                          .copyWith(color: RiffColors.of(context).onImage),
                 ),
               ),
             ),

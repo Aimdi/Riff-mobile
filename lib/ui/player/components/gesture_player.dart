@@ -13,6 +13,8 @@ import 'animated_play_button.dart';
 import 'backgroud_image.dart';
 import 'player_control.dart';
 import 'standard_player.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 
 /// Full-bleed cover player: the artwork fills the screen and is the control
 /// surface (swipe for next / previous, double-tap to play or pause,
@@ -26,6 +28,7 @@ class GesturePlayer extends StatelessWidget {
     final pc = Get.find<PlayerController>();
     final theme = Theme.of(context);
     final accent = theme.colorScheme.secondary;
+    final riff = RiffColors.of(context);
     final bottomInset = Get.mediaQuery.padding.bottom;
     return Stack(
       children: [
@@ -53,7 +56,7 @@ class GesturePlayer extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.black.withOpacity(0.35),
+                  riff.scrim.withOpacity(0.35),
                   Colors.transparent,
                   theme.primaryColor.withOpacity(0.85),
                   theme.primaryColor,
@@ -76,7 +79,7 @@ class GesturePlayer extends StatelessWidget {
                             width: 96,
                             height: 96,
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.45),
+                              color: riff.scrim.withOpacity(0.45),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
@@ -93,7 +96,10 @@ class GesturePlayer extends StatelessWidget {
         Align(
           alignment: Alignment.bottomCenter,
           child: Padding(
-            padding: EdgeInsets.fromLTRB(24, 0, 24, 80 + bottomInset),
+            padding: EdgeInsets.only(
+                left: RiffSpacing.xxl,
+                right: RiffSpacing.xxl,
+                bottom: RiffSpacing.unit * 20 + bottomInset),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 500),
               child: Column(
@@ -109,16 +115,11 @@ class GesturePlayer extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                (song?.title ?? '').isEmpty
-                                    ? '—'
-                                    : song!.title,
+                                (song?.title ?? '').isEmpty ? '—' : song!.title,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.titleLarge?.copyWith(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w800,
-                                  height: 1.15,
-                                  letterSpacing: -0.4,
+                                style: theme.textTheme.headlineSmall?.copyWith(
+                                  color: theme.textTheme.titleLarge?.color,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -126,9 +127,7 @@ class GesturePlayer extends StatelessWidget {
                                 song?.artist ?? '',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
+                                style: theme.textTheme.bodyLarge?.copyWith(
                                   color: (theme.textTheme.titleMedium?.color ??
                                           RiffSurfaces.textPrimary)
                                       .withOpacity(0.7),

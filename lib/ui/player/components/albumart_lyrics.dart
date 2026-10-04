@@ -14,6 +14,7 @@ import '/ui/utils/theme_controller.dart';
 import '/utils/media_item_video.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
+import '/ui/theme/riff_tokens.dart';
 
 class AlbumArtNLyrics extends StatelessWidget {
   const AlbumArtNLyrics({super.key, required this.playerArtImageSize});
@@ -105,7 +106,7 @@ class AlbumArtNLyrics extends StatelessWidget {
                       ),
                       isScrollControlled: true,
                       context: sheetContext,
-                      barrierColor: Colors.transparent.withAlpha(100),
+                      barrierColor: RiffColors.of(context).scrim.withAlpha(100),
                       builder: (context) => SongInfoBottomSheet(
                         song,
                         calledFromPlayer: true,
@@ -146,7 +147,9 @@ class AlbumArtNLyrics extends StatelessWidget {
                                 BorderRadius.circular(RiffTokens.radiusLg),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.45),
+                                color: RiffColors.of(context)
+                                    .scrim
+                                    .withOpacity(0.45),
                                 blurRadius: 28,
                                 offset: const Offset(0, 14),
                               ),

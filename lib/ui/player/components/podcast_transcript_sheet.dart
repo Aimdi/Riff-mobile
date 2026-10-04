@@ -15,6 +15,7 @@ import '/ui/screens/Home/home_layout.dart';
 import '/ui/screens/Podcasts/podcast_bookmarks_ui.dart';
 import '/ui/widgets/riff_sheet.dart';
 import '../player_controller.dart';
+import '/ui/theme/riff_spacing.dart';
 
 /// Episode transcript (feed `<podcast:transcript>` or YouTube captions).
 /// The current line follows playback; tap a line to jump there, long-press
@@ -227,8 +228,8 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
             else
               RiffSheetTitle(
                 'transcript'.tr,
-                subtitle: [widget.item.title, if (source != null) source]
-                    .join(' · '),
+                subtitle:
+                    [widget.item.title, if (source != null) source].join(' · '),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -267,8 +268,10 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
                             padding: const EdgeInsets.all(24),
                             child: Text('noTranscript'.tr,
                                 textAlign: TextAlign.center,
-                                style: homeCardSubtitleStyle(context)
-                                    .copyWith(fontSize: 14)),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.copyWith(color: homeMutedColor(context))),
                           ),
                         )
                       : _list(cues, timed, theme),
@@ -283,7 +286,8 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
     final has = _matches.isNotEmpty;
     final q = _searchCtrl.text.trim();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 4, 6),
+      padding: const EdgeInsets.only(
+          left: RiffSpacing.md, right: RiffSpacing.xs, bottom: RiffSpacing.sm),
       child: Row(
         children: [
           Expanded(
@@ -297,8 +301,8 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
                 hintText: 'transcriptSearch'.tr,
                 prefixIcon: const Icon(Icons.search_rounded),
                 isDense: true,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24)),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
               ),
             ),
           ),
@@ -311,8 +315,8 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
                       'total': '${_matches.length}',
                     })
                   : 'transcriptNoMatches'.tr,
-              style: homeCardSubtitleStyle(context).copyWith(
-                  fontFeatures: const [FontFeature.tabularFigures()]),
+              style: homeCardSubtitleStyle(context)
+                  .copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
             ),
           IconButton(
             tooltip: 'transcriptPrevMatch'.tr,
@@ -358,18 +362,27 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
             };
             return ScrollablePositionedList.builder(
               itemScrollController: _scroll,
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 80),
+              padding: const EdgeInsets.only(
+                  left: RiffSpacing.lg,
+                  right: RiffSpacing.lg,
+                  bottom: RiffSpacing.unit * 20),
               itemCount: cues.length + 1,
               itemBuilder: (context, row) {
                 if (row == 0) {
                   return Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 6, 4, 8),
+                    padding: const EdgeInsets.only(
+                        left: RiffSpacing.xs,
+                        top: RiffSpacing.sm,
+                        right: RiffSpacing.xs,
+                        bottom: RiffSpacing.sm),
                     child: Text(
                         timed
                             ? 'transcriptHint'.tr
                             : 'transcriptHintUntimed'.tr,
-                        style: homeCardSubtitleStyle(context)
-                            .copyWith(fontSize: 12)),
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(color: homeMutedColor(context))),
                   );
                 }
                 final i = row - 1;
@@ -379,8 +392,8 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
                     (i == 0 ||
                         segmentAt(segments, cues[i - 1].startSec)?.id !=
                             seg.id);
-                final isBookmarked = timed &&
-                    marked.contains((cue.startSec * 1000).round());
+                final isBookmarked =
+                    timed && marked.contains((cue.startSec * 1000).round());
                 return ValueListenableBuilder<int>(
                   valueListenable: _active,
                   builder: (context, active, _) => _TranscriptLine(
@@ -454,19 +467,16 @@ class _TranscriptLine extends StatelessWidget {
     final accent = theme.colorScheme.secondary;
     final normal = theme.textTheme.titleMedium?.color;
     final dim = theme.textTheme.bodySmall?.color?.withOpacity(0.6);
-    final base = TextStyle(
-      fontSize: 15,
-      height: 1.42,
-      color: active ? accent : normal,
-      fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-    );
+    final base =
+        (active ? theme.textTheme.titleMedium : theme.textTheme.bodyLarge)!
+            .copyWith(color: active ? accent : normal);
     final ranges = matchRanges(cue.text, query);
     final hl = accent.withOpacity(currentMatch ? 0.55 : 0.25);
     final spans = <InlineSpan>[
       if (cue.speaker != null)
         TextSpan(
             text: '${cue.speaker}  ',
-            style: base.copyWith(fontWeight: FontWeight.w700)),
+            style: theme.textTheme.titleMedium!.copyWith(color: base.color)),
     ];
     var at = 0;
     for (final (a, b) in ranges) {
@@ -503,9 +513,7 @@ class _TranscriptLine extends StatelessWidget {
                   children: [
                     Text(
                       formatSegmentLength(cue.startSec),
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                      style: theme.textTheme.labelSmall?.copyWith(
                           color: active ? accent : dim,
                           fontFeatures: const [FontFeature.tabularFigures()]),
                     ),
@@ -529,21 +537,22 @@ class _TranscriptLine extends StatelessWidget {
       decoration: BoxDecoration(
         color: seg.category.color.withOpacity(0.10),
         border: Border(
-            left: BorderSide(color: seg.category.color.withOpacity(0.8), width: 3)),
+            left: BorderSide(
+                color: seg.category.color.withOpacity(0.8), width: 3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (segmentStart)
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+              padding: const EdgeInsets.only(
+                  left: RiffSpacing.sm,
+                  top: RiffSpacing.sm,
+                  right: RiffSpacing.sm),
               child: Text(
                 seg.category.labelKey.tr.toUpperCase(),
-                style: TextStyle(
-                    fontSize: 11,
-                    letterSpacing: 0.8,
-                    fontWeight: FontWeight.w800,
-                    color: seg.category.color),
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(color: seg.category.color),
               ),
             ),
           line,
