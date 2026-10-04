@@ -17,6 +17,9 @@ class MainActivity : AudioServiceActivity() {
     /** Native ExoPlayer video engine (video mode). */
     private var videoPlayer: RiffVideoPlayer? = null
 
+    /** Song recognition microphone (`riff/mic`). */
+    private var micRecorder: MicRecorder? = null
+
     /** `riff/apps`: needs this activity (startActivity, packageManager). */
     private var appsChannel: MethodChannel? = null
 
@@ -42,6 +45,8 @@ class MainActivity : AudioServiceActivity() {
             flutterEngine.renderer,
             flutterEngine.dartExecutor.binaryMessenger,
         )
+        micRecorder?.stop()
+        micRecorder = MicRecorder(flutterEngine.dartExecutor.binaryMessenger)
         // Hand-off to other apps (WizeStream for YouTube podcasts).
         val apps = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
@@ -179,6 +184,8 @@ class MainActivity : AudioServiceActivity() {
         val owner = channelOwner?.get() === this
         videoPlayer?.dispose(detachChannels = owner)
         videoPlayer = null
+        micRecorder?.stop()
+        micRecorder = null
         if (owner) {
             appsChannel?.setMethodCallHandler(null)
             channelOwner = null

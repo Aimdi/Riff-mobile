@@ -34,6 +34,9 @@ class RiffPalette {
   /// Accent share in [accentMuted].
   static const double accentMutedOpacity = 0.12;
 
+  /// Pulse ring behind the listen button.
+  static const double recognizeRingOpacity = 0.2;
+
   /// Active rail item: accent fill and outline strengths.
   static const double railActiveFillOpacity = 0.16;
   static const double railActiveBorderOpacity = 0.28;
@@ -86,6 +89,14 @@ class RiffComponentSizes {
   static const double headerIcon = 22;
   static const double trailingIcon = 20;
   static const double railIcon = 24;
+
+  /// "What's playing?" screen: listen button, its pulse ring (box size and
+  /// growth at full mic level), glyph and the result cover.
+  static const double recognizeButton = 120;
+  static const double recognizeRingScale = 1.6;
+  static const double recognizeRingGrow = 0.6;
+  static const double recognizeGlyph = 48;
+  static const double recognizeCover = 200;
 
   /// Side rail, pre-restyle look (kept by request): 22 dp glyph in an
   /// 8 dp-padded box (Songs children: 18 in 6), radius 12 with a 0.5 dp

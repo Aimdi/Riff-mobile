@@ -24,6 +24,14 @@ jobs:
       - name: Install packages
         run: flutter pub get
 
+      # Song recognition: a real clip through the Dart signature to Shazam.
+      # Manual runs only, so a Shazam hiccup can't turn the nightly red.
+      - name: Song recognition (real Shazam)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+          flutter test test/song_recognition/shazam_live_test.dart -r expanded
+
       - name: Run diagnostics
         run: flutter test test/yt_e2e_diagnose_test.dart -r expanded
 

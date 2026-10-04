@@ -485,6 +485,13 @@ class _HomeHeader extends StatelessWidget {
                 icon: const Icon(Icons.search_rounded),
                 onPressed: () => _go(ScreenNavigationSetup.searchScreen),
               ),
+            // "What's playing?" — listen and name the song (Android).
+            if (GetPlatform.isAndroid)
+              IconButton(
+                tooltip: 'whatsPlaying'.tr,
+                icon: const Icon(Icons.mic_none_rounded),
+                onPressed: () => _go(ScreenNavigationSetup.recognizeScreen),
+              ),
           ],
         ),
       ),
