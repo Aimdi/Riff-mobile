@@ -14,10 +14,19 @@ class AnimatedPlayButton extends StatefulWidget {
   /// Outer diameter of the filled circle (default ~64).
   final double size;
 
+  /// Circle fill; defaults to the accent. The mini player passes
+  /// `Colors.transparent` for a bare glyph.
+  final Color? color;
+
+  /// Glyph (and buffering ring) colour; defaults to the dark on-accent.
+  final Color? iconColor;
+
   const AnimatedPlayButton({
     super.key,
     this.iconSize = 32.0,
     this.size = 64.0,
+    this.color,
+    this.iconColor,
   });
 
   @override
@@ -45,7 +54,8 @@ class _AnimatedPlayButtonState extends State<AnimatedPlayButton>
 
   @override
   Widget build(BuildContext context) {
-    final accent = Theme.of(context).colorScheme.secondary;
+    final accent = widget.color ?? Theme.of(context).colorScheme.secondary;
+    final glyph = widget.iconColor ?? RiffSurfaces.voidBlack;
     return GetX<PlayerController>(builder: (controller) {
       final buttonState = controller.buttonState.value;
       final isPlaying = buttonState == PlayButtonState.playing;
@@ -76,14 +86,14 @@ class _AnimatedPlayButtonState extends State<AnimatedPlayButton>
                     icon: AnimatedIcons.play_pause,
                     progress: _controller,
                     size: widget.iconSize,
-                    color: RiffSurfaces.voidBlack,
+                    color: glyph,
                   ),
                   if (isLoading)
                     SizedBox.square(
                       dimension: widget.size - 10,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: RiffSurfaces.voidBlack.withOpacity(0.35),
+                        color: glyph.withOpacity(0.35),
                       ),
                     ),
                 ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '/models/durationstate.dart';
+import '/ui/theme/riff_tokens.dart';
 
 class MiniPlayerProgressBar extends StatelessWidget {
   const MiniPlayerProgressBar(
@@ -12,7 +13,8 @@ class MiniPlayerProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      size: Size(MediaQuery.of(context).size.width, 2),
+      size: Size(
+          MediaQuery.of(context).size.width, RiffComponentSizes.miniProgress),
       painter: ProgressBarPainter(
           current: progressBarStatus.current,
           total: progressBarStatus.total,
@@ -31,16 +33,18 @@ class ProgressBarPainter extends CustomPainter {
   final Color progressBarColor;
   @override
   void paint(Canvas canvas, Size size) {
-    const p1 = Offset(0, 1.5);
+    // A flat 2-px accent line filling the track's height.
+    const y = RiffComponentSizes.miniProgress / 2;
+    const p1 = Offset(0, y);
     final p2 = Offset(
         total.inSeconds == 0
             ? 0
             : size.width * (current.inSeconds / total.inSeconds),
-        1.5);
+        y);
     final paint = Paint()
       ..color = progressBarColor
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round;
+      ..strokeWidth = RiffComponentSizes.miniProgress
+      ..strokeCap = StrokeCap.butt;
     canvas.drawLine(p1, p2, paint);
   }
 
