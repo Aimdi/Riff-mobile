@@ -1,5 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '/services/discovery/discovery_types.dart';
@@ -108,11 +109,14 @@ class _HomeHeroCarouselState extends State<HomeHeroCarousel> {
                   child: _HeroCard(
                     song: songs[i],
                     onPlay: () => _play(i),
-                    onLongPress: () => showCurrentSongSheet(
-                        song: songs[i],
-                        context: Get.find<PlayerController>()
-                            .homeScaffoldkey
-                            .currentContext),
+                    onLongPress: () {
+                      HapticFeedback.mediumImpact();
+                      showCurrentSongSheet(
+                          song: songs[i],
+                          context: Get.find<PlayerController>()
+                              .homeScaffoldkey
+                              .currentContext);
+                    },
                   ),
                 ),
               ),

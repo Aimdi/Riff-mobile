@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
 import '../../navigator.dart';
 import '../../widgets/riff_sheet.dart';
+import '/ui/theme/riff_spacing.dart';
 import 'home_feed_builder.dart';
 
 export 'home_feed_builder.dart' show HomeSection;
@@ -127,7 +129,6 @@ Future<void> showHomeSectionSheet(BuildContext context, HomeSection section) {
     context: context,
     useRootNavigator: true,
     constraints: const BoxConstraints(maxWidth: 500),
-    shape: riffSheetShape,
     builder: (sheet) => SafeArea(
       top: false,
       child: Column(
@@ -154,7 +155,7 @@ Future<void> showHomeSectionSheet(BuildContext context, HomeSection section) {
                   id: ScreenNavigationSetup.id);
             },
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: RiffSpacing.sm),
         ],
       ),
     ),
@@ -193,7 +194,10 @@ class HomeSectionSlot extends StatelessWidget {
     if (!switchableHomeSections.contains(section)) return body;
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
-      onLongPress: () => showHomeSectionSheet(context, section),
+      onLongPress: () {
+        HapticFeedback.mediumImpact();
+        showHomeSectionSheet(context, section);
+      },
       child: body,
     );
   }

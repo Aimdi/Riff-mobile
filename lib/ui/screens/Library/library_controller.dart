@@ -12,6 +12,7 @@ import '../../../utils/hive_boxes.dart';
 import '../../../utils/house_keeping.dart';
 import '../../widgets/add_to_playlist.dart';
 import '/ui/widgets/sort_widget.dart';
+import '/ui/theme/riff_spacing.dart';
 import '../Settings/settings_screen_controller.dart';
 import '/services/piped_service.dart';
 import '/services/cloud_music_service.dart';
@@ -634,14 +635,7 @@ class LibraryPlaylistsController extends GetxController
   void _showImportProgressDialog(BuildContext context) {
     Get.dialog(
       AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        title: Text(
-          "importingPlaylist".tr,
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
+        title: Text("importingPlaylist".tr),
         content: Obx(() => Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -649,21 +643,16 @@ class LibraryPlaylistsController extends GetxController
                   value: Get.isRegistered<LibraryPlaylistsController>()
                       ? importProgress.value
                       : 0,
-                  backgroundColor:
-                      Theme.of(context).colorScheme.surfaceContainerHighest,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    Theme.of(context).colorScheme.secondary,
-                  ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: RiffSpacing.lg),
                 Text(
                   "${(Get.isRegistered<LibraryPlaylistsController>() ? importProgress.value * 100 : 0).toInt()}%",
-                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
             )),
       ),
       barrierDismissible: false,
+      barrierColor: Theme.of(context).dialogTheme.barrierColor,
     );
   }
 }

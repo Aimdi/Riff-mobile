@@ -1,5 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '/services/discovery/discovery_types.dart';
@@ -102,15 +103,16 @@ class _HomeSpeedDialState extends State<HomeSpeedDial> {
 
   void _songMenu(MediaItem song) {
     final player = Get.find<PlayerController>();
+    HapticFeedback.mediumImpact();
     showCurrentSongSheet(
         song: song, context: player.homeScaffoldkey.currentContext);
   }
 
   void _pinMenu(BuildContext context, SpeedDialPin pin) {
+    HapticFeedback.mediumImpact();
     showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
-      shape: riffSheetShape,
       builder: (sheet) => SafeArea(
         top: false,
         child: Column(
@@ -126,7 +128,7 @@ class _HomeSpeedDialState extends State<HomeSpeedDial> {
                 SpeedDialPins.unpin(pin.key);
               },
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: RiffSpacing.sm),
           ],
         ),
       ),
