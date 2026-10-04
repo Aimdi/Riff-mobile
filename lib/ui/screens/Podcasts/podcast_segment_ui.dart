@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/theme/riff_spacing.dart';
 import '/services/podcast_bookmarks.dart';
 import '/services/podcast_segments.dart';
 import '/ui/navigator.dart';
@@ -45,8 +46,8 @@ Future<void> showPodcastSegmentsSheet(BuildContext context) {
     builder: (sheet) => SafeArea(
       top: false,
       child: ConstrainedBox(
-        constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(sheet).height * 0.8),
+        constraints:
+            BoxConstraints(maxHeight: MediaQuery.sizeOf(sheet).height * 0.8),
         child: Obx(() {
           PodcastSegmentStore.rev.value;
           final segments = pc.podcastSegments.toList();
@@ -56,8 +57,9 @@ Future<void> showPodcastSegmentsSheet(BuildContext context) {
               : PodcastSegmentStore.manual(item.id);
           final pending = pc.manualSegmentStart.value;
           PodcastBookmarkStore.rev.value;
-          final bookmarks =
-              item == null ? 0 : PodcastBookmarkStore.forEpisode(item.id).length;
+          final bookmarks = item == null
+              ? 0
+              : PodcastBookmarkStore.forEpisode(item.id).length;
           return ListView(
             shrinkWrap: true,
             children: [
@@ -102,9 +104,7 @@ Future<void> showPodcastSegmentsSheet(BuildContext context) {
                           if (!sheet.mounted) return;
                           ScaffoldMessenger.of(sheet).showSnackBar(snackbar(
                               sheet,
-                              ok
-                                  ? 'segmentMarked'.tr
-                                  : 'segmentTooShort'.tr,
+                              ok ? 'segmentMarked'.tr : 'segmentTooShort'.tr,
                               size: SanckBarSize.BIG));
                         },
                       ),
@@ -117,7 +117,11 @@ Future<void> showPodcastSegmentsSheet(BuildContext context) {
               const RiffSheetDivider(),
               if (segments.isEmpty && manual.isEmpty)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                  padding: const EdgeInsets.only(
+                      left: RiffSpacing.xl,
+                      top: RiffSpacing.sm,
+                      right: RiffSpacing.xl,
+                      bottom: RiffSpacing.md),
                   child: Text('noSegments'.tr,
                       style: homeCardSubtitleStyle(context)),
                 ),
@@ -213,9 +217,8 @@ class _SegmentRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = segment;
-    final what = ignored
-        ? 'segAction_ignore'.tr
-        : 'segAction_${s.action.name}'.tr;
+    final what =
+        ignored ? 'segAction_ignore'.tr : 'segAction_${s.action.name}'.tr;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20),
       leading: _Dot(color: s.category.color),
@@ -248,17 +251,20 @@ class PodcastSegmentSettings extends StatelessWidget {
               style: homeSectionTitleStyle(context)),
           const SizedBox(height: 4),
           Text('segmentSkippingIntro'.tr,
-              style: homeCardSubtitleStyle(context).copyWith(fontSize: 13)),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: homeMutedColor(context))),
           if (saved > Duration.zero) ...[
             const SizedBox(height: 6),
             Text(
               'segmentTimeSaved'.trParams({
                 'time': formatSegmentLength(saved.inMilliseconds / 1000),
               }),
-              style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: Theme.of(context).colorScheme.secondary),
+              style: Theme.of(context)
+                  .textTheme
+                  .labelMedium
+                  ?.copyWith(color: Theme.of(context).colorScheme.secondary),
             ),
           ],
           for (final c in SegmentCategory.values) ...[
@@ -269,8 +275,7 @@ class PodcastSegmentSettings extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(c.labelKey.tr,
-                      style: const TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w600)),
+                      style: Theme.of(context).textTheme.titleMedium),
                 ),
               ],
             ),

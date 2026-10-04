@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/services/podcast_playback_profile.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import 'podcast_library_ui.dart';
 import 'podcast_playback_controls.dart';
 
@@ -136,14 +138,13 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                               setState(() => _oldestFirst = !_oldestFirst),
                           style: TextButton.styleFrom(
                             foregroundColor: homeMutedColor(context),
+                            textStyle: theme.textTheme.labelMedium,
                             minimumSize: const Size(0, 30),
                             padding: const EdgeInsets.symmetric(horizontal: 10),
                           ),
                           icon: const Icon(Icons.swap_vert_rounded, size: 18),
                           label: Text(
                             _oldestFirst ? 'oldestFirst'.tr : 'newestFirst'.tr,
-                            style: const TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w600),
                           ),
                         ),
                 ),
@@ -166,8 +167,10 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                     padding: const EdgeInsets.all(32),
                     child: Center(
                       child: Text('noEpisodes'.tr,
-                          style: homeCardSubtitleStyle(context)
-                              .copyWith(fontSize: 14)),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyLarge
+                              ?.copyWith(color: homeMutedColor(context))),
                     ),
                   ),
                 )
@@ -221,8 +224,7 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                 widget.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleLarge
-                    ?.copyWith(fontSize: 18, fontWeight: FontWeight.w700),
+                style: theme.textTheme.titleMedium,
               ),
             ),
           ),
@@ -250,15 +252,13 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                     showPodcastShowLibrarySheet(context,
                         showKey: widget.playbackKey!, title: widget.title);
                   case 1:
-                    markShowListened(context, widget.episodes,
-                        onChanged: () {
+                    markShowListened(context, widget.episodes, onChanged: () {
                       if (mounted) setState(() {});
                     });
                 }
               },
               itemBuilder: (_) => [
-                PopupMenuItem(
-                    value: 0, child: Text('showLibrarySettings'.tr)),
+                PopupMenuItem(value: 0, child: Text('showLibrarySettings'.tr)),
                 if (widget.episodes.isNotEmpty)
                   PopupMenuItem(value: 1, child: Text('markAllListened'.tr)),
               ],
@@ -291,7 +291,7 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black.withOpacity(0.55),
+                      RiffColors.of(context).scrim.withOpacity(0.55),
                       Colors.transparent
                     ],
                   ).createShader(r),
@@ -302,7 +302,7 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                       imageUrl: Thumbnail(widget.artUrl).medium,
                       fit: BoxFit.cover,
                       memCacheWidth: 120,
-                      color: Colors.black.withOpacity(0.35),
+                      color: RiffColors.of(context).scrim.withOpacity(0.35),
                       colorBlendMode: BlendMode.darken,
                       errorWidget: (_, __, ___) => const SizedBox.shrink(),
                     ),
@@ -310,8 +310,11 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                 ),
         ),
         Padding(
-          padding: EdgeInsets.fromLTRB(
-              HomeLayout.gutter + 8, top + 64, HomeLayout.gutter + 8, 4),
+          padding: EdgeInsets.only(
+              left: HomeLayout.gutter + RiffSpacing.sm,
+              top: top + RiffSpacing.unit * 16,
+              right: HomeLayout.gutter + RiffSpacing.sm,
+              bottom: RiffSpacing.xs),
           child: Column(
             children: [
               Container(
@@ -321,7 +324,7 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.45),
+                      color: RiffColors.of(context).scrim.withOpacity(0.45),
                       blurRadius: 28,
                       offset: const Offset(0, 12),
                     ),
@@ -335,12 +338,7 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                 textAlign: TextAlign.center,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  height: 1.2,
-                  letterSpacing: -0.3,
-                ),
+                style: theme.textTheme.titleLarge,
               ),
               if (widget.author.trim().isNotEmpty) ...[
                 const SizedBox(height: 4),
@@ -349,11 +347,8 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: homeCardTitleStyle(context).copyWith(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.secondary,
-                  ),
+                  style: theme.textTheme.labelMedium
+                      ?.copyWith(color: theme.colorScheme.secondary),
                 ),
               ],
               if (meta.isNotEmpty) ...[
@@ -372,6 +367,7 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                         style: FilledButton.styleFrom(
                           backgroundColor: theme.colorScheme.secondary,
                           foregroundColor: RiffSurfaces.voidBlack,
+                          textStyle: theme.textTheme.labelLarge,
                           disabledBackgroundColor:
                               theme.colorScheme.secondary.withOpacity(0.35),
                           shape: const StadiumBorder(),
@@ -384,8 +380,6 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                           resume != null
                               ? 'resumeEpisode'.tr
                               : 'latestEpisode'.tr,
-                          style: const TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ),
@@ -407,8 +401,10 @@ class _PodcastShowViewState extends State<PodcastShowView> {
   Widget _about(BuildContext context) {
     final text = podcastPlainText(widget.description);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          HomeLayout.gutter, 14, HomeLayout.gutter, 0),
+      padding: const EdgeInsets.only(
+          left: HomeLayout.gutter,
+          top: RiffSpacing.lg,
+          right: HomeLayout.gutter),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
         onTap: () => setState(() => _aboutOpen = !_aboutOpen),
@@ -423,16 +419,13 @@ class _PodcastShowViewState extends State<PodcastShowView> {
               style: Theme.of(context)
                   .textTheme
                   .bodyMedium
-                  ?.copyWith(height: 1.45, color: homeMutedColor(context)),
+                  ?.copyWith(color: homeMutedColor(context)),
             ),
             const SizedBox(height: 4),
             Text(
               _aboutOpen ? 'showLess'.tr : 'readMore'.tr,
-              style: TextStyle(
-                color: Theme.of(context).textTheme.titleMedium?.color,
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-              ),
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Theme.of(context).textTheme.titleMedium?.color),
             ),
           ],
         ),
@@ -478,8 +471,11 @@ class _EpisodeRow extends StatelessWidget {
           onTap: onTap,
           onLongPress: onLongPress,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-                HomeLayout.gutter, 14, HomeLayout.gutter - 4, 14),
+            padding: const EdgeInsets.only(
+                left: HomeLayout.gutter,
+                top: RiffSpacing.lg,
+                right: HomeLayout.gutter - RiffSpacing.xs,
+                bottom: RiffSpacing.lg),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -489,19 +485,15 @@ class _EpisodeRow extends StatelessWidget {
                     children: [
                       if (meta.isNotEmpty)
                         Text(meta,
-                            style: homeCardSubtitleStyle(context)
-                                .copyWith(fontSize: 12)),
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: homeMutedColor(context))),
                       const SizedBox(height: 3),
                       Text(
                         episode.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: homeCardTitleStyle(context).copyWith(
-                          fontSize: 15,
-                          height: 1.3,
-                          fontWeight: FontWeight.w700,
-                          color: playing ? accent : null,
-                        ),
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(color: playing ? accent : null),
                       ),
                       if (notes.isNotEmpty) ...[
                         const SizedBox(height: 4),
@@ -509,8 +501,8 @@ class _EpisodeRow extends StatelessWidget {
                           notes,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: homeCardSubtitleStyle(context)
-                              .copyWith(fontSize: 12.5, height: 1.35),
+                          style: theme.textTheme.bodyMedium
+                              ?.copyWith(color: homeMutedColor(context)),
                         ),
                       ],
                       if (partly) ...[

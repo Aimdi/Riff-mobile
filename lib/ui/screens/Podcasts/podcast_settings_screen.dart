@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/theme/riff_spacing.dart';
 import '/services/podcast_playback_profile.dart';
 import '../../widgets/cust_switch.dart';
 import '../Home/home_layout.dart';
@@ -29,8 +30,10 @@ class PodcastSettingsScreen extends StatelessWidget {
               final defaults = PodcastPlaybackPrefs.globalDefaults;
               final smartResume = PodcastPlaybackPrefs.smartResume;
               return ListView(
-                padding: const EdgeInsets.fromLTRB(
-                    HomeLayout.gutter + 4, 0, HomeLayout.gutter + 4, 200),
+                padding: const EdgeInsets.only(
+                    left: HomeLayout.gutter + RiffSpacing.xs,
+                    right: HomeLayout.gutter + RiffSpacing.xs,
+                    bottom: RiffSpacing.listEnd),
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
@@ -39,8 +42,10 @@ class PodcastSettingsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text('podcastPlaybackDefaultsDes'.tr,
-                      style: homeCardSubtitleStyle(context)
-                          .copyWith(fontSize: 13)),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: homeMutedColor(context))),
                   PodcastPlaybackEditor(
                     profile: defaults,
                     onChanged: savePodcastDefaults,
@@ -62,9 +67,8 @@ class PodcastSettingsScreen extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('podcastTintPlayer'.tr,
-                                  style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600)),
+                                  style:
+                                      Theme.of(context).textTheme.titleMedium),
                               const SizedBox(height: 2),
                               Text('podcastTintPlayerDes'.tr,
                                   style: homeCardSubtitleStyle(context)),
@@ -90,9 +94,7 @@ class PodcastSettingsScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('smartResume'.tr,
-                                style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600)),
+                                style: Theme.of(context).textTheme.titleMedium),
                             const SizedBox(height: 2),
                             Text('smartResumeDes'.tr,
                                 style: homeCardSubtitleStyle(context)),

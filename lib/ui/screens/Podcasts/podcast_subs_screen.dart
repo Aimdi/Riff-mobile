@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import '/models/playlist.dart';
 import '/services/podcast_service.dart';
 import '/services/wizestream_service.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '../Home/home_layout.dart';
 import 'podcast_cover_tile.dart';
 import 'podcast_empty_state.dart';
@@ -60,7 +62,11 @@ void _folderSheet(BuildContext context, String id, String title,
             mainAxisSize: MainAxisSize.min,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+                padding: const EdgeInsets.only(
+                    left: RiffSpacing.lg,
+                    top: RiffSpacing.lg,
+                    right: RiffSpacing.lg,
+                    bottom: RiffSpacing.sm),
                 child: Row(
                   children: [
                     Expanded(
@@ -121,7 +127,11 @@ void showReorderFoldersSheet(BuildContext context) {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+              padding: const EdgeInsets.only(
+                  left: RiffSpacing.lg,
+                  top: RiffSpacing.lg,
+                  right: RiffSpacing.lg,
+                  bottom: RiffSpacing.sm),
               child: Text('reorderFolders'.tr,
                   style: Theme.of(ctx).textTheme.titleMedium),
             ),
@@ -236,7 +246,8 @@ class _FolderColorPicker extends StatelessWidget {
                 ),
               ),
               child: selected == i
-                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+                  ? Icon(Icons.check,
+                      size: 16, color: RiffColors.of(context).onImage)
                   : null,
             ),
           ),
@@ -296,7 +307,7 @@ class PodcastSubsScreen extends StatelessWidget {
                 playlist: podcast,
                 imageUrl: podcast.thumbnailUrl,
                 badge: isYoutubeChannelPodcast(podcast)
-                    ? youtubeChannelBadge()
+                    ? youtubeChannelBadge(context)
                     : null,
                 onTap: () => openLibraryPodcast(podcast),
                 onPlay: () => playLibraryPodcast(podcast),
@@ -331,7 +342,11 @@ class PodcastSubsScreen extends StatelessWidget {
             final shows = controller.libraryPodcasts.length +
                 PodcastService.subscriptions.length;
             return Padding(
-              padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 6, 4, 2),
+              padding: const EdgeInsets.only(
+                  left: HomeLayout.gutter,
+                  top: RiffSpacing.sm,
+                  right: RiffSpacing.xs,
+                  bottom: RiffSpacing.xxs),
               child: SizedBox(
                 height: 40,
                 child: Row(
@@ -339,8 +354,10 @@ class PodcastSubsScreen extends StatelessWidget {
                     Expanded(
                       child: Text(
                         podcastShowCount(shows),
-                        style: homeCardSubtitleStyle(context)
-                            .copyWith(fontSize: 13),
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(color: homeMutedColor(context)),
                       ),
                     ),
                     if (folders.folders.length > 1)
@@ -424,7 +441,11 @@ class PodcastSubsScreen extends StatelessWidget {
           // Refresh color selection when setColor updates the list.
           final current = fc.findById(folder.id) ?? folder;
           return Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            padding: const EdgeInsets.only(
+                left: RiffSpacing.lg,
+                top: RiffSpacing.sm,
+                right: RiffSpacing.lg,
+                bottom: RiffSpacing.md),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '/models/thumbnail.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/services/podcast_segments.dart';
 import '/services/podcast_stats.dart';
 import '../../widgets/snackbar.dart';
@@ -96,8 +97,11 @@ class _PodcastStatsScreenState extends State<PodcastStatsScreen> {
                       message: 'podcastStatsEmpty'.tr,
                     )
                   : SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(
-                          HomeLayout.gutter, 8, HomeLayout.gutter, 200),
+                      padding: const EdgeInsets.only(
+                          left: HomeLayout.gutter,
+                          top: RiffSpacing.sm,
+                          right: HomeLayout.gutter,
+                          bottom: RiffSpacing.listEnd),
                       child: RepaintBoundary(
                         key: _card,
                         child: _StatsCard(listened: listened),
@@ -132,15 +136,11 @@ class _StatsCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('statsListened'.tr.toUpperCase(),
-              style: homeCardSubtitleStyle(context).copyWith(
-                  fontSize: 12, letterSpacing: 1, fontWeight: FontWeight.w700)),
+              style: theme.textTheme.labelSmall
+                  ?.copyWith(color: homeMutedColor(context))),
           const SizedBox(height: 4),
           Text(podcastStatsDuration(listened),
-              style: TextStyle(
-                  fontSize: 36,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.8,
-                  color: accent)),
+              style: theme.textTheme.displayMedium?.copyWith(color: accent)),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -148,16 +148,15 @@ class _StatsCard extends StatelessWidget {
                 child: _Tile(
                     icon: Icons.speed_rounded,
                     label: 'statsSavedSpeed'.tr,
-                    value: podcastStatsDuration(
-                        PodcastStatsService.savedBySpeed)),
+                    value:
+                        podcastStatsDuration(PodcastStatsService.savedBySpeed)),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: _Tile(
                     icon: Icons.fast_forward_rounded,
                     label: 'statsSavedSkipping'.tr,
-                    value:
-                        podcastStatsDuration(PodcastSegmentStore.timeSaved)),
+                    value: podcastStatsDuration(PodcastSegmentStore.timeSaved)),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -180,8 +179,8 @@ class _StatsCard extends StatelessWidget {
                     SizedBox(
                       width: 22,
                       child: Text('${i + 1}',
-                          style: homeCardSubtitleStyle(context).copyWith(
-                              fontWeight: FontWeight.w800, fontSize: 14)),
+                          style: theme.textTheme.labelMedium
+                              ?.copyWith(color: homeMutedColor(context))),
                     ),
                     PodcastArt(
                         url: Thumbnail(top[i].artUri ?? '').medium, size: 44),
@@ -190,10 +189,10 @@ class _StatsCard extends StatelessWidget {
                       child: Text(top[i].title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w600)),
+                          style: theme.textTheme.titleMedium),
                     ),
-                    Text(podcastStatsDuration(Duration(milliseconds: top[i].ms)),
+                    Text(
+                        podcastStatsDuration(Duration(milliseconds: top[i].ms)),
                         style: homeCardSubtitleStyle(context)),
                   ],
                 ),
@@ -206,8 +205,7 @@ class _StatsCard extends StatelessWidget {
               Icon(Icons.podcasts_rounded, size: 14, color: accent),
               const SizedBox(width: 4),
               Text('Riff',
-                  style: TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w800, color: accent)),
+                  style: theme.textTheme.labelSmall?.copyWith(color: accent)),
             ],
           ),
         ],
@@ -238,12 +236,14 @@ class _Tile extends StatelessWidget {
           Text(value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+              style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 2),
           Text(label,
               maxLines: 2,
-              style: homeCardSubtitleStyle(context).copyWith(fontSize: 12)),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: homeMutedColor(context))),
         ],
       ),
     );

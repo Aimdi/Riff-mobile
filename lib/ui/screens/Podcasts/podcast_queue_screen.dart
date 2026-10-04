@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '/models/thumbnail.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/services/podcast_download_service.dart';
 import '/services/podcast_library.dart';
 import '/services/podcast_progress_service.dart';
@@ -151,10 +152,8 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode,
                     snack("markAsPlayed".tr);
                     // Finished downloads may go, per the show's setting.
                     PodcastLibrary.sweepDownloads(
-                        currentId: Get.find<PlayerController>()
-                            .currentSong
-                            .value
-                            ?.id);
+                        currentId:
+                            Get.find<PlayerController>().currentSong.value?.id);
                   }
                   Navigator.of(ctx).pop();
                   onChanged?.call();
@@ -180,7 +179,11 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode,
                       maxChildSize: 0.9,
                       builder: (_, scrollCtrl) => SingleChildScrollView(
                         controller: scrollCtrl,
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+                        padding: const EdgeInsets.only(
+                            left: RiffSpacing.xl,
+                            top: RiffSpacing.lg,
+                            right: RiffSpacing.xl,
+                            bottom: RiffSpacing.unit * 10),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -260,7 +263,11 @@ class PodcastQueueScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 6, 4, 2),
+            padding: const EdgeInsets.only(
+                left: HomeLayout.gutter,
+                top: RiffSpacing.sm,
+                right: RiffSpacing.xs,
+                bottom: RiffSpacing.xxs),
             child: SizedBox(
               height: 40,
               child: Row(
@@ -273,8 +280,10 @@ class PodcastQueueScreen extends StatelessWidget {
                       ]),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style:
-                          homeCardSubtitleStyle(context).copyWith(fontSize: 13),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: homeMutedColor(context)),
                     ),
                   ),
                   // Non-embedded gets the clear action in the AppBar instead.
