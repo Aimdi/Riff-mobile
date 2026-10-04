@@ -156,7 +156,7 @@ class _HeroCard extends StatelessWidget {
       label: label,
       excludeSemantics: true,
       child: Material(
-        color: theme.colorScheme.surfaceContainerHigh,
+        color: theme.colorScheme.surfaceContainerLow,
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(RiffSizes.carouselRadius)),
         clipBehavior: Clip.antiAlias,
@@ -198,7 +198,7 @@ class _HeroCard extends StatelessWidget {
                         Text(song.artist!,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
+                            style: theme.textTheme.bodyMedium?.copyWith(
                                 color: riff.onImage.withOpacity(0.8))),
                     ],
                   ),
