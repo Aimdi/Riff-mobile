@@ -1,3 +1,42 @@
+# 1.7.133
+
+**A new Home**
+* Your own music comes first, always in the same order: Jump back in,
+  Riff Wave, Speed dial, Quick picks, your mixes and shows, Your week, then
+  up to four YouTube Music shelves and an Explore more button for the rest.
+  The YouTube feed can no longer push Riff Wave, Speed dial or Quick picks
+  down, and empty sections leave no gap
+* Jump back in: the queue you left, podcast episodes and audiobooks in
+  progress, as up to four tiles with a progress bar. Tap to resume,
+  long-press for more
+* One row of stations under Riff Wave: Fresh finds, Rediscover, Energize,
+  Feel good, Relax and Workout. Every chip starts playing. Explore moved
+  to the top bar, next to Stats and Search; YouTube's genre chips are on
+  the Explore page now
+* Speed dial: no play buttons on the covers; the song that's playing shows
+  a moving equalizer. Long-press an album, playlist or artist on any shelf
+  to pin it to Speed dial
+* Quick picks: bigger cards, with the next one peeking in and a Play all
+  button
+* Shelves: one card size per kind (covers, round artists, wide videos),
+  no badges on covers, and each song, album or playlist appears only once
+  on Home. Charts and hits shelves are merged into one, and so are mood and
+  time-of-day shelves; Throwback is gone (Rediscover covers it), and
+  shelves with too few items or mostly missing covers are hidden
+* Missing covers show a coloured tile with the first letter of the title
+  instead of a music note
+* Headers are in sentence case. Home draws behind a transparent status
+  bar, and the end of the page clears the mini player
+* The side rail keeps its width when Songs is expanded, and TalkBack reads
+  every rail item, chip and card
+* Home layout in Settings now switches sections on and off; the order is
+  fixed
+
+**Fixes**
+* Your week no longer names "Podcast" as your top artist: podcast
+  episodes and audiobook chapters don't count toward top artists in Your
+  week, Stats or Rewind
+
 # 1.7.132
 
 **Spotify Connect (Premium)**

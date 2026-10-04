@@ -4,6 +4,13 @@ import 'package:sidebar_with_animation/animated_side_bar.dart';
 
 import 'package:harmonymusic/ui/screens/Home/home_screen_controller.dart';
 
+/// Width of the phone rail, measured from the items as they were (4dp +
+/// 8dp icon padding + 22dp icon + 8dp + 4dp, plus the selected item's
+/// 0.5dp border each side) and now fixed, so expanding Songs (whose
+/// sub-items used to be wider) can't shift the content pane. Home sizes
+/// its content from the pane that is left.
+const double kRailWidth = 47;
+
 // Tab indices used by HomeScreenController.onSideBarTabSelected:
 // 0 Home, 1 Songs, 2 Podcasts, 3 Audiobooks, 4 Playlists,
 // 5 Albums, 6 Artists, 7 Settings.
@@ -79,100 +86,116 @@ class _SideNavBarState extends State<SideNavBar> {
     return Align(
       alignment: Alignment.topCenter,
       child: isMobileOrTabScreen
-          ? SingleChildScrollView(
-              padding: EdgeInsets.only(
-                  top: size.height < 750 ? 30 : 60, bottom: 80),
-              child: Obx(() {
-                final sel = homeScreenController.tabIndex.value;
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _railItem(
-                      homeScreenController,
-                      sel,
-                      destination: _destinations[0],
-                    ),
-                    // Songs — tap opens Songs, the caret expands the sub-section.
-                    _railItem(
-                      homeScreenController,
-                      sel,
-                      destination: _destinations[1],
-                      // sub-items are "selected" too so Songs stays highlighted
-                      selectedForIndices: const [1, 4, 5, 6],
-                      trailing: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: () =>
-                            setState(() => _songsExpanded = !_songsExpanded),
-                        child: Padding(
-                          padding: const EdgeInsets.all(4),
-                          child: AnimatedRotation(
-                            turns: _songsExpanded ? -0.5 : 0.0,
-                            duration: const Duration(milliseconds: 260),
-                            curve: Curves.easeInOutCubic,
-                            child: Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 20,
-                              color:
-                                  Theme.of(context).textTheme.titleLarge!.color,
+          ? SizedBox(
+              width: kRailWidth,
+              child: SingleChildScrollView(
+                padding: EdgeInsets.only(
+                    top: size.height < 750 ? 30 : 60, bottom: 80),
+                child: Obx(() {
+                  final sel = homeScreenController.tabIndex.value;
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _railItem(
+                        homeScreenController,
+                        sel,
+                        destination: _destinations[0],
+                      ),
+                      // Songs — tap opens Songs, the caret expands the sub-section.
+                      _railItem(
+                        homeScreenController,
+                        sel,
+                        destination: _destinations[1],
+                        // sub-items are "selected" too so Songs stays highlighted
+                        selectedForIndices: const [1, 4, 5, 6],
+                        trailing: Semantics(
+                          button: true,
+                          expanded: _songsExpanded,
+                          label: 'songs'.tr,
+                          excludeSemantics: true,
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: () => setState(
+                                () => _songsExpanded = !_songsExpanded),
+                            // Full rail width, 48dp tall: a real touch target
+                            // for a 20dp caret.
+                            child: SizedBox(
+                              width: kRailWidth,
+                              height: 48,
+                              child: Center(
+                                child: AnimatedRotation(
+                                  turns: _songsExpanded ? -0.5 : 0.0,
+                                  duration: const Duration(milliseconds: 260),
+                                  curve: Curves.easeInOutCubic,
+                                  child: Icon(
+                                    Icons.keyboard_arrow_down_rounded,
+                                    size: 20,
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge!
+                                        .color,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    // Smoothly expand/collapse the sub-section (size + fade).
-                    AnimatedSize(
-                      duration: const Duration(milliseconds: 260),
-                      curve: Curves.easeInOutCubic,
-                      alignment: Alignment.topCenter,
-                      child: AnimatedOpacity(
-                        opacity: _songsExpanded ? 1.0 : 0.0,
-                        duration: const Duration(milliseconds: 220),
-                        curve: Curves.easeInOut,
-                        child: _songsExpanded
-                            ? Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  _railItem(
-                                    homeScreenController,
-                                    sel,
-                                    destination: _destinations[4],
-                                    sub: true,
-                                  ),
-                                  _railItem(
-                                    homeScreenController,
-                                    sel,
-                                    destination: _destinations[5],
-                                    sub: true,
-                                  ),
-                                  _railItem(
-                                    homeScreenController,
-                                    sel,
-                                    destination: _destinations[6],
-                                    sub: true,
-                                  ),
-                                ],
-                              )
-                            : const SizedBox.shrink(),
+                      // Smoothly expand/collapse the sub-section (size + fade).
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeInOutCubic,
+                        alignment: Alignment.topCenter,
+                        child: AnimatedOpacity(
+                          opacity: _songsExpanded ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeInOut,
+                          child: _songsExpanded
+                              ? Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _railItem(
+                                      homeScreenController,
+                                      sel,
+                                      destination: _destinations[4],
+                                      sub: true,
+                                    ),
+                                    _railItem(
+                                      homeScreenController,
+                                      sel,
+                                      destination: _destinations[5],
+                                      sub: true,
+                                    ),
+                                    _railItem(
+                                      homeScreenController,
+                                      sel,
+                                      destination: _destinations[6],
+                                      sub: true,
+                                    ),
+                                  ],
+                                )
+                              : const SizedBox.shrink(),
+                        ),
                       ),
-                    ),
-                    _railItem(
-                      homeScreenController,
-                      sel,
-                      destination: _destinations[2],
-                    ),
-                    _railItem(
-                      homeScreenController,
-                      sel,
-                      destination: _destinations[3],
-                    ),
-                    _railItem(
-                      homeScreenController,
-                      sel,
-                      destination: _destinations[7],
-                    ),
-                  ],
-                );
-              }),
+                      _railItem(
+                        homeScreenController,
+                        sel,
+                        destination: _destinations[2],
+                      ),
+                      _railItem(
+                        homeScreenController,
+                        sel,
+                        destination: _destinations[3],
+                      ),
+                      _railItem(
+                        homeScreenController,
+                        sel,
+                        destination: _destinations[7],
+                      ),
+                    ],
+                  );
+                }),
+              ),
             )
           : Padding(
               padding: const EdgeInsets.only(bottom: 100.0),
@@ -226,7 +249,7 @@ class _SideNavBarState extends State<SideNavBar> {
       onTap: () => controller.onSideBarTabSelected(destination.index),
       child: Padding(
         padding: EdgeInsets.symmetric(
-            vertical: sub ? 4 : 8, horizontal: sub ? 10 : 4),
+            vertical: sub ? 4 : 8, horizontal: sub ? 8 : 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -235,9 +258,8 @@ class _SideNavBarState extends State<SideNavBar> {
               curve: Curves.easeOutCubic,
               padding: EdgeInsets.all(sub ? 6 : 8),
               decoration: BoxDecoration(
-                color: isSelected
-                    ? accent.withOpacity(0.16)
-                    : Colors.transparent,
+                color:
+                    isSelected ? accent.withOpacity(0.16) : Colors.transparent,
                 borderRadius: BorderRadius.circular(12),
                 border: isSelected
                     ? Border.all(color: accent.withOpacity(0.28), width: 0.5)
@@ -258,23 +280,29 @@ class _SideNavBarState extends State<SideNavBar> {
                   style: TextStyle(
                     color: color,
                     fontSize: sub ? 12 : 15,
-                    fontWeight:
-                        isSelected ? FontWeight.w700 : FontWeight.w500,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                     letterSpacing: -0.1,
                   ),
                 ),
               ),
             ],
-            if (trailing != null) ...[
-              const SizedBox(height: 4),
-              trailing,
-            ],
           ],
         ),
       ),
     );
-    if (!destination.iconOnly) return item;
-    return Tooltip(message: destination.labelKey.tr, child: item);
+    // TalkBack reads the destination once, as a selectable button.
+    final labelled = Semantics(
+      button: true,
+      selected: isSelected,
+      label: destination.labelKey.tr,
+      excludeSemantics: true,
+      child: item,
+    );
+    final entry = destination.iconOnly
+        ? Tooltip(message: destination.labelKey.tr, child: labelled)
+        : labelled;
+    if (trailing == null) return entry;
+    return Column(mainAxisSize: MainAxisSize.min, children: [entry, trailing]);
   }
 }
 

@@ -3,31 +3,50 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/services/discovery/discovery_types.dart';
+import '/ui/navigator.dart';
 import '/ui/player/player_controller.dart';
-import '/ui/utils/riff_tokens.dart';
+import '../../widgets/collection_play.dart';
 import '../../widgets/image_widget.dart';
+import '../../widgets/letter_art.dart';
+import '../../widgets/riff_equalizer.dart';
+import '../../widgets/riff_sheet.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
-import 'home_layout.dart';
+import 'home_feed_builder.dart';
+import 'home_feed_data.dart';
+import 'home_metrics.dart';
 
-/// Speed dial: pages of a 3×3 cover grid with a play glyph on each, and
-/// dots under them. Tap plays, long-press opens the song menu.
+/// Speed dial: pages of a 3×3 cover grid, no labels and no play glyphs.
+/// Tap plays in place (pinned artists open), long-press opens the menu.
+/// The last tile of the first page is the dice: everything, shuffled.
+/// Dots sit 8dp under the grid, inside this section, only when there is
+/// more than one page.
 class HomeSpeedDial extends StatefulWidget {
   const HomeSpeedDial({
     super.key,
-    required this.title,
-    required this.songs,
+    required this.items,
+    required this.metrics,
     this.source = DiscoverySource.home,
   });
 
-  final String title;
-  final List<MediaItem> songs;
+  final List<HomeItem> items;
+  final HomeMetrics metrics;
   final DiscoverySource source;
 
   static const columns = 3;
   static const rows = 3;
-  static const maxPages = 3;
   static const perPage = columns * rows;
+
+  /// Dice marker in the slot list.
+  static const dice = Object();
+
+  /// Tiles in page order: the dice takes the ninth slot once there is a
+  /// full page; at most three pages.
+  static List<Object> slots(List<Object> values) {
+    final out = <Object>[...values];
+    if (out.length >= perPage) out.insert(perPage - 1, dice);
+    return out.take(perPage * speedDialPageCount(out.length)).toList();
+  }
 
   @override
   State<HomeSpeedDial> createState() => _HomeSpeedDialState();
@@ -43,100 +62,156 @@ class _HomeSpeedDialState extends State<HomeSpeedDial> {
     super.dispose();
   }
 
-  Future<void> _play(int i) async {
-    final ok = await Get.find<PlayerController>()
-        .playPlayListSong(widget.songs, i, source: widget.source);
+  List<MediaItem> get _songs => [
+        for (final i in widget.items)
+          if (i.value is MediaItem) i.value as MediaItem
+      ];
+
+  Future<void> _playSong(MediaItem song) async {
+    final songs = _songs;
+    final at = songs.indexWhere((s) => s.id == song.id);
+    final player = Get.find<PlayerController>();
+    if (player.currentSong.value?.id == song.id) {
+      player.playPause();
+      return;
+    }
+    final ok = await player.playPlayListSong(songs, at < 0 ? 0 : at,
+        source: widget.source);
     if (!ok) snackOperationFailed();
   }
 
-  /// The dice tile: everything in the dial, shuffled.
+  Future<void> _playPin(SpeedDialPin pin) async {
+    if (pin.type == 'artist') {
+      Get.toNamed(ScreenNavigationSetup.artistScreen,
+          id: ScreenNavigationSetup.id, arguments: [true, pin.id]);
+      return;
+    }
+    final ok = await playCollection(
+        isAlbum: pin.type == 'album', id: pin.id, title: pin.title);
+    if (!ok) snackOperationFailed();
+  }
+
   Future<void> _shuffle() async {
-    final shuffled = List<MediaItem>.of(widget.songs)..shuffle();
+    final shuffled = List<MediaItem>.of(_songs)..shuffle();
+    if (shuffled.isEmpty) return;
     final ok = await Get.find<PlayerController>()
         .playPlayListSong(shuffled, 0, source: widget.source);
     if (!ok) snackOperationFailed();
   }
 
-  void _menu(MediaItem song) {
+  void _songMenu(MediaItem song) {
     final player = Get.find<PlayerController>();
     showCurrentSongSheet(
         song: song, context: player.homeScaffoldkey.currentContext);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final songs = widget.songs
-        .take(HomeSpeedDial.perPage * HomeSpeedDial.maxPages)
-        .toList();
-    if (songs.isEmpty) return const SizedBox.shrink();
-    final pages = (songs.length / HomeSpeedDial.perPage).ceil();
-    final accent = Theme.of(context).colorScheme.secondary;
-    final muted = homeMutedColor(context) ?? Colors.grey;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        HomeSectionHeader(widget.title),
-        LayoutBuilder(builder: (context, constraints) {
-          const gap = HomeLayout.tileGap;
-          final inner = constraints.maxWidth - HomeLayout.gutter * 2;
-          final tile =
-              (inner - gap * (HomeSpeedDial.columns - 1)) / HomeSpeedDial.columns;
-          final lastPageRows = ((songs.length - (pages - 1) * HomeSpeedDial.perPage) /
-                  HomeSpeedDial.columns)
-              .ceil();
-          final rowsShown = pages > 1 ? HomeSpeedDial.rows : lastPageRows;
-          final height = tile * rowsShown + gap * (rowsShown - 1);
-          return SizedBox(
-            height: height,
-            child: PageView.builder(
-              controller: _page,
-              itemCount: pages,
-              onPageChanged: (i) => setState(() => _current = i),
-              itemBuilder: (context, p) {
-                final start = p * HomeSpeedDial.perPage;
-                final slice = songs.sublist(
-                    start, (start + HomeSpeedDial.perPage).clamp(0, songs.length));
-                return Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
-                  child: Wrap(
-                    spacing: gap,
-                    runSpacing: gap,
-                    children: [
-                      for (var i = 0; i < slice.length; i++)
-                        if (p == 0 &&
-                            i == HomeSpeedDial.perPage - 1 &&
-                            songs.length >= HomeSpeedDial.perPage)
-                          _DiceTile(size: tile, onTap: _shuffle)
-                        else
-                          _DialTile(
-                            song: slice[i],
-                            size: tile,
-                            onTap: () => _play(start + i),
-                            onLongPress: () => _menu(slice[i]),
-                          ),
-                    ],
-                  ),
-                );
+  void _pinMenu(BuildContext context, SpeedDialPin pin) {
+    showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      shape: riffSheetShape,
+      builder: (sheet) => SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const RiffSheetHandle(),
+            RiffSheetTitle(pin.title),
+            RiffSheetTile(
+              icon: Icons.push_pin_outlined,
+              title: 'unpinFromSpeedDial'.tr,
+              onTap: () {
+                Navigator.of(sheet).pop();
+                SpeedDialPins.unpin(pin.key);
               },
             ),
-          );
-        }),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final slots =
+        HomeSpeedDial.slots([for (final i in widget.items) i.value as Object]);
+    if (slots.isEmpty) return const SizedBox.shrink();
+    final pages = speedDialPageCount(slots.length);
+    final tile = widget.metrics.speedTile;
+    const gap = RiffSpacing.gridGap;
+    final rowsShown = pages > 1
+        ? HomeSpeedDial.rows
+        : (slots.length / HomeSpeedDial.columns).ceil();
+    final height = tile * rowsShown + gap * (rowsShown - 1);
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        RiffSectionHeader('speedDial'.tr),
+        SizedBox(
+          height: height,
+          child: PageView.builder(
+            controller: _page,
+            itemCount: pages,
+            onPageChanged: (i) => setState(() => _current = i),
+            itemBuilder: (context, p) {
+              final start = p * HomeSpeedDial.perPage;
+              final slice = slots.sublist(start,
+                  (start + HomeSpeedDial.perPage).clamp(0, slots.length));
+              return Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: RiffSpacing.gutter),
+                child: Wrap(
+                  spacing: gap,
+                  runSpacing: gap,
+                  children: [
+                    for (final v in slice)
+                      if (identical(v, HomeSpeedDial.dice))
+                        _DiceTile(size: tile, onTap: _shuffle)
+                      else if (v is MediaItem)
+                        _DialTile(
+                          size: tile,
+                          label:
+                              '${v.title}${v.artist?.isNotEmpty == true ? ', ${v.artist}' : ''}',
+                          songId: v.id,
+                          art:
+                              ImageWidget(song: v, size: tile, borderRadius: 0),
+                          onTap: () => _playSong(v),
+                          onLongPress: () => _songMenu(v),
+                        )
+                      else if (v is SpeedDialPin)
+                        _DialTile(
+                          size: tile,
+                          label: v.title,
+                          circle: v.type == 'artist',
+                          art: _PinArt(pin: v, size: tile),
+                          onTap: () => _playPin(v),
+                          onLongPress: () => _pinMenu(context, v),
+                        ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
         if (pages > 1)
           Padding(
-            padding: const EdgeInsets.only(top: 10),
+            padding: const EdgeInsets.only(top: RiffSizes.dotsTop),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 for (var i = 0; i < pages; i++)
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: i == _current ? 18 : 7,
-                    height: 7,
+                  Container(
+                    width: RiffSizes.dot,
+                    height: RiffSizes.dot,
                     margin: const EdgeInsets.symmetric(horizontal: 3),
                     decoration: BoxDecoration(
-                      color: i == _current ? accent : muted.withOpacity(0.35),
-                      borderRadius: BorderRadius.circular(4),
+                      shape: BoxShape.circle,
+                      color: i == _current
+                          ? theme.colorScheme.onSurface
+                          : theme.colorScheme.onSurface.withOpacity(0.28),
                     ),
                   ),
               ],
@@ -147,45 +222,84 @@ class _HomeSpeedDialState extends State<HomeSpeedDial> {
   }
 }
 
-class _DialTile extends StatelessWidget {
-  const _DialTile(
-      {required this.song,
-      required this.size,
-      required this.onTap,
-      required this.onLongPress});
-  final MediaItem song;
+class _PinArt extends StatelessWidget {
+  const _PinArt({required this.pin, required this.size});
+  final SpeedDialPin pin;
   final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    if (pin.art.isEmpty) {
+      return LetterArt(
+          title: pin.title, size: size, circle: pin.type == 'artist');
+    }
+    return ImageWidget(
+      song: MediaItem(
+          id: pin.key, title: pin.title, artUri: Uri.tryParse(pin.art)),
+      size: size,
+      borderRadius: 0,
+    );
+  }
+}
+
+class _DialTile extends StatelessWidget {
+  const _DialTile({
+    required this.size,
+    required this.label,
+    required this.art,
+    required this.onTap,
+    required this.onLongPress,
+    this.songId,
+    this.circle = false,
+  });
+  final double size;
+  final String label;
+  final Widget art;
+  final String? songId;
+  final bool circle;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox.square(
-      dimension: size,
-      child: Material(
-        color: homeTileColor(context),
-        borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          onLongPress: onLongPress,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ImageWidget(song: song, size: size, borderRadius: 0),
-              Center(
-                child: Container(
-                  width: size * 0.36,
-                  height: size * 0.36,
-                  decoration: const BoxDecoration(
-                    color: Color(0x80000000),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.play_arrow_rounded,
-                      color: Colors.white, size: size * 0.22),
-                ),
-              ),
-            ],
+    final shape = circle
+        ? const CircleBorder()
+        : RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(RiffSizes.tileRadius));
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: SizedBox.square(
+        dimension: size,
+        child: Material(
+          color: Theme.of(context).colorScheme.surfaceContainerHigh,
+          shape: shape,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            onLongPress: onLongPress,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                art,
+                if (songId != null && Get.isRegistered<PlayerController>())
+                  Obx(() {
+                    final player = Get.find<PlayerController>();
+                    final current = player.currentSong.value?.id == songId;
+                    final playing =
+                        player.buttonState.value == PlayButtonState.playing;
+                    if (!current) return const SizedBox.shrink();
+                    return ColoredBox(
+                      color: const Color(0x66000000),
+                      child: Center(
+                        child:
+                            RiffEqualizer(animate: playing, size: size * 0.3),
+                      ),
+                    );
+                  }),
+              ],
+            ),
           ),
         ),
       ),
@@ -201,18 +315,21 @@ class _DiceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = Theme.of(context).colorScheme.secondary;
-    return SizedBox.square(
-      dimension: size,
-      child: Material(
-        color: homeTileColor(context),
-        borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Tooltip(
-            message: 'shuffle'.tr,
-            child: Icon(Icons.casino_rounded, size: size * 0.38, color: accent),
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      label: 'shuffle'.tr,
+      excludeSemantics: true,
+      child: SizedBox.square(
+        dimension: size,
+        child: Material(
+          color: scheme.secondaryContainer,
+          borderRadius: BorderRadius.circular(RiffSizes.tileRadius),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Icon(Icons.casino_rounded,
+                size: size * 0.38, color: scheme.onSecondaryContainer),
           ),
         ),
       ),

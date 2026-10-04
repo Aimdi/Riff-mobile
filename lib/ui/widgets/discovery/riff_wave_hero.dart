@@ -7,12 +7,13 @@ import '/services/discovery/discovery_service.dart';
 import '/services/stats_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/screens/Home/home_screen_controller.dart';
-import '/ui/utils/riff_tokens.dart';
-import '/ui/screens/Home/home_layout.dart';
+import '/ui/screens/Home/home_metrics.dart';
+import '/ui/widgets/riff_equalizer.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/snackbar.dart';
 
-/// Home personal-radio card: cover, title, round play, mood switch.
+/// Home personal-radio card: cover with a waveform, title, round play.
+/// The station chips sit under it ([RiffStationChips]).
 class RiffWaveHero extends StatefulWidget {
   const RiffWaveHero({super.key});
 
@@ -93,130 +94,116 @@ class _RiffWaveHeroState extends State<RiffWaveHero>
     }
   }
 
-  Future<void> _setExploration(double v) async {
-    final disc = _disc;
-    if (disc == null) return;
-    disc.exploration = v;
-    setState(() {});
-    if (!_starting) await _playWave();
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.secondary;
     final disc = _disc;
-    final explore = disc?.exploration ?? 0.5;
-    const artSize = 48.0;
-    final surface = homeTileColor(context);
+    final surface = theme.colorScheme.surfaceContainerHigh;
+    final player = Get.find<PlayerController>();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          HomeLayout.gutter, 14, HomeLayout.gutter, 0),
-      child: Material(
-        color: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(RiffTokens.radiusLg),
-          side: homeTileBorder(context),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Ink(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color.alphaBlend(accent.withOpacity(0.30), surface),
-                surface,
-              ],
-            ),
+          RiffSpacing.gutter, RiffSpacing.section, RiffSpacing.gutter, 0),
+      child: Semantics(
+        button: true,
+        label: '${'riffWave'.tr}. ${'riffWaveDes'.tr}',
+        excludeSemantics: true,
+        child: Material(
+          color: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(RiffSizes.waveRadius),
           ),
-          child: InkWell(
-            onTap: _starting ? null : _playWave,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Obx(() {
-                        Get.find<PlayerController>().currentSong.value;
-                        disc?.dailyMixes.length;
-                        Get.find<HomeScreenController>().quickPicks.value;
-                        final art = _previewArt();
-                        return ClipRRect(
-                          borderRadius:
-                              BorderRadius.circular(RiffTokens.radiusSm),
-                          child: art != null
-                              ? ImageWidget(
-                                  song: art, size: artSize, borderRadius: 0)
-                              : ColoredBox(
-                                  color: accent.withOpacity(0.18),
-                                  child: SizedBox.square(
-                                    dimension: artSize,
-                                    child: Icon(Icons.graphic_eq_rounded,
-                                        color: accent, size: 30),
-                                  ),
+          clipBehavior: Clip.antiAlias,
+          child: Ink(
+            height: RiffSizes.waveHeight,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color.alphaBlend(accent.withOpacity(0.28), surface),
+                  surface,
+                ],
+              ),
+            ),
+            child: InkWell(
+              onTap: _starting ? null : _playWave,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Obx(() {
+                      player.currentSong.value;
+                      final playing =
+                          player.buttonState.value == PlayButtonState.playing &&
+                              player.playinfrom.value.name == 'riffWave'.tr;
+                      disc?.dailyMixes.length;
+                      Get.find<HomeScreenController>().quickPicks.value;
+                      final art = _previewArt();
+                      return ClipRRect(
+                        borderRadius:
+                            BorderRadius.circular(RiffSizes.tileRadius),
+                        child: SizedBox.square(
+                          dimension: RiffSizes.waveArt,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              if (art != null)
+                                ImageWidget(
+                                    song: art,
+                                    size: RiffSizes.waveArt,
+                                    borderRadius: 0)
+                              else
+                                ColoredBox(color: accent.withOpacity(0.22)),
+                              const ColoredBox(color: Color(0x66000000)),
+                              Center(
+                                child: RiffEqualizer(
+                                  animate: playing,
+                                  color: art != null ? Colors.white : accent,
+                                  size: 26,
                                 ),
-                        );
-                      }),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.graphic_eq_rounded,
-                                    size: 18, color: accent),
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    'riffWave'.tr,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style:
-                                        homeSectionTitleStyle(context).copyWith(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'riffWaveDes'.tr,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: homeCardSubtitleStyle(context)
-                                  .copyWith(fontSize: 12),
-                            ),
-                          ],
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      _PlayButton(
-                        accent: accent,
-                        starting: _starting,
-                        pulse: _playPulse,
-                        onTap: _playWave,
-                      ),
-                    ],
-                  ),
-                  if (disc != null) ...[
-                    const SizedBox(height: 8),
-                    ConstrainedBox(
-                      // Don't stretch three short labels across a tablet.
-                      constraints: const BoxConstraints(maxWidth: 440),
-                      child: _MoodSelector(
-                        exploration: explore,
-                        onSelected: _setExploration,
+                      );
+                    }),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'riffWave'.tr,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'riffWaveDes'.tr,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: riffMuted(context)),
+                          ),
+                        ],
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    _PlayButton(
+                      accent: accent,
+                      starting: _starting,
+                      pulse: _playPulse,
+                      onTap: _playWave,
+                    ),
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -250,7 +237,7 @@ class _PlayButton extends StatelessWidget {
         customBorder: const CircleBorder(),
         onTap: starting ? null : onTap,
         child: SizedBox.square(
-          dimension: 42,
+          dimension: RiffSizes.wavePlay,
           child: Center(
             child: starting
                 ? ScaleTransition(
@@ -266,115 +253,11 @@ class _PlayButton extends StatelessWidget {
                       ),
                     ),
                   )
-                : Tooltip(
-                    message: 'play'.tr,
-                    child: const Icon(
-                      Icons.play_arrow_rounded,
-                      color: Colors.black,
-                      size: 30,
-                    ),
+                : const Icon(
+                    Icons.play_arrow_rounded,
+                    color: Colors.black,
+                    size: 30,
                   ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Familiar / Balanced / Adventurous as one segmented control.
-class _MoodSelector extends StatelessWidget {
-  const _MoodSelector({required this.exploration, required this.onSelected});
-
-  final double exploration;
-  final ValueChanged<double> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final options = <(String, double, bool)>[
-      ('familiar'.tr, 0.15, exploration < 0.33),
-      ('balanced'.tr, 0.5, exploration >= 0.33 && exploration <= 0.66),
-      ('adventurous'.tr, 0.85, exploration > 0.66),
-    ];
-    return Row(
-      children: [
-        Text(
-          'waveMood'.tr,
-          style: homeCardSubtitleStyle(context).copyWith(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Container(
-            height: 28,
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.black.withOpacity(0.28)
-                  : Colors.black.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Row(
-              children: [
-                for (final (label, value, selected) in options)
-                  Expanded(
-                    child: _MoodSegment(
-                      label: label,
-                      selected: selected,
-                      onTap: () => onSelected(value),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MoodSegment extends StatelessWidget {
-  const _MoodSegment({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final selectedFill =
-        isDark ? Colors.white.withOpacity(0.14) : theme.cardColor;
-    return AnimatedContainer(
-      duration: RiffTokens.quick,
-      curve: Curves.easeOut,
-      decoration: BoxDecoration(
-        color: selected ? selectedFill : Colors.transparent,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: onTap,
-        child: Center(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              color: selected
-                  ? theme.textTheme.titleMedium?.color
-                  : homeMutedColor(context),
-            ),
           ),
         ),
       ),

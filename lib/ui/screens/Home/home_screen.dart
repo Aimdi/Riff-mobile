@@ -1,5 +1,8 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:hive/hive.dart';
 
 import '../Search/components/desktop_search_bar.dart';
 import '/ui/screens/Search/search_screen_controller.dart';
@@ -12,24 +15,22 @@ import '../Settings/settings_screen_controller.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/create_playlist_dialog.dart';
 import '../../navigator.dart';
-import '../../widgets/discovery/home_discovery_section.dart';
-import '../../widgets/discovery/jump_back_in_row.dart';
 import '../../widgets/discovery/riff_wave_hero.dart';
 import '../../utils/riff_tokens.dart';
 import '../../widgets/shimmer_widgets/home_shimmer.dart';
-import '../../widgets/snackbar.dart';
-import '../../../services/discovery/discovery_service.dart';
-import '../../../services/discovery/discovery_types.dart';
-import 'home_feed_view_model.dart';
+import 'home_feed_builder.dart';
+import 'home_feed_data.dart';
 import 'home_greeting.dart';
 import 'home_hero_carousel.dart';
+import 'home_jump_back_in.dart';
 import 'home_layout.dart';
-import 'home_mood_chips.dart';
-import 'home_quick_grid.dart';
+import 'home_metrics.dart';
 import 'home_screen_controller.dart';
 import 'home_sections.dart';
 import 'home_shelves.dart';
+import 'home_speed_dial.dart';
 import 'home_stats_card.dart';
+import 'home_station_chips.dart';
 import '../Settings/settings_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -233,319 +234,259 @@ class Body extends StatelessWidget {
   }
 }
 
-/// Home tab feed with narrow Obx scopes so discovery / Quick Picks / shelves
-/// don't rebuild each other (and don't churn ScrollControllers).
-class _HomeFeed extends StatelessWidget {
+/// The Home tab: a fixed order of sections from [buildHomeSections],
+/// sized from the pane right of the rail. Edge to edge: only the header
+/// gets the status-bar inset, and a gradient keeps text from showing
+/// behind the status-bar icons as the feed scrolls under it.
+class _HomeFeed extends StatefulWidget {
   const _HomeFeed({required this.topPadding});
+
+  /// Desktop: room for the search bar above the header.
   final double topPadding;
 
   @override
+  State<_HomeFeed> createState() => _HomeFeedState();
+}
+
+class _HomeFeedState extends State<_HomeFeed> {
+  /// Recently played, read when Home opens or refreshes — not on every
+  /// play, so Speed dial doesn't reshuffle under the user's finger.
+  List<MediaItem> _recent = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecent();
+  }
+
+  Future<void> _loadRecent() async {
+    if (!Hive.isBoxOpen('LIBRP')) {
+      try {
+        await Hive.openBox('LIBRP');
+      } catch (_) {}
+    }
+    if (mounted) setState(() => _recent = recentSongs());
+  }
+
+  Future<void> _refresh() async {
+    await _loadRecent();
+    await Get.find<HomeScreenController>().loadContentFromNetwork(silent: true);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final home = Get.find<HomeScreenController>();
-    return Obx(() {
-      if (home.isContentFetched.isFalse) {
-        return ListView(
-          padding: EdgeInsets.only(bottom: 200, top: topPadding),
-          children: const [HomeShimmer()],
-        );
-      }
-      final chip = home.selectedChip.value;
-      if (chip != null) {
-        return ListView(
-          padding: EdgeInsets.only(bottom: 200, top: topPadding),
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final statusTop = MediaQuery.paddingOf(context).top;
+    final headerTop = GetPlatform.isDesktop ? widget.topPadding : statusTop + 8;
+    final bg = theme.scaffoldBackgroundColor;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: dark ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor: Colors.white.withOpacity(0.002),
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarIconBrightness:
+            dark ? Brightness.light : Brightness.dark,
+        systemStatusBarContrastEnforced: false,
+      ),
+      child: LayoutBuilder(builder: (context, constraints) {
+        final metrics = HomeMetrics(constraints.maxWidth);
+        return Stack(
           children: [
-            const _HomeHeader(),
-            const HomeMoodChips(),
-            const SizedBox(height: 4),
-            if (home.chipLoading.value)
-              const HomeShimmer()
-            else if (home.chipError.value)
-              _ChipFeedError(onRetry: () {
-                home.selectChip(null);
-                home.selectChip(chip);
-              })
-            else
-              const HomeShelves(chipFeed: true),
+            Obx(() {
+              final bottom = homeBottomPadding(context);
+              if (home.isContentFetched.isFalse) {
+                return ListView(
+                  padding: EdgeInsets.only(bottom: bottom),
+                  children: [
+                    _HomeHeader(top: headerTop),
+                    const HomeShimmer(),
+                  ],
+                );
+              }
+              HomeSectionPrefs.ensureLoaded();
+              final input = readHomeFeedInput(recent: _recent);
+              final sections = buildHomeSections(HomeFeedInput(
+                jumpBackIn: input.jumpBackIn,
+                speedDial: input.speedDial,
+                quickPicks: input.quickPicks,
+                personalized: input.personalized,
+                editorial: input.editorial,
+                hasWeek: input.hasWeek,
+                hasExplore: input.hasExplore,
+                hidden: HomeSectionPrefs.hidden.toSet(),
+                chartsTitle: input.chartsTitle,
+                moodTitle: input.moodTitle,
+              ));
+              return RefreshIndicator(
+                edgeOffset: headerTop,
+                onRefresh: _refresh,
+                child: ListView(
+                  padding: EdgeInsets.only(bottom: bottom),
+                  children: [
+                    for (final s in sections)
+                      ..._sectionWidgets(home, s, metrics, headerTop),
+                  ],
+                ),
+              );
+            }),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: statusTop + 8,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [bg, bg.withOpacity(0)],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         );
-      }
-      HomeSectionPrefs.ensureLoaded();
-      // Sections in the user's order (Settings → Home layout, or long-press
-      // a section); hidden ones are skipped.
-      final sections = HomeSectionPrefs.order
-          .where((s) => !HomeSectionPrefs.hidden.contains(s))
-          .toList();
-      return ListView(
-        padding: EdgeInsets.only(bottom: 200, top: topPadding),
-        children: [
+      }),
+    );
+  }
+
+  List<Widget> _sectionWidgets(HomeScreenController home, HomeSectionModel m,
+      HomeMetrics metrics, double headerTop) {
+    Widget slot(Widget child, [Key? key]) => HomeSectionSlot(
+        key: key ?? ValueKey(m.section), section: m.section, child: child);
+    switch (m.section) {
+      case HomeSection.header:
+        return [
+          _HomeHeader(key: const ValueKey('header'), top: headerTop),
           Obx(() => home.showingCachedWhileOffline.isTrue
               ? const _OfflineHomeBanner()
               : const SizedBox.shrink()),
-          const _HomeHeader(),
-          for (final section in sections)
-            HomeSectionSlot(
-              key: ValueKey(section),
-              section: section,
-              child: _sectionWidget(section),
-            ),
-        ],
-      );
-    });
-  }
-
-  static Widget _sectionWidget(HomeSection section) {
-    switch (section) {
-      case HomeSection.chips:
-        return const Padding(
-          padding: EdgeInsets.only(bottom: 10),
-          child: HomeMoodChips(),
-        );
-      case HomeSection.resume:
-        return const HomeResumeRow();
-      case HomeSection.quickPicks:
-        return const _HomeHero();
-      case HomeSection.speedDial:
-        return const JumpBackInRow();
+        ];
+      case HomeSection.jumpBackIn:
+        return [slot(HomeJumpBackIn(items: m.items, metrics: metrics))];
       case HomeSection.riffWave:
-        return const RiffWaveHero();
-      case HomeSection.generators:
-        return const HomeQuickGrid();
-      case HomeSection.dailyMixes:
-        return const _HomeZoneB();
-      case HomeSection.shelves:
-        return const HomeShelves();
-      case HomeSection.yourWeek:
-        return const HomeStatsCard();
-    }
-  }
-}
-
-/// Echo Music's top bar on Home: the app's name on the left, the tools on
-/// the right. The greeting sits under the name.
-class _HomeHeader extends StatelessWidget {
-  const _HomeHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final fg = theme.textTheme.titleMedium?.color;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 0, 2, 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Riff',
-                  maxLines: 1,
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.8,
-                    height: 1.1,
-                    color: fg,
-                  ),
-                ),
-                Text(
-                  homeGreetingKey(DateTime.now()).tr,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: homeCardSubtitleStyle(context)
-                      .copyWith(fontSize: 13, fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            tooltip: 'stats'.tr,
-            icon: const Icon(Icons.bar_chart_rounded, size: 24),
-            onPressed: () => Get.toNamed(ScreenNavigationSetup.statsScreen,
-                id: ScreenNavigationSetup.id),
-          ),
-          if (!GetPlatform.isDesktop)
-            IconButton(
-              tooltip: 'search'.tr,
-              icon: const Icon(Icons.search_rounded, size: 26),
-              onPressed: () => Get.toNamed(ScreenNavigationSetup.searchScreen,
-                  id: ScreenNavigationSetup.id),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Quick picks as Echo's hero carousel (no title, as in Echo).
-class _HomeHero extends StatelessWidget {
-  const _HomeHero();
-
-  @override
-  Widget build(BuildContext context) {
-    final home = Get.find<HomeScreenController>();
-    return Obx(() {
-      final songs = home.quickPicks.value.songList;
-      if (songs.isEmpty) return const SizedBox.shrink();
-      return HomeHeroCarousel(songs: songs);
-    });
-  }
-}
-
-/// Zone B — personalised: daily mixes → one contextual row.
-/// Order, caps, and global dedupe come from [assembleHomeFeedViewModel].
-class _HomeZoneB extends StatelessWidget {
-  const _HomeZoneB();
-
-  @override
-  Widget build(BuildContext context) {
-    final home = Get.find<HomeScreenController>();
-    return Obx(() {
-      final disc = Get.isRegistered<DiscoveryService>()
-          ? Get.find<DiscoveryService>()
-          : null;
-      final personal = disc?.personalSections.toList() ?? <DiscoverySection>[];
-      final mixesUpdated = disc?.mixesUpdatedPill.value ?? false;
-      final vm = assembleHomeFeedViewModel(
-        personalSections: personal,
-        quickPicks: home.quickPicks.value,
-      );
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (vm.dailyMixes != null)
-            HomeDiscoverySection(
-              section: vm.dailyMixes!,
-              badge: mixesUpdated ? 'mixesUpdatedBadge'.tr : null,
-            ),
-          if (vm.dailyMixes == null &&
-              vm.contextual == null &&
-              home.quickPicks.value.songList.isEmpty)
-            const _HomeDiscoverEmptyCard(),
-          if (vm.contextual != null)
-            HomeDiscoverySection(section: vm.contextual!),
-        ],
-      );
-    });
-  }
-}
-
-class _HomeDiscoverEmptyCard extends StatelessWidget {
-  const _HomeDiscoverEmptyCard();
-
-  Future<void> _startWave(BuildContext context) async {
-    try {
-      final ok = await Get.find<PlayerController>().startRiffWave();
-      if (!context.mounted) return;
-      if (!ok) {
-        ScaffoldMessenger.of(context).showSnackBar(snackbar(
-          context,
-          'riffWaveEmpty'.tr,
-          size: SanckBarSize.MEDIUM,
-        ));
-      }
-    } catch (_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(snackbar(
-        context,
-        'networkError'.tr,
-        size: SanckBarSize.MEDIUM,
-      ));
-    }
-  }
-
-  void _openSearch() {
-    Get.toNamed(
-      ScreenNavigationSetup.searchScreen,
-      id: ScreenNavigationSetup.id,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final accent = theme.colorScheme.secondary;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          HomeLayout.gutter, HomeLayout.sectionTop, HomeLayout.gutter, 0),
-      child: Material(
-        color: homeTileColor(context),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(RiffTokens.radiusLg),
-          side: homeTileBorder(context),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('discover'.tr, style: homeSectionTitleStyle(context)),
-              const SizedBox(height: 6),
-              Text(
-                'discoverEmptyDes'.tr,
-                style: homeCardSubtitleStyle(context).copyWith(fontSize: 13),
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  FilledButton.icon(
-                    onPressed: () => _startWave(context),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: accent,
-                      foregroundColor: Colors.black,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    icon: const Icon(Icons.graphic_eq_rounded, size: 18),
-                    label: Text('riffWave'.tr),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _openSearch,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: theme.textTheme.titleMedium?.color,
-                      side: BorderSide(
-                        color: theme.dividerColor.withOpacity(0.8),
-                      ),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    icon: const Icon(Icons.search, size: 18),
-                    label: Text('search'.tr),
-                  ),
-                ],
-              ),
+        return [
+          slot(const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [RiffWaveHero(), RiffStationChips()],
+          )),
+        ];
+      case HomeSection.speedDial:
+        return [slot(HomeSpeedDial(items: m.items, metrics: metrics))];
+      case HomeSection.quickPicks:
+        return [
+          slot(HomeHeroCarousel(
+            songs: [
+              for (final i in m.items)
+                if (i.value is MediaItem) i.value as MediaItem
             ],
-          ),
+            metrics: metrics,
+          )),
+        ];
+      case HomeSection.personalized:
+      case HomeSection.editorial:
+        return [
+          for (final shelf in m.shelves)
+            slot(
+              RiffShelf(
+                shelf: shelf,
+                metrics: metrics,
+                controller: home.scrollControllerFor('shelf_${shelf.id}'),
+              ),
+              ValueKey('${m.section.name}_${shelf.id}'),
+            ),
+        ];
+      case HomeSection.yourWeek:
+        return [slot(const HomeStatsCard())];
+      case HomeSection.exploreMore:
+        return [const _ExploreMoreButton(key: ValueKey('exploreMore'))];
+    }
+  }
+}
+
+/// Greeting on the left (one line), Explore, Stats and Search on the
+/// right. Only this row clears the status bar.
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({super.key, required this.top});
+  final double top;
+
+  void _go(String route) => Get.toNamed(route, id: ScreenNavigationSetup.id);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(RiffSpacing.gutter, top, 4, 0),
+      child: SizedBox(
+        height: RiffSpacing.headerRow,
+        child: Row(
+          children: [
+            Expanded(
+              child: Semantics(
+                header: true,
+                // One line: shrinks to fit on small phones and with large
+                // system text rather than cutting the greeting.
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text(
+                    homeGreetingKey(DateTime.now()).tr,
+                    maxLines: 1,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            IconButton(
+              tooltip: 'explore'.tr,
+              icon: const Icon(Icons.explore_outlined),
+              onPressed: () => _go(ScreenNavigationSetup.exploreScreen),
+            ),
+            IconButton(
+              tooltip: 'stats'.tr,
+              icon: const Icon(Icons.bar_chart_rounded),
+              onPressed: () => _go(ScreenNavigationSetup.statsScreen),
+            ),
+            if (!GetPlatform.isDesktop)
+              IconButton(
+                tooltip: 'search'.tr,
+                icon: const Icon(Icons.search_rounded),
+                onPressed: () => _go(ScreenNavigationSetup.searchScreen),
+              ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// The chip's feed didn't load: say so, offer a retry.
-class _ChipFeedError extends StatelessWidget {
-  const _ChipFeedError({required this.onRetry});
-  final VoidCallback onRetry;
+/// Last thing on Home: the rest of the YouTube Music feed.
+class _ExploreMoreButton extends StatelessWidget {
+  const _ExploreMoreButton({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          HomeLayout.gutter, 40, HomeLayout.gutter, 0),
-      child: Column(
-        children: [
-          Icon(Icons.cloud_off_outlined,
-              size: 40, color: homeMutedColor(context)),
-          const SizedBox(height: 12),
-          Text('networkError1'.tr,
-              textAlign: TextAlign.center,
-              style: homeCardSubtitleStyle(context).copyWith(fontSize: 14)),
-          const SizedBox(height: 12),
-          FilledButton(onPressed: onRetry, child: Text('retry'.tr)),
-        ],
+          RiffSpacing.gutter, RiffSpacing.section, RiffSpacing.gutter, 0),
+      child: SizedBox(
+        width: double.infinity,
+        height: RiffSizes.touch,
+        child: FilledButton.tonalIcon(
+          onPressed: () => Get.toNamed(ScreenNavigationSetup.exploreScreen,
+              id: ScreenNavigationSetup.id),
+          icon: const Icon(Icons.explore_outlined),
+          label: Text('exploreMore'.tr),
+        ),
       ),
     );
   }
@@ -560,7 +501,7 @@ class _OfflineHomeBanner extends StatelessWidget {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          HomeLayout.gutter, 0, HomeLayout.gutter, 12),
+          RiffSpacing.gutter, 8, RiffSpacing.gutter, 0),
       child: Material(
         color: homeTileColor(context),
         shape: RoundedRectangleBorder(

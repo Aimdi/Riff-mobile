@@ -37,17 +37,21 @@ void main() {
       final assembled = buildHomeFeed([
         _section('daily', [shared, _t('d2', 'b'), _t('d3', 'c')],
             minCount: 2, targetCount: 6, maxPerArtist: 1),
-        _section('quick', [
-          shared,
-          _t('q1', 'd'),
-          _t('q2', 'e'),
-          _t('q3', 'f'),
-          _t('q4', 'g'),
-          _t('q5', 'h'),
-          _t('q6', 'i'),
-          _t('q7', 'j'),
-          _t('q8', 'k'),
-        ], minCount: 8, targetCount: 24),
+        _section(
+            'quick',
+            [
+              shared,
+              _t('q1', 'd'),
+              _t('q2', 'e'),
+              _t('q3', 'f'),
+              _t('q4', 'g'),
+              _t('q5', 'h'),
+              _t('q6', 'i'),
+              _t('q7', 'j'),
+              _t('q8', 'k'),
+            ],
+            minCount: 8,
+            targetCount: 24),
       ]);
 
       final allIds = [
@@ -83,9 +87,12 @@ void main() {
     test('omits sections below minCount after dedupe', () {
       final assembled = buildHomeFeed([
         _section('thin', [_t('a', 'x'), _t('b', 'y')], minCount: 6),
-        _section('ok', [
-          for (var i = 0; i < 8; i++) _t('ok$i', 'artist$i'),
-        ], minCount: 6),
+        _section(
+            'ok',
+            [
+              for (var i = 0; i < 8; i++) _t('ok$i', 'artist$i'),
+            ],
+            minCount: 6),
       ]);
 
       expect(assembled.zoneB.map((s) => s.id), ['ok']);
@@ -110,13 +117,22 @@ void main() {
     test('priority order keeps daily → quick → first qualifying contextual',
         () {
       final priority = zoneBPriorityOrder(
-        dailyMixes: _section('made_for_you', [
-          _t('m1', 'a'),
-          _t('m2', 'b'),
-        ], minCount: 2, targetCount: 6, maxPerArtist: 1),
-        quickPicks: _section('quick_picks', [
-          for (var i = 0; i < 10; i++) _t('q$i', 'qa$i'),
-        ], minCount: 8, targetCount: 24),
+        dailyMixes: _section(
+            'made_for_you',
+            [
+              _t('m1', 'a'),
+              _t('m2', 'b'),
+            ],
+            minCount: 2,
+            targetCount: 6,
+            maxPerArtist: 1),
+        quickPicks: _section(
+            'quick_picks',
+            [
+              for (var i = 0; i < 10; i++) _t('q$i', 'qa$i'),
+            ],
+            minCount: 8,
+            targetCount: 24),
         contextual: [
           _section('because_x', [
             for (var i = 0; i < 8; i++) _t('b$i', 'ba$i'),
