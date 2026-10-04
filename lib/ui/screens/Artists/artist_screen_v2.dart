@@ -6,6 +6,7 @@ import '../../navigator.dart';
 import '../../widgets/loader.dart';
 import '../../widgets/separate_tab_item_widget.dart';
 import 'artist_screen_controller.dart';
+import '/ui/widgets/riff_header_bar.dart';
 
 class ArtistScreenBN extends StatelessWidget {
   const ArtistScreenBN(
@@ -16,7 +17,7 @@ class ArtistScreenBN extends StatelessWidget {
   Widget build(BuildContext context) {
     final separatedContent = artistScreenController.sepataredContent;
     return Scaffold(
-      appBar: AppBar(
+      appBar: RiffAppBar(AppBar(
           toolbarHeight: 85,
           backgroundColor: Theme.of(context).canvasColor,
           leading: Padding(
@@ -49,7 +50,7 @@ class ArtistScreenBN extends StatelessWidget {
                         style: Theme.of(context).textTheme.titleLarge),
                   )
                 : const SizedBox.shrink(),
-          )),
+          ))),
       body: Obx(
         () => TabBarView(
           controller: artistScreenController.tabController,

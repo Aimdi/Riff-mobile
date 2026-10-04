@@ -152,3 +152,16 @@ audiobook genres and rating star.
 Fixed-height rows and shelves that computed their height from the old font
 metrics now measure the TextTheme slot their text uses
 (`lib/ui/theme/riff_text_metrics.dart`), so they can't overflow.
+
+## Phase 3 result (rail + page headers)
+
+- Rail (`side_nav_bar.dart`): width 47, items, order, labels and
+  Semantics unchanged (`test/home/side_rail_test.dart` untouched and
+  green). Colours, label style and glyph sizes come from the theme's
+  `NavigationRailThemeData` and `RiffComponentSizes`.
+- Headers: `lib/ui/widgets/riff_header_bar.dart` — `RiffHeaderBar`
+  (header chrome + hairline for pinned headers, via the Scaffold's
+  `ScrollNotificationObserver`), `RiffAppBar` (same for `AppBar`s) and
+  `RiffScrollUnder` (hairline at the top of content below pinned tabs or
+  sort rows). Covered by `test/theme/riff_header_bar_test.dart`.
+- Screenshots: `docs/redesign/phase3/`.

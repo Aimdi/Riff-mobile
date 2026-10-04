@@ -12,6 +12,7 @@ import '../Podcasts/podcast_layout.dart';
 import 'audiobook_library_controller.dart';
 import 'audiobook_play.dart';
 import 'audiobook_widgets.dart';
+import '/ui/widgets/riff_header_bar.dart';
 
 /// A free LibriVox book: cover, play / resume, about, and its chapters.
 class FreeAudiobookScreen extends StatefulWidget {
@@ -55,7 +56,7 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
     final book = _detail?.book ?? widget.book;
     final lib = Get.find<AudiobookLibraryController>();
     return Scaffold(
-      appBar: AppBar(
+      appBar: RiffAppBar(AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -73,7 +74,7 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
           }),
           const SizedBox(width: 4),
         ],
-      ),
+      )),
       body: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(child: _header(context, book)),

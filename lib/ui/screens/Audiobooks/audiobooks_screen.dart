@@ -20,6 +20,7 @@ import 'audiobook_play.dart';
 import 'audiobook_upload_sheet.dart';
 import 'audiobook_widgets.dart';
 import 'free_audiobook_list_screen.dart';
+import '/ui/widgets/riff_header_bar.dart';
 
 Future<void> _playOrOpenAudiobook(String bookId) async {
   if (shouldPlayAudiobookOnTap()) {
@@ -102,16 +103,17 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
           _tabs(context),
           const SizedBox(height: 4),
           Expanded(
-            child: _mode == 0
-                ? _DiscoverView(
-                    searching: _searching,
-                    onCloseSearch: () => setState(() => _searching = false),
-                  )
-                : _mode == 1
-                    ? Obx(() => abs.isConnected.value
-                        ? const _AbsLibraryView()
-                        : const _AbsLoginForm())
-                    : _SavedView(onDiscover: () => _select(0)),
+            child: RiffScrollUnder(
+                child: _mode == 0
+                    ? _DiscoverView(
+                        searching: _searching,
+                        onCloseSearch: () => setState(() => _searching = false),
+                      )
+                    : _mode == 1
+                        ? Obx(() => abs.isConnected.value
+                            ? const _AbsLibraryView()
+                            : const _AbsLoginForm())
+                        : _SavedView(onDiscover: () => _select(0))),
           ),
         ],
       ),
@@ -119,36 +121,38 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
   }
 
   Widget _header(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(
-          left: HomeLayout.gutter,
-          right: RiffSpacing.xs,
-          bottom: RiffSpacing.sm),
-      child: SizedBox(
-        height: 40,
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                'audiobooks'.tr,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+    return RiffHeaderBar(
+        hairline: false,
+        child: Padding(
+          padding: const EdgeInsets.only(
+              left: HomeLayout.gutter,
+              right: RiffSpacing.xs,
+              bottom: RiffSpacing.sm),
+          child: SizedBox(
+            height: 40,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'audiobooks'.tr,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+                if (!(_mode == 0 && _searching))
+                  IconButton(
+                    tooltip: 'searchAudiobooks'.tr,
+                    icon: const Icon(Icons.search_rounded),
+                    onPressed: () => setState(() {
+                      _mode = 0;
+                      _searching = true;
+                    }),
+                  ),
+              ],
             ),
-            if (!(_mode == 0 && _searching))
-              IconButton(
-                tooltip: 'searchAudiobooks'.tr,
-                icon: const Icon(Icons.search_rounded, size: 24),
-                onPressed: () => setState(() {
-                  _mode = 0;
-                  _searching = true;
-                }),
-              ),
-          ],
-        ),
-      ),
-    );
+          ),
+        ));
   }
 
   /// Discover · Library · Saved (· Torrents when the plugin is installed).

@@ -8,6 +8,7 @@ import '../../navigator.dart';
 import '../../widgets/separate_tab_item_widget.dart';
 import '../Plugins/seeker_screen.dart';
 import 'search_result_screen_controller.dart';
+import '/ui/widgets/riff_header_bar.dart';
 
 class SearchResultScreenBN extends StatelessWidget {
   const SearchResultScreenBN({super.key});
@@ -24,44 +25,46 @@ class SearchResultScreenBN extends StatelessWidget {
           ),
           child: Column(
             children: [
-              Row(
-                children: [
-                  SizedBox(
-                    width: 55,
-                    child: Center(
-                      child: IconButton(
-                        onPressed: () {
-                          Get.nestedKey(ScreenNavigationSetup.id)!
-                              .currentState!
-                              .pop();
-                        },
-                        icon: const Icon(Icons.arrow_back_ios_new),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                      child: Column(children: [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        "searchRes".tr,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Obx(
-                        () => Text(
-                          "${"for1".tr} \"${searchResScrController.queryString.value}\"",
-                          style: Theme.of(context).textTheme.titleMedium,
+              RiffHeaderBar(
+                  hairline: false,
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 55,
+                        child: Center(
+                          child: IconButton(
+                            onPressed: () {
+                              Get.nestedKey(ScreenNavigationSetup.id)!
+                                  .currentState!
+                                  .pop();
+                            },
+                            icon: const Icon(Icons.arrow_back_ios_new),
+                          ),
                         ),
                       ),
-                    ),
-                  ]))
-                ],
-              ),
+                      Expanded(
+                          child: Column(children: [
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            "searchRes".tr,
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                        ),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Obx(
+                            () => Text(
+                              "${"for1".tr} \"${searchResScrController.queryString.value}\"",
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ),
+                        ),
+                      ]))
+                    ],
+                  )),
               Expanded(
-                child: Obx(
+                child: RiffScrollUnder(child: Obx(
                   () {
                     if (searchResScrController.isResultContentFetced.isFalse) {
                       return const SongListShimmer(
@@ -194,7 +197,7 @@ class SearchResultScreenBN extends StatelessWidget {
                       ],
                     );
                   },
-                ),
+                )),
               )
             ],
           )),

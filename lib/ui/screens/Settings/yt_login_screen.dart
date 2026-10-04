@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '/services/yt_auth_service.dart';
+import '/ui/widgets/riff_header_bar.dart';
 
 /// In-app Google sign-in for the optional YouTube connection. Once the
 /// WebView lands back on music.youtube.com with an authenticated session,
@@ -42,13 +43,13 @@ class _YtLoginScreenState extends State<YtLoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: RiffAppBar(AppBar(
         title: Text("connectYtAccount".tr),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Get.back(result: false),
         ),
-      ),
+      )),
       body: WebViewWidget(controller: controller),
     );
   }

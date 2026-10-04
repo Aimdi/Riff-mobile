@@ -34,6 +34,7 @@ import '../../theme/riff_spacing.dart';
 import '../Home/home_layout.dart';
 import 'library_controller.dart';
 import '/ui/theme/riff_text_metrics.dart';
+import '/ui/widgets/riff_header_bar.dart';
 
 class SongsLibraryWidget extends StatelessWidget {
   const SongsLibraryWidget({super.key, this.isBottomNavActive = false});
@@ -63,7 +64,7 @@ class SongsLibraryWidget extends StatelessWidget {
                   if (canPlay) ...[
                     IconButton(
                       tooltip: 'shuffle'.tr,
-                      icon: const Icon(Icons.shuffle_rounded, size: 22),
+                      icon: const Icon(Icons.shuffle_rounded),
                       onPressed: () => _playLibrarySongs(shuffle: true),
                     ),
                     LibraryPlayButton(
@@ -119,7 +120,7 @@ class SongsLibraryWidget extends StatelessWidget {
               return const _LibrarySongsPlayBar();
             }),
           Expanded(
-            child: Obx(() {
+            child: RiffScrollUnder(child: Obx(() {
               if (libSongsController.showCloudSongs.value) {
                 return const _CloudSongsPane();
               }
@@ -154,7 +155,7 @@ class SongsLibraryWidget extends StatelessWidget {
                           ))
                     : EmptyPlayHint(message: "noOfflineSong".tr);
               });
-            }),
+            })),
           ),
         ],
       ),
@@ -193,28 +194,30 @@ class LibraryHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(
-          left: HomeLayout.gutter,
-          right: RiffSpacing.sm,
-          bottom: RiffSpacing.xxs),
-      child: SizedBox(
-        height: 44,
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+    return RiffHeaderBar(
+        hairline: false,
+        child: Padding(
+          padding: const EdgeInsets.only(
+              left: HomeLayout.gutter,
+              right: RiffSpacing.sm,
+              bottom: RiffSpacing.xxs),
+          child: SizedBox(
+            height: 44,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+                ...actions,
+              ],
             ),
-            ...actions,
-          ],
-        ),
-      ),
-    );
+          ),
+        ));
   }
 }
 
@@ -469,7 +472,8 @@ class _PlaylistNAlbumLibraryWidgetState
                   ),
           ),
           Expanded(
-            child: Obx(
+            child: RiffScrollUnder(
+                child: Obx(
               () => (isAlbumContent
                       ? libralbumCntrller.libraryAlbums.isNotEmpty
                       : librplstCntrller.libraryPlaylists.isNotEmpty)
@@ -508,7 +512,7 @@ class _PlaylistNAlbumLibraryWidgetState
                       message: isAlbumContent
                           ? "noLibAlbums".tr
                           : "noLibPlaylist".tr),
-            ),
+            )),
           )
         ],
       ),
@@ -547,36 +551,38 @@ class LibraryArtistWidget extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: Obx(() => cntrller.libraryArtists.isEmpty
-                ? EmptyPlayHint(message: "noLibArtists".tr)
-                : LayoutBuilder(builder: (context, constraints) {
-                    final grid = libraryGridMetrics(constraints.maxWidth);
-                    return GridView.builder(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.only(
-                          left: HomeLayout.gutter,
-                          top: RiffSpacing.sm,
-                          right: HomeLayout.gutter,
-                          bottom: RiffSpacing.listEnd),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: grid.columns,
-                        crossAxisSpacing: HomeLayout.cardGap,
-                        mainAxisSpacing: 16,
-                        mainAxisExtent: grid.cover +
-                            10 +
-                            riffLineHeight(
-                                context, homeCardTitleStyle(context)) +
-                            riffLineHeight(
-                                context, homeCardSubtitleStyle(context)) +
-                            6,
-                      ),
-                      itemCount: cntrller.libraryArtists.length,
-                      itemBuilder: (context, index) => _LibraryArtistCard(
-                        artist: cntrller.libraryArtists[index],
-                        size: grid.cover,
-                      ),
-                    );
-                  })),
+            child: RiffScrollUnder(
+                child: Obx(() => cntrller.libraryArtists.isEmpty
+                    ? EmptyPlayHint(message: "noLibArtists".tr)
+                    : LayoutBuilder(builder: (context, constraints) {
+                        final grid = libraryGridMetrics(constraints.maxWidth);
+                        return GridView.builder(
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.only(
+                              left: HomeLayout.gutter,
+                              top: RiffSpacing.sm,
+                              right: HomeLayout.gutter,
+                              bottom: RiffSpacing.listEnd),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: grid.columns,
+                            crossAxisSpacing: HomeLayout.cardGap,
+                            mainAxisSpacing: 16,
+                            mainAxisExtent: grid.cover +
+                                10 +
+                                riffLineHeight(
+                                    context, homeCardTitleStyle(context)) +
+                                riffLineHeight(
+                                    context, homeCardSubtitleStyle(context)) +
+                                6,
+                          ),
+                          itemCount: cntrller.libraryArtists.length,
+                          itemBuilder: (context, index) => _LibraryArtistCard(
+                            artist: cntrller.libraryArtists[index],
+                            size: grid.cover,
+                          ),
+                        );
+                      }))),
           ),
         ],
       ),

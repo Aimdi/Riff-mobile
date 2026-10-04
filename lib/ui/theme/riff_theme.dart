@@ -28,6 +28,10 @@ class RiffTheme {
         color: color,
       );
 
+  /// Rail labels (Phase 3): 11/600, below the §4.5 scale.
+  static TextStyle railLabel(Color color) =>
+      _t(11, 14, FontWeight.w600, color);
+
   /// Type scale (§4.5). Every slot is defined so none falls back to
   /// Material's default font or sizes.
   static TextTheme textTheme({
@@ -367,8 +371,8 @@ class RiffTheme {
             IconThemeData(color: accent, size: RiffComponentSizes.railIcon),
         unselectedIconTheme: const IconThemeData(
             color: RiffPalette.textPrimary, size: RiffComponentSizes.railIcon),
-        selectedLabelTextStyle: text.labelSmall!.copyWith(color: accent),
-        unselectedLabelTextStyle: text.labelSmall,
+        selectedLabelTextStyle: railLabel(accent),
+        unselectedLabelTextStyle: railLabel(RiffPalette.textSecondary),
       ),
       pageTransitionsTheme: const PageTransitionsTheme(builders: {
         // Keep the transition types the app had (Material 2 defaults).

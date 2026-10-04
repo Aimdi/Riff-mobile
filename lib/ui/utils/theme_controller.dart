@@ -255,12 +255,9 @@ class ThemeController extends GetxController {
               backgroundColor: primarySwatch[700],
               selectedIconTheme: const IconThemeData(color: Colors.white),
               unselectedIconTheme: IconThemeData(color: primarySwatch[100]),
-              selectedLabelTextStyle: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14),
-              unselectedLabelTextStyle: TextStyle(
-                  color: primarySwatch[100], fontWeight: FontWeight.w600)),
+              selectedLabelTextStyle: RiffTheme.railLabel(Colors.white),
+              unselectedLabelTextStyle:
+                  RiffTheme.railLabel(primarySwatch[100] ?? Colors.white70)),
           sliderTheme: SliderThemeData(
             inactiveTrackColor: primarySwatch[300],
             activeTrackColor: textColor,
@@ -339,12 +336,9 @@ class ThemeController extends GetxController {
               backgroundColor: const Color(0xFFF7F9F9),
               selectedIconTheme: const IconThemeData(color: Colors.black),
               unselectedIconTheme: IconThemeData(color: Colors.grey[700]),
-              selectedLabelTextStyle: const TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14),
-              unselectedLabelTextStyle: TextStyle(
-                  color: Colors.grey[700], fontWeight: FontWeight.w600)),
+              selectedLabelTextStyle: RiffTheme.railLabel(Colors.black),
+              unselectedLabelTextStyle:
+                  RiffTheme.railLabel(Colors.grey[700]!)),
           bottomSheetTheme: const BottomSheetThemeData(
               backgroundColor: Colors.white,
               modalBarrierColor: Color(0x66000000),

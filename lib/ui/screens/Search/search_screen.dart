@@ -9,6 +9,7 @@ import '../Podcasts/podcast_empty_state.dart';
 import '/ui/navigator.dart';
 import 'search_play_top.dart';
 import 'search_screen_controller.dart';
+import '/ui/widgets/riff_header_bar.dart';
 
 class SearchScreen extends StatelessWidget {
   const SearchScreen({super.key});
@@ -27,29 +28,30 @@ class SearchScreen extends StatelessWidget {
         padding: EdgeInsets.only(top: topPadding),
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.only(
-                  left: RiffSpacing.xxs, right: HomeLayout.gutter),
-              child: Row(
-                children: [
-                  IconButton(
-                    tooltip: 'back'.tr,
-                    icon:
-                        const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-                    onPressed: () {
-                      Get.nestedKey(ScreenNavigationSetup.id)!
-                          .currentState!
-                          .pop();
-                    },
+            RiffHeaderBar(
+                hairline: false,
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                      left: RiffSpacing.xxs, right: HomeLayout.gutter),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        tooltip: 'back'.tr,
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                        onPressed: () {
+                          Get.nestedKey(ScreenNavigationSetup.id)!
+                              .currentState!
+                              .pop();
+                        },
+                      ),
+                      Expanded(
+                        child: _SearchField(controller: searchScreenController),
+                      ),
+                    ],
                   ),
-                  Expanded(
-                    child: _SearchField(controller: searchScreenController),
-                  ),
-                ],
-              ),
-            ),
+                )),
             Expanded(
-              child: Obx(() {
+              child: RiffScrollUnder(child: Obx(() {
                 final isEmpty = searchScreenController.suggestionList.isEmpty ||
                     searchScreenController.textInputController.text == "";
                 final list = isEmpty
@@ -122,7 +124,7 @@ class SearchScreen extends StatelessWidget {
                     ),
                   ],
                 );
-              }),
+              })),
             )
           ],
         ),

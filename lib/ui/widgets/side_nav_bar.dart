@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:sidebar_with_animation/animated_side_bar.dart';
 
 import 'package:harmonymusic/ui/screens/Home/home_screen_controller.dart';
+import 'package:harmonymusic/ui/theme/riff_spacing.dart';
+import 'package:harmonymusic/ui/theme/riff_tokens.dart';
 
 /// Width of the phone rail, measured from the items as they were (4dp +
 /// 8dp icon padding + 22dp icon + 8dp + 4dp, plus the selected item's
@@ -83,7 +86,8 @@ class _SideNavBarState extends State<SideNavBar> {
     final size = MediaQuery.of(context).size;
     final isMobileOrTabScreen = size.width < 480;
     final homeScreenController = Get.find<HomeScreenController>();
-    return Align(
+    final theme = Theme.of(context);
+    final rail = Align(
       alignment: Alignment.topCenter,
       child: isMobileOrTabScreen
           ? SizedBox(
@@ -115,8 +119,10 @@ class _SideNavBarState extends State<SideNavBar> {
                           excludeSemantics: true,
                           child: InkWell(
                             customBorder: const CircleBorder(),
-                            onTap: () => setState(
-                                () => _songsExpanded = !_songsExpanded),
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              setState(() => _songsExpanded = !_songsExpanded);
+                            },
                             // Full rail width, 48dp tall: a real touch target
                             // for a 20dp caret.
                             child: SizedBox(
@@ -125,15 +131,12 @@ class _SideNavBarState extends State<SideNavBar> {
                               child: Center(
                                 child: AnimatedRotation(
                                   turns: _songsExpanded ? -0.5 : 0.0,
-                                  duration: const Duration(milliseconds: 260),
-                                  curve: Curves.easeInOutCubic,
+                                  duration: RiffDurations.select,
+                                  curve: RiffDurations.selectCurve,
                                   child: Icon(
                                     Icons.keyboard_arrow_down_rounded,
-                                    size: 20,
-                                    color: Theme.of(context)
-                                        .textTheme
-                                        .titleLarge!
-                                        .color,
+                                    size: RiffComponentSizes.trailingIcon,
+                                    color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ),
@@ -143,13 +146,13 @@ class _SideNavBarState extends State<SideNavBar> {
                       ),
                       // Smoothly expand/collapse the sub-section (size + fade).
                       AnimatedSize(
-                        duration: const Duration(milliseconds: 260),
-                        curve: Curves.easeInOutCubic,
+                        duration: RiffDurations.select,
+                        curve: RiffDurations.selectCurve,
                         alignment: Alignment.topCenter,
                         child: AnimatedOpacity(
                           opacity: _songsExpanded ? 1.0 : 0.0,
-                          duration: const Duration(milliseconds: 220),
-                          curve: Curves.easeInOut,
+                          duration: RiffDurations.select,
+                          curve: RiffDurations.selectCurve,
                           child: _songsExpanded
                               ? Column(
                                   mainAxisSize: MainAxisSize.min,
@@ -201,13 +204,20 @@ class _SideNavBarState extends State<SideNavBar> {
               padding: const EdgeInsets.only(bottom: 100.0),
               child: SideBarAnimated(
                 onTap: homeScreenController.onSideBarTabSelected,
-                sideBarColor: Theme.of(context).primaryColor.withAlpha(250),
-                animatedContainerColor: Theme.of(context).colorScheme.secondary,
-                hoverColor:
-                    Theme.of(context).colorScheme.secondary.withAlpha(180),
-                splashColor: Theme.of(context).colorScheme.secondary,
-                highlightColor:
-                    Theme.of(context).colorScheme.secondary.withAlpha(180),
+                // Lights out: black bar, flat surface2 press feedback. The
+                // package draws the active glyph white on its floating
+                // indicator, so the indicator keeps the accent (see
+                // docs/redesign/SKIPPED.md).
+                sideBarColor: theme.colorScheme.surface,
+                animatedContainerColor: theme.colorScheme.secondary,
+                selectedIconColor: theme.colorScheme.onSurface,
+                unselectedIconColor: theme.colorScheme.onSurface,
+                unSelectedTextColor: theme.colorScheme.onSurfaceVariant,
+                dividerColor: theme.dividerColor,
+                textStyle: theme.textTheme.labelLarge!,
+                hoverColor: theme.hoverColor,
+                splashColor: theme.highlightColor,
+                highlightColor: theme.highlightColor,
                 widthSwitch: 800,
                 mainLogoImage: 'assets/icons/icon.png',
                 sidebarItems: [
@@ -221,6 +231,14 @@ class _SideNavBarState extends State<SideNavBar> {
                 ],
               ),
             ),
+    );
+    if (!isMobileOrTabScreen) return rail;
+    // Right edge: one-physical-pixel hairline, inside the rail's width.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(right: BorderSide(color: theme.dividerColor, width: 0)),
+      ),
+      child: rail,
     );
   }
 
@@ -238,59 +256,11 @@ class _SideNavBarState extends State<SideNavBar> {
   }) {
     final isSelected = selectedForIndices?.contains(selected) ??
         (selected == destination.index);
-    final accent = Theme.of(context).colorScheme.secondary;
-    final normal = Theme.of(context).textTheme.titleSmall?.color ??
-        Theme.of(context).textTheme.titleLarge!.color;
-    final color = isSelected ? accent : normal;
-    final item = InkWell(
-      customBorder: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
+    final item = _RailItem(
+      destination: destination,
+      selected: isSelected,
+      sub: sub,
       onTap: () => controller.onSideBarTabSelected(destination.index),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-            vertical: sub ? 4 : 8, horizontal: sub ? 8 : 4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOutCubic,
-              padding: EdgeInsets.all(sub ? 6 : 8),
-              decoration: BoxDecoration(
-                color:
-                    isSelected ? accent.withOpacity(0.16) : Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
-                border: isSelected
-                    ? Border.all(color: accent.withOpacity(0.28), width: 0.5)
-                    : null,
-              ),
-              child: Icon(
-                isSelected ? destination.icon : destination.iconOutlined,
-                size: sub ? 18 : 22,
-                color: color,
-              ),
-            ),
-            if (!destination.iconOnly) ...[
-              const SizedBox(height: 6),
-              RotatedBox(
-                quarterTurns: -1,
-                child: Text(
-                  destination.labelKey.tr,
-                  style: (sub
-                          ? (isSelected
-                              ? Theme.of(context).textTheme.labelSmall
-                              : Theme.of(context).textTheme.bodySmall)
-                          : (isSelected
-                              ? Theme.of(context).textTheme.titleMedium
-                              : Theme.of(context).textTheme.bodyLarge))
-                      ?.copyWith(color: color),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
     );
     // TalkBack reads the destination once, as a selectable button.
     final labelled = Semantics(
@@ -305,6 +275,92 @@ class _SideNavBarState extends State<SideNavBar> {
         : labelled;
     if (trailing == null) return entry;
     return Column(mainAxisSize: MainAxisSize.min, children: [entry, trailing]);
+  }
+}
+
+/// Lights-out rail entry: outline glyph in the primary text colour, filled
+/// accent glyph when active, no pill behind it. Pressing shows a flat
+/// circular highlight behind the glyph; a tap gives a selection click.
+class _RailItem extends StatefulWidget {
+  const _RailItem({
+    required this.destination,
+    required this.selected,
+    required this.sub,
+    required this.onTap,
+  });
+
+  final _RailDestination destination;
+  final bool selected;
+  final bool sub;
+  final VoidCallback onTap;
+
+  @override
+  State<_RailItem> createState() => _RailItemState();
+}
+
+class _RailItemState extends State<_RailItem> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final rail = theme.navigationRailTheme;
+    final accent = theme.colorScheme.secondary;
+    final d = widget.destination;
+    final sub = widget.sub;
+    final selected = widget.selected;
+    final iconColor = selected ? accent : theme.colorScheme.onSurface;
+    final labelStyle = selected
+        ? rail.selectedLabelTextStyle?.copyWith(color: accent)
+        : rail.unselectedLabelTextStyle;
+    return InkWell(
+      // The circle below is the press feedback; no rectangle highlight.
+      highlightColor: Colors.transparent,
+      hoverColor: Colors.transparent,
+      splashColor: Colors.transparent,
+      onHighlightChanged: (v) => setState(() => _pressed = v),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        widget.onTap();
+      },
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+            vertical: sub ? RiffSpacing.xs : RiffSpacing.sm),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: RiffDurations.press,
+              width: RiffComponentSizes.railHighlight,
+              height: RiffComponentSizes.railHighlight,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _pressed ? theme.highlightColor : Colors.transparent,
+              ),
+              child: Icon(
+                selected ? d.icon : d.iconOutlined,
+                size: sub
+                    ? RiffComponentSizes.railSubIcon
+                    : RiffComponentSizes.railIcon,
+                color: iconColor,
+              ),
+            ),
+            if (!d.iconOnly) ...[
+              const SizedBox(height: RiffSpacing.xs),
+              RotatedBox(
+                quarterTurns: -1,
+                child: AnimatedDefaultTextStyle(
+                  duration: RiffDurations.select,
+                  curve: RiffDurations.selectCurve,
+                  style: labelStyle ?? DefaultTextStyle.of(context).style,
+                  child: Text(d.labelKey.tr),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }
 

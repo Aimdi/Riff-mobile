@@ -1,3 +1,17 @@
+# 1.7.137
+
+**New look, step 3: side rail and page headers**
+* The side rail is lights out: outline icons, the active one filled in
+  your accent with no pill behind it, smaller labels, and a hairline
+  down its right edge
+* Pressing a rail item shows a soft round highlight and gives a light
+  click
+* Page titles are 20 pt bold, header icons 22 dp, and a hairline
+  appears under a header only while content scrolls beneath it
+* On tablets the side bar is black and its labels show properly
+* Nothing moved: same rail width, items and order; same header buttons
+  in the same places
+
 # 1.7.136
 
 **New look, step 2: one set of sizes and colours everywhere**

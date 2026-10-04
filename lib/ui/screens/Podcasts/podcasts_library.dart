@@ -36,6 +36,7 @@ import 'podcast_subs_screen.dart';
 import 'podcasts_library_controller.dart';
 import 'podcasts_screen.dart';
 import '/ui/theme/riff_text_metrics.dart';
+import '/ui/widgets/riff_header_bar.dart';
 
 class PodcastsLibraryWidget extends StatefulWidget {
   const PodcastsLibraryWidget({super.key, this.isBottomNavActive = false});
@@ -122,7 +123,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
           Expanded(
             // Plain builder: section switching is setState-driven. (An Obx
             // here would throw at runtime — its builder reads no Rx values.)
-            child: Builder(builder: (context) {
+            child: RiffScrollUnder(child: Builder(builder: (context) {
               // ── Inline Inbox / Queue / Subs / Discover ──────────
               if (_section == 1) {
                 return PodcastInboxScreen(
@@ -362,7 +363,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                   ],
                 ),
               );
-            }),
+            })),
           ),
         ],
       ),
@@ -372,62 +373,66 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
   /// "Podcasts" title with the tab's shortcuts (refresh the inbox,
   /// autoplay next episode) on the right.
   Widget _header(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(
-          left: HomeLayout.gutter,
-          right: RiffSpacing.xs,
-          bottom: RiffSpacing.sm),
-      child: SizedBox(
-        height: 40,
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                'podcasts'.tr,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-            ),
-            if (_section == 1)
-              IconButton(
-                tooltip: 'refreshInbox'.tr,
-                icon: const Icon(Icons.refresh_rounded, size: 22),
-                onPressed: () => setState(() => _inboxRefreshNonce++),
-              ),
-            Obx(() {
-              final settings = Get.find<SettingsScreenController>();
-              final on = settings.podcastContinuousPlaybackEnabled.value;
-              return IconButton(
-                tooltip: on ? 'podcastAutoplayOn'.tr : 'podcastAutoplayOff'.tr,
-                icon: Icon(
-                  on
-                      ? Icons.playlist_play_rounded
-                      : Icons.playlist_remove_rounded,
-                  size: 24,
-                  color: on ? Theme.of(context).colorScheme.secondary : null,
+    return RiffHeaderBar(
+        hairline: false,
+        child: Padding(
+          padding: const EdgeInsets.only(
+              left: HomeLayout.gutter,
+              right: RiffSpacing.xs,
+              bottom: RiffSpacing.sm),
+          child: SizedBox(
+            height: 40,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'podcasts'.tr,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                 ),
-                onPressed: () => settings.togglePodcastContinuousPlayback(!on),
-              );
-            }),
-            IconButton(
-              tooltip: 'podcastStats'.tr,
-              icon: const Icon(Icons.insights_rounded, size: 22),
-              onPressed: () => Get.toNamed(
-                  ScreenNavigationSetup.podcastStatsScreen,
-                  id: ScreenNavigationSetup.id),
+                if (_section == 1)
+                  IconButton(
+                    tooltip: 'refreshInbox'.tr,
+                    icon: const Icon(Icons.refresh_rounded),
+                    onPressed: () => setState(() => _inboxRefreshNonce++),
+                  ),
+                Obx(() {
+                  final settings = Get.find<SettingsScreenController>();
+                  final on = settings.podcastContinuousPlaybackEnabled.value;
+                  return IconButton(
+                    tooltip:
+                        on ? 'podcastAutoplayOn'.tr : 'podcastAutoplayOff'.tr,
+                    icon: Icon(
+                      on
+                          ? Icons.playlist_play_rounded
+                          : Icons.playlist_remove_rounded,
+                      color:
+                          on ? Theme.of(context).colorScheme.secondary : null,
+                    ),
+                    onPressed: () =>
+                        settings.togglePodcastContinuousPlayback(!on),
+                  );
+                }),
+                IconButton(
+                  tooltip: 'podcastStats'.tr,
+                  icon: const Icon(Icons.insights_rounded),
+                  onPressed: () => Get.toNamed(
+                      ScreenNavigationSetup.podcastStatsScreen,
+                      id: ScreenNavigationSetup.id),
+                ),
+                IconButton(
+                  tooltip: 'podcastSettings'.tr,
+                  icon: const Icon(Icons.settings_outlined),
+                  onPressed: () => Get.toNamed(
+                      ScreenNavigationSetup.podcastSettingsScreen,
+                      id: ScreenNavigationSetup.id),
+                ),
+              ],
             ),
-            IconButton(
-              tooltip: 'podcastSettings'.tr,
-              icon: const Icon(Icons.settings_outlined, size: 22),
-              onPressed: () => Get.toNamed(
-                  ScreenNavigationSetup.podcastSettingsScreen,
-                  id: ScreenNavigationSetup.id),
-            ),
-          ],
-        ),
-      ),
-    );
+          ),
+        ));
   }
 
   /// Inbox · Queue · Subscriptions · Discover · Downloads · Bookmarks as
