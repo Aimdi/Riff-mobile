@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/ui/screens/Library/library_controller.dart';
 
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import 'additional_operation_dialog.dart';
 import 'modified_text_field.dart';
 import 'spotify_import_dialog.dart';
@@ -93,44 +95,38 @@ class SortWidget extends StatelessWidget {
   void _showImportDialog(BuildContext context) {
     showDialog(
       context: context,
+      // Surface, radius and barrier from the theme's DialogTheme (§5.11).
       builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-        ),
         title: Text(
           "importPlaylist".tr,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: Theme.of(context).textTheme.titleMedium?.color,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Dialog body in the primary text colour (§5.11).
             Text(
               "importPlaylistDesc".tr,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              "importLargeFileNote".tr,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontStyle: FontStyle.italic,
-                    color: Theme.of(context).colorScheme.secondary,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: RiffSpacing.md),
+            Text(
+              "importLargeFileNote".tr,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+            ),
+            const SizedBox(height: RiffSpacing.xxl),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
                 style: FilledButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.secondary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  minimumSize: const Size.fromHeight(48),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+                  minimumSize: const Size.fromHeight(RiffComponentSizes.button),
                 ),
                 icon: const Icon(Icons.file_open),
                 label: Text("selectFile".tr),
@@ -142,17 +138,12 @@ class SortWidget extends StatelessWidget {
                 },
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: RiffSpacing.sm),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                  foregroundColor:
-                      Theme.of(context).textTheme.titleMedium?.color,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+                  minimumSize: const Size.fromHeight(RiffComponentSizes.button),
                 ),
                 icon: const Icon(Icons.library_music),
                 label: Text("spotifyImport".tr),
@@ -170,9 +161,6 @@ class SortWidget extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.secondary,
-            ),
             onPressed: () => Navigator.pop(context),
             child: Text("close".tr),
           ),
@@ -258,15 +246,18 @@ class SortWidget extends StatelessWidget {
                       <PopupMenuEntry<OperationMode>>[
                     if (isPlaylistRearrageFeatureRequired)
                       PopupMenuItem(
+                        height: RiffComponentSizes.sheetRow,
                         value: OperationMode.arrange,
                         child: Text("reArrangePlaylist".tr),
                       ),
                     if (isSongDeletetioFeatureRequired)
                       PopupMenuItem(
+                        height: RiffComponentSizes.sheetRow,
                         value: OperationMode.delete,
                         child: Text("removeMultiple".tr),
                       ),
                     PopupMenuItem(
+                      height: RiffComponentSizes.sheetRow,
                       value: OperationMode.addToPlaylist,
                       child: Text("addMultipleSongs".tr),
                     ),
@@ -326,12 +317,14 @@ class SortWidget extends StatelessWidget {
       itemBuilder: (context) => [
         for (final t in types)
           CheckedPopupMenuItem<Object>(
+            height: RiffComponentSizes.sheetRow,
             value: t,
             checked: controller.sortType.value == t,
             child: Text(_sortLabel(t)),
           ),
         const PopupMenuDivider(),
         PopupMenuItem<Object>(
+          height: RiffComponentSizes.sheetRow,
           value: #direction,
           child: Row(
             children: [
@@ -339,9 +332,10 @@ class SortWidget extends StatelessWidget {
                 controller.isAscending.value
                     ? Icons.arrow_downward_rounded
                     : Icons.arrow_upward_rounded,
-                size: 18,
+                size: RiffComponentSizes.sheetIcon,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: RiffSpacing.md),
               Text(controller.isAscending.value
                   ? "sortDescending".tr
                   : "sortAscending".tr),

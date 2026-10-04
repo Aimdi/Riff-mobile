@@ -14,7 +14,8 @@ import '/services/csv_playlist_import.dart';
 import '/services/spotify_import_service.dart';
 import '/ui/screens/Library/library_controller.dart';
 import '/ui/widgets/snackbar.dart';
-import '../screens/Home/home_layout.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import 'common_dialog_widget.dart';
 
 /// Dialog: paste a public Spotify playlist/album URL → resolve on YTM → save
@@ -214,7 +215,6 @@ class _SpotifyImportDialogState extends State<SpotifyImportDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       title:
           RiffDialogTitle('spotifyImport'.tr, icon: Icons.playlist_add_rounded),
       content: SizedBox(
@@ -229,20 +229,15 @@ class _SpotifyImportDialogState extends State<SpotifyImportDialog> {
                 'spotifyImportDes'.tr,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyLarge
-                    ?.copyWith(color: homeMutedColor(context)),
+                    ?.copyWith(color: theme.colorScheme.onSurface),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: RiffSpacing.md),
               TextField(
                 controller: _urlController,
                 enabled: !busy,
+                // §5.8 text field: border and focus from the theme.
                 decoration: InputDecoration(
                   hintText: 'https://open.spotify.com/playlist/…',
-                  filled: true,
-                  fillColor: homeTileColor(context),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
-                  ),
                   suffixIcon: IconButton(
                     tooltip: 'paste'.tr,
                     onPressed: busy ? null : _pasteFromClipboard,
@@ -251,33 +246,34 @@ class _SpotifyImportDialogState extends State<SpotifyImportDialog> {
                 ),
                 onSubmitted: busy ? null : (_) => _import(),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: RiffSpacing.md),
               if (busy || _progress.value > 0)
                 LinearProgressIndicator(
                   value: _progress.value <= 0 || _progress.value >= 1
                       ? null
                       : _progress.value,
-                  minHeight: 4,
-                  borderRadius: BorderRadius.circular(2),
                 ),
-              const SizedBox(height: 4),
+              const SizedBox(height: RiffSpacing.xs),
               Center(
                 child: TextButton.icon(
                   onPressed: busy ? null : _importCsv,
-                  icon: const Icon(Icons.table_view_rounded, size: 20),
+                  icon: const Icon(Icons.table_view_rounded,
+                      size: RiffComponentSizes.trailingIcon),
                   label: Text('csvImport'.tr),
                 ),
               ),
               Text(
                 'csvImportDes'.tr,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurface),
               ),
               if (_status.value.isNotEmpty) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: RiffSpacing.sm),
                 Text(
                   _status.value,
-                  style: theme.textTheme.bodySmall,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.onSurface),
                 ),
               ],
             ],
@@ -287,18 +283,17 @@ class _SpotifyImportDialogState extends State<SpotifyImportDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          style: TextButton.styleFrom(
-              foregroundColor: theme.textTheme.titleMedium?.color),
           child: Text('cancel'.tr),
         ),
         Obx(() => FilledButton.icon(
               onPressed: _busy.value ? null : _import,
               icon: _busy.value
-                  ? SizedBox(
-                      width: 16,
-                      height: 16,
+                  // Accent spinner (§5.9) on the disabled button.
+                  ? const SizedBox(
+                      width: RiffComponentSizes.buttonSpinner,
+                      height: RiffComponentSizes.buttonSpinner,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: theme.colorScheme.onPrimary),
+                          strokeWidth: RiffComponentSizes.spinnerStroke),
                     )
                   : const Icon(Icons.cloud_download),
               label: Text('import'.tr),
@@ -316,8 +311,10 @@ class _ImportSummaryDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final body =
+        theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurface);
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       title: RiffDialogTitle(title,
           icon: Icons.playlist_add_check_rounded,
           subtitle: 'importMatched'.trParams({
@@ -328,15 +325,16 @@ class _ImportSummaryDialog extends StatelessWidget {
         width: 420,
         child: summary.unmatched.isEmpty
             ? Text('importAllMatched'.tr,
-                textAlign: TextAlign.center,
-                style: homeCardSubtitleStyle(context))
+                textAlign: TextAlign.center, style: body)
             : Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('importUnmatched'
-                      .trParams({'count': '${summary.unmatched.length}'})),
-                  const SizedBox(height: 8),
+                  Text(
+                      'importUnmatched'
+                          .trParams({'count': '${summary.unmatched.length}'}),
+                      style: body),
+                  const SizedBox(height: RiffSpacing.sm),
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 280),
                     child: ListView(
@@ -344,9 +342,11 @@ class _ImportSummaryDialog extends StatelessWidget {
                       children: [
                         for (final u in summary.unmatched)
                           Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 3),
-                            child:
-                                Text(u, style: homeCardSubtitleStyle(context)),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: RiffSpacing.xxs),
+                            child: Text(u,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: theme.colorScheme.onSurface)),
                           ),
                       ],
                     ),
