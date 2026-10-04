@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 
 import '/models/thumbnail.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/services/podcast_service.dart';
 import '/ui/widgets/podcast_play.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
@@ -63,16 +64,18 @@ class _PodcastCategoryScreenState extends State<PodcastCategoryScreen> {
                           const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
                         childAspectRatio: 0.78,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
+                        crossAxisSpacing: RiffSpacing.md,
+                        mainAxisSpacing: RiffSpacing.md,
                       ),
                       itemCount: _podcasts.length,
                       itemBuilder: (context, i) {
                         final p = _podcasts[i];
                         final art =
                             Thumbnail((p['artwork'] ?? '').toString()).high;
+                        // §5.3 card: no background, art radius 8,
+                        // titleMedium / bodyMedium, gap 8.
                         return InkWell(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(RiffRadii.sm),
                           onTap: () async {
                             if (shouldPlayPodcastShowOnTap()) {
                               final ok = await playPodcastShow(p);
@@ -85,7 +88,8 @@ class _PodcastCategoryScreenState extends State<PodcastCategoryScreen> {
                             children: [
                               Expanded(
                                 child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius:
+                                      BorderRadius.circular(RiffRadii.sm),
                                   child: CachedNetworkImage(
                                     imageUrl: art,
                                     width: double.infinity,
@@ -98,19 +102,22 @@ class _PodcastCategoryScreenState extends State<PodcastCategoryScreen> {
                                             .round(),
                                     fit: BoxFit.cover,
                                     errorWidget: (_, __, ___) => Container(
-                                      color: theme.colorScheme.secondary
-                                          .withOpacity(0.3),
-                                      child:
-                                          const Icon(Icons.podcasts, size: 48),
+                                      color:
+                                          theme.colorScheme.surfaceContainerLow,
+                                      child: Icon(Icons.podcasts,
+                                          size:
+                                              RiffComponentSizes.emptyStateIcon,
+                                          color: theme
+                                              .colorScheme.onSurfaceVariant),
                                     ),
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: RiffSpacing.sm),
                               Text((p['title'] ?? '').toString(),
-                                  maxLines: 2,
+                                  maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.titleSmall),
+                                  style: theme.textTheme.titleMedium),
                               if ((p['author'] ?? '')
                                   .toString()
                                   .trim()
@@ -118,7 +125,9 @@ class _PodcastCategoryScreenState extends State<PodcastCategoryScreen> {
                                 Text((p['author'] ?? '').toString(),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.bodySmall),
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                        color: theme
+                                            .colorScheme.onSurfaceVariant)),
                             ],
                           ),
                         );

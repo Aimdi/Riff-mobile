@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 
 import '/services/podcast_playback_profile.dart';
 
@@ -56,6 +57,11 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
   @override
   Widget build(BuildContext context) {
     final subs = PodcastService.subscriptions;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final pillBorder = OutlineInputBorder(
+        borderRadius: BorderRadius.circular(RiffRadii.pill),
+        borderSide: BorderSide.none);
     return Scaffold(
       backgroundColor: Theme.of(context).canvasColor,
       body: Column(children: [
@@ -67,21 +73,43 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(
-                controller: _searchCtrl,
-                textInputAction: TextInputAction.search,
-                onSubmitted: (_) => _search(),
-                decoration: InputDecoration(
-                  hintText: "searchPodcasts".tr,
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: IconButton(
-                      icon: const Icon(Icons.arrow_forward),
-                      onPressed: _search),
-                  border: const OutlineInputBorder(),
-                  isDense: true,
+              // §5.8: surface1 pill, 40 tall, no border at rest, 1 px
+              // accent ring on focus.
+              SizedBox(
+                height: RiffComponentSizes.searchField,
+                child: TextField(
+                  controller: _searchCtrl,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (_) => _search(),
+                  style: theme.textTheme.bodyLarge
+                      ?.copyWith(color: scheme.onSurface),
+                  textAlignVertical: TextAlignVertical.center,
+                  decoration: InputDecoration(
+                    hintText: "searchPodcasts".tr,
+                    hintStyle: theme.textTheme.bodyLarge
+                        ?.copyWith(color: scheme.onSurfaceVariant),
+                    prefixIcon: Icon(Icons.search,
+                        size: RiffComponentSizes.trailingIcon,
+                        color: scheme.onSurfaceVariant),
+                    suffixIcon: IconButton(
+                        icon: Icon(Icons.arrow_forward,
+                            size: RiffComponentSizes.trailingIcon,
+                            color: scheme.onSurfaceVariant),
+                        onPressed: _search),
+                    filled: true,
+                    fillColor: scheme.surfaceContainerLow,
+                    contentPadding: EdgeInsets.zero,
+                    border: pillBorder,
+                    enabledBorder: pillBorder,
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(RiffRadii.pill),
+                      borderSide: BorderSide(color: scheme.primary, width: 1),
+                    ),
+                    isDense: true,
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: RiffSpacing.md),
               Expanded(
                 child: _loading
                     ? const SongListShimmer(itemCount: 8, topPadding: 8)
@@ -100,7 +128,7 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
     if (subs.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(RiffSpacing.xxl),
           child: Text("noSubscriptions".tr,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium),
@@ -111,7 +139,7 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
       children: [
         Text("mySubscriptions".tr,
             style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
+        const SizedBox(height: RiffSpacing.sm),
         ...subs.map((p) => _podcastTile(p, subscribeMode: false)),
       ],
     );
@@ -136,18 +164,23 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: ClipRRect(
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(RiffRadii.sm),
         child: CachedNetworkImage(
           imageUrl: p['artwork'] ?? '',
-          width: 52,
-          height: 52,
-          memCacheWidth: (52 * MediaQuery.devicePixelRatioOf(context)).round(),
+          width: RiffComponentSizes.rowArt,
+          height: RiffComponentSizes.rowArt,
+          memCacheWidth: (RiffComponentSizes.rowArt *
+                  MediaQuery.devicePixelRatioOf(context))
+              .round(),
           fit: BoxFit.cover,
-          errorWidget: (_, __, ___) => const Icon(Icons.podcasts, size: 40),
+          errorWidget: (_, __, ___) => Icon(Icons.podcasts,
+              color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       ),
-      title: Text(p['title'] ?? '', maxLines: 1),
-      subtitle: Text(p['author'] ?? '', maxLines: 1),
+      title:
+          Text(p['title'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle:
+          Text(p['author'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
       trailing: PodcastFollowButton(
         compact: true,
         following: subscribed,

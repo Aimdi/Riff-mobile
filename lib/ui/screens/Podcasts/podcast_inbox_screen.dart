@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '/services/podcast_bookmarks.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/services/podcast_download_service.dart';
 import '/services/podcast_inbox_cache.dart';
 import '/services/podcast_library.dart';
@@ -384,22 +385,24 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
         slivers: [
           SliverToBoxAdapter(
             child: SizedBox(
-              height: 2,
+              height: RiffComponentSizes.rowProgress,
               child: _refreshing
-                  ? const LinearProgressIndicator(minHeight: 2)
+                  ? const LinearProgressIndicator(
+                      minHeight: RiffComponentSizes.rowProgress)
                   : null,
             ),
           ),
           SliverToBoxAdapter(child: _chips(context)),
           if (filter == null && expected.isNotEmpty) ...[
             SliverToBoxAdapter(
-              child: HomeSectionHeader('expectedToday'.tr, top: 12),
+              child: HomeSectionHeader('expectedToday'.tr, top: RiffSpacing.md),
             ),
             SliverToBoxAdapter(child: _expectedRow(context, expected)),
           ],
           if (continueItems.isNotEmpty) ...[
             SliverToBoxAdapter(
-              child: HomeSectionHeader("continueListening".tr, top: 12),
+              child: HomeSectionHeader("continueListening".tr,
+                  top: RiffSpacing.md),
             ),
             SliverToBoxAdapter(
               child: SizedBox(
@@ -425,7 +428,9 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
                   filter == null
                       ? "latestEpisodes".tr
                       : '${_filterLabel(filter)} · ${list.length}',
-                  top: continueItems.isEmpty ? 12 : HomeLayout.sectionTop),
+                  top: continueItems.isEmpty
+                      ? RiffSpacing.md
+                      : HomeLayout.sectionTop),
             ),
             SliverList(
               delegate: SliverChildBuilderDelegate(
@@ -452,7 +457,8 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
                       onAction: () => setState(() => _filter = null),
                     ),
             ),
-          const SliverToBoxAdapter(child: SizedBox(height: 200)),
+          const SliverToBoxAdapter(
+              child: SizedBox(height: RiffSpacing.listEnd)),
         ],
       ),
     );
@@ -492,7 +498,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     final loc = MaterialLocalizations.of(context);
     final use24h = MediaQuery.alwaysUse24HourFormatOf(context);
     return SizedBox(
-      height: 64,
+      height: RiffComponentSizes.expectedRowHeight,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
@@ -504,17 +510,19 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
               TimeOfDay(hour: s.prediction.hour, minute: s.prediction.minute),
               alwaysUse24HourFormat: use24h);
           return Container(
-            width: 230,
-            padding: const EdgeInsets.all(8),
+            width: RiffComponentSizes.expectedCardWidth,
+            padding: const EdgeInsets.all(RiffSpacing.sm),
             decoration: BoxDecoration(
               color: homeTileColor(context),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(RiffRadii.sm),
               border: Border.fromBorderSide(homeTileBorder(context)),
             ),
             child: Row(
               children: [
-                PodcastArt(url: Thumbnail(s.artUri ?? '').medium, size: 48),
-                const SizedBox(width: 10),
+                PodcastArt(
+                    url: Thumbnail(s.artUri ?? '').medium,
+                    size: RiffComponentSizes.rowArt),
+                const SizedBox(width: RiffSpacing.md),
                 Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -523,14 +531,16 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
                       Text(s.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.labelMedium),
-                      const SizedBox(height: 2),
+                          style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: RiffSpacing.xxs),
                       Row(
                         children: [
                           Icon(Icons.schedule_rounded,
-                              size: 14,
-                              color: Theme.of(context).colorScheme.secondary),
-                          const SizedBox(width: 4),
+                              size: RiffSizes.chipGlyph,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant),
+                          const SizedBox(width: RiffSpacing.xs),
                           Flexible(
                             child: Text(
                               'expectedAround'.trParams({'time': time}),
@@ -556,7 +566,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
   /// time; tap the selected one again to go back to the Inbox.
   Widget _chips(BuildContext context) {
     return SizedBox(
-      height: 42,
+      height: RiffSpacing.sm + RiffSizes.chipHeight + RiffSpacing.xxs,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.only(
@@ -565,7 +575,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
             right: HomeLayout.gutter,
             bottom: RiffSpacing.xxs),
         itemCount: EpisodeFilter.values.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (_, __) => const SizedBox(width: RiffSpacing.sm),
         itemBuilder: (context, i) {
           final f = EpisodeFilter.values[i];
           final on = _filter == f;
@@ -594,7 +604,8 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
   }
 }
 
-/// Small outlined filter chip, quieter than the section tabs above it.
+/// Filter chip (§5.6): transparent with a divider outline; selected is an
+/// accentMuted fill, accent outline and accent label.
 class _FilterPill extends StatelessWidget {
   const _FilterPill(
       {required this.label, required this.selected, required this.onTap});
@@ -604,33 +615,29 @@ class _FilterPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final accent = scheme.secondary;
-    final fg = selected
-        ? accent
-        : (homeMutedColor(context) ?? scheme.onSurfaceVariant);
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
+    final fg = selected ? accent : theme.colorScheme.onSurface;
     return Material(
-      color: selected ? accent.withOpacity(0.14) : Colors.transparent,
+      color: selected ? RiffColors.of(context).accentMuted : Colors.transparent,
       shape: StadiumBorder(
           side: BorderSide(
-              color: selected ? accent : fg.withOpacity(0.45), width: 1)),
+              color: selected ? accent : theme.dividerColor, width: 0)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (selected) ...[
-                Icon(Icons.check_rounded, size: 15, color: accent),
-                const SizedBox(width: 4),
+                Icon(Icons.check_rounded,
+                    size: RiffSizes.chipGlyph, color: accent),
+                const SizedBox(width: RiffSpacing.xs),
               ],
               Text(label,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelMedium
-                      ?.copyWith(color: fg)),
+                  style: theme.textTheme.labelMedium?.copyWith(color: fg)),
             ],
           ),
         ),

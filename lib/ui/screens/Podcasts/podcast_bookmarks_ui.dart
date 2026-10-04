@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '/models/thumbnail.dart';
 import '/services/podcast_bookmarks.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/services/podcast_segments.dart' show formatSegmentLength;
 import '/ui/player/player_controller.dart';
 import '../../widgets/common_dialog_widget.dart';
@@ -131,8 +132,8 @@ class PodcastBookmarkTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final b = bookmark;
     final theme = Theme.of(context);
-    final accent = theme.colorScheme.secondary;
-    final fg = theme.textTheme.titleMedium?.color;
+    final muted = theme.colorScheme.onSurfaceVariant;
+    final fg = theme.colorScheme.onSurface;
     final art = Thumbnail('${b.episode['artUri'] ?? ''}').medium;
     return InkWell(
       onTap: onTap ?? () => playBookmark(context, b),
@@ -147,20 +148,21 @@ class PodcastBookmarkTile extends StatelessWidget {
           children: [
             if (showEpisode)
               Padding(
-                padding: const EdgeInsets.only(right: 12, top: 2),
+                padding: const EdgeInsets.only(
+                    right: RiffSpacing.md, top: RiffSpacing.xxs),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(RiffRadii.sm),
                   child: SizedBox(
-                    width: 48,
-                    height: 48,
+                    width: RiffComponentSizes.rowArt,
+                    height: RiffComponentSizes.rowArt,
                     child: art.isNotEmpty
                         ? CachedNetworkImage(
                             imageUrl: art,
                             fit: BoxFit.cover,
                             errorWidget: (_, __, ___) =>
-                                Icon(Icons.podcasts_rounded, color: accent),
+                                Icon(Icons.podcasts_rounded, color: muted),
                           )
-                        : Icon(Icons.podcasts_rounded, color: accent),
+                        : Icon(Icons.podcasts_rounded, color: muted),
                   ),
                 ),
               ),
@@ -170,22 +172,24 @@ class PodcastBookmarkTile extends StatelessWidget {
                 children: [
                   Row(
                     children: [
+                      // Timestamp tag: surface2, not accent (§2.5).
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
+                            horizontal: RiffSpacing.sm,
+                            vertical: RiffSpacing.xxs),
                         decoration: BoxDecoration(
-                          color: accent.withOpacity(0.16),
-                          borderRadius: BorderRadius.circular(6),
+                          color: RiffColors.of(context).surface2,
+                          borderRadius: BorderRadius.circular(RiffRadii.xs),
                         ),
                         child: Text(_at(b.positionMs),
                             style: theme.textTheme.labelSmall?.copyWith(
-                                color: accent,
+                                color: fg,
                                 fontFeatures: const [
                                   FontFeature.tabularFigures()
                                 ])),
                       ),
                       if (showEpisode) ...[
-                        const SizedBox(width: 8),
+                        const SizedBox(width: RiffSpacing.sm),
                         Expanded(
                           child: Text(
                             [b.showTitle, b.episodeTitle]
@@ -200,7 +204,7 @@ class PodcastBookmarkTile extends StatelessWidget {
                     ],
                   ),
                   if (b.quote.isNotEmpty) ...[
-                    const SizedBox(height: 6),
+                    const SizedBox(height: RiffSpacing.xs),
                     Text('“${b.quote}”',
                         maxLines: 4,
                         overflow: TextOverflow.ellipsis,
@@ -208,17 +212,17 @@ class PodcastBookmarkTile extends StatelessWidget {
                             ?.copyWith(fontStyle: FontStyle.italic, color: fg)),
                   ],
                   if (b.note != null) ...[
-                    const SizedBox(height: 6),
+                    const SizedBox(height: RiffSpacing.xs),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(Icons.sticky_note_2_outlined,
-                            size: 15, color: accent),
-                        const SizedBox(width: 6),
+                            size: RiffSizes.chipGlyph, color: muted),
+                        const SizedBox(width: RiffSpacing.xs),
                         Expanded(
                           child: Text(b.note!,
                               style: theme.textTheme.bodyMedium
-                                  ?.copyWith(color: homeMutedColor(context))),
+                                  ?.copyWith(color: muted)),
                         ),
                       ],
                     ),
@@ -228,7 +232,8 @@ class PodcastBookmarkTile extends StatelessWidget {
             ),
             PopupMenuButton<int>(
               tooltip: 'moreOptions'.tr,
-              icon: const Icon(Icons.more_vert_rounded, size: 20),
+              icon: Icon(Icons.more_vert_rounded,
+                  size: RiffComponentSizes.trailingIcon, color: muted),
               onSelected: (v) {
                 switch (v) {
                   case 0:
@@ -340,10 +345,11 @@ class PodcastBookmarksScreen extends StatelessWidget {
         );
       }
       return ListView.separated(
-        padding: const EdgeInsets.only(top: 4, bottom: 200),
+        padding: const EdgeInsets.only(
+            top: RiffSpacing.xs, bottom: RiffSpacing.listEnd),
         itemCount: list.length,
-        separatorBuilder: (_, __) =>
-            const Divider(height: 1, indent: 16, endIndent: 16),
+        // Full-width hairline between rows (§5.2).
+        separatorBuilder: (_, __) => const Divider(height: 1),
         itemBuilder: (_, i) => PodcastBookmarkTile(bookmark: list[i]),
       );
     });

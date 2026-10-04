@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/services/podcast_service.dart';
+import '/ui/theme/riff_spacing.dart';
 import 'podcast_cover_tile.dart';
 import 'podcast_folder_controller.dart';
 import 'podcast_subs_screen.dart';
@@ -52,7 +53,7 @@ class PodcastFolderScreen extends StatelessWidget {
           if (items.isEmpty && feeds.isEmpty) {
             return Center(
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(RiffSpacing.xxl),
                 child: Text(
                   "folderEmpty".tr,
                   textAlign: TextAlign.center,

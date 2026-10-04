@@ -348,7 +348,7 @@ class PodcastSubsScreen extends StatelessWidget {
                   right: RiffSpacing.xs,
                   bottom: RiffSpacing.xxs),
               child: SizedBox(
-                height: 40,
+                height: RiffComponentSizes.iconHit,
                 child: Row(
                   children: [
                     Expanded(
@@ -363,17 +363,15 @@ class PodcastSubsScreen extends StatelessWidget {
                     if (folders.folders.length > 1)
                       IconButton(
                         tooltip: 'reorderFolders'.tr,
-                        icon: const Icon(Icons.swap_vert_rounded, size: 22),
+                        icon: const Icon(Icons.swap_vert_rounded,
+                            size: RiffComponentSizes.headerIcon),
                         onPressed: () => showReorderFoldersSheet(context),
                       ),
+                    // Accent text button from the theme (§5.5).
                     TextButton.icon(
-                      style: TextButton.styleFrom(
-                        foregroundColor:
-                            Theme.of(context).colorScheme.secondary,
-                      ),
                       onPressed: () => showNewPodcastFolderDialog(context),
                       icon: const Icon(Icons.create_new_folder_outlined,
-                          size: 20),
+                          size: RiffComponentSizes.trailingIcon),
                       label: Text("newFolder".tr),
                     ),
                   ],
@@ -417,12 +415,12 @@ class PodcastSubsScreen extends StatelessWidget {
           color: folder.color.withOpacity(0.22),
           border: Border.all(
             color: folder.color.withOpacity(0.55),
-            width: 1.2,
+            width: 0,
           ),
         ),
         child: Icon(
           Icons.folder_rounded,
-          size: 64,
+          size: RiffComponentSizes.folderIcon,
           color: folder.color,
         ),
       ),

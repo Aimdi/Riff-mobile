@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 
 import '/models/thumbnail.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/services/podcast_download_service.dart';
 import '/services/podcast_library.dart';
 import '/services/podcast_progress_service.dart';
@@ -269,7 +270,7 @@ class PodcastQueueScreen extends StatelessWidget {
                 right: RiffSpacing.xs,
                 bottom: RiffSpacing.xxs),
             child: SizedBox(
-              height: 40,
+              height: RiffComponentSizes.iconHit,
               child: Row(
                 children: [
                   Expanded(
@@ -290,7 +291,8 @@ class PodcastQueueScreen extends StatelessWidget {
                   if (embedded)
                     IconButton(
                       tooltip: "clear".tr,
-                      icon: const Icon(Icons.delete_sweep_outlined, size: 22),
+                      icon: const Icon(Icons.delete_sweep_outlined,
+                          size: RiffComponentSizes.headerIcon),
                       onPressed: controller.clear,
                     ),
                 ],
@@ -299,7 +301,7 @@ class PodcastQueueScreen extends StatelessWidget {
           ),
           Expanded(
             child: ReorderableListView.builder(
-              padding: const EdgeInsets.only(bottom: 200),
+              padding: const EdgeInsets.only(bottom: RiffSpacing.listEnd),
               itemCount: items.length,
               buildDefaultDragHandles: false,
               onReorder: controller.reorder,
@@ -335,7 +337,7 @@ class PodcastQueueScreen extends StatelessWidget {
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 24),
+        padding: const EdgeInsets.only(right: RiffSpacing.xxl),
         color: Theme.of(context).colorScheme.error.withOpacity(0.18),
         child: Icon(Icons.playlist_remove_rounded,
             color: Theme.of(context).colorScheme.error),
@@ -376,18 +378,20 @@ class PodcastQueueScreen extends StatelessWidget {
             ReorderableDragStartListener(
               index: i,
               child: Padding(
-                padding: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.only(right: RiffSpacing.sm),
                 child: Icon(Icons.drag_indicator_rounded,
-                    size: 22, color: homeMutedColor(context)),
+                    size: RiffComponentSizes.headerIcon,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ),
-            PodcastArt(url: art, size: 56),
+            PodcastArt(url: art, size: RiffComponentSizes.rowArt),
           ],
         ),
         trailing: IconButton(
           tooltip: "removeFromQueue".tr,
           icon: Icon(Icons.remove_circle_outline_rounded,
-              size: 22, color: homeMutedColor(context)),
+              size: RiffComponentSizes.trailingIcon,
+              color: Theme.of(context).colorScheme.onSurfaceVariant),
           onPressed: () => controller.removeAt(i),
         ),
       ),

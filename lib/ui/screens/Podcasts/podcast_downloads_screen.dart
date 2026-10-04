@@ -8,6 +8,8 @@ import '/models/thumbnail.dart';
 import '/services/podcast_download_service.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/snackbar.dart';
 import 'podcast_empty_state.dart';
 import 'podcast_queue_screen.dart' show showAddToQueueSheet;
@@ -57,41 +59,36 @@ class _PodcastDownloadsScreenState extends State<PodcastDownloadsScreen> {
             onAction: widget.onDiscover,
           )
         : ListView.separated(
-            padding: const EdgeInsets.only(bottom: 200),
+            padding: const EdgeInsets.only(bottom: RiffSpacing.listEnd),
             itemCount: _items.length,
-            separatorBuilder: (_, __) =>
-                const Divider(height: 1, indent: 16, endIndent: 16),
+            // Full-width hairline between episodes (§5.2).
+            separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (context, i) {
               final item = _items[i];
               final art = Thumbnail(item.artUri?.toString() ?? '').medium;
               final dur = item.duration != null
                   ? PodcastService.formatDuration(item.duration!.inSeconds)
                   : null;
+              final fallback = SizedBox.square(
+                dimension: RiffComponentSizes.rowArt,
+                child: Icon(Icons.offline_pin_outlined,
+                    color: theme.colorScheme.onSurfaceVariant),
+              );
               return ListTile(
                 leading: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(RiffRadii.sm),
                   child: art.isNotEmpty
                       ? CachedNetworkImage(
                           imageUrl: art,
-                          width: 48,
-                          height: 48,
-                          memCacheWidth:
-                              (48 * MediaQuery.devicePixelRatioOf(context))
-                                  .round(),
+                          width: RiffComponentSizes.rowArt,
+                          height: RiffComponentSizes.rowArt,
+                          memCacheWidth: (RiffComponentSizes.rowArt *
+                                  MediaQuery.devicePixelRatioOf(context))
+                              .round(),
                           fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) => SizedBox(
-                            width: 48,
-                            height: 48,
-                            child: Icon(Icons.offline_pin_outlined,
-                                color: theme.colorScheme.secondary),
-                          ),
+                          errorWidget: (_, __, ___) => fallback,
                         )
-                      : SizedBox(
-                          width: 48,
-                          height: 48,
-                          child: Icon(Icons.offline_pin_outlined,
-                              color: theme.colorScheme.secondary),
-                        ),
+                      : fallback,
                 ),
                 title: Text(item.title,
                     maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -107,7 +104,9 @@ class _PodcastDownloadsScreenState extends State<PodcastDownloadsScreen> {
                 onLongPress: () => showAddToQueueSheet(context, item),
                 trailing: IconButton(
                   tooltip: 'removeDownload'.tr,
-                  icon: const Icon(Icons.delete_outline),
+                  icon: Icon(Icons.delete_outline,
+                      size: RiffComponentSizes.trailingIcon,
+                      color: theme.colorScheme.onSurfaceVariant),
                   onPressed: () async {
                     await PodcastDownloadService.delete(item.id);
                     _reload();
