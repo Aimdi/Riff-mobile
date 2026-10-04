@@ -247,7 +247,8 @@ class RiffTheme {
         // §5.7: a 4 px rounded accent bar under the label, a hairline
         // under the strip.
         indicator: UnderlineTabIndicator(
-          borderSide: BorderSide(color: accent, width: RiffComponentSizes.tabIndicator),
+          borderSide:
+              BorderSide(color: accent, width: RiffComponentSizes.tabIndicator),
           borderRadius: BorderRadius.circular(RiffComponentSizes.tabIndicator),
         ),
         indicatorSize: TabBarIndicatorSize.label,
@@ -391,7 +392,10 @@ class RiffTheme {
 /// in a theme extension).
 @immutable
 class RiffTextStyles extends ThemeExtension<RiffTextStyles> {
-  const RiffTextStyles({required this.cardTitle, required this.tileTitle});
+  const RiffTextStyles(
+      {required this.cardTitle,
+      required this.tileTitle,
+      required this.playerTitle});
 
   /// Riff Wave card title, 17/800.
   final TextStyle cardTitle;
@@ -399,9 +403,13 @@ class RiffTextStyles extends ThemeExtension<RiffTextStyles> {
   /// Speed dial tile title, 13/700.
   final TextStyle tileTitle;
 
+  /// Full-player track title, 22/28 800.
+  final TextStyle playerTitle;
+
   factory RiffTextStyles.forColor(Color primary) => RiffTextStyles(
         cardTitle: RiffTheme._t(17, 22, FontWeight.w800, primary),
         tileTitle: RiffTheme._t(13, 16, FontWeight.w700, primary),
+        playerTitle: RiffTheme._t(22, 28, FontWeight.w800, primary),
       );
 
   /// The theme's styles, or ones in its text colour for themes that don't
@@ -413,10 +421,14 @@ class RiffTextStyles extends ThemeExtension<RiffTextStyles> {
   }
 
   @override
-  RiffTextStyles copyWith({TextStyle? cardTitle, TextStyle? tileTitle}) =>
+  RiffTextStyles copyWith(
+          {TextStyle? cardTitle,
+          TextStyle? tileTitle,
+          TextStyle? playerTitle}) =>
       RiffTextStyles(
         cardTitle: cardTitle ?? this.cardTitle,
         tileTitle: tileTitle ?? this.tileTitle,
+        playerTitle: playerTitle ?? this.playerTitle,
       );
 
   @override
@@ -425,6 +437,7 @@ class RiffTextStyles extends ThemeExtension<RiffTextStyles> {
     return RiffTextStyles(
       cardTitle: TextStyle.lerp(cardTitle, other.cardTitle, t)!,
       tileTitle: TextStyle.lerp(tileTitle, other.tileTitle, t)!,
+      playerTitle: TextStyle.lerp(playerTitle, other.playerTitle, t)!,
     );
   }
 }
