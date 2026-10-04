@@ -1,3 +1,18 @@
+# 1.7.132
+
+**Spotify Connect (Premium)**
+* New in Spotify settings: Spotify Connect. Play songs, playlists, albums,
+  Liked Songs and your top tracks on any of your Spotify devices (the Spotify app
+  on this phone, a computer, a speaker), straight from Riff. The music
+  plays in Spotify itself, so it's the real Spotify recording; Riff's own
+  player isn't touched
+* The speaker icon on the Spotify screen opens a remote: what's playing,
+  play/pause, skip, seek, volume, and moving playback to another device
+* Playlists that Spotify doesn't let Riff list can still be played on a
+  Spotify device
+* Needs Spotify Premium, and two more permissions the first time you turn
+  it on. If no device is awake, Riff offers to open Spotify
+
 # 1.7.131
 
 **Spotify: likes and radio**

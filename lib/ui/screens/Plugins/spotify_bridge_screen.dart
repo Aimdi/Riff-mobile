@@ -9,6 +9,7 @@ import '/models/playlist.dart';
 import '/services/spotify_api_service.dart';
 import '/services/spotify_auth_service.dart';
 import '/services/spotify_import_service.dart';
+import '/services/spotify_connect.dart';
 import '/services/spotify_like_sync.dart';
 import '/ui/widgets/add_to_playlist.dart' show addSongsToLikedSongs;
 import '/ui/screens/Library/library_controller.dart';
@@ -112,6 +113,7 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
   Future<void> _signOut() async {
     await SpotifyAuthService.disconnect();
     await SpotifyLikeSync.forgetAccount();
+    await SpotifyConnect.forgetAccount();
     await SpotifyApiService.clearCache();
     setState(() {
       _connected = false;
@@ -189,15 +191,22 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
     }
   }
 
-  Future<void> _setLikeSync(bool on) async {
-    await SpotifyLikeSync.setEnabled(on);
-    if (!on || SpotifyLikeSync.hasWriteAccess || !mounted) return;
-    // The current sign-in can only read: ask for write access.
+  /// Turn on a feature that needs more Spotify permissions than the current
+  /// sign-in has: explain, sign in again, and turn it back off when the
+  /// permissions still aren't there.
+  Future<void> _enableWithScopes({
+    required Future<void> Function(bool on) setEnabled,
+    required bool Function() hasAccess,
+    required String title,
+    required String message,
+  }) async {
+    await setEnabled(true);
+    if (hasAccess() || !mounted) return;
     final again = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('spotifyLikeSync'.tr),
-        content: Text('spotifyLikeSyncSignIn'.tr),
+        title: Text(title),
+        content: Text(message),
         actions: [
           TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
@@ -208,14 +217,39 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
         ],
       ),
     );
-    if (again == true) {
-      await _signIn();
-    }
-    if (!SpotifyLikeSync.hasWriteAccess) {
+    if (again == true) await _signIn();
+    if (!hasAccess()) await setEnabled(false);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _setLikeSync(bool on) async {
+    if (!on) {
       await SpotifyLikeSync.setEnabled(false);
-    } else {
+      return;
+    }
+    await _enableWithScopes(
+      setEnabled: SpotifyLikeSync.setEnabled,
+      hasAccess: () => SpotifyLikeSync.hasWriteAccess,
+      title: 'spotifyLikeSync'.tr,
+      message: 'spotifyLikeSyncSignIn'.tr,
+    );
+    if (SpotifyLikeSync.enabled) {
       SpotifyLikeSync.flushSoon(delay: const Duration(seconds: 2));
     }
+  }
+
+  Future<void> _setConnect(bool on) async {
+    if (!on) {
+      await SpotifyConnect.setEnabled(false);
+      if (mounted) setState(() {});
+      return;
+    }
+    await _enableWithScopes(
+      setEnabled: SpotifyConnect.setEnabled,
+      hasAccess: () => SpotifyConnect.hasAccess,
+      title: 'spotifyConnect'.tr,
+      message: 'spotifyConnectSignIn'.tr,
+    );
   }
 
   Future<void> _importLikes() async {
@@ -279,6 +313,17 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
                     style: homeCardSubtitleStyle(ctx)),
               );
             }),
+            SwitchListTile(
+              secondary: const Icon(Icons.speaker_group_rounded),
+              title: Text('spotifyConnect'.tr),
+              subtitle: Text('spotifyConnectDes'.tr,
+                  style: homeCardSubtitleStyle(ctx)),
+              value: SpotifyConnect.enabled,
+              onChanged: (v) async {
+                Navigator.of(ctx).pop();
+                await _setConnect(v);
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.playlist_add_check_rounded),
               title: Text('spotifyImportLikes'.tr),
@@ -304,6 +349,12 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
         children: [
           RiffPageHeader('spotifyBridge'.tr, actions: [
             if (_connected) ...[
+              if (SpotifyConnect.enabled)
+                IconButton(
+                  tooltip: 'spotifyConnect'.tr,
+                  icon: const Icon(Icons.speaker_group_rounded),
+                  onPressed: () => openSpotifyPage(const SpotifyConnectArgs()),
+                ),
               IconButton(
                 tooltip: 'spotifyRadio'.tr,
                 icon: const Icon(Icons.radio_rounded),

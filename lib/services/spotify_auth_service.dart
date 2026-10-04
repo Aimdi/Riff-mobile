@@ -56,9 +56,24 @@ class SpotifyAuthService {
 
   static bool get likeSyncOn => _box.get(likeSyncKey) == true;
 
+  /// Asked for only while Spotify Connect is on: seeing and controlling
+  /// playback on the user's Spotify devices (Premium).
+  static const playbackScopes = <String>[
+    'user-read-playback-state',
+    'user-modify-playback-state',
+  ];
+
+  /// AppPrefs key of the Spotify Connect switch.
+  static const connectKey = 'spotifyConnect';
+
+  static bool get connectOn => _box.get(connectKey) == true;
+
   /// What a sign-in asks for now.
-  static List<String> get requestedScopes =>
-      [...scopes, if (likeSyncOn) libraryWriteScope];
+  static List<String> get requestedScopes => [
+        ...scopes,
+        if (likeSyncOn) libraryWriteScope,
+        if (connectOn) ...playbackScopes,
+      ];
 
   // ---- stored settings -------------------------------------------------
 

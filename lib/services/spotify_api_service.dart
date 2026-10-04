@@ -6,6 +6,7 @@ import 'package:hive/hive.dart';
 
 import '../utils/helper.dart';
 import 'spotify_auth_service.dart';
+import 'spotify_connect_models.dart';
 import 'spotify_import_service.dart';
 
 /// Why a Spotify Web API call failed, for a message the user can act on.
@@ -32,6 +33,12 @@ enum SpotifyErrorKind {
 
   /// No answer.
   network,
+
+  /// 403 `PREMIUM_REQUIRED`: playback control needs Spotify Premium.
+  premiumRequired,
+
+  /// 404 `NO_ACTIVE_DEVICE`: no Spotify device is awake to play on.
+  noActiveDevice,
 }
 
 class SpotifyApiException implements Exception {
@@ -49,15 +56,36 @@ class SpotifyApiException implements Exception {
 
 /// What a non-200 answer means.
 SpotifyErrorKind classifySpotifyError(int status, Object? body) {
+  final reason = spotifyErrorReason(body);
   if (status == 401) return SpotifyErrorKind.signedOut;
-  if (status == 403) return SpotifyErrorKind.forbidden;
-  if (status == 404) return SpotifyErrorKind.notFound;
+  if (status == 403) {
+    return reason == 'PREMIUM_REQUIRED'
+        ? SpotifyErrorKind.premiumRequired
+        : SpotifyErrorKind.forbidden;
+  }
+  if (status == 404) {
+    return reason == 'NO_ACTIVE_DEVICE'
+        ? SpotifyErrorKind.noActiveDevice
+        : SpotifyErrorKind.notFound;
+  }
   if (status == 429) {
     return isQuotaExceeded(body)
         ? SpotifyErrorKind.quotaExceeded
         : SpotifyErrorKind.rateLimited;
   }
   return SpotifyErrorKind.server;
+}
+
+/// `error.reason` of an error answer (`PREMIUM_REQUIRED`, …), or null.
+String? spotifyErrorReason(Object? body) {
+  try {
+    final j = body is Map ? body : jsonDecode('$body');
+    final e = j is Map ? j['error'] : null;
+    final r = e is Map ? e['reason'] : null;
+    return r is String ? r : null;
+  } catch (_) {
+    return null;
+  }
 }
 
 /// `{"error":{"status":429,"message":"Too many requests",
@@ -350,7 +378,7 @@ class SpotifyApiService {
   /// [method] [url] with the error handling of [_get]. Writes (PUT,
   /// DELETE) succeed on any 2xx and are never cached.
   Future<String> _request(String method, String url,
-      {Duration? ttl, bool force = false}) async {
+      {Duration? ttl, bool force = false, Object? body}) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     final box =
         _useCache && ttl != null && method == 'GET' ? await _cache() : null;
@@ -378,9 +406,13 @@ class SpotifyApiService {
       try {
         res = await _dio.request(
           url,
+          data: body == null ? null : jsonEncode(body),
           options: Options(
             method: method,
-            headers: {'Authorization': 'Bearer $token'},
+            headers: {
+              'Authorization': 'Bearer $token',
+              if (body != null) 'Content-Type': 'application/json',
+            },
             validateStatus: (_) => true,
           ),
         );
@@ -388,10 +420,11 @@ class SpotifyApiService {
         throw const SpotifyApiException(SpotifyErrorKind.network);
       }
       final status = res.statusCode ?? 0;
+      if (status == 204) return ''; // nothing to say (e.g. nothing playing)
       if (status == 200 || (method != 'GET' && status >= 200 && status < 300)) {
-        final body = '${res.data ?? ''}';
-        await box?.put(url, {'at': now, 'body': body});
-        return body;
+        final text = '${res.data ?? ''}';
+        await box?.put(url, {'at': now, 'body': text});
+        return text;
       }
       final kind = classifySpotifyError(status, res.data);
       if (kind == SpotifyErrorKind.signedOut && !refreshed) {
@@ -598,6 +631,56 @@ class SpotifyApiService {
       }
     }
   }
+
+  // ── Spotify Connect (Premium) ──────────────────────────────────────
+
+  /// Devices that can play: the Spotify app on a phone or computer, a
+  /// speaker. Needs `user-read-playback-state`.
+  Future<List<SpotifyDevice>> fetchDevices() async =>
+      parseDevices(await _get('$base/me/player/devices'));
+
+  /// What's playing, and where; null when nothing is.
+  Future<SpotifyPlaybackState?> fetchPlaybackState() async =>
+      parsePlaybackState(await _get('$base/me/player'),
+          parseTrack: (i) => parseTrackItem(i));
+
+  /// Move playback to [deviceId]. Needs `user-modify-playback-state`, as
+  /// do the controls below.
+  Future<void> transferPlayback(String deviceId, {bool play = true}) =>
+      _request('PUT', '$base/me/player', body: {
+        'device_ids': [deviceId],
+        'play': play,
+      });
+
+  String _onDevice(String path, String? deviceId,
+          [Map<String, String> more = const {}]) =>
+      Uri.parse('$base/me/player/$path').replace(queryParameters: {
+        if (deviceId != null) 'device_id': deviceId,
+        ...more,
+      }).toString();
+
+  /// Start [body] (see `connectPlayBody`), or carry on when it's null.
+  Future<void> play({String? deviceId, Map<String, dynamic>? body}) =>
+      _request('PUT', _onDevice('play', deviceId), body: body);
+
+  Future<void> pause({String? deviceId}) =>
+      _request('PUT', _onDevice('pause', deviceId));
+
+  Future<void> next({String? deviceId}) =>
+      _request('POST', _onDevice('next', deviceId));
+
+  Future<void> previous({String? deviceId}) =>
+      _request('POST', _onDevice('previous', deviceId));
+
+  Future<void> seek(int positionMs, {String? deviceId}) => _request(
+      'PUT',
+      _onDevice('seek', deviceId,
+          {'position_ms': '${positionMs.clamp(0, 1 << 31)}'}));
+
+  Future<void> setVolume(int percent, {String? deviceId}) => _request(
+      'PUT',
+      _onDevice(
+          'volume', deviceId, {'volume_percent': '${percent.clamp(0, 100)}'}));
 
   /// Convenience: a playlist as the same shape the public import produces.
   Future<SpotifyPlaylistImport> fetchPlaylistAsImport(
