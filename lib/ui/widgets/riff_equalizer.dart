@@ -2,13 +2,15 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '/ui/theme/riff_tokens.dart';
+
 /// Small bar equalizer. Moves while [animate] is true, rests as a static
 /// waveform otherwise (no ticking on an idle Home).
 class RiffEqualizer extends StatefulWidget {
   const RiffEqualizer({
     super.key,
     required this.animate,
-    this.color = Colors.white,
+    this.color = RiffPalette.onImage,
     this.size = 24,
     this.bars = 4,
   });
@@ -90,7 +92,12 @@ class _BarsPainter extends CustomPainter {
     final paint = Paint()..color = color;
     for (var i = 0; i < bars; i++) {
       final h = moving
-          ? 0.3 + 0.7 * (0.5 + 0.5 * math.sin((t * 2 * math.pi * (1 + i * 0.37)) + i * 1.7))
+          ? 0.3 +
+              0.7 *
+                  (0.5 +
+                      0.5 *
+                          math.sin(
+                              (t * 2 * math.pi * (1 + i * 0.37)) + i * 1.7))
           : _rest[i % _rest.length];
       final barH = size.height * h;
       final x = i * (w + gap);

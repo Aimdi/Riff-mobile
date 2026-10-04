@@ -11,6 +11,7 @@ import 'package:terminate_restart/terminate_restart.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/utils/helper.dart';
 import '../../services/permission_service.dart';
+import '/ui/theme/riff_spacing.dart';
 import '../screens/Home/home_layout.dart';
 import 'common_dialog_widget.dart';
 
@@ -22,7 +23,11 @@ class RestoreDialog extends StatelessWidget {
     final c = Get.put(RestoreDialogController());
     return CommonDialog(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(22, 24, 22, 18),
+        padding: const EdgeInsets.only(
+            left: RiffSpacing.xxl,
+            top: RiffSpacing.xxl,
+            right: RiffSpacing.xxl,
+            bottom: RiffSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -32,8 +37,10 @@ class RestoreDialog extends StatelessWidget {
               height: 120,
               child: Center(
                 child: Obx(() {
-                  final style =
-                      homeCardSubtitleStyle(context).copyWith(fontSize: 14);
+                  final style = Theme.of(context)
+                      .textTheme
+                      .bodyLarge
+                      ?.copyWith(color: homeMutedColor(context));
                   if (c.restoreProgress.toInt() == c.filesToRestore.toInt()) {
                     return Text("restoreMsg".tr,
                         textAlign: TextAlign.center, style: style);
@@ -47,11 +54,13 @@ class RestoreDialog extends StatelessWidget {
                       children: [
                         Text(
                             "${c.restoreProgress.toInt()}/${c.filesToRestore.toInt()}",
-                            style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w800,
-                                color:
-                                    Theme.of(context).colorScheme.secondary)),
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineLarge
+                                ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .secondary)),
                         const SizedBox(height: 6),
                         Text("restoring".tr, style: style),
                       ],

@@ -11,6 +11,8 @@ import 'dart:math';
 
 import 'package:flutter/physics.dart';
 
+import '/ui/theme/riff_tokens.dart';
+
 enum SlideDirection {
   UP,
   DOWN,
@@ -180,14 +182,14 @@ class SlidingUpPanel extends StatefulWidget {
           color: Color.fromRGBO(0, 0, 0, 0.25),
         )
       ],
-      this.color = Colors.white,
+      this.color = RiffPalette.onImage,
       this.padding,
       this.margin,
       this.renderPanelSheet = true,
       this.panelSnapping = true,
       this.controller,
       this.backdropEnabled = false,
-      this.backdropColor = Colors.black,
+      this.backdropColor = RiffPalette.scrim,
       this.backdropOpacity = 0.5,
       this.backdropTapClosesPanel = true,
       this.onPanelSlide,
