@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '/services/sync/webdav_client.dart';
 import '/services/sync/webdav_sync_service.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '../Home/home_layout.dart';
 
 /// Localisation key of the message for [e].
@@ -81,16 +82,14 @@ class _WebDavSyncScreenState extends State<WebDavSyncScreen> {
         url: _url.text, user: _user.text, password: _pass.text);
     if (!mounted) return;
     setState(() => _saved = true);
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
-        behavior: SnackBarBehavior.floating,
-        content: Text('syncAccountSaved'.tr)));
+    ScaffoldMessenger.maybeOf(context)
+        ?.showSnackBar(SnackBar(content: Text('syncAccountSaved'.tr)));
   }
 
   Future<void> _syncNow() async {
     final out = await WebDavSyncService.syncNow();
     if (!mounted) return;
     ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
-      behavior: SnackBarBehavior.floating,
       content: Text(out.ok
           ? 'syncDone'
               .trParams({'received': '${out.received}', 'sent': '${out.sent}'})
@@ -114,13 +113,17 @@ class _WebDavSyncScreenState extends State<WebDavSyncScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Border, label and focus ring come from the theme (§5.8).
     InputDecoration deco(String label, {String? hint, Widget? suffix}) =>
         InputDecoration(
           labelText: label,
           hintText: hint,
           suffixIcon: suffix,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         );
+    const spinner = SizedBox.square(
+        dimension: RiffComponentSizes.buttonSpinner,
+        child: CircularProgressIndicator(
+            strokeWidth: RiffComponentSizes.spinnerStroke));
 
     return Scaffold(
       body: Column(
@@ -145,7 +148,7 @@ class _WebDavSyncScreenState extends State<WebDavSyncScreen> {
                   textInputAction: TextInputAction.next,
                   onChanged: (_) => setState(() => _test = null),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: RiffSpacing.sm),
                 TextField(
                   controller: _user,
                   decoration: deco('username'.tr),
@@ -153,7 +156,7 @@ class _WebDavSyncScreenState extends State<WebDavSyncScreen> {
                   textInputAction: TextInputAction.next,
                   onChanged: (_) => setState(() => _test = null),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: RiffSpacing.sm),
                 TextField(
                   controller: _pass,
                   obscureText: _obscure,
@@ -170,26 +173,22 @@ class _WebDavSyncScreenState extends State<WebDavSyncScreen> {
                       )),
                   onChanged: (_) => setState(() => _test = null),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: RiffSpacing.xs),
                 Text('syncAppPasswordHint'.tr,
                     style: homeCardSubtitleStyle(context)),
-                const SizedBox(height: 14),
+                const SizedBox(height: RiffSpacing.md),
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: _complete && !_testing ? _runTest : null,
                         icon: _testing
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2))
+                            ? spinner
                             : const Icon(Icons.wifi_tethering_rounded),
                         label: Text('syncTest'.tr),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: RiffSpacing.sm),
                     Expanded(
                       child: FilledButton.icon(
                         onPressed: _complete ? _save : null,
@@ -201,22 +200,22 @@ class _WebDavSyncScreenState extends State<WebDavSyncScreen> {
                 ),
                 if (_test != null)
                   Padding(
-                    padding: const EdgeInsets.only(top: 10),
+                    padding: const EdgeInsets.only(top: RiffSpacing.sm),
                     child: Row(
                       children: [
                         Icon(
                             _test!.isEmpty
                                 ? Icons.check_circle_rounded
                                 : Icons.error_outline_rounded,
-                            size: 18,
+                            size: RiffComponentSizes.inlineIcon,
                             color: _test!.isEmpty
-                                ? theme.colorScheme.secondary
+                                ? theme.colorScheme.onSurface
                                 : theme.colorScheme.error),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: RiffSpacing.sm),
                         Expanded(
                           child: Text(
                               _test!.isEmpty ? 'syncTestOk'.tr : _test!.tr,
-                              style: TextStyle(
+                              style: theme.textTheme.bodyMedium?.copyWith(
                                   color: _test!.isEmpty
                                       ? null
                                       : theme.colorScheme.error)),
@@ -224,11 +223,11 @@ class _WebDavSyncScreenState extends State<WebDavSyncScreen> {
                       ],
                     ),
                   ),
-                const SizedBox(height: 18),
+                const SizedBox(height: RiffSpacing.lg),
                 const Divider(height: 1),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text('syncAuto'.tr),
+                  title: Text('syncAuto'.tr, style: theme.textTheme.bodyLarge),
                   subtitle: Text('syncAutoDes'.tr,
                       style: homeCardSubtitleStyle(context)),
                   value: _auto,
@@ -239,21 +238,16 @@ class _WebDavSyncScreenState extends State<WebDavSyncScreen> {
                         }
                       : null,
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: RiffSpacing.xs),
                 Obx(() {
                   final busy = WebDavSyncService.syncing.value;
                   return FilledButton.tonalIcon(
                     onPressed: _saved && !busy ? _syncNow : null,
-                    icon: busy
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.sync_rounded),
+                    icon: busy ? spinner : const Icon(Icons.sync_rounded),
                     label: Text(busy ? 'syncRunning'.tr : 'syncNow'.tr),
                   );
                 }),
-                const SizedBox(height: 8),
+                const SizedBox(height: RiffSpacing.sm),
                 Obx(() {
                   final at = WebDavSyncService.lastSyncAt.value;
                   final err = WebDavSyncService.lastError.value;
@@ -271,12 +265,12 @@ class _WebDavSyncScreenState extends State<WebDavSyncScreen> {
                           color:
                               err.isNotEmpty ? theme.colorScheme.error : null));
                 }),
-                const SizedBox(height: 22),
+                const SizedBox(height: RiffSpacing.xl),
                 Text('syncWhat'.tr, style: homeSectionTitleStyle(context)),
-                const SizedBox(height: 6),
+                const SizedBox(height: RiffSpacing.xs),
                 Text('syncWhatDes'.tr, style: homeCardSubtitleStyle(context)),
                 if (_saved) ...[
-                  const SizedBox(height: 22),
+                  const SizedBox(height: RiffSpacing.xl),
                   Align(
                     alignment: Alignment.centerLeft,
                     child: TextButton.icon(

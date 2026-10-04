@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '/services/ban_service.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '../Home/home_layout.dart';
 
 /// Settings › Never play: everything kept out of mixes, Riff Wave, radio,
@@ -21,7 +22,6 @@ class _BlacklistScreenState extends State<BlacklistScreen> {
     ScaffoldMessenger.maybeOf(context)
       ?..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
-        behavior: SnackBarBehavior.floating,
         content: Text('blacklistRemoved'.trParams({'name': label})),
         action: SnackBarAction(
           label: 'undo'.tr,
@@ -58,8 +58,12 @@ class _BlacklistScreenState extends State<BlacklistScreen> {
       required VoidCallback onRemove,
     }) =>
         ListTile(
-          contentPadding:
-              const EdgeInsets.only(left: HomeLayout.gutter, right: 4),
+          contentPadding: const EdgeInsets.only(
+              left: HomeLayout.gutter, right: RiffSpacing.xs),
+          // Full-width hairline inside the row's bottom edge (§5.2).
+          shape: Border(
+              bottom:
+                  BorderSide(color: Theme.of(context).dividerColor, width: 0)),
           leading: Icon(icon, color: homeMutedColor(context)),
           title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: subtitle == null || subtitle.isEmpty
@@ -70,7 +74,9 @@ class _BlacklistScreenState extends State<BlacklistScreen> {
                   style: homeCardSubtitleStyle(context)),
           trailing: IconButton(
             tooltip: 'blacklistRemove'.tr,
-            icon: const Icon(Icons.remove_circle_outline_rounded),
+            icon: Icon(Icons.remove_circle_outline_rounded,
+                size: RiffComponentSizes.trailingIcon,
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
             onPressed: onRemove,
           ),
         );
@@ -84,7 +90,7 @@ class _BlacklistScreenState extends State<BlacklistScreen> {
             child: empty
                 ? Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(32),
+                      padding: const EdgeInsets.all(RiffSpacing.x3l),
                       child: Text('blacklistEmpty'.tr,
                           textAlign: TextAlign.center,
                           style: Theme.of(context)
@@ -94,7 +100,7 @@ class _BlacklistScreenState extends State<BlacklistScreen> {
                     ),
                   )
                 : ListView(
-                    padding: const EdgeInsets.only(bottom: 200),
+                    padding: const EdgeInsets.only(bottom: RiffSpacing.listEnd),
                     children: [
                       if (artists.isNotEmpty) ...[
                         header('blacklistArtists'.tr, artists.length),

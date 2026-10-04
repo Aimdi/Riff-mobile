@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '/services/spotify_auth_service.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/riff_header_bar.dart';
 
 /// Spotify sign-in (Authorization Code + PKCE).
@@ -101,14 +103,18 @@ class _SpotifyLoginScreenState extends State<SpotifyLoginScreen> {
         if (err != null) {
           return Center(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(RiffSpacing.xxl),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.error_outline, size: 40),
-                  const SizedBox(height: 12),
-                  Text(err, textAlign: TextAlign.center),
-                  const SizedBox(height: 16),
+                  Icon(Icons.error_outline,
+                      size: RiffComponentSizes.errorStateIcon,
+                      color: Theme.of(context).colorScheme.error),
+                  const SizedBox(height: RiffSpacing.md),
+                  Text(err,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyLarge),
+                  const SizedBox(height: RiffSpacing.lg),
                   TextButton(
                     onPressed: () => Get.back(result: false),
                     child: Text('close'.tr),
@@ -119,12 +125,17 @@ class _SpotifyLoginScreenState extends State<SpotifyLoginScreen> {
           );
         }
         if (_controller == null) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+              child: SizedBox.square(
+                  dimension: RiffComponentSizes.spinner,
+                  child: CircularProgressIndicator(
+                      strokeWidth: RiffComponentSizes.spinnerStroke)));
         }
         return Stack(
           children: [
             WebViewWidget(controller: _controller!),
-            if (_busy.value) const LinearProgressIndicator(minHeight: 3),
+            if (_busy.value)
+              const LinearProgressIndicator(minHeight: RiffSizes.progressBar),
           ],
         );
       }),
