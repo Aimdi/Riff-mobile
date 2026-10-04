@@ -13,6 +13,7 @@ import '../player/player_controller.dart';
 import 'collection_play.dart';
 import 'empty_play_hint.dart';
 import 'image_widget.dart';
+import 'riff_sheet.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '../screens/Home/home_layout.dart';
@@ -99,7 +100,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
               height: (items.length < _overviewPreviewCount
                       ? items.length
                       : _overviewPreviewCount) *
-                  75.0,
+                  RiffComponentSizes.songRowExtent,
               child: listViewSongVid(items,
                   isPlaylistOrAlbum: isPlaylistOrAlbum,
                   playlist: playlist,
@@ -119,7 +120,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
               height: (items.length < _overviewPreviewCount
                       ? items.length
                       : _overviewPreviewCount) *
-                  72.0,
+                  RiffComponentSizes.artistRowExtent,
               child: listViewArtists(items, maxItems: _overviewPreviewCount),
             );
     }
@@ -140,7 +141,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
         : (items.length < maxItems ? items.length : maxItems);
     return ListView.builder(
       padding: EdgeInsets.only(
-        bottom: isCompleteList ? 200 : 0,
+        bottom: isCompleteList ? RiffSpacing.listEnd : 0,
         top: 0,
       ),
       addRepaintBoundaries: true,
@@ -148,7 +149,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
       controller: sc,
       itemCount: count,
       // SongListTile rows are a fixed ~75px — enables cheaper scroll layout.
-      itemExtent: 75,
+      itemExtent: RiffComponentSizes.songRowExtent,
       physics: isCompleteList
           ? const BouncingScrollPhysics()
           : const NeverScrollableScrollPhysics(),
@@ -159,6 +160,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           song: song,
           playlist: playlist,
           isPlaylistOrAlbum: isPlaylistOrAlbum,
+          fullWidthHairline: searchContext,
           onTap: () async {
             final bool ok;
             if (isArtistSongs) {
@@ -195,12 +197,12 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
     return Expanded(
       child: ListView.builder(
           padding: const EdgeInsets.only(
-            bottom: 210,
+            bottom: RiffSpacing.listEnd,
             top: 0,
           ),
           controller: sc,
           itemCount: playlists.length,
-          itemExtent: 96,
+          itemExtent: RiffComponentSizes.wideRowExtent,
           physics: const BouncingScrollPhysics(),
           itemBuilder: (context, index) => wideListTile(context,
               playlist: playlists[index],
@@ -214,12 +216,12 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
     return Expanded(
       child: ListView.builder(
           padding: const EdgeInsets.only(
-            bottom: 210,
+            bottom: RiffSpacing.listEnd,
             top: 0,
           ),
           controller: sc,
           itemCount: albums.length,
-          itemExtent: 96,
+          itemExtent: RiffComponentSizes.wideRowExtent,
           physics: const BouncingScrollPhysics(),
           itemBuilder: (context, index) {
             String artistName = "";
@@ -250,70 +252,59 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
         : (artists.length < maxItems ? artists.length : maxItems);
     return ListView.builder(
       padding: EdgeInsets.only(
-        bottom: isCompleteList ? 200 : 0,
-        top: 5,
+        bottom: isCompleteList ? RiffSpacing.listEnd : 0,
+        top: RiffSpacing.xs,
       ),
       controller: sc,
       itemCount: count,
-      itemExtent: 72,
+      itemExtent: RiffComponentSizes.artistRowExtent,
       physics: isCompleteList
           ? const BouncingScrollPhysics()
           : const NeverScrollableScrollPhysics(),
       itemBuilder: (context, index) {
         final artist = artists[index];
-        return ListTile(
-          visualDensity: const VisualDensity(horizontal: -2, vertical: 0),
-          onTap: () => shouldPlayCollectionOnTap()
-              ? _playArtistRow(artist)
-              : _openArtist(artist),
-          onLongPress: () => _showArtistActions(context, artist),
-          contentPadding: const EdgeInsets.only(top: 0, bottom: 0, left: 7),
-          leading: SizedBox(
-            width: 56,
-            height: 56,
-            child: Stack(
-              children: [
-                ImageWidget(
-                  size: 56,
-                  artist: artist,
-                ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: Tooltip(
-                    message: 'play'.tr,
-                    child: Material(
-                      color: RiffColors.of(context).scrim.withOpacity(0.5),
-                      shape: const CircleBorder(),
-                      clipBehavior: Clip.antiAlias,
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
+        return Stack(
+          children: [
+            ListTile(
+              // Theme gives 16h padding, titleMedium / bodyMedium (§5.2).
+              horizontalTitleGap: RiffSpacing.md,
+              onTap: () => shouldPlayCollectionOnTap()
+                  ? _playArtistRow(artist)
+                  : _openArtist(artist),
+              onLongPress: () => _showArtistActions(context, artist),
+              leading: SizedBox(
+                width: RiffComponentSizes.rowArt,
+                height: RiffComponentSizes.rowArt,
+                child: Stack(
+                  children: [
+                    ImageWidget(
+                      size: RiffComponentSizes.rowArt,
+                      artist: artist,
+                    ),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: _ArtPlayBadge(
                         onTap: () => _playArtistRow(artist),
-                        child: Padding(
-                          padding: const EdgeInsets.all(1),
-                          child: Icon(
-                            Icons.play_circle_fill,
-                            size: 22,
-                            color: RiffColors.of(context).onImage,
-                          ),
-                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
+              title: Text(
+                artist.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                artist.subscribers ?? '',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
-          title: Text(
-            artist.name,
-            maxLines: 1,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          subtitle: Text(
-            artist.subscribers ?? '',
-            maxLines: 1,
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
+            RiffRowHairline(
+                inset: searchContext ? 0 : RiffRowHairline.textInset),
+          ],
         );
       },
     );
@@ -344,9 +335,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
     showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
-      ),
+      shape: riffSheetShape,
       builder: (ctx) => SafeArea(
         child: Wrap(
           children: [
@@ -495,9 +484,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
         showModalBottomSheet(
           context: context,
           useRootNavigator: true,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
-          ),
+          shape: riffSheetShape,
           builder: (ctx) => Wrap(children: [
             ListTile(
               leading: const Icon(Icons.play_arrow_rounded),
@@ -552,86 +539,112 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
         );
       },
       child: SizedBox(
-        height: 96,
-        child: Padding(
-          // 5 from the list wrapper + sm lines up with the Home gutter;
-          // vertical 10 keeps the 76dp cover exactly inside the 96dp row.
-          padding: const EdgeInsets.only(
-              left: RiffSpacing.sm,
-              top: RiffSpacing.sm + RiffSpacing.xxs,
-              bottom: RiffSpacing.sm + RiffSpacing.xxs),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 76,
-                height: 76,
-                child: Stack(
-                  children: [
-                    ImageWidget(
-                      size: 76,
-                      album: album,
-                      playlist: playlist,
-                    ),
-                    Positioned(
-                      right: 4,
-                      bottom: 4,
-                      child: Tooltip(
-                        message: 'play'.tr,
-                        child: Material(
-                          color: RiffColors.of(context).scrim.withOpacity(0.5),
-                          shape: const CircleBorder(),
-                          clipBehavior: Clip.antiAlias,
-                          child: InkWell(
-                            customBorder: const CircleBorder(),
+        height: RiffComponentSizes.wideRowExtent,
+        child: Stack(
+          children: [
+            Padding(
+              // Gutter like every row; the vertical inset keeps the 76dp
+              // cover exactly inside the 96dp row.
+              padding: const EdgeInsets.symmetric(
+                  horizontal: RiffSpacing.lg,
+                  vertical: (RiffComponentSizes.wideRowExtent -
+                          RiffComponentSizes.wideRowArt) /
+                      2),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: RiffComponentSizes.wideRowArt,
+                    height: RiffComponentSizes.wideRowArt,
+                    child: Stack(
+                      children: [
+                        ImageWidget(
+                          size: RiffComponentSizes.wideRowArt,
+                          album: album,
+                          playlist: playlist,
+                          borderRadius: RiffRadii.sm,
+                        ),
+                        Positioned(
+                          right: RiffSpacing.xs,
+                          bottom: RiffSpacing.xs,
+                          child: _ArtPlayBadge(
                             onTap: () {
                               _playWideTile(
                                   album: album,
                                   playlist: playlist,
                                   shuffle: false);
                             },
-                            child: Padding(
-                              padding: const EdgeInsets.all(2),
-                              child: Icon(
-                                Icons.play_circle_fill,
-                                size: 22,
-                                color: RiffColors.of(context).onImage,
-                              ),
-                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: RiffSpacing.md),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: homeCardTitleStyle(context),
+                        ),
+                        const SizedBox(height: RiffSpacing.xxs),
+                        Text(
+                          [subtitle2, subtitle]
+                              .map((e) => e.trim())
+                              .where((e) => e.isNotEmpty && e != ',')
+                              .join(' · '),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: homeCardSubtitleStyle(context),
+                        ),
+                      ],
+                    ),
+                  )
+                ],
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                  child: Padding(
-                padding: const EdgeInsets.only(right: 10.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: homeCardTitleStyle(context),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      [subtitle2, subtitle]
-                          .map((e) => e.trim())
-                          .where((e) => e.isNotEmpty && e != ',')
-                          .join(' · '),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: homeCardSubtitleStyle(context),
-                    ),
-                  ],
-                ),
-              ))
-            ],
+            ),
+            RiffRowHairline(
+                inset: searchContext
+                    ? 0
+                    : RiffSpacing.lg +
+                        RiffComponentSizes.wideRowArt +
+                        RiffSpacing.md),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Small round play button over row artwork (artist avatars, album /
+/// playlist covers): scrim disc, white glyph.
+class _ArtPlayBadge extends StatelessWidget {
+  const _ArtPlayBadge({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = RiffColors.of(context);
+    return Tooltip(
+      message: 'play'.tr,
+      child: Material(
+        color: colors.scrim.withOpacity(0.5),
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(RiffSpacing.xxs),
+            child: Icon(
+              Icons.play_circle_fill,
+              size: RiffComponentSizes.artPlayBadge,
+              color: colors.onImage,
+            ),
           ),
         ),
       ),
