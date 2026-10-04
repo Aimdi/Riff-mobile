@@ -3,10 +3,12 @@ import 'package:get/get.dart';
 
 import '/services/spotify_api_service.dart';
 import '/services/spotify_auth_service.dart';
+import '/services/spotify_connect.dart';
 import '/services/spotify_import_service.dart';
 import '/ui/navigator.dart';
 import '/ui/widgets/spotify_import_dialog.dart';
 import '../Home/home_layout.dart';
+import 'spotify_connect_ui.dart';
 import 'spotify_widgets.dart';
 
 /// One Web API client for the Spotify screens.
@@ -40,6 +42,11 @@ class SpotifySearchArgs extends SpotifyPageArgs {
   const SpotifySearchArgs();
 }
 
+/// The Spotify Connect remote.
+class SpotifyConnectArgs extends SpotifyPageArgs {
+  const SpotifyConnectArgs();
+}
+
 void openSpotifyPage(SpotifyPageArgs args) => Get.toNamed(
       ScreenNavigationSetup.spotifyPageScreen,
       id: ScreenNavigationSetup.id,
@@ -60,11 +67,13 @@ class SpotifyPage extends StatelessWidget {
                 .where((s) => s.isNotEmpty)
                 .join(' · '),
             coverUrl: a.album.coverUrl,
+            contextUri: 'spotify:album:${a.album.id}',
             load: ({bool force = false}) =>
                 spotifyApi.fetchAlbumTracks(a.album.id, force: force),
           ),
         SpotifyArtistArgs a => _ArtistPage(artist: a.artist),
         SpotifySearchArgs _ => const _SearchPage(),
+        SpotifyConnectArgs _ => const SpotifyConnectPanel(),
       };
 }
 
@@ -75,10 +84,14 @@ class _TracksPage extends StatelessWidget {
     required this.load,
     this.subtitle = '',
     this.coverUrl,
+    this.contextUri,
   });
   final String title;
   final String subtitle;
   final String? coverUrl;
+
+  /// The playlist or album itself, for playing it on a Spotify device.
+  final String? contextUri;
   final Future<List<SpotifyTrackRef>> Function({bool force}) load;
 
   @override
@@ -109,7 +122,9 @@ class _TracksPage extends StatelessWidget {
                               ),
                             Expanded(
                                 child: SpotifyPlayBar(
-                                    tracks: tracks, from: title)),
+                                    tracks: tracks,
+                                    from: title,
+                                    contextUri: contextUri)),
                           ]),
                         )
                       : SpotifyTrackRow(
@@ -139,6 +154,7 @@ class _PlaylistPage extends StatelessWidget {
         title: p.name,
         subtitle: owner,
         coverUrl: p.coverUrl,
+        contextUri: 'spotify:playlist:${p.id}',
         load: ({bool force = false}) =>
             spotifyApi.fetchPlaylistTracks(p.id, force: force),
       );
@@ -166,6 +182,17 @@ class _PlaylistPage extends StatelessWidget {
                       initialUrl: 'https://open.spotify.com/playlist/${p.id}'),
                 ),
               ),
+              // Spotify plays any playlist on a Connect device, even ones
+              // whose songs it won't list.
+              if (SpotifyConnect.enabled) ...[
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.speaker_group_rounded),
+                  label: Text('spotifyPlayOnDevice'.tr),
+                  onPressed: () => playOnSpotifyDevice(context,
+                      contextUri: 'spotify:playlist:${p.id}'),
+                ),
+              ],
             ]),
           ),
         ],

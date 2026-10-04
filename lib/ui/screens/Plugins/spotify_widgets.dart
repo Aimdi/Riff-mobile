@@ -5,12 +5,14 @@ import 'package:get/get.dart';
 
 import '/services/spotify_api_service.dart';
 import '/services/spotify_auth_service.dart';
+import '/services/spotify_connect.dart';
 import '/services/spotify_import_service.dart';
 import '/services/spotify_match.dart';
 import '/services/spotify_match_store.dart';
 import '/services/spotify_playback.dart';
 import '/services/spotify_radio.dart';
 import '../Home/home_layout.dart';
+import 'spotify_connect_ui.dart';
 
 /// Localisation key of the message for a failed Spotify call.
 String spotifyErrorKey(SpotifyErrorKind kind) => switch (kind) {
@@ -21,6 +23,8 @@ String spotifyErrorKey(SpotifyErrorKind kind) => switch (kind) {
       SpotifyErrorKind.quotaExceeded => 'spotifyErrQuota',
       SpotifyErrorKind.server => 'spotifyErrServer',
       SpotifyErrorKind.network => 'spotifyErrNetwork',
+      SpotifyErrorKind.premiumRequired => 'spotifyErrPremium',
+      SpotifyErrorKind.noActiveDevice => 'spotifyErrNoDevice',
     };
 
 /// The message for [error] (any error; Spotify ones say what to do).
@@ -182,9 +186,13 @@ Future<void> playSpotifyTracks(
 
 /// Play and Shuffle for a list, with a hint while songs are being found.
 class SpotifyPlayBar extends StatelessWidget {
-  const SpotifyPlayBar({super.key, required this.tracks, required this.from});
+  const SpotifyPlayBar(
+      {super.key, required this.tracks, required this.from, this.contextUri});
   final List<SpotifyTrackRef> tracks;
   final String from;
+
+  /// The playlist or album itself, for "Play on a Spotify device".
+  final String? contextUri;
 
   @override
   Widget build(BuildContext context) {
@@ -209,6 +217,15 @@ class SpotifyPlayBar extends StatelessWidget {
             icon: const Icon(Icons.shuffle_rounded),
             label: Text('shuffle'.tr),
           ),
+          if (SpotifyConnect.enabled)
+            IconButton(
+              tooltip: 'spotifyPlayOnDevice'.tr,
+              icon: const Icon(Icons.speaker_group_rounded),
+              onPressed: tracks.isEmpty && contextUri == null
+                  ? null
+                  : () => playOnSpotifyDevice(context,
+                      tracks: tracks, contextUri: contextUri),
+            ),
           const SizedBox(width: 12),
           Expanded(
             child: Obx(() {
@@ -266,6 +283,12 @@ class _SpotifyTrackRowState extends State<SpotifyTrackRow> {
             title: Text('spotifyRadioFromSong'.tr),
             onTap: () => Navigator.of(ctx).pop('radio'),
           ),
+          if (SpotifyConnect.enabled)
+            ListTile(
+              leading: const Icon(Icons.speaker_group_rounded),
+              title: Text('spotifyPlayOnDevice'.tr),
+              onTap: () => Navigator.of(ctx).pop('device'),
+            ),
           ListTile(
             leading: const Icon(Icons.swap_horiz_rounded),
             title: Text('spotifyChangeMatch'.tr),
@@ -287,6 +310,9 @@ class _SpotifyTrackRowState extends State<SpotifyTrackRow> {
             start: widget.index, from: widget.from);
       case 'radio':
         await startSpotifyRadio(context, seed: t);
+      case 'device':
+        await playOnSpotifyDevice(context,
+            tracks: widget.tracks, start: widget.index);
       case 'change':
         await showSpotifyChangeMatch(context, t);
       case 'forget':

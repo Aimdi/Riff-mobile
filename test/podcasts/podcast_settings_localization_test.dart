@@ -42,6 +42,7 @@ void main() {
       'lib/ui/screens/Plugins/spotify_bridge_screen.dart',
       'lib/ui/screens/Plugins/spotify_pages.dart',
       'lib/ui/screens/Plugins/spotify_widgets.dart',
+      'lib/ui/screens/Plugins/spotify_connect_ui.dart',
       'lib/ui/widgets/spotify_import_dialog.dart',
       'lib/ui/widgets/songinfo_bottom_sheet.dart',
     ])
