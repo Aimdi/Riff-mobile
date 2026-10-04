@@ -86,7 +86,7 @@ class PodcastFolderScreen extends StatelessWidget {
                   playlist: podcast,
                   imageUrl: podcast.thumbnailUrl,
                   badge: isYoutubeChannelPodcast(podcast)
-                      ? youtubeChannelBadge()
+                      ? youtubeChannelBadge(context)
                       : null,
                   onTap: () => openLibraryPodcast(podcast),
                   onPlay: () => playLibraryPodcast(podcast),

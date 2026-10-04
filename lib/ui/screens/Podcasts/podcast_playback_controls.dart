@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/theme/riff_spacing.dart';
 import '/services/podcast_playback_profile.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/utils/theme_controller.dart';
@@ -91,8 +92,7 @@ class LongFormSkipButton extends StatelessWidget {
       return IconButton(
         tooltip: forward ? '+${secs}s' : '−${secs}s',
         iconSize: size,
-        onPressed: () =>
-            pc.seekBy(Duration(seconds: forward ? secs : -secs)),
+        onPressed: () => pc.seekBy(Duration(seconds: forward ? secs : -secs)),
         icon: SkipSecondsIcon(
             seconds: secs, forward: forward, color: color, size: size),
       );
@@ -130,8 +130,10 @@ class PodcastSpeedButton extends StatelessWidget {
             pc.currentSong.value;
             return Text(
               podcastSpeedLabel(pc.currentPodcastProfile.speed),
-              style: TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w700, color: color),
+              style: Theme.of(context)
+                  .textTheme
+                  .labelMedium
+                  ?.copyWith(color: color),
             );
           }),
         ),
@@ -162,15 +164,18 @@ Future<void> showPodcastSpeedSheet(BuildContext context) {
           children: [
             const RiffSheetHandle(),
             RiffSheetTitle('speed'.tr,
-                subtitle: custom
-                    ? 'savedForThisShow'.tr
-                    : 'savedForAllPodcasts'.tr),
+                subtitle:
+                    custom ? 'savedForThisShow'.tr : 'savedForAllPodcasts'.tr),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+              padding: const EdgeInsets.only(
+                  left: RiffSpacing.xl,
+                  top: RiffSpacing.xs,
+                  right: RiffSpacing.xl,
+                  bottom: RiffSpacing.lg),
               child: PodcastSpeedPicker(
                 speed: profile.speed,
-                onChanged: (v) => pc.updateCurrentPodcastProfile(
-                    (p) => p.copyWith(speed: v)),
+                onChanged: (v) =>
+                    pc.updateCurrentPodcastProfile((p) => p.copyWith(speed: v)),
               ),
             ),
           ],
@@ -190,18 +195,20 @@ class PodcastSpeedPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fg = Theme.of(context).textTheme.titleMedium?.color;
-    final steps = ((PodcastPlaybackProfile.maxSpeed -
-                PodcastPlaybackProfile.minSpeed) *
-            10)
-        .round();
+    final steps =
+        ((PodcastPlaybackProfile.maxSpeed - PodcastPlaybackProfile.minSpeed) *
+                10)
+            .round();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
             Text(podcastSpeedLabel(speed),
-                style: TextStyle(
-                    fontSize: 28, fontWeight: FontWeight.w800, color: fg)),
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineLarge
+                    ?.copyWith(color: fg)),
             const Spacer(),
             IconButton(
               tooltip: 'slower'.tr,
@@ -336,9 +343,7 @@ class PodcastPlaybackEditor extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w600)),
+                Text(title, style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 2),
                 Text(subtitle, style: homeCardSubtitleStyle(context)),
               ],
@@ -384,23 +389,22 @@ Future<void> showPodcastShowPlaybackSheet(BuildContext context,
             const RiffSheetHandle(),
             RiffSheetTitle('playbackSettings'.tr, subtitle: title),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+              padding: const EdgeInsets.only(
+                  left: RiffSpacing.xl,
+                  top: RiffSpacing.xs,
+                  right: RiffSpacing.xl),
               child: Row(
                 children: [
-                  Icon(
-                      custom
-                          ? Icons.tune_rounded
-                          : Icons.public_rounded,
-                      size: 18,
-                      color: homeMutedColor(context)),
+                  Icon(custom ? Icons.tune_rounded : Icons.public_rounded,
+                      size: 18, color: homeMutedColor(context)),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      custom
-                          ? 'showUsesOwnSettings'.tr
-                          : 'showUsesDefaults'.tr,
-                      style: homeCardSubtitleStyle(context)
-                          .copyWith(fontSize: 13),
+                      custom ? 'showUsesOwnSettings'.tr : 'showUsesDefaults'.tr,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: homeMutedColor(context)),
                     ),
                   ),
                   TextButton(

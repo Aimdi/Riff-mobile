@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/theme/riff_spacing.dart';
 import '/ui/utils/riff_tokens.dart';
 import '/ui/widgets/image_widget.dart';
 import '../Home/home_layout.dart';
@@ -120,8 +121,11 @@ class PodcastEpisodeTile extends StatelessWidget {
       onTap: onTap,
       onLongPress: onLongPress,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-            HomeLayout.gutter, 10, HomeLayout.gutter - 4, 10),
+        padding: const EdgeInsets.only(
+            left: HomeLayout.gutter,
+            top: RiffSpacing.md,
+            right: HomeLayout.gutter - RiffSpacing.xs,
+            bottom: RiffSpacing.md),
         child: Row(
           children: [
             leading ?? PodcastArt(url: artUrl, size: 56),
@@ -135,8 +139,7 @@ class PodcastEpisodeTile extends StatelessWidget {
                     title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: homeCardTitleStyle(context)
-                        .copyWith(fontSize: 14.5, height: 1.25),
+                    style: Theme.of(context).textTheme.labelMedium,
                   ),
                   if (meta.isNotEmpty) ...[
                     const SizedBox(height: 3),
@@ -144,8 +147,10 @@ class PodcastEpisodeTile extends StatelessWidget {
                       meta,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: homeCardSubtitleStyle(context)
-                          .copyWith(fontSize: 12.5),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: homeMutedColor(context)),
                     ),
                   ],
                   if (p != null && p > 0 && p < 1) ...[
@@ -176,7 +181,8 @@ class PodcastPlayButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = Theme.of(context).textTheme.titleMedium?.color;
+    final theme = Theme.of(context);
+    final fg = theme.textTheme.titleMedium?.color;
     return IconButton(
       onPressed: onPressed,
       icon: Container(
@@ -184,7 +190,8 @@ class PodcastPlayButton extends StatelessWidget {
         height: 34,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: (fg ?? Colors.white).withOpacity(0.35)),
+          border: Border.all(
+              color: (fg ?? theme.colorScheme.onSurface).withOpacity(0.35)),
         ),
         child: Icon(Icons.play_arrow_rounded, size: 22, color: fg),
       ),
@@ -229,7 +236,8 @@ class PodcastContinueCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = Theme.of(context).colorScheme.secondary;
+    final scheme = Theme.of(context).colorScheme;
+    final accent = scheme.secondary;
     return SizedBox(
       width: width,
       child: Material(
@@ -257,8 +265,8 @@ class PodcastContinueCard extends StatelessWidget {
                         height: 24,
                         decoration: BoxDecoration(
                             color: accent, shape: BoxShape.circle),
-                        child: const Icon(Icons.play_arrow_rounded,
-                            size: 18, color: Colors.black),
+                        child: Icon(Icons.play_arrow_rounded,
+                            size: 18, color: scheme.onPrimary),
                       ),
                     ),
                   ],

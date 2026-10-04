@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/models/thumbnail.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/services/podcast_service.dart';
 import '/ui/widgets/podcast_play.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
@@ -53,7 +54,11 @@ class _PodcastCategoryScreenState extends State<PodcastCategoryScreen> {
               : _podcasts.isEmpty
                   ? Center(child: Text('noResults'.tr))
                   : GridView.builder(
-                      padding: const EdgeInsets.fromLTRB(10, 12, 10, 40),
+                      padding: const EdgeInsets.only(
+                          left: RiffSpacing.md,
+                          top: RiffSpacing.md,
+                          right: RiffSpacing.md,
+                          bottom: RiffSpacing.unit * 10),
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,

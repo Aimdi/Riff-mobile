@@ -5,6 +5,8 @@ import 'package:get/get.dart';
 import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/ui/navigator.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/ui/utils/riff_tokens.dart';
 import '/ui/widgets/collection_play.dart';
 import '/ui/widgets/image_widget.dart';
@@ -44,8 +46,11 @@ SliverGridDelegate podcastSubsGridDelegate(double width,
   );
 }
 
-const EdgeInsets kPodcastSubsGridPadding =
-    EdgeInsets.fromLTRB(12, 4, 12, 200);
+const EdgeInsets kPodcastSubsGridPadding = EdgeInsets.only(
+    left: RiffSpacing.md,
+    top: RiffSpacing.xs,
+    right: RiffSpacing.md,
+    bottom: RiffSpacing.listEnd);
 
 /// Large cover-filling tile for the Subs grid (and folder contents).
 class PodcastCoverTile extends StatelessWidget {
@@ -66,6 +71,7 @@ class PodcastCoverTile extends StatelessWidget {
   final String title;
   final String? subtitle;
   final String? imageUrl;
+
   /// Library / YouTube shows — uses [ImageWidget] so art matches the old grid.
   final Playlist? playlist;
   final Widget? cover;
@@ -98,8 +104,7 @@ class PodcastCoverTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                     child: cover ?? _art(context),
                   ),
-                  if (badge != null)
-                    Positioned(left: 8, top: 8, child: badge!),
+                  if (badge != null) Positioned(left: 8, top: 8, child: badge!),
                   if (showPlay)
                     Positioned(
                       right: 6,
@@ -114,12 +119,7 @@ class PodcastCoverTile extends StatelessWidget {
               title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                fontSize: 13.5,
-                height: 1.2,
-                letterSpacing: -0.1,
-              ),
+              style: theme.textTheme.labelMedium,
             ),
             if (subtitle != null && subtitle!.isNotEmpty)
               Padding(
@@ -128,11 +128,7 @@ class PodcastCoverTile extends StatelessWidget {
                   subtitle!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 12,
-                    color: muted,
-                    height: 1.25,
-                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(color: muted),
                 ),
               ),
           ],
@@ -180,8 +176,9 @@ class PodcastCoverTile extends StatelessWidget {
 
     return LayoutBuilder(builder: (context, constraints) {
       final side = constraints.biggest.shortestSide;
-      final decodeSide =
-          ((side.isFinite && side > 0 ? side : 220) * dpr).round().clamp(64, 1600);
+      final decodeSide = ((side.isFinite && side > 0 ? side : 220) * dpr)
+          .round()
+          .clamp(64, 1600);
 
       Widget layer(int i) {
         return CachedNetworkImage(
@@ -210,19 +207,20 @@ class _PlayFab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final riff = RiffColors.of(context);
     return Material(
-      color: Colors.white,
+      color: riff.onImage,
       shape: const CircleBorder(),
       elevation: 3,
-      shadowColor: Colors.black54,
+      shadowColor: riff.scrim.withOpacity(0.54),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onPressed,
-        child: const SizedBox(
+        child: SizedBox(
           width: 30,
           height: 30,
-          child: Icon(Icons.play_arrow_rounded, color: Colors.black, size: 20),
+          child: Icon(Icons.play_arrow_rounded, color: riff.scrim, size: 20),
         ),
       ),
     );
@@ -244,14 +242,15 @@ String libraryPodcastSubtitle(Playlist podcast) {
   return '';
 }
 
-Widget youtubeChannelBadge() {
+Widget youtubeChannelBadge(BuildContext context) {
+  final riff = RiffColors.of(context);
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
     decoration: BoxDecoration(
-      color: Colors.black.withOpacity(0.65),
+      color: riff.scrim.withOpacity(0.65),
       borderRadius: BorderRadius.circular(6),
     ),
-    child: const Icon(Icons.ondemand_video, size: 14, color: Colors.white),
+    child: Icon(Icons.ondemand_video, size: 14, color: riff.onImage),
   );
 }
 

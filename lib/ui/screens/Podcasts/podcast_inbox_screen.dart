@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/services/podcast_bookmarks.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/services/podcast_download_service.dart';
 import '/services/podcast_inbox_cache.dart';
 import '/services/podcast_library.dart';
@@ -512,8 +513,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
             ),
             child: Row(
               children: [
-                PodcastArt(
-                    url: Thumbnail(s.artUri ?? '').medium, size: 48),
+                PodcastArt(url: Thumbnail(s.artUri ?? '').medium, size: 48),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -523,8 +523,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
                       Text(s.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w700)),
+                          style: Theme.of(context).textTheme.labelMedium),
                       const SizedBox(height: 2),
                       Row(
                         children: [
@@ -560,8 +559,11 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
       height: 42,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(
-            HomeLayout.gutter, 8, HomeLayout.gutter, 2),
+        padding: const EdgeInsets.only(
+            left: HomeLayout.gutter,
+            top: RiffSpacing.sm,
+            right: HomeLayout.gutter,
+            bottom: RiffSpacing.xxs),
         itemCount: EpisodeFilter.values.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
@@ -602,8 +604,11 @@ class _FilterPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = Theme.of(context).colorScheme.secondary;
-    final fg = selected ? accent : (homeMutedColor(context) ?? Colors.grey);
+    final scheme = Theme.of(context).colorScheme;
+    final accent = scheme.secondary;
+    final fg = selected
+        ? accent
+        : (homeMutedColor(context) ?? scheme.onSurfaceVariant);
     return Material(
       color: selected ? accent.withOpacity(0.14) : Colors.transparent,
       shape: StadiumBorder(
@@ -622,8 +627,10 @@ class _FilterPill extends StatelessWidget {
                 const SizedBox(width: 4),
               ],
               Text(label,
-                  style: TextStyle(
-                      fontSize: 12.5, fontWeight: FontWeight.w600, color: fg)),
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelMedium
+                      ?.copyWith(color: fg)),
             ],
           ),
         ),

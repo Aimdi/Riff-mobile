@@ -2,28 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
-/// Preset folder colors (Spotify-style chips). Index is persisted with the folder.
-class PodcastFolderColors {
-  PodcastFolderColors._();
+import '/ui/theme/palettes/podcast_folders.dart';
 
-  static const List<Color> swatches = [
-    Color(0xFF1DB954), // green
-    Color(0xFF1E90FF), // dodger blue
-    Color(0xFF9B59B6), // purple
-    Color(0xFFE74C3C), // red
-    Color(0xFFF39C12), // amber
-    Color(0xFF1ABC9C), // teal
-    Color(0xFFE91E63), // pink
-    Color(0xFF00BCD4), // cyan
-    Color(0xFFFF5722), // deep orange
-    Color(0xFF8BC34A), // light green
-    Color(0xFF607D8B), // blue grey
-    Color(0xFF795548), // brown
-  ];
-
-  static Color of(int index) =>
-      swatches[index.clamp(0, swatches.length - 1)];
-}
+export '/ui/theme/palettes/podcast_folders.dart' show PodcastFolderColors;
 
 /// Folder id for a feed (RSS) show. YouTube library shows use their
 /// playlistId as before, so folders saved by older versions keep working.
@@ -87,10 +68,8 @@ class PodcastFolderController extends GetxController {
   void _load() {
     final raw = _box.get(_key);
     if (raw is List) {
-      folders.assignAll(raw
-          .whereType<Map>()
-          .map((m) => PodcastFolder.fromMap(m))
-          .toList());
+      folders.assignAll(
+          raw.whereType<Map>().map((m) => PodcastFolder.fromMap(m)).toList());
     }
   }
 
@@ -127,8 +106,7 @@ class PodcastFolderController extends GetxController {
   void setColor(String id, int colorIndex) {
     final f = findById(id);
     if (f == null) return;
-    f.colorIndex =
-        colorIndex.clamp(0, PodcastFolderColors.swatches.length - 1);
+    f.colorIndex = colorIndex.clamp(0, PodcastFolderColors.swatches.length - 1);
     folders.refresh();
     _persist();
   }
