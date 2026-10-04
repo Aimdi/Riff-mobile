@@ -1,3 +1,11 @@
+# 1.7.143
+
+**The side rail looks like it used to**
+* Back by request: the active item sits in a soft green rounded box with
+  a thin green outline, other items are grey, and the labels are big again
+* Same rail width, items and order; tapping an item still gives a light
+  click
+
 # 1.7.142
 
 **New look, step 8: sheets, dialogs, settings and stats**

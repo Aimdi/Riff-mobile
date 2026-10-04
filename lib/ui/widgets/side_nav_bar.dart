@@ -136,7 +136,7 @@ class _SideNavBarState extends State<SideNavBar> {
                                   child: Icon(
                                     Icons.keyboard_arrow_down_rounded,
                                     size: RiffComponentSizes.trailingIcon,
-                                    color: theme.colorScheme.onSurfaceVariant,
+                                    color: theme.colorScheme.onSurface,
                                   ),
                                 ),
                               ),
@@ -232,14 +232,7 @@ class _SideNavBarState extends State<SideNavBar> {
               ),
             ),
     );
-    if (!isMobileOrTabScreen) return rail;
-    // Right edge: one-physical-pixel hairline, inside the rail's width.
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border(right: BorderSide(color: theme.dividerColor, width: 0)),
-      ),
-      child: rail,
-    );
+    return rail;
   }
 
   /// One vertical rail entry with a destination glyph + rotated label.
@@ -299,62 +292,68 @@ class _RailItem extends StatefulWidget {
 }
 
 class _RailItemState extends State<_RailItem> {
-  bool _pressed = false;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final rail = theme.navigationRailTheme;
+    final text = theme.textTheme;
     final accent = theme.colorScheme.secondary;
     final d = widget.destination;
     final sub = widget.sub;
     final selected = widget.selected;
-    final iconColor = selected ? accent : theme.colorScheme.onSurface;
-    final labelStyle = selected
-        ? rail.selectedLabelTextStyle?.copyWith(color: accent)
-        : rail.unselectedLabelTextStyle;
+    // The pre-restyle rail look (kept by request): a soft accent box with a
+    // thin accent outline behind the active glyph, muted inactive items,
+    // and large rotated labels.
+    final color = selected ? accent : theme.colorScheme.onSurfaceVariant;
+    final labelStyle = (sub
+            ? (selected ? text.labelSmall : text.bodySmall)
+            : (selected ? text.titleMedium : text.bodyLarge))
+        ?.copyWith(color: color);
     return InkWell(
-      // The circle below is the press feedback; no rectangle highlight.
-      highlightColor: Colors.transparent,
-      hoverColor: Colors.transparent,
-      splashColor: Colors.transparent,
-      onHighlightChanged: (v) => setState(() => _pressed = v),
+      customBorder: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(RiffComponentSizes.railItemRadius),
+      ),
       onTap: () {
         HapticFeedback.selectionClick();
         widget.onTap();
       },
       child: Padding(
         padding: EdgeInsets.symmetric(
-            vertical: sub ? RiffSpacing.xs : RiffSpacing.sm),
+            vertical: sub ? RiffSpacing.xs : RiffSpacing.sm,
+            horizontal: sub ? RiffSpacing.sm : RiffSpacing.xs),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             AnimatedContainer(
-              duration: RiffDurations.press,
-              width: RiffComponentSizes.railHighlight,
-              height: RiffComponentSizes.railHighlight,
+              duration: RiffDurations.select,
+              curve: RiffDurations.selectCurve,
+              padding: EdgeInsets.all(
+                  sub ? RiffComponentSizes.railSubPillPadding : RiffSpacing.sm),
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _pressed ? theme.highlightColor : Colors.transparent,
+                color: selected
+                    ? accent.withOpacity(RiffPalette.railActiveFillOpacity)
+                    : Colors.transparent,
+                borderRadius:
+                    BorderRadius.circular(RiffComponentSizes.railPillRadius),
+                border: selected
+                    ? Border.all(
+                        color: accent
+                            .withOpacity(RiffPalette.railActiveBorderOpacity),
+                        width: RiffComponentSizes.railPillBorder)
+                    : null,
               ),
               child: Icon(
                 selected ? d.icon : d.iconOutlined,
                 size: sub
-                    ? RiffComponentSizes.railSubIcon
-                    : RiffComponentSizes.railIcon,
-                color: iconColor,
+                    ? RiffComponentSizes.railSubGlyph
+                    : RiffComponentSizes.railGlyph,
+                color: color,
               ),
             ),
             if (!d.iconOnly) ...[
-              const SizedBox(height: RiffSpacing.xs),
+              const SizedBox(height: RiffComponentSizes.railLabelGap),
               RotatedBox(
                 quarterTurns: -1,
-                child: AnimatedDefaultTextStyle(
-                  duration: RiffDurations.select,
-                  curve: RiffDurations.selectCurve,
-                  style: labelStyle ?? DefaultTextStyle.of(context).style,
-                  child: Text(d.labelKey.tr),
-                ),
+                child: Text(d.labelKey.tr, style: labelStyle),
               ),
             ],
           ],
