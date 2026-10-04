@@ -1,21 +1,23 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
+import '../theme/riff_theme.dart';
+import '../theme/riff_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:hive/hive.dart';
 import 'package:palette_generator/palette_generator.dart';
 import '/utils/helper.dart';
 
-/// X-inspired surface tokens for the Pitch Black theme:
-/// layered near-black, hairline borders, muted secondary text.
+/// Older names for the Lights-out palette, still read by some widgets;
+/// they follow [RiffPalette] (lib/ui/theme/riff_tokens.dart).
 class RiffSurfaces {
-  static const Color voidBlack = Color(0xFF000000);
-  static const Color elevated = Color(0xFF16181C);
-  static const Color elevatedSoft = Color(0xFF1E2026);
-  static const Color hairline = Color(0xFF2F3336);
-  static const Color textMuted = Color(0xFF8B98A5);
-  static const Color textPrimary = Color(0xFFE7E9EA);
+  static const Color voidBlack = RiffPalette.bg;
+  static const Color elevated = RiffPalette.surface1;
+  static const Color elevatedSoft = RiffPalette.surface2;
+  static const Color hairline = RiffPalette.divider;
+  static const Color textMuted = RiffPalette.textSecondary;
+  static const Color textPrimary = RiffPalette.textPrimary;
 }
 
 /// Tracks which song's palette is being generated / applied so repeated
@@ -77,8 +79,7 @@ class ThemeController extends GetxController {
 
     final box = Hive.box('AppPrefs');
     final primaryRaw = box.get("themePrimaryColor") ?? 4278199603;
-    primaryColor.value =
-        Color(primaryRaw is int ? primaryRaw : 4278199603);
+    primaryColor.value = Color(primaryRaw is int ? primaryRaw : 4278199603);
 
     final accentRaw = box.get("riffAccentColor") ?? 0xFF1DB954;
     accentColor.value = Color(accentRaw is int ? accentRaw : 0xFF1DB954);
@@ -180,9 +181,10 @@ class ThemeController extends GetxController {
     setWindowsTitleBarColor(themedata.value!.scaffoldBackgroundColor);
   }
 
-  /// Plus Jakarta Sans — cleaner grotesk than Inter, closer to modern X type.
+  /// Bundled Inter on the light and album-colour themes too (their sizes
+  /// and colours stay their own).
   TextTheme _applyBrandFont(TextTheme base) =>
-      GoogleFonts.plusJakartaSansTextTheme(base);
+      base.apply(fontFamily: kRiffFontFamily);
 
   ThemeData _createThemeData(MaterialColor? primarySwatch, ThemeType themeType,
       {MaterialColor? titleColorSwatch, Color? textColor}) {
@@ -203,7 +205,8 @@ class ThemeController extends GetxController {
           // Without this, FilledButtons fall back to Material's default blue.
           filledButtonTheme: FilledButtonThemeData(
               style: FilledButton.styleFrom(
-                  backgroundColor: primarySwatch![200], foregroundColor: Colors.black)),
+                  backgroundColor: primarySwatch![200],
+                  foregroundColor: Colors.black)),
           primaryColor: primarySwatch[500],
           colorScheme: ColorScheme.fromSwatch(
               accentColor: primarySwatch[200],
@@ -276,7 +279,8 @@ class ThemeController extends GetxController {
               selectionHandleColor: primarySwatch[200])
           //scaffoldBackgroundColor: primarySwatch[700]
           );
-      return baseTheme.copyWith(textTheme: _applyBrandFont(baseTheme.textTheme));
+      return baseTheme.copyWith(
+          textTheme: _applyBrandFont(baseTheme.textTheme));
     } else if (themeType == ThemeType.dark) {
       SystemChrome.setSystemUIOverlayStyle(
         SystemUiOverlayStyle(
@@ -288,99 +292,9 @@ class ThemeController extends GetxController {
             systemStatusBarContrastEnforced: false,
             systemNavigationBarContrastEnforced: true),
       );
-      final accent = accentColor.value;
-      final baseTheme = ThemeData(
-          useMaterial3: false,
-          // Without this, FilledButtons fall back to Material's default blue.
-          filledButtonTheme: FilledButtonThemeData(
-              style: FilledButton.styleFrom(
-                  backgroundColor: accent, foregroundColor: Colors.black)),
-          brightness: Brightness.dark,
-          canvasColor: RiffSurfaces.voidBlack,
-          scaffoldBackgroundColor: RiffSurfaces.voidBlack,
-          primaryColor: RiffSurfaces.voidBlack,
-          primaryColorDark: RiffSurfaces.voidBlack,
-          primaryColorLight: RiffSurfaces.elevatedSoft,
-          cardColor: RiffSurfaces.elevated,
-          dividerColor: RiffSurfaces.hairline,
-          colorScheme: ColorScheme.fromSwatch(
-              accentColor: accent, brightness: Brightness.dark),
-          indicatorColor: accent,
-          progressIndicatorTheme: ProgressIndicatorThemeData(
-              color: accent, linearTrackColor: RiffSurfaces.hairline),
-          textTheme: const TextTheme(
-              titleLarge: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.3,
-                color: RiffSurfaces.textPrimary,
-              ),
-              titleMedium: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: RiffSurfaces.textPrimary,
-              ),
-              titleSmall: TextStyle(
-                color: RiffSurfaces.textMuted,
-              ),
-              labelMedium: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 22,
-                letterSpacing: -0.3,
-                color: RiffSurfaces.textPrimary,
-              ),
-              labelSmall: TextStyle(
-                  fontSize: 14,
-                  letterSpacing: 0,
-                  fontWeight: FontWeight.w600,
-                  color: RiffSurfaces.textMuted),
-              bodyMedium: TextStyle(color: RiffSurfaces.textMuted)),
-          navigationRailTheme: NavigationRailThemeData(
-              backgroundColor: RiffSurfaces.voidBlack,
-              selectedIconTheme: IconThemeData(
-                color: accent,
-              ),
-              unselectedIconTheme:
-                  const IconThemeData(color: RiffSurfaces.textMuted),
-              selectedLabelTextStyle: TextStyle(
-                  color: accent, fontWeight: FontWeight.w700, fontSize: 14),
-              unselectedLabelTextStyle: const TextStyle(
-                  color: RiffSurfaces.textMuted, fontWeight: FontWeight.w600)),
-          bottomSheetTheme: BottomSheetThemeData(
-              backgroundColor: RiffSurfaces.elevated,
-              modalBarrierColor: Colors.black.withOpacity(0.55),
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              )),
-          // DialogTheme: CI pins Flutter 3.24.2 (DialogThemeData is newer).
-          dialogTheme: const DialogTheme(
-            backgroundColor: RiffSurfaces.elevated,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(16)),
-            ),
-          ),
-          appBarTheme: const AppBarTheme(
-            backgroundColor: RiffSurfaces.voidBlack,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-          ),
-          sliderTheme: SliderThemeData(
-            //base bar color
-            inactiveTrackColor: RiffSurfaces.hairline,
-            //buffered progress
-            activeTrackColor: accent,
-            //progress bar color
-            valueIndicatorColor: RiffSurfaces.elevatedSoft,
-            thumbColor: RiffSurfaces.textPrimary,
-          ),
-          textSelectionTheme: TextSelectionThemeData(
-              cursorColor: accent,
-              selectionColor: accent.withOpacity(0.35),
-              selectionHandleColor: accent),
-          inputDecorationTheme: InputDecorationTheme(
-              focusColor: accent,
-              focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: accent))));
-      return baseTheme.copyWith(textTheme: _applyBrandFont(baseTheme.textTheme));
+      // Pitch Black: the "X Lights out, Riff green" theme
+      // (lib/ui/theme/riff_theme.dart, RIFF_UI_RESTYLE.md).
+      return RiffTheme.dark(accentColor.value);
     } else {
       SystemChrome.setSystemUIOverlayStyle(
         SystemUiOverlayStyle(
@@ -397,7 +311,8 @@ class ThemeController extends GetxController {
           // Without this, FilledButtons fall back to Material's default blue.
           filledButtonTheme: FilledButtonThemeData(
               style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF1DB954), foregroundColor: Colors.black)),
+                  backgroundColor: const Color(0xFF1DB954),
+                  foregroundColor: Colors.black)),
           brightness: Brightness.light,
           canvasColor: const Color(0xFFF7F9F9),
           scaffoldBackgroundColor: const Color(0xFFF7F9F9),
@@ -470,7 +385,8 @@ class ThemeController extends GetxController {
               focusColor: Colors.black,
               focusedBorder: UnderlineInputBorder(
                   borderSide: BorderSide(color: Colors.black))));
-      return baseTheme.copyWith(textTheme: _applyBrandFont(baseTheme.textTheme));
+      return baseTheme.copyWith(
+          textTheme: _applyBrandFont(baseTheme.textTheme));
     }
   }
 
