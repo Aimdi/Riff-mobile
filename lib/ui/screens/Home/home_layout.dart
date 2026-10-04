@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../theme/riff_spacing.dart';
 import '../../utils/riff_tokens.dart';
+import '/ui/theme/riff_text_metrics.dart';
 
 /// One set of Home spacing / type values so every shelf lines up.
 class HomeLayout {
@@ -176,8 +177,11 @@ class HomeShelf extends StatelessWidget {
 
   /// Title + subtitle block under a card, grown with the system text size.
   static double textBlockHeight(BuildContext context) {
-    final scaler = MediaQuery.textScalerOf(context);
-    return 8 + scaler.scale(13.5) * 1.2 + 2 + scaler.scale(12) * 1.25 + 6;
+    return 8 +
+        riffLineHeight(context, homeCardTitleStyle(context)) +
+        2 +
+        riffLineHeight(context, homeCardSubtitleStyle(context)) +
+        6;
   }
 
   @override

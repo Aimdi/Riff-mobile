@@ -35,6 +35,7 @@ import 'podcast_queue_screen.dart';
 import 'podcast_subs_screen.dart';
 import 'podcasts_library_controller.dart';
 import 'podcasts_screen.dart';
+import '/ui/theme/riff_text_metrics.dart';
 
 class PodcastsLibraryWidget extends StatefulWidget {
   const PodcastsLibraryWidget({super.key, this.isBottomNavActive = false});
@@ -931,7 +932,6 @@ class _VideoEpisodeRow extends StatelessWidget {
     final player = Get.find<PlayerController>();
     final theme = Theme.of(context);
     const cardWidth = 256.0;
-    final scaler = MediaQuery.textScalerOf(context);
     const thumbHeight = cardWidth * 9 / 16;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -941,9 +941,9 @@ class _VideoEpisodeRow extends StatelessWidget {
           // Thumb + two-line title + one meta line.
           height: thumbHeight +
               8 +
-              scaler.scale(13.5) * 1.2 * 2 +
+              riffLineHeight(context, homeCardTitleStyle(context)) * 2 +
               2 +
-              scaler.scale(12) * 1.25 +
+              riffLineHeight(context, homeCardSubtitleStyle(context)) +
               6,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,

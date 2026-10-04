@@ -33,6 +33,7 @@ import '../Settings/settings_screen_controller.dart';
 import '../../theme/riff_spacing.dart';
 import '../Home/home_layout.dart';
 import 'library_controller.dart';
+import '/ui/theme/riff_text_metrics.dart';
 
 class SongsLibraryWidget extends StatelessWidget {
   const SongsLibraryWidget({super.key, this.isBottomNavActive = false});
@@ -550,7 +551,6 @@ class LibraryArtistWidget extends StatelessWidget {
                 ? EmptyPlayHint(message: "noLibArtists".tr)
                 : LayoutBuilder(builder: (context, constraints) {
                     final grid = libraryGridMetrics(constraints.maxWidth);
-                    final scaler = MediaQuery.textScalerOf(context);
                     return GridView.builder(
                       physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsets.only(
@@ -564,8 +564,10 @@ class LibraryArtistWidget extends StatelessWidget {
                         mainAxisSpacing: 16,
                         mainAxisExtent: grid.cover +
                             10 +
-                            scaler.scale(14) * 1.25 +
-                            scaler.scale(12) * 1.3 +
+                            riffLineHeight(
+                                context, homeCardTitleStyle(context)) +
+                            riffLineHeight(
+                                context, homeCardSubtitleStyle(context)) +
                             6,
                       ),
                       itemCount: cntrller.libraryArtists.length,

@@ -14,6 +14,7 @@ import 'home_feed_builder.dart';
 import 'home_feed_data.dart';
 import 'home_metrics.dart';
 import 'podcast_continue.dart';
+import '/ui/theme/riff_text_metrics.dart';
 
 /// Jump back in: what you can resume, as a two-column grid of 56dp tiles
 /// (one item fills the row). No header; tap resumes, long-press opens a
@@ -131,10 +132,10 @@ class JumpBackInTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scaler = MediaQuery.textScalerOf(context);
     // 56dp, or taller when large system text needs two full lines.
-    final height = (scaler.scale(14) * 1.25 * 2 + 12)
-        .clamp(RiffSizes.jumpTileHeight, 120.0);
+    final height =
+        (riffLineHeight(context, theme.textTheme.titleSmall) * 2 + 12)
+            .clamp(RiffSizes.jumpTileHeight, 120.0);
     final art = item.art;
     final radius = BorderRadius.circular(RiffSizes.tileRadius);
     return Semantics(
@@ -177,7 +178,8 @@ class JumpBackInTile extends StatelessWidget {
                           item.title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyLarge?.copyWith(
+                          // 14 medium (guide §3.1): titleSmall, recoloured.
+                          style: theme.textTheme.titleSmall?.copyWith(
                             color: theme.colorScheme.onSurface,
                           ),
                         ),

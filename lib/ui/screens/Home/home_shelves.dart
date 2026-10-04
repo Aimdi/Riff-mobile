@@ -29,6 +29,7 @@ import '../Podcasts/podcasts_screen.dart' show PodcastEpisodesScreen;
 import 'home_feed_builder.dart';
 import 'home_feed_data.dart';
 import 'home_metrics.dart';
+import '/ui/theme/riff_text_metrics.dart';
 
 /// Card sizes per item type on a shelf of pane width [m].
 class ShelfCardSize {
@@ -58,14 +59,18 @@ class ShelfCardSize {
 
   /// Title + subtitle under the art: both lines always reserved.
   static double textBlock(BuildContext context) {
-    final s = MediaQuery.textScalerOf(context);
-    return 8 + s.scale(14) * 1.3 + 2 + s.scale(12) * 1.35;
+    return 8 +
+        riffLineHeight(context, _titleStyle(context)) +
+        2 +
+        riffLineHeight(context, _subtitleStyle(context));
   }
 
   /// A podcast episode row card's height.
   static double episodeHeight(BuildContext context) {
-    final s = MediaQuery.textScalerOf(context);
-    return (s.scale(14) * 1.3 * 2 + s.scale(12) * 1.35 + 20).clamp(80.0, 140.0);
+    return (riffLineHeight(context, _titleStyle(context)) * 2 +
+            riffLineHeight(context, _subtitleStyle(context)) +
+            20)
+        .clamp(80.0, 140.0);
   }
 }
 

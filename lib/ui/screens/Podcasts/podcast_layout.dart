@@ -6,6 +6,7 @@ import '/ui/theme/riff_spacing.dart';
 import '/ui/utils/riff_tokens.dart';
 import '/ui/widgets/image_widget.dart';
 import '../Home/home_layout.dart';
+import '/ui/theme/riff_text_metrics.dart';
 
 /// Episode length for list meta lines: "45m", "1h 35m" (seconds < 1 min
 /// round up to "1m"); empty when unknown.
@@ -219,9 +220,9 @@ class PodcastContinueCard extends StatelessWidget {
   static double heightFor(BuildContext context) {
     final scaler = MediaQuery.textScalerOf(context);
     return 20 +
-        scaler.scale(13.5) * 1.25 * 2 +
+        scaler.scale(homeCardTitleStyle(context).fontSize ?? 15) * 1.25 * 2 +
         4 +
-        scaler.scale(12) * 1.25 +
+        riffLineHeight(context, homeCardSubtitleStyle(context)) +
         12 +
         3;
   }

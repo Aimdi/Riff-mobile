@@ -21,6 +21,7 @@ import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
 import '../../widgets/snackbar.dart';
 import '../Home/home_layout.dart';
 import 'artist_screen_controller.dart';
+import '/ui/theme/riff_text_metrics.dart';
 
 /// Single-scroll artist page: hero image with the name, one action row
 /// (Follow, more, shuffle, play), Popular songs, then Home-style shelves for
@@ -674,13 +675,15 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
 
   Widget _artistShelf(BuildContext context, List artists) {
     const size = 112.0;
-    final scaler = MediaQuery.textScalerOf(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         HomeSectionHeader('fansAlsoLike'.tr),
         SizedBox(
-          height: size + 8 + scaler.scale(13.5) * 1.2 + 10,
+          height: size +
+              8 +
+              riffLineHeight(context, homeCardTitleStyle(context)) +
+              10,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
