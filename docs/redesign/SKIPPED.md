@@ -24,6 +24,11 @@ elements (or can't be done on this SDK), and what was done instead.
 | 5 | Wide album/playlist rows: one-line titles | They are 96 dp rows with 76 dp art; one line would cut long titles that fit today | two lines kept |
 | 5 | Queue "Now playing" label in the accent | §2.5 keeps the accent for the playing title and equalizer | label in the secondary colour |
 | 5 | Artist/collection header paddings (toolbar 85, avatar box 200/260) | Not on the 4-point scale; snapping them would move the headers | left as they are |
+| 6 | Full-player artwork radius 8 | Portrait (standard) and gesture players show the cover full-bleed, fading into the page, not as a framed square | full-bleed kept, no shadow; radius 8 applies to the landscape/desktop art |
+| 6 | Outline prev/next glyphs | Material has no outline variant of the skip icons | rounded glyphs in the primary text colour |
+| 6 | Heart glyph colours off-state | It is drawn by `favorite_heart_button.dart` (shared with rows) | unchanged until Phase 8; haptic added at the player call sites |
+| 6 | Mini player play/pause on desktop | The wide layout's play button is a 58 dp accent circle (a play button, allowed to be accent) | kept; phone mini player uses the plain 28 dp glyph |
+| 6 | Spacings off the 4-point scale in the player column (10/14/6/3, landscape 90/10, 65 dp queue strip) | Snapping them would move controls | left as they are |
 
 ## Known side effects of Phase 1 (to settle in later phases)
 
