@@ -7,6 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '/services/audiobook_catalog_service.dart';
 import '/services/plugin_service.dart';
 import '/ui/screens/Plugins/torrent_search_screen.dart';
+import '/ui/theme/palettes/audiobook_rating.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import 'audiobook_library_controller.dart';
 
@@ -85,7 +87,11 @@ class _AudiobookCatalogDetailScreenState
         ]),
         Expanded(
             child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+          padding: const EdgeInsets.only(
+              left: RiffSpacing.lg,
+              top: RiffSpacing.md,
+              right: RiffSpacing.lg,
+              bottom: RiffSpacing.unit * 10),
           children: [
             Center(
               child: ClipRRect(
@@ -106,9 +112,7 @@ class _AudiobookCatalogDetailScreenState
             ),
             const SizedBox(height: 16),
             Text(book.title,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w600)),
+                textAlign: TextAlign.center, style: theme.textTheme.titleLarge),
             if (book.author.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
@@ -130,7 +134,6 @@ class _AudiobookCatalogDetailScreenState
                             textAlign: TextAlign.center,
                             style: theme.textTheme.bodyLarge?.copyWith(
                               color: theme.colorScheme.secondary,
-                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
@@ -269,8 +272,8 @@ class _AudiobookCatalogDetailScreenState
                         b.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(fontWeight: FontWeight.w600),
+                        style: theme.textTheme.labelSmall
+                            ?.copyWith(color: theme.textTheme.bodySmall?.color),
                       ),
                       if (b.author.isNotEmpty)
                         Text(
@@ -292,7 +295,7 @@ class _AudiobookCatalogDetailScreenState
 
   /// Centered 5-star row (full/half/empty) + numeric average and rating count.
   Widget _starRow(ThemeData theme, AudiobookRating r) {
-    const amber = Color(0xFFFFB300);
+    const amber = AudiobookRatingPalette.star;
     final full = r.average.floor();
     final hasHalf = (r.average - full) >= 0.25 && (r.average - full) < 0.75;
     final roundedUp = (r.average - full) >= 0.75;
@@ -312,8 +315,8 @@ class _AudiobookCatalogDetailScreenState
         const SizedBox(width: 6),
         Text(
           r.average.toStringAsFixed(1),
-          style:
-              theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+          style: theme.textTheme.labelMedium
+              ?.copyWith(color: theme.textTheme.bodyMedium?.color),
         ),
         if (r.count > 0)
           Text(
@@ -418,7 +421,11 @@ class _AudiobookBrowseScreenState extends State<AudiobookBrowseScreen> {
                 : _books.isEmpty
                     ? Center(child: Text('noResults'.tr))
                     : GridView.builder(
-                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 40),
+                        padding: const EdgeInsets.only(
+                            left: RiffSpacing.md,
+                            top: RiffSpacing.md,
+                            right: RiffSpacing.md,
+                            bottom: RiffSpacing.unit * 10),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,

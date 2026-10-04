@@ -9,7 +9,12 @@ class BasicShimmerContainer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(radius), color: Colors.white54),
+          borderRadius: BorderRadius.circular(radius),
+          // Inside a Shimmer only the alpha shows; 0.54 as before.
+          color: Theme.of(context)
+              .colorScheme
+              .surfaceContainerHigh
+              .withOpacity(0.54)),
       height: size.height,
       width: size.width,
     );

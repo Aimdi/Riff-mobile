@@ -15,6 +15,7 @@ import '/services/spotify_like_sync.dart';
 import '/ui/widgets/add_to_playlist.dart' show addSongsToLikedSongs;
 import '/ui/screens/Library/library_controller.dart';
 import '/ui/screens/Settings/spotify_login_screen.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/snackbar.dart';
 import 'spotify_pages.dart';
@@ -305,7 +306,10 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
                 return const SizedBox.shrink();
               }
               return Padding(
-                padding: const EdgeInsets.fromLTRB(72, 0, 16, 8),
+                padding: const EdgeInsets.only(
+                    left: RiffSpacing.unit * 18,
+                    right: RiffSpacing.lg,
+                    bottom: RiffSpacing.sm),
                 child: Text(
                     [
                       if (n > 0) 'spotifyLikeSyncPending'.trParams({'n': '$n'}),
@@ -397,7 +401,11 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
     final theme = Theme.of(context);
     final accent = Get.find<ThemeController>().accentColor.value;
     return Obx(() => ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          padding: const EdgeInsets.only(
+              left: RiffSpacing.lg,
+              top: RiffSpacing.sm,
+              right: RiffSpacing.lg,
+              bottom: RiffSpacing.x3l),
           children: [
             if (SpotifyAuthService.sessionExpired.value)
               _Banner(
@@ -459,7 +467,8 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 0, 4, 0),
+          padding: const EdgeInsets.only(
+              left: HomeLayout.gutter, right: RiffSpacing.xs),
           child: Row(children: [
             Expanded(
               child: FutureBuilder<SpotifyUser?>(
@@ -497,8 +506,10 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
         ),
         Obx(() => _busy.value || _status.value.isNotEmpty
             ? Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    HomeLayout.gutter, 8, HomeLayout.gutter, 0),
+                padding: const EdgeInsets.only(
+                    left: HomeLayout.gutter,
+                    top: RiffSpacing.sm,
+                    right: HomeLayout.gutter),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -641,8 +652,8 @@ class _Banner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.fromLTRB(
-            HomeLayout.gutter, 8, HomeLayout.gutter, 8),
+        margin: const EdgeInsets.symmetric(
+            horizontal: HomeLayout.gutter, vertical: RiffSpacing.sm),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: homeTileColor(context),

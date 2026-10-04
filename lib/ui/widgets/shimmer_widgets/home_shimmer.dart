@@ -12,13 +12,8 @@ class HomeShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final base = isDark
-        ? Color.alphaBlend(Colors.white.withOpacity(0.06), theme.cardColor)
-        : Colors.grey[300]!;
-    final highlight = isDark
-        ? Color.alphaBlend(Colors.white.withOpacity(0.12), theme.cardColor)
-        : Colors.grey[100]!;
+    final base = theme.colorScheme.surfaceContainerLow;
+    final highlight = theme.colorScheme.surfaceContainerHigh;
     return Shimmer.fromColors(
       baseColor: base,
       highlightColor: highlight,
@@ -94,7 +89,7 @@ class _Box extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(radius),
       ),
     );

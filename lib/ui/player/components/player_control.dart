@@ -30,6 +30,8 @@ import '../radio_continuation.dart';
 import '../player_media_nav.dart';
 import 'playback_error_actions.dart';
 import 'standard_player.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 
 class PlayerControlWidget extends StatelessWidget {
   const PlayerControlWidget({super.key});
@@ -256,10 +258,13 @@ class PlayerControlWidget extends StatelessWidget {
                             size: 18,
                             color: Theme.of(context).colorScheme.onSecondary),
                         label: Text(podcastSkipPillLabel(playerController),
-                            style: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSecondary,
-                                fontWeight: FontWeight.w600)),
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelMedium
+                                ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSecondary)),
                         backgroundColor:
                             Theme.of(context).colorScheme.secondary,
                         onPressed: playerController.skipAd,
@@ -311,12 +316,19 @@ void openChaptersSheet(
 
         return ListView.builder(
           controller: scrollCtrl,
-          padding: const EdgeInsets.fromLTRB(8, 0, 8, 24),
+          padding: const EdgeInsets.only(
+              left: RiffSpacing.sm,
+              right: RiffSpacing.sm,
+              bottom: RiffSpacing.xxl),
           itemCount: chapters.length + 1,
           itemBuilder: (ctx, i) {
             if (i == 0) {
               return Padding(
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                padding: const EdgeInsets.only(
+                    left: RiffSpacing.md,
+                    top: RiffSpacing.xs,
+                    right: RiffSpacing.md,
+                    bottom: RiffSpacing.md),
                 child: Text('chapters'.tr,
                     style: Theme.of(ctx).textTheme.titleLarge),
               );
@@ -363,7 +375,11 @@ void openShownotesSheet(
       maxChildSize: 0.9,
       builder: (ctx, scrollCtrl) => SingleChildScrollView(
         controller: scrollCtrl,
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
+        padding: const EdgeInsets.only(
+            left: RiffSpacing.xl,
+            top: RiffSpacing.xs,
+            right: RiffSpacing.xl,
+            bottom: RiffSpacing.unit * 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -417,7 +433,11 @@ class PlaybackErrorBanner extends StatelessWidget {
                 color: theme.colorScheme.error.withOpacity(0.35), width: 1),
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
+            padding: const EdgeInsets.only(
+                left: RiffSpacing.md,
+                top: RiffSpacing.sm,
+                right: RiffSpacing.xs,
+                bottom: RiffSpacing.sm),
             child: Row(
               children: [
                 Icon(Icons.error_outline_rounded,
@@ -428,11 +448,8 @@ class PlaybackErrorBanner extends StatelessWidget {
                     err,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      height: 1.3,
-                      color: theme.textTheme.titleMedium?.color,
-                    ),
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: theme.textTheme.titleMedium?.color),
                   ),
                 ),
                 PlaybackErrorActions(
@@ -487,11 +504,10 @@ class PlayerSpeedButton extends StatelessWidget {
           ),
           child: Obx(() => Text(
                 speedLabel(settings.playbackSpeed.value),
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: color,
-                ),
+                style: Theme.of(context)
+                    .textTheme
+                    .labelMedium
+                    ?.copyWith(color: color),
               )),
         ),
       ),
@@ -569,12 +585,10 @@ class PlayerActionBar extends StatelessWidget {
                       if (a.active && (a.badge ?? '').isNotEmpty)
                         Text(
                           a.badge!,
-                          style: TextStyle(
-                            fontSize: 10,
-                            height: 1.3,
-                            fontWeight: FontWeight.w700,
-                            color: accent,
-                          ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelSmall
+                              ?.copyWith(color: accent),
                         ),
                     ],
                   ),
@@ -649,11 +663,12 @@ class _TitleBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final fg = Theme.of(context).textTheme.titleMedium?.color ??
         RiffSurfaces.textPrimary;
+    final mask = RiffColors.of(context).onImage;
     return ShaderMask(
       // Fade the right edge so a scrolling title doesn't hard-clip.
-      shaderCallback: (rect) => const LinearGradient(
-        colors: [Colors.white, Colors.white, Colors.transparent],
-        stops: [0, 0.9, 1],
+      shaderCallback: (rect) => LinearGradient(
+        colors: [mask, mask, Colors.transparent],
+        stops: const [0, 0.9, 1],
       ).createShader(Rect.fromLTWH(0, 0, rect.width, rect.height)),
       blendMode: BlendMode.dstIn,
       child: Obx(() {
@@ -696,13 +711,10 @@ class _TitleBlock extends StatelessWidget {
                     child: Text(
                       title,
                       maxLines: 1,
-                      style: TextStyle(
-                        fontSize: 22,
-                        height: 1.25,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.2,
-                        color: fg,
-                      ),
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(color: fg),
                     ),
                   ),
                 ),
@@ -717,12 +729,10 @@ class _TitleBlock extends StatelessWidget {
                     child: Text(
                       artist,
                       maxLines: 1,
-                      style: TextStyle(
-                        fontSize: 15.5,
-                        height: 1.3,
-                        fontWeight: FontWeight.w500,
-                        color: fg.withOpacity(0.66),
-                      ),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyLarge
+                          ?.copyWith(color: fg.withOpacity(0.66)),
                     ),
                   ),
                 ),
@@ -880,11 +890,10 @@ class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
                   s.category.color,
                 )
             ];
-      final timeStyle = Theme.of(context).textTheme.titleSmall!.copyWith(
-            fontSize: 12,
-            color: RiffSurfaces.textMuted,
-            fontWeight: FontWeight.w500,
-          );
+      final timeStyle = Theme.of(context)
+          .textTheme
+          .bodySmall!
+          .copyWith(color: RiffSurfaces.textMuted);
       final currentLabel = _fmtDuration(_dragPosition ?? status.current);
       final totalLabel = _fmtDuration(status.total, allowZero: false);
       final played = Theme.of(context).sliderTheme.activeTrackColor ??
@@ -993,8 +1002,7 @@ class _SectionTrackPainter extends CustomPainter {
       final l = a * size.width, r = b * size.width;
       if (r - l < 1) continue;
       canvas.drawRRect(
-        RRect.fromLTRBR(
-            l, top, r, top + _trackH, const Radius.circular(99)),
+        RRect.fromLTRBR(l, top, r, top + _trackH, const Radius.circular(99)),
         Paint()..color = color.withOpacity(0.9),
       );
     }
@@ -1017,7 +1025,8 @@ class _SectionTrackPainter extends CustomPainter {
       old.spans.length != spans.length ||
       !_spansEq(old.spans, spans);
 
-  bool _spansEq(List<(double, double, Color)> a, List<(double, double, Color)> b) {
+  bool _spansEq(
+      List<(double, double, Color)> a, List<(double, double, Color)> b) {
     for (var i = 0; i < a.length; i++) {
       if (a[i] != b[i]) return false;
     }

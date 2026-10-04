@@ -5,6 +5,7 @@ import '/ui/player/components/gesture_player.dart';
 import '/ui/player/components/long_form_player.dart';
 import '/ui/player/components/standard_player.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/ui/utils/riff_tokens.dart';
 import '/ui/utils/theme_controller.dart';
 import '../../utils/helper.dart';
@@ -84,11 +85,9 @@ class Player extends StatelessWidget {
                             "upNext".tr,
                             style: Theme.of(context)
                                 .textTheme
-                                .titleSmall
+                                .labelMedium
                                 ?.copyWith(
                                   color: RiffSurfaces.textMuted,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.2,
                                 ),
                           ),
                           Obx(() {
@@ -97,7 +96,10 @@ class Player extends StatelessWidget {
                               return const SizedBox.shrink();
                             }
                             return Padding(
-                              padding: const EdgeInsets.fromLTRB(20, 1, 20, 0),
+                              padding: const EdgeInsets.only(
+                                  left: RiffSpacing.xl,
+                                  top: RiffSpacing.xxs,
+                                  right: RiffSpacing.xl),
                               child: Text(
                                 upcomingPreviewLabel(
                                     upcoming.first.title, upcoming.length),
@@ -106,11 +108,10 @@ class Player extends StatelessWidget {
                                 textAlign: TextAlign.center,
                                 style: Theme.of(context)
                                     .textTheme
-                                    .labelSmall
+                                    .bodySmall
                                     ?.copyWith(
                                       color: RiffSurfaces.textPrimary
                                           .withOpacity(0.85),
-                                      fontWeight: FontWeight.w500,
                                     ),
                               ),
                             );
@@ -167,11 +168,10 @@ class Player extends StatelessWidget {
                                 "${playerController.currentQueue.length} ${"songs".tr}",
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: RiffSurfaces.textMuted,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelMedium
+                                    ?.copyWith(color: RiffSurfaces.textMuted),
                               ),
                             ),
                           ),

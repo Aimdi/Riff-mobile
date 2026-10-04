@@ -46,7 +46,7 @@ class PodcastFollowButton extends StatelessWidget {
       label: Text('subscribe'.tr),
       style: FilledButton.styleFrom(
         backgroundColor: accent,
-        foregroundColor: Colors.black,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         visualDensity: VisualDensity.compact,
         padding: pad,
         shape: const StadiumBorder(),

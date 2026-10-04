@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../screens/Home/home_layout.dart';
 import '../utils/riff_tokens.dart';
-import '../utils/theme_controller.dart';
+import '/ui/theme/riff_spacing.dart';
 
 /// Shared look for bottom sheets: a drag handle, an optional title, rows of
 /// actions and an optional row of big quick actions. Every sheet in the app
@@ -26,7 +26,8 @@ class RiffSheetHandle extends StatelessWidget {
         height: 4,
         margin: const EdgeInsets.only(top: 10, bottom: 6),
         decoration: BoxDecoration(
-          color: (homeMutedColor(context) ?? Colors.grey).withOpacity(0.45),
+          color:
+              Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.45),
           borderRadius: BorderRadius.circular(2),
         ),
       ),
@@ -44,9 +45,13 @@ class RiffSheetTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fg = Theme.of(context).textTheme.titleMedium?.color ??
-        RiffSurfaces.textPrimary;
+        Theme.of(context).colorScheme.onSurface;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 6, 12, 8),
+      padding: const EdgeInsets.only(
+          left: RiffSpacing.xl,
+          top: RiffSpacing.sm,
+          right: RiffSpacing.md,
+          bottom: RiffSpacing.sm),
       child: Row(
         children: [
           Expanded(
@@ -56,11 +61,10 @@ class RiffSheetTitle extends StatelessWidget {
                 Text(title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.3,
-                        color: fg)),
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(color: fg)),
                 if (subtitle != null && subtitle!.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(subtitle!,
@@ -100,7 +104,8 @@ class RiffSheetTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final base = theme.textTheme.titleMedium?.color ?? RiffSurfaces.textPrimary;
+    final base =
+        theme.textTheme.titleMedium?.color ?? theme.colorScheme.onSurface;
     final fg = destructive ? theme.colorScheme.error : base;
     return InkWell(
       onTap: onTap,
@@ -111,8 +116,7 @@ class RiffSheetTile extends StatelessWidget {
           child: Row(
             children: [
               Icon(icon,
-                  size: 22,
-                  color: destructive ? fg : base.withOpacity(0.78)),
+                  size: 22, color: destructive ? fg : base.withOpacity(0.78)),
               const SizedBox(width: 18),
               Expanded(
                 child: Column(
@@ -122,10 +126,7 @@ class RiffSheetTile extends StatelessWidget {
                     Text(title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: fg)),
+                        style: theme.textTheme.bodyLarge?.copyWith(color: fg)),
                     if (subtitle != null && subtitle!.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
@@ -157,7 +158,7 @@ class RiffSheetDivider extends StatelessWidget {
       child: Divider(
         height: 1,
         thickness: 1,
-        color: (homeMutedColor(context) ?? Colors.grey).withOpacity(0.18),
+        color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.18),
       ),
     );
   }
@@ -180,9 +181,10 @@ class RiffQuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fg = Theme.of(context).textTheme.titleMedium?.color ??
-        RiffSurfaces.textPrimary;
+        Theme.of(context).colorScheme.onSurface;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+      padding: const EdgeInsets.symmetric(
+          horizontal: RiffSpacing.lg, vertical: RiffSpacing.sm),
       child: Row(
         children: [
           for (var i = 0; i < actions.length; i++) ...[
@@ -195,8 +197,8 @@ class RiffQuickActions extends StatelessWidget {
                 child: InkWell(
                   onTap: actions[i].onTap,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 12, horizontal: 4),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -206,11 +208,10 @@ class RiffQuickActions extends StatelessWidget {
                             maxLines: 2,
                             textAlign: TextAlign.center,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 12,
-                                height: 1.15,
-                                fontWeight: FontWeight.w600,
-                                color: fg)),
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(color: fg)),
                       ],
                     ),
                   ),
@@ -243,11 +244,12 @@ class RiffChoiceChip extends StatelessWidget {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.secondary;
     final fg = selected
-        ? RiffSurfaces.voidBlack
-        : (theme.textTheme.titleMedium?.color ?? RiffSurfaces.textPrimary);
+        ? theme.colorScheme.onPrimary
+        : (theme.textTheme.titleMedium?.color ?? theme.colorScheme.onSurface);
     return Material(
       color: selected ? accent : homeTileColor(context),
-      shape: StadiumBorder(side: selected ? BorderSide.none : homeTileBorder(context)),
+      shape: StadiumBorder(
+          side: selected ? BorderSide.none : homeTileBorder(context)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -261,8 +263,7 @@ class RiffChoiceChip extends StatelessWidget {
                 const SizedBox(width: 6),
               ],
               Text(label,
-                  style: TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w600, color: fg)),
+                  style: theme.textTheme.labelMedium?.copyWith(color: fg)),
             ],
           ),
         ),

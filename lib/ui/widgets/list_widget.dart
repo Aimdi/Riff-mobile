@@ -13,6 +13,8 @@ import '../player/player_controller.dart';
 import 'collection_play.dart';
 import 'empty_play_hint.dart';
 import 'image_widget.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '../screens/Home/home_layout.dart';
 import 'snackbar.dart';
 import 'song_list_tile.dart';
@@ -31,9 +33,7 @@ bool shouldPlaySearchRowsAsQueue({
 
 /// Empty list copy — never the raw "No ${title}!" template.
 String emptyListLabelKey(String title, {bool searchContext = false}) {
-  if (title == 'Videos' ||
-      title.contains('Songs') ||
-      title == 'Episodes') {
+  if (title == 'Videos' || title.contains('Songs') || title == 'Episodes') {
     return 'emptyPlaylist';
   }
   if (searchContext) return 'noResults';
@@ -120,8 +120,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
                       ? items.length
                       : _overviewPreviewCount) *
                   72.0,
-              child: listViewArtists(items,
-                  maxItems: _overviewPreviewCount),
+              child: listViewArtists(items, maxItems: _overviewPreviewCount),
             );
     }
     return const SizedBox.shrink();
@@ -284,18 +283,18 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
                   child: Tooltip(
                     message: 'play'.tr,
                     child: Material(
-                      color: Colors.black.withOpacity(0.5),
+                      color: RiffColors.of(context).scrim.withOpacity(0.5),
                       shape: const CircleBorder(),
                       clipBehavior: Clip.antiAlias,
                       child: InkWell(
                         customBorder: const CircleBorder(),
                         onTap: () => _playArtistRow(artist),
-                        child: const Padding(
-                          padding: EdgeInsets.all(1),
+                        child: Padding(
+                          padding: const EdgeInsets.all(1),
                           child: Icon(
                             Icons.play_circle_fill,
                             size: 22,
-                            color: Colors.white,
+                            color: RiffColors.of(context).onImage,
                           ),
                         ),
                       ),
@@ -334,8 +333,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
       _openArtist(artist);
       return;
     }
-    final ok =
-        await playArtist(artist, shuffle: shuffle, radio: radio);
+    final ok = await playArtist(artist, shuffle: shuffle, radio: radio);
     if (!ok) {
       _snackPlayFailed();
       _openArtist(artist);
@@ -506,8 +504,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
               title: Text('play'.tr),
               onTap: () {
                 Navigator.of(ctx).pop();
-                _playWideTile(
-                    album: album, playlist: playlist, shuffle: false);
+                _playWideTile(album: album, playlist: playlist, shuffle: false);
               },
             ),
             ListTile(
@@ -515,8 +512,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
               title: Text('shuffle'.tr),
               onTap: () {
                 Navigator.of(ctx).pop();
-                _playWideTile(
-                    album: album, playlist: playlist, shuffle: true);
+                _playWideTile(album: album, playlist: playlist, shuffle: true);
               },
             ),
             ListTile(
@@ -524,8 +520,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
               title: Text('playNext'.tr),
               onTap: () {
                 Navigator.of(ctx).pop();
-                _queueWideTile(
-                    album: album, playlist: playlist, radio: false);
+                _queueWideTile(album: album, playlist: playlist, radio: false);
               },
             ),
             ListTile(
@@ -533,8 +528,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
               title: Text('startRadio'.tr),
               onTap: () {
                 Navigator.of(ctx).pop();
-                _queueWideTile(
-                    album: album, playlist: playlist, radio: true);
+                _queueWideTile(album: album, playlist: playlist, radio: true);
               },
             ),
             ListTile(
@@ -560,8 +554,12 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
       child: SizedBox(
         height: 96,
         child: Padding(
-          // 5 from the list wrapper + 7 = the 12dp Home gutter.
-          padding: const EdgeInsets.fromLTRB(7, 10, 0, 10),
+          // 5 from the list wrapper + sm lines up with the Home gutter;
+          // vertical 10 keeps the 76dp cover exactly inside the 96dp row.
+          padding: const EdgeInsets.only(
+              left: RiffSpacing.sm,
+              top: RiffSpacing.sm + RiffSpacing.xxs,
+              bottom: RiffSpacing.sm + RiffSpacing.xxs),
           child: Row(
             children: [
               SizedBox(
@@ -580,7 +578,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
                       child: Tooltip(
                         message: 'play'.tr,
                         child: Material(
-                          color: Colors.black.withOpacity(0.5),
+                          color: RiffColors.of(context).scrim.withOpacity(0.5),
                           shape: const CircleBorder(),
                           clipBehavior: Clip.antiAlias,
                           child: InkWell(
@@ -591,12 +589,12 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
                                   playlist: playlist,
                                   shuffle: false);
                             },
-                            child: const Padding(
-                              padding: EdgeInsets.all(2),
+                            child: Padding(
+                              padding: const EdgeInsets.all(2),
                               child: Icon(
                                 Icons.play_circle_fill,
                                 size: 22,
-                                color: Colors.white,
+                                color: RiffColors.of(context).onImage,
                               ),
                             ),
                           ),
@@ -618,8 +616,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
                       title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: homeCardTitleStyle(context)
-                          .copyWith(fontSize: 15, height: 1.25),
+                      style: homeCardTitleStyle(context),
                     ),
                     const SizedBox(height: 3),
                     Text(
@@ -629,8 +626,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
                           .join(' · '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: homeCardSubtitleStyle(context)
-                          .copyWith(fontSize: 12.5),
+                      style: homeCardSubtitleStyle(context),
                     ),
                   ],
                 ),

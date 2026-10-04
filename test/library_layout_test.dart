@@ -12,7 +12,7 @@ void main() {
 
   test('covers fill the row between the gutters', () {
     final g = libraryGridMetrics(411);
-    // 12 gutter each side, 12 between three covers.
-    expect(g.cover * 3 + 12 * 2 + 12 * 2, closeTo(411, 0.001));
+    // 16 gutter each side (restyle §4.2), 12 between three covers.
+    expect(g.cover * 3 + 16 * 2 + 12 * 2, closeTo(411, 0.001));
   });
 }

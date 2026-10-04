@@ -64,11 +64,11 @@ class SearchResultScreenBN extends StatelessWidget {
                 child: Obx(
                   () {
                     if (searchResScrController.isResultContentFetced.isFalse) {
-                      return const SongListShimmer(itemCount: 8, topPadding: 12);
+                      return const SongListShimmer(
+                          itemCount: 8, topPadding: 12);
                     }
                     final ytmRails = searchResScrController.railItems
-                        .where((r) =>
-                            !searchResScrController.isSoulseekRail(r))
+                        .where((r) => !searchResScrController.isSoulseekRail(r))
                         .toList();
                     if (ytmRails.isEmpty) {
                       return Center(
@@ -103,98 +103,96 @@ class SearchResultScreenBN extends StatelessWidget {
                       );
                     }
                     return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Padding(
-                            padding: const EdgeInsets.only(left: 15.0, top: 10),
-                            child: ButtonsTabBar(
-                              onTap:
-                                  searchResScrController.onDestinationSelected,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Padding(
+                          padding: const EdgeInsets.only(left: 15.0, top: 10),
+                          child: ButtonsTabBar(
+                            onTap: searchResScrController.onDestinationSelected,
 
+                            controller: searchResScrController.tabController,
+                            contentPadding:
+                                const EdgeInsets.only(left: 15, right: 15),
+                            backgroundColor:
+                                Theme.of(context).textTheme.titleMedium?.color!,
+                            unselectedBackgroundColor:
+                                Theme.of(context).colorScheme.secondary,
+                            borderWidth: 0,
+                            buttonMargin: const EdgeInsets.only(
+                                right: 10, left: 4, top: 4, bottom: 4),
+                            borderColor: Theme.of(context).colorScheme.surface,
+                            labelStyle: Theme.of(context)
+                                .textTheme
+                                .labelLarge
+                                ?.copyWith(
+                                    color: Theme.of(context).primaryColor),
+                            unselectedLabelStyle: Theme.of(context)
+                                .textTheme
+                                .labelLarge
+                                ?.copyWith(
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.color!),
+                            // Add your tabs here
+                            tabs: [
+                              Tab(text: "results".tr),
+                              ...searchResScrController.railItems
+                                  .map((item) => Tab(
+                                        text: item
+                                            .toLowerCase()
+                                            .removeAllWhitespace
+                                            .tr,
+                                      ))
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 15.0),
+                            child: TabBarView(
                               controller: searchResScrController.tabController,
-                              contentPadding:
-                                  const EdgeInsets.only(left: 15, right: 15),
-                              backgroundColor: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.color!,
-                              unselectedBackgroundColor:
-                                  Theme.of(context).colorScheme.secondary,
-                              borderWidth: 0,
-                              buttonMargin: const EdgeInsets.only(
-                                  right: 10, left: 4, top: 4, bottom: 4),
-                              borderColor: Colors.black,
-                              labelStyle: TextStyle(
-                                color: Theme.of(context).primaryColor,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              unselectedLabelStyle: TextStyle(
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.color!,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              // Add your tabs here
-                              tabs: [
-                                Tab(text: "results".tr),
+                              children: [
+                                const ResultWidget(
+                                  isv2Used: true,
+                                ),
                                 ...searchResScrController.railItems
-                                    .map((item) => Tab(
-                                          text: item
-                                              .toLowerCase()
-                                              .removeAllWhitespace
-                                              .tr,
-                                        ))
+                                    .map((tabName) {
+                                  if (searchResScrController
+                                      .isSoulseekRail(tabName)) {
+                                    return SeekerScreen(
+                                      embedded: true,
+                                      initialQuery: searchResScrController
+                                          .queryString.value,
+                                    );
+                                  }
+                                  if (tabName == "Songs" ||
+                                      tabName == "Videos") {
+                                    return SeparateTabItemWidget(
+                                      isResultWidget: true,
+                                      hideTitle: true,
+                                      items: const [],
+                                      title: tabName,
+                                      isCompleteList: true,
+                                      scrollController: searchResScrController
+                                          .scrollControllers[tabName],
+                                    );
+                                  } else {
+                                    return SeparateTabItemWidget(
+                                      title: tabName,
+                                      hideTitle: true,
+                                      items: const [],
+                                      scrollController: searchResScrController
+                                          .scrollControllers[tabName],
+                                    );
+                                  }
+                                }),
                               ],
                             ),
                           ),
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 15.0),
-                              child: TabBarView(
-                                controller:
-                                    searchResScrController.tabController,
-                                children: [
-                                  const ResultWidget(
-                                    isv2Used: true,
-                                  ),
-                                  ...searchResScrController.railItems
-                                      .map((tabName) {
-                                    if (searchResScrController
-                                        .isSoulseekRail(tabName)) {
-                                      return SeekerScreen(
-                                        embedded: true,
-                                        initialQuery: searchResScrController
-                                            .queryString.value,
-                                      );
-                                    }
-                                    if (tabName == "Songs" ||
-                                        tabName == "Videos") {
-                                      return SeparateTabItemWidget(
-                                        isResultWidget: true,
-                                        hideTitle: true,
-                                        items: const [],
-                                        title: tabName,
-                                        isCompleteList: true,
-                                        scrollController: searchResScrController
-                                            .scrollControllers[tabName],
-                                      );
-                                    } else {
-                                      return SeparateTabItemWidget(
-                                        title: tabName,
-                                        hideTitle: true,
-                                        items: const [],
-                                        scrollController: searchResScrController
-                                            .scrollControllers[tabName],
-                                      );
-                                    }
-                                  }),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
+                        ),
+                      ],
+                    );
                   },
                 ),
               )

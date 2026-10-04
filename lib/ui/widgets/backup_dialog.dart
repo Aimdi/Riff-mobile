@@ -13,6 +13,7 @@ import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/widgets/loader.dart';
 import '/utils/helper.dart';
 import '../../services/permission_service.dart';
+import '/ui/theme/riff_spacing.dart';
 import '../screens/Home/home_layout.dart';
 import 'common_dialog_widget.dart';
 
@@ -24,7 +25,11 @@ class BackupDialog extends StatelessWidget {
     final c = Get.put(BackupDialogController());
     return CommonDialog(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(22, 24, 22, 18),
+        padding: const EdgeInsets.only(
+            left: RiffSpacing.xxl,
+            top: RiffSpacing.xxl,
+            right: RiffSpacing.xxl,
+            bottom: RiffSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -50,16 +55,23 @@ class BackupDialog extends StatelessWidget {
                                     ? "backupMsg".tr
                                     : "letsStrart".tr,
                         textAlign: TextAlign.center,
-                        style: homeCardSubtitleStyle(context)
-                            .copyWith(fontSize: 14),
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyLarge
+                            ?.copyWith(color: homeMutedColor(context)),
                       ),
                       if (GetPlatform.isAndroid &&
                           c.isDownloadedfilesSeclected.isTrue) ...[
                         const SizedBox(height: 8),
                         Text("androidBackupWarning".tr,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.w700)),
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface)),
                       ],
                     ],
                   );
@@ -72,9 +84,9 @@ class BackupDialog extends StatelessWidget {
                     dense: true,
                     controlAffinity: ListTileControlAffinity.leading,
                     activeColor: Theme.of(context).colorScheme.secondary,
-                    checkColor: Colors.black,
+                    checkColor: Theme.of(context).colorScheme.onPrimary,
                     title: Text("includeDownloadedFiles".tr,
-                        style: const TextStyle(fontSize: 14)),
+                        style: Theme.of(context).textTheme.bodyLarge),
                     value: c.isDownloadedfilesSeclected.value,
                     onChanged: c.scanning.isTrue ||
                             c.backupRunning.isTrue ||

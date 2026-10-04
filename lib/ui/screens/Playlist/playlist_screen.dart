@@ -15,6 +15,7 @@ import '../Podcasts/podcast_queue_screen.dart';
 import '../Podcasts/podcasts_screen.dart';
 import '../Podcasts/podcast_show_view.dart';
 import '/services/discovery/discovery_types.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/ui/widgets/playlist_album_scroll_behaviour.dart';
 import '../../navigator.dart';
 import '../../player/player_controller.dart';
@@ -698,7 +699,11 @@ class _PodcastEpisodeTile extends StatelessWidget {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 10, 12),
+            padding: const EdgeInsets.only(
+                left: RiffSpacing.xl,
+                top: RiffSpacing.md,
+                right: RiffSpacing.md,
+                bottom: RiffSpacing.md),
             child: Row(
               // Outer row centers the play icon vertically; the art+text block
               // inside stays top-aligned.
@@ -740,8 +745,12 @@ class _PodcastEpisodeTile extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context)
                                   .textTheme
-                                  .titleSmall
-                                  ?.copyWith(fontWeight: FontWeight.w600),
+                                  .labelMedium
+                                  ?.copyWith(
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.color),
                             ),
                             if (durationText.isNotEmpty)
                               Padding(
@@ -825,11 +834,14 @@ class _PodcastSimilarFooterState extends State<_PodcastSimilarFooter> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+            padding: const EdgeInsets.only(
+                left: RiffSpacing.lg,
+                right: RiffSpacing.lg,
+                bottom: RiffSpacing.sm),
             child: Text(
               "similarPodcasts".tr,
-              style: theme.textTheme.titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w600),
+              style: theme.textTheme.labelMedium
+                  ?.copyWith(color: theme.textTheme.titleSmall?.color),
             ),
           ),
           SizedBox(
@@ -891,8 +903,8 @@ class _PodcastSimilarFooterState extends State<_PodcastSimilarFooter> {
                                 (p['title'] ?? '').toString(),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                    fontWeight: FontWeight.w500, height: 1.1),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.textTheme.labelSmall?.color),
                               ),
                             ],
                           ),

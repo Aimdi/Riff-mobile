@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '/models/thumbnail.dart';
 import '/services/podcast_bookmarks.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/services/podcast_segments.dart' show formatSegmentLength;
 import '/ui/player/player_controller.dart';
 import '../../widgets/common_dialog_widget.dart';
@@ -23,8 +24,8 @@ Future<void> bookmarkCurrentMoment(BuildContext context) async {
   final item = pc.currentSong.value;
   if (item == null || !pc.isCurrentSongPodcast) return;
   HapticFeedback.mediumImpact();
-  final bm = await PodcastBookmarkStore.add(
-      item, pc.progressBarStatus.value.current);
+  final bm =
+      await PodcastBookmarkStore.add(item, pc.progressBarStatus.value.current);
   if (bm == null || !context.mounted) return;
   showBookmarkSavedSnack(context, bm);
 }
@@ -52,7 +53,11 @@ Future<void> editBookmarkNote(BuildContext context, PodcastBookmark bm) async {
     useRootNavigator: true,
     builder: (d) => CommonDialog(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 22, 20, 14),
+        padding: const EdgeInsets.only(
+            left: RiffSpacing.xl,
+            top: RiffSpacing.xxl,
+            right: RiffSpacing.xl,
+            bottom: RiffSpacing.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -97,8 +102,7 @@ Future<void> _removeWithUndo(BuildContext context, PodcastBookmark bm) async {
       behavior: SnackBarBehavior.floating,
       content: Text('bookmarkRemoved'.tr),
       action: SnackBarAction(
-          label: 'undo'.tr,
-          onPressed: () => PodcastBookmarkStore.restore(bm)),
+          label: 'undo'.tr, onPressed: () => PodcastBookmarkStore.restore(bm)),
     ));
 }
 
@@ -133,7 +137,11 @@ class PodcastBookmarkTile extends StatelessWidget {
     return InkWell(
       onTap: onTap ?? () => playBookmark(context, b),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 10, 4, 10),
+        padding: const EdgeInsets.only(
+            left: HomeLayout.gutter,
+            top: RiffSpacing.md,
+            right: RiffSpacing.xs,
+            bottom: RiffSpacing.md),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -170,9 +178,7 @@ class PodcastBookmarkTile extends StatelessWidget {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(_at(b.positionMs),
-                            style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
+                            style: theme.textTheme.labelSmall?.copyWith(
                                 color: accent,
                                 fontFeatures: const [
                                   FontFeature.tabularFigures()
@@ -198,11 +204,8 @@ class PodcastBookmarkTile extends StatelessWidget {
                     Text('“${b.quote}”',
                         maxLines: 4,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 14.5,
-                            height: 1.35,
-                            fontStyle: FontStyle.italic,
-                            color: fg)),
+                        style: theme.textTheme.bodyLarge
+                            ?.copyWith(fontStyle: FontStyle.italic, color: fg)),
                   ],
                   if (b.note != null) ...[
                     const SizedBox(height: 6),
@@ -214,8 +217,8 @@ class PodcastBookmarkTile extends StatelessWidget {
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(b.note!,
-                              style: homeCardSubtitleStyle(context)
-                                  .copyWith(fontSize: 13.5)),
+                              style: theme.textTheme.bodyMedium
+                                  ?.copyWith(color: homeMutedColor(context))),
                         ),
                       ],
                     ),
@@ -283,8 +286,8 @@ Future<void> showEpisodeBookmarksSheet(BuildContext context) {
                   RiffSheetTile(
                     icon: Icons.bookmark_add_outlined,
                     title: 'bookmarkThisMoment'.tr,
-                    subtitle: _at(pc.progressBarStatus.value.current
-                        .inMilliseconds),
+                    subtitle:
+                        _at(pc.progressBarStatus.value.current.inMilliseconds),
                     onTap: () => bookmarkCurrentMoment(inner),
                   ),
                   const RiffSheetDivider(),
@@ -304,8 +307,8 @@ Future<void> showEpisodeBookmarksSheet(BuildContext context) {
                               showEpisode: false,
                               onTap: () {
                                 Navigator.of(sheet).pop();
-                                pc.seek(Duration(
-                                    milliseconds: list[i].positionMs));
+                                pc.seek(
+                                    Duration(milliseconds: list[i].positionMs));
                               },
                             ),
                           ),

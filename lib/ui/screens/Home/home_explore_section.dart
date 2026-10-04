@@ -114,15 +114,11 @@ class HomeExploreSection extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       child: Center(
                         widthFactor: 1,
-                        // Explicit size: the theme's labelMedium is a 22sp
-                        // title style, which made these chips huge.
                         child: Text(
                           title,
                           maxLines: 1,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: theme.textTheme.titleMedium?.color,
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: theme.colorScheme.onSurface,
                           ),
                         ),
                       ),

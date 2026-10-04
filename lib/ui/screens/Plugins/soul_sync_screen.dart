@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '/services/soul_sync_service.dart';
 import '/ui/navigator.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/ui/screens/Search/search_play_top.dart';
 import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/snackbar.dart';
@@ -29,7 +30,10 @@ class SoulSyncScreen extends StatelessWidget {
               onBack: () => Get.back(id: ScreenNavigationSetup.id)),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+              padding: const EdgeInsets.only(
+                  left: RiffSpacing.lg,
+                  top: RiffSpacing.sm,
+                  right: RiffSpacing.lg),
               child: Obx(() => svc.isConnected.value
                   ? const _SoulSyncConnectedView()
                   : const _SoulSyncLoginForm()),
@@ -75,7 +79,8 @@ class _SoulSyncLoginFormState extends State<_SoulSyncLoginForm> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        snackbar(context, 'soulSyncConnectFailed'.tr, size: SanckBarSize.MEDIUM),
+        snackbar(context, 'soulSyncConnectFailed'.tr,
+            size: SanckBarSize.MEDIUM),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -209,12 +214,14 @@ class _SoulSyncConnectedViewState extends State<_SoulSyncConnectedView> {
       await Get.find<SoulSyncService>().requestDownload(track.requestQuery);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        snackbar(context, 'soulSyncRequestQueued'.tr, size: SanckBarSize.MEDIUM),
+        snackbar(context, 'soulSyncRequestQueued'.tr,
+            size: SanckBarSize.MEDIUM),
       );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        snackbar(context, 'soulSyncRequestFailed'.tr, size: SanckBarSize.MEDIUM),
+        snackbar(context, 'soulSyncRequestFailed'.tr,
+            size: SanckBarSize.MEDIUM),
       );
     }
   }
@@ -304,14 +311,17 @@ class _SoulSyncConnectedViewState extends State<_SoulSyncConnectedView> {
                                           child: CachedNetworkImage(
                                             imageUrl: t.imageUrl!,
                                             // Decode at display size, not full resolution.
-                                            memCacheWidth:
-                                                (48 * MediaQuery.devicePixelRatioOf(context)).round(),
+                                            memCacheWidth: (48 *
+                                                    MediaQuery
+                                                        .devicePixelRatioOf(
+                                                            context))
+                                                .round(),
                                             width: 48,
                                             height: 48,
                                             fit: BoxFit.cover,
-                                            errorWidget: (_, __, ___) =>
-                                                Icon(Icons.album,
-                                                    color: accent),
+                                            errorWidget: (_, __, ___) => Icon(
+                                                Icons.album,
+                                                color: accent),
                                           ),
                                         )
                                       : Icon(Icons.music_note, color: accent),

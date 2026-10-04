@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '/models/quick_picks.dart';
 import '/services/discovery/discovery_types.dart';
 import '../player/player_controller.dart';
+import '/ui/theme/riff_tokens.dart';
 import '../utils/riff_tokens.dart';
 import '../screens/Home/home_layout.dart';
 import 'image_widget.dart';
@@ -31,7 +32,7 @@ class QuickPicksWidget extends StatelessWidget {
       ),
       isScrollControlled: true,
       context: sheetContext,
-      barrierColor: Colors.transparent.withAlpha(100),
+      barrierColor: RiffColors.of(sheetContext).scrim.withAlpha(100),
       builder: (context) => SongInfoBottomSheet(
         content.songList[item],
       ),
@@ -116,16 +117,16 @@ class QuickPicksWidget extends StatelessWidget {
                                       song.title,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: homeCardTitleStyle(context)
-                                          .copyWith(fontSize: 14.5),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelMedium,
                                     ),
                                     const SizedBox(height: 3),
                                     Text(
                                       song.artist ?? '',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: homeCardSubtitleStyle(context)
-                                          .copyWith(fontSize: 12.5),
+                                      style: homeCardSubtitleStyle(context),
                                     ),
                                   ],
                                 ),

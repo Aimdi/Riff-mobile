@@ -21,6 +21,12 @@ class RiffPalette {
   static const Color barrier = Color(0x665B7083); // #5B7083 @ 40%
   static const Color danger = Color(0xFFF4212E);
 
+  /// Text and icons drawn over artwork or a scrim: white in every theme.
+  static const Color onImage = Color(0xFFFFFFFF);
+
+  /// Darkening layers over artwork, and shadows.
+  static const Color scrim = Color(0xFF000000);
+
   /// The accent at 12% over black: selected chips, now-playing rows.
   static Color accentMuted(Color accent) =>
       Color.alphaBlend(accent.withOpacity(0.12), bg);
@@ -75,12 +81,21 @@ class RiffColors extends ThemeExtension<RiffColors> {
     required this.handle,
     required this.barrier,
     required this.surface2,
+    this.onImage = RiffPalette.onImage,
+    this.scrim = RiffPalette.scrim,
   });
 
   final Color accentMuted;
   final Color handle;
   final Color barrier;
   final Color surface2;
+
+  /// Text and icons over artwork or a scrim (white in every theme). For
+  /// dimmer text use `onImage.withOpacity(...)`.
+  final Color onImage;
+
+  /// Darkening layers over artwork, and shadows (use with opacity).
+  final Color scrim;
 
   factory RiffColors.forAccent(Color accent) => RiffColors(
         accentMuted: RiffPalette.accentMuted(accent),
@@ -103,12 +118,16 @@ class RiffColors extends ThemeExtension<RiffColors> {
     Color? handle,
     Color? barrier,
     Color? surface2,
+    Color? onImage,
+    Color? scrim,
   }) =>
       RiffColors(
         accentMuted: accentMuted ?? this.accentMuted,
         handle: handle ?? this.handle,
         barrier: barrier ?? this.barrier,
         surface2: surface2 ?? this.surface2,
+        onImage: onImage ?? this.onImage,
+        scrim: scrim ?? this.scrim,
       );
 
   @override
@@ -119,6 +138,8 @@ class RiffColors extends ThemeExtension<RiffColors> {
       handle: Color.lerp(handle, other.handle, t)!,
       barrier: Color.lerp(barrier, other.barrier, t)!,
       surface2: Color.lerp(surface2, other.surface2, t)!,
+      onImage: Color.lerp(onImage, other.onImage, t)!,
+      scrim: Color.lerp(scrim, other.scrim, t)!,
     );
   }
 }

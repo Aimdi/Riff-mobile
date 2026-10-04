@@ -2,78 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/ui/player/player_controller.dart';
+import '/ui/theme/riff_spacing.dart';
+
+export '/ui/theme/riff_spacing.dart';
 import 'home_feed_builder.dart' show homeSentenceCase;
-
-/// Home spacing scale. Everything lines up 16dp from the rail.
-class RiffSpacing {
-  RiffSpacing._();
-
-  // The 4-point scale (RIFF_UI_RESTYLE.md §4.2).
-  static const double unit = 4;
-  static const double xxs = 2;
-  static const double xs = 4;
-  static const double sm = 8;
-  static const double md = 12;
-  static const double lg = 16;
-  static const double xl = 20;
-  static const double xxl = 24;
-  static const double x3l = 32;
-
-  /// Content margin from the rail's edge and from the right edge.
-  static const double gutter = 16;
-
-  /// Space above every section.
-  static const double section = 24;
-
-  /// Height of a section's title row.
-  static const double headerRow = 48;
-
-  /// Title row to content.
-  static const double headerToContent = 8;
-
-  /// Between cards on a shelf.
-  static const double cardGap = 12;
-
-  /// Inside grids (Jump back in, Speed dial).
-  static const double gridGap = 8;
-
-  /// Riff Wave card to its chip row.
-  static const double chipRowTop = 12;
-}
-
-/// Home component sizes and corner radii.
-class RiffSizes {
-  RiffSizes._();
-
-  static const double tileRadius = 8;
-  static const double shelfRadius = 12;
-  static const double waveRadius = 16;
-  static const double carouselRadius = 28;
-
-  static const double jumpTileHeight = 56;
-  static const double jumpArt = 48;
-  static const double progressBar = 3;
-
-  static const double waveHeight = 88;
-  static const double waveArt = 56;
-  static const double wavePlay = 48;
-  static const double chipRow = 48;
-  static const double chipHeight = 40;
-
-  static const double dot = 6;
-  static const double dotsTop = 8;
-
-  static const double carouselHeight = 200;
-  static const double carouselPeek = 48;
-  static const double carouselSpacing = 8;
-  static const double carouselPlay = 40;
-
-  static const double artistCircle = 112;
-  static const double videoWidth = 224;
-  static const double episodeWidth = 280;
-  static const double weekHeight = 96;
-  static const double touch = 48;
-}
 
 /// Sizes worked out from the content pane's width [w] (screen minus rail),
 /// never from fixed screen numbers.
@@ -111,16 +43,11 @@ double homeBottomPadding(BuildContext context) {
   return (mini > nav ? mini : nav) + 16;
 }
 
-/// Section title style: titleLarge, 22/28, bold, onSurface.
+/// Section title style: the theme's titleLarge in onSurface.
 TextStyle riffSectionTitleStyle(BuildContext context) {
   final theme = Theme.of(context);
-  return (theme.textTheme.titleLarge ?? const TextStyle()).copyWith(
-    fontSize: 22,
-    height: 28 / 22,
-    fontWeight: FontWeight.w700,
-    letterSpacing: 0,
-    color: theme.colorScheme.onSurface,
-  );
+  return (theme.textTheme.titleLarge ?? const TextStyle())
+      .copyWith(color: theme.colorScheme.onSurface);
 }
 
 /// Muted secondary text on Home.
@@ -162,11 +89,11 @@ class RiffSectionHeader extends StatelessWidget {
                 onPressed: onSeeAll,
               ));
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-          RiffSpacing.gutter,
-          top,
-          trailing == null ? RiffSpacing.gutter : 4,
-          RiffSpacing.headerToContent),
+      padding: EdgeInsets.only(
+          left: RiffSpacing.gutter,
+          top: top,
+          right: trailing == null ? RiffSpacing.gutter : RiffSpacing.xs,
+          bottom: RiffSpacing.headerToContent),
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: RiffSpacing.headerRow),
         child: Row(
@@ -183,17 +110,8 @@ class RiffSectionHeader extends StatelessWidget {
                         kicker!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        // labelMedium: 12/16, medium weight. Spelled out
-                        // because some Riff themes leave it unset.
-                        style:
-                            (theme.textTheme.labelMedium ?? const TextStyle())
-                                .copyWith(
-                          fontSize: 12,
-                          height: 16 / 12,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.5,
-                          color: riffMuted(context),
-                        ),
+                        style: theme.textTheme.labelSmall
+                            ?.copyWith(color: riffMuted(context)),
                       ),
                     Text(
                       homeSentenceCase(title),

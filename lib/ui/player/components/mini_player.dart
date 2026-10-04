@@ -21,6 +21,8 @@ import '../../widgets/image_widget.dart';
 import '../../widgets/mini_player_progress_bar.dart';
 import 'animated_play_button.dart';
 import 'playback_error_actions.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
@@ -34,7 +36,8 @@ class MiniPlayer extends StatelessWidget {
     // Solid frost — BackdropFilter blur was rebuilding every panel-drag /
     // opacity tick and was a major source of mini-player jank.
     final frost = theme.brightness == Brightness.dark
-        ? Color.alphaBlend(Colors.white.withOpacity(0.07), theme.cardColor)
+        ? Color.alphaBlend(
+            theme.colorScheme.onSurface.withOpacity(0.07), theme.cardColor)
         : theme.cardColor;
 
     // Built outside the opacity Obx so the same child instance is reused when
@@ -106,16 +109,16 @@ class MiniPlayer extends StatelessWidget {
               height: playerController.playerPanelMinHeight.value,
               width: size.width,
               child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  12,
-                  0,
-                  12,
-                  MediaQuery.viewPaddingOf(context).bottom + 8,
+                padding: EdgeInsets.only(
+                  left: RiffSpacing.md,
+                  right: RiffSpacing.md,
+                  bottom:
+                      MediaQuery.viewPaddingOf(context).bottom + RiffSpacing.sm,
                 ),
                 child: Material(
                   color: frost,
                   elevation: 10,
-                  shadowColor: Colors.black.withOpacity(0.5),
+                  shadowColor: RiffColors.of(context).scrim.withOpacity(0.5),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24),
                     side: BorderSide(

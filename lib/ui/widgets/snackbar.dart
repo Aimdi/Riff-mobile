@@ -38,9 +38,8 @@ SnackBar snackbar(BuildContext context, String text,
       child: Text(
         text,
         style: TextStyle(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white
-                : Colors.black),
+            // Text on the accent fill (§5.12).
+            color: Theme.of(context).colorScheme.onSecondary),
       ),
     ),
     //width: width,

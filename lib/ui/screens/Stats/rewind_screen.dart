@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/services/stats_service.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/ui/utils/theme_controller.dart';
 import '../../utils/riff_tokens.dart';
 import '../Home/home_layout.dart';
@@ -34,8 +35,10 @@ class RewindScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(30),
                   child: Text("rewindNotEnough".tr,
                       textAlign: TextAlign.center,
-                      style: homeCardSubtitleStyle(context)
-                          .copyWith(fontSize: 15)),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyLarge
+                          ?.copyWith(color: homeMutedColor(context))),
                 ),
               ),
             ),
@@ -53,13 +56,17 @@ class RewindScreen extends StatelessWidget {
         children: [
           RiffPageHeader("riffRewind".tr, subtitle: "riffRewindDes".tr),
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-                HomeLayout.gutter, 10, HomeLayout.gutter, 0),
+            padding: const EdgeInsets.only(
+                left: HomeLayout.gutter,
+                top: RiffSpacing.md,
+                right: HomeLayout.gutter),
             child: _hero(context, accent, level),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-                HomeLayout.gutter, 12, HomeLayout.gutter, 0),
+            padding: const EdgeInsets.only(
+                left: HomeLayout.gutter,
+                top: RiffSpacing.md,
+                right: HomeLayout.gutter),
             child: Row(
               children: [
                 _stat(context, accent, "$plays", "rewindTotalPlays".tr),
@@ -71,12 +78,20 @@ class RewindScreen extends StatelessWidget {
             ),
           ),
           if (topArtists.isNotEmpty)
-            _highlight(context, accent, Icons.person_rounded,
-                "rewindTopArtist".tr, '${topArtists.first["artist"]}',
+            _highlight(
+                context,
+                accent,
+                Icons.person_rounded,
+                "rewindTopArtist".tr,
+                '${topArtists.first["artist"]}',
                 "${topArtists.first["plays"]}"),
           if (topSongs.isNotEmpty)
-            _highlight(context, accent, Icons.music_note_rounded,
-                "rewindTopSong".tr, '${topSongs.first["title"]}',
+            _highlight(
+                context,
+                accent,
+                Icons.music_note_rounded,
+                "rewindTopSong".tr,
+                '${topSongs.first["title"]}',
                 "${topSongs.first["plays"]}"),
         ],
       ),
@@ -85,8 +100,10 @@ class RewindScreen extends StatelessWidget {
 
   /// Accent card with the listener level.
   Widget _hero(BuildContext context, Color accent, int level) {
+    final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+      padding: const EdgeInsets.symmetric(
+          horizontal: RiffSpacing.xl, vertical: RiffSpacing.xxl),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(RiffTokens.radiusLg),
         gradient: LinearGradient(
@@ -100,26 +117,21 @@ class RewindScreen extends StatelessWidget {
           Container(
             width: 84,
             height: 84,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.black,
+              color: theme.colorScheme.onPrimary,
             ),
             child: Center(
               child: Text("$level",
-                  style: TextStyle(
-                      fontSize: 38,
-                      fontWeight: FontWeight.w800,
-                      color: accent)),
+                  style:
+                      theme.textTheme.displayMedium?.copyWith(color: accent)),
             ),
           ),
           const SizedBox(width: 18),
           Expanded(
             child: Text("rewindListenerLevel".tr,
-                style: const TextStyle(
-                    fontSize: 20,
-                    height: 1.2,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.black)),
+                style: theme.textTheme.titleLarge
+                    ?.copyWith(color: theme.colorScheme.onPrimary)),
           ),
         ],
       ),
@@ -143,13 +155,15 @@ class RewindScreen extends StatelessWidget {
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Text(value,
-                  style: TextStyle(
-                      fontSize: 28, fontWeight: FontWeight.w800, color: accent)),
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineLarge
+                      ?.copyWith(color: accent)),
             ),
             Text(label,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: homeCardSubtitleStyle(context).copyWith(fontSize: 12)),
+                style: homeCardSubtitleStyle(context)),
           ],
         ),
       ),
@@ -160,8 +174,10 @@ class RewindScreen extends StatelessWidget {
       String heading, String value, String plays) {
     final fg = Theme.of(context).textTheme.titleMedium?.color;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          HomeLayout.gutter, 12, HomeLayout.gutter, 0),
+      padding: const EdgeInsets.only(
+          left: HomeLayout.gutter,
+          top: RiffSpacing.md,
+          right: HomeLayout.gutter),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -185,18 +201,18 @@ class RewindScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(heading,
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: accent)),
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelSmall
+                          ?.copyWith(color: accent)),
                   const SizedBox(height: 2),
                   Text(value,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: fg)),
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(color: fg)),
                   Text("$plays ${"plays".tr}",
                       style: homeCardSubtitleStyle(context)),
                 ],

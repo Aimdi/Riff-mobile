@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/theme/riff_spacing.dart';
 import '/ui/utils/riff_tokens.dart';
 import '../../widgets/cust_switch.dart';
 import 'home_layout.dart';
@@ -33,17 +34,22 @@ class HomeLayoutScreen extends StatelessWidget {
             ],
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-                HomeLayout.gutter + 4, 2, HomeLayout.gutter, 8),
+            padding: const EdgeInsets.only(
+                left: HomeLayout.gutter + RiffSpacing.xs,
+                top: RiffSpacing.xxs,
+                right: HomeLayout.gutter,
+                bottom: RiffSpacing.sm),
             child: Text('homeLayoutHint'.tr,
-                style: homeCardSubtitleStyle(context).copyWith(fontSize: 13)),
+                style: homeCardSubtitleStyle(context)),
           ),
           Expanded(
             child: Obx(() {
               final hidden = HomeSectionPrefs.hidden.toSet();
               return ListView(
-                padding: const EdgeInsets.fromLTRB(
-                    HomeLayout.gutter, 0, HomeLayout.gutter, 200),
+                padding: const EdgeInsets.only(
+                    left: HomeLayout.gutter,
+                    right: HomeLayout.gutter,
+                    bottom: RiffSpacing.listEnd),
                 children: [
                   for (final section in switchableHomeSections)
                     _SectionRow(
@@ -104,10 +110,10 @@ class _SectionRow extends StatelessWidget {
                     section.labelKey.tr,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: shown ? fg : homeMutedColor(context)),
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(color: shown ? fg : homeMutedColor(context)),
                   ),
                 ),
                 Padding(

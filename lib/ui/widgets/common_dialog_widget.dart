@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../screens/Home/home_layout.dart';
-import '../utils/theme_controller.dart';
 
 class CommonDialog extends StatelessWidget {
   const CommonDialog({super.key, this.child, this.maxWidth = 500});
@@ -33,7 +32,8 @@ class RiffDialogTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final fg = theme.textTheme.titleMedium?.color ?? RiffSurfaces.textPrimary;
+    final fg =
+        theme.textTheme.titleMedium?.color ?? theme.colorScheme.onSurface;
     final accent = theme.colorScheme.secondary;
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -52,11 +52,7 @@ class RiffDialogTitle extends StatelessWidget {
         ],
         Text(title,
             textAlign: TextAlign.center,
-            style: TextStyle(
-                fontSize: 19,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
-                color: fg)),
+            style: theme.textTheme.titleLarge?.copyWith(color: fg)),
         if (subtitle != null && subtitle!.isNotEmpty) ...[
           const SizedBox(height: 4),
           Text(subtitle!,
@@ -81,15 +77,17 @@ class RiffDialogButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final fg = theme.textTheme.titleMedium?.color ?? RiffSurfaces.textPrimary;
+    final fg =
+        theme.textTheme.titleMedium?.color ?? theme.colorScheme.onSurface;
     const shape = StadiumBorder();
-    final text = Text(label,
-        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700));
+    final text = Text(label);
+    final labelStyle = theme.textTheme.labelLarge;
     if (!primary) {
       return TextButton(
         onPressed: onPressed,
         style: TextButton.styleFrom(
             foregroundColor: fg,
+            textStyle: labelStyle,
             minimumSize: const Size.fromHeight(46),
             shape: shape),
         child: text,
@@ -99,7 +97,8 @@ class RiffDialogButton extends StatelessWidget {
       onPressed: onPressed,
       style: FilledButton.styleFrom(
           backgroundColor: theme.colorScheme.secondary,
-          foregroundColor: Colors.black,
+          foregroundColor: theme.colorScheme.onPrimary,
+          textStyle: labelStyle,
           disabledBackgroundColor: homeTileColor(context),
           minimumSize: const Size.fromHeight(48),
           shape: shape),

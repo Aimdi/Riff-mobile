@@ -16,6 +16,7 @@ import 'lyrics_widget.dart';
 import 'player_video_surface.dart';
 import 'player_canvas_backdrop.dart';
 import 'player_control.dart';
+import '/ui/theme/riff_tokens.dart';
 
 /// Standard player widget
 ///
@@ -193,13 +194,10 @@ class PlayerTopBar extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        height: 1.2,
-                        letterSpacing: 1.1,
-                        fontWeight: FontWeight.w600,
-                        color: fg.withOpacity(0.6),
-                      ),
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelSmall
+                          ?.copyWith(color: fg.withOpacity(0.6)),
                     ),
                     if (label.name.isNotEmpty) ...[
                       const SizedBox(height: 2),
@@ -208,12 +206,10 @@ class PlayerTopBar extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          height: 1.2,
-                          fontWeight: FontWeight.w700,
-                          color: fg,
-                        ),
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelMedium
+                            ?.copyWith(color: fg),
                       ),
                     ],
                   ],
@@ -243,26 +239,27 @@ class _HeroArtBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final riff = RiffColors.of(context);
     return ShaderMask(
-      shaderCallback: (rect) => const LinearGradient(
+      shaderCallback: (rect) => LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Colors.white, Colors.white, Colors.transparent],
-        stops: [0, 0.5, 1],
+        colors: [riff.onImage, riff.onImage, Colors.transparent],
+        stops: const [0, 0.5, 1],
       ).createShader(Rect.fromLTWH(0, 0, rect.width, rect.height)),
       blendMode: BlendMode.dstIn,
-      child: const Stack(
+      child: Stack(
         fit: StackFit.expand,
         children: [
-          BackgroudImage(),
+          const BackgroudImage(),
           // Keeps the "playing from" header readable on bright covers.
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0x8A000000), Colors.transparent],
-                stops: [0, 0.3],
+                colors: [riff.scrim.withOpacity(0.54), Colors.transparent],
+                stops: const [0, 0.3],
               ),
             ),
           ),
@@ -360,8 +357,7 @@ class _HeroArtRegion extends StatelessWidget {
                   top: 8,
                   child: PlayerVideoEnableButton(
                     onShow: () async {
-                      await AlbumArtNLyrics.setVideoPlaybackEnabled(
-                          song, true);
+                      await AlbumArtNLyrics.setVideoPlaybackEnabled(song, true);
                       playerController.currentSong.refresh();
                     },
                   ),
@@ -399,7 +395,7 @@ void openNowPlayingSheet(PlayerController playerController) {
     ),
     isScrollControlled: true,
     context: sheetContext,
-    barrierColor: Colors.transparent.withAlpha(100),
+    barrierColor: RiffColors.of(sheetContext).scrim.withAlpha(100),
     builder: (context) => SongInfoBottomSheet(song, calledFromPlayer: true),
   ).whenComplete(() => Get.delete<SongInfoController>());
 }

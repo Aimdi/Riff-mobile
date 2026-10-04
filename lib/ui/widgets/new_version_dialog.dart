@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '/ui/theme/riff_spacing.dart';
 import '../screens/Home/home_screen_controller.dart';
 import 'common_dialog_widget.dart';
 
@@ -12,7 +13,11 @@ class NewVersionDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return CommonDialog(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(22, 24, 22, 14),
+        padding: const EdgeInsets.only(
+            left: RiffSpacing.xxl,
+            top: RiffSpacing.xxl,
+            right: RiffSpacing.xxl,
+            bottom: RiffSpacing.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -37,9 +42,9 @@ class NewVersionDialog extends StatelessWidget {
                       dense: true,
                       controlAffinity: ListTileControlAffinity.leading,
                       activeColor: Theme.of(context).colorScheme.secondary,
-                      checkColor: Colors.black,
+                      checkColor: Theme.of(context).colorScheme.onPrimary,
                       title: Text("dontShowInfoAgain".tr,
-                          style: const TextStyle(fontSize: 14)),
+                          style: Theme.of(context).textTheme.bodyLarge),
                       value: controller.showVersionDialog.isFalse,
                       onChanged: (val) =>
                           controller.onChangeVersionVisibility(val ?? false),

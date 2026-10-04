@@ -6,6 +6,7 @@ import '/services/spotify_auth_service.dart';
 import '/services/spotify_connect.dart';
 import '/services/spotify_import_service.dart';
 import '/ui/navigator.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/ui/widgets/spotify_import_dialog.dart';
 import '../Home/home_layout.dart';
 import 'spotify_connect_ui.dart';
@@ -171,7 +172,10 @@ class _PlaylistPage extends StatelessWidget {
               const SizedBox(height: 16),
               Text('spotifyPlaylistLocked'.tr,
                   textAlign: TextAlign.center,
-                  style: homeCardSubtitleStyle(context).copyWith(fontSize: 14)),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyLarge
+                      ?.copyWith(color: homeMutedColor(context))),
               const SizedBox(height: 12),
               FilledButton.icon(
                 icon: const Icon(Icons.link_rounded),
@@ -338,7 +342,11 @@ class _SearchPageState extends State<_SearchPage> {
   @override
   Widget build(BuildContext context) {
     Widget header(String t) => Padding(
-          padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 18, 16, 4),
+          padding: const EdgeInsets.only(
+              left: HomeLayout.gutter,
+              top: RiffSpacing.xl,
+              right: RiffSpacing.lg,
+              bottom: RiffSpacing.xs),
           child: Text(t, style: homeSectionTitleStyle(context)),
         );
     final from = 'spotifySearch'.tr;
@@ -348,8 +356,8 @@ class _SearchPageState extends State<_SearchPage> {
         children: [
           RiffPageHeader('spotifySearch'.tr),
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-                HomeLayout.gutter, 4, HomeLayout.gutter, 4),
+            padding: const EdgeInsets.symmetric(
+                horizontal: HomeLayout.gutter, vertical: RiffSpacing.xs),
             child: TextField(
               controller: _query,
               autofocus: true,

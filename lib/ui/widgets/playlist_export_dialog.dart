@@ -161,11 +161,7 @@ class _OptionLabel extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title,
-                  style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Theme.of(context).textTheme.titleMedium?.color)),
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 2),
               Text(subtitle, style: homeCardSubtitleStyle(context)),
             ],
@@ -245,7 +241,10 @@ class _SplitExportButton extends StatelessWidget {
               thickness: 1,
               indent: 12,
               endIndent: 12,
-              color: (homeMutedColor(context) ?? Colors.grey).withOpacity(0.25),
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurfaceVariant
+                  .withOpacity(0.25),
             ),
             InkWell(
               onTap: onCopyTap,

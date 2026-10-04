@@ -228,7 +228,8 @@ class _SpotifyImportDialogState extends State<SpotifyImportDialog> {
               Text(
                 'spotifyImportDes'.tr,
                 textAlign: TextAlign.center,
-                style: homeCardSubtitleStyle(context).copyWith(fontSize: 14),
+                style: theme.textTheme.bodyLarge
+                    ?.copyWith(color: homeMutedColor(context)),
               ),
               const SizedBox(height: 14),
               TextField(
@@ -293,11 +294,11 @@ class _SpotifyImportDialogState extends State<SpotifyImportDialog> {
         Obx(() => FilledButton.icon(
               onPressed: _busy.value ? null : _import,
               icon: _busy.value
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.black),
+                          strokeWidth: 2, color: theme.colorScheme.onPrimary),
                     )
                   : const Icon(Icons.cloud_download),
               label: Text('import'.tr),
@@ -333,8 +334,8 @@ class _ImportSummaryDialog extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('importUnmatched'.trParams(
-                      {'count': '${summary.unmatched.length}'})),
+                  Text('importUnmatched'
+                      .trParams({'count': '${summary.unmatched.length}'})),
                   const SizedBox(height: 8),
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 280),
@@ -344,8 +345,8 @@ class _ImportSummaryDialog extends StatelessWidget {
                         for (final u in summary.unmatched)
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 3),
-                            child: Text(u,
-                                style: homeCardSubtitleStyle(context)),
+                            child:
+                                Text(u, style: homeCardSubtitleStyle(context)),
                           ),
                       ],
                     ),

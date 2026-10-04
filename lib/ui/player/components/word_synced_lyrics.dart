@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '/services/better_lyrics_service.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/theme/riff_tokens.dart';
 
 /// Word-level synced lyrics from Better Lyrics TTML.
 class WordSyncedLyricsWidget extends StatefulWidget {
@@ -107,7 +108,7 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
           style: Theme.of(context)
               .textTheme
               .titleMedium
-              ?.copyWith(color: Colors.white),
+              ?.copyWith(color: RiffColors.of(context).onImage),
         ),
       );
     }
@@ -192,17 +193,18 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
     required bool isActive,
     required bool isPast,
   }) {
-    final base = Theme.of(context).textTheme.titleMedium!;
+    final text = Theme.of(context).textTheme;
+    final onImage = RiffColors.of(context).onImage;
+    final base = text.titleMedium!;
     if (isActive) {
+      // Active line grows relative to the theme slot (computed size).
       return base.copyWith(
-        color: Colors.white,
-        fontWeight: FontWeight.w700,
+        color: onImage,
         fontSize: (base.fontSize ?? 16) + 2,
       );
     }
-    return base.copyWith(
-      color: Colors.white.withOpacity(isPast ? 0.35 : 0.55),
-      fontWeight: FontWeight.w400,
+    return text.bodyLarge!.copyWith(
+      color: onImage.withOpacity(isPast ? 0.35 : 0.55),
     );
   }
 
@@ -212,23 +214,23 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
     required bool isActive,
     required bool isPast,
   }) {
-    final base = Theme.of(context).textTheme.titleMedium!;
+    final text = Theme.of(context).textTheme;
+    final onImage = RiffColors.of(context).onImage;
+    final base = text.titleMedium!;
     if (isActive) {
+      // Active word grows relative to the theme slot (computed size).
       return base.copyWith(
         color: accent,
-        fontWeight: FontWeight.w800,
         fontSize: (base.fontSize ?? 16) + 3,
       );
     }
     if (isPast) {
-      return base.copyWith(
-        color: Colors.white.withOpacity(0.45),
-        fontWeight: FontWeight.w500,
+      return text.bodyLarge!.copyWith(
+        color: onImage.withOpacity(0.45),
       );
     }
-    return base.copyWith(
-      color: Colors.white.withOpacity(0.55),
-      fontWeight: FontWeight.w400,
+    return text.bodyLarge!.copyWith(
+      color: onImage.withOpacity(0.55),
     );
   }
 }

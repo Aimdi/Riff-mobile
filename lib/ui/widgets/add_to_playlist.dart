@@ -17,6 +17,8 @@ import '/ui/player/player_controller.dart';
 import '/ui/screens/Library/library_controller.dart';
 import '/ui/screens/Playlist/playlist_screen_controller.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/ui/utils/riff_tokens.dart';
 import '/ui/utils/sheet_insets.dart';
 import '/ui/utils/theme_controller.dart';
@@ -58,8 +60,7 @@ List<Playlist> userPlaylistsForAddSheet({List<Playlist>? fromLibrary}) {
 BuildContext? safeAddToPlaylistContext(BuildContext? context) {
   if (context != null && context.mounted) return context;
   if (Get.isRegistered<PlayerController>()) {
-    final home =
-        Get.find<PlayerController>().homeScaffoldkey.currentContext;
+    final home = Get.find<PlayerController>().homeScaffoldkey.currentContext;
     if (home != null && home.mounted) return home;
   }
   final fallback = Get.context;
@@ -81,7 +82,7 @@ Future<void> showAddToPlaylistSheet(
     isScrollControlled: true,
     constraints: const BoxConstraints(maxWidth: 500),
     backgroundColor: Theme.of(sheetContext).cardColor,
-    barrierColor: Colors.transparent.withAlpha(100),
+    barrierColor: RiffColors.of(sheetContext).scrim.withAlpha(100),
     shape: riffSheetShape,
     builder: (context) => AddToPlaylistSheet(songItems: songs),
   );
@@ -304,7 +305,11 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
       // No Align here: inside the height-capped box it would stretch to
       // the cap and leave a large empty gap under the message.
       return Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+        padding: const EdgeInsets.only(
+            left: RiffSpacing.xl,
+            top: RiffSpacing.sm,
+            right: RiffSpacing.xl,
+            bottom: RiffSpacing.lg),
         child: Text(
           'noPlaylistsYet'.tr,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -353,10 +358,7 @@ class _SheetRow extends StatelessWidget {
         title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.15,
-            ),
+        style: Theme.of(context).textTheme.titleMedium,
       ),
       onTap: onTap,
     );
@@ -376,7 +378,9 @@ class _SheetIcon extends StatelessWidget {
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: isDark ? RiffSurfaces.elevatedSoft : Theme.of(context).primaryColorLight,
+        color: isDark
+            ? RiffSurfaces.elevatedSoft
+            : Theme.of(context).primaryColorLight,
         borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
       ),
       child: Icon(icon, color: color, size: 22),
@@ -409,7 +413,7 @@ class AddToPlaylist extends StatelessWidget {
                       child: Padding(
                         padding: const EdgeInsets.only(left: 8.0),
                         child: Marquee(
-                          id:"createNewPlaylistx",
+                          id: "createNewPlaylistx",
                           delay: const Duration(milliseconds: 300),
                           child: Text(
                             "CreateNewPlaylist".tr,
@@ -418,7 +422,9 @@ class AddToPlaylist extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10,),
+                    const SizedBox(
+                      width: 10,
+                    ),
                     InkWell(
                       child: const Icon(Icons.playlist_add),
                       onTap: () {
@@ -471,7 +477,6 @@ class AddToPlaylist extends StatelessWidget {
                     color: Theme.of(context).primaryColorLight,
                     borderRadius: BorderRadius.circular(10)),
                 height: 250,
-                //color: Colors.green,
                 child: Obx(
                   () => addToPlaylistController.playlists.isNotEmpty
                       ? ListView.builder(
@@ -491,8 +496,7 @@ class AddToPlaylist extends StatelessWidget {
                                   .then((outcome) {
                                 if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                    snackbar(
-                                        context,
+                                    snackbar(context,
                                         playlistAddMessageKey(outcome).tr,
                                         size: SanckBarSize.MEDIUM));
                                 Navigator.of(context).pop();
@@ -571,9 +575,8 @@ class AddToPlaylistController extends GetxController {
     additionInProgress.value = true;
     if (playlistType.value == "local") {
       final plstBox = await Hive.openBox(playlistId);
-      final playlistSongIds = plstBox.values
-          .map((item) => '${item['videoId']}')
-          .toList();
+      final playlistSongIds =
+          plstBox.values.map((item) => '${item['videoId']}').toList();
       final incoming = songs.map((e) => e.id);
       final newCount = countNewPlaylistSongs(
         existingIds: playlistSongIds,

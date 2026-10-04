@@ -277,12 +277,14 @@ class _SideNavBarState extends State<SideNavBar> {
                 quarterTurns: -1,
                 child: Text(
                   destination.labelKey.tr,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: sub ? 12 : 15,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    letterSpacing: -0.1,
-                  ),
+                  style: (sub
+                          ? (isSelected
+                              ? Theme.of(context).textTheme.labelSmall
+                              : Theme.of(context).textTheme.bodySmall)
+                          : (isSelected
+                              ? Theme.of(context).textTheme.titleMedium
+                              : Theme.of(context).textTheme.bodyLarge))
+                      ?.copyWith(color: color),
                 ),
               ),
             ],

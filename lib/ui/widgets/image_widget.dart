@@ -8,7 +8,6 @@ import 'package:shimmer/shimmer.dart';
 
 import '../screens/Settings/settings_screen_controller.dart';
 import '../utils/riff_tokens.dart';
-import '../utils/theme_controller.dart';
 import 'letter_art.dart';
 import '/models/artist.dart';
 import '/models/thumbnail.dart';
@@ -165,9 +164,9 @@ class ImageWidget extends StatelessWidget {
   }
 
   Widget _shimmer(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final base = isDark ? RiffSurfaces.elevated : Colors.grey[350]!;
-    final highlight = isDark ? RiffSurfaces.elevatedSoft : Colors.grey[200]!;
+    final scheme = Theme.of(context).colorScheme;
+    final base = scheme.surfaceContainerLow;
+    final highlight = scheme.surfaceContainerHigh;
     return Shimmer.fromColors(
       baseColor: base,
       highlightColor: highlight,
@@ -177,7 +176,7 @@ class ImageWidget extends StatelessWidget {
         decoration: BoxDecoration(
           shape: artist != null ? BoxShape.circle : BoxShape.rectangle,
           borderRadius: artist != null ? null : BorderRadius.circular(_radius),
-          color: isDark ? RiffSurfaces.elevatedSoft : Colors.white54,
+          color: scheme.surfaceContainerHigh,
         ),
       ),
     );

@@ -5,7 +5,7 @@ import '/ui/screens/Plugins/seeker_screen.dart';
 import '/ui/screens/Search/search_result_screen_v2.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import '../../navigator.dart';
-import '../../utils/theme_controller.dart';
+import '../../theme/riff_spacing.dart';
 import '../Home/home_layout.dart';
 import '../Podcasts/podcast_empty_state.dart';
 import '../../widgets/animated_screen_transition.dart';
@@ -68,7 +68,8 @@ class _QueryBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(2, 0, HomeLayout.gutter, 0),
+      padding: const EdgeInsets.only(
+          left: RiffSpacing.xxs, right: HomeLayout.gutter),
       child: Row(
         children: [
           IconButton(
@@ -95,12 +96,13 @@ class _QueryBar extends StatelessWidget {
                               controller.queryString.value,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  fontSize: 15.5,
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.color),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyLarge
+                                  ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface),
                             )),
                       ),
                       const SizedBox(width: 12),
@@ -153,13 +155,11 @@ class _FilterChips extends StatelessWidget {
                   child: Center(
                     child: Text(
                       labels[i],
-                      style: TextStyle(
-                        color: active
-                            ? RiffSurfaces.voidBlack
-                            : Theme.of(context).textTheme.titleMedium?.color,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13.5,
-                      ),
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: active
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : Theme.of(context).colorScheme.onSurface,
+                          ),
                     ),
                   ),
                 ),

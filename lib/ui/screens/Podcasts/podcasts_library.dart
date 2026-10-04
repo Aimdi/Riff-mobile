@@ -10,6 +10,9 @@ import '/services/podcast_service.dart';
 import '/services/wizestream_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
+import '/ui/theme/palettes/podcasts.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/ui/utils/riff_tokens.dart';
 import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/content_list_widget_item.dart';
@@ -32,6 +35,7 @@ import 'podcast_queue_screen.dart';
 import 'podcast_subs_screen.dart';
 import 'podcasts_library_controller.dart';
 import 'podcasts_screen.dart';
+import '/ui/theme/riff_text_metrics.dart';
 
 class PodcastsLibraryWidget extends StatefulWidget {
   const PodcastsLibraryWidget({super.key, this.isBottomNavActive = false});
@@ -265,9 +269,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                             child: SizedBox.shrink());
                       }
                       final seed = controller.similarSeedTitle.value;
-                      final title = seed.isEmpty
-                          ? 'similarPodcasts'.tr
-                          : seed;
+                      final title = seed.isEmpty ? 'similarPodcasts'.tr : seed;
                       return SliverToBoxAdapter(
                         child: _SimilarPodcastsRow(
                           kicker: seed.isEmpty ? null : 'Because you follow',
@@ -371,7 +373,10 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
   /// autoplay next episode) on the right.
   Widget _header(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 0, 4, 6),
+      padding: const EdgeInsets.only(
+          left: HomeLayout.gutter,
+          right: RiffSpacing.xs,
+          bottom: RiffSpacing.sm),
       child: SizedBox(
         height: 40,
         child: Row(
@@ -464,7 +469,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
         : Theme.of(context).textTheme.titleMedium?.color;
     return Material(
       color: active ? accent : homeTileColor(context),
-      shape: StadiumBorder(side: active ? BorderSide.none : homeTileBorder(context)),
+      shape: StadiumBorder(
+          side: active ? BorderSide.none : homeTileBorder(context)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _select(section),
@@ -481,11 +487,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                   ),
               ]),
               maxLines: 1,
-              style: TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600,
-                color: fg,
-              ),
+              style:
+                  Theme.of(context).textTheme.labelMedium?.copyWith(color: fg),
             ),
           ),
         ),
@@ -514,8 +517,11 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(
-              HomeLayout.gutter, 6, HomeLayout.gutter, 4),
+          padding: const EdgeInsets.only(
+              left: HomeLayout.gutter,
+              top: RiffSpacing.sm,
+              right: HomeLayout.gutter,
+              bottom: RiffSpacing.xs),
           child: TextField(
             controller: _searchCtrl,
             focusNode: _searchFocus,
@@ -572,8 +578,11 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                   if (channels.isNotEmpty) ...[
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                            HomeLayout.gutter, 12, HomeLayout.gutter, 2),
+                        padding: const EdgeInsets.only(
+                            left: HomeLayout.gutter,
+                            top: RiffSpacing.md,
+                            right: HomeLayout.gutter,
+                            bottom: RiffSpacing.xxs),
                         child: Text(
                           'youtubeChannels'.tr,
                           style: homeSectionTitleStyle(context),
@@ -582,8 +591,10 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                     ),
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                            HomeLayout.gutter, 0, HomeLayout.gutter, 10),
+                        padding: const EdgeInsets.only(
+                            left: HomeLayout.gutter,
+                            right: HomeLayout.gutter,
+                            bottom: RiffSpacing.md),
                         child: Text(
                           'youtubeChannelsDes'.tr,
                           style: homeCardSubtitleStyle(context),
@@ -669,12 +680,16 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                   if (items.isNotEmpty) ...[
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                            HomeLayout.gutter, 16, HomeLayout.gutter, 0),
+                        padding: const EdgeInsets.only(
+                            left: HomeLayout.gutter,
+                            top: RiffSpacing.lg,
+                            right: HomeLayout.gutter),
                         child: Text(
                           '${items.length} ${'items'.tr}',
-                          style: homeCardSubtitleStyle(context)
-                              .copyWith(fontSize: 13),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(color: homeMutedColor(context)),
                         ),
                       ),
                     ),
@@ -712,24 +727,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
   );
 
   // Accent colours for the browse category chips.
-  static const _categoryColors = <Color>[
-    Color(0xFF1E3264),
-    Color(0xFF8D67AB),
-    Color(0xFFE13300),
-    Color(0xFF148A08),
-    Color(0xFFD84000),
-    Color(0xFF0D73EC),
-    Color(0xFFBA5D07),
-    Color(0xFF477D95),
-    Color(0xFF503750),
-    Color(0xFF777777),
-    Color(0xFF8C1932),
-    Color(0xFF1E3264),
-    Color(0xFF608108),
-    Color(0xFFA56752),
-    Color(0xFFE8115B),
-    Color(0xFF27856A),
-  ];
+  static const _categoryColors = PodcastCategoryPalette.tiles;
 
   /// Search-focus landing: first the "listeners of X also enjoy" discovery
   /// scrollwheels, then Apple-Podcasts category tiles, then featured
@@ -793,8 +791,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
           padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
           sliver: SliverGrid(
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount:
-                  MediaQuery.sizeOf(context).width >= 700 ? 4 : 2,
+              crossAxisCount: MediaQuery.sizeOf(context).width >= 700 ? 4 : 2,
               mainAxisSpacing: HomeLayout.tileGap,
               crossAxisSpacing: HomeLayout.tileGap,
               mainAxisExtent:
@@ -815,8 +812,9 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
   /// Category tile: a solid colour block with the genre name.
   Widget _categoryChip(String genreId, String name, int i) {
     final color = _categoryColors[i % _categoryColors.length];
+    final riff = RiffColors.of(context);
     return Material(
-      color: Color.alphaBlend(Colors.black.withOpacity(0.18), color),
+      color: Color.alphaBlend(riff.scrim.withOpacity(0.18), color),
       borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -827,8 +825,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
           }
           Get.to(() => PodcastCategoryScreen(genreId: genreId, name: name));
         },
-        onLongPress: () => Get.to(
-            () => PodcastCategoryScreen(genreId: genreId, name: name)),
+        onLongPress: () =>
+            Get.to(() => PodcastCategoryScreen(genreId: genreId, name: name)),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Align(
@@ -837,12 +835,10 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               name,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-                height: 1.15,
-              ),
+              style: Theme.of(context)
+                  .textTheme
+                  .labelMedium
+                  ?.copyWith(color: riff.onImage),
             ),
           ),
         ),
@@ -936,7 +932,6 @@ class _VideoEpisodeRow extends StatelessWidget {
     final player = Get.find<PlayerController>();
     final theme = Theme.of(context);
     const cardWidth = 256.0;
-    final scaler = MediaQuery.textScalerOf(context);
     const thumbHeight = cardWidth * 9 / 16;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -946,9 +941,9 @@ class _VideoEpisodeRow extends StatelessWidget {
           // Thumb + two-line title + one meta line.
           height: thumbHeight +
               8 +
-              scaler.scale(13.5) * 1.2 * 2 +
+              riffLineHeight(context, homeCardTitleStyle(context)) * 2 +
               2 +
-              scaler.scale(12) * 1.25 +
+              riffLineHeight(context, homeCardSubtitleStyle(context)) +
               6,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
@@ -1004,16 +999,17 @@ class _VideoEpisodeRow extends StatelessWidget {
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 5, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.75),
+                                      color: RiffColors.of(context)
+                                          .scrim
+                                          .withOpacity(0.75),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
                                       clock,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                      style: theme.textTheme.labelSmall
+                                          ?.copyWith(
+                                              color: RiffColors.of(context)
+                                                  .onImage),
                                     ),
                                   ),
                                 ),
@@ -1068,15 +1064,16 @@ class _SimilarPodcastsRow extends StatelessWidget {
       children: [
         if (kicker != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-                HomeLayout.gutter, HomeLayout.sectionTop, HomeLayout.gutter, 0),
+            padding: const EdgeInsets.only(
+                left: HomeLayout.gutter,
+                top: HomeLayout.sectionTop,
+                right: HomeLayout.gutter),
             child: Text(
               kicker!.toUpperCase(),
-              style: homeCardSubtitleStyle(context).copyWith(
-                fontSize: 11,
-                letterSpacing: 0.8,
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(context)
+                  .textTheme
+                  .labelSmall
+                  ?.copyWith(color: homeMutedColor(context)),
             ),
           ),
         HomeSectionHeader(title,
@@ -1129,16 +1126,15 @@ class _ShowResultRow extends StatelessWidget {
   final LibraryPodcastsController controller;
 
   void _open() => Get.toNamed(ScreenNavigationSetup.playlistScreen,
-      id: ScreenNavigationSetup.id,
-      arguments: [show, show.playlistId, true]);
+      id: ScreenNavigationSetup.id, arguments: [show, show.playlistId, true]);
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: _open,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-            HomeLayout.gutter, 8, HomeLayout.gutter, 8),
+        padding: const EdgeInsets.symmetric(
+            horizontal: HomeLayout.gutter, vertical: RiffSpacing.sm),
         child: Row(
           children: [
             PodcastArt(url: show.thumbnailUrl, size: 72),
@@ -1152,8 +1148,7 @@ class _ShowResultRow extends StatelessWidget {
                     show.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: homeCardTitleStyle(context)
-                        .copyWith(fontSize: 15, height: 1.25),
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                   if ((show.description ?? '').trim().isNotEmpty) ...[
                     const SizedBox(height: 3),
@@ -1161,8 +1156,10 @@ class _ShowResultRow extends StatelessWidget {
                       show.description!.trim(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: homeCardSubtitleStyle(context)
-                          .copyWith(fontSize: 12.5),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: homeMutedColor(context)),
                     ),
                   ],
                 ],

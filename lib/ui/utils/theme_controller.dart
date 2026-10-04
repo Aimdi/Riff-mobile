@@ -209,10 +209,22 @@ class ThemeController extends GetxController {
                   foregroundColor: Colors.black)),
           primaryColor: primarySwatch[500],
           colorScheme: ColorScheme.fromSwatch(
-              accentColor: primarySwatch[200],
-              brightness: Brightness.dark,
-              backgroundColor: primarySwatch[700],
-              primarySwatch: primarySwatch),
+                  accentColor: primarySwatch[200],
+                  brightness: Brightness.dark,
+                  backgroundColor: primarySwatch[700],
+                  primarySwatch: primarySwatch)
+              // Container and muted slots the widgets now read (fromSwatch
+              // leaves them equal to the page colour).
+              .copyWith(
+            onSurface: Colors.white,
+            onSurfaceVariant: primarySwatch[100],
+            surfaceContainerLowest: primarySwatch[700],
+            surfaceContainerLow: primarySwatch[600],
+            surfaceContainer: primarySwatch[600],
+            surfaceContainerHigh: primarySwatch[500],
+            surfaceContainerHighest: primarySwatch[400],
+            outlineVariant: primarySwatch[400],
+          ),
           //accentColor: primarySwatch[200],
           dialogBackgroundColor: primarySwatch[700],
           cardColor: primarySwatch[600],
@@ -228,29 +240,11 @@ class ThemeController extends GetxController {
               shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
               )),
-          textTheme: TextTheme(
-            titleLarge: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.3,
-                color: Colors.white),
-            titleMedium: const TextStyle(
-                fontWeight: FontWeight.w600, color: Colors.white),
-            titleSmall: TextStyle(color: primarySwatch[100]),
-            bodyMedium: TextStyle(color: primarySwatch[100]),
-            labelMedium: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 22,
-                letterSpacing: -0.3,
-                color: textColor ?? primarySwatch[50]),
-            labelSmall: TextStyle(
-                fontSize: 14,
-                color: titleColorSwatch != null
-                    ? titleColorSwatch[900]
-                    : primarySwatch[100],
-                letterSpacing: 0,
-                fontWeight: FontWeight.w600),
-          ),
+          // The Riff type scale; widgets pick slots, the album colour
+          // only tints them.
+          textTheme: RiffTheme.textTheme(
+              primary: Colors.white,
+              secondary: primarySwatch[100] ?? Colors.white70),
           indicatorColor: Colors.white,
           progressIndicatorTheme: ProgressIndicatorThemeData(
               linearTrackColor: (primarySwatch[300])!.computeLuminance() > 0.3
@@ -319,35 +313,28 @@ class ThemeController extends GetxController {
           cardColor: Colors.white,
           dividerColor: const Color(0xFFEFF3F4),
           colorScheme: ColorScheme.fromSwatch(
-              accentColor: const Color(0xFF1DB954),
-              backgroundColor: const Color(0xFFF7F9F9),
-              cardColor: Colors.white,
-              brightness: Brightness.light),
+                  accentColor: const Color(0xFF1DB954),
+                  backgroundColor: const Color(0xFFF7F9F9),
+                  cardColor: Colors.white,
+                  brightness: Brightness.light)
+              .copyWith(
+            onSurface: const Color(0xFF0F1419),
+            onSurfaceVariant: const Color(0xFF536471),
+            surfaceContainerLowest: Colors.white,
+            surfaceContainerLow: Colors.white,
+            surfaceContainer: const Color(0xFFF7F9F9),
+            surfaceContainerHigh: const Color(0xFFEFF3F4),
+            surfaceContainerHighest: const Color(0xFFE7ECF0),
+            outline: const Color(0xFFCFD9DE),
+            outlineVariant: const Color(0xFFEFF3F4),
+          ),
           primaryColor: Colors.white,
           primaryColorLight: const Color(0xFFEFF3F4),
           progressIndicatorTheme: const ProgressIndicatorThemeData(
               color: Color(0xFF1DB954), linearTrackColor: Color(0xFFEFF3F4)),
-          textTheme: TextTheme(
-              titleLarge: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.3,
-              ),
-              titleMedium: const TextStyle(
-                fontWeight: FontWeight.w600,
-              ),
-              titleSmall: TextStyle(color: Colors.grey[700]),
-              labelMedium: const TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 22,
-                letterSpacing: -0.3,
-              ),
-              labelSmall: TextStyle(
-                  fontSize: 14,
-                  letterSpacing: 0,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[700]),
-              bodyMedium: TextStyle(color: Colors.grey[700])),
+          textTheme: RiffTheme.textTheme(
+              primary: const Color(0xFF0F1419),
+              secondary: const Color(0xFF536471)),
           navigationRailTheme: NavigationRailThemeData(
               backgroundColor: const Color(0xFFF7F9F9),
               selectedIconTheme: const IconThemeData(color: Colors.black),

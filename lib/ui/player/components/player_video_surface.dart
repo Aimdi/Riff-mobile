@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/player/video_mode_controller.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
+import '/ui/theme/riff_tokens.dart';
 
 /// In-player video pane for YouTube *videos* and YouTube podcast episodes.
 ///
@@ -124,7 +125,7 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
     await Navigator.of(context).push(
       PageRouteBuilder(
         opaque: true,
-        barrierColor: Colors.black,
+        barrierColor: RiffColors.of(context).scrim,
         pageBuilder: (_, __, ___) => _FullscreenVideoPage(song: widget.song),
         transitionsBuilder: (_, anim, __, child) =>
             FadeTransition(opacity: anim, child: child),
@@ -135,11 +136,13 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
   @override
   Widget build(BuildContext context) {
     final height = widget.maxHeight ?? (widget.width * 9 / 16);
+    final riff = RiffColors.of(context);
+    final text = Theme.of(context).textTheme;
     return SizedBox(
       width: widget.width,
       height: height,
       child: ColoredBox(
-        color: Colors.black,
+        color: riff.scrim,
         child: Obx(() {
           final engine = _vm.engine;
           final ready = engine != null;
@@ -168,7 +171,8 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
                 Center(
                   child: Text(
                     'videoUnavailable'.tr,
-                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    style: text.bodyMedium
+                        ?.copyWith(color: riff.onImage.withOpacity(0.7)),
                   ),
                 ),
               if (widget.showControls && !loading)
@@ -220,8 +224,9 @@ class _OverlayIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final riff = RiffColors.of(context);
     return Material(
-      color: Colors.black.withOpacity(0.45),
+      color: riff.scrim.withOpacity(0.45),
       shape: const CircleBorder(),
       child: IconButton(
         tooltip: tooltip,
@@ -229,7 +234,7 @@ class _OverlayIconButton extends StatelessWidget {
         padding: const EdgeInsets.all(6),
         constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
         onPressed: onPressed,
-        icon: Icon(icon, color: Colors.white, size: 20),
+        icon: Icon(icon, color: riff.onImage, size: 20),
       ),
     );
   }
@@ -241,20 +246,19 @@ class _VideoBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final riff = RiffColors.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.55),
+        color: riff.scrim.withOpacity(0.55),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         failed ? 'videoUnavailable'.tr : 'video'.tr,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.4,
-        ),
+        style: Theme.of(context)
+            .textTheme
+            .labelSmall
+            ?.copyWith(color: riff.onImage),
       ),
     );
   }
@@ -300,8 +304,10 @@ class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
   Widget build(BuildContext context) {
     final player = Get.find<PlayerController>();
     final vm = Get.find<VideoModeController>();
+    final riff = RiffColors.of(context);
+    final text = Theme.of(context).textTheme;
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: riff.scrim,
       body: SafeArea(
         child: Obx(() {
           // Video mode ended underneath (song change / background) — leave.
@@ -336,7 +342,7 @@ class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
                 child: IconButton(
                   tooltip: 'close'.tr,
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close, color: Colors.white),
+                  icon: Icon(Icons.close, color: riff.onImage),
                 ),
               ),
               Positioned(
@@ -350,21 +356,15 @@ class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
                       widget.song.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
+                      style: text.titleMedium?.copyWith(color: riff.onImage),
                     ),
                     if ((widget.song.artist ?? '').isNotEmpty)
                       Text(
                         widget.song.artist!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
-                          fontSize: 13,
-                        ),
+                        style: text.bodyMedium
+                            ?.copyWith(color: riff.onImage.withOpacity(0.7)),
                       ),
                     const SizedBox(height: 12),
                     Obx(() {
@@ -413,8 +413,9 @@ class PlayerVideoEnableButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final riff = RiffColors.of(context);
     return Material(
-      color: Colors.black.withOpacity(0.55),
+      color: riff.scrim.withOpacity(0.55),
       shape: const CircleBorder(),
       child: IconButton(
         tooltip: 'videoShow'.tr,
@@ -422,8 +423,7 @@ class PlayerVideoEnableButton extends StatelessWidget {
         padding: const EdgeInsets.all(8),
         constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
         onPressed: onShow,
-        icon:
-            const Icon(Icons.videocam_outlined, color: Colors.white, size: 22),
+        icon: Icon(Icons.videocam_outlined, color: riff.onImage, size: 22),
       ),
     );
   }

@@ -43,8 +43,7 @@ class SeparateTabItemWidget extends StatelessWidget {
   List<MediaItem> _tabSongs() {
     List<dynamic>? filtered;
     List<dynamic>? overview;
-    if (isResultWidget &&
-        Get.isRegistered<SearchResultScreenController>()) {
+    if (isResultWidget && Get.isRegistered<SearchResultScreenController>()) {
       final ctrl = Get.find<SearchResultScreenController>();
       final raw = ctrl.separatedResultContent[title];
       if (raw is List) filtered = raw;
@@ -121,8 +120,10 @@ class SeparateTabItemWidget extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                         ),
                         child: Text("viewAll".tr,
-                            style: const TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w600)),
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelMedium
+                                ?.copyWith(color: homeMutedColor(context))),
                       ),
                     if (isCompleteList && shouldShowTabPlayAllHeader(title))
                       IconButton(

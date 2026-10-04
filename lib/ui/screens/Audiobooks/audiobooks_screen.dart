@@ -8,6 +8,7 @@ import '/services/audiobookshelf_service.dart';
 import '/services/free_audiobook_service.dart';
 import '/services/plugin_service.dart';
 import '/ui/navigator.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/ui/utils/theme_controller.dart';
 import '../Home/home_layout.dart';
 import '../Library/library.dart' show libraryGridMetrics;
@@ -119,7 +120,10 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
 
   Widget _header(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 0, 4, 6),
+      padding: const EdgeInsets.only(
+          left: HomeLayout.gutter,
+          right: RiffSpacing.xs,
+          bottom: RiffSpacing.sm),
       child: SizedBox(
         height: 40,
         child: Row(
@@ -180,13 +184,14 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
                   child: Center(
                     child: Text(
                       label,
-                      style: TextStyle(
-                        color: active
-                            ? RiffSurfaces.voidBlack
-                            : Theme.of(context).textTheme.titleMedium?.color,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13.5,
-                      ),
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: active
+                                ? RiffSurfaces.voidBlack
+                                : Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.color,
+                          ),
                     ),
                   ),
                 ),
@@ -467,7 +472,10 @@ class _SeeAll extends StatelessWidget {
       // Style on the Text, not the button: a button textStyle replaces the
       // theme font instead of merging with it.
       child: Text('seeAll'.tr,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          style: Theme.of(context)
+              .textTheme
+              .labelMedium
+              ?.copyWith(color: homeMutedColor(context))),
     );
   }
 }
@@ -486,8 +494,8 @@ class _ShelfPlaceholder extends StatelessWidget {
               BoxDecoration(color: c, borderRadius: BorderRadius.circular(6)),
         );
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          HomeLayout.gutter, HomeLayout.sectionTop, 0, 0),
+      padding: const EdgeInsets.only(
+          left: HomeLayout.gutter, top: HomeLayout.sectionTop),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -694,8 +702,11 @@ class _AbsLoginFormState extends State<_AbsLoginForm> {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.secondary;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
-          HomeLayout.gutter, 16, HomeLayout.gutter, 200),
+      padding: const EdgeInsets.only(
+          left: HomeLayout.gutter,
+          top: RiffSpacing.lg,
+          right: HomeLayout.gutter,
+          bottom: RiffSpacing.listEnd),
       children: [
         Row(
           children: [
@@ -717,8 +728,8 @@ class _AbsLoginFormState extends State<_AbsLoginForm> {
         ),
         const SizedBox(height: 10),
         Text('absConnectDes'.tr,
-            style: homeCardSubtitleStyle(context)
-                .copyWith(fontSize: 13.5, height: 1.4)),
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: homeMutedColor(context))),
         const SizedBox(height: 20),
         TextField(
           controller: _host,
@@ -764,8 +775,8 @@ class _AbsLoginFormState extends State<_AbsLoginForm> {
                         dimension: 20,
                         child: CircularProgressIndicator(strokeWidth: 2))
                     : Text('absConnect'.tr,
-                        style: const TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w700)),
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(color: RiffSurfaces.voidBlack)),
               ),
             )),
         Obx(() {
@@ -900,8 +911,10 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                       ),
                     ),
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(
-                          HomeLayout.gutter, 0, HomeLayout.gutter, 200),
+                      padding: const EdgeInsets.only(
+                          left: HomeLayout.gutter,
+                          right: HomeLayout.gutter,
+                          bottom: RiffSpacing.listEnd),
                       sliver: SliverGrid(
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: grid.columns,
@@ -950,7 +963,10 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
       final libs = abs.libraries.toList();
       final selected = abs.selectedLibrary;
       return Padding(
-        padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 6, 0, 4),
+        padding: const EdgeInsets.only(
+            left: HomeLayout.gutter,
+            top: RiffSpacing.sm,
+            bottom: RiffSpacing.xs),
         child: Row(
           children: [
             Icon(Icons.dns_rounded, size: 20, color: accent),
@@ -1005,8 +1021,7 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                           selected?.name ?? 'absLibrary'.tr,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w600),
+                          style: Theme.of(context).textTheme.labelMedium,
                         ),
                       ),
                       const Icon(Icons.expand_more_rounded, size: 18),

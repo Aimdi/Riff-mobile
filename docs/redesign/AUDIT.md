@@ -116,3 +116,39 @@ Top files: `theme_controller.dart` 94 (expected — it is the theme),
 outside the repo; it fakes controllers and renders each screen to PNG) at
 411 dp (phone), 360 dp (small phone) and 900 dp (tablet) where the harness
 has those scenarios. JPEG, 1× scale, to keep the repo small.
+
+## Phase 2 result (hardcoded styling → theme)
+
+Same grep, after Phase 2:
+
+| Pattern | Before | After (all `lib/`) | After in `lib/ui` outside `lib/ui/theme/` and `theme_controller.dart`, real hits |
+|---|---|---|---|
+| `Color(0x` | 81 | 92 | 0 |
+| `Colors.` | 218 | 173 | 1 |
+| `fontSize:` | 212 | 7 | 4 (computed) |
+| `fontWeight:` | 191 | 8 | 1 |
+| `EdgeInsets.fromLTRB` | 135 | 0 | 0 |
+
+"All `lib/`" still counts the theme itself (`lib/ui/theme/`, the light and
+album-colour themes in `theme_controller.dart`), the data palettes moved to
+`lib/ui/theme/palettes/`, `lib/services/` (podcast segment category colours —
+data), `Colors.transparent` (no colour) and names that merely end in
+"Colors" (`RiffColors.of`, `PodcastFolderColors`).
+
+Documented exceptions (allowed by the rules or not styling):
+
+| Where | What | Why |
+|---|---|---|
+| `widgets/cust_switch.dart` | `primaryColor == Colors.white` | theme detection in logic, not a style |
+| `player/components/word_synced_lyrics.dart` (2) | `fontSize: base + 2/3` | karaoke emphasis grows the active line relative to its slot |
+| `screens/Podcasts/podcast_playback_controls.dart` | `fontSize: size * 0.27`, `w800` | seconds glyph drawn inside a scaled skip icon |
+| `widgets/letter_art.dart` | `fontSize: size * 0.42` | the letter scales with the artwork it sits on |
+| everywhere | `Colors.transparent` | "no colour", not a palette value |
+
+Data palettes (content colours, not chrome) now live in
+`lib/ui/theme/palettes/`: Home stations, podcast folders and categories,
+audiobook genres and rating star.
+
+Fixed-height rows and shelves that computed their height from the old font
+metrics now measure the TextTheme slot their text uses
+(`lib/ui/theme/riff_text_metrics.dart`), so they can't overflow.

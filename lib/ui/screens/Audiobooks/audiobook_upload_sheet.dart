@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/services/audiobookshelf_service.dart';
+import '/ui/theme/riff_spacing.dart';
 import '../../widgets/snackbar.dart';
 
 void _toast(BuildContext context, String text) {
@@ -141,7 +142,11 @@ class _AudiobookUploadSheetState extends State<AudiobookUploadSheet> {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomInset),
+      padding: EdgeInsets.only(
+          left: RiffSpacing.lg,
+          top: RiffSpacing.lg,
+          right: RiffSpacing.lg,
+          bottom: RiffSpacing.lg + bottomInset),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -151,9 +156,7 @@ class _AudiobookUploadSheetState extends State<AudiobookUploadSheet> {
               children: [
                 const Icon(Icons.cloud_upload_outlined),
                 const SizedBox(width: 10),
-                Text('uploadAudiobook'.tr,
-                    style: theme.textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w700)),
+                Text('uploadAudiobook'.tr, style: theme.textTheme.titleLarge),
               ],
             ),
             const SizedBox(height: 16),
@@ -189,8 +192,7 @@ class _AudiobookUploadSheetState extends State<AudiobookUploadSheet> {
                             ),
                             if (!_uploading)
                               InkWell(
-                                onTap: () =>
-                                    setState(() => _files.removeAt(i)),
+                                onTap: () => setState(() => _files.removeAt(i)),
                                 child: const Padding(
                                   padding: EdgeInsets.all(4),
                                   child: Icon(Icons.close, size: 16),
@@ -253,9 +255,8 @@ class _AudiobookUploadSheetState extends State<AudiobookUploadSheet> {
                               maxLines: 1, overflow: TextOverflow.ellipsis),
                         ))
                     .toList(),
-                onChanged: _uploading
-                    ? null
-                    : (v) => setState(() => _folderId = v),
+                onChanged:
+                    _uploading ? null : (v) => setState(() => _folderId = v),
               ),
             ],
             const SizedBox(height: 20),

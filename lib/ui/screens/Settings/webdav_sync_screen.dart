@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '/services/sync/webdav_client.dart';
 import '/services/sync/webdav_sync_service.dart';
+import '/ui/theme/riff_spacing.dart';
 import '../Home/home_layout.dart';
 
 /// Localisation key of the message for [e].
@@ -128,8 +129,11 @@ class _WebDavSyncScreenState extends State<WebDavSyncScreen> {
           RiffPageHeader('syncTitle'.tr, subtitle: 'syncDes'.tr),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(
-                  HomeLayout.gutter, 8, HomeLayout.gutter, 200),
+              padding: const EdgeInsets.only(
+                  left: HomeLayout.gutter,
+                  top: RiffSpacing.sm,
+                  right: HomeLayout.gutter,
+                  bottom: RiffSpacing.listEnd),
               children: [
                 TextField(
                   controller: _url,

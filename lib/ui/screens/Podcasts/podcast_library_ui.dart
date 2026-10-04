@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '/services/opml.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/services/podcast_library.dart';
 import '/services/podcast_service.dart';
 import '../../widgets/riff_sheet.dart';
@@ -29,7 +30,8 @@ class PodcastLibraryEditor extends StatelessWidget {
     return Obx(() {
       PodcastLibrary.rev.value;
       final key = showKey;
-      final keepOverride = key == null ? null : PodcastLibrary.keepOverride(key);
+      final keepOverride =
+          key == null ? null : PodcastLibrary.keepOverride(key);
       final keep = key == null
           ? PodcastLibrary.defaultKeepLatest
           : PodcastLibrary.keepLatestFor(key);
@@ -38,7 +40,7 @@ class PodcastLibraryEditor extends StatelessWidget {
       final del = key == null
           ? PodcastLibrary.defaultAutoDelete
           : PodcastLibrary.autoDeleteFor(key);
-      const titleStyle = TextStyle(fontSize: 15, fontWeight: FontWeight.w600);
+      final titleStyle = Theme.of(context).textTheme.titleMedium;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -119,7 +121,10 @@ Future<void> showPodcastShowLibrarySheet(BuildContext context,
             const RiffSheetHandle(),
             RiffSheetTitle('showLibrarySettings'.tr, subtitle: title),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              padding: const EdgeInsets.only(
+                  left: RiffSpacing.xl,
+                  top: RiffSpacing.sm,
+                  right: RiffSpacing.xl),
               child: PodcastLibraryEditor(showKey: showKey),
             ),
           ],
@@ -209,8 +214,8 @@ Future<void> importOpml(BuildContext context) async {
   }
   // Covers for the new shows, in the background.
   if (added > 0) PodcastService.refreshMissingArtwork();
-  snack('opmlImported'.trParams(
-      {'added': '$added', 'skipped': '${feeds.length - added}'}));
+  snack('opmlImported'
+      .trParams({'added': '$added', 'skipped': '${feeds.length - added}'}));
 }
 
 /// Share the feed subscriptions as an OPML file.
@@ -225,8 +230,9 @@ Future<void> exportOpml(BuildContext context) async {
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/riff-podcasts.opml');
     await file.writeAsString(buildOpml(feeds));
-    await Share.shareXFiles(
-        [XFile(file.path, mimeType: 'text/x-opml', name: 'riff-podcasts.opml')]);
+    await Share.shareXFiles([
+      XFile(file.path, mimeType: 'text/x-opml', name: 'riff-podcasts.opml')
+    ]);
   } catch (_) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -248,14 +254,20 @@ class PodcastLibrarySettings extends StatelessWidget {
             style: homeSectionTitleStyle(context)),
         const SizedBox(height: 4),
         Text('podcastLibraryDefaultsDes'.tr,
-            style: homeCardSubtitleStyle(context).copyWith(fontSize: 13)),
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(color: homeMutedColor(context))),
         const SizedBox(height: 14),
         const PodcastLibraryEditor(),
         const SizedBox(height: 28),
         Text('opmlTitle'.tr, style: homeSectionTitleStyle(context)),
         const SizedBox(height: 4),
         Text('opmlDes'.tr,
-            style: homeCardSubtitleStyle(context).copyWith(fontSize: 13)),
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(color: homeMutedColor(context))),
         const SizedBox(height: 12),
         Wrap(
           spacing: 8,

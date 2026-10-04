@@ -14,6 +14,7 @@ import '../../widgets/snackbar.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
 import 'home_feed_builder.dart';
 import 'home_feed_data.dart';
+import '/ui/theme/riff_tokens.dart';
 import 'home_metrics.dart';
 
 /// Speed dial: pages of a 3×3 cover grid, no labels and no play glyphs.
@@ -291,7 +292,7 @@ class _DialTile extends StatelessWidget {
                         player.buttonState.value == PlayButtonState.playing;
                     if (!current) return const SizedBox.shrink();
                     return ColoredBox(
-                      color: const Color(0x66000000),
+                      color: RiffColors.of(context).scrim.withOpacity(0.4),
                       child: Center(
                         child:
                             RiffEqualizer(animate: playing, size: size * 0.3),

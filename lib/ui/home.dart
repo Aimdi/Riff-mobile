@@ -70,8 +70,8 @@ class Home extends StatelessWidget {
                 ? Container(
                     constraints: const BoxConstraints(maxWidth: 600),
                     decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(10)),
+                      borderRadius:
+                          const BorderRadius.only(topLeft: Radius.circular(10)),
                       border: Border(
                         left: BorderSide(
                             color: Theme.of(context).colorScheme.secondary),
@@ -123,8 +123,13 @@ class Home extends StatelessWidget {
                                                 color: playerController
                                                         .isQueueLoopModeEnabled
                                                         .isFalse
-                                                    ? Colors.white24
-                                                    : Colors.white
+                                                    ? Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurface
+                                                        .withOpacity(0.24)
+                                                    : Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurface
                                                         .withOpacity(0.8),
                                                 borderRadius:
                                                     BorderRadius.circular(20),
@@ -144,8 +149,8 @@ class Home extends StatelessWidget {
                                                         context,
                                                         "queueShufflingDeniedMsg"
                                                             .tr,
-                                                        size: SanckBarSize
-                                                            .BIG));
+                                                        size:
+                                                            SanckBarSize.BIG));
                                                 return;
                                               }
                                               playerController.shuffleQueue();

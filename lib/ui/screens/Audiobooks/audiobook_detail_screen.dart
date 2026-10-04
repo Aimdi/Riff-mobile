@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 
 import '/services/audiobookshelf_service.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
+import '/ui/theme/riff_spacing.dart';
 import 'audiobook_play.dart';
 
 class AudiobookDetailScreen extends StatefulWidget {
@@ -105,7 +106,11 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
     final cover = abs.coverUrl(d.id, width: 600);
     final canResume = d.currentTime > 5;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 200),
+      padding: const EdgeInsets.only(
+          left: RiffSpacing.lg,
+          top: RiffSpacing.sm,
+          right: RiffSpacing.lg,
+          bottom: RiffSpacing.listEnd),
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,7 +191,9 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
               contentPadding: EdgeInsets.zero,
               leading: CircleAvatar(
                 radius: 16,
-                child: Text('${i + 1}', style: const TextStyle(fontSize: 12)),
+                child: Text('${i + 1}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onPrimaryContainer)),
               ),
               title:
                   Text(t.title, maxLines: 2, overflow: TextOverflow.ellipsis),

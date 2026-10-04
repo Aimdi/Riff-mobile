@@ -292,7 +292,8 @@ class _HomeFeedState extends State<_HomeFeed> {
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
         statusBarBrightness: dark ? Brightness.dark : Brightness.light,
-        systemNavigationBarColor: Colors.white.withOpacity(0.002),
+        systemNavigationBarColor:
+            theme.colorScheme.onSurface.withOpacity(0.002),
         systemNavigationBarDividerColor: Colors.transparent,
         systemNavigationBarIconBrightness:
             dark ? Brightness.light : Brightness.dark,
@@ -430,7 +431,8 @@ class _HomeHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: EdgeInsets.fromLTRB(RiffSpacing.gutter, top, 4, 0),
+      padding: EdgeInsets.only(
+          left: RiffSpacing.gutter, top: top, right: RiffSpacing.xs),
       child: SizedBox(
         height: RiffSpacing.headerRow,
         child: Row(
@@ -447,7 +449,6 @@ class _HomeHeader extends StatelessWidget {
                     homeGreetingKey(DateTime.now()).tr,
                     maxLines: 1,
                     style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
                       color: theme.colorScheme.onSurface,
                     ),
                   ),
@@ -486,8 +487,10 @@ class _SpotifyReconnectCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          RiffSpacing.gutter, RiffSpacing.section, RiffSpacing.gutter, 0),
+      padding: const EdgeInsets.only(
+          left: RiffSpacing.gutter,
+          top: RiffSpacing.section,
+          right: RiffSpacing.gutter),
       child: Material(
         color: theme.colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(RiffSizes.shelfRadius),
@@ -513,8 +516,10 @@ class _ExploreMoreButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          RiffSpacing.gutter, RiffSpacing.section, RiffSpacing.gutter, 0),
+      padding: const EdgeInsets.only(
+          left: RiffSpacing.gutter,
+          top: RiffSpacing.section,
+          right: RiffSpacing.gutter),
       child: SizedBox(
         width: double.infinity,
         height: RiffSizes.touch,
@@ -537,8 +542,10 @@ class _OfflineHomeBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          RiffSpacing.gutter, 8, RiffSpacing.gutter, 0),
+      padding: const EdgeInsets.only(
+          left: RiffSpacing.gutter,
+          top: RiffSpacing.sm,
+          right: RiffSpacing.gutter),
       child: Material(
         color: homeTileColor(context),
         shape: RoundedRectangleBorder(
@@ -559,8 +566,8 @@ class _OfflineHomeBanner extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'offlineHomeBanner'.tr,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -568,7 +575,6 @@ class _OfflineHomeBanner extends StatelessWidget {
                   'retry'.tr,
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.secondary,
-                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],

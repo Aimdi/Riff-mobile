@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/theme/riff_spacing.dart';
 import '../../../utils/riff_tokens.dart';
 import '../../Home/home_layout.dart';
 import '../settings_screen_controller.dart';
 
 /// Muted, smaller description line under a setting's title.
 TextStyle settingsSubtitleStyle(BuildContext context) =>
-    (Theme.of(context).textTheme.bodySmall ?? const TextStyle()).copyWith(
+    (Theme.of(context).textTheme.bodyMedium ?? const TextStyle()).copyWith(
       color: homeMutedColor(context),
-      fontSize: 12.5,
-      height: 1.3,
     );
 
 /// Marks a setting whose tile is built inside an Obx (so its text can't be
@@ -112,9 +111,7 @@ class CustomExpansionTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(title,
-                  style: homeCardTitleStyle(context)
-                      .copyWith(fontSize: 15.5, fontWeight: FontWeight.w700)),
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
               if ((subtitle ?? '').isNotEmpty) ...[
                 const SizedBox(height: 2),
                 Text(subtitle!,
@@ -129,7 +126,8 @@ class CustomExpansionTile extends StatelessWidget {
     );
     final body = Padding(
       // Tiles carry a 5dp inset of their own.
-      padding: const EdgeInsets.fromLTRB(8, 0, 4, 8),
+      padding: const EdgeInsets.only(
+          left: RiffSpacing.sm, right: RiffSpacing.xs, bottom: RiffSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: items,
@@ -149,7 +147,11 @@ class CustomExpansionTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+                    padding: const EdgeInsets.only(
+                        left: RiffSpacing.lg,
+                        top: RiffSpacing.md,
+                        right: RiffSpacing.lg,
+                        bottom: RiffSpacing.sm),
                     child: header,
                   ),
                   body,
@@ -159,7 +161,11 @@ class CustomExpansionTile extends StatelessWidget {
                 data: theme.copyWith(dividerColor: Colors.transparent),
                 child: ExpansionTile(
                   initiallyExpanded: initiallyExpanded,
-                  tilePadding: const EdgeInsets.fromLTRB(14, 6, 10, 6),
+                  tilePadding: const EdgeInsets.only(
+                      left: RiffSpacing.lg,
+                      top: RiffSpacing.sm,
+                      right: RiffSpacing.md,
+                      bottom: RiffSpacing.sm),
                   childrenPadding: EdgeInsets.zero,
                   expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
                   shape: const Border(),

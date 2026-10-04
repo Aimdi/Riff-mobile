@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import 'components/search_item.dart';
 import '../../widgets/modified_text_field.dart';
+import '../../theme/riff_spacing.dart';
 import '../Home/home_layout.dart';
 import '../Podcasts/podcast_empty_state.dart';
 import '/ui/navigator.dart';
@@ -27,14 +28,14 @@ class SearchScreen extends StatelessWidget {
         child: Column(
           children: [
             Padding(
-              padding:
-                  const EdgeInsets.fromLTRB(2, 0, HomeLayout.gutter, 0),
+              padding: const EdgeInsets.only(
+                  left: RiffSpacing.xxs, right: HomeLayout.gutter),
               child: Row(
                 children: [
                   IconButton(
                     tooltip: 'back'.tr,
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                        size: 20),
+                    icon:
+                        const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
                     onPressed: () {
                       Get.nestedKey(ScreenNavigationSetup.id)!
                           .currentState!
@@ -92,13 +93,15 @@ class SearchScreen extends StatelessWidget {
                               style: TextButton.styleFrom(
                                 foregroundColor: homeMutedColor(context),
                                 minimumSize: const Size(0, 30),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
                               ),
                               child: Text('clear'.tr,
-                                  style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600)),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelMedium
+                                      ?.copyWith(
+                                          color: homeMutedColor(context))),
                             )
                           : null,
                     ),
@@ -110,8 +113,10 @@ class SearchScreen extends StatelessWidget {
                               : searchScreenController.textInputController.text,
                         )),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                          HomeLayout.gutter, 14, HomeLayout.gutter, 0),
+                      padding: const EdgeInsets.only(
+                          left: HomeLayout.gutter,
+                          top: RiffSpacing.lg,
+                          right: HomeLayout.gutter),
                       child: Text('searchOpenResultsHint'.tr,
                           style: homeCardSubtitleStyle(context)),
                     ),
@@ -158,7 +163,10 @@ class _SearchField extends StatelessWidget {
         onChanged: controller.onChanged,
         onSubmitted: (val) => _submit(context, val),
         autofocus: true,
-        style: const TextStyle(fontSize: 15.5),
+        style: Theme.of(context)
+            .textTheme
+            .bodyLarge
+            ?.copyWith(color: Theme.of(context).colorScheme.onSurface),
         textAlignVertical: TextAlignVertical.center,
         cursorColor: Theme.of(context).colorScheme.secondary,
         decoration: InputDecoration(

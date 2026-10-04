@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '/services/plugin_service.dart';
 import '/ui/navigator.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/snackbar.dart';
 import '../../utils/riff_tokens.dart';
@@ -52,41 +53,44 @@ class PluginsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: theme.canvasColor,
       body: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            RiffPageHeader('plugins'.tr,
-                onBack: () => Get.back(id: ScreenNavigationSetup.id)),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  HomeLayout.gutter, 0, HomeLayout.gutter, 14),
-              child: Text('pluginsDes'.tr,
-                  style: homeCardSubtitleStyle(context)),
-            ),
-            Expanded(
-              child: Obx(() {
-                // Touch obs so the list rebuilds on install/uninstall.
-                final _ = plugins.installed.length;
-                if (_offers.isEmpty) {
-                  return _EmptyPluginsState(accent: accent);
-                }
-                return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(
-                      HomeLayout.gutter, 0, HomeLayout.gutter, 120),
-                  itemCount: _offers.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final offer = _offers[index];
-                    return _PluginOfferTile(
-                      offer: offer,
-                      accent: accent,
-                      installed: plugins.isInstalled(offer.id),
-                    );
-                  },
-                );
-              }),
-            ),
-          ],
-        ),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          RiffPageHeader('plugins'.tr,
+              onBack: () => Get.back(id: ScreenNavigationSetup.id)),
+          Padding(
+            padding: const EdgeInsets.only(
+                left: HomeLayout.gutter,
+                right: HomeLayout.gutter,
+                bottom: RiffSpacing.lg),
+            child: Text('pluginsDes'.tr, style: homeCardSubtitleStyle(context)),
+          ),
+          Expanded(
+            child: Obx(() {
+              // Touch obs so the list rebuilds on install/uninstall.
+              final _ = plugins.installed.length;
+              if (_offers.isEmpty) {
+                return _EmptyPluginsState(accent: accent);
+              }
+              return ListView.separated(
+                padding: const EdgeInsets.only(
+                    left: HomeLayout.gutter,
+                    right: HomeLayout.gutter,
+                    bottom: RiffSpacing.unit * 30),
+                itemCount: _offers.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (context, index) {
+                  final offer = _offers[index];
+                  return _PluginOfferTile(
+                    offer: offer,
+                    accent: accent,
+                    installed: plugins.isInstalled(offer.id),
+                  );
+                },
+              );
+            }),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -218,7 +222,11 @@ class _PluginOfferTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final fg = Theme.of(context).textTheme.titleMedium?.color;
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+      padding: const EdgeInsets.only(
+          left: RiffSpacing.lg,
+          top: RiffSpacing.lg,
+          right: RiffSpacing.lg,
+          bottom: RiffSpacing.md),
       decoration: BoxDecoration(
         color: homeTileColor(context),
         borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
@@ -245,8 +253,10 @@ class _PluginOfferTile extends StatelessWidget {
                 child: Text(offer.nameKey.tr,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w700, color: fg)),
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(color: fg)),
               ),
               if (installed)
                 Container(
@@ -257,10 +267,10 @@ class _PluginOfferTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text('installed'.tr,
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: accent)),
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelSmall
+                          ?.copyWith(color: accent)),
                 ),
             ],
           ),
@@ -279,10 +289,10 @@ class _PluginOfferTile extends StatelessWidget {
                 FilledButton.icon(
                   onPressed: _open,
                   style: FilledButton.styleFrom(
-                      backgroundColor: accent, foregroundColor: Colors.black),
+                      backgroundColor: accent,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary),
                   icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                  label: Text('openPlugin'.tr,
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  label: Text('openPlugin'.tr),
                 ),
                 OutlinedButton(
                   onPressed: () => _uninstall(context),
@@ -293,10 +303,10 @@ class _PluginOfferTile extends StatelessWidget {
                 FilledButton.icon(
                   onPressed: () => _install(context),
                   style: FilledButton.styleFrom(
-                      backgroundColor: accent, foregroundColor: Colors.black),
+                      backgroundColor: accent,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary),
                   icon: const Icon(Icons.download_rounded, size: 18),
-                  label: Text('downloadPlugin'.tr,
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  label: Text('downloadPlugin'.tr),
                 ),
               if (offer.sourceUrl != null)
                 TextButton(

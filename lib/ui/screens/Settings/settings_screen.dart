@@ -58,7 +58,7 @@ class SettingsScreen extends StatelessWidget {
             child: TextField(
               onChanged: settingsController.setSettingsSearch,
               textAlignVertical: TextAlignVertical.center,
-              style: const TextStyle(fontSize: 15),
+              style: theme.textTheme.bodyLarge,
               decoration: InputDecoration(
                 hintText: 'settingsSearch'.tr,
                 prefixIcon: const Icon(Icons.search_rounded, size: 22),
@@ -768,10 +768,7 @@ class SettingsScreen extends StatelessWidget {
                                 settingsController.isLinkedWithPiped.value
                                     ? "unLink".tr
                                     : "link".tr,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium!
-                                    .copyWith(fontSize: 15),
+                                style: Theme.of(context).textTheme.titleMedium!,
                               )),
                           onPressed: () {
                             if (settingsController.isLinkedWithPiped.isFalse) {
@@ -795,10 +792,8 @@ class SettingsScreen extends StatelessWidget {
                             trailing: TextButton(
                                 child: Text(
                                   "reset".tr,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium!
-                                      .copyWith(fontSize: 15),
+                                  style:
+                                      Theme.of(context).textTheme.titleMedium!,
                                 ),
                                 onPressed: () async {
                                   final ok = await Get.find<
@@ -1048,10 +1043,7 @@ class SettingsScreen extends StatelessWidget {
                     trailing: TextButton(
                       child: Text(
                         "reset".tr,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium!
-                            .copyWith(fontSize: 15),
+                        style: Theme.of(context).textTheme.titleMedium!,
                       ),
                       onPressed: () {
                         settingsController.resetDownloadLocation();
@@ -1175,9 +1167,12 @@ class SettingsScreen extends StatelessWidget {
                                           "${"status".tr}: ${settingsController.isIgnoringBatteryOptimizations.isTrue ? "enabled".tr : "disabled".tr}\n",
                                       style: Theme.of(context)
                                           .textTheme
-                                          .bodyMedium!
+                                          .labelMedium!
                                           .copyWith(
-                                              fontWeight: FontWeight.bold),
+                                              color: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium
+                                                  ?.color),
                                       children: <TextSpan>[
                                         TextSpan(
                                             text: "ignoreBatOptDes".tr,
@@ -1300,8 +1295,6 @@ class SettingsScreen extends StatelessWidget {
                           "Riff",
                           style: theme.textTheme.titleMedium?.copyWith(
                             color: accent,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.5,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -1419,8 +1412,11 @@ class ThemeSelectorDialog extends StatelessWidget {
                                 shape: BoxShape.circle,
                               ),
                               child: current.value == entry.value.value
-                                  ? const Icon(Icons.check,
-                                      size: 18, color: Colors.black)
+                                  ? Icon(Icons.check,
+                                      size: 18,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onPrimary)
                                   : null,
                             ),
                           ),
