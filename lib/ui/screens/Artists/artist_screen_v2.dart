@@ -7,6 +7,7 @@ import '../../widgets/loader.dart';
 import '../../widgets/separate_tab_item_widget.dart';
 import 'artist_screen_controller.dart';
 import '/ui/widgets/riff_header_bar.dart';
+import '/ui/theme/riff_tokens.dart';
 
 class ArtistScreenBN extends StatelessWidget {
   const ArtistScreenBN(
@@ -19,14 +20,16 @@ class ArtistScreenBN extends StatelessWidget {
     return Scaffold(
       appBar: RiffAppBar(AppBar(
           toolbarHeight: 85,
-          backgroundColor: Theme.of(context).canvasColor,
+          backgroundColor: Theme.of(context).colorScheme.surface,
           leading: Padding(
             padding: const EdgeInsets.only(top: 25.0),
             child: IconButton(
                 onPressed: () {
                   Get.nestedKey(ScreenNavigationSetup.id)!.currentState!.pop();
                 },
-                icon: const Icon(Icons.arrow_back_ios_new)),
+                icon: Icon(Icons.arrow_back_ios_new,
+                    size: RiffComponentSizes.headerIcon,
+                    color: Theme.of(context).colorScheme.onSurface)),
           ),
           elevation: 0,
           bottom: TabBar(
@@ -47,7 +50,12 @@ class ArtistScreenBN extends StatelessWidget {
                 ? Padding(
                     padding: const EdgeInsets.only(top: 25.0),
                     child: Text(artistScreenController.artist_.name,
-                        style: Theme.of(context).textTheme.titleLarge),
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineSmall
+                            ?.copyWith(
+                                color:
+                                    Theme.of(context).colorScheme.onSurface)),
                   )
                 : const SizedBox.shrink(),
           ))),

@@ -11,7 +11,6 @@ import '/models/thumbnail.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
-import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/collection_play.dart';
 import '/ui/screens/Podcasts/podcasts_library_controller.dart';
 import '/ui/widgets/songinfo_bottom_sheet.dart';
@@ -257,14 +256,17 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
               left: left,
               right: HomeLayout.gutter,
               bottom: RiffSpacing.md + (1 - t) * RiffSpacing.xs),
-          expandedTitleScale: 1.6,
+          // Collapsed: the page-header titleLarge; expanded it scales up to
+          // the headlineSmall size used for names on detail pages.
+          expandedTitleScale: _nameScale(theme.textTheme),
           title: Text(
             c.artist_.name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             // The hero fades into the page colour behind the title, so the
             // page's own text colour reads on both themes.
-            style: theme.textTheme.titleLarge,
+            style: theme.textTheme.titleLarge
+                ?.copyWith(color: theme.colorScheme.onSurface),
           ),
           background: Stack(
             fit: StackFit.expand,
@@ -301,9 +303,19 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
     );
   }
 
+  /// headlineSmall / titleLarge, so the expanded name reads at
+  /// headlineSmall size (falls back to no scaling).
+  static double _nameScale(TextTheme text) {
+    final big = text.headlineSmall?.fontSize;
+    final small = text.titleLarge?.fontSize;
+    if (big == null || small == null || small <= 0) return 1;
+    return big / small;
+  }
+
   Widget _actionRow(BuildContext context, List<MediaItem> songs) {
     final theme = Theme.of(context);
-    final accent = theme.colorScheme.secondary;
+    final scheme = theme.colorScheme;
+    final accent = scheme.primary;
     final subs = (c.artist_.subscribers ?? '').trim();
     return Padding(
       padding:
@@ -321,38 +333,31 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
               // Follow = add to Library (also drives Release Radar).
               Obx(() {
                 final following = c.isAddedToLibrary.isTrue;
+                // Outline pill from the theme (§5.5); toggled on = accent.
                 return OutlinedButton(
                   onPressed: _toggleFollow,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor:
-                        following ? accent : theme.textTheme.titleMedium?.color,
-                    side: BorderSide(
-                        color: following
-                            ? accent.withOpacity(0.6)
-                            : (homeMutedColor(context) ??
-                                    theme.colorScheme.onSurfaceVariant)
-                                .withOpacity(0.6)),
-                    shape: const StadiumBorder(),
+                    foregroundColor: following ? accent : scheme.onSurface,
+                    side:
+                        BorderSide(color: following ? accent : scheme.outline),
                     visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
                   ),
-                  child: Text(following ? 'following'.tr : 'follow'.tr,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                          color: following
-                              ? accent
-                              : theme.textTheme.titleMedium?.color)),
+                  child: Text(following ? 'following'.tr : 'follow'.tr),
                 );
               }),
               _moreMenu(context, songs),
               const Spacer(),
               IconButton(
                 tooltip: 'shuffle'.tr,
-                icon: const Icon(Icons.shuffle_rounded, size: 26),
+                icon: Icon(Icons.shuffle_rounded,
+                    size: RiffComponentSizes.headerIcon,
+                    color: scheme.onSurface),
                 onPressed: songs.isEmpty
                     ? null
                     : () => _playSongs(songs, 0, shuffle: true),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: RiffSpacing.xs),
+              // Primary action (§5.5): accent fill, onAccent glyph.
               Material(
                 color: accent,
                 shape: const CircleBorder(),
@@ -361,10 +366,11 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                   onTap: songs.isEmpty ? null : () => _playSongs(songs, 0),
                   child: Tooltip(
                     message: 'play'.tr,
-                    child: const SizedBox.square(
-                      dimension: 52,
+                    child: SizedBox.square(
+                      dimension: RiffComponentSizes.collectionPlay,
                       child: Icon(Icons.play_arrow_rounded,
-                          size: 32, color: RiffSurfaces.voidBlack),
+                          size: RiffComponentSizes.collectionPlayIcon,
+                          color: scheme.onPrimary),
                     ),
                   ),
                 ),
@@ -392,7 +398,9 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
         ]);
     return PopupMenuButton<String>(
       tooltip: 'more'.tr,
-      icon: const Icon(Icons.more_vert_rounded),
+      icon: Icon(Icons.more_vert_rounded,
+          size: RiffComponentSizes.headerIcon,
+          color: Theme.of(context).colorScheme.onSurface),
       onSelected: (v) async {
         switch (v) {
           case 'radio':

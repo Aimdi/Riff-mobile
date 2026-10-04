@@ -6,6 +6,7 @@ import '/models/playlist.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/screens/Artists/artist_screen_v2.dart';
 import '/ui/screens/Podcasts/podcasts_library_controller.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/podcast_follow_button.dart';
 import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
@@ -38,12 +39,9 @@ class ArtistScreen extends StatelessWidget {
                   height: 60,
                   width: 60,
                   child: FittedBox(
+                    // Shape, colours and (zero) elevation from the
+                    // theme's FAB style (§5.5).
                     child: FloatingActionButton(
-                        focusElevation: 0,
-                        shape: const RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.all(Radius.circular(14))),
-                        elevation: 0,
                         onPressed: () async {
                           final radioId =
                               artistScreenController.artist_.radioId;
@@ -194,15 +192,29 @@ class AboutArtist extends StatelessWidget {
                                       () => artistScreenController
                                               .isArtistContentFetced.isFalse
                                           ? const SizedBox.shrink()
-                                          : Icon(artistScreenController
+                                          : artistScreenController
                                                   .isAddedToLibrary.isFalse
-                                              ? Icons.bookmark_add
-                                              : Icons.bookmark_added),
+                                              ? Icon(Icons.bookmark_add,
+                                                  size: RiffComponentSizes
+                                                      .headerIcon,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurface)
+                                              // Toggled on = accent (§2.5).
+                                              : Icon(Icons.bookmark_added,
+                                                  size: RiffComponentSizes
+                                                      .headerIcon,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .primary),
                                     )),
                                 IconButton(
-                                    icon: const Icon(
+                                    icon: Icon(
                                       Icons.share,
-                                      size: 20,
+                                      size: RiffComponentSizes.trailingIcon,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
                                     ),
                                     splashRadius: 18,
                                     onPressed: () => Share.share(
@@ -217,7 +229,11 @@ class AboutArtist extends StatelessWidget {
                       padding: const EdgeInsets.only(top: 10, bottom: 10),
                       child: Text(
                         artistScreenController.artist_.name,
-                        style: Theme.of(context).textTheme.titleLarge,
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineSmall
+                            ?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface),
                       ),
                     ),
                     Obx(() {
