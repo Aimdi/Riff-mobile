@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '/services/free_audiobook_service.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '../Home/home_layout.dart';
 import '../Library/library.dart' show libraryGridMetrics;
 import 'audiobook_widgets.dart';
@@ -47,8 +48,9 @@ class _FreeAudiobookListScreenState extends State<FreeAudiobookListScreen> {
       body: books == null
           ? const Center(
               child: SizedBox.square(
-                  dimension: 28,
-                  child: CircularProgressIndicator(strokeWidth: 2.5)))
+                  dimension: RiffComponentSizes.spinner,
+                  child: CircularProgressIndicator(
+                      strokeWidth: RiffComponentSizes.spinnerStroke)))
           : books.isEmpty
               ? Center(
                   child: Column(

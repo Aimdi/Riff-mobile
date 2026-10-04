@@ -8,7 +8,7 @@ import '/services/free_audiobook_service.dart';
 import '/ui/theme/palettes/audiobook_genres.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
-import '/ui/utils/riff_tokens.dart';
+import '/ui/widgets/song_list_tile.dart' show RiffRowHairline;
 import '../Home/home_layout.dart';
 import '../Podcasts/podcast_layout.dart';
 import 'audiobook_catalog_detail_screen.dart';
@@ -33,6 +33,8 @@ class AudiobookCover extends StatelessWidget {
 
   /// 0–1: thin accent bar along the bottom edge while partly listened.
   final double? progress;
+
+  /// Corner radius; defaults to [RiffRadii.sm] (episode / book art, §4.3).
   final double? radius;
 
   @override
@@ -44,8 +46,7 @@ class AudiobookCover extends StatelessWidget {
     );
     final p = progress;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(
-          radius ?? (size >= 100 ? RiffTokens.radiusSm : 6)),
+      borderRadius: BorderRadius.circular(radius ?? RiffRadii.sm),
       child: SizedBox.square(
         dimension: size,
         child: Stack(
@@ -59,11 +60,8 @@ class AudiobookCover extends StatelessWidget {
                 fit: BoxFit.cover,
                 memCacheWidth:
                     (size * MediaQuery.devicePixelRatioOf(context)).round(),
-                placeholder: (_, __) => ColoredBox(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withOpacity(0.06)),
+                placeholder: (_, __) =>
+                    ColoredBox(color: homeTileColor(context)),
                 errorWidget: (_, __, ___) => fallback,
               ),
             if (p != null && p > 0.02 && p < 0.98)
@@ -71,11 +69,11 @@ class AudiobookCover extends StatelessWidget {
                 left: 0,
                 right: 0,
                 bottom: 0,
+                // 2 px accent on a divider track (§ Phase 7).
                 child: LinearProgressIndicator(
                   value: p,
-                  minHeight: 3,
-                  backgroundColor:
-                      RiffColors.of(context).scrim.withOpacity(0.45),
+                  minHeight: RiffComponentSizes.rowProgress,
+                  backgroundColor: Theme.of(context).dividerColor,
                   valueColor: AlwaysStoppedAnimation(
                       Theme.of(context).colorScheme.secondary),
                 ),
@@ -129,7 +127,9 @@ class StoreAudiobookCard extends StatelessWidget {
       );
 }
 
-/// List row: cover, title, author / meta, and a trailing widget.
+/// List row (§5.2 / § Phase 7 episode rows): 48 dp cover (radius 8),
+/// title, author / meta, a trailing widget, and a full-width hairline
+/// drawn inside the bottom edge.
 class AudiobookRow extends StatelessWidget {
   const AudiobookRow({
     super.key,
@@ -148,48 +148,51 @@ class AudiobookRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return InkWell(
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.only(
-            left: HomeLayout.gutter,
-            top: RiffSpacing.sm,
-            right: HomeLayout.gutter - RiffSpacing.xs,
-            bottom: RiffSpacing.sm),
-        child: Row(
-          children: [
-            AudiobookCover(url: cover, size: 56),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Theme.of(context).textTheme.titleMedium?.color),
+      child: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: RiffSpacing.lg, vertical: RiffSpacing.md),
+            child: Row(
+              children: [
+                AudiobookCover(url: cover, size: RiffComponentSizes.rowArt),
+                const SizedBox(width: RiffSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      if (subtitle.isNotEmpty) ...[
+                        const SizedBox(height: RiffSpacing.xxs),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ],
                   ),
-                  if (subtitle.isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: homeMutedColor(context)),
-                    ),
-                  ],
+                ),
+                if (trailing != null) ...[
+                  const SizedBox(width: RiffSpacing.xs),
+                  trailing!,
                 ],
-              ),
+              ],
             ),
-            if (trailing != null) ...[const SizedBox(width: 4), trailing!],
-          ],
-        ),
+          ),
+          const RiffRowHairline(),
+        ],
       ),
     );
   }
@@ -243,12 +246,12 @@ class AudiobookGenreTile extends StatelessWidget {
     final riff = RiffColors.of(context);
     return Material(
       color: Color.alphaBlend(riff.scrim.withOpacity(0.18), color),
-      borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+      borderRadius: BorderRadius.circular(RiffRadii.sm),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
           child: Align(
             alignment: Alignment.centerLeft,
             child: Text(
@@ -267,7 +270,8 @@ class AudiobookGenreTile extends StatelessWidget {
   }
 }
 
-/// Rounded filled search field used across the Audiobooks tab.
+/// Search field used across the Audiobooks tab (§5.8: surface1 pill,
+/// 40 tall, no border at rest, 1 px accent ring on focus).
 class AudiobookSearchField extends StatelessWidget {
   const AudiobookSearchField({
     super.key,
@@ -288,6 +292,11 @@ class AudiobookSearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    const pill = BorderRadius.all(Radius.circular(RiffRadii.pill));
+    const restBorder =
+        OutlineInputBorder(borderRadius: pill, borderSide: BorderSide.none);
     return Padding(
       padding: const EdgeInsets.only(
           left: HomeLayout.gutter,
@@ -295,31 +304,41 @@ class AudiobookSearchField extends StatelessWidget {
           right: HomeLayout.gutter,
           bottom: RiffSpacing.sm),
       child: SizedBox(
-        height: 44,
+        height: RiffComponentSizes.searchField,
         child: TextField(
           controller: controller,
           focusNode: focusNode,
           autofocus: autofocus,
           textInputAction: TextInputAction.search,
           onSubmitted: onSubmitted,
-          style: Theme.of(context).textTheme.bodyLarge,
+          style: theme.textTheme.bodyLarge?.copyWith(color: scheme.onSurface),
+          textAlignVertical: TextAlignVertical.center,
           decoration: InputDecoration(
             hintText: hint,
+            hintStyle: theme.textTheme.bodyLarge
+                ?.copyWith(color: scheme.onSurfaceVariant),
             filled: true,
-            fillColor: homeTileColor(context),
+            fillColor: scheme.surfaceContainerLow,
             isDense: true,
             contentPadding: EdgeInsets.zero,
-            prefixIcon: const Icon(Icons.search_rounded, size: 22),
+            prefixIcon: Icon(Icons.search_rounded,
+                size: RiffComponentSizes.trailingIcon,
+                color: scheme.onSurfaceVariant),
             suffixIcon: onClear == null
                 ? null
                 : IconButton(
                     tooltip: 'close'.tr,
-                    icon: const Icon(Icons.close_rounded, size: 20),
+                    color: scheme.onSurfaceVariant,
+                    icon: const Icon(Icons.close_rounded,
+                        size: RiffComponentSizes.trailingIcon),
                     onPressed: onClear,
                   ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(999),
-              borderSide: BorderSide.none,
+            border: restBorder,
+            enabledBorder: restBorder,
+            disabledBorder: restBorder,
+            focusedBorder: OutlineInputBorder(
+              borderRadius: pill,
+              borderSide: BorderSide(color: scheme.primary, width: 1),
             ),
           ),
         ),
