@@ -176,3 +176,13 @@ metrics now measure the TextTheme slot their text uses
 - Riff Wave card, station chips, shelf cards, speed dial, Jump back in
   and Quick picks restyled in place; adjustments are in `SKIPPED.md`.
 - Screenshots: `docs/redesign/phase4/`.
+
+## Phase 5 result (lists)
+
+- Rows (`song_list_tile.dart`, `list_widget.dart`, `up_next_queue.dart`,
+  search rows) follow §5.2 inside their existing item extents; hairlines
+  are drawn inside each row (`RiffRowHairline`), never as extra items.
+- Search field §5.8, result chips §5.6, tab indicator §5.7 (theme),
+  collection/artist headers §5.5, skeleton pulse §5.13
+  (`RiffSkeletonPulse`). Adjustments are in `SKIPPED.md`.
+- Screenshots: `docs/redesign/phase5/`.

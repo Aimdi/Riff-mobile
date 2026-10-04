@@ -20,6 +20,10 @@ elements (or can't be done on this SDK), and what was done instead.
 | 4 | Jump back in / Your week as §5.3 shelf cards (no background) | They are grid tiles and a stats card, not shelf cards; without a background their text floats | surface1 tiles and card, radius 8 |
 | 4 | "See all" as a 15/700 accent text button | The control is an icon-only chevron today; a text label would add an element and change the header width | chevron kept, drawn in the accent |
 | 4 | Selected station chip | Station chips start playback and have no selected state | the selected look (accentMuted fill, accent border and text) shows while a station is starting |
+| 5 | Queue rows 12 dp vertical padding (§5.2) | The queue's fixed 64 dp row extent (`itemExtentBuilder`) would need to grow to 72 | 48 art centred in the 64 dp row (≈8 dp), everything else per §5.2 |
+| 5 | Wide album/playlist rows: one-line titles | They are 96 dp rows with 76 dp art; one line would cut long titles that fit today | two lines kept |
+| 5 | Queue "Now playing" label in the accent | §2.5 keeps the accent for the playing title and equalizer | label in the secondary colour |
+| 5 | Artist/collection header paddings (toolbar 85, avatar box 200/260) | Not on the 4-point scale; snapping them would move the headers | left as they are |
 
 ## Known side effects of Phase 1 (to settle in later phases)
 
