@@ -5764,7 +5764,20 @@ Map<String, Map<String, String>> get keys => {
     "mixTransitionFadeDes": "Fade the current track out, then in",
     "mixTransitionBlendDes": "Overlap the outgoing and incoming tracks",
     "mixTransitionRiseDes": "Dip then rise into the next track",
-    "mixTransitionAutoDes": "Pick a transition from the mix"
+    "mixTransitionAutoDes": "Pick a transition from the mix",
+    "whatsPlaying": "What's playing?",
+    "recognizeTapToListen": "Tap to listen to the music around you",
+    "recognizeListening": "Listening…",
+    "recognizeListeningHint": "Hold your phone near the music",
+    "recognizeNoMatch": "Couldn't find that one. Get closer to the music and try again.",
+    "recognizeError": "Couldn't reach the recognition service. Check your connection and try again.",
+    "recognizeNoMic": "Riff needs the microphone to hear what's playing.",
+    "recognizeOpenSettings": "Open settings",
+    "recognizeListenAgain": "Listen again",
+    "recognizeRecent": "Recent finds",
+    "recognizeCredit": "Recognition by Shazam, the way Audire does it",
+    "recognizeOnlyAndroid": "Song recognition works on Android only.",
+    "recognizeRemove": "Remove from recent finds"
 }
 ,"pt" : {
     "renamePlaylist": "Renomear Playlist",

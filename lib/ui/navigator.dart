@@ -25,6 +25,7 @@ import '/ui/screens/Plugins/spotify_bridge_screen.dart';
 import 'screens/Plugins/torrent_search_screen.dart';
 import 'screens/Plugins/soul_sync_screen.dart';
 import 'screens/Plugins/seeker_screen.dart';
+import 'screens/Recognize/recognize_screen.dart';
 
 class ScreenNavigationSetup {
   ScreenNavigationSetup._();
@@ -51,6 +52,7 @@ class ScreenNavigationSetup {
   static const blacklistScreen = '/blacklistScreen';
   static const webDavSyncScreen = '/webDavSyncScreen';
   static const spotifyPageScreen = '/spotifyPageScreen';
+  static const recognizeScreen = '/recognizeScreen';
 }
 
 class ScreenNavigation extends StatelessWidget {
@@ -139,6 +141,10 @@ class ScreenNavigation extends StatelessWidget {
                             : initialQuery!.trim(),
                       ),
                   settings: settings);
+
+            case ScreenNavigationSetup.recognizeScreen:
+              return GetPageRoute(
+                  page: () => const RecognizeScreen(), settings: settings);
 
             case ScreenNavigationSetup.exploreScreen:
               final focus = settings.arguments is String
