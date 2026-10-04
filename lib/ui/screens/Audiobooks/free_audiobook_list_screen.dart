@@ -6,6 +6,7 @@ import '/ui/theme/riff_spacing.dart';
 import '../Home/home_layout.dart';
 import '../Library/library.dart' show libraryGridMetrics;
 import 'audiobook_widgets.dart';
+import '/ui/widgets/riff_header_bar.dart';
 
 /// A full grid of free books: one genre, or "See all" for a shelf.
 class FreeAudiobookListScreen extends StatefulWidget {
@@ -38,11 +39,11 @@ class _FreeAudiobookListScreenState extends State<FreeAudiobookListScreen> {
   Widget build(BuildContext context) {
     final books = _books;
     return Scaffold(
-      appBar: AppBar(
+      appBar: RiffAppBar(AppBar(
         title: Text(widget.title),
         backgroundColor: Colors.transparent,
         scrolledUnderElevation: 0,
-      ),
+      )),
       body: books == null
           ? const Center(
               child: SizedBox.square(

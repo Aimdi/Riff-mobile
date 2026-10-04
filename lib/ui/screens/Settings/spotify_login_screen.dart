@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '/services/spotify_auth_service.dart';
+import '/ui/widgets/riff_header_bar.dart';
 
 /// Spotify sign-in (Authorization Code + PKCE).
 ///
@@ -88,13 +89,13 @@ class _SpotifyLoginScreenState extends State<SpotifyLoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: RiffAppBar(AppBar(
         title: Text('spotifySignIn'.tr),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Get.back(result: false),
         ),
-      ),
+      )),
       body: Obx(() {
         final err = _error.value;
         if (err != null) {

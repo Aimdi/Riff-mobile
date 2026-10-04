@@ -22,6 +22,7 @@ import '../../widgets/snackbar.dart';
 import '../Home/home_layout.dart';
 import 'artist_screen_controller.dart';
 import '/ui/theme/riff_text_metrics.dart';
+import '/ui/widgets/riff_header_bar.dart';
 
 /// Single-scroll artist page: hero image with the name, one action row
 /// (Follow, more, shuffle, play), Popular songs, then Home-style shelves for
@@ -883,7 +884,7 @@ class _ArtistSectionPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: RiffAppBar(AppBar(
         backgroundColor: Colors.transparent,
         scrolledUnderElevation: 0,
         leading: IconButton(
@@ -894,7 +895,7 @@ class _ArtistSectionPage extends StatelessWidget {
         titleSpacing: 0,
         title: Text(controller.artist_.name,
             maxLines: 1, overflow: TextOverflow.ellipsis),
-      ),
+      )),
       body: Obx(() {
         if (controller.isSeparatedArtistContentFetced.isFalse ||
             !controller.sepataredContent.containsKey(tabName)) {
