@@ -6,6 +6,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 import '/utils/helper.dart';
 import 'video_engine.dart';
+import '/ui/theme/riff_tokens.dart';
 
 /// Classic mpv (media_kit) engine: the video-only stream plays with the
 /// audio stream attached via `audio-add`. Absent from the lite APK.
@@ -132,6 +133,6 @@ class MpvVideoEngine implements VideoEngine {
   Widget buildView() => Video(
         controller: _controller,
         controls: NoVideoControls,
-        fill: Colors.black,
+        fill: RiffPalette.scrim,
       );
 }

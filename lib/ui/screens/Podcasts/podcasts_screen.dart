@@ -4,6 +4,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/theme/riff_spacing.dart';
+
 import '/services/podcast_playback_profile.dart';
 
 import '/models/thumbnail.dart';
@@ -60,7 +62,8 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
         RiffPageHeader("podcasts".tr),
         Expanded(
             child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+          padding: const EdgeInsets.only(
+              left: RiffSpacing.lg, top: RiffSpacing.sm, right: RiffSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
