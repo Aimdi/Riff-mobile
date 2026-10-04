@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
+import '/ui/theme/riff_spacing.dart';
 import '/ui/widgets/common_dialog_widget.dart';
 
 class SongInfoDialog extends StatelessWidget {
@@ -18,7 +19,11 @@ class SongInfoDialog extends StatelessWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 22, 20, 10),
+              padding: const EdgeInsets.only(
+                  left: RiffSpacing.xl,
+                  top: RiffSpacing.xxl,
+                  right: RiffSpacing.xl,
+                  bottom: RiffSpacing.md),
               child: RiffDialogTitle("songInfo".tr,
                   icon: Icons.info_outline_rounded),
             ),
@@ -46,7 +51,11 @@ class SongInfoDialog extends StatelessWidget {
               ],
             )),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 6, 20, 16),
+              padding: const EdgeInsets.only(
+                  left: RiffSpacing.xl,
+                  top: RiffSpacing.sm,
+                  right: RiffSpacing.xl,
+                  bottom: RiffSpacing.lg),
               child: RiffDialogButton("close".tr,
                   onPressed: () => Navigator.of(context).pop()),
             ),
@@ -95,20 +104,16 @@ class InfoItem extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title.toUpperCase(),
-              style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
-                  color: Theme.of(context).colorScheme.secondary)),
+              style: Theme.of(context)
+                  .textTheme
+                  .labelSmall
+                  ?.copyWith(color: Theme.of(context).colorScheme.secondary)),
           const SizedBox(height: 2),
           TextSelectionTheme(
             data: Theme.of(context).textSelectionTheme,
             child: SelectableText(
               value,
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).textTheme.titleMedium?.color),
+              style: Theme.of(context).textTheme.titleMedium,
             ),
           )
         ],

@@ -2,6 +2,8 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
+import 'package:harmonymusic/ui/theme/riff_spacing.dart';
+import 'package:harmonymusic/ui/theme/riff_tokens.dart';
 import 'package:harmonymusic/ui/utils/theme_controller.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
@@ -81,8 +83,7 @@ class UpNextQueue extends StatelessWidget {
             if (isCurrent) {
               sectionLabel = _queueTr('nowPlaying', 'Now playing');
             } else if (isFirstUpcoming) {
-              sectionLabel =
-                  '${_queueTr('nextUp', 'Next up')} · $remaining';
+              sectionLabel = '${_queueTr('nextUp', 'Next up')} · $remaining';
             }
             return Material(
               // Stable id key — index keys remount every reorder.
@@ -131,6 +132,7 @@ class _QueueSongRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const fg = RiffSurfaces.textPrimary;
+    final text = Theme.of(context).textTheme;
     void openMenu() {
       final sheetContext =
           playerController.homeScaffoldkey.currentContext ?? Get.context;
@@ -141,7 +143,7 @@ class _QueueSongRow extends StatelessWidget {
         shape: riffSheetShape,
         isScrollControlled: true,
         context: sheetContext,
-        barrierColor: Colors.transparent.withAlpha(100),
+        barrierColor: RiffColors.of(sheetContext).scrim.withAlpha(100),
         builder: (context) => SongInfoBottomSheet(
           song,
           calledFromQueue: true,
@@ -155,20 +157,19 @@ class _QueueSongRow extends StatelessWidget {
         if (sectionLabel != null)
           Container(
             height: _kSectionLabelExtent,
-            color: Theme.of(homeScaffoldContext)
-                .bottomSheetTheme
-                .backgroundColor,
+            color:
+                Theme.of(homeScaffoldContext).bottomSheetTheme.backgroundColor,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              // Explicit size: the theme's labelMedium is 22sp bold.
+              padding: const EdgeInsets.only(
+                  left: RiffSpacing.lg,
+                  top: RiffSpacing.md,
+                  right: RiffSpacing.lg,
+                  bottom: RiffSpacing.xs),
               child: Text(
                 sectionLabel!.toUpperCase(),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
+                style: text.labelSmall?.copyWith(
                   color: isCurrent ? accent : RiffSurfaces.textMuted,
                 ),
               ),
@@ -228,11 +229,7 @@ class _QueueSongRow extends StatelessWidget {
                                 child: Text(
                                   song.title,
                                   maxLines: 1,
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: isCurrent
-                                        ? FontWeight.w700
-                                        : FontWeight.w600,
+                                  style: text.titleMedium?.copyWith(
                                     color: isCurrent ? accent : fg,
                                   ),
                                 ),
@@ -242,8 +239,7 @@ class _QueueSongRow extends StatelessWidget {
                                 song.artist ?? '',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 13,
+                                style: text.bodyMedium?.copyWith(
                                   color: RiffSurfaces.textMuted,
                                 ),
                               ),
@@ -256,10 +252,11 @@ class _QueueSongRow extends StatelessWidget {
                         else
                           Text(
                             '${song.extras?['length'] ?? ''}',
-                            style: const TextStyle(
-                              fontSize: 12,
+                            style: text.bodySmall?.copyWith(
                               color: RiffSurfaces.textMuted,
-                              fontFeatures: [FontFeature.tabularFigures()],
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ],
                             ),
                           ),
                         if (!GetPlatform.isDesktop)

@@ -100,12 +100,9 @@ class SortWidget extends StatelessWidget {
         ),
         title: Text(
           "importPlaylist".tr,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.3,
-            color: Theme.of(context).textTheme.titleMedium?.color,
-          ),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: Theme.of(context).textTheme.titleMedium?.color,
+              ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -129,7 +126,7 @@ class SortWidget extends StatelessWidget {
               child: FilledButton.icon(
                 style: FilledButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.secondary,
-                  foregroundColor: Colors.black,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   minimumSize: const Size.fromHeight(48),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -207,11 +204,10 @@ class SortWidget extends StatelessWidget {
                   _countLabel,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                    color: muted,
-                  ),
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelMedium
+                      ?.copyWith(color: muted),
                 ),
               ),
               _sortMenu(context, controller),
@@ -362,8 +358,8 @@ class SortWidget extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               _sortLabel(controller.sortType.value),
-              style: TextStyle(
-                  fontSize: 13.5, fontWeight: FontWeight.w600, color: fg),
+              style:
+                  Theme.of(context).textTheme.labelMedium?.copyWith(color: fg),
             ),
             const SizedBox(width: 2),
             Icon(

@@ -9,6 +9,8 @@ import '../../models/playlist.dart';
 import '../../services/track_analysis_service.dart';
 import '../player/player_controller.dart';
 import '../screens/Settings/settings_screen_controller.dart';
+import '/ui/theme/riff_tokens.dart';
+import '/ui/theme/riff_spacing.dart';
 import '../utils/riff_tokens.dart';
 import '../utils/theme_controller.dart';
 import 'add_to_playlist.dart';
@@ -54,7 +56,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
       isScrollControlled: true,
       useRootNavigator: true,
       context: sheetContext,
-      barrierColor: Colors.transparent.withAlpha(100),
+      barrierColor: RiffColors.of(sheetContext).scrim.withAlpha(100),
       builder: (context) => SongInfoBottomSheet(
         song,
         playlist: playlist,
@@ -111,8 +113,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                 final ok = await playerController.enqueueSong(song);
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                    context,
-                    ok ? "songEnqueueAlert".tr : "operationFailed".tr,
+                    context, ok ? "songEnqueueAlert".tr : "operationFailed".tr,
                     size: SanckBarSize.MEDIUM));
               },
               backgroundColor: Theme.of(context).colorScheme.secondary,
@@ -168,7 +169,11 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                   onTap: onTap,
                   onLongPress: () => _openSheet(playerController),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 6, 12, 6),
+                    padding: const EdgeInsets.only(
+                        left: RiffSpacing.sm,
+                        top: RiffSpacing.sm,
+                        right: RiffSpacing.md,
+                        bottom: RiffSpacing.sm),
                     child: Row(
                       children: [
                         thumbReplacementWithIndex
@@ -198,18 +203,16 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                                 duration: const Duration(seconds: 5),
                                 id: song.title.hashCode.toString(),
                                 child: Obx(() {
-                                  final isCurrent = playerController
-                                          .currentSong.value?.id ==
-                                      song.id;
+                                  final isCurrent =
+                                      playerController.currentSong.value?.id ==
+                                          song.id;
                                   return Text(
                                     song.title.length > 50
                                         ? song.title.substring(0, 50)
                                         : song.title,
                                     maxLines: 1,
-                                    style: theme.textTheme.titleMedium
-                                        ?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: -0.15,
+                                    style:
+                                        theme.textTheme.titleMedium?.copyWith(
                                       color: isCurrent ? accent : null,
                                     ),
                                   );
@@ -220,8 +223,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                                 "${song.artist}",
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w400,
+                                style: theme.textTheme.bodyLarge?.copyWith(
                                   color: muted,
                                 ),
                               ),
@@ -235,14 +237,12 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                         ],
                         Obx(() {
                           final isCurrent =
-                              playerController.currentSong.value?.id ==
-                                  song.id;
+                              playerController.currentSong.value?.id == song.id;
                           return Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               if (isCurrent)
-                                Icon(Icons.equalizer,
-                                    color: accent, size: 18),
+                                Icon(Icons.equalizer, color: accent, size: 18),
                               Text(
                                 song.extras?['length'] ?? "",
                                 style: theme.textTheme.titleSmall?.copyWith(
@@ -290,12 +290,10 @@ class _MixMetaColumn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bpm = analysis == null || analysis!.bpm <= 0
-        ? '—'
-        : '${analysis!.bpm} bpm';
-    final camelot = analysis?.camelot.isNotEmpty == true
-        ? analysis!.camelot
-        : '—';
+    final bpm =
+        analysis == null || analysis!.bpm <= 0 ? '—' : '${analysis!.bpm} bpm';
+    final camelot =
+        analysis?.camelot.isNotEmpty == true ? analysis!.camelot : '—';
     final keyColor = _camelotColor(camelot, theme);
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -318,7 +316,6 @@ class _MixMetaColumn extends StatelessWidget {
             camelot,
             style: theme.textTheme.labelSmall?.copyWith(
               color: keyColor,
-              fontWeight: FontWeight.w700,
             ),
           ),
         ),
@@ -327,8 +324,8 @@ class _MixMetaColumn extends StatelessWidget {
   }
 
   Color _camelotColor(String camelot, ThemeData theme) {
-    final m = RegExp(r'^(\d{1,2})([AB])$', caseSensitive: false)
-        .firstMatch(camelot);
+    final m =
+        RegExp(r'^(\d{1,2})([AB])$', caseSensitive: false).firstMatch(camelot);
     if (m == null) return theme.colorScheme.onSurface.withOpacity(0.5);
     final n = int.parse(m.group(1)!);
     final isA = m.group(2)!.toUpperCase() == 'A';

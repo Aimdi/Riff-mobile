@@ -29,6 +29,8 @@ import 'discovery/similar_songs_sheet.dart';
 import 'song_download_btn.dart';
 import 'image_widget.dart';
 import 'riff_sheet.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '../screens/Home/home_layout.dart';
 import 'song_info_dialog.dart';
 
@@ -49,7 +51,7 @@ void showCurrentSongSheet({
     shape: riffSheetShape,
     isScrollControlled: true,
     context: sheetContext,
-    barrierColor: Colors.transparent.withAlpha(100),
+    barrierColor: RiffColors.of(sheetContext).scrim.withAlpha(100),
     builder: (context) => SongInfoBottomSheet(
       song,
       calledFromPlayer: true,
@@ -101,8 +103,7 @@ class SongInfoBottomSheet extends StatelessWidget {
     void snack(String text, {SanckBarSize size = SanckBarSize.MEDIUM}) {
       final ctx = Get.context;
       if (ctx == null || !ctx.mounted) return;
-      ScaffoldMessenger.of(ctx)
-          .showSnackBar(snackbar(ctx, text, size: size));
+      ScaffoldMessenger.of(ctx).showSnackBar(snackbar(ctx, text, size: size));
     }
 
     return Padding(
@@ -138,7 +139,11 @@ class SongInfoBottomSheet extends StatelessWidget {
                 );
               },
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 6, 10, 10),
+                padding: const EdgeInsets.only(
+                    left: RiffSpacing.xl,
+                    top: RiffSpacing.sm,
+                    right: RiffSpacing.md,
+                    bottom: RiffSpacing.md),
                 child: Row(
                   children: [
                     ImageWidget(song: song, size: 56),
@@ -150,11 +155,10 @@ class SongInfoBottomSheet extends StatelessWidget {
                           Text(song.title,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  fontSize: 17,
-                                  height: 1.2,
-                                  fontWeight: FontWeight.w700,
-                                  color: fg)),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(color: fg)),
                           const SizedBox(height: 3),
                           Text(song.artist ?? '',
                               maxLines: 1,
@@ -305,9 +309,8 @@ class SongInfoBottomSheet extends StatelessWidget {
                         size: SanckBarSize.BIG);
                   } else {
                     final ok = playerController.removeFromQueue(song);
-                    snack(ok
-                        ? "songRemovedfromQueue".tr
-                        : "operationFailed".tr);
+                    snack(
+                        ok ? "songRemovedfromQueue".tr : "operationFailed".tr);
                   }
                 },
               ),
@@ -326,8 +329,7 @@ class SongInfoBottomSheet extends StatelessWidget {
                                 url: box.get(song.id)['url'])
                             .then((ok) async {
                           if (!ok) {
-                            snack("operationFailed".tr,
-                                size: SanckBarSize.BIG);
+                            snack("operationFailed".tr, size: SanckBarSize.BIG);
                             return;
                           }
                           box.delete(song.id).then((value) {
@@ -361,13 +363,22 @@ class SongInfoBottomSheet extends StatelessWidget {
             ),
             // Open in YouTube / YouTube Music / WizeStream.
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
+              padding: const EdgeInsets.only(
+                  left: RiffSpacing.xl,
+                  top: RiffSpacing.md,
+                  right: RiffSpacing.xl,
+                  bottom: RiffSpacing.sm),
               child: Text("openIn".tr,
-                  style: homeCardSubtitleStyle(context)
-                      .copyWith(fontWeight: FontWeight.w600)),
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelMedium
+                      ?.copyWith(color: homeMutedColor(context))),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+              padding: const EdgeInsets.only(
+                  left: RiffSpacing.lg,
+                  right: RiffSpacing.lg,
+                  bottom: RiffSpacing.sm),
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,

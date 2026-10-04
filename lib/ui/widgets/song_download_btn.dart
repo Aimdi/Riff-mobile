@@ -51,9 +51,12 @@ class SongDownloadButton extends StatelessWidget {
                           "${downloader.songDownloadingProgress.value}%",
                           style: Theme.of(context)
                               .textTheme
-                              .titleMedium!
+                              .labelSmall!
                               .copyWith(
-                                  fontSize: 10, fontWeight: FontWeight.bold),
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium!
+                                      .color),
                         ),
                       ),
                       LoadingIndicator(
