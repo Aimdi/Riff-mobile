@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/discovery/discovery_types.dart';
 import '/services/stats_service.dart';
+import '/ui/theme/riff_spacing.dart';
 import '../../utils/riff_tokens.dart';
 import '../Home/home_layout.dart';
 
@@ -68,8 +69,10 @@ class StatsScreen extends StatelessWidget {
         children: [
           RiffPageHeader("stats".tr),
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-                HomeLayout.gutter, 8, HomeLayout.gutter, 0),
+            padding: const EdgeInsets.only(
+                left: HomeLayout.gutter,
+                top: RiffSpacing.sm,
+                right: HomeLayout.gutter),
             child: GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
@@ -82,10 +85,10 @@ class StatsScreen extends StatelessWidget {
                     "${StatsService.totalPlays}", "plays".tr),
                 _StatTile(Icons.schedule_rounded,
                     _hoursLabel(StatsService.totalSeconds), "hours".tr),
-                _StatTile(Icons.skip_next_rounded,
-                    "${StatsService.totalSkips}", "skips".tr),
-                _StatTile(Icons.person_rounded,
-                    "${StatsService.uniqueArtists}", "topArtists".tr),
+                _StatTile(Icons.skip_next_rounded, "${StatsService.totalSkips}",
+                    "skips".tr),
+                _StatTile(Icons.person_rounded, "${StatsService.uniqueArtists}",
+                    "topArtists".tr),
                 if (hasDiscovery) ...[
                   _StatTile(
                       Icons.explore_rounded,
@@ -99,8 +102,7 @@ class StatsScreen extends StatelessWidget {
           ),
           HomeSectionHeader("last7Days".tr),
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
+            padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
             child: SizedBox(
               height: 150,
               child: Row(
@@ -124,8 +126,8 @@ class StatsScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(
                   horizontal: HomeLayout.gutter, vertical: 6),
-              child: Text("statsEmpty".tr,
-                  style: homeCardSubtitleStyle(context)),
+              child:
+                  Text("statsEmpty".tr, style: homeCardSubtitleStyle(context)),
             ),
           for (final e in topSongs.asMap().entries)
             _RankRow(
@@ -166,7 +168,11 @@ class _StatTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final fg = Theme.of(context).textTheme.titleMedium?.color;
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+      padding: const EdgeInsets.only(
+          left: RiffSpacing.lg,
+          top: RiffSpacing.md,
+          right: RiffSpacing.md,
+          bottom: RiffSpacing.md),
       decoration: BoxDecoration(
         color: homeTileColor(context),
         borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
@@ -183,11 +189,10 @@ class _StatTile extends StatelessWidget {
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
                 child: Text(value,
-                    style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                        color: fg)),
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineMedium
+                        ?.copyWith(color: fg)),
               ),
               Text(label,
                   maxLines: 1,
@@ -221,8 +226,8 @@ class _DayBar extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           Text('$plays',
-              style: homeCardSubtitleStyle(context)
-                  .copyWith(fontWeight: FontWeight.w700)),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
           const SizedBox(height: 4),
           Flexible(
             child: FractionallySizedBox(
@@ -238,7 +243,8 @@ class _DayBar extends StatelessWidget {
           const SizedBox(height: 6),
           Text(label,
               maxLines: 1,
-              style: homeCardSubtitleStyle(context).copyWith(fontSize: 11)),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
         ],
       ),
     );
@@ -268,9 +274,7 @@ class _RankRow extends StatelessWidget {
           SizedBox(
             width: 30,
             child: Text('$rank',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: rank <= 3
                         ? Theme.of(context).colorScheme.secondary
                         : homeMutedColor(context))),
@@ -282,8 +286,10 @@ class _RankRow extends StatelessWidget {
                 Text(title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w600, color: fg)),
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(color: fg)),
                 if (subtitle != null && subtitle!.isNotEmpty)
                   Text(subtitle!,
                       maxLines: 1,
@@ -299,8 +305,10 @@ class _RankRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(count,
-                style: TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w700, color: fg)),
+                style: Theme.of(context)
+                    .textTheme
+                    .labelSmall
+                    ?.copyWith(color: fg)),
           ),
         ],
       ),
