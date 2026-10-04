@@ -1,3 +1,14 @@
+# 1.7.144
+
+**What's playing? Name the song around you**
+* New mic button at the top right of Home: Riff listens for up to 12
+  seconds and tells you the song, artist, album and cover
+* Play it straight away or search it in Riff; recent finds are kept in a
+  list you can tidy up
+* Recognition works the way Audire does (Shazam's catalogue, no account);
+  the microphone is only used while that screen is listening
+* Android only
+
 # 1.7.143
 
 **The side rail looks like it used to**
