@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/ui/theme/riff_spacing.dart';
-import '/ui/utils/riff_tokens.dart';
+import '/ui/theme/riff_tokens.dart';
 import '../../widgets/cust_switch.dart';
 import 'home_layout.dart';
 import 'home_sections.dart';
@@ -82,42 +82,36 @@ class _SectionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final fg = theme.textTheme.titleMedium?.color;
+    final scheme = theme.colorScheme;
+    final fg = shown ? scheme.onSurface : scheme.onSurfaceVariant;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: RiffSpacing.sm),
       child: Material(
-        color: homeTileColor(context),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
-          side: homeTileBorder(context),
-        ),
+        // Settings rows sit on the page background with a full-width
+        // hairline along their bottom edge (Phase 8).
+        color: Colors.transparent,
+        shape: Border(bottom: BorderSide(color: theme.dividerColor, width: 0)),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => onChanged(!shown),
           child: SizedBox(
-            height: 56,
+            height: RiffComponentSizes.homeLayoutRow,
             child: Row(
               children: [
-                const SizedBox(width: 16),
+                const SizedBox(width: RiffSpacing.lg),
                 Icon(section.icon,
-                    size: 22,
-                    color: shown
-                        ? theme.colorScheme.secondary
-                        : homeMutedColor(context)),
-                const SizedBox(width: 14),
+                    size: RiffComponentSizes.headerIcon, color: fg),
+                const SizedBox(width: RiffSpacing.md),
                 Expanded(
                   child: Text(
                     section.labelKey.tr,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(color: shown ? fg : homeMutedColor(context)),
+                    style: theme.textTheme.bodyLarge?.copyWith(color: fg),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(right: 12),
+                  padding: const EdgeInsets.only(right: RiffSpacing.md),
                   child: CustSwitch(value: shown, onChanged: onChanged),
                 ),
               ],

@@ -16,6 +16,9 @@ import 'podcast_segment_ui.dart';
 class PodcastSettingsScreen extends StatelessWidget {
   const PodcastSettingsScreen({super.key});
 
+  /// Space between setting groups; a hairline runs through its middle.
+  static const double _groupGap = RiffSpacing.xxl + RiffSpacing.xs;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -36,11 +39,11 @@ class PodcastSettingsScreen extends StatelessWidget {
                     bottom: RiffSpacing.listEnd),
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(top: 12),
+                    padding: const EdgeInsets.only(top: RiffSpacing.md),
                     child: Text('podcastPlaybackDefaults'.tr,
                         style: homeSectionTitleStyle(context)),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: RiffSpacing.xs),
                   Text('podcastPlaybackDefaultsDes'.tr,
                       style: Theme.of(context)
                           .textTheme
@@ -50,14 +53,14 @@ class PodcastSettingsScreen extends StatelessWidget {
                     profile: defaults,
                     onChanged: savePodcastDefaults,
                   ),
-                  const SizedBox(height: 28),
+                  const Divider(height: _groupGap),
                   const PodcastSegmentSettings(),
-                  const SizedBox(height: 28),
+                  const Divider(height: _groupGap),
                   const PodcastLibrarySettings(),
-                  const SizedBox(height: 28),
+                  const Divider(height: _groupGap),
                   Text('podcastPlayerLook'.tr,
                       style: homeSectionTitleStyle(context)),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: RiffSpacing.sm),
                   Obx(() {
                     PodcastPlayerTint.enabledRx.value;
                     return Row(
@@ -67,15 +70,14 @@ class PodcastSettingsScreen extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('podcastTintPlayer'.tr,
-                                  style:
-                                      Theme.of(context).textTheme.titleMedium),
-                              const SizedBox(height: 2),
+                                  style: Theme.of(context).textTheme.bodyLarge),
+                              const SizedBox(height: RiffSpacing.xxs),
                               Text('podcastTintPlayerDes'.tr,
                                   style: homeCardSubtitleStyle(context)),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: RiffSpacing.md),
                         CustSwitch(
                           value: PodcastPlayerTint.enabled,
                           onChanged: PodcastPlayerTint.setEnabled,
@@ -83,10 +85,10 @@ class PodcastSettingsScreen extends StatelessWidget {
                       ],
                     );
                   }),
-                  const SizedBox(height: 28),
+                  const Divider(height: _groupGap),
                   Text('podcastResume'.tr,
                       style: homeSectionTitleStyle(context)),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: RiffSpacing.sm),
                   Row(
                     children: [
                       Expanded(
@@ -94,14 +96,14 @@ class PodcastSettingsScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('smartResume'.tr,
-                                style: Theme.of(context).textTheme.titleMedium),
-                            const SizedBox(height: 2),
+                                style: Theme.of(context).textTheme.bodyLarge),
+                            const SizedBox(height: RiffSpacing.xxs),
                             Text('smartResumeDes'.tr,
                                 style: homeCardSubtitleStyle(context)),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: RiffSpacing.md),
                       CustSwitch(
                         value: smartResume,
                         onChanged: PodcastPlaybackPrefs.setSmartResume,

@@ -5,7 +5,7 @@ import '/services/discovery/discovery_service.dart';
 import '/services/discovery/discovery_types.dart';
 import '/services/stats_service.dart';
 import '/ui/theme/riff_spacing.dart';
-import '../../utils/riff_tokens.dart';
+import '/ui/theme/riff_tokens.dart';
 import '../Home/home_layout.dart';
 
 /// Riff Stats page: plays, hours, top songs/artists and daily activity,
@@ -60,12 +60,13 @@ class StatsScreen extends StatelessWidget {
           .length;
     }
 
-    final accent = Theme.of(context).colorScheme.secondary;
+    // Chart: the accent for the series (§ Phase 8).
+    final accent = Theme.of(context).colorScheme.primary;
     final hasDiscovery = Get.isRegistered<DiscoveryService>();
     return Scaffold(
       backgroundColor: Theme.of(context).canvasColor,
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 160),
+        padding: const EdgeInsets.only(bottom: RiffSpacing.listEnd),
         children: [
           RiffPageHeader("stats".tr),
           Padding(
@@ -77,8 +78,8 @@ class StatsScreen extends StatelessWidget {
               crossAxisCount: 2,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
+              mainAxisSpacing: RiffSpacing.gridGap,
+              crossAxisSpacing: RiffSpacing.gridGap,
               childAspectRatio: 1.9,
               children: [
                 _StatTile(Icons.play_arrow_rounded,
@@ -104,7 +105,7 @@ class StatsScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
             child: SizedBox(
-              height: 150,
+              height: RiffComponentSizes.statsChart,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -125,7 +126,7 @@ class StatsScreen extends StatelessWidget {
           if (topSongs.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(
-                  horizontal: HomeLayout.gutter, vertical: 6),
+                  horizontal: HomeLayout.gutter, vertical: RiffSpacing.xs),
               child:
                   Text("statsEmpty".tr, style: homeCardSubtitleStyle(context)),
             ),
@@ -166,7 +167,10 @@ class _StatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = Theme.of(context).textTheme.titleMedium?.color;
+    final theme = Theme.of(context);
+    final fg = theme.colorScheme.onSurface;
+    // On the page background, outlined by a hairline (secondary text stays
+    // on black for contrast).
     return Container(
       padding: const EdgeInsets.only(
           left: RiffSpacing.lg,
@@ -174,14 +178,17 @@ class _StatTile extends StatelessWidget {
           right: RiffSpacing.md,
           bottom: RiffSpacing.md),
       decoration: BoxDecoration(
-        color: homeTileColor(context),
-        borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
+        border: Border.fromBorderSide(
+            BorderSide(color: theme.dividerColor, width: 0)),
+        borderRadius: BorderRadius.circular(RiffRadii.sm),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Icon(icon, size: 20, color: Theme.of(context).colorScheme.secondary),
+          Icon(icon,
+              size: RiffComponentSizes.statIcon,
+              color: theme.colorScheme.onSurfaceVariant),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -221,26 +228,27 @@ class _DayBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.xs),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           Text('$plays',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant)),
-          const SizedBox(height: 4),
+          const SizedBox(height: RiffSpacing.xs),
           Flexible(
             child: FractionallySizedBox(
               heightFactor: fraction.clamp(0.04, 1.0),
               child: Container(
+                // Empty days: a stub in the divider (gridline) colour.
                 decoration: BoxDecoration(
-                  color: plays == 0 ? homeTileColor(context) : color,
-                  borderRadius: BorderRadius.circular(6),
+                  color: plays == 0 ? Theme.of(context).dividerColor : color,
+                  borderRadius: BorderRadius.circular(RiffRadii.xs),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: RiffSpacing.xs),
           Text(label,
               maxLines: 1,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -265,19 +273,20 @@ class _RankRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = Theme.of(context).textTheme.titleMedium?.color;
+    final theme = Theme.of(context);
+    final fg = theme.colorScheme.onSurface;
     return Padding(
       padding: const EdgeInsets.symmetric(
-          horizontal: HomeLayout.gutter, vertical: 7),
+          horizontal: HomeLayout.gutter, vertical: RiffSpacing.sm),
       child: Row(
         children: [
           SizedBox(
-            width: 30,
+            width: RiffComponentSizes.statsRank,
             child: Text('$rank',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                style: theme.textTheme.titleMedium?.copyWith(
                     color: rank <= 3
-                        ? Theme.of(context).colorScheme.secondary
-                        : homeMutedColor(context))),
+                        ? theme.colorScheme.onSurface
+                        : theme.colorScheme.onSurfaceVariant)),
           ),
           Expanded(
             child: Column(
@@ -298,11 +307,15 @@ class _RankRow extends StatelessWidget {
               ],
             ),
           ),
+          // Count pill: transparent with a hairline, like an unselected
+          // chip (§5.6).
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(
+                horizontal: RiffSpacing.sm, vertical: RiffSpacing.xs),
             decoration: BoxDecoration(
-              color: homeTileColor(context),
-              borderRadius: BorderRadius.circular(20),
+              border: Border.fromBorderSide(
+                  BorderSide(color: theme.dividerColor, width: 0)),
+              borderRadius: BorderRadius.circular(RiffRadii.pill),
             ),
             child: Text(count,
                 style: Theme.of(context)

@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '/models/thumbnail.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/services/podcast_segments.dart';
 import '/services/podcast_stats.dart';
 import '../../widgets/snackbar.dart';
@@ -122,15 +123,21 @@ class _StatsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final accent = theme.colorScheme.secondary;
+    final scheme = theme.colorScheme;
+    // The headline figure is the card's one data series: accent.
+    final accent = scheme.primary;
+    final muted = scheme.onSurfaceVariant;
     final top = PodcastStatsService.top();
     final streak = PodcastStatsService.streak();
+    // Opaque page background (the card is also shared as an image) with a
+    // hairline outline.
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(RiffSpacing.lg),
       decoration: BoxDecoration(
-        color: theme.scaffoldBackgroundColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.fromBorderSide(homeTileBorder(context)),
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(RiffRadii.lg),
+        border: Border.fromBorderSide(
+            BorderSide(color: theme.dividerColor, width: 0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -138,10 +145,10 @@ class _StatsCard extends StatelessWidget {
           Text('statsListened'.tr.toUpperCase(),
               style: theme.textTheme.labelSmall
                   ?.copyWith(color: homeMutedColor(context))),
-          const SizedBox(height: 4),
+          const SizedBox(height: RiffSpacing.xs),
           Text(podcastStatsDuration(listened),
               style: theme.textTheme.displayMedium?.copyWith(color: accent)),
-          const SizedBox(height: 16),
+          const SizedBox(height: RiffSpacing.lg),
           Row(
             children: [
               Expanded(
@@ -151,14 +158,14 @@ class _StatsCard extends StatelessWidget {
                     value:
                         podcastStatsDuration(PodcastStatsService.savedBySpeed)),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: RiffSpacing.sm),
               Expanded(
                 child: _Tile(
                     icon: Icons.fast_forward_rounded,
                     label: 'statsSavedSkipping'.tr,
                     value: podcastStatsDuration(PodcastSegmentStore.timeSaved)),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: RiffSpacing.sm),
               Expanded(
                 child: _Tile(
                     icon: Icons.local_fire_department_rounded,
@@ -168,23 +175,24 @@ class _StatsCard extends StatelessWidget {
             ],
           ),
           if (top.isNotEmpty) ...[
-            const SizedBox(height: 22),
+            const SizedBox(height: RiffSpacing.xl),
             Text('statsTopShows'.tr, style: homeSectionTitleStyle(context)),
-            const SizedBox(height: 8),
+            const SizedBox(height: RiffSpacing.sm),
             for (var i = 0; i < top.length; i++)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
+                padding: const EdgeInsets.symmetric(vertical: RiffSpacing.xs),
                 child: Row(
                   children: [
                     SizedBox(
-                      width: 22,
+                      width: RiffComponentSizes.statsRankCompact,
                       child: Text('${i + 1}',
                           style: theme.textTheme.labelMedium
-                              ?.copyWith(color: homeMutedColor(context))),
+                              ?.copyWith(color: muted)),
                     ),
                     PodcastArt(
-                        url: Thumbnail(top[i].artUri ?? '').medium, size: 44),
-                    const SizedBox(width: 12),
+                        url: Thumbnail(top[i].artUri ?? '').medium,
+                        size: RiffComponentSizes.statsShowArt),
+                    const SizedBox(width: RiffSpacing.md),
                     Expanded(
                       child: Text(top[i].title,
                           maxLines: 1,
@@ -198,14 +206,15 @@ class _StatsCard extends StatelessWidget {
                 ),
               ),
           ],
-          const SizedBox(height: 10),
+          const SizedBox(height: RiffSpacing.sm),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Icon(Icons.podcasts_rounded, size: 14, color: accent),
-              const SizedBox(width: 4),
+              Icon(Icons.podcasts_rounded,
+                  size: RiffComponentSizes.brandGlyph, color: muted),
+              const SizedBox(width: RiffSpacing.xs),
               Text('Riff',
-                  style: theme.textTheme.labelSmall?.copyWith(color: accent)),
+                  style: theme.textTheme.labelSmall?.copyWith(color: muted)),
             ],
           ),
         ],
@@ -222,22 +231,27 @@ class _Tile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // Hairline outline, no fill: the label's secondary grey stays on black.
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(RiffSpacing.md),
       decoration: BoxDecoration(
-        color: homeTileColor(context),
-        borderRadius: BorderRadius.circular(14),
+        border: Border.fromBorderSide(
+            BorderSide(color: theme.dividerColor, width: 0)),
+        borderRadius: BorderRadius.circular(RiffRadii.sm),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: Theme.of(context).colorScheme.secondary),
-          const SizedBox(height: 8),
+          Icon(icon,
+              size: RiffComponentSizes.statIcon,
+              color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(height: RiffSpacing.sm),
           Text(value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 2),
+          const SizedBox(height: RiffSpacing.xxs),
           Text(label,
               maxLines: 2,
               style: Theme.of(context)

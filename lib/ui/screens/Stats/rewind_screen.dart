@@ -3,8 +3,7 @@ import 'package:get/get.dart';
 
 import '/services/stats_service.dart';
 import '/ui/theme/riff_spacing.dart';
-import '/ui/utils/theme_controller.dart';
-import '../../utils/riff_tokens.dart';
+import '/ui/theme/riff_tokens.dart';
 import '../Home/home_layout.dart';
 
 /// "Riff Rewind" — a your-year-in-music style summary (ported in spirit
@@ -15,7 +14,7 @@ class RewindScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = Get.find<ThemeController>().accentColor.value;
+    final accent = Theme.of(context).colorScheme.primary;
     final plays = StatsService.totalPlays;
     final hours = (StatsService.totalSeconds / 3600.0);
     final topArtists = StatsService.topArtists(1);
@@ -32,7 +31,7 @@ class RewindScreen extends StatelessWidget {
             Expanded(
               child: Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(30),
+                  padding: const EdgeInsets.all(RiffSpacing.x3l),
                   child: Text("rewindNotEnough".tr,
                       textAlign: TextAlign.center,
                       style: Theme.of(context)
@@ -52,7 +51,7 @@ class RewindScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).canvasColor,
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 160),
+        padding: const EdgeInsets.only(bottom: RiffSpacing.listEnd),
         children: [
           RiffPageHeader("riffRewind".tr, subtitle: "riffRewindDes".tr),
           Padding(
@@ -70,9 +69,9 @@ class RewindScreen extends StatelessWidget {
             child: Row(
               children: [
                 _stat(context, accent, "$plays", "rewindTotalPlays".tr),
-                const SizedBox(width: 10),
+                const SizedBox(width: RiffSpacing.sm),
                 _stat(context, accent, hoursLabel, "rewindTotalHours".tr),
-                const SizedBox(width: 10),
+                const SizedBox(width: RiffSpacing.sm),
                 _stat(context, accent, "$explored", "rewindArtistsExplored".tr),
               ],
             ),
@@ -98,14 +97,15 @@ class RewindScreen extends StatelessWidget {
     );
   }
 
-  /// Accent card with the listener level.
+  /// Accent card with the listener level (Rewind's one decorative
+  /// gradient).
   Widget _hero(BuildContext context, Color accent, int level) {
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(
           horizontal: RiffSpacing.xl, vertical: RiffSpacing.xxl),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(RiffTokens.radiusLg),
+        borderRadius: BorderRadius.circular(RiffRadii.lg),
         gradient: LinearGradient(
           colors: [accent.withOpacity(0.9), accent.withOpacity(0.25)],
           begin: Alignment.topLeft,
@@ -115,8 +115,8 @@ class RewindScreen extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 84,
-            height: 84,
+            width: RiffComponentSizes.rewindLevel,
+            height: RiffComponentSizes.rewindLevel,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: theme.colorScheme.onPrimary,
@@ -127,7 +127,7 @@ class RewindScreen extends StatelessWidget {
                       theme.textTheme.displayMedium?.copyWith(color: accent)),
             ),
           ),
-          const SizedBox(width: 18),
+          const SizedBox(width: RiffSpacing.lg),
           Expanded(
             child: Text("rewindListenerLevel".tr,
                 style: theme.textTheme.titleLarge
@@ -138,15 +138,20 @@ class RewindScreen extends StatelessWidget {
     );
   }
 
+  /// Hairline outline on the page background (Phase 8: structure from
+  /// hairlines; secondary text stays on black).
+  BoxDecoration _outlined(BuildContext context) => BoxDecoration(
+        border: Border.fromBorderSide(
+            BorderSide(color: Theme.of(context).dividerColor, width: 0)),
+        borderRadius: BorderRadius.circular(RiffRadii.sm),
+      );
+
   Widget _stat(BuildContext context, Color accent, String value, String label) {
     return Expanded(
       child: Container(
-        height: 104,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: homeTileColor(context),
-          borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
-        ),
+        height: RiffComponentSizes.rewindStat,
+        padding: const EdgeInsets.all(RiffSpacing.md),
+        decoration: _outlined(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -155,10 +160,8 @@ class RewindScreen extends StatelessWidget {
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Text(value,
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineLarge
-                      ?.copyWith(color: accent)),
+                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface)),
             ),
             Text(label,
                 maxLines: 2,
@@ -172,30 +175,28 @@ class RewindScreen extends StatelessWidget {
 
   Widget _highlight(BuildContext context, Color accent, IconData icon,
       String heading, String value, String plays) {
-    final fg = Theme.of(context).textTheme.titleMedium?.color;
+    final scheme = Theme.of(context).colorScheme;
+    final fg = scheme.onSurface;
     return Padding(
       padding: const EdgeInsets.only(
           left: HomeLayout.gutter,
           top: RiffSpacing.md,
           right: HomeLayout.gutter),
       child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: homeTileColor(context),
-          borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
-        ),
+        padding: const EdgeInsets.all(RiffSpacing.lg),
+        decoration: _outlined(context),
         child: Row(
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: RiffComponentSizes.rowArt,
+              height: RiffComponentSizes.rowArt,
               decoration: BoxDecoration(
-                color: accent.withOpacity(0.16),
-                borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+                color: scheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(RiffRadii.sm),
               ),
-              child: Icon(icon, color: accent),
+              child: Icon(icon, color: scheme.onSurface),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: RiffSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,8 +205,8 @@ class RewindScreen extends StatelessWidget {
                       style: Theme.of(context)
                           .textTheme
                           .labelSmall
-                          ?.copyWith(color: accent)),
-                  const SizedBox(height: 2),
+                          ?.copyWith(color: scheme.onSurfaceVariant)),
+                  const SizedBox(height: RiffSpacing.xxs),
                   Text(value,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
