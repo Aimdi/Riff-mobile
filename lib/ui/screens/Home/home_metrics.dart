@@ -83,6 +83,8 @@ class RiffSectionHeader extends StatelessWidget {
             : IconButton(
                 tooltip: '${'viewAll'.tr}: $title',
                 iconSize: 24,
+                // "See all" is a link: accent (§2.5).
+                color: theme.colorScheme.primary,
                 constraints: const BoxConstraints.tightFor(
                     width: RiffSizes.touch, height: RiffSizes.touch),
                 icon: const Icon(Icons.chevron_right_rounded),
