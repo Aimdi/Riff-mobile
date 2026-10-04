@@ -11,6 +11,7 @@ import '/services/spotify_match.dart';
 import '/services/spotify_match_store.dart';
 import '/services/spotify_playback.dart';
 import '/services/spotify_radio.dart';
+import '/ui/theme/riff_spacing.dart';
 import '../Home/home_layout.dart';
 import 'spotify_connect_ui.dart';
 
@@ -159,7 +160,10 @@ class _Message extends StatelessWidget {
             const SizedBox(height: 10),
             Text(text,
                 textAlign: TextAlign.center,
-                style: homeCardSubtitleStyle(context).copyWith(fontSize: 14)),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyLarge
+                    ?.copyWith(color: homeMutedColor(context))),
             if (action != null) ...[const SizedBox(height: 6), action!],
           ],
         ),
@@ -197,8 +201,8 @@ class SpotifyPlayBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding:
-          const EdgeInsets.fromLTRB(HomeLayout.gutter, 4, HomeLayout.gutter, 4),
+      padding: const EdgeInsets.symmetric(
+          horizontal: HomeLayout.gutter, vertical: RiffSpacing.xs),
       child: Row(
         children: [
           FilledButton.icon(
@@ -434,7 +438,10 @@ class _ChangeMatchSheetState extends State<_ChangeMatchSheet> {
                   overflow: TextOverflow.ellipsis),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              padding: const EdgeInsets.only(
+                  left: RiffSpacing.lg,
+                  right: RiffSpacing.lg,
+                  bottom: RiffSpacing.sm),
               child: TextField(
                 controller: _query,
                 textInputAction: TextInputAction.search,

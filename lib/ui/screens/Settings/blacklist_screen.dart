@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/services/ban_service.dart';
+import '/ui/theme/riff_spacing.dart';
 import '../Home/home_layout.dart';
 
 /// Settings › Never play: everything kept out of mixes, Riff Wave, radio,
@@ -35,15 +36,18 @@ class _BlacklistScreenState extends State<BlacklistScreen> {
   @override
   Widget build(BuildContext context) {
     final artists = BanService.allArtists
-      ..sort((a, b) => '${a['name']}'
-          .toLowerCase()
-          .compareTo('${b['name']}'.toLowerCase()));
+      ..sort((a, b) =>
+          '${a['name']}'.toLowerCase().compareTo('${b['name']}'.toLowerCase()));
     final collections = BanService.allCollections;
     final songs = BanService.all;
     final empty = artists.isEmpty && collections.isEmpty && songs.isEmpty;
 
     Widget header(String title, int count) => Padding(
-          padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 18, 16, 4),
+          padding: const EdgeInsets.only(
+              left: HomeLayout.gutter,
+              top: RiffSpacing.xl,
+              right: RiffSpacing.lg,
+              bottom: RiffSpacing.xs),
           child: Text('$title · $count', style: homeSectionTitleStyle(context)),
         );
 
@@ -83,8 +87,10 @@ class _BlacklistScreenState extends State<BlacklistScreen> {
                       padding: const EdgeInsets.all(32),
                       child: Text('blacklistEmpty'.tr,
                           textAlign: TextAlign.center,
-                          style: homeCardSubtitleStyle(context)
-                              .copyWith(fontSize: 14)),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyLarge
+                              ?.copyWith(color: homeMutedColor(context))),
                     ),
                   )
                 : ListView(
@@ -99,8 +105,10 @@ class _BlacklistScreenState extends State<BlacklistScreen> {
                             onRemove: () async {
                               final name = '${a['name']}';
                               await BanService.unbanArtist('${a['key']}');
-                              _removed(name,
-                                  () => BanService.banArtist(name).then((_) {}));
+                              _removed(
+                                  name,
+                                  () =>
+                                      BanService.banArtist(name).then((_) {}));
                             },
                           ),
                       ],

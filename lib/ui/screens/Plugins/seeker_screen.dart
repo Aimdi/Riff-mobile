@@ -778,7 +778,6 @@ class _SongResultTile extends StatelessWidget {
                     ext,
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: accent,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),

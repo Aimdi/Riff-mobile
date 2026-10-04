@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '/services/spotify_connect.dart';
 import '/services/spotify_connect_models.dart';
 import '/services/spotify_import_service.dart';
+import '/ui/theme/riff_spacing.dart';
 import '../Home/home_layout.dart';
 import 'spotify_widgets.dart';
 
@@ -159,8 +160,11 @@ class _SpotifyConnectPanelState extends State<SpotifyConnectPanel> {
               return RefreshIndicator(
                 onRefresh: SpotifyConnect.refresh,
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                      HomeLayout.gutter, 8, HomeLayout.gutter, 200),
+                  padding: const EdgeInsets.only(
+                      left: HomeLayout.gutter,
+                      top: RiffSpacing.sm,
+                      right: HomeLayout.gutter,
+                      bottom: RiffSpacing.listEnd),
                   children: [
                     if (err != null)
                       Padding(
@@ -173,8 +177,8 @@ class _SpotifyConnectPanelState extends State<SpotifyConnectPanel> {
                         padding: const EdgeInsets.symmetric(vertical: 24),
                         child: Text('spotifyNothingPlaying'.tr,
                             textAlign: TextAlign.center,
-                            style: homeCardSubtitleStyle(context)
-                                .copyWith(fontSize: 14)),
+                            style: theme.textTheme.bodyLarge
+                                ?.copyWith(color: homeMutedColor(context))),
                       )
                     else ...[
                       Center(child: SpotifyArt(url: t.artUrl, size: 220)),
@@ -183,13 +187,12 @@ class _SpotifyConnectPanelState extends State<SpotifyConnectPanel> {
                           textAlign: TextAlign.center,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.w700)),
+                          style: theme.textTheme.titleLarge),
                       const SizedBox(height: 4),
                       Text(t.artists,
                           textAlign: TextAlign.center,
-                          style: homeCardSubtitleStyle(context)
-                              .copyWith(fontSize: 14)),
+                          style: theme.textTheme.bodyLarge
+                              ?.copyWith(color: homeMutedColor(context))),
                       if (dur > 0)
                         Slider(
                           value: (s!.progressMs / dur).clamp(0.0, 1.0),
