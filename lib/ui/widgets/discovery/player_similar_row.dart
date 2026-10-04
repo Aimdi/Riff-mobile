@@ -42,7 +42,8 @@ class _PlayerSimilarRowState extends State<PlayerSimilarRow> {
         });
       }
       if (_songs.isEmpty && !_loading) return const SizedBox.shrink();
-      final fg = Theme.of(context).textTheme.titleMedium?.color ?? Colors.white;
+      final text = Theme.of(context).textTheme;
+      final fg = Theme.of(context).colorScheme.onSurface;
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -51,9 +52,7 @@ class _PlayerSimilarRowState extends State<PlayerSimilarRow> {
             padding: const EdgeInsets.only(top: 4, bottom: 8),
             child: Text(
               "similarSongs".tr,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+              style: text.labelMedium?.copyWith(
                 color: fg.withOpacity(0.66),
               ),
             ),
@@ -111,19 +110,13 @@ class _PlayerSimilarRowState extends State<PlayerSimilarRow> {
                                         Text(s.title,
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              fontSize: 13.5,
-                                              height: 1.25,
-                                              fontWeight: FontWeight.w600,
-                                              color: fg,
-                                            )),
+                                            style: text.labelMedium
+                                                ?.copyWith(color: fg)),
                                         const SizedBox(height: 2),
                                         Text(s.artist ?? '',
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              fontSize: 12.5,
-                                              height: 1.25,
+                                            style: text.bodyMedium?.copyWith(
                                               color: fg.withOpacity(0.62),
                                             )),
                                       ],

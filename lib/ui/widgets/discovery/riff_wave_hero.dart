@@ -8,6 +8,7 @@ import '/services/stats_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/screens/Home/home_screen_controller.dart';
 import '/ui/screens/Home/home_metrics.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/riff_equalizer.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/snackbar.dart';
@@ -98,13 +99,16 @@ class _RiffWaveHeroState extends State<RiffWaveHero>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.secondary;
+    final riff = RiffColors.of(context);
     final disc = _disc;
     final surface = theme.colorScheme.surfaceContainerHigh;
     final player = Get.find<PlayerController>();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          RiffSpacing.gutter, RiffSpacing.section, RiffSpacing.gutter, 0),
+      padding: const EdgeInsets.only(
+          left: RiffSpacing.gutter,
+          top: RiffSpacing.section,
+          right: RiffSpacing.gutter),
       child: Semantics(
         button: true,
         label: '${'riffWave'.tr}. ${'riffWaveDes'.tr}',
@@ -156,11 +160,11 @@ class _RiffWaveHeroState extends State<RiffWaveHero>
                                     borderRadius: 0)
                               else
                                 ColoredBox(color: accent.withOpacity(0.22)),
-                              const ColoredBox(color: Color(0x66000000)),
+                              ColoredBox(color: riff.scrim.withOpacity(0.4)),
                               Center(
                                 child: RiffEqualizer(
                                   animate: playing,
-                                  color: art != null ? Colors.white : accent,
+                                  color: art != null ? riff.onImage : accent,
                                   size: 26,
                                 ),
                               ),
@@ -180,7 +184,6 @@ class _RiffWaveHeroState extends State<RiffWaveHero>
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
                               color: theme.colorScheme.onSurface,
                             ),
                           ),
@@ -229,6 +232,7 @@ class _PlayButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onAccent = Theme.of(context).colorScheme.onPrimary;
     return Material(
       color: accent,
       shape: const CircleBorder(),
@@ -244,18 +248,18 @@ class _PlayButton extends StatelessWidget {
                     scale: Tween<double>(begin: 0.88, end: 1.08).animate(
                         CurvedAnimation(
                             parent: pulse, curve: Curves.easeInOut)),
-                    child: const SizedBox(
+                    child: SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2.2,
-                        color: Colors.black,
+                        color: onAccent,
                       ),
                     ),
                   )
-                : const Icon(
+                : Icon(
                     Icons.play_arrow_rounded,
-                    color: Colors.black,
+                    color: onAccent,
                     size: 30,
                   ),
           ),

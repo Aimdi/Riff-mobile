@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '/ui/screens/Search/search_play_top.dart';
 import '/ui/screens/Search/search_screen_controller.dart';
 
+import '/ui/theme/riff_spacing.dart';
 import '../../../navigator.dart';
 import '../../Home/home_layout.dart';
 
@@ -93,7 +94,9 @@ class SearchRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = homeCardTitleStyle(context).copyWith(fontSize: 15, height: 1.3);
+    final base = homeCardTitleStyle(context);
+    final plain = (Theme.of(context).textTheme.bodyLarge ?? const TextStyle())
+        .copyWith(color: Theme.of(context).colorScheme.onSurface);
     // A suggestion that extends what was typed: typed part muted, the
     // completion bold — the eye goes straight to what is new.
     final prefix = typed.trim();
@@ -105,9 +108,7 @@ class SearchRow extends StatelessWidget {
             TextSpan(children: [
               TextSpan(
                   text: label.substring(0, prefix.length),
-                  style: base.copyWith(
-                      fontWeight: FontWeight.w400,
-                      color: homeMutedColor(context))),
+                  style: plain.copyWith(color: homeMutedColor(context))),
               TextSpan(text: label.substring(prefix.length)),
             ]),
             style: base,
@@ -115,15 +116,16 @@ class SearchRow extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           )
         : Text(label,
-            style: base.copyWith(fontWeight: FontWeight.w500),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis);
+            style: plain, maxLines: 1, overflow: TextOverflow.ellipsis);
     return InkWell(
       onTap: onTap,
       onLongPress: onLongPress,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-            HomeLayout.gutter, 6, HomeLayout.gutter - 8, 6),
+        padding: const EdgeInsets.only(
+            left: HomeLayout.gutter,
+            top: RiffSpacing.sm,
+            right: HomeLayout.gutter - RiffSpacing.sm,
+            bottom: RiffSpacing.sm),
         child: Row(
           children: [
             Container(

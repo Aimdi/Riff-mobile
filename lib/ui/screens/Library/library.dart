@@ -30,6 +30,7 @@ import '../../widgets/sort_widget.dart';
 import '../Cloud/cloud_play.dart';
 import '../Cloud/cloud_screen.dart';
 import '../Settings/settings_screen_controller.dart';
+import '../../theme/riff_spacing.dart';
 import '../Home/home_layout.dart';
 import 'library_controller.dart';
 
@@ -183,7 +184,8 @@ Future<void> _playLibrarySongs({required bool shuffle}) async {
 
 /// Library tab title row: title on the left, tab actions on the right.
 class LibraryHeader extends StatelessWidget {
-  const LibraryHeader({super.key, required this.title, this.actions = const []});
+  const LibraryHeader(
+      {super.key, required this.title, this.actions = const []});
 
   final String title;
   final List<Widget> actions;
@@ -191,7 +193,10 @@ class LibraryHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(HomeLayout.gutter, 0, 8, 2),
+      padding: const EdgeInsets.only(
+          left: HomeLayout.gutter,
+          right: RiffSpacing.sm,
+          bottom: RiffSpacing.xxs),
       child: SizedBox(
         height: 44,
         child: Row(
@@ -253,10 +258,9 @@ class LibraryPlayButton extends StatelessWidget {
           : width >= 380
               ? 3
               : 2;
-  final cover = (width -
-          HomeLayout.gutter * 2 -
-          HomeLayout.cardGap * (columns - 1)) /
-      columns;
+  final cover =
+      (width - HomeLayout.gutter * 2 - HomeLayout.cardGap * (columns - 1)) /
+          columns;
   return (columns: columns, cover: cover);
 }
 
@@ -278,7 +282,8 @@ class _LibrarySongsPlayBar extends StatelessWidget {
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 12, 4),
+      padding: const EdgeInsets.only(
+          left: RiffSpacing.sm, right: RiffSpacing.md, bottom: RiffSpacing.xs),
       child: Row(
         children: [
           TextButton.icon(
@@ -471,8 +476,11 @@ class _PlaylistNAlbumLibraryWidgetState
                       final grid = libraryGridMetrics(constraints.maxWidth);
                       return GridView.builder(
                           physics: const BouncingScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(HomeLayout.gutter,
-                              6, HomeLayout.gutter, 200),
+                          padding: const EdgeInsets.only(
+                              left: HomeLayout.gutter,
+                              top: RiffSpacing.sm,
+                              right: HomeLayout.gutter,
+                              bottom: RiffSpacing.listEnd),
                           gridDelegate:
                               SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: grid.columns,
@@ -545,8 +553,11 @@ class LibraryArtistWidget extends StatelessWidget {
                     final scaler = MediaQuery.textScalerOf(context);
                     return GridView.builder(
                       physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(
-                          HomeLayout.gutter, 6, HomeLayout.gutter, 200),
+                      padding: const EdgeInsets.only(
+                          left: HomeLayout.gutter,
+                          top: RiffSpacing.sm,
+                          right: HomeLayout.gutter,
+                          bottom: RiffSpacing.listEnd),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: grid.columns,
                         crossAxisSpacing: HomeLayout.cardGap,
@@ -761,8 +772,10 @@ class _LibraryPinnedRow extends StatelessWidget {
     final liked = _count('LIBFAV');
     final recent = _count('LIBRP');
     final row = Padding(
-      padding: const EdgeInsets.fromLTRB(
-          HomeLayout.gutter, 6, HomeLayout.gutter, 0),
+      padding: const EdgeInsets.only(
+          left: HomeLayout.gutter,
+          top: RiffSpacing.sm,
+          right: HomeLayout.gutter),
       child: Row(
         children: [
           Expanded(
@@ -773,8 +786,7 @@ class _LibraryPinnedRow extends StatelessWidget {
               accent: theme.colorScheme.secondary,
               muted: muted,
               onTap: () => _open('LIBFAV', 'favorites'.tr),
-              onLongPress: () =>
-                  _play('LIBFAV', 'favorites'.tr, shuffle: true),
+              onLongPress: () => _play('LIBFAV', 'favorites'.tr, shuffle: true),
             ),
           ),
           const SizedBox(width: 8),
@@ -797,8 +809,10 @@ class _LibraryPinnedRow extends StatelessWidget {
     return Column(children: [
       row,
       Padding(
-        padding: const EdgeInsets.fromLTRB(
-            HomeLayout.gutter, 8, HomeLayout.gutter, 0),
+        padding: const EdgeInsets.only(
+            left: HomeLayout.gutter,
+            top: RiffSpacing.sm,
+            right: HomeLayout.gutter),
         child: _PinnedTile(
           icon: Icons.library_music_outlined,
           title: 'Spotify',
@@ -867,7 +881,7 @@ class _PinnedTile extends StatelessWidget {
                         style: Theme.of(context)
                             .textTheme
                             .labelSmall
-                            ?.copyWith(color: muted, fontSize: 11),
+                            ?.copyWith(color: muted),
                       ),
                   ],
                 ),
