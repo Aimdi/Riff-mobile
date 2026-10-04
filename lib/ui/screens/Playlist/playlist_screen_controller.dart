@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:audio_service/audio_service.dart' show MediaItem;
 import 'package:flutter/material.dart';
+import '/ui/theme/riff_spacing.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/models/thumbnail.dart';
 import 'package:harmonymusic/services/permission_service.dart';
@@ -864,34 +865,18 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
   void _showProgressDialog(BuildContext context, String title) {
     Get.dialog(
       AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        title: Text(
-          title,
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
+        title: Text(title),
         content: Obx(() => Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                LinearProgressIndicator(
-                  value: exportProgress.value,
-                  backgroundColor:
-                      Theme.of(context).colorScheme.surfaceContainerHighest,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    Theme.of(context).colorScheme.secondary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  "${(exportProgress.value * 100).toInt()}%",
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
+                LinearProgressIndicator(value: exportProgress.value),
+                const SizedBox(height: RiffSpacing.lg),
+                Text("${(exportProgress.value * 100).toInt()}%"),
               ],
             )),
       ),
       barrierDismissible: false,
+      barrierColor: Theme.of(context).dialogTheme.barrierColor,
     );
   }
 }
