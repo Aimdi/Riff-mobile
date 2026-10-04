@@ -17,6 +17,7 @@ const switchableHomeSections = [
   HomeSection.speedDial,
   HomeSection.quickPicks,
   HomeSection.personalized,
+  HomeSection.spotify,
   HomeSection.yourWeek,
   HomeSection.editorial,
 ];
@@ -30,6 +31,7 @@ extension HomeSectionLabels on HomeSection {
         HomeSection.speedDial => 'speedDial',
         HomeSection.quickPicks => 'quickpicks',
         HomeSection.personalized => 'homeSectionPersonal',
+        HomeSection.spotify => 'homeSectionSpotify',
         HomeSection.yourWeek => 'yourWeek',
         HomeSection.editorial => 'homeSectionShelves',
         HomeSection.exploreMore => 'exploreMore',
@@ -42,6 +44,7 @@ extension HomeSectionLabels on HomeSection {
         HomeSection.speedDial => Icons.grid_view_rounded,
         HomeSection.quickPicks => Icons.view_carousel_outlined,
         HomeSection.personalized => Icons.blender_outlined,
+        HomeSection.spotify => Icons.library_music_outlined,
         HomeSection.yourWeek => Icons.bar_chart_rounded,
         HomeSection.editorial => Icons.view_agenda_outlined,
         HomeSection.exploreMore => Icons.explore_outlined,

@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '/models/media_Item_builder.dart';
 import '/models/playlist.dart';
 import '/services/spotify_api_service.dart';
+import '/services/spotify_home.dart';
 import '/services/spotify_auth_service.dart';
 import '/services/spotify_import_service.dart';
 import '/services/spotify_connect.dart';
@@ -102,6 +103,9 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
     final ok = await Get.to(() => const SpotifyLoginScreen());
     if (ok == true) {
       await SpotifyApiService.clearCache();
+      // A new (or the same) account: Home's Spotify shelves start over.
+      await SpotifyHome.clear();
+      SpotifyHome.refresh(force: true);
       setState(() {
         _connected = true;
         _status.value = '';
@@ -115,6 +119,7 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
     await SpotifyLikeSync.forgetAccount();
     await SpotifyConnect.forgetAccount();
     await SpotifyApiService.clearCache();
+    await SpotifyHome.clear();
     setState(() {
       _connected = false;
       _status.value = '';

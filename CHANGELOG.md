@@ -1,3 +1,25 @@
+# 1.7.134
+
+**Spotify on Home**
+* When you're signed in to Spotify, Home shows your Spotify shelves after
+  your own mixes: Jump back in (the albums, playlists and artists you just
+  played on Spotify), On repeat (your top songs of the last four weeks),
+  New from artists you follow (the last four weeks), Your top artists,
+  Your playlists and Recently liked
+* "Your Spotify mix" (first card in On repeat) plays a radio from your top
+  songs, recent plays and likes. Long-press a Spotify song for a radio from
+  it
+* Songs play through Riff: each one is found on YouTube Music when you play
+  it. Albums, playlists and artists open their Spotify page
+* A song that's already on Home from YouTube Music isn't shown again
+* Shelves show at once from the last visit and refresh in the background
+  (every 30 minutes, or pull down on Home). If your Spotify sign-in ends,
+  Home shows a Reconnect card
+* Spotify no longer lets apps use its recommendations, Daily Mixes,
+  Discover Weekly or Release Radar, so these shelves are built from your
+  own listening instead
+* Switch the Spotify shelves off in Settings → Home layout
+
 # 1.7.133
 
 **A new Home**

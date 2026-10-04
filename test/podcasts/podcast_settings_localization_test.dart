@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/services/podcast_library.dart';
 import 'package:harmonymusic/services/podcast_playback_profile.dart';
 import 'package:harmonymusic/services/podcast_segments.dart';
+import 'package:harmonymusic/services/spotify_home.dart';
 import 'package:harmonymusic/ui/screens/Home/home_sections.dart';
 import 'package:harmonymusic/ui/screens/Home/home_station_chips.dart';
 import 'package:harmonymusic/utils/get_localization.dart';
@@ -74,6 +75,7 @@ void main() {
     // Home: station chips and section names come from data.
     for (final s in homeStations) s.key,
     for (final s in HomeSection.values) s.labelKey,
+    for (final s in SpotifyShelfId.values) s.titleKey,
   };
 
   test('podcast playback strings exist in English', () {

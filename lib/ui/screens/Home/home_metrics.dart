@@ -172,8 +172,17 @@ class RiffSectionHeader extends StatelessWidget {
                         kicker!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelMedium
-                            ?.copyWith(color: riffMuted(context)),
+                        // labelMedium: 12/16, medium weight. Spelled out
+                        // because some Riff themes leave it unset.
+                        style:
+                            (theme.textTheme.labelMedium ?? const TextStyle())
+                                .copyWith(
+                          fontSize: 12,
+                          height: 16 / 12,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.5,
+                          color: riffMuted(context),
+                        ),
                       ),
                     Text(
                       homeSentenceCase(title),

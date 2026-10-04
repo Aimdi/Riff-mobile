@@ -13,6 +13,9 @@ import '/services/audiobook_progress_service.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/podcast_service.dart';
+import '/services/spotify_api_service.dart';
+import '/services/spotify_home.dart';
+import '/services/spotify_import_service.dart';
 import '/services/stats_service.dart';
 import '/ui/player/player_controller.dart';
 import 'home_feed_builder.dart';
@@ -170,8 +173,56 @@ String homeSongKey(String id) => 'song:$id';
 bool _hasArtUrl(String? url) =>
     url != null && url.isNotEmpty && url != Playlist.thumbPlaceholderUrl;
 
-HomeItem homeSongItem(MediaItem m) =>
-    HomeItem(homeSongKey(m.id), m, hasArt: _hasArtUrl(m.artUri?.toString()));
+HomeItem homeSongItem(MediaItem m) => HomeItem(homeSongKey(m.id), m,
+    hasArt: _hasArtUrl(m.artUri?.toString()),
+    altKey: titleArtistKey(m.title, m.artist ?? ''));
+
+/// Same song from any source: lower-case title without bracketed extras
+/// ("(Remastered 2011)", "[Official Video]") and the first artist.
+String titleArtistKey(String title, String artists) {
+  String norm(String s) => s
+      .toLowerCase()
+      .replaceAll(RegExp(r'[(\[].*?[)\]]'), ' ')
+      .replaceAll(RegExp(r'\s+-\s+.*$'), ' ')
+      .replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ')
+      .trim();
+  final first = artists.split(RegExp(r',|&| feat\.? | ft\.? | x ')).first;
+  return 'ta:${norm(title)}|${norm(first)}';
+}
+
+/// Spotify shelves as builder input, labelled "Spotify" above the title.
+List<HomeShelfData> spotifyHomeShelves() {
+  SpotifyHome.ensureLoaded();
+  return [
+    for (final s in SpotifyHome.shelves)
+      HomeShelfData(
+        id: 'spotify:${s.id.name}',
+        title: s.id.titleKey.tr,
+        kicker: 'Spotify',
+        kind: s.id == SpotifyShelfId.topArtists
+            ? HomeShelfKind.artists
+            : HomeShelfKind.mixed,
+        items: [
+          for (final i in s.items)
+            if (_spotifyItem(i) case final h?) h
+        ],
+      )
+  ];
+}
+
+HomeItem? _spotifyItem(Object i) => switch (i) {
+      SpotifyTrackRef t => HomeItem('sp:track:${t.id}', t,
+          hasArt: _hasArtUrl(t.artUrl),
+          altKey: titleArtistKey(t.title, t.artists)),
+      SpotifyAlbumSummary a =>
+        HomeItem('sp:album:${a.id}', a, hasArt: _hasArtUrl(a.coverUrl)),
+      SpotifyHomePlaylist p => HomeItem('sp:playlist:${p.playlist.id}', p,
+          hasArt: _hasArtUrl(p.playlist.coverUrl)),
+      SpotifyArtistSummary a =>
+        HomeItem('sp:artist:${a.id}', a, hasArt: _hasArtUrl(a.imageUrl)),
+      SpotifyTasteMix m => HomeItem('sp:mix', m, hasArt: m.covers.isNotEmpty),
+      _ => null,
+    };
 
 HomeItem homeAlbumItem(Album a) =>
     HomeItem('album:${a.browseId}', a, hasArt: _hasArtUrl(a.thumbnailUrl));
@@ -369,7 +420,8 @@ final homeFeedRev = 0.obs;
 
 /// Everything Home shows, read from the live controllers and stores.
 /// Call inside an Obx: it reads the observables the feed depends on.
-HomeFeedInput readHomeFeedInput({required List<MediaItem> recent}) {
+HomeFeedInput readHomeFeedInput(
+    {required List<MediaItem> recent, Set<HomeSection> hidden = const {}}) {
   final home = Get.find<HomeScreenController>();
   homeFeedRev.value;
   SpeedDialPins.ensureLoaded();
@@ -395,9 +447,11 @@ HomeFeedInput readHomeFeedInput({required List<MediaItem> recent}) {
       for (final m in home.quickPicks.value.songList) homeSongItem(m)
     ],
     personalized: riffPersonalShelves(),
+    spotify: spotifyHomeShelves(),
     editorial: yt,
     hasWeek: _hasWeek(),
     hasExplore: home.homeChips.isNotEmpty,
+    hidden: hidden,
     chartsTitle: 'chartsAndHits'.tr,
     moodTitle: 'forYourMood'.tr,
   );

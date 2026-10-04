@@ -296,6 +296,7 @@ class SpotifyApiService {
       coverUrl: _firstImage(a['images']),
       year: date.length >= 4 ? date.substring(0, 4) : null,
       trackCount: total is num ? total.toInt() : 0,
+      releaseDate: date.isEmpty ? null : date,
     );
   }
 
@@ -321,6 +322,28 @@ class SpotifyApiService {
           for (final i in items)
             if (parse(i) case final T v) v
       ];
+
+  /// Recently-played items with their `context` (album, playlist,
+  /// artist); plays without one keep a null context.
+  static List<SpotifyRecentPlay> parseRecentPlays(String body) {
+    final items = _tryDecode(body)?['items'];
+    if (items is! List) return const [];
+    final out = <SpotifyRecentPlay>[];
+    for (final i in items) {
+      final track = parseTrackItem(i);
+      if (track == null || i is! Map) continue;
+      final t = i['track'];
+      final ctx = i['context'];
+      final uri = ctx is Map ? ctx['uri']?.toString() : null;
+      out.add(SpotifyRecentPlay(
+        track: track,
+        contextUri: uri != null && uri.isNotEmpty ? uri : null,
+        album: parseAlbum(t is Map ? t['album'] : null),
+        playedAt: DateTime.tryParse('${i['played_at'] ?? ''}'),
+      ));
+    }
+    return out;
+  }
 
   static SpotifyUser? parseUser(String body) {
     final j = _tryDecode(body);
@@ -560,12 +583,15 @@ class SpotifyApiService {
           maxPages: 10,
           force: force);
 
-  /// Top tracks over roughly the last six months.
-  Future<List<SpotifyTrackRef>> fetchTopTracks({bool force = false}) => _paged(
-      '$base/me/top/tracks?limit=$pageSize&time_range=medium_term',
-      parseTrackPage,
-      maxPages: 1,
-      force: force);
+  /// Top tracks; [timeRange] `short_term` (about four weeks),
+  /// `medium_term` (six months, the default) or `long_term`.
+  Future<List<SpotifyTrackRef>> fetchTopTracks(
+          {bool force = false,
+          String timeRange = 'medium_term',
+          int limit = pageSize}) =>
+      _paged('$base/me/top/tracks?limit=$limit&time_range=$timeRange',
+          parseTrackPage,
+          maxPages: 1, force: force);
 
   /// Top artists over roughly the last six months.
   Future<List<SpotifyArtistSummary>> fetchTopArtists({bool force = false}) =>
@@ -577,6 +603,19 @@ class SpotifyApiService {
   Future<List<SpotifyTrackRef>> fetchRecentlyPlayed({bool force = false}) =>
       _paged('$base/me/player/recently-played?limit=$pageSize', parseTrackPage,
           maxPages: 1, ttl: const Duration(minutes: 5), force: force);
+
+  /// The last 50 plays with the album, playlist or artist each was played
+  /// from, newest first.
+  Future<List<SpotifyRecentPlay>> fetchRecentPlays({bool force = false}) =>
+      _paged('$base/me/player/recently-played?limit=$pageSize',
+          parseRecentPlays,
+          maxPages: 1, ttl: const Duration(minutes: 5), force: force);
+
+  /// The newest Liked Songs, one page.
+  Future<List<SpotifyTrackRef>> fetchRecentlyLiked(
+          {int limit = 20, bool force = false}) =>
+      _paged('$base/me/tracks?limit=$limit', parseTrackPage,
+          maxPages: 1, force: force);
 
   /// One page of search results (at most 10 of each kind).
   Future<SpotifySearchPage> search(String query, {int offset = 0}) async {
@@ -696,6 +735,20 @@ class SpotifyApiService {
   }
 }
 
+/// One play from `recently-played`.
+class SpotifyRecentPlay {
+  const SpotifyRecentPlay(
+      {required this.track, this.contextUri, this.album, this.playedAt});
+  final SpotifyTrackRef track;
+
+  /// `spotify:album:…`, `spotify:playlist:…`, `spotify:artist:…`.
+  final String? contextUri;
+
+  /// The track's album (for album contexts: the context itself).
+  final SpotifyAlbumSummary? album;
+  final DateTime? playedAt;
+}
+
 class SpotifyUser {
   const SpotifyUser({required this.id, required this.name});
   final String id;
@@ -736,6 +789,7 @@ class SpotifyAlbumSummary {
     this.coverUrl,
     this.year,
     this.trackCount = 0,
+    this.releaseDate,
   });
   final String id;
   final String name;
@@ -743,6 +797,10 @@ class SpotifyAlbumSummary {
   final String? coverUrl;
   final String? year;
   final int trackCount;
+
+  /// `release_date` as Spotify sends it: `2026`, `2026-09` or
+  /// `2026-09-30` (precision varies).
+  final String? releaseDate;
 }
 
 class SpotifyArtistSummary {
