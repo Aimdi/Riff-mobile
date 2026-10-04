@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/theme/riff_spacing.dart';
 import '../../services/playlist_mix_service.dart';
 
 /// Spotify-style "✨ Auto >" chip between playlist tracks in Mix mode.
@@ -18,9 +19,8 @@ class MixTransitionChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.primary;
-    final label = style == MixTransitionStyle.auto
-        ? 'mixAuto'.tr
-        : style.labelKey.tr;
+    final label =
+        style == MixTransitionStyle.auto ? 'mixAuto'.tr : style.labelKey.tr;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -53,7 +53,6 @@ class MixTransitionChip extends StatelessWidget {
                           label,
                           style: theme.textTheme.labelMedium?.copyWith(
                             color: accent,
-                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(width: 2),
@@ -87,7 +86,11 @@ Future<MixTransitionStyle?> showMixTransitionPicker(
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              padding: const EdgeInsets.only(
+                  left: RiffSpacing.xl,
+                  top: RiffSpacing.lg,
+                  right: RiffSpacing.xl,
+                  bottom: RiffSpacing.sm),
               child: Text(
                 'mixChooseTransition'.tr,
                 style: Theme.of(ctx).textTheme.titleMedium,
@@ -100,9 +103,7 @@ Future<MixTransitionStyle?> showMixTransitionPicker(
                   selected
                       ? Icons.radio_button_checked
                       : Icons.radio_button_off,
-                  color: selected
-                      ? Theme.of(ctx).colorScheme.primary
-                      : null,
+                  color: selected ? Theme.of(ctx).colorScheme.primary : null,
                 ),
                 title: Text(s.labelKey.tr),
                 subtitle: Text(_subtitleFor(s)),

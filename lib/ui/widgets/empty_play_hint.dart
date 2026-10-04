@@ -68,7 +68,7 @@ class EmptyPlayHint extends StatelessWidget {
                   onPressed: () => _startWave(context),
                   style: FilledButton.styleFrom(
                     backgroundColor: accent,
-                    foregroundColor: Colors.black,
+                    foregroundColor: theme.colorScheme.onPrimary,
                     visualDensity: VisualDensity.compact,
                   ),
                   icon: const Icon(Icons.graphic_eq_rounded, size: 18),

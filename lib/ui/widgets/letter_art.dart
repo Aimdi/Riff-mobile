@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '/ui/theme/riff_tokens.dart';
+
 /// Artwork for something without a cover: a gradient picked from the
 /// title, with its first letter. Used instead of a generic music-note
 /// icon, so a missing cover still tells items apart.
@@ -60,12 +62,12 @@ class LetterArt extends StatelessWidget {
       child: ExcludeSemantics(
         child: Text(
           initialOf(title),
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.92),
-            fontSize: size * 0.42,
-            fontWeight: FontWeight.w700,
-            height: 1,
-          ),
+          // Glyph scaled to the artwork; weight from the titleMedium slot.
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: RiffColors.of(context).onImage.withOpacity(0.92),
+                fontSize: size * 0.42,
+                height: 1,
+              ),
         ),
       ),
     );
