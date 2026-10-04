@@ -165,17 +165,36 @@ Future<void> showHomeSectionSheet(BuildContext context, HomeSection section) {
 /// inside claims first) opens [showHomeSectionSheet].
 class HomeSectionSlot extends StatelessWidget {
   const HomeSectionSlot(
-      {super.key, required this.section, required this.child});
+      {super.key,
+      required this.section,
+      required this.child,
+      this.divided = false});
   final HomeSection section;
   final Widget child;
 
+  /// Draws the full-width hairline that separates this section from the
+  /// one above, along its top edge (inside its top gap, so nothing moves).
+  final bool divided;
+
   @override
   Widget build(BuildContext context) {
-    if (!switchableHomeSections.contains(section)) return child;
+    final body = divided
+        ? DecoratedBox(
+            position: DecorationPosition.foreground,
+            decoration: BoxDecoration(
+              border: Border(
+                top:
+                    BorderSide(color: Theme.of(context).dividerColor, width: 0),
+              ),
+            ),
+            child: child,
+          )
+        : child;
+    if (!switchableHomeSections.contains(section)) return body;
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onLongPress: () => showHomeSectionSheet(context, section),
-      child: child,
+      child: body,
     );
   }
 }

@@ -15,6 +15,11 @@ elements (or can't be done on this SDK), and what was done instead.
 | 3 | Rail glyph 24 for the Songs accordion children | Playlists / Albums / Artists are sub-items under Songs; at 24 they read as top-level destinations | 20 dp (`RiffComponentSizes.railSubIcon`); top-level glyphs are 24 |
 | 3 | Scroll-under hairline on the Spotify artist hero | Its pinned bar is a collapsing `SliverAppBar` hero whose title animates into the toolbar; Phase 5 restyles the artist page | unchanged |
 | 3 | Hairline directly under the header row where tabs or a sort row sit below it (Library, Podcasts, Audiobooks, Settings, Search) | Content passes under the last pinned row, not the title | the hairline is drawn along the top edge of the scrolling content (`RiffScrollUnder`) |
+| 4 | Speed dial tile title 13/700, artwork radius 4 (§Phase 4) | Speed dial tiles are full-bleed covers with no title today; a title would add an element | tiles on surface1, radius 8, accent now-playing equalizer; `RiffTextStyles.tileTitle` defined for later use |
+| 4 | Quick picks rows per §5.2 | Quick picks is a carousel of large cover cards here, not pages of rows | carousel kept; cards on surface1, art radius 8, subtitle bodyMedium |
+| 4 | Jump back in / Your week as §5.3 shelf cards (no background) | They are grid tiles and a stats card, not shelf cards; without a background their text floats | surface1 tiles and card, radius 8 |
+| 4 | "See all" as a 15/700 accent text button | The control is an icon-only chevron today; a text label would add an element and change the header width | chevron kept, drawn in the accent |
+| 4 | Selected station chip | Station chips start playback and have no selected state | the selected look (accentMuted fill, accent border and text) shows while a station is starting |
 
 ## Known side effects of Phase 1 (to settle in later phases)
 

@@ -113,7 +113,7 @@ class _RiffStationChipsState extends State<RiffStationChips> {
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.gutter),
           itemCount: homeStations.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          separatorBuilder: (_, __) => const SizedBox(width: RiffSpacing.sm),
           itemBuilder: (context, i) {
             final s = homeStations[i];
             return _StationChip(
@@ -140,6 +140,9 @@ class _StationChip extends StatelessWidget {
     final theme = Theme.of(context);
     final riff = RiffColors.of(context);
     final label = station.key.tr;
+    // §5.6: outlined pill; the "selected" look while the station starts.
+    final accent = theme.colorScheme.primary;
+    final fg = busy ? accent : theme.colorScheme.onSurface;
     return Semantics(
       button: true,
       label: '${'startStation'.tr}: $label',
@@ -149,7 +152,7 @@ class _StationChip extends StatelessWidget {
         child: InkWell(
           customBorder: const StadiumBorder(),
           onTap: onTap,
-          // 48dp touch target around a 40dp chip.
+          // 48dp touch target around a 32dp chip.
           child: SizedBox(
             height: RiffSizes.chipRow,
             child: Center(
@@ -158,18 +161,21 @@ class _StationChip extends StatelessWidget {
                 padding: const EdgeInsets.only(
                     left: RiffSpacing.xs,
                     top: RiffSpacing.xs,
-                    right: RiffSpacing.lg,
+                    right: RiffSpacing.md,
                     bottom: RiffSpacing.xs),
                 decoration: ShapeDecoration(
-                  color: theme.colorScheme.surfaceContainerHigh,
-                  shape: const StadiumBorder(),
+                  color: busy ? riff.accentMuted : Colors.transparent,
+                  shape: StadiumBorder(
+                    side: BorderSide(
+                        color: busy ? accent : theme.dividerColor, width: 0),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 32,
-                      height: 32,
+                      width: RiffSizes.chipIcon,
+                      height: RiffSizes.chipIcon,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: LinearGradient(
@@ -180,18 +186,17 @@ class _StationChip extends StatelessWidget {
                       ),
                       child: busy
                           ? Padding(
-                              padding: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.all(RiffSpacing.xs),
                               child: CircularProgressIndicator(
                                   strokeWidth: 2, color: riff.onImage),
                             )
-                          : Icon(station.icon, color: riff.onImage, size: 18),
+                          : Icon(station.icon,
+                              color: riff.onImage, size: RiffSizes.chipGlyph),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: RiffSpacing.sm),
                     Text(
                       label,
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.onSurface,
-                      ),
+                      style: theme.textTheme.labelMedium?.copyWith(color: fg),
                     ),
                   ],
                 ),

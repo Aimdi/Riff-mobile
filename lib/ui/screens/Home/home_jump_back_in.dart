@@ -145,7 +145,7 @@ class JumpBackInTile extends StatelessWidget {
           : item.title,
       excludeSemantics: true,
       child: Material(
-        color: theme.colorScheme.surfaceContainerHigh,
+        color: theme.colorScheme.surfaceContainerLow,
         borderRadius: radius,
         clipBehavior: Clip.antiAlias,
         child: InkWell(

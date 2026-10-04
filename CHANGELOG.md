@@ -1,3 +1,17 @@
+# 1.7.138
+
+**New look, step 4: Home**
+* Home sections are separated by thin full-width lines with a little more
+  room above each one
+* Riff Wave is a flat dark card with a thin outline and a bigger title
+* Station chips are slimmer outlined pills; the one you tap lights up in
+  your accent while its station starts
+* Shelf covers and Quick picks cards have tighter corners, with clearer
+  titles under the covers
+* Speed dial, Jump back in and Quick picks tiles sit on the same dark
+  surface; the playing tile's equalizer is in your accent
+* Nothing moved: same sections, same order, same items
+
 # 1.7.137
 
 **New look, step 3: side rail and page headers**

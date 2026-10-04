@@ -274,7 +274,7 @@ class _DialTile extends StatelessWidget {
       child: SizedBox.square(
         dimension: size,
         child: Material(
-          color: Theme.of(context).colorScheme.surfaceContainerHigh,
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
           shape: shape,
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -294,8 +294,10 @@ class _DialTile extends StatelessWidget {
                     return ColoredBox(
                       color: RiffColors.of(context).scrim.withOpacity(0.4),
                       child: Center(
-                        child:
-                            RiffEqualizer(animate: playing, size: size * 0.3),
+                        child: RiffEqualizer(
+                            animate: playing,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: size * 0.3),
                       ),
                     );
                   }),

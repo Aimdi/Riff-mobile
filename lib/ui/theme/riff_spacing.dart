@@ -25,13 +25,13 @@ class RiffSpacing {
   static const double gutter = 16;
 
   /// Space above every section.
-  static const double section = 24;
+  static const double section = x3l;
 
   /// Height of a section's title row.
   static const double headerRow = 48;
 
   /// Title row to content.
-  static const double headerToContent = 8;
+  static const double headerToContent = md;
 
   /// Between cards on a shelf.
   static const double cardGap = 12;
@@ -48,9 +48,9 @@ class RiffSizes {
   RiffSizes._();
 
   static const double tileRadius = 8;
-  static const double shelfRadius = 12;
+  static const double shelfRadius = 8;
   static const double waveRadius = 16;
-  static const double carouselRadius = 28;
+  static const double carouselRadius = 8;
 
   static const double jumpTileHeight = 56;
   static const double jumpArt = 48;
@@ -60,7 +60,9 @@ class RiffSizes {
   static const double waveArt = 56;
   static const double wavePlay = 48;
   static const double chipRow = 48;
-  static const double chipHeight = 40;
+  static const double chipHeight = 32;
+  static const double chipIcon = 24;
+  static const double chipGlyph = 14;
 
   static const double dot = 6;
   static const double dotsTop = 8;
