@@ -1,5 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
@@ -31,6 +32,7 @@ import '../Cloud/cloud_play.dart';
 import '../Cloud/cloud_screen.dart';
 import '../Settings/settings_screen_controller.dart';
 import '../../theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '../Home/home_layout.dart';
 import 'library_controller.dart';
 import '/ui/theme/riff_text_metrics.dart';
@@ -606,10 +608,10 @@ class _LibraryArtistCard extends StatelessWidget {
   }
 
   void _actions(BuildContext context) {
+    HapticFeedback.mediumImpact();
     showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
-      shape: riffSheetShape,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -648,7 +650,7 @@ class _LibraryArtistCard extends StatelessWidget {
                 _open();
               },
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: RiffSpacing.sm),
           ],
         ),
       ),
@@ -740,32 +742,38 @@ class _LibraryPinnedRow extends StatelessWidget {
   }
 
   void _showRecentsActions(BuildContext context) {
+    HapticFeedback.mediumImpact();
     showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
-      ),
       builder: (ctx) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.play_arrow_rounded),
-              title: Text('play'.tr),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _play('LIBRP', 'recentlyPlayed'.tr);
-              },
+        // Sheet rows per RIFF_UI_RESTYLE.md §5.10.
+        child: ListTileTheme.merge(
+          titleTextStyle: Theme.of(ctx).textTheme.bodyLarge,
+          iconColor: Theme.of(ctx).colorScheme.onSurface,
+          child: IconTheme.merge(
+            data: const IconThemeData(size: RiffComponentSizes.headerIcon),
+            child: Wrap(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.play_arrow_rounded),
+                  title: Text('play'.tr),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _play('LIBRP', 'recentlyPlayed'.tr);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.shuffle),
+                  title: Text('shuffle'.tr),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _play('LIBRP', 'recentlyPlayed'.tr, shuffle: true);
+                  },
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.shuffle),
-              title: Text('shuffle'.tr),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _play('LIBRP', 'recentlyPlayed'.tr, shuffle: true);
-              },
-            ),
-          ],
+          ),
         ),
       ),
     );

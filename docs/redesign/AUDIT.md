@@ -210,3 +210,24 @@ metrics now measure the TextTheme slot their text uses
   by `test/podcasts/podcast_skip_pill_test.dart`. Chapter parsing, ad
   detection, auto-skip and SponsorBlock untouched.
 - Adjustments in `SKIPPED.md`; screenshots in `phase7/`.
+
+## Phase 8 result (sheets, dialogs, snackbars, Settings, Stats, motion, haptics)
+
+- Sheets: `riff_sheet.dart` building blocks per §5.10 (top radius 16,
+  36×4 handle 8 dp from the top, 52 dp rows, 22 dp icons, bodyLarge,
+  error-coloured destructive rows, hairline separators); every
+  `showModalBottomSheet` call site dropped its own shape/colour/barrier so
+  `bottomSheetTheme` applies.
+- Dialogs per §5.11 through `dialogTheme` (local shapes removed, body in
+  the primary text colour); snackbars per §5.12 (`snackbar.dart`).
+- Settings: flat groups with hairlines, titleLarge group headers, rows
+  ≥ 52 dp, §5.9 switches (`cust_switch.dart` is a themed `Switch`).
+- Stats / Rewind / podcast stats: accent primary series, secondary labels,
+  hairline-outlined tiles; layouts unchanged.
+- Haptics (§4.7) on existing actions: mediumImpact on long-press menus and
+  pull-to-refresh, lightImpact on play next / enqueue / add to playlist /
+  download start, selectionClick on settings choices.
+- Edge to edge: Home's existing `AnnotatedRegion` keeps transparent bars
+  with light icons; lists keep their bottom padding (`RiffSpacing.listEnd`
+  / `homeBottomPadding`) so the last item clears the mini player and bars.
+- Adjustments in `SKIPPED.md`; screenshots in `phase8/`.

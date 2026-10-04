@@ -16,6 +16,7 @@ import '/ui/widgets/add_to_playlist.dart' show addSongsToLikedSongs;
 import '/ui/screens/Library/library_controller.dart';
 import '/ui/screens/Settings/spotify_login_screen.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/snackbar.dart';
 import 'spotify_pages.dart';
@@ -287,63 +288,72 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
       useRootNavigator: true,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) => SafeArea(
-          child: Wrap(children: [
-            SwitchListTile(
-              secondary: const Icon(Icons.favorite_border_rounded),
-              title: Text('spotifyLikeSync'.tr),
-              subtitle: Text('spotifyLikeSyncDes'.tr,
-                  style: homeCardSubtitleStyle(ctx)),
-              value: SpotifyLikeSync.enabled,
-              onChanged: (v) async {
-                Navigator.of(ctx).pop();
-                await _setLikeSync(v);
-              },
+          // Sheet rows per RIFF_UI_RESTYLE.md §5.10.
+          child: ListTileTheme.merge(
+            titleTextStyle: Theme.of(ctx).textTheme.bodyLarge,
+            iconColor: Theme.of(ctx).colorScheme.onSurface,
+            child: IconTheme.merge(
+              data: const IconThemeData(size: RiffComponentSizes.headerIcon),
+              child: Wrap(children: [
+                SwitchListTile(
+                  secondary: const Icon(Icons.favorite_border_rounded),
+                  title: Text('spotifyLikeSync'.tr),
+                  subtitle: Text('spotifyLikeSyncDes'.tr,
+                      style: homeCardSubtitleStyle(ctx)),
+                  value: SpotifyLikeSync.enabled,
+                  onChanged: (v) async {
+                    Navigator.of(ctx).pop();
+                    await _setLikeSync(v);
+                  },
+                ),
+                Obx(() {
+                  final n = SpotifyLikeSync.pending.value;
+                  final err = SpotifyLikeSync.lastError.value;
+                  if (!SpotifyLikeSync.enabled || (n == 0 && err.isEmpty)) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(
+                        left: RiffSpacing.unit * 18,
+                        right: RiffSpacing.lg,
+                        bottom: RiffSpacing.sm),
+                    child: Text(
+                        [
+                          if (n > 0)
+                            'spotifyLikeSyncPending'.trParams({'n': '$n'}),
+                          if (err.isNotEmpty)
+                            spotifyErrorKey(SpotifyErrorKind.values.firstWhere(
+                                    (k) => k.name == err,
+                                    orElse: () => SpotifyErrorKind.server))
+                                .trParams({'s': '0', 'm': '10'}),
+                        ].join('\n'),
+                        style: homeCardSubtitleStyle(ctx)),
+                  );
+                }),
+                SwitchListTile(
+                  secondary: const Icon(Icons.speaker_group_rounded),
+                  title: Text('spotifyConnect'.tr),
+                  subtitle: Text('spotifyConnectDes'.tr,
+                      style: homeCardSubtitleStyle(ctx)),
+                  value: SpotifyConnect.enabled,
+                  onChanged: (v) async {
+                    Navigator.of(ctx).pop();
+                    await _setConnect(v);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.playlist_add_check_rounded),
+                  title: Text('spotifyImportLikes'.tr),
+                  subtitle: Text('spotifyImportLikesDes'.tr,
+                      style: homeCardSubtitleStyle(ctx)),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _importLikes();
+                  },
+                ),
+              ]),
             ),
-            Obx(() {
-              final n = SpotifyLikeSync.pending.value;
-              final err = SpotifyLikeSync.lastError.value;
-              if (!SpotifyLikeSync.enabled || (n == 0 && err.isEmpty)) {
-                return const SizedBox.shrink();
-              }
-              return Padding(
-                padding: const EdgeInsets.only(
-                    left: RiffSpacing.unit * 18,
-                    right: RiffSpacing.lg,
-                    bottom: RiffSpacing.sm),
-                child: Text(
-                    [
-                      if (n > 0) 'spotifyLikeSyncPending'.trParams({'n': '$n'}),
-                      if (err.isNotEmpty)
-                        spotifyErrorKey(SpotifyErrorKind.values.firstWhere(
-                                (k) => k.name == err,
-                                orElse: () => SpotifyErrorKind.server))
-                            .trParams({'s': '0', 'm': '10'}),
-                    ].join('\n'),
-                    style: homeCardSubtitleStyle(ctx)),
-              );
-            }),
-            SwitchListTile(
-              secondary: const Icon(Icons.speaker_group_rounded),
-              title: Text('spotifyConnect'.tr),
-              subtitle: Text('spotifyConnectDes'.tr,
-                  style: homeCardSubtitleStyle(ctx)),
-              value: SpotifyConnect.enabled,
-              onChanged: (v) async {
-                Navigator.of(ctx).pop();
-                await _setConnect(v);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.playlist_add_check_rounded),
-              title: Text('spotifyImportLikes'.tr),
-              subtitle: Text('spotifyImportLikesDes'.tr,
-                  style: homeCardSubtitleStyle(ctx)),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _importLikes();
-              },
-            ),
-          ]),
+          ),
         ),
       ),
     );

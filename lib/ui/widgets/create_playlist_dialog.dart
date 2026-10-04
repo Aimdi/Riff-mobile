@@ -10,9 +10,8 @@ import '../../models/playlist.dart';
 import 'common_dialog_widget.dart';
 import 'modified_text_field.dart';
 import 'riff_sheet.dart';
-import '../screens/Home/home_layout.dart';
 import '/ui/theme/riff_spacing.dart';
-import '../utils/riff_tokens.dart';
+import '/ui/theme/riff_tokens.dart';
 
 class CreateNRenamePlaylistPopup extends StatelessWidget {
   const CreateNRenamePlaylistPopup(
@@ -70,7 +69,7 @@ class CreateNRenamePlaylistPopup extends StatelessWidget {
         renamePlaylist ? "" : defaultNewPlaylistName(songItems: songItems);
     final isPipedLinked = Get.find<PipedServices>().isLoggedIn;
     final theme = Theme.of(context);
-    final fg = theme.textTheme.titleMedium?.color;
+    final fg = theme.colorScheme.onSurface;
     return CommonDialog(
       child: Padding(
         padding: const EdgeInsets.only(
@@ -97,13 +96,14 @@ class CreateNRenamePlaylistPopup extends StatelessWidget {
                 Obx(() => (librPlstCntrller.creationInProgress.isTrue &&
                         isPipedLinked)
                     ? const SizedBox(
-                        height: 16,
-                        width: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2))
+                        height: RiffComponentSizes.spinner,
+                        width: RiffComponentSizes.spinner,
+                        child: CircularProgressIndicator(
+                            strokeWidth: RiffComponentSizes.spinnerStroke))
                     : const SizedBox.shrink()),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: RiffSpacing.md),
             if (isPipedLinked && !renamePlaylist) ...[
               Obx(() {
                 final mode = librPlstCntrller.playlistCreationMode.value;
@@ -115,7 +115,7 @@ class CreateNRenamePlaylistPopup extends StatelessWidget {
                       selected: mode == "local",
                       onTap: () => librPlstCntrller.changeCreationMode("local"),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: RiffSpacing.sm),
                     RiffChoiceChip(
                       icon: Icons.cloud_outlined,
                       label: "Piped".tr,
@@ -125,52 +125,32 @@ class CreateNRenamePlaylistPopup extends StatelessWidget {
                   ],
                 );
               }),
-              const SizedBox(height: 14),
+              const SizedBox(height: RiffSpacing.md),
             ],
             ModifiedTextField(
               textCapitalization: TextCapitalization.sentences,
               autofocus: true,
-              cursorColor: theme.colorScheme.secondary,
               controller: librPlstCntrller.textInputController,
               onSubmitted: (_) => _submit(context, librPlstCntrller),
+              // §5.8: transparent, hairline border radius 4, 2dp accent
+              // when focused — all from the theme's input decoration.
               decoration: InputDecoration(
                 hintText: "playlistName".tr,
-                filled: true,
-                fillColor: homeTileColor(context),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
-                  borderSide: BorderSide(
-                      color: theme.colorScheme.secondary, width: 1.5),
-                ),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: RiffSpacing.lg, vertical: RiffSpacing.md),
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: RiffSpacing.lg),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  style: TextButton.styleFrom(
-                      foregroundColor: fg,
-                      textStyle: theme.textTheme.labelLarge),
                   child: Text("cancel".tr),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: RiffSpacing.sm),
                 FilledButton(
                   onPressed: () => _submit(context, librPlstCntrller),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: theme.colorScheme.secondary,
-                    foregroundColor: theme.colorScheme.onPrimary,
-                    textStyle: theme.textTheme.labelLarge,
-                    minimumSize: const Size(0, 44),
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                  ),
                   child: Text(
                     isCreateNadd
                         ? "createnAdd".tr

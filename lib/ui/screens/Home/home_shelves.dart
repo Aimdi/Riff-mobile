@@ -1,6 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '/models/album.dart';
@@ -277,6 +278,7 @@ class HomeShelfItem extends StatelessWidget {
         onTap: () => _playSongs(queue, v),
         onLongPress: () {
           final player = Get.find<PlayerController>();
+          HapticFeedback.mediumImpact();
           showCurrentSongSheet(
               song: v, context: player.homeScaffoldkey.currentContext);
         },
@@ -452,7 +454,7 @@ Widget _sheet(BuildContext context, String title,
           const RiffSheetHandle(),
           RiffSheetTitle(title),
           ...tiles(context),
-          const SizedBox(height: 8),
+          const SizedBox(height: RiffSpacing.sm),
         ],
       ),
     );
@@ -480,10 +482,10 @@ void _collectionMenu(BuildContext context,
     if (!ok) snackOperationFailed();
   }
 
+  HapticFeedback.mediumImpact();
   showModalBottomSheet<void>(
     context: context,
     useRootNavigator: true,
-    shape: riffSheetShape,
     builder: (sheet) => _sheet(
         sheet,
         title,
@@ -511,19 +513,19 @@ void _collectionMenu(BuildContext context,
 
 void _pinOnlyMenu(BuildContext context, String title, SpeedDialPin? pin) {
   if (pin == null) return;
+  HapticFeedback.mediumImpact();
   showModalBottomSheet<void>(
     context: context,
     useRootNavigator: true,
-    shape: riffSheetShape,
     builder: (sheet) => _sheet(sheet, title, (sheet) => [_pinTile(sheet, pin)]),
   );
 }
 
 void _mixMenu(BuildContext context, GeneratedMix mix) {
+  HapticFeedback.mediumImpact();
   showModalBottomSheet<void>(
     context: context,
     useRootNavigator: true,
-    shape: riffSheetShape,
     builder: (sheet) => _sheet(
         sheet,
         mix.title,

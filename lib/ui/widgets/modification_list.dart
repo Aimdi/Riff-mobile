@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
 import '/ui/widgets/sort_widget.dart' show OperationMode;
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import 'image_widget.dart';
 
 class ModificationList extends StatelessWidget {
@@ -17,14 +19,16 @@ class ModificationList extends StatelessWidget {
     if (mode == OperationMode.arrange) {
       return Expanded(
         child: ReorderableListView.builder(
-            padding: const EdgeInsets.only(right: 5, bottom: 200),
+            padding: const EdgeInsets.only(
+                right: RiffSpacing.xs, bottom: RiffSpacing.listEnd),
             itemBuilder: (context, index) => ListTile(
                   key: Key('$index'),
                   onTap: () {},
-                  contentPadding:
-                      const EdgeInsets.only(top: 0, left: 5, right: 40),
+                  // Room on the right for the reorder handle.
+                  contentPadding: const EdgeInsets.only(
+                      left: RiffSpacing.xs, right: RiffComponentSizes.iconHit),
                   leading: ImageWidget(
-                    size: 55,
+                    size: RiffComponentSizes.rowArt,
                     song: items[index],
                   ),
                   title: Marquee(
@@ -42,7 +46,7 @@ class ModificationList extends StatelessWidget {
                   subtitle: Text(
                     "${items[index].artist}",
                     maxLines: 1,
-                    style: Theme.of(context).textTheme.titleSmall,
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ),
             itemCount: items.length,
@@ -62,7 +66,8 @@ class ModificationList extends StatelessWidget {
         mode == OperationMode.delete) {
       return Expanded(
         child: ListView.builder(
-          padding: const EdgeInsets.only(right: 5, bottom: 200),
+          padding: const EdgeInsets.only(
+              right: RiffSpacing.xs, bottom: RiffSpacing.listEnd),
           itemCount: items.length,
           itemBuilder: (context, index) => ListTile(
             onTap: () {
@@ -70,7 +75,8 @@ class ModificationList extends StatelessWidget {
                   !screenController.additionalOperationTempMap[index]!;
               screenController.checkIfAllSelected();
             },
-            contentPadding: const EdgeInsets.only(top: 0, left: 5, right: 30),
+            contentPadding: const EdgeInsets.only(
+                left: RiffSpacing.xs, right: RiffSpacing.x3l),
             leading: SizedBox(
               width: 100,
               child: Row(
@@ -87,12 +93,13 @@ class ModificationList extends StatelessWidget {
                       },
                       visualDensity:
                           const VisualDensity(horizontal: -3, vertical: -3),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
+                      shape: const RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.all(Radius.circular(RiffRadii.xs))),
                     ),
                   ),
                   ImageWidget(
-                    size: 55,
+                    size: RiffComponentSizes.rowArt,
                     song: items[index],
                   ),
                 ],
@@ -113,7 +120,7 @@ class ModificationList extends StatelessWidget {
             subtitle: Text(
               "${items[index].artist}",
               maxLines: 1,
-              style: Theme.of(context).textTheme.titleSmall,
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
         ),

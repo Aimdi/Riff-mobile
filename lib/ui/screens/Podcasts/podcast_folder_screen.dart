@@ -112,7 +112,6 @@ class PodcastFolderScreen extends StatelessWidget {
           autofocus: true,
           decoration: InputDecoration(
             labelText: "folderName".tr,
-            border: const OutlineInputBorder(),
             isDense: true,
           ),
         ),

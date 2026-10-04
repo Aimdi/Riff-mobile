@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:harmonymusic/ui/widgets/common_dialog_widget.dart';
 import 'package:harmonymusic/ui/widgets/sort_widget.dart';
 
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import 'custom_button.dart';
 import 'modification_list.dart';
 
@@ -22,7 +24,8 @@ class AdditionalOperationDialog extends StatelessWidget {
       maxWidth: 600,
       child: Container(
         height: MediaQuery.of(context).size.height * 0.7,
-        padding: const EdgeInsets.only(top: 20, bottom: 5, left: 10, right: 0),
+        padding: const EdgeInsets.only(
+            top: RiffSpacing.xl, bottom: RiffSpacing.xs, left: RiffSpacing.sm),
         child: Column(
           children: [
             SizedBox(
@@ -32,7 +35,10 @@ class AdditionalOperationDialog extends StatelessWidget {
                         operationMode == OperationMode.addToPlaylist
                     ? "selectSongs".tr
                     : "reArrangeSongs".tr,
-                style: Theme.of(context).textTheme.titleLarge,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(color: Theme.of(context).colorScheme.onSurface),
               ),
             ),
             if (operationMode == OperationMode.delete ||
@@ -47,7 +53,7 @@ class AdditionalOperationDialog extends StatelessWidget {
                     Row(
                       children: [
                         Padding(
-                          padding: const EdgeInsets.only(left: 5.0),
+                          padding: const EdgeInsets.only(left: RiffSpacing.xs),
                           child: Obx(
                             () => Checkbox(
                               value: controller.isAllSelected.value,
@@ -57,12 +63,13 @@ class AdditionalOperationDialog extends StatelessWidget {
                               },
                               visualDensity: const VisualDensity(
                                   horizontal: -3, vertical: -3),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10)),
+                              shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.all(
+                                      Radius.circular(RiffRadii.xs))),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 18),
+                        const SizedBox(width: RiffSpacing.lg),
                         Text(
                           "selectAll".tr,
                           style: Theme.of(context).textTheme.titleMedium,

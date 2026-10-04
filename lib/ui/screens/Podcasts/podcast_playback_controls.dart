@@ -151,7 +151,6 @@ Future<void> showPodcastSpeedSheet(BuildContext context) {
     useRootNavigator: true,
     isScrollControlled: true,
     constraints: const BoxConstraints(maxWidth: 500),
-    shape: riffSheetShape,
     builder: (sheet) => SafeArea(
       top: false,
       child: Obx(() {
@@ -280,7 +279,7 @@ class PodcastPlaybackEditor extends StatelessWidget {
         _skipChips(profile.skipForwardSec, true,
             (v) => onChanged(profile.copyWith(skipForwardSec: v))),
         if (android) ...[
-          const SizedBox(height: 14),
+          const SizedBox(height: RiffSpacing.md),
           _switchRow(
             context,
             title: 'trimSilence'.tr,
@@ -304,7 +303,7 @@ class PodcastPlaybackEditor extends StatelessWidget {
             ],
           ),
         ],
-        const SizedBox(height: 14),
+        const SizedBox(height: RiffSpacing.md),
         _switchRow(
           context,
           title: 'segmentSkipping'.tr,
@@ -317,7 +316,8 @@ class PodcastPlaybackEditor extends StatelessWidget {
   }
 
   Widget _label(BuildContext context, String text) => Padding(
-        padding: const EdgeInsets.only(top: 18, bottom: 8),
+        padding:
+            const EdgeInsets.only(top: RiffSpacing.xl, bottom: RiffSpacing.sm),
         child: Text(text.toUpperCase(), style: homeSectionLabelStyle(context)),
       );
 
@@ -373,7 +373,6 @@ Future<void> showPodcastShowPlaybackSheet(BuildContext context,
     useRootNavigator: true,
     isScrollControlled: true,
     constraints: const BoxConstraints(maxWidth: 560),
-    shape: riffSheetShape,
     builder: (sheet) => DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.85,
@@ -386,7 +385,7 @@ Future<void> showPodcastShowPlaybackSheet(BuildContext context,
         return ListView(
           controller: scroll,
           padding: EdgeInsets.only(
-              bottom: MediaQuery.paddingOf(context).bottom + 20),
+              bottom: MediaQuery.paddingOf(context).bottom + RiffSpacing.xl),
           children: [
             const RiffSheetHandle(),
             RiffSheetTitle('playbackSettings'.tr, subtitle: title),
@@ -398,7 +397,8 @@ Future<void> showPodcastShowPlaybackSheet(BuildContext context,
               child: Row(
                 children: [
                   Icon(custom ? Icons.tune_rounded : Icons.public_rounded,
-                      size: 18, color: homeMutedColor(context)),
+                      size: RiffComponentSizes.trailingIcon,
+                      color: homeMutedColor(context)),
                   const SizedBox(width: RiffSpacing.sm),
                   Expanded(
                     child: Text(
@@ -417,9 +417,6 @@ Future<void> showPodcastShowPlaybackSheet(BuildContext context,
                             _refreshIfPodcastPlaying();
                           }
                         : null,
-                    style: TextButton.styleFrom(
-                        foregroundColor:
-                            Theme.of(context).colorScheme.secondary),
                     child: Text('useGlobalDefaults'.tr),
                   ),
                 ],

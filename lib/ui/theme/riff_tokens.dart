@@ -202,6 +202,60 @@ class RiffComponentSizes {
   static const double coverPlay = 30;
   static const double folderIcon = 64;
   static const double emptyStateIcon = 56;
+
+  /// Settings (Phase 8): a settings row's minimum height (§5.9 / Phase 8),
+  /// the glyph box on a settings group header, small inline glyphs (status
+  /// marks, the accent swatch tick), the accent swatches, the error-state
+  /// glyph on sign-in screens and the rows of Home layout — all keeping
+  /// their current sizes.
+  static const double settingsRow = 52;
+  static const double settingsGroupIcon = 38;
+  static const double inlineIcon = 18;
+  static const double accentSwatch = 32;
+  static const double errorStateIcon = 40;
+  static const double homeLayoutRow = 56;
+
+  /// Settings dialogs' fixed heights (keep the current sizes): the radio
+  /// choice dialogs and their scrolling list, Discovery settings and the
+  /// taste-model debug dialog.
+  static const double choiceDialog = 300;
+  static const double choiceDialogList = 180;
+  static const double discoveryDialog = 460;
+  static const double tasteDebugDialog = 480;
+
+  /// Stats, Podcast stats and Rewind (keep the current sizes): stat-tile
+  /// glyph, the last-7-days chart height, rank columns (wide / compact),
+  /// the top-show artwork, the small brand glyph on the share card, the
+  /// Rewind listener-level circle and its stat tiles.
+  static const double statIcon = 20;
+  static const double statsChart = 150;
+  static const double statsRank = 30;
+  static const double statsRankCompact = 22;
+  static const double statsShowArt = 44;
+  static const double brandGlyph = 14;
+  static const double rewindLevel = 84;
+  static const double rewindStat = 104;
+
+  /// Sheets and menus (§5.10): a row's minimum height and its leading
+  /// icon, and the glyph of a sheet's big quick-action tiles (keeps its
+  /// current size).
+  static const double sheetRow = 52;
+  static const double sheetIcon = 22;
+  static const double sheetQuickIcon = 24;
+
+  /// Artwork in the song sheet's header (keeps its current size).
+  static const double sheetHeaderArt = 56;
+
+  /// Dialog heading's icon badge and its glyph (keep their current size).
+  static const double dialogBadge = 52;
+  static const double dialogBadgeIcon = 26;
+
+  /// Width of the copy action at the end of a split dialog option (keeps
+  /// its current size).
+  static const double splitAction = 56;
+
+  /// Spinner inside a button's icon slot (keeps its current size).
+  static const double buttonSpinner = 16;
 }
 
 /// Theme-dependent colours Material's [ColorScheme] has no slot for.

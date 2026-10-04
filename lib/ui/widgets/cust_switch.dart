@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:harmonymusic/ui/theme/riff_tokens.dart';
-import 'package:harmonymusic/ui/utils/theme_controller.dart';
 
+/// The app's on/off switch. Colours come from the theme's `switchTheme`
+/// (RIFF_UI_RESTYLE.md §5.9: accent track / onAccent thumb when on,
+/// surface2 track / outlineStrong outline / textSecondary thumb when off).
 class CustSwitch extends StatelessWidget {
   const CustSwitch({super.key, this.onChanged, required this.value});
   final void Function(bool)? onChanged;
@@ -10,18 +10,6 @@ class CustSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isLightMode =
-        Get.find<ThemeController>().themedata.value!.primaryColor ==
-            Colors.white;
-    final scheme = Theme.of(context).colorScheme;
-    return Switch(
-        activeColor: RiffColors.of(context).onImage,
-        activeTrackColor: isLightMode ? scheme.outlineVariant : null,
-        inactiveTrackColor: isLightMode ? scheme.outlineVariant : null,
-        inactiveThumbColor: isLightMode
-            ? scheme.surfaceContainerHigh
-            : scheme.onSurface.withOpacity(0.5),
-        value: value,
-        onChanged: onChanged);
+    return Switch(value: value, onChanged: onChanged);
   }
 }

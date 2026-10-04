@@ -8,6 +8,8 @@ import '/services/torrent_search_service.dart';
 import '/ui/navigator.dart';
 import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/snackbar.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 
 /// qBittorrent-style torrent search: pick sources, search, open/copy/send.
 ///
@@ -241,7 +243,7 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
   }
 
   double _sheetBottomPadding(BuildContext ctx) {
-    return MediaQuery.viewInsetsOf(ctx).bottom + 24;
+    return MediaQuery.viewInsetsOf(ctx).bottom + RiffSpacing.xxl;
   }
 
   InputDecoration _cookieFieldDecoration(
@@ -252,7 +254,6 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
   }) {
     return InputDecoration(
       labelText: label,
-      border: const OutlineInputBorder(),
       isDense: true,
       suffixIcon: IconButton(
         icon: Icon(obscure ? Icons.visibility : Icons.visibility_off),
@@ -268,11 +269,6 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
       useRootNavigator: true,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor ??
-          Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-      ),
       builder: (ctx) {
         var obscure = true;
         var busy = false;
@@ -280,9 +276,9 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
           final bottomPad = _sheetBottomPadding(ctx);
           return Padding(
             padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 12,
+              left: RiffSpacing.xl,
+              right: RiffSpacing.xl,
+              top: RiffSpacing.md,
               bottom: bottomPad,
             ),
             child: SingleChildScrollView(
@@ -292,21 +288,21 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
                 children: [
                   Center(
                     child: Container(
-                      width: 36,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 12),
+                      width: RiffComponentSizes.handleWidth,
+                      height: RiffComponentSizes.handleHeight,
+                      margin: const EdgeInsets.only(bottom: RiffSpacing.md),
                       decoration: BoxDecoration(
-                        color: Theme.of(ctx).dividerColor,
-                        borderRadius: BorderRadius.circular(2),
+                        color: RiffColors.of(ctx).handle,
+                        borderRadius: BorderRadius.circular(RiffRadii.pill),
                       ),
                     ),
                   ),
                   Text('mamConfigure'.tr,
-                      style: Theme.of(ctx).textTheme.titleMedium),
-                  const SizedBox(height: 8),
+                      style: Theme.of(ctx).textTheme.titleLarge),
+                  const SizedBox(height: RiffSpacing.sm),
                   Text('mamConfigureDes'.tr,
                       style: Theme.of(ctx).textTheme.bodySmall),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: RiffSpacing.lg),
                   TextField(
                     controller: ctrl,
                     obscureText: obscure,
@@ -321,7 +317,7 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
                           setLocal(() => obscure = !obscure),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: RiffSpacing.lg),
                   Row(
                     children: [
                       if (MamTorrentService.isConfigured)
@@ -408,11 +404,6 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
       useRootNavigator: true,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor ??
-          Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-      ),
       builder: (ctx) {
         var obscure = true;
         var busy = false;
@@ -420,9 +411,9 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
           final bottomPad = _sheetBottomPadding(ctx);
           return Padding(
             padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 12,
+              left: RiffSpacing.xl,
+              right: RiffSpacing.xl,
+              top: RiffSpacing.md,
               bottom: bottomPad,
             ),
             child: SingleChildScrollView(
@@ -432,20 +423,20 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
                 children: [
                   Center(
                     child: Container(
-                      width: 36,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 12),
+                      width: RiffComponentSizes.handleWidth,
+                      height: RiffComponentSizes.handleHeight,
+                      margin: const EdgeInsets.only(bottom: RiffSpacing.md),
                       decoration: BoxDecoration(
-                        color: Theme.of(ctx).dividerColor,
-                        borderRadius: BorderRadius.circular(2),
+                        color: RiffColors.of(ctx).handle,
+                        borderRadius: BorderRadius.circular(RiffRadii.pill),
                       ),
                     ),
                   ),
                   Text(titleKey.tr,
-                      style: Theme.of(ctx).textTheme.titleMedium),
-                  const SizedBox(height: 8),
+                      style: Theme.of(ctx).textTheme.titleLarge),
+                  const SizedBox(height: RiffSpacing.sm),
                   Text(desKey.tr, style: Theme.of(ctx).textTheme.bodySmall),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: RiffSpacing.lg),
                   TextField(
                     controller: ctrl,
                     obscureText: obscure,
@@ -460,7 +451,7 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
                           setLocal(() => obscure = !obscure),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: RiffSpacing.lg),
                   Row(
                     children: [
                       if (service.isConfigured)
@@ -539,11 +530,6 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
       useRootNavigator: true,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor ??
-          Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-      ),
       builder: (ctx) {
         var obscure = true;
         var busy = false;
@@ -551,9 +537,9 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
           final bottomPad = _sheetBottomPadding(ctx);
           return Padding(
             padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 12,
+              left: RiffSpacing.xl,
+              right: RiffSpacing.xl,
+              top: RiffSpacing.md,
               bottom: bottomPad,
             ),
             child: SingleChildScrollView(
@@ -563,21 +549,21 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
                 children: [
                   Center(
                     child: Container(
-                      width: 36,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 12),
+                      width: RiffComponentSizes.handleWidth,
+                      height: RiffComponentSizes.handleHeight,
+                      margin: const EdgeInsets.only(bottom: RiffSpacing.md),
                       decoration: BoxDecoration(
-                        color: Theme.of(ctx).dividerColor,
-                        borderRadius: BorderRadius.circular(2),
+                        color: RiffColors.of(ctx).handle,
+                        borderRadius: BorderRadius.circular(RiffRadii.pill),
                       ),
                     ),
                   ),
                   Text('rutrackerConfigure'.tr,
-                      style: Theme.of(ctx).textTheme.titleMedium),
-                  const SizedBox(height: 8),
+                      style: Theme.of(ctx).textTheme.titleLarge),
+                  const SizedBox(height: RiffSpacing.sm),
                   Text('rutrackerConfigureDes'.tr,
                       style: Theme.of(ctx).textTheme.bodySmall),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: RiffSpacing.lg),
                   TextField(
                     controller: ctrl,
                     obscureText: obscure,
@@ -592,7 +578,7 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
                           setLocal(() => obscure = !obscure),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: RiffSpacing.lg),
                   Row(
                     children: [
                       TextButton(
@@ -672,11 +658,6 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
       useRootNavigator: true,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor ??
-          Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-      ),
       builder: (ctx) {
         var obscure = true;
         var busy = false;
@@ -684,9 +665,9 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
           final bottomPad = _sheetBottomPadding(ctx);
           return Padding(
             padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 12,
+              left: RiffSpacing.xl,
+              right: RiffSpacing.xl,
+              top: RiffSpacing.md,
               bottom: bottomPad,
             ),
             child: SingleChildScrollView(
@@ -696,41 +677,39 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
                 children: [
                   Center(
                     child: Container(
-                      width: 36,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 12),
+                      width: RiffComponentSizes.handleWidth,
+                      height: RiffComponentSizes.handleHeight,
+                      margin: const EdgeInsets.only(bottom: RiffSpacing.md),
                       decoration: BoxDecoration(
-                        color: Theme.of(ctx).dividerColor,
-                        borderRadius: BorderRadius.circular(2),
+                        color: RiffColors.of(ctx).handle,
+                        borderRadius: BorderRadius.circular(RiffRadii.pill),
                       ),
                     ),
                   ),
                   Text('qbitConfigure'.tr,
-                      style: Theme.of(ctx).textTheme.titleMedium),
-                  const SizedBox(height: 8),
+                      style: Theme.of(ctx).textTheme.titleLarge),
+                  const SizedBox(height: RiffSpacing.sm),
                   Text('qbitConfigureDes'.tr,
                       style: Theme.of(ctx).textTheme.bodySmall),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: RiffSpacing.lg),
                   TextField(
                     controller: url,
                     keyboardType: TextInputType.url,
                     decoration: InputDecoration(
                       labelText: 'qbitUrl'.tr,
-                      border: const OutlineInputBorder(),
-                      isDense: true,
+                                      isDense: true,
                       hintText: 'http://192.168.1.10:8080',
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: RiffSpacing.md),
                   TextField(
                     controller: user,
                     decoration: InputDecoration(
                       labelText: 'username'.tr,
-                      border: const OutlineInputBorder(),
-                      isDense: true,
+                                      isDense: true,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: RiffSpacing.md),
                   TextField(
                     controller: pass,
                     obscureText: obscure,
@@ -742,7 +721,7 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
                           setLocal(() => obscure = !obscure),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: RiffSpacing.lg),
                   Row(
                     children: [
                       if (QBittorrentService.isConfigured)

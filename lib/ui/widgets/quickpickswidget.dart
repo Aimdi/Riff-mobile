@@ -1,14 +1,15 @@
 import 'package:flutter/gestures.dart' show kSecondaryMouseButton;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '/models/quick_picks.dart';
 import '/services/discovery/discovery_types.dart';
 import '../player/player_controller.dart';
-import '/ui/theme/riff_tokens.dart';
 import '../utils/riff_tokens.dart';
 import '../screens/Home/home_layout.dart';
 import 'image_widget.dart';
+import 'riff_sheet.dart';
 import 'snackbar.dart';
 import 'songinfo_bottom_sheet.dart';
 
@@ -26,13 +27,9 @@ class QuickPicksWidget extends StatelessWidget {
     showModalBottomSheet(
       useRootNavigator: true,
       constraints: const BoxConstraints(maxWidth: 500),
-      shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(RiffTokens.radiusSm)),
-      ),
+      shape: riffSheetShape,
       isScrollControlled: true,
       context: sheetContext,
-      barrierColor: RiffColors.of(sheetContext).scrim.withAlpha(100),
       builder: (context) => SongInfoBottomSheet(
         content.songList[item],
       ),
@@ -94,6 +91,7 @@ class QuickPicksWidget extends StatelessWidget {
                             if (!ok) snackOperationFailed();
                           },
                           onLongPress: () {
+                            HapticFeedback.mediumImpact();
                             _openSongSheet(context, playerController, item);
                           },
                           child: Row(

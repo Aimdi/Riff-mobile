@@ -1,6 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -391,11 +392,17 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
     final channelId = rawId.startsWith('MPLA') ? rawId.substring(4) : rawId;
     final subscribed =
         lib?.libraryPodcasts.any((p) => p.playlistId == channelId) ?? false;
-    Widget item(IconData icon, String label) => Row(children: [
-          Icon(icon, size: 20),
-          const SizedBox(width: 14),
-          Text(label),
-        ]);
+    final theme = Theme.of(context);
+    Widget item(IconData icon, String label, {bool destructive = false}) {
+      final fg =
+          destructive ? theme.colorScheme.error : theme.colorScheme.onSurface;
+      return Row(children: [
+        Icon(icon, size: RiffComponentSizes.headerIcon, color: fg),
+        const SizedBox(width: RiffSpacing.md),
+        Text(label, style: theme.textTheme.bodyLarge?.copyWith(color: fg)),
+      ]);
+    }
+
     return PopupMenuButton<String>(
       tooltip: 'more'.tr,
       icon: Icon(Icons.more_vert_rounded,
@@ -422,7 +429,8 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                 subscribed
                     ? Icons.remove_circle_outline_rounded
                     : Icons.podcasts_rounded,
-                subscribed ? 'unsubscribePodcast'.tr : 'subscribeAsPodcast'.tr),
+                subscribed ? 'unsubscribePodcast'.tr : 'subscribeAsPodcast'.tr,
+                destructive: subscribed),
           ),
         PopupMenuItem(
             value: 'share', child: item(Icons.share_outlined, 'share'.tr)),
@@ -480,7 +488,10 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
     final accent = Theme.of(context).colorScheme.secondary;
     return InkWell(
       onTap: () => _playSongs(songs, i),
-      onLongPress: () => _openSongMenu(context, song),
+      onLongPress: () {
+        HapticFeedback.mediumImpact();
+        _openSongMenu(context, song);
+      },
       child: Padding(
         padding: const EdgeInsets.only(
             left: HomeLayout.gutter,
@@ -575,7 +586,10 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(8),
                   onTap: () => _playSongs(videos, i),
-                  onLongPress: () => _openSongMenu(context, v),
+                  onLongPress: () {
+                    HapticFeedback.mediumImpact();
+                    _openSongMenu(context, v);
+                  },
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -856,12 +870,8 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
     showModalBottomSheet(
       useRootNavigator: true,
       constraints: const BoxConstraints(maxWidth: 500),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
-      ),
       isScrollControlled: true,
       context: context,
-      barrierColor: Colors.transparent.withAlpha(100),
       builder: (context) => SongInfoBottomSheet(song),
     ).whenComplete(() => Get.delete<SongInfoController>());
   }

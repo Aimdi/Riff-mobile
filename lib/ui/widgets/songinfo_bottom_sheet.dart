@@ -1,5 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 import 'package:ionicons/ionicons.dart';
@@ -31,7 +32,6 @@ import 'image_widget.dart';
 import 'riff_sheet.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
-import '../screens/Home/home_layout.dart';
 import 'song_info_dialog.dart';
 
 /// Player / mini-player long-press — same sheet as the full player.
@@ -51,7 +51,6 @@ void showCurrentSongSheet({
     shape: riffSheetShape,
     isScrollControlled: true,
     context: sheetContext,
-    barrierColor: RiffColors.of(sheetContext).scrim.withAlpha(100),
     builder: (context) => SongInfoBottomSheet(
       song,
       calledFromPlayer: true,
@@ -92,7 +91,7 @@ class SongInfoBottomSheet extends StatelessWidget {
     final songInfoController = _controllerFor(song, calledFromPlayer);
     final playerController = Get.find<PlayerController>();
     final theme = Theme.of(context);
-    final fg = theme.textTheme.titleMedium?.color;
+    final fg = theme.colorScheme.onSurface;
     final hasAlbum =
         ((song.extras?['album'] as Map?)?['id'] ?? '').toString().isNotEmpty;
     final inEditablePlaylist = (playlist != null &&
@@ -110,7 +109,8 @@ class SongInfoBottomSheet extends StatelessWidget {
       // Callers should use useRootNavigator: true so the sheet clears the
       // mini player; keep system safe-area inset here.
       padding: EdgeInsets.only(
-        bottom: sheetBottomInset(context, liftAboveMiniPlayer: false) + 8,
+        bottom: sheetBottomInset(context, liftAboveMiniPlayer: false) +
+            RiffSpacing.sm,
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -140,14 +140,15 @@ class SongInfoBottomSheet extends StatelessWidget {
               },
               child: Padding(
                 padding: const EdgeInsets.only(
-                    left: RiffSpacing.xl,
+                    left: RiffSpacing.lg,
                     top: RiffSpacing.sm,
                     right: RiffSpacing.md,
                     bottom: RiffSpacing.md),
                 child: Row(
                   children: [
-                    ImageWidget(song: song, size: 56),
-                    const SizedBox(width: 14),
+                    ImageWidget(
+                        song: song, size: RiffComponentSizes.sheetHeaderArt),
+                    const SizedBox(width: RiffSpacing.md),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -155,15 +156,14 @@ class SongInfoBottomSheet extends StatelessWidget {
                           Text(song.title,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
+                              style: theme.textTheme.titleMedium
                                   ?.copyWith(color: fg)),
-                          const SizedBox(height: 3),
+                          const SizedBox(height: RiffSpacing.xxs),
                           Text(song.artist ?? '',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: homeCardSubtitleStyle(context)),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant)),
                         ],
                       ),
                     ),
@@ -205,6 +205,7 @@ class SongInfoBottomSheet extends StatelessWidget {
                   icon: Icons.playlist_play_rounded,
                   label: 'playNext'.tr,
                   onTap: () async {
+                    HapticFeedback.lightImpact();
                     Navigator.of(context).pop();
                     final ok = await playerController.playNext(song);
                     snack(
@@ -228,7 +229,7 @@ class SongInfoBottomSheet extends StatelessWidget {
                 onTap: () => Share.share(SongLinkShare.shareText(song)),
               ),
             ]),
-            const SizedBox(height: 6),
+            const SizedBox(height: RiffSpacing.xs),
             RiffSheetTile(
               icon: Icons.graphic_eq_rounded,
               title: "similarSongs".tr,
@@ -257,6 +258,7 @@ class SongInfoBottomSheet extends StatelessWidget {
                 icon: Icons.low_priority_rounded,
                 title: "enqueueSong".tr,
                 onTap: () async {
+                  HapticFeedback.lightImpact();
                   Navigator.of(context).pop();
                   final ok = await playerController.enqueueSong(song);
                   snack(ok ? "songEnqueueAlert".tr : "operationFailed".tr);
@@ -364,15 +366,13 @@ class SongInfoBottomSheet extends StatelessWidget {
             // Open in YouTube / YouTube Music / WizeStream.
             Padding(
               padding: const EdgeInsets.only(
-                  left: RiffSpacing.xl,
+                  left: RiffSpacing.lg,
                   top: RiffSpacing.md,
-                  right: RiffSpacing.xl,
+                  right: RiffSpacing.lg,
                   bottom: RiffSpacing.sm),
               child: Text("openIn".tr,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelMedium
-                      ?.copyWith(color: homeMutedColor(context))),
+                  style: theme.textTheme.labelMedium
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             ),
             Padding(
               padding: const EdgeInsets.only(
@@ -380,8 +380,8 @@ class SongInfoBottomSheet extends StatelessWidget {
                   right: RiffSpacing.lg,
                   bottom: RiffSpacing.sm),
               child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: RiffSpacing.sm,
+                runSpacing: RiffSpacing.sm,
                 children: [
                   RiffChoiceChip(
                     icon: Ionicons.logo_youtube,

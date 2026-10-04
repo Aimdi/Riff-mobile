@@ -67,7 +67,7 @@ Future<void> editBookmarkNote(BuildContext context, PodcastBookmark bm) async {
                 bm.note == null ? 'bookmarkAddNote'.tr : 'bookmarkEditNote'.tr,
                 icon: Icons.edit_note_rounded,
                 subtitle: bm.quote.isEmpty ? null : '“${bm.quote}”'),
-            const SizedBox(height: 14),
+            const SizedBox(height: RiffSpacing.md),
             TextField(
               controller: ctrl,
               autofocus: true,
@@ -77,10 +77,9 @@ Future<void> editBookmarkNote(BuildContext context, PodcastBookmark bm) async {
               textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
                 hintText: 'bookmarkNoteHint'.tr,
-                border: const OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: RiffSpacing.sm),
             RiffDialogButton('save'.tr,
                 onPressed: () => Navigator.of(d).pop(true)),
             RiffDialogButton('cancel'.tr,
@@ -251,7 +250,11 @@ class PodcastBookmarkTile extends StatelessWidget {
                     child: Text(b.note == null
                         ? 'bookmarkAddNote'.tr
                         : 'bookmarkEditNote'.tr)),
-                PopupMenuItem(value: 2, child: Text('bookmarkRemove'.tr)),
+                PopupMenuItem(
+                    value: 2,
+                    child: Text('bookmarkRemove'.tr,
+                        style: theme.textTheme.bodyLarge
+                            ?.copyWith(color: theme.colorScheme.error))),
               ],
             ),
           ],
@@ -272,7 +275,6 @@ Future<void> showEpisodeBookmarksSheet(BuildContext context) {
     useRootNavigator: true,
     isScrollControlled: true,
     constraints: const BoxConstraints(maxWidth: 520),
-    shape: riffSheetShape,
     builder: (sheet) => SizedBox(
       height: MediaQuery.sizeOf(sheet).height * 0.7,
       // Own messenger so Undo / Add note snacks show above the sheet.
@@ -299,13 +301,14 @@ Future<void> showEpisodeBookmarksSheet(BuildContext context) {
                   Expanded(
                     child: list.isEmpty
                         ? Padding(
-                            padding: const EdgeInsets.all(24),
+                            padding: const EdgeInsets.all(RiffSpacing.xxl),
                             child: Text('noEpisodeBookmarks'.tr,
                                 textAlign: TextAlign.center,
                                 style: homeCardSubtitleStyle(inner)),
                           )
                         : ListView.builder(
-                            padding: const EdgeInsets.only(bottom: 24),
+                            padding:
+                                const EdgeInsets.only(bottom: RiffSpacing.xxl),
                             itemCount: list.length,
                             itemBuilder: (_, i) => PodcastBookmarkTile(
                               bookmark: list[i],

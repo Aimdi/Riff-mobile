@@ -1,3 +1,17 @@
+# 1.7.142
+
+**New look, step 8: sheets, dialogs, settings and stats**
+* Menus and sheets share one style: rounded top, slim handle, roomy rows
+  with clear icons, and remove/delete options in red
+* Dialogs use the same dark surface with readable text and pill buttons
+* Snackbars float above the bottom edge in your accent
+* Settings groups are flat with thin dividers and bigger headings; the
+  switches follow your accent
+* Stats and Rewind use outlined tiles and accent charts
+* Light taps on long-press menus, pull-to-refresh, play next, adding to a
+  playlist or queue and starting a download
+* Nothing moved: same settings, menus and buttons in the same order
+
 # 1.7.141
 
 **New look, step 7: podcasts and audiobooks**

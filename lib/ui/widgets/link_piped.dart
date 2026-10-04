@@ -5,6 +5,7 @@ import '../../utils/helper.dart';
 import '/services/piped_service.dart';
 import '../screens/Settings/settings_screen_controller.dart';
 import '../screens/Library/library_controller.dart';
+import '/ui/theme/riff_spacing.dart';
 import 'common_dialog_widget.dart';
 import 'modified_text_field.dart';
 import 'snackbar.dart';
@@ -20,13 +21,15 @@ class LinkPiped extends StatelessWidget {
               height: pipedLinkedController.selectedInst.value == "custom"
                   ? 470
                   : 435,
-              padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 30),
+              padding: const EdgeInsets.symmetric(
+                  vertical: RiffSpacing.x3l, horizontal: RiffSpacing.x3l),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   RiffDialogTitle("Piped".tr, icon: Icons.link_rounded),
                   Padding(
-                    padding: const EdgeInsets.only(top: 15.0, bottom: 10),
+                    padding: const EdgeInsets.only(
+                        top: RiffSpacing.lg, bottom: RiffSpacing.sm),
                     child: Obx(() => DropdownButton(
                         underline: const SizedBox.shrink(),
                         value: pipedLinkedController.selectedInst.value,
@@ -47,29 +50,21 @@ class LinkPiped extends StatelessWidget {
                       ? ModifiedTextField(
                           controller:
                               pipedLinkedController.instApiUrlInputController,
-                          cursorColor:
-                              Theme.of(context).textTheme.titleSmall!.color,
                           decoration:
                               InputDecoration(hintText: "hintApiUrl".tr))
                       : const SizedBox.shrink()),
                   ModifiedTextField(
                       controller: pipedLinkedController.usernameInputController,
-                      cursorColor:
-                          Theme.of(context).textTheme.titleSmall!.color,
                       decoration: InputDecoration(hintText: "username".tr)),
-                  const SizedBox(
-                    height: 15,
-                  ),
+                  const SizedBox(height: RiffSpacing.lg),
                   Obx(() => ModifiedTextField(
                         controller:
                             pipedLinkedController.passwordInputController,
-                        cursorColor:
-                            Theme.of(context).textTheme.titleSmall!.color,
                         decoration: InputDecoration(
                           hintText: "password".tr,
                           suffixIcon: IconButton(
                             color:
-                                Theme.of(context).textTheme.titleSmall!.color,
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                             icon: pipedLinkedController.passwordVisible.value
                                 ? const Icon(Icons.visibility_off)
                                 : const Icon(Icons.visibility),
@@ -86,6 +81,13 @@ class LinkPiped extends StatelessWidget {
                               child: Text(
                             pipedLinkedController.errorText.value,
                             textAlign: TextAlign.center,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyLarge
+                                ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface),
                           )))),
                   RiffDialogButton("link".tr,
                       onPressed: pipedLinkedController.link),

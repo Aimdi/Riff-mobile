@@ -36,6 +36,13 @@ elements (or can't be done on this SDK), and what was done instead.
 | 7 | Store browse grid titles one line | Fixed-aspect grid; one line would cut titles that fit today | two lines kept |
 | 7 | Rating stars and genre/category tiles | Content colours (data palettes), not chrome | kept; only radius/spacing changed |
 | 7 | Sheets and dialogs in podcasts/audiobooks | Phase 8 | untouched |
+| 8 | Hairlines between individual settings rows | §Phase 8 asks for hairlines between groups; per-row Dividers would add elements | hairline along each group's bottom edge |
+| 8 | Settings/dialog off-grid positions (top padding 50/90, menu max height, fixed dialog heights 110/120/470…) | Snapping them would move headers, menus or dialog content | left as they are |
+| 8 | Snackbar action 15/800 | No snackbar in the app builds an action through `snackbar.dart`; the theme sets the action colour | onAccent action colour from the theme |
+| 8 | Sheets without a handle or title | Adding one would add an element | only sheets that have them get the §5.10 handle/title |
+| 8 | "Remove playlist" in the collection ⋮ menu in red | `CollectionMenuItem` has no destructive flag; adding one is an API change | unchanged colour |
+| 8 | Page transition 250 ms (§4.7) | See Phase 1 row: route builders fix their own durations | unchanged |
+| 8 | Sleep-timer countdown tabular figures | A non-colour `copyWith` (fontFeatures) kept so the digits don't jitter | kept |
 
 ## Known side effects of Phase 1 (to settle in later phases)
 

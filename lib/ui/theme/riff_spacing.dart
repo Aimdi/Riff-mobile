@@ -41,6 +41,10 @@ class RiffSpacing {
 
   /// Riff Wave card to its chip row.
   static const double chipRowTop = 12;
+
+  /// Bottom margin of the app's snackbars, so they float above the mini
+  /// player (keeps the current offset).
+  static const double snackbarBottom = 100;
 }
 
 /// Home component sizes and corner radii.

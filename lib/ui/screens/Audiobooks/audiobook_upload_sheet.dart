@@ -155,26 +155,28 @@ class _AudiobookUploadSheetState extends State<AudiobookUploadSheet> {
           children: [
             Row(
               children: [
-                const Icon(Icons.cloud_upload_outlined),
-                const SizedBox(width: 10),
+                const Icon(Icons.cloud_upload_outlined,
+                    size: RiffComponentSizes.headerIcon),
+                const SizedBox(width: RiffSpacing.md),
                 Text('uploadAudiobook'.tr, style: theme.textTheme.titleLarge),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: RiffSpacing.lg),
             OutlinedButton.icon(
               onPressed: _uploading ? null : _pickFiles,
-              icon: const Icon(Icons.audio_file_outlined, size: 20),
+              icon: const Icon(Icons.audio_file_outlined,
+                  size: RiffComponentSizes.trailingIcon),
               label: Text('chooseFiles'.tr),
             ),
             if (_files.isEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.only(top: RiffSpacing.sm),
                 child: Text('noFilesSelected'.tr,
                     style: theme.textTheme.bodySmall),
               )
             else
               Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.only(top: RiffSpacing.sm),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -214,48 +216,40 @@ class _AudiobookUploadSheetState extends State<AudiobookUploadSheet> {
                   ],
                 ),
               ),
-            const SizedBox(height: 14),
+            const SizedBox(height: RiffSpacing.md),
             TextField(
               controller: _title,
               enabled: !_uploading,
               decoration: InputDecoration(
                 labelText: 'title'.tr,
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 isDense: true,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: RiffSpacing.md),
             TextField(
               controller: _author,
               enabled: !_uploading,
               decoration: InputDecoration(
                 labelText: 'author'.tr,
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 isDense: true,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: RiffSpacing.md),
             TextField(
               controller: _series,
               enabled: !_uploading,
               decoration: InputDecoration(
                 labelText: 'series'.tr,
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 isDense: true,
               ),
             ),
             if (folders.length > 1) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: RiffSpacing.md),
               DropdownButtonFormField<String>(
                 value: _folderId,
                 isExpanded: true,
                 decoration: InputDecoration(
                   labelText: 'targetFolder'.tr,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)),
                   isDense: true,
                 ),
                 items: folders
@@ -269,19 +263,18 @@ class _AudiobookUploadSheetState extends State<AudiobookUploadSheet> {
                     _uploading ? null : (v) => setState(() => _folderId = v),
               ),
             ],
-            const SizedBox(height: 20),
+            const SizedBox(height: RiffSpacing.xl),
             if (_uploading) ...[
               ClipRRect(
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(RiffRadii.xs),
                 child: LinearProgressIndicator(
                   value: _progress == 0 ? null : _progress,
-                  minHeight: 6,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: RiffSpacing.sm),
               Text('${'uploading'.tr} ${(_progress * 100).round()}%',
                   style: theme.textTheme.bodySmall),
-              const SizedBox(height: 8),
+              const SizedBox(height: RiffSpacing.sm),
               Center(
                 child: TextButton(
                   onPressed: () => _cancel?.cancel(),
@@ -297,11 +290,12 @@ class _AudiobookUploadSheetState extends State<AudiobookUploadSheet> {
                       child: Text('cancel'.tr),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: RiffSpacing.md),
                   Expanded(
                     child: FilledButton.icon(
                       onPressed: _submit,
-                      icon: const Icon(Icons.cloud_upload, size: 18),
+                      icon: const Icon(Icons.cloud_upload,
+                          size: RiffComponentSizes.trailingIcon),
                       label: Text('upload'.tr),
                     ),
                   ),

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/ui/theme/riff_spacing.dart';
-import '../../../utils/riff_tokens.dart';
+import '/ui/theme/riff_tokens.dart';
 import '../../Home/home_layout.dart';
 import '../settings_screen_controller.dart';
 
@@ -11,6 +11,11 @@ TextStyle settingsSubtitleStyle(BuildContext context) =>
     (Theme.of(context).textTheme.bodyMedium ?? const TextStyle()).copyWith(
       color: homeMutedColor(context),
     );
+
+/// Content padding of a setting row inside a group (the group body adds
+/// the rest, so rows line up 12dp in from the group's edges).
+const settingsTilePadding =
+    EdgeInsets.only(left: RiffSpacing.xs, right: RiffSpacing.sm);
 
 /// Marks a setting whose tile is built inside an Obx (so its text can't be
 /// read up front) with the words search should match.
@@ -52,8 +57,10 @@ bool? settingsChildMatches(Widget w, String q) {
   return null;
 }
 
-/// A settings group: a card with a tinted icon, title and one-line summary
-/// that expands to its settings. While Settings search has text, the group
+/// A settings group: an icon, title (titleLarge) and one-line summary that
+/// expands to its settings, on the page background with a hairline along
+/// its bottom edge (Phase 8). Rows inside get bodyLarge titles, bodyMedium
+/// subtitles and a 52dp minimum height. While Settings search has text, the group
 /// opens by itself and shows only matching settings (or hides entirely).
 class CustomExpansionTile extends StatelessWidget {
   final String title;
@@ -93,27 +100,25 @@ class CustomExpansionTile extends StatelessWidget {
   Widget _card(BuildContext context, List<Widget> items,
       {required bool searching}) {
     final theme = Theme.of(context);
-    final accent = theme.colorScheme.secondary;
+    final scheme = theme.colorScheme;
     final header = Row(
       children: [
         Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: accent.withOpacity(0.14),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: accent, size: 21),
+          width: RiffComponentSizes.settingsGroupIcon,
+          height: RiffComponentSizes.settingsGroupIcon,
+          alignment: Alignment.center,
+          child: Icon(icon,
+              color: scheme.onSurface, size: RiffComponentSizes.headerIcon),
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: RiffSpacing.md),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              Text(title, style: theme.textTheme.titleLarge),
               if ((subtitle ?? '').isNotEmpty) ...[
-                const SizedBox(height: 2),
+                const SizedBox(height: RiffSpacing.xxs),
                 Text(subtitle!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -125,22 +130,27 @@ class CustomExpansionTile extends StatelessWidget {
       ],
     );
     final body = Padding(
-      // Tiles carry a 5dp inset of their own.
+      // Tiles carry [settingsTilePadding] of their own.
       padding: const EdgeInsets.only(
           left: RiffSpacing.sm, right: RiffSpacing.xs, bottom: RiffSpacing.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: items,
+      child: ListTileTheme.merge(
+        titleTextStyle: theme.textTheme.bodyLarge,
+        subtitleTextStyle: theme.textTheme.bodyMedium,
+        iconColor: scheme.onSurfaceVariant,
+        minTileHeight: RiffComponentSizes.settingsRow,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: items,
+        ),
       ),
     );
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: RiffSpacing.sm),
       child: Material(
-        color: homeTileColor(context),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
-          side: homeTileBorder(context),
-        ),
+        // On the page background; the hairline along the bottom edge
+        // separates the groups.
+        color: Colors.transparent,
+        shape: Border(bottom: BorderSide(color: theme.dividerColor, width: 0)),
         clipBehavior: Clip.antiAlias,
         child: searching
             ? Column(
@@ -170,8 +180,8 @@ class CustomExpansionTile extends StatelessWidget {
                   expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
                   shape: const Border(),
                   collapsedShape: const Border(),
-                  iconColor: homeMutedColor(context),
-                  collapsedIconColor: homeMutedColor(context),
+                  iconColor: scheme.onSurfaceVariant,
+                  collapsedIconColor: scheme.onSurfaceVariant,
                   title: header,
                   children: [body],
                 ),

@@ -1,5 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:harmonymusic/ui/theme/riff_spacing.dart';
@@ -7,7 +8,6 @@ import 'package:harmonymusic/ui/theme/riff_tokens.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
 import 'image_widget.dart';
-import 'riff_sheet.dart';
 import 'snackbar.dart';
 import 'song_list_tile.dart' show RiffRowHairline;
 import 'songinfo_bottom_sheet.dart';
@@ -142,10 +142,8 @@ class _QueueSongRow extends StatelessWidget {
       showModalBottomSheet(
         useRootNavigator: true,
         constraints: const BoxConstraints(maxWidth: 500),
-        shape: riffSheetShape,
         isScrollControlled: true,
         context: sheetContext,
-        barrierColor: RiffColors.of(sheetContext).scrim.withAlpha(100),
         builder: (context) => SongInfoBottomSheet(
           song,
           calledFromQueue: true,
@@ -201,7 +199,10 @@ class _QueueSongRow extends StatelessWidget {
                             .backgroundColor,
                     child: InkWell(
                       onTap: () => playerController.seekByIndex(index),
-                      onLongPress: openMenu,
+                      onLongPress: () {
+                        HapticFeedback.mediumImpact();
+                        openMenu();
+                      },
                       child: Padding(
                         // 16h like every row; the drag handle brings its own
                         // trailing room. Vertical padding comes from the fixed

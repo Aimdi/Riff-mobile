@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '/services/discovery/discovery_types.dart';
@@ -84,10 +85,10 @@ class JumpBackInTile extends StatelessWidget {
     final player = Get.isRegistered<PlayerController>()
         ? Get.find<PlayerController>()
         : null;
+    HapticFeedback.mediumImpact();
     showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
-      shape: riffSheetShape,
       builder: (sheet) => SafeArea(
         top: false,
         child: Column(
@@ -122,7 +123,7 @@ class JumpBackInTile extends StatelessWidget {
                   player?.dismissContinueListening();
                 },
               ),
-            const SizedBox(height: 8),
+            const SizedBox(height: RiffSpacing.sm),
           ],
         ),
       ),

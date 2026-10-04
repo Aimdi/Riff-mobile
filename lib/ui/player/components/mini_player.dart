@@ -1,6 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:ionicons/ionicons.dart';
 import 'package:widget_marquee/widget_marquee.dart';
@@ -144,6 +145,7 @@ class _MiniPlayerArt extends StatelessWidget {
           song != null
               ? GestureDetector(
                   onLongPress: () {
+                    HapticFeedback.mediumImpact();
                     showCurrentSongSheet(
                       song: song,
                       context: playerController.homeScaffoldkey.currentContext,
@@ -194,6 +196,7 @@ class _MiniPlayerSongInfo extends StatelessWidget {
         playerController.playerPanelController.open();
       },
       onLongPress: () {
+        HapticFeedback.mediumImpact();
         showCurrentSongSheet(
           song: playerController.currentSong.value,
           context: playerController.homeScaffoldkey.currentContext,

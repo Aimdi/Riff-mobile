@@ -16,6 +16,7 @@ import '/ui/screens/Podcasts/podcast_bookmarks_ui.dart';
 import '/ui/widgets/riff_sheet.dart';
 import '../player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 
 /// Episode transcript (feed `<podcast:transcript>` or YouTube captions).
 /// The current line follows playback; tap a line to jump there, long-press
@@ -30,7 +31,6 @@ class PodcastTranscriptSheet extends StatefulWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: riffSheetShape,
       builder: (ctx) => SizedBox(
         height: MediaQuery.of(ctx).size.height * 0.8,
         // Own messenger so the bookmark confirmation shows on the sheet.
@@ -265,7 +265,7 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
                   : cues.isEmpty
                       ? Center(
                           child: Padding(
-                            padding: const EdgeInsets.all(24),
+                            padding: const EdgeInsets.all(RiffSpacing.xxl),
                             child: Text('noTranscript'.tr,
                                 textAlign: TextAlign.center,
                                 style: Theme.of(context)
@@ -301,12 +301,12 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
                 hintText: 'transcriptSearch'.tr,
                 prefixIcon: const Icon(Icons.search_rounded),
                 isDense: true,
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(RiffRadii.pill)),
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: RiffSpacing.sm),
           if (q.isNotEmpty)
             Text(
               has
@@ -420,7 +420,7 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
           Align(
             alignment: Alignment.bottomCenter,
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.only(bottom: RiffSpacing.md),
               child: RiffChoiceChip(
                 icon: Icons.my_location_rounded,
                 selected: true,
@@ -498,11 +498,12 @@ class _TranscriptLine extends StatelessWidget {
 
     final seg = segment;
     Widget line = InkWell(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(RiffRadii.sm),
       onTap: onTap,
       onLongPress: onLongPress,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
+        padding: const EdgeInsets.symmetric(
+            vertical: RiffSpacing.sm, horizontal: RiffSpacing.xs),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -519,7 +520,7 @@ class _TranscriptLine extends StatelessWidget {
                     ),
                     if (bookmarked)
                       Padding(
-                        padding: const EdgeInsets.only(left: 2),
+                        padding: const EdgeInsets.only(left: RiffSpacing.xxs),
                         child: Icon(Icons.bookmark_rounded,
                             size: 12, color: accent),
                       ),

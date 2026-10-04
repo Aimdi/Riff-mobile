@@ -45,9 +45,9 @@ class PodcastLibraryEditor extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text('keepLatest'.tr, style: titleStyle),
-          const SizedBox(height: 2),
+          const SizedBox(height: RiffSpacing.xxs),
           Text('keepLatestDes'.tr, style: homeCardSubtitleStyle(context)),
-          const SizedBox(height: 10),
+          const SizedBox(height: RiffSpacing.md),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -69,11 +69,11 @@ class PodcastLibraryEditor extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: RiffSpacing.xxl),
           Text('autoDelete'.tr, style: titleStyle),
-          const SizedBox(height: 2),
+          const SizedBox(height: RiffSpacing.xxs),
           Text('autoDeleteDes'.tr, style: homeCardSubtitleStyle(context)),
-          const SizedBox(height: 10),
+          const SizedBox(height: RiffSpacing.md),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -110,11 +110,10 @@ Future<void> showPodcastShowLibrarySheet(BuildContext context,
     useRootNavigator: true,
     isScrollControlled: true,
     constraints: const BoxConstraints(maxWidth: 520),
-    shape: riffSheetShape,
     builder: (sheet) => SafeArea(
       top: false,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: 20),
+        padding: const EdgeInsets.only(bottom: RiffSpacing.xl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

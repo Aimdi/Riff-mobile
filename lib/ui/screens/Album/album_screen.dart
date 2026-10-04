@@ -357,12 +357,8 @@ class AlbumScreen extends StatelessWidget {
     return showModalBottomSheet(
       useRootNavigator: true,
       constraints: const BoxConstraints(maxWidth: 500),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
-      ),
       isScrollControlled: true,
       context: context,
-      barrierColor: Colors.transparent.withAlpha(100),
       builder: (context) => SongInfoBottomSheet(song),
     ).whenComplete(() => Get.delete<SongInfoController>());
   }

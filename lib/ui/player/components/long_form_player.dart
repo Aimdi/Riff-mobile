@@ -492,9 +492,6 @@ void openQueueChaptersSheet(BuildContext context) {
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-    ),
     builder: (ctx) => DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.6,
@@ -526,7 +523,7 @@ void openQueueChaptersSheet(BuildContext context) {
             final d = m.duration;
             return ListTile(
               leading: SizedBox(
-                width: 28,
+                width: RiffComponentSizes.chapterNumber,
                 child: playing
                     ? Icon(Icons.graphic_eq_rounded, color: accent)
                     : Text('$i',

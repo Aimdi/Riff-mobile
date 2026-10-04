@@ -273,6 +273,7 @@ class _HomeFeedState extends State<_HomeFeed> {
   }
 
   Future<void> _refresh() async {
+    HapticFeedback.mediumImpact();
     await _loadRecent();
     await Future.wait([
       Get.find<HomeScreenController>().loadContentFromNetwork(silent: true),
