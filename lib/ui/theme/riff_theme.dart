@@ -244,13 +244,15 @@ class RiffTheme {
         labelStyle: text.labelLarge,
         unselectedLabelStyle:
             text.labelLarge!.copyWith(fontWeight: FontWeight.w500),
-        indicator: ShapeDecoration(
-          color: accent,
-          shape: const StadiumBorder(),
+        // §5.7: a 4 px rounded accent bar under the label, a hairline
+        // under the strip.
+        indicator: UnderlineTabIndicator(
+          borderSide: BorderSide(color: accent, width: RiffComponentSizes.tabIndicator),
+          borderRadius: BorderRadius.circular(RiffComponentSizes.tabIndicator),
         ),
         indicatorSize: TabBarIndicatorSize.label,
         dividerColor: RiffPalette.divider,
-        dividerHeight: 0,
+        dividerHeight: RiffComponentSizes.tabDivider,
         overlayColor: const WidgetStatePropertyAll(Colors.transparent),
         splashFactory: NoSplash.splashFactory,
       ),

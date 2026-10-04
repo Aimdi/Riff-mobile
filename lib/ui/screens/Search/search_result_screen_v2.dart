@@ -9,6 +9,8 @@ import '../../widgets/separate_tab_item_widget.dart';
 import '../Plugins/seeker_screen.dart';
 import 'search_result_screen_controller.dart';
 import '/ui/widgets/riff_header_bar.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 
 class SearchResultScreenBN extends StatelessWidget {
   const SearchResultScreenBN({super.key});
@@ -48,7 +50,13 @@ class SearchResultScreenBN extends StatelessWidget {
                           alignment: Alignment.centerLeft,
                           child: Text(
                             "searchRes".tr,
-                            style: Theme.of(context).textTheme.titleLarge,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface),
                           ),
                         ),
                         Align(
@@ -56,7 +64,7 @@ class SearchResultScreenBN extends StatelessWidget {
                           child: Obx(
                             () => Text(
                               "${"for1".tr} \"${searchResScrController.queryString.value}\"",
-                              style: Theme.of(context).textTheme.titleMedium,
+                              style: Theme.of(context).textTheme.bodyMedium,
                             ),
                           ),
                         ),
@@ -86,7 +94,7 @@ class SearchResultScreenBN extends StatelessWidget {
                                 "'${searchResScrController.queryString.value}'"),
                             if (searchResScrController.railItems.any(
                                 searchResScrController.isSoulseekRail)) ...[
-                              const SizedBox(height: 16),
+                              const SizedBox(height: RiffSpacing.lg),
                               TextButton.icon(
                                 onPressed: () {
                                   final idx = searchResScrController.railItems
@@ -109,34 +117,47 @@ class SearchResultScreenBN extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Padding(
-                          padding: const EdgeInsets.only(left: 15.0, top: 10),
+                          padding: const EdgeInsets.only(
+                              left: RiffSpacing.md, top: RiffSpacing.sm),
+                          // §5.6 chips: 32 pill, 12h, labelMedium; outlined
+                          // in the divider, accentMuted + accent when
+                          // selected.
                           child: ButtonsTabBar(
                             onTap: searchResScrController.onDestinationSelected,
 
                             controller: searchResScrController.tabController,
-                            contentPadding:
-                                const EdgeInsets.only(left: 15, right: 15),
-                            backgroundColor:
-                                Theme.of(context).textTheme.titleMedium?.color!,
-                            unselectedBackgroundColor:
-                                Theme.of(context).colorScheme.secondary,
-                            borderWidth: 0,
+                            height:
+                                RiffComponentSizes.chip + RiffSpacing.xs * 2,
+                            radius: RiffRadii.pill,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: RiffSpacing.md),
+                            decoration: BoxDecoration(
+                                color: RiffColors.of(context).accentMuted),
+                            unselectedDecoration:
+                                const BoxDecoration(color: Colors.transparent),
+                            borderWidth: 1,
+                            borderColor: Theme.of(context).colorScheme.primary,
+                            unselectedBorderColor:
+                                Theme.of(context).dividerColor,
+                            splashColor: RiffColors.of(context).surface2,
                             buttonMargin: const EdgeInsets.only(
-                                right: 10, left: 4, top: 4, bottom: 4),
-                            borderColor: Theme.of(context).colorScheme.surface,
+                                right: RiffSpacing.sm,
+                                left: RiffSpacing.xs,
+                                top: RiffSpacing.xs,
+                                bottom: RiffSpacing.xs),
                             labelStyle: Theme.of(context)
                                 .textTheme
-                                .labelLarge
+                                .labelMedium
                                 ?.copyWith(
-                                    color: Theme.of(context).primaryColor),
+                                    color:
+                                        Theme.of(context).colorScheme.primary),
                             unselectedLabelStyle: Theme.of(context)
                                 .textTheme
-                                .labelLarge
+                                .labelMedium
                                 ?.copyWith(
                                     color: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.color!),
+                                        .colorScheme
+                                        .onSurface),
                             // Add your tabs here
                             tabs: [
                               Tab(text: "results".tr),
@@ -152,7 +173,8 @@ class SearchResultScreenBN extends StatelessWidget {
                         ),
                         Expanded(
                           child: Padding(
-                            padding: const EdgeInsets.only(left: 15.0),
+                            padding:
+                                const EdgeInsets.only(left: RiffSpacing.lg),
                             child: TabBarView(
                               controller: searchResScrController.tabController,
                               children: [

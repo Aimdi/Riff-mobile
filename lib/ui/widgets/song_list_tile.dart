@@ -11,10 +11,9 @@ import '../player/player_controller.dart';
 import '../screens/Settings/settings_screen_controller.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/theme/riff_spacing.dart';
-import '../utils/riff_tokens.dart';
-import '../utils/theme_controller.dart';
 import 'add_to_playlist.dart';
 import 'image_widget.dart';
+import 'riff_sheet.dart';
 import 'snackbar.dart';
 import 'song_favourite.dart';
 import 'songinfo_bottom_sheet.dart';
@@ -29,7 +28,8 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
       this.thumbReplacementWithIndex = false,
       this.index,
       this.mixAnalysis,
-      this.showMixMeta = false});
+      this.showMixMeta = false,
+      this.fullWidthHairline = false});
   final Playlist? playlist;
   final MediaItem song;
   final VoidCallback? onTap;
@@ -43,16 +43,17 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
   final TrackAnalysis? mixAnalysis;
   final bool showMixMeta;
 
+  /// Search results draw a full-width hairline; track lists (album,
+  /// playlist, library) an inset one starting at the text (§5.2).
+  final bool fullWidthHairline;
+
   void _openSheet(PlayerController playerController) {
     final sheetContext =
         playerController.homeScaffoldkey.currentContext ?? Get.context;
     if (sheetContext == null) return;
     showModalBottomSheet(
       constraints: const BoxConstraints(maxWidth: 500),
-      shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(RiffTokens.radiusSm)),
-      ),
+      shape: riffSheetShape,
       isScrollControlled: true,
       useRootNavigator: true,
       context: sheetContext,
@@ -68,14 +69,12 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
   Widget build(BuildContext context) {
     final playerController = Get.find<PlayerController>();
     final theme = Theme.of(context);
-    final accent = theme.colorScheme.secondary;
-    final muted = theme.brightness == Brightness.dark
-        ? RiffSurfaces.textMuted
-        : theme.textTheme.titleSmall?.color?.withOpacity(0.65);
-    final highlight = theme.brightness == Brightness.dark
-        ? RiffSurfaces.elevatedSoft
-        : accent.withOpacity(0.08);
-    final radius = BorderRadius.circular(RiffTokens.radiusSm);
+    final scheme = theme.colorScheme;
+    final accent = scheme.secondary;
+    final muted = scheme.onSurfaceVariant;
+    final nowPlayingTint = RiffColors.of(context).accentMuted;
+    final slideBg = scheme.secondary;
+    final slideFg = scheme.onSecondary;
 
     return Listener(
         onPointerDown: (PointerDownEvent event) {
@@ -91,8 +90,8 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
               onPressed: (context) {
                 showAddToPlaylistSheet(context, [song]);
               },
-              backgroundColor: Theme.of(context).colorScheme.secondary,
-              foregroundColor: Theme.of(context).textTheme.titleMedium!.color,
+              backgroundColor: slideBg,
+              foregroundColor: slideFg,
               icon: Icons.playlist_add,
               //label: 'Add to playlist',
             ),
@@ -101,8 +100,8 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                 onPressed: (context) {
                   removeSongFromPlaylist(song, playlist!);
                 },
-                backgroundColor: Theme.of(context).colorScheme.secondary,
-                foregroundColor: Theme.of(context).textTheme.titleMedium!.color,
+                backgroundColor: slideBg,
+                foregroundColor: slideFg,
                 icon: Icons.delete,
                 //label: 'delete',
               ),
@@ -116,8 +115,8 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                     context, ok ? "songEnqueueAlert".tr : "operationFailed".tr,
                     size: SanckBarSize.MEDIUM));
               },
-              backgroundColor: Theme.of(context).colorScheme.secondary,
-              foregroundColor: Theme.of(context).textTheme.titleMedium!.color,
+              backgroundColor: slideBg,
+              foregroundColor: slideFg,
               icon: Icons.merge,
               //label: 'Enqueue',
             ),
@@ -132,8 +131,8 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                         : "operationFailed".tr,
                     size: SanckBarSize.BIG));
               },
-              backgroundColor: Theme.of(context).colorScheme.secondary,
-              foregroundColor: Theme.of(context).textTheme.titleMedium!.color,
+              backgroundColor: slideBg,
+              foregroundColor: slideFg,
               icon: Icons.next_plan_outlined,
               //label: 'Play Next',
             ),
@@ -146,17 +145,11 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                 child: Obx(() {
                   final isCurrent =
                       playerController.currentSong.value?.id == song.id;
+                  // Flat accentMuted tint for the now-playing row (§5.2).
                   return IgnorePointer(
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        color: isCurrent ? highlight : null,
-                        borderRadius: radius,
-                        // Soft elevated fill + thin secondary cue (not a thick rail).
-                        border: isCurrent
-                            ? Border(
-                                left: BorderSide(color: accent, width: 2),
-                              )
-                            : null,
+                        color: isCurrent ? nowPlayingTint : null,
                       ),
                     ),
                   );
@@ -165,21 +158,17 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
               Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  borderRadius: radius,
                   onTap: onTap,
                   onLongPress: () => _openSheet(playerController),
                   child: Padding(
-                    padding: const EdgeInsets.only(
-                        left: RiffSpacing.sm,
-                        top: RiffSpacing.sm,
-                        right: RiffSpacing.md,
-                        bottom: RiffSpacing.sm),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: RiffSpacing.lg, vertical: RiffSpacing.md),
                     child: Row(
                       children: [
                         thumbReplacementWithIndex
                             ? SizedBox(
-                                width: 27.5,
-                                height: 52,
+                                width: RiffComponentSizes.rowArt,
+                                height: RiffComponentSizes.rowArt,
                                 child: Center(
                                   child: Text(
                                     "$index.",
@@ -188,11 +177,11 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                                 ),
                               )
                             : ImageWidget(
-                                size: 52,
+                                size: RiffComponentSizes.rowArt,
                                 song: song,
-                                borderRadius: RiffTokens.radiusSm,
+                                borderRadius: RiffRadii.xs,
                               ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: RiffSpacing.md),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -218,22 +207,22 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                                   );
                                 }),
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: RiffSpacing.xxs),
                               Text(
                                 "${song.artist}",
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodyLarge?.copyWith(
+                                style: theme.textTheme.bodyMedium?.copyWith(
                                   color: muted,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: RiffSpacing.sm),
                         if (showMixMeta) ...[
                           _MixMetaColumn(analysis: mixAnalysis),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: RiffSpacing.xs),
                         ],
                         Obx(() {
                           final isCurrent =
@@ -242,10 +231,12 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               if (isCurrent)
-                                Icon(Icons.equalizer, color: accent, size: 18),
+                                Icon(Icons.equalizer,
+                                    color: accent,
+                                    size: RiffComponentSizes.trailingIcon),
                               Text(
                                 song.extras?['length'] ?? "",
-                                style: theme.textTheme.titleSmall?.copyWith(
+                                style: theme.textTheme.bodyMedium?.copyWith(
                                   color: muted,
                                 ),
                               ),
@@ -254,18 +245,18 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                         }),
                         SongRowHeartButton(
                           song: song,
-                          iconSize: 20,
+                          iconSize: RiffComponentSizes.trailingIcon,
                           color: muted,
                         ),
                         IconButton(
-                          iconSize: 20,
+                          iconSize: RiffComponentSizes.trailingIcon,
                           visualDensity: VisualDensity.compact,
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
+                            minWidth: RiffComponentSizes.rowIconHit,
+                            minHeight: RiffComponentSizes.rowIconHit,
                           ),
-                          splashRadius: 18,
+                          splashRadius: RiffComponentSizes.rowIconHit / 2,
                           onPressed: () => _openSheet(playerController),
                           icon: Icon(
                             Icons.more_vert,
@@ -277,9 +268,45 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                   ),
                 ),
               ),
+              // Hairline inside the row's bottom edge; the inset one starts
+              // at the text column (art and index slot are the same width).
+              RiffRowHairline(
+                  inset: fullWidthHairline ? 0 : RiffRowHairline.textInset),
             ],
           ),
         ));
+  }
+}
+
+/// One-physical-pixel divider hairline drawn inside the bottom edge of a
+/// row (§5.1 / §5.2) — a foreground layer in the row's [Stack], so it never
+/// changes the row's extent. [inset] 0 = full width; [textInset] starts it
+/// at the row's text column (gutter + 48 art + gap = 76).
+class RiffRowHairline extends StatelessWidget {
+  const RiffRowHairline({super.key, this.inset = 0});
+
+  static const double textInset =
+      RiffSpacing.lg + RiffComponentSizes.rowArt + RiffSpacing.md;
+
+  final double inset;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      left: inset,
+      child: IgnorePointer(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: Theme.of(context).dividerColor,
+                width: 0,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -301,16 +328,15 @@ class _MixMetaColumn extends StatelessWidget {
       children: [
         Text(
           bpm,
-          style: theme.textTheme.labelSmall?.copyWith(
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
+          style: theme.textTheme.labelSmall,
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: RiffSpacing.xxs),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+          padding: const EdgeInsets.symmetric(
+              horizontal: RiffSpacing.xs, vertical: RiffSpacing.xxs),
           decoration: BoxDecoration(
             color: keyColor.withOpacity(0.22),
-            borderRadius: BorderRadius.circular(RiffTokens.radiusSm / 2),
+            borderRadius: BorderRadius.circular(RiffRadii.xs),
           ),
           child: Text(
             camelot,

@@ -61,6 +61,7 @@ class CollectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.only(
           left: HomeLayout.gutter,
@@ -71,24 +72,14 @@ class CollectionHeader extends StatelessWidget {
         children: [
           GestureDetector(
             onTap: onCoverTap,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(
-                    color: RiffColors.of(context).scrim.withOpacity(0.35),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: SizedBox.square(dimension: 96, child: cover),
-              ),
+            // Flat artwork, no shadow (§2.1).
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(RiffRadii.sm),
+              child: SizedBox.square(
+                  dimension: RiffComponentSizes.collectionArt, child: cover),
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: RiffSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,30 +89,36 @@ class CollectionHeader extends StatelessWidget {
                   title,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleLarge,
+                  style: theme.textTheme.headlineSmall
+                      ?.copyWith(color: scheme.onSurface),
                 ),
                 if (subtitle.isNotEmpty) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: RiffSpacing.xs),
                   GestureDetector(
                     onTap: onSubtitleTap,
                     child: Text(
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelMedium,
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: scheme.onSurfaceVariant),
                     ),
                   ),
                 ],
                 if (meta.isNotEmpty) ...[
-                  const SizedBox(height: 3),
+                  const SizedBox(height: RiffSpacing.xxs),
                   Text(
                     meta,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: homeCardSubtitleStyle(context),
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: scheme.onSurfaceVariant),
                   ),
                 ],
-                if (extra != null) ...[const SizedBox(height: 10), extra!],
+                if (extra != null) ...[
+                  const SizedBox(height: RiffSpacing.sm),
+                  extra!,
+                ],
               ],
             ),
           ),
@@ -156,8 +153,7 @@ class CollectionActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = Theme.of(context).colorScheme.secondary;
-    final muted = homeMutedColor(context);
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(
           left: HomeLayout.gutter - RiffSpacing.sm,
@@ -170,15 +166,16 @@ class CollectionActionRow extends StatelessWidget {
           if (menu.isNotEmpty)
             PopupMenuButton<int>(
               tooltip: 'more'.tr,
-              icon: Icon(Icons.more_vert_rounded, color: muted),
+              icon: Icon(Icons.more_vert_rounded,
+                  size: RiffComponentSizes.headerIcon, color: scheme.onSurface),
               onSelected: (i) => menu[i].onTap(),
               itemBuilder: (_) => [
                 for (var i = 0; i < menu.length; i++)
                   PopupMenuItem(
                     value: i,
                     child: Row(children: [
-                      Icon(menu[i].icon, size: 20),
-                      const SizedBox(width: 14),
+                      Icon(menu[i].icon, size: RiffComponentSizes.trailingIcon),
+                      const SizedBox(width: RiffSpacing.md),
                       Flexible(child: Text(menu[i].label)),
                     ]),
                   ),
@@ -188,12 +185,14 @@ class CollectionActionRow extends StatelessWidget {
           if (onShuffle != null)
             IconButton(
               tooltip: 'shuffle'.tr,
-              icon: const Icon(Icons.shuffle_rounded, size: 26),
+              icon: Icon(Icons.shuffle_rounded,
+                  size: RiffComponentSizes.headerIcon, color: scheme.onSurface),
               onPressed: onShuffle,
             ),
-          const SizedBox(width: 4),
+          const SizedBox(width: RiffSpacing.xs),
+          // Primary action (§5.5): accent fill, onAccent glyph, no elevation.
           Material(
-            color: accent,
+            color: scheme.primary,
             shape: const CircleBorder(),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
@@ -201,9 +200,10 @@ class CollectionActionRow extends StatelessWidget {
               child: Tooltip(
                 message: 'play'.tr,
                 child: SizedBox.square(
-                  dimension: 52,
+                  dimension: RiffComponentSizes.collectionPlay,
                   child: Icon(Icons.play_arrow_rounded,
-                      size: 32, color: Theme.of(context).colorScheme.onPrimary),
+                      size: RiffComponentSizes.collectionPlayIcon,
+                      color: scheme.onPrimary),
                 ),
               ),
             ),
@@ -228,10 +228,11 @@ class CollectionSaveButton extends StatelessWidget {
       onPressed: onPressed,
       icon: Icon(
         saved ? Icons.check_circle_rounded : Icons.add_circle_outline_rounded,
-        size: 26,
+        size: RiffComponentSizes.headerIcon,
+        // Toggled-on = accent (§2.5); off = plain icon colour.
         color: saved
-            ? Theme.of(context).colorScheme.secondary
-            : homeMutedColor(context),
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.onSurface,
       ),
     );
   }
@@ -254,14 +255,14 @@ class CollectionDownloadButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = Theme.of(context).colorScheme.secondary;
-    final muted = homeMutedColor(context);
+    final scheme = Theme.of(context).colorScheme;
     return GetX<Downloader>(builder: (d) {
       final queued = d.playlistQueue.containsKey(id);
       final active = queued && d.currentPlaylistId.toString() == id;
       Widget icon;
       if (isDownloaded) {
-        icon = Icon(Icons.download_done_rounded, size: 26, color: accent);
+        icon = Icon(Icons.download_done_rounded,
+            size: RiffComponentSizes.headerIcon, color: scheme.primary);
       } else if (active) {
         icon = Stack(alignment: Alignment.center, children: [
           Text(
@@ -269,7 +270,7 @@ class CollectionDownloadButton extends StatelessWidget {
             style: Theme.of(context)
                 .textTheme
                 .labelSmall
-                ?.copyWith(color: Theme.of(context).colorScheme.onSurface),
+                ?.copyWith(color: scheme.onSurface),
           ),
           const LoadingIndicator(dimension: 28),
         ]);
@@ -279,8 +280,8 @@ class CollectionDownloadButton extends StatelessWidget {
           LoadingIndicator(dimension: 28),
         ]);
       } else {
-        icon =
-            Icon(Icons.download_for_offline_outlined, size: 26, color: muted);
+        icon = Icon(Icons.download_for_offline_outlined,
+            size: RiffComponentSizes.headerIcon, color: scheme.onSurface);
       }
       return IconButton(
         tooltip: tooltip,

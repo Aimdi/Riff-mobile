@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'components/search_item.dart';
 import '../../widgets/modified_text_field.dart';
 import '../../theme/riff_spacing.dart';
+import '../../theme/riff_tokens.dart';
 import '../Home/home_layout.dart';
 import '../Podcasts/podcast_empty_state.dart';
 import '/ui/navigator.dart';
@@ -59,7 +60,8 @@ class SearchScreen extends StatelessWidget {
                     : searchScreenController.suggestionList.toList();
                 if (searchScreenController.urlPasted.isTrue) {
                   return ListView(
-                    padding: const EdgeInsets.only(top: 12, bottom: 400),
+                    padding:
+                        const EdgeInsets.only(top: RiffSpacing.md, bottom: 400),
                     children: [
                       SearchRow(
                         icon: Icons.link_rounded,
@@ -88,22 +90,18 @@ class SearchScreen extends StatelessWidget {
                   children: [
                     HomeSectionHeader(
                       isEmpty ? 'recentSearches'.tr : 'suggestions'.tr,
-                      top: 16,
+                      top: RiffSpacing.lg,
                       trailing: isEmpty
                           ? TextButton(
                               onPressed: searchScreenController.clearHistory,
+                              // §5.5 text button: accent, theme type. The
+                              // 30 dp header row still sets the height.
                               style: TextButton.styleFrom(
-                                foregroundColor: homeMutedColor(context),
-                                minimumSize: const Size(0, 30),
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 12),
+                                minimumSize: Size.zero,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: RiffSpacing.md),
                               ),
-                              child: Text('clear'.tr,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelMedium
-                                      ?.copyWith(
-                                          color: homeMutedColor(context))),
+                              child: Text('clear'.tr),
                             )
                           : null,
                     ),
@@ -156,8 +154,17 @@ class _SearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    const pill = BorderRadius.all(Radius.circular(RiffRadii.pill));
+    // §5.8: surface1 pill, no border at rest, 1 px accent ring on focus.
+    const restBorder =
+        OutlineInputBorder(borderRadius: pill, borderSide: BorderSide.none);
+    // Prefix/suffix keep their 48 dp slots so the text stays put.
+    const iconSlot = BoxConstraints(
+        minWidth: RiffSizes.touch, minHeight: RiffComponentSizes.searchField);
     return SizedBox(
-      height: 48,
+      height: RiffComponentSizes.searchField,
       child: ModifiedTextField(
         textCapitalization: TextCapitalization.sentences,
         controller: controller.textInputController,
@@ -165,22 +172,28 @@ class _SearchField extends StatelessWidget {
         onChanged: controller.onChanged,
         onSubmitted: (val) => _submit(context, val),
         autofocus: true,
-        style: Theme.of(context)
-            .textTheme
-            .bodyLarge
-            ?.copyWith(color: Theme.of(context).colorScheme.onSurface),
+        style: theme.textTheme.bodyLarge?.copyWith(color: scheme.onSurface),
         textAlignVertical: TextAlignVertical.center,
-        cursorColor: Theme.of(context).colorScheme.secondary,
+        cursorColor: scheme.primary,
         decoration: InputDecoration(
           isDense: true,
           filled: true,
-          fillColor: homeTileColor(context),
+          fillColor: scheme.surfaceContainerLow,
           contentPadding: EdgeInsets.zero,
           hintText: "searchDes".tr,
-          prefixIcon: const Icon(Icons.search_rounded, size: 22),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(999),
-            borderSide: BorderSide.none,
+          hintStyle: theme.textTheme.bodyLarge
+              ?.copyWith(color: scheme.onSurfaceVariant),
+          prefixIcon: Icon(Icons.search_rounded,
+              size: RiffComponentSizes.trailingIcon,
+              color: scheme.onSurfaceVariant),
+          prefixIconConstraints: iconSlot,
+          suffixIconConstraints: iconSlot,
+          border: restBorder,
+          enabledBorder: restBorder,
+          disabledBorder: restBorder,
+          focusedBorder: OutlineInputBorder(
+            borderRadius: pill,
+            borderSide: BorderSide(color: scheme.primary, width: 1),
           ),
           suffixIcon: ValueListenableBuilder<TextEditingValue>(
             valueListenable: controller.textInputController,
@@ -189,7 +202,13 @@ class _SearchField extends StatelessWidget {
                 : IconButton(
                     tooltip: 'clear'.tr,
                     onPressed: controller.reset,
-                    icon: const Icon(Icons.close_rounded, size: 20),
+                    color: scheme.onSurfaceVariant,
+                    style: IconButton.styleFrom(
+                      minimumSize:
+                          const Size.square(RiffComponentSizes.iconHit),
+                    ),
+                    icon: const Icon(Icons.close_rounded,
+                        size: RiffComponentSizes.trailingIcon),
                   ),
           ),
         ),
