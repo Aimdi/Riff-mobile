@@ -1,3 +1,16 @@
+# 1.7.136
+
+**New look, step 2: one set of sizes and colours everywhere**
+* Every screen now takes its colours, text sizes and spacing from the
+  theme instead of its own numbers, so the whole app follows the same
+  scale (and the accent you pick)
+* Side margins are 16 dp everywhere, and spacing follows a 4-point grid,
+  so some rows and gaps are a touch roomier
+* The light and album-colour themes use the same type scale as Pitch
+  Black, so text sizes match across themes
+* Snackbars use dark text on the accent
+* Nothing moved: same screens, same elements, same order
+
 # 1.7.135
 
 **New look, step 1: type and colours**
