@@ -16,11 +16,11 @@ class ProceedButton extends StatelessWidget {
       onPressed: onPressed,
       style: FilledButton.styleFrom(
           backgroundColor: Theme.of(context).colorScheme.secondary,
-          foregroundColor: Colors.black,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+          textStyle: Theme.of(context).textTheme.labelLarge,
           minimumSize: const Size(110, 46),
           shape: const StadiumBorder()),
-      child: Text(buttonText,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+      child: Text(buttonText),
     );
   }
 }
@@ -34,10 +34,10 @@ class CancelButton extends StatelessWidget {
     return TextButton(
       style: TextButton.styleFrom(
           foregroundColor: Theme.of(context).textTheme.titleMedium?.color,
+          textStyle: Theme.of(context).textTheme.labelLarge,
           minimumSize: const Size(110, 46),
           shape: const StadiumBorder()),
-      child: Text("cancel".tr,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+      child: Text("cancel".tr),
       onPressed: () {
         Navigator.of(context).pop();
         if (onPressed != null) {

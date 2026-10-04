@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/ui/theme/riff_tokens.dart';
 import 'package:harmonymusic/ui/utils/theme_controller.dart';
 
 class CustSwitch extends StatelessWidget {
@@ -12,12 +13,14 @@ class CustSwitch extends StatelessWidget {
     final isLightMode =
         Get.find<ThemeController>().themedata.value!.primaryColor ==
             Colors.white;
+    final scheme = Theme.of(context).colorScheme;
     return Switch(
-        activeColor: Colors.white,
-        activeTrackColor: isLightMode ? Colors.grey : null,
-        inactiveTrackColor: isLightMode ? Colors.grey : null,
-        inactiveThumbColor:
-            isLightMode ? Colors.grey[300] : Colors.white.withOpacity(0.5),
+        activeColor: RiffColors.of(context).onImage,
+        activeTrackColor: isLightMode ? scheme.outlineVariant : null,
+        inactiveTrackColor: isLightMode ? scheme.outlineVariant : null,
+        inactiveThumbColor: isLightMode
+            ? scheme.surfaceContainerHigh
+            : scheme.onSurface.withOpacity(0.5),
         value: value,
         onChanged: onChanged);
   }

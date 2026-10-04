@@ -11,8 +11,8 @@ import 'common_dialog_widget.dart';
 import 'modified_text_field.dart';
 import 'riff_sheet.dart';
 import '../screens/Home/home_layout.dart';
+import '/ui/theme/riff_spacing.dart';
 import '../utils/riff_tokens.dart';
-import '../utils/theme_controller.dart';
 
 class CreateNRenamePlaylistPopup extends StatelessWidget {
   const CreateNRenamePlaylistPopup(
@@ -43,9 +43,8 @@ class CreateNRenamePlaylistPopup extends StatelessWidget {
             context, "playlistRenameAlert".tr,
             size: SanckBarSize.MEDIUM));
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(snackbar(
-            context, "operationFailed".tr,
-            size: SanckBarSize.MEDIUM));
+        ScaffoldMessenger.of(context).showSnackBar(
+            snackbar(context, "operationFailed".tr, size: SanckBarSize.MEDIUM));
       }
       return;
     }
@@ -67,15 +66,18 @@ class CreateNRenamePlaylistPopup extends StatelessWidget {
   Widget build(BuildContext context) {
     final librPlstCntrller = Get.find<LibraryPlaylistsController>();
     librPlstCntrller.changeCreationMode("local");
-    librPlstCntrller.textInputController.text = renamePlaylist
-        ? ""
-        : defaultNewPlaylistName(songItems: songItems);
+    librPlstCntrller.textInputController.text =
+        renamePlaylist ? "" : defaultNewPlaylistName(songItems: songItems);
     final isPipedLinked = Get.find<PipedServices>().isLoggedIn;
     final theme = Theme.of(context);
     final fg = theme.textTheme.titleMedium?.color;
     return CommonDialog(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(22, 22, 22, 14),
+        padding: const EdgeInsets.only(
+            left: RiffSpacing.xxl,
+            top: RiffSpacing.xxl,
+            right: RiffSpacing.xxl,
+            bottom: RiffSpacing.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -84,14 +86,12 @@ class CreateNRenamePlaylistPopup extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    renamePlaylist ? "renamePlaylist".tr : "CreateNewPlaylist".tr,
+                    renamePlaylist
+                        ? "renamePlaylist".tr
+                        : "CreateNewPlaylist".tr,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.3,
-                        color: fg),
+                    style: theme.textTheme.titleLarge?.copyWith(color: fg),
                   ),
                 ),
                 Obx(() => (librPlstCntrller.creationInProgress.isTrue &&
@@ -145,8 +145,8 @@ class CreateNRenamePlaylistPopup extends StatelessWidget {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
-                  borderSide:
-                      BorderSide(color: theme.colorScheme.secondary, width: 1.5),
+                  borderSide: BorderSide(
+                      color: theme.colorScheme.secondary, width: 1.5),
                 ),
               ),
             ),
@@ -156,16 +156,18 @@ class CreateNRenamePlaylistPopup extends StatelessWidget {
               children: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  style: TextButton.styleFrom(foregroundColor: fg),
-                  child: Text("cancel".tr,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  style: TextButton.styleFrom(
+                      foregroundColor: fg,
+                      textStyle: theme.textTheme.labelLarge),
+                  child: Text("cancel".tr),
                 ),
                 const SizedBox(width: 8),
                 FilledButton(
                   onPressed: () => _submit(context, librPlstCntrller),
                   style: FilledButton.styleFrom(
                     backgroundColor: theme.colorScheme.secondary,
-                    foregroundColor: RiffSurfaces.voidBlack,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                    textStyle: theme.textTheme.labelLarge,
                     minimumSize: const Size(0, 44),
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                   ),
@@ -175,7 +177,6 @@ class CreateNRenamePlaylistPopup extends StatelessWidget {
                         : renamePlaylist
                             ? "rename".tr
                             : "create".tr,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
               ],

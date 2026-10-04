@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../navigator.dart';
 import '../player/player_controller.dart';
+import '/ui/theme/riff_tokens.dart';
 import '../utils/riff_tokens.dart';
 import '../utils/theme_controller.dart';
 import 'collection_play.dart';
@@ -26,12 +27,24 @@ class ContentListItem extends StatelessWidget {
   /// grown with the system text size.
   static double heightFor(BuildContext context, double size) {
     final scaler = MediaQuery.textScalerOf(context);
-    return size + 8 + scaler.scale(14) * 1.15 + 2 + scaler.scale(12) * 1.3 + 2;
+    final text = Theme.of(context).textTheme;
+    // Line boxes of the title (labelMedium) and subtitle (bodySmall) slots.
+    double line(TextStyle? style) {
+      final size = style?.fontSize ?? 14;
+      return scaler.scale(size) * (style?.height ?? 1.2);
+    }
+
+    return size + 8 + line(text.labelMedium) + 2 + line(text.bodySmall) + 2;
   }
 
   /// Built-in library playlists store their title as a translation key
   /// (the list is built before translations load), so show the real name.
-  static const _builtInPlaylists = {'LIBRP', 'LIBFAV', 'SongsCache', 'SongDownloads'};
+  static const _builtInPlaylists = {
+    'LIBRP',
+    'LIBFAV',
+    'SongsCache',
+    'SongDownloads'
+  };
 
   String get _title {
     final title = content.title?.toString() ?? '';
@@ -58,9 +71,7 @@ class ContentListItem extends StatelessWidget {
           ? (artists[0]['name']?.toString() ?? '')
           : '';
       final year = content.year?.toString() ?? '';
-      return [artistName, year]
-          .where((s) => s.isNotEmpty)
-          .join(' • ');
+      return [artistName, year].where((s) => s.isNotEmpty).join(' • ');
     }
     if (isLibraryItem) {
       final count = content.songCount?.toString();
@@ -77,8 +88,7 @@ class ContentListItem extends StatelessWidget {
   void _openContent() {
     if (_isAlbum) {
       Get.toNamed(ScreenNavigationSetup.albumScreen,
-          id: ScreenNavigationSetup.id,
-          arguments: (content, content.browseId));
+          id: ScreenNavigationSetup.id, arguments: (content, content.browseId));
       return;
     }
     Get.toNamed(ScreenNavigationSetup.playlistScreen,
@@ -90,8 +100,7 @@ class ContentListItem extends StatelessWidget {
       ? (content.browseId?.toString() ?? '')
       : (content.playlistId?.toString() ?? '');
 
-  String? get _collectionKind =>
-      _isAlbum ? null : content.kind?.toString();
+  String? get _collectionKind => _isAlbum ? null : content.kind?.toString();
 
   /// Play without opening the screen when tracks are a one-liner fetch.
   /// Falls back to opening the album/playlist if that path is empty or throws.
@@ -248,7 +257,7 @@ class ContentListItem extends StatelessWidget {
                     : content.playlistId == 'SongsCache'
                         ? Icons.flight
                         : Icons.download,
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.onSurface,
             size: size * 0.32,
           )));
     }
@@ -264,7 +273,7 @@ class ContentListItem extends StatelessWidget {
             child: Tooltip(
               message: "play".tr,
               child: Material(
-                color: Colors.black.withOpacity(0.5),
+                color: RiffColors.of(context).scrim.withOpacity(0.5),
                 shape: const CircleBorder(),
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(
@@ -272,12 +281,12 @@ class ContentListItem extends StatelessWidget {
                   onTap: () {
                     _playFromOverlay();
                   },
-                  child: const Padding(
-                    padding: EdgeInsets.all(2),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
                     child: Icon(
                       Icons.play_circle_fill,
                       size: 26,
-                      color: Colors.white,
+                      color: RiffColors.of(context).onImage,
                     ),
                   ),
                 ),
@@ -318,22 +327,14 @@ class ContentListItem extends StatelessWidget {
               _title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    letterSpacing: -0.15,
-                    height: 1.15,
-                  ),
+              style: Theme.of(context).textTheme.labelMedium,
             ),
             const SizedBox(height: 2),
             Text(
               _subtitle(_isAlbum),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w400,
-                    fontSize: 12,
-                    height: 1.3,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: muted,
                   ),
             ),

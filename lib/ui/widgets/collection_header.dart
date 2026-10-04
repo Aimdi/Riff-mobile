@@ -4,13 +4,15 @@ import 'package:get/get.dart';
 
 import '/services/downloader.dart';
 import '../screens/Home/home_layout.dart';
-import '../utils/theme_controller.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import 'loader.dart';
 
 /// "12 songs · 48 min" style meta for an album / playlist header.
-String collectionMetaLine(List<MediaItem> songs, {List<String?> lead = const []}) {
-  final total = songs.fold<int>(
-      0, (sum, s) => sum + (s.duration?.inSeconds ?? 0));
+String collectionMetaLine(List<MediaItem> songs,
+    {List<String?> lead = const []}) {
+  final total =
+      songs.fold<int>(0, (sum, s) => sum + (s.duration?.inSeconds ?? 0));
   final count = songs.isEmpty
       ? ''
       : songs.length == 1
@@ -60,8 +62,10 @@ class CollectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          HomeLayout.gutter, 0, HomeLayout.gutter, 6),
+      padding: const EdgeInsets.only(
+          left: HomeLayout.gutter,
+          right: HomeLayout.gutter,
+          bottom: RiffSpacing.sm),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -72,7 +76,7 @@ class CollectionHeader extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.35),
+                    color: RiffColors.of(context).scrim.withOpacity(0.35),
                     blurRadius: 18,
                     offset: const Offset(0, 6),
                   ),
@@ -94,12 +98,7 @@ class CollectionHeader extends StatelessWidget {
                   title,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    height: 1.15,
-                    letterSpacing: -0.4,
-                  ),
+                  style: theme.textTheme.titleLarge,
                 ),
                 if (subtitle.isNotEmpty) ...[
                   const SizedBox(height: 4),
@@ -109,8 +108,7 @@ class CollectionHeader extends StatelessWidget {
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: homeCardTitleStyle(context)
-                          .copyWith(fontSize: 14, fontWeight: FontWeight.w600),
+                      style: theme.textTheme.labelMedium,
                     ),
                   ),
                 ],
@@ -120,8 +118,7 @@ class CollectionHeader extends StatelessWidget {
                     meta,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: homeCardSubtitleStyle(context)
-                        .copyWith(fontSize: 12.5),
+                    style: homeCardSubtitleStyle(context),
                   ),
                 ],
                 if (extra != null) ...[const SizedBox(height: 10), extra!],
@@ -162,8 +159,11 @@ class CollectionActionRow extends StatelessWidget {
     final accent = Theme.of(context).colorScheme.secondary;
     final muted = homeMutedColor(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          HomeLayout.gutter - 8, 2, HomeLayout.gutter, 4),
+      padding: const EdgeInsets.only(
+          left: HomeLayout.gutter - RiffSpacing.sm,
+          top: RiffSpacing.xxs,
+          right: HomeLayout.gutter,
+          bottom: RiffSpacing.xs),
       child: Row(
         children: [
           ...leading,
@@ -200,10 +200,10 @@ class CollectionActionRow extends StatelessWidget {
               onTap: onPlay,
               child: Tooltip(
                 message: 'play'.tr,
-                child: const SizedBox.square(
+                child: SizedBox.square(
                   dimension: 52,
                   child: Icon(Icons.play_arrow_rounded,
-                      size: 32, color: RiffSurfaces.voidBlack),
+                      size: 32, color: Theme.of(context).colorScheme.onPrimary),
                 ),
               ),
             ),
@@ -266,7 +266,10 @@ class CollectionDownloadButton extends StatelessWidget {
         icon = Stack(alignment: Alignment.center, children: [
           Text(
             '${d.playlistDownloadingProgress.value}/${songs().length}',
-            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700),
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
+                ?.copyWith(color: Theme.of(context).colorScheme.onSurface),
           ),
           const LoadingIndicator(dimension: 28),
         ]);
@@ -276,8 +279,8 @@ class CollectionDownloadButton extends StatelessWidget {
           LoadingIndicator(dimension: 28),
         ]);
       } else {
-        icon = Icon(Icons.download_for_offline_outlined,
-            size: 26, color: muted);
+        icon =
+            Icon(Icons.download_for_offline_outlined, size: 26, color: muted);
       }
       return IconButton(
         tooltip: tooltip,
@@ -316,7 +319,7 @@ class CollectionTopBar extends StatelessWidget {
               child: Material(
                 color: showTitle
                     ? Colors.transparent
-                    : Colors.black.withOpacity(0.3),
+                    : RiffColors.of(context).scrim.withOpacity(0.3),
                 shape: const CircleBorder(),
                 clipBehavior: Clip.antiAlias,
                 child: IconButton(
@@ -326,7 +329,7 @@ class CollectionTopBar extends StatelessWidget {
                       size: 18,
                       color: showTitle
                           ? Theme.of(context).textTheme.titleMedium?.color
-                          : Colors.white),
+                          : RiffColors.of(context).onImage),
                 ),
               ),
             ),
@@ -339,10 +342,7 @@ class CollectionTopBar extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(fontSize: 19, fontWeight: FontWeight.w700),
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
               ),
             ),
