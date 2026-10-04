@@ -9,6 +9,7 @@ import '/services/plugin_service.dart';
 import '/ui/screens/Plugins/torrent_search_screen.dart';
 import '/ui/theme/palettes/audiobook_rating.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import 'audiobook_library_controller.dart';
 
@@ -79,8 +80,10 @@ class _AudiobookCatalogDetailScreenState
             final isSaved = lib.saved.any((b) => b.id == book.id);
             return IconButton(
               tooltip: isSaved ? 'saved'.tr : 'save'.tr,
+              // Toggled on = filled accent glyph (§4.6).
               icon: Icon(
-                  isSaved ? Icons.bookmark : Icons.bookmark_border_rounded),
+                  isSaved ? Icons.bookmark : Icons.bookmark_border_rounded,
+                  color: isSaved ? theme.colorScheme.primary : null),
               onPressed: () => lib.toggle(book),
             );
           }),
@@ -93,38 +96,44 @@ class _AudiobookCatalogDetailScreenState
               right: RiffSpacing.lg,
               bottom: RiffSpacing.unit * 10),
           children: [
+            // Show-page header (§ Phase 7): art radius 8, title
+            // headlineSmall, author bodyMedium (a link here, so the accent).
             Center(
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(RiffRadii.sm),
                 child: CachedNetworkImage(
                   imageUrl: book.cover,
                   // Decode at display size, not full resolution.
                   // Store audiobook art is square.
-                  memCacheHeight:
-                      (200 * MediaQuery.devicePixelRatioOf(context)).round(),
-                  width: 200,
-                  height: 200,
+                  memCacheHeight: (RiffComponentSizes.storeBookCover *
+                          MediaQuery.devicePixelRatioOf(context))
+                      .round(),
+                  width: RiffComponentSizes.storeBookCover,
+                  height: RiffComponentSizes.storeBookCover,
                   fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) =>
-                      const Icon(Icons.menu_book, size: 120),
+                  errorWidget: (_, __, ___) => Icon(Icons.menu_book,
+                      size: RiffComponentSizes.storeBookCover * 0.6,
+                      color: theme.colorScheme.onSurfaceVariant),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: RiffSpacing.lg),
             Text(book.title,
-                textAlign: TextAlign.center, style: theme.textTheme.titleLarge),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.headlineSmall),
             if (book.author.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.only(top: RiffSpacing.xs),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(RiffRadii.xs),
                   onTap: () => Get.to(
                     () => AudiobookBrowseScreen(
                         title: book.author, query: book.author),
                     transition: Transition.rightToLeft,
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: RiffSpacing.xxs),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -132,27 +141,28 @@ class _AudiobookCatalogDetailScreenState
                           child: Text(
                             book.author,
                             textAlign: TextAlign.center,
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              color: theme.colorScheme.secondary,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.primary,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 2),
+                        const SizedBox(width: RiffSpacing.xxs),
                         Icon(Icons.chevron_right,
-                            size: 18, color: theme.colorScheme.secondary),
+                            size: RiffComponentSizes.chipChevron,
+                            color: theme.colorScheme.primary),
                       ],
                     ),
                   ),
                 ),
               ),
             if (_rating != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: RiffSpacing.sm),
               _starRow(theme, _rating!),
             ],
-            const SizedBox(height: 12),
+            const SizedBox(height: RiffSpacing.md),
             // Fact chips: genre · year · rating · publisher
             _facts(theme, genre),
-            const SizedBox(height: 16),
+            const SizedBox(height: RiffSpacing.lg),
             FilledButton.icon(
               onPressed: () => launchUrl(
                 Uri.parse(book.audibleUrl),
@@ -163,7 +173,7 @@ class _AudiobookCatalogDetailScreenState
             ),
             if ((_details?.appleUrl.isNotEmpty ?? false))
               Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.only(top: RiffSpacing.sm),
                 child: OutlinedButton.icon(
                   onPressed: () => launchUrl(
                     Uri.parse(_details!.appleUrl),
@@ -178,7 +188,7 @@ class _AudiobookCatalogDetailScreenState
                   .isInstalled(PluginIds.torrentSearch);
               if (!hasTorrents) return const SizedBox.shrink();
               return Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.only(top: RiffSpacing.sm),
                 child: OutlinedButton.icon(
                   onPressed: () {
                     // Detail was opened with Get.to (root stack). Push torrent
@@ -199,23 +209,24 @@ class _AudiobookCatalogDetailScreenState
                 ),
               );
             }),
-            const SizedBox(height: 8),
+            const SizedBox(height: RiffSpacing.sm),
             Text('audiobookBrowseOnly'.tr,
-                textAlign: TextAlign.center, style: theme.textTheme.bodySmall),
-            const Divider(height: 32),
+                textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+            const Divider(height: RiffSpacing.x3l),
             if (_loading)
               const Center(
                   child: Padding(
-                padding: EdgeInsets.all(12),
+                padding: EdgeInsets.all(RiffSpacing.md),
                 child: SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2)),
+                    width: RiffComponentSizes.spinner,
+                    height: RiffComponentSizes.spinner,
+                    child: CircularProgressIndicator(
+                        strokeWidth: RiffComponentSizes.spinnerStroke)),
               ))
             else if (description.isNotEmpty)
-              Text(description, style: theme.textTheme.bodyMedium)
+              Text(description, style: theme.textTheme.bodyLarge)
             else
-              Text('noDescription'.tr, style: theme.textTheme.bodySmall),
+              Text('noDescription'.tr, style: theme.textTheme.bodyMedium),
             if (_similar.isNotEmpty) _similarRow(theme),
           ],
         )),
@@ -228,22 +239,25 @@ class _AudiobookCatalogDetailScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 24),
+        const SizedBox(height: RiffSpacing.xxl),
         Text('similarTitles'.tr, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 10),
+        const SizedBox(height: RiffSpacing.md),
         SizedBox(
           height: 240,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             itemCount: _similar.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            separatorBuilder: (_, __) =>
+                const SizedBox(width: RiffSpacing.cardGap),
             itemBuilder: (context, i) {
               final b = _similar[i];
+              // §5.3 shelf card: no background, art radius 8, titleMedium /
+              // bodyMedium, art → title gap 8.
               return SizedBox(
-                width: 120,
+                width: RiffComponentSizes.bookCoverWidth,
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(RiffRadii.sm),
                   onTap: () => Get.to(
                     () => AudiobookCatalogDetailScreen(book: b),
                     preventDuplicates: false,
@@ -253,34 +267,34 @@ class _AudiobookCatalogDetailScreenState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(RiffRadii.sm),
                         child: CachedNetworkImage(
                           imageUrl: b.cover,
                           // Decode at display size, not full resolution.
-                          memCacheHeight:
-                              (180 * MediaQuery.devicePixelRatioOf(context))
-                                  .round(),
-                          width: 120,
-                          height: 180,
+                          memCacheHeight: (RiffComponentSizes.bookCoverHeight *
+                                  MediaQuery.devicePixelRatioOf(context))
+                              .round(),
+                          width: RiffComponentSizes.bookCoverWidth,
+                          height: RiffComponentSizes.bookCoverHeight,
                           fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) =>
-                              const Icon(Icons.menu_book, size: 48),
+                          errorWidget: (_, __, ___) => Icon(Icons.menu_book,
+                              size: RiffComponentSizes.rowArt,
+                              color: theme.colorScheme.onSurfaceVariant),
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: RiffSpacing.sm),
                       Text(
                         b.title,
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelSmall
-                            ?.copyWith(color: theme.textTheme.bodySmall?.color),
+                        style: theme.textTheme.titleMedium,
                       ),
                       if (b.author.isNotEmpty)
                         Text(
                           b.author,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall,
+                          style: theme.textTheme.bodyMedium,
                         ),
                     ],
                   ),
@@ -309,19 +323,19 @@ class _AudiobookCatalogDetailScreenState
                 : (i == full && hasHalf)
                     ? Icons.star_half_rounded
                     : Icons.star_border_rounded,
-            size: 20,
+            size: RiffComponentSizes.trailingIcon,
             color: amber,
           ),
-        const SizedBox(width: 6),
+        const SizedBox(width: RiffSpacing.sm),
         Text(
           r.average.toStringAsFixed(1),
           style: theme.textTheme.labelMedium
-              ?.copyWith(color: theme.textTheme.bodyMedium?.color),
+              ?.copyWith(color: theme.colorScheme.onSurface),
         ),
         if (r.count > 0)
           Text(
             '  ·  ${r.count} ${'ratings'.tr}',
-            style: theme.textTheme.bodySmall,
+            style: theme.textTheme.bodyMedium,
           ),
       ],
     );
@@ -347,9 +361,13 @@ class _AudiobookCatalogDetailScreenState
     if (tags.isEmpty && year.isEmpty && plain.isEmpty) {
       return const SizedBox.shrink();
     }
+    // §5.6 chips from the chip theme (transparent, divider hairline,
+    // labelMedium); glyphs in the secondary colour.
     Widget browseChip(String label, IconData icon, String query) => ActionChip(
-          avatar: Icon(icon, size: 15, color: theme.colorScheme.secondary),
-          label: Text(label, style: theme.textTheme.bodySmall),
+          avatar: Icon(icon,
+              size: RiffComponentSizes.chipLeadingIcon,
+              color: theme.colorScheme.onSurfaceVariant),
+          label: Text(label),
           visualDensity: VisualDensity.compact,
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           onPressed: () => Get.to(
@@ -359,8 +377,8 @@ class _AudiobookCatalogDetailScreenState
         );
     return Wrap(
       alignment: WrapAlignment.center,
-      spacing: 8,
-      runSpacing: 6,
+      spacing: RiffSpacing.sm,
+      runSpacing: RiffSpacing.sm,
       children: [
         for (final t in tags) browseChip(t, Icons.local_offer_outlined, t),
         // Year → browse titles from that year in this genre (best-effort).
@@ -368,7 +386,7 @@ class _AudiobookCatalogDetailScreenState
           browseChip(year, Icons.event_outlined,
               genre.isNotEmpty ? '$genre $year' : year),
         ...plain.map((c) => Chip(
-              label: Text(c, style: theme.textTheme.bodySmall),
+              label: Text(c),
               visualDensity: VisualDensity.compact,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             )),
@@ -430,14 +448,16 @@ class _AudiobookBrowseScreenState extends State<AudiobookBrowseScreen> {
                             const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
                           childAspectRatio: 0.56,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
+                          crossAxisSpacing: RiffSpacing.md,
+                          mainAxisSpacing: RiffSpacing.md,
                         ),
                         itemCount: _books.length,
                         itemBuilder: (context, i) {
                           final book = _books[i];
+                          // §5.3 card: no background, art radius 8,
+                          // titleMedium / bodyMedium, art → title gap 8.
                           return InkWell(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(RiffRadii.sm),
                             onTap: () => Get.to(
                               () => AudiobookCatalogDetailScreen(book: book),
                               preventDuplicates: false,
@@ -448,29 +468,33 @@ class _AudiobookBrowseScreenState extends State<AudiobookBrowseScreen> {
                               children: [
                                 Expanded(
                                   child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
+                                    borderRadius:
+                                        BorderRadius.circular(RiffRadii.sm),
                                     child: CachedNetworkImage(
                                       imageUrl: book.cover,
                                       width: double.infinity,
                                       fit: BoxFit.cover,
                                       errorWidget: (_, __, ___) => Container(
-                                        color: theme.primaryColorLight,
-                                        child: const Icon(Icons.menu_book,
-                                            size: 48),
+                                        color: theme
+                                            .colorScheme.surfaceContainerLow,
+                                        child: Icon(Icons.menu_book,
+                                            size: RiffComponentSizes.rowArt,
+                                            color: theme
+                                                .colorScheme.onSurfaceVariant),
                                       ),
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 6),
+                                const SizedBox(height: RiffSpacing.sm),
                                 Text(book.title,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.titleSmall),
+                                    style: theme.textTheme.titleMedium),
                                 if (book.author.isNotEmpty)
                                   Text(book.author,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: theme.textTheme.bodySmall),
+                                      style: theme.textTheme.bodyMedium),
                               ],
                             ),
                           );

@@ -6,6 +6,8 @@ import 'package:get/get.dart';
 import '/services/audiobookshelf_service.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/song_list_tile.dart' show RiffRowHairline;
 import 'audiobook_play.dart';
 
 class AudiobookDetailScreen extends StatefulWidget {
@@ -79,17 +81,18 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                 : _error != null
                     ? Center(
                         child: Padding(
-                          padding: const EdgeInsets.all(24),
+                          padding: const EdgeInsets.all(RiffSpacing.xxl),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.cloud_off_outlined,
-                                  size: 48,
-                                  color:
-                                      theme.colorScheme.error.withOpacity(0.8)),
-                              const SizedBox(height: 12),
-                              Text(_error!, textAlign: TextAlign.center),
-                              const SizedBox(height: 12),
+                                  size: RiffComponentSizes.rowArt,
+                                  color: theme.colorScheme.error),
+                              const SizedBox(height: RiffSpacing.md),
+                              Text(_error!,
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.bodyLarge),
+                              const SizedBox(height: RiffSpacing.md),
                               TextButton(
                                   onPressed: _load, child: Text('retry'.tr)),
                             ],
@@ -105,6 +108,7 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
     final d = _detail!;
     final cover = abs.coverUrl(d.id, width: 600);
     final canResume = d.currentTime > 5;
+    final scheme = theme.colorScheme;
     return ListView(
       padding: const EdgeInsets.only(
           left: RiffSpacing.lg,
@@ -112,49 +116,54 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
           right: RiffSpacing.lg,
           bottom: RiffSpacing.listEnd),
       children: [
+        // Show-page header (§ Phase 7): art radius 8, title headlineSmall,
+        // author bodyMedium, Play as the primary pill.
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(RiffRadii.sm),
               child: CachedNetworkImage(
                 imageUrl: cover,
                 // Decode at display size, not full resolution.
-                memCacheHeight:
-                    (180 * MediaQuery.devicePixelRatioOf(context)).round(),
-                width: 120,
-                height: 180,
+                memCacheHeight: (RiffComponentSizes.bookCoverHeight *
+                        MediaQuery.devicePixelRatioOf(context))
+                    .round(),
+                width: RiffComponentSizes.bookCoverWidth,
+                height: RiffComponentSizes.bookCoverHeight,
                 fit: BoxFit.cover,
                 errorWidget: (_, __, ___) => Container(
-                  width: 120,
-                  height: 180,
-                  color: theme.primaryColorLight,
-                  child: const Icon(Icons.menu_book, size: 40),
+                  width: RiffComponentSizes.bookCoverWidth,
+                  height: RiffComponentSizes.bookCoverHeight,
+                  color: scheme.surfaceContainerLow,
+                  child: Icon(Icons.menu_book,
+                      size: RiffComponentSizes.rowArt,
+                      color: scheme.onSurfaceVariant),
                 ),
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: RiffSpacing.lg),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(d.title, style: theme.textTheme.titleLarge),
+                  Text(d.title, style: theme.textTheme.headlineSmall),
                   if (d.author.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(d.author, style: theme.textTheme.titleSmall),
+                    const SizedBox(height: RiffSpacing.xs),
+                    Text(d.author, style: theme.textTheme.bodyMedium),
                   ],
                   if (d.narrator != null && d.narrator!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: RiffSpacing.xxs),
                     Text(
                       '${'narrator'.tr}: ${d.narrator}',
-                      style: theme.textTheme.bodySmall,
+                      style: theme.textTheme.bodyMedium,
                     ),
                   ],
-                  const SizedBox(height: 10),
+                  const SizedBox(height: RiffSpacing.md),
                   // No index: resume where the listener left off. The chapter
                   // rows below still pass an explicit index, because there the
                   // user picked the chapter deliberately.
-                  ElevatedButton.icon(
+                  FilledButton.icon(
                     onPressed: d.tracks.isEmpty ? null : () => _play(),
                     icon: Icon(canResume ? Icons.play_arrow : Icons.play_arrow),
                     label: Text(canResume ? 'continueListening'.tr : 'play'.tr),
@@ -165,20 +174,20 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
           ],
         ),
         if (d.description != null && d.description!.isNotEmpty) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: RiffSpacing.lg),
           Text('description'.tr, style: theme.textTheme.titleMedium),
-          const SizedBox(height: 4),
-          Text(d.description!, style: theme.textTheme.bodyMedium),
+          const SizedBox(height: RiffSpacing.xs),
+          Text(d.description!, style: theme.textTheme.bodyLarge),
         ],
-        const SizedBox(height: 20),
+        const SizedBox(height: RiffSpacing.xl),
         Text(
           '${'chapters'.tr} (${d.tracks.length})',
           style: theme.textTheme.titleMedium,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: RiffSpacing.sm),
         if (d.tracks.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24),
+            padding: const EdgeInsets.symmetric(vertical: RiffSpacing.xxl),
             child: Text('absNoBooks'.tr, style: theme.textTheme.bodyMedium),
           )
         else
@@ -187,22 +196,33 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
             final dur = t.duration > 0
                 ? _fmt(Duration(milliseconds: (t.duration * 1000).round()))
                 : '';
-            return ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: CircleAvatar(
-                radius: 16,
-                child: Text('${i + 1}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onPrimaryContainer)),
-              ),
-              title:
-                  Text(t.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-              subtitle: dur.isEmpty ? null : Text(dur),
-              trailing: IconButton(
-                icon: const Icon(Icons.play_arrow),
-                onPressed: () => _play(index: i),
-              ),
-              onTap: () => _play(index: i),
+            // Episode-style row: titleMedium (2 lines), duration
+            // bodyMedium, 20 dp secondary Play glyph, full-width hairline
+            // inside the bottom edge.
+            return Stack(
+              children: [
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    radius: RiffComponentSizes.chapterNumber / 2,
+                    backgroundColor: scheme.surfaceContainerLow,
+                    child: Text('${i + 1}',
+                        style: theme.textTheme.labelSmall
+                            ?.copyWith(color: scheme.onSurfaceVariant)),
+                  ),
+                  title: Text(t.title,
+                      maxLines: 2, overflow: TextOverflow.ellipsis),
+                  subtitle: dur.isEmpty ? null : Text(dur),
+                  trailing: IconButton(
+                    color: scheme.onSurfaceVariant,
+                    icon: const Icon(Icons.play_arrow,
+                        size: RiffComponentSizes.trailingIcon),
+                    onPressed: () => _play(index: i),
+                  ),
+                  onTap: () => _play(index: i),
+                ),
+                const RiffRowHairline(),
+              ],
             );
           }),
       ],

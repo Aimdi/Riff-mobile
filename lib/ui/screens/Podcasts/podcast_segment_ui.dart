@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
+import '/ui/theme/riff_theme.dart';
 import '/services/podcast_bookmarks.dart';
 import '/services/podcast_segments.dart';
 import '/ui/navigator.dart';
@@ -16,6 +18,75 @@ String podcastSkipPillLabel(PlayerController pc) {
   final s = pc.activePodcastSegment.value;
   if (s == null) return 'skipAd'.tr;
   return 'skipSegment'.trParams({'category': s.category.labelKey.tr});
+}
+
+/// The Skip-ad pill (Phase 7): 36 dp accent pill with an onAccent skip
+/// glyph and a 13/700 label. When [visible] turns on it fades in and slides
+/// up 8 dp over 200 ms; while off it takes no room.
+class PodcastSkipPill extends StatelessWidget {
+  const PodcastSkipPill({
+    super.key,
+    required this.visible,
+    required this.label,
+    required this.onPressed,
+    this.padding = EdgeInsets.zero,
+  });
+
+  final bool visible;
+  final String label;
+  final VoidCallback onPressed;
+
+  /// Space around the pill while it shows (the callers' existing gaps).
+  final EdgeInsets padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final style =
+        RiffTextStyles.of(context).pillLabel.copyWith(color: scheme.onPrimary);
+    return AnimatedSwitcher(
+      duration: RiffDurations.select,
+      switchInCurve: RiffDurations.selectCurve,
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0,
+                RiffComponentSizes.skipPillSlide / RiffComponentSizes.skipPill),
+            end: Offset.zero,
+          ).animate(animation),
+          child: child,
+        ),
+      ),
+      child: !visible
+          ? const SizedBox(key: ValueKey('skipPillOff'), width: double.infinity)
+          : Padding(
+              key: const ValueKey('skipPillOn'),
+              padding: padding,
+              child: Center(
+                child: FilledButton.icon(
+                  key: const Key('skipAdPill'),
+                  onPressed: onPressed,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: scheme.primary,
+                    foregroundColor: scheme.onPrimary,
+                    minimumSize: const Size(0, RiffComponentSizes.skipPill),
+                    fixedSize:
+                        const Size.fromHeight(RiffComponentSizes.skipPill),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
+                    shape: const StadiumBorder(),
+                    textStyle: style,
+                    tapTargetSize: MaterialTapTargetSize.padded,
+                  ),
+                  icon: const Icon(Icons.fast_forward_rounded,
+                      size: RiffComponentSizes.skipPillIcon),
+                  label: Text(label, style: style),
+                ),
+              ),
+            ),
+    );
+  }
 }
 
 String _clock(double sec) => formatSegmentLength(sec);

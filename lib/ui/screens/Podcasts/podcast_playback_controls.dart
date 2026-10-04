@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/services/podcast_playback_profile.dart';
 import '/ui/player/player_controller.dart';
-import '/ui/utils/theme_controller.dart';
 import '../../widgets/cust_switch.dart';
 import '../../widgets/riff_sheet.dart';
 import '../Home/home_layout.dart';
@@ -53,6 +53,8 @@ class SkipSecondsIcon extends StatelessWidget {
           ),
           Padding(
             padding: EdgeInsets.only(top: size * 0.12),
+            // The number is part of the glyph, so it scales with the icon
+            // (not a text style): 27% of the icon size, heavy weight.
             child: Text(
               '$seconds',
               style: TextStyle(
@@ -114,15 +116,15 @@ class PodcastSpeedButton extends StatelessWidget {
       child: InkWell(
         onTap: () => showPodcastSpeedSheet(context),
         customBorder: const StadiumBorder(),
+        // §5.5 outline pill: 1 px outline-strong border.
         child: Container(
           constraints: const BoxConstraints(minWidth: 52),
-          height: 32,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          height: RiffComponentSizes.chip,
+          padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.sm),
           alignment: Alignment.center,
           decoration: ShapeDecoration(
             shape: StadiumBorder(
-              side: BorderSide(
-                  color: (color ?? RiffSurfaces.textPrimary).withOpacity(0.35)),
+              side: BorderSide(color: Theme.of(context).colorScheme.outline),
             ),
           ),
           child: Obx(() {
@@ -236,8 +238,8 @@ class PodcastSpeedPicker extends StatelessWidget {
           onChanged: onChanged,
         ),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: RiffSpacing.sm,
+          runSpacing: RiffSpacing.sm,
           children: [
             for (final s in PodcastPlaybackProfile.speedChips)
               RiffChoiceChip(
@@ -288,10 +290,10 @@ class PodcastPlaybackEditor extends StatelessWidget {
           ),
           _label(context, 'voiceBoost'.tr),
           Text('voiceBoostDes'.tr, style: homeCardSubtitleStyle(context)),
-          const SizedBox(height: 8),
+          const SizedBox(height: RiffSpacing.sm),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: RiffSpacing.sm,
+            runSpacing: RiffSpacing.sm,
             children: [
               for (final v in PodcastVoiceBoost.values)
                 RiffChoiceChip(
@@ -320,8 +322,8 @@ class PodcastPlaybackEditor extends StatelessWidget {
       );
 
   Widget _skipChips(int value, bool forward, ValueChanged<int> onTap) => Wrap(
-        spacing: 8,
-        runSpacing: 8,
+        spacing: RiffSpacing.sm,
+        runSpacing: RiffSpacing.sm,
         children: [
           for (final s in PodcastPlaybackProfile.skipChoices)
             RiffChoiceChip(
@@ -344,12 +346,12 @@ class PodcastPlaybackEditor extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title, style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 2),
+                const SizedBox(height: RiffSpacing.xxs),
                 Text(subtitle, style: homeCardSubtitleStyle(context)),
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: RiffSpacing.md),
           CustSwitch(value: value, onChanged: onChanged),
         ],
       );
@@ -397,7 +399,7 @@ Future<void> showPodcastShowPlaybackSheet(BuildContext context,
                 children: [
                   Icon(custom ? Icons.tune_rounded : Icons.public_rounded,
                       size: 18, color: homeMutedColor(context)),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: RiffSpacing.sm),
                   Expanded(
                     child: Text(
                       custom ? 'showUsesOwnSettings'.tr : 'showUsesDefaults'.tr,
@@ -424,7 +426,7 @@ Future<void> showPodcastShowPlaybackSheet(BuildContext context,
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.xl),
               child: PodcastPlaybackEditor(
                 profile: profile,
                 onChanged: (p) async {

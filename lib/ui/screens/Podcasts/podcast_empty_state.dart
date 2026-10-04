@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 
 /// Consistent empty state for the Podcasts tabs: centered icon + message +
 /// optional action (usually a jump to Discover). Replaces the bare text
@@ -24,7 +25,7 @@ class PodcastEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dim = theme.textTheme.bodySmall?.color;
+    final muted = theme.colorScheme.onSurfaceVariant;
     return Center(
       child: Padding(
         // Extra bottom padding lifts the block optically above the mini
@@ -37,25 +38,19 @@ class PodcastEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 56, color: dim?.withOpacity(0.4)),
-            const SizedBox(height: 14),
+            Icon(icon, size: RiffComponentSizes.emptyStateIcon, color: muted),
+            const SizedBox(height: RiffSpacing.md),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: dim?.withOpacity(0.75)),
+              style: theme.textTheme.bodyMedium?.copyWith(color: muted),
             ),
             if (onAction != null && actionLabel != null) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: RiffSpacing.lg),
+              // Secondary pill from the theme (§5.5).
               OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: theme.colorScheme.secondary,
-                  side: BorderSide(
-                      color: theme.colorScheme.secondary.withOpacity(0.6)),
-                  shape: const StadiumBorder(),
-                ),
                 onPressed: onAction,
-                icon: Icon(actionIcon, size: 18),
+                icon: Icon(actionIcon, size: RiffComponentSizes.trailingIcon),
                 label: Text(actionLabel!),
               ),
             ],

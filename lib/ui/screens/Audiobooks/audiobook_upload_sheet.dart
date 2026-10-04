@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 
 import '/services/audiobookshelf_service.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '../../widgets/snackbar.dart';
 
 void _toast(BuildContext context, String text) {
@@ -178,24 +179,33 @@ class _AudiobookUploadSheetState extends State<AudiobookUploadSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     for (var i = 0; i < _files.length; i++)
+                      // File row: glyphs in the secondary colour, name
+                      // in bodyMedium (the sheet itself is Phase 8).
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: RiffSpacing.xxs),
                         child: Row(
                           children: [
-                            const Icon(Icons.music_note, size: 16),
-                            const SizedBox(width: 6),
+                            Icon(Icons.music_note,
+                                size: RiffComponentSizes.chipLeadingIcon,
+                                color: theme.colorScheme.onSurfaceVariant),
+                            const SizedBox(width: RiffSpacing.sm),
                             Expanded(
                               child: Text(_files[i].filename,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodySmall),
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.colorScheme.onSurface)),
                             ),
                             if (!_uploading)
                               InkWell(
                                 onTap: () => setState(() => _files.removeAt(i)),
-                                child: const Padding(
-                                  padding: EdgeInsets.all(4),
-                                  child: Icon(Icons.close, size: 16),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(RiffSpacing.xs),
+                                  child: Icon(Icons.close,
+                                      size: RiffComponentSizes.chipLeadingIcon,
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant),
                                 ),
                               ),
                           ],

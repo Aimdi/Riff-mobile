@@ -199,3 +199,14 @@ metrics now measure the TextTheme slot their text uses
   dragging, accent toggles + light haptics, lyrics titleLarge with 60%
   for other lines. PlayerController, SlidingUpPanel and gestures
   untouched. Adjustments in `SKIPPED.md`; screenshots in `phase6/`.
+
+## Phase 7 result (podcasts, audiobooks, Skip-ad pill)
+
+- Episode rows, show page, podcast tab and sub-screens, audiobook rows,
+  book headers and shelf cards restyled in place; podcast/audiobook
+  player matches the Phase 6 music player (show tint ≤ 20%).
+- Skip-ad pill: `PodcastSkipPill` (podcast_segment_ui.dart), shared by
+  both players, 36 dp accent pill, 200 ms fade + 8 dp slide-up; covered
+  by `test/podcasts/podcast_skip_pill_test.dart`. Chapter parsing, ad
+  detection, auto-skip and SponsorBlock untouched.
+- Adjustments in `SKIPPED.md`; screenshots in `phase7/`.

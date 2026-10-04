@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 
 /// Shared podcast Follow control — matches the RSS show header:
 /// green filled **+ Follow** pill, or outlined **✓ Following**.
@@ -19,20 +21,22 @@ class PodcastFollowButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = Theme.of(context).colorScheme.secondary;
+    // §5.5: Subscribe = primary pill, Subscribed = outline pill; colours
+    // come from the button themes.
     final pad = EdgeInsets.symmetric(
-      horizontal: compact ? 12 : 14,
-      vertical: compact ? 6 : 8,
+      horizontal: compact ? RiffSpacing.md : RiffSpacing.lg,
+      vertical: compact ? RiffSpacing.xs : RiffSpacing.sm,
     );
+    final iconSize = compact
+        ? RiffComponentSizes.chipLeadingIcon
+        : RiffComponentSizes.chipChevron;
 
     if (following) {
       return OutlinedButton.icon(
         onPressed: onPressed,
-        icon: Icon(Icons.check, size: compact ? 16 : 18, color: accent),
+        icon: Icon(Icons.check, size: iconSize),
         label: Text('subscribed'.tr),
         style: OutlinedButton.styleFrom(
-          foregroundColor: accent,
-          side: BorderSide(color: accent.withOpacity(0.55)),
           visualDensity: VisualDensity.compact,
           padding: pad,
           shape: const StadiumBorder(),
@@ -42,11 +46,9 @@ class PodcastFollowButton extends StatelessWidget {
 
     return FilledButton.icon(
       onPressed: onPressed,
-      icon: Icon(Icons.add, size: compact ? 16 : 18),
+      icon: Icon(Icons.add, size: iconSize),
       label: Text('subscribe'.tr),
       style: FilledButton.styleFrom(
-        backgroundColor: accent,
-        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         visualDensity: VisualDensity.compact,
         padding: pad,
         shape: const StadiumBorder(),

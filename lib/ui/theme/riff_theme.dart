@@ -395,7 +395,8 @@ class RiffTextStyles extends ThemeExtension<RiffTextStyles> {
   const RiffTextStyles(
       {required this.cardTitle,
       required this.tileTitle,
-      required this.playerTitle});
+      required this.playerTitle,
+      required this.pillLabel});
 
   /// Riff Wave card title, 17/800.
   final TextStyle cardTitle;
@@ -406,10 +407,14 @@ class RiffTextStyles extends ThemeExtension<RiffTextStyles> {
   /// Full-player track title, 22/28 800.
   final TextStyle playerTitle;
 
+  /// Skip-ad pill label, 13/700.
+  final TextStyle pillLabel;
+
   factory RiffTextStyles.forColor(Color primary) => RiffTextStyles(
         cardTitle: RiffTheme._t(17, 22, FontWeight.w800, primary),
         tileTitle: RiffTheme._t(13, 16, FontWeight.w700, primary),
         playerTitle: RiffTheme._t(22, 28, FontWeight.w800, primary),
+        pillLabel: RiffTheme._t(13, 16, FontWeight.w700, primary),
       );
 
   /// The theme's styles, or ones in its text colour for themes that don't
@@ -424,11 +429,13 @@ class RiffTextStyles extends ThemeExtension<RiffTextStyles> {
   RiffTextStyles copyWith(
           {TextStyle? cardTitle,
           TextStyle? tileTitle,
-          TextStyle? playerTitle}) =>
+          TextStyle? playerTitle,
+          TextStyle? pillLabel}) =>
       RiffTextStyles(
         cardTitle: cardTitle ?? this.cardTitle,
         tileTitle: tileTitle ?? this.tileTitle,
         playerTitle: playerTitle ?? this.playerTitle,
+        pillLabel: pillLabel ?? this.pillLabel,
       );
 
   @override
@@ -438,6 +445,7 @@ class RiffTextStyles extends ThemeExtension<RiffTextStyles> {
       cardTitle: TextStyle.lerp(cardTitle, other.cardTitle, t)!,
       tileTitle: TextStyle.lerp(tileTitle, other.tileTitle, t)!,
       playerTitle: TextStyle.lerp(playerTitle, other.playerTitle, t)!,
+      pillLabel: TextStyle.lerp(pillLabel, other.pillLabel, t)!,
     );
   }
 }

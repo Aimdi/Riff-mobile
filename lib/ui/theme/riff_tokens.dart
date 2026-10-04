@@ -112,6 +112,10 @@ class RiffComponentSizes {
   static const double handleHeight = 4;
   static const double skipPill = 36;
 
+  /// Skip-ad pill glyph, and how far the pill slides up as it appears.
+  static const double skipPillIcon = 16;
+  static const double skipPillSlide = 8;
+
   /// Full-player seek bar: track height and the thumb shown while dragging.
   static const double seekTrack = 2;
   static const double seekThumb = 12;
@@ -150,6 +154,54 @@ class RiffComponentSizes {
   static const double miniWidePlay = 58;
   static const double miniWidePlayIcon = 30;
   static const double miniWideThumb = 6;
+
+  /// Thin progress line on episode / audiobook rows and covers
+  /// (§ Phase 7: 2 px accent on a divider track).
+  static const double rowProgress = 2;
+
+  /// Long-form (podcast / audiobook) player, keeping the current sizes: the
+  /// accent play circle, the skip-seconds glyphs, the previous / next
+  /// glyphs and the cover's fallback glyph.
+  static const double longFormPlay = 76;
+  static const double longFormSkip = 38;
+  static const double longFormEdge = 30;
+  static const double longFormFallbackIcon = 72;
+
+  /// Outline chips with a leading glyph and / or a trailing chevron (the
+  /// long-form player's chapter chip, the Audiobookshelf library picker),
+  /// keeping the current sizes.
+  static const double chipLeadingIcon = 16;
+  static const double chipChevron = 18;
+
+  /// Audiobook headers, keeping the current sizes: the Audiobookshelf
+  /// book's 2:3 cover (also the "Similar titles" cards), the square store
+  /// cover, and the chapter-number circle on Audiobookshelf chapter rows.
+  static const double bookCoverWidth = 120;
+  static const double bookCoverHeight = 180;
+  static const double storeBookCover = 200;
+  static const double chapterNumber = 32;
+
+  /// Circular spinner (§5.9: 24 across, stroke 2.5).
+  static const double spinner = 24;
+  static const double spinnerStroke = 2.5;
+
+  /// Podcasts, keeping the current sizes: the show page cover's min / max
+  /// side, the Continue listening card's art and its play badge (+ glyph),
+  /// the show-search result art, the "Expected today" card (width and row
+  /// height), the YouTube video-episode card width, the Subscriptions
+  /// cover's play button, the folder glyph and the empty-state glyph.
+  static const double showCoverMin = 160;
+  static const double showCoverMax = 240;
+  static const double continueArt = 64;
+  static const double continueBadge = 24;
+  static const double continueBadgeIcon = 18;
+  static const double showRowArt = 72;
+  static const double expectedCardWidth = 230;
+  static const double expectedRowHeight = 64;
+  static const double videoEpisodeWidth = 256;
+  static const double coverPlay = 30;
+  static const double folderIcon = 64;
+  static const double emptyStateIcon = 56;
 }
 
 /// Theme-dependent colours Material's [ColorScheme] has no slot for.

@@ -5,8 +5,8 @@ import '/services/audiobook_progress_service.dart';
 import '/services/free_audiobook_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
-import '/ui/utils/riff_tokens.dart';
-import '/ui/utils/theme_controller.dart';
+import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/song_list_tile.dart' show RiffRowHairline;
 import '../Home/home_layout.dart';
 import '../Podcasts/podcast_layout.dart';
 import 'audiobook_library_controller.dart';
@@ -72,7 +72,7 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
               onPressed: () => lib.toggleFree(_detail?.book ?? widget.book),
             );
           }),
-          const SizedBox(width: 4),
+          const SizedBox(width: RiffSpacing.xs),
         ],
       )),
       body: CustomScrollView(
@@ -81,11 +81,12 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
           if (_loading)
             const SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.all(32),
+                padding: EdgeInsets.all(RiffSpacing.x3l),
                 child: Center(
                     child: SizedBox.square(
-                        dimension: 28,
-                        child: CircularProgressIndicator(strokeWidth: 2.5))),
+                        dimension: RiffComponentSizes.spinner,
+                        child: CircularProgressIndicator(
+                            strokeWidth: RiffComponentSizes.spinnerStroke))),
               ),
             )
           else if (_detail == null || _detail!.chapters.isEmpty)
@@ -108,7 +109,8 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
               ),
             ),
           ],
-          const SliverToBoxAdapter(child: SizedBox(height: 180)),
+          const SliverToBoxAdapter(
+              child: SizedBox(height: RiffSpacing.unit * 45)),
         ],
       ),
     );
@@ -127,7 +129,8 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
             d.language,
           ]);
     final width = MediaQuery.sizeOf(context).width;
-    final cover = (width * 0.52).clamp(160.0, 240.0);
+    final cover = (width * 0.52).clamp(
+        RiffComponentSizes.showCoverMin, RiffComponentSizes.showCoverMax);
     return Padding(
       padding: const EdgeInsets.only(
           left: HomeLayout.gutter + RiffSpacing.sm,
@@ -135,46 +138,39 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
           bottom: RiffSpacing.sm),
       child: Column(
         children: [
-          AudiobookCover(
-              url: book.cover, size: cover, radius: RiffTokens.radiusMd),
-          const SizedBox(height: 18),
+          // Show-page header (§ Phase 7): art radius 8, title
+          // headlineSmall, author bodyMedium, Play as the primary pill.
+          AudiobookCover(url: book.cover, size: cover),
+          const SizedBox(height: RiffSpacing.lg),
           Text(
             book.title,
             textAlign: TextAlign.center,
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.titleLarge?.copyWith(height: 1.2),
+            style: theme.textTheme.headlineSmall,
           ),
           if (book.author.isNotEmpty) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: RiffSpacing.xs),
             Text(
               book.author,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyLarge
+              style: theme.textTheme.bodyMedium
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
           ],
           if (meta.isNotEmpty) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: RiffSpacing.xs),
             Text(meta,
                 textAlign: TextAlign.center,
                 style: homeCardSubtitleStyle(context)),
           ],
-          const SizedBox(height: 18),
+          const SizedBox(height: RiffSpacing.lg),
           SizedBox(
-            height: 48,
+            height: RiffSizes.touch,
             width: double.infinity,
             child: FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: theme.colorScheme.secondary,
-                foregroundColor: RiffSurfaces.voidBlack,
-                disabledBackgroundColor:
-                    theme.colorScheme.secondary.withOpacity(0.35),
-                shape: const StadiumBorder(),
-                textStyle: theme.textTheme.titleMedium,
-              ),
               onPressed: d == null || d.chapters.isEmpty ? null : () => _play(),
-              icon: const Icon(Icons.play_arrow_rounded, size: 26),
+              icon: const Icon(Icons.play_arrow_rounded),
               label: Text(
                 lastIdx != null && d != null
                     ? '${'resume'.tr} · ${'chapterOf'.trParams({
@@ -191,10 +187,8 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
   }
 
   Widget _about(BuildContext context, FreeAudiobookDetail d) {
-    final style = Theme.of(context)
-        .textTheme
-        .bodyMedium
-        ?.copyWith(height: 1.45, color: homeMutedColor(context));
+    // § Phase 7: descriptions in bodyLarge.
+    final style = Theme.of(context).textTheme.bodyLarge;
     return Padding(
       padding: const EdgeInsets.only(
           left: HomeLayout.gutter,
@@ -204,7 +198,7 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           InkWell(
-            borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+            borderRadius: BorderRadius.circular(RiffRadii.sm),
             onTap: () => setState(() => _expanded = !_expanded),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,35 +210,39 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
                       _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
                   style: style,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: RiffSpacing.xs),
+                // A text button look: 15/700 in the accent (§5.5).
                 Text(
                   _expanded ? 'showLess'.tr : 'readMore'.tr,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Theme.of(context).textTheme.titleMedium?.color,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                 ),
               ],
             ),
           ),
           if (d.subjects.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: RiffSpacing.md),
+            // §5.6 unselected chips: transparent with a divider hairline.
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: RiffSpacing.sm,
+              runSpacing: RiffSpacing.sm,
               children: [
                 for (final s in d.subjects)
                   Container(
+                    height: RiffComponentSizes.chip,
+                    alignment: Alignment.center,
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: homeTileColor(context),
-                      borderRadius: BorderRadius.circular(999),
+                        const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
+                    decoration: ShapeDecoration(
+                      shape: StadiumBorder(
+                          side: BorderSide(
+                              color: Theme.of(context).dividerColor, width: 0)),
                     ),
                     child: Text(
                       s[0].toUpperCase() + s.substring(1),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant),
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface),
                     ),
                   ),
               ],
@@ -267,65 +265,79 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
           final id = '$freeAudiobookIdPrefix${d.book.id}_${c.index}';
           Widget row(bool playing) {
             final p = AudiobookProgressService.progress(id);
-            return InkWell(
-              onTap: () => _play(index: i),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: HomeLayout.gutter, vertical: RiffSpacing.md),
-                child: Row(
+            // Episode-style row: titleMedium (2 lines), accent title and
+            // equalizer while playing on an accentMuted tint, 2 px progress,
+            // full-width hairline inside the bottom edge.
+            return Material(
+              color: playing
+                  ? RiffColors.of(context).accentMuted
+                  : Colors.transparent,
+              child: InkWell(
+                onTap: () => _play(index: i),
+                child: Stack(
                   children: [
-                    SizedBox(
-                      width: 32,
-                      child: playing
-                          ? Icon(Icons.graphic_eq_rounded,
-                              size: 20, color: accent)
-                          : Text(
-                              '${i + 1}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant),
-                            ),
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: HomeLayout.gutter,
+                          vertical: RiffSpacing.md),
+                      child: Row(
                         children: [
-                          Text(
-                            c.title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelMedium
-                                ?.copyWith(
-                                  color: playing
-                                      ? accent
-                                      : Theme.of(context)
-                                          .textTheme
-                                          .titleMedium
-                                          ?.color,
-                                ),
+                          SizedBox(
+                            width: RiffSpacing.x3l,
+                            child: playing
+                                ? Icon(Icons.graphic_eq_rounded,
+                                    size: RiffComponentSizes.trailingIcon,
+                                    color: accent)
+                                : Text(
+                                    '${i + 1}',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant),
+                                  ),
                           ),
-                          if (p != null && p > 0.02 && p < 0.98) ...[
-                            const SizedBox(height: 6),
-                            FractionallySizedBox(
-                              widthFactor: 0.5,
-                              alignment: Alignment.centerLeft,
-                              child: PodcastProgressBar(value: p),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  c.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                        color: playing
+                                            ? accent
+                                            : Theme.of(context)
+                                                .colorScheme
+                                                .onSurface,
+                                      ),
+                                ),
+                                if (p != null && p > 0.02 && p < 0.98) ...[
+                                  const SizedBox(height: RiffSpacing.sm),
+                                  FractionallySizedBox(
+                                    widthFactor: 0.5,
+                                    alignment: Alignment.centerLeft,
+                                    child: PodcastProgressBar(value: p),
+                                  ),
+                                ],
+                              ],
                             ),
-                          ],
+                          ),
+                          const SizedBox(width: RiffSpacing.md),
+                          Text(
+                            compactEpisodeLength(c.durationSec.round()),
+                            style: homeCardSubtitleStyle(context),
+                          ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      compactEpisodeLength(c.durationSec.round()),
-                      style: homeCardSubtitleStyle(context),
-                    ),
+                    const RiffRowHairline(),
                   ],
                 ),
               ),
@@ -342,14 +354,14 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
 
   Widget _error(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(RiffSpacing.x3l),
       child: Column(
         children: [
           Text('bookLoadFailed'.tr,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant)),
-          const SizedBox(height: 8),
+          const SizedBox(height: RiffSpacing.sm),
           TextButton.icon(
             onPressed: _load,
             icon: const Icon(Icons.refresh_rounded),

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../theme/riff_spacing.dart';
-import '../../utils/riff_tokens.dart';
 import '/ui/theme/riff_text_metrics.dart';
 import '/ui/widgets/riff_header_bar.dart';
 
@@ -225,14 +224,14 @@ class HomeShelfCard extends StatelessWidget {
     return SizedBox(
       width: size,
       child: InkWell(
-        borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+        borderRadius: BorderRadius.circular(RiffSizes.shelfRadius),
         onTap: onTap,
         onLongPress: onLongPress,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+              borderRadius: BorderRadius.circular(RiffSizes.shelfRadius),
               child: SizedBox.square(dimension: size, child: art),
             ),
             const SizedBox(height: 8),

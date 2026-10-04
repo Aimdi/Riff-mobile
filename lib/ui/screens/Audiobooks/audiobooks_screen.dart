@@ -9,7 +9,9 @@ import '/services/free_audiobook_service.dart';
 import '/services/plugin_service.dart';
 import '/ui/navigator.dart';
 import '/ui/theme/riff_spacing.dart';
-import '/ui/utils/theme_controller.dart';
+import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/shimmer_widgets/basic_container.dart'
+    show RiffSkeletonPulse;
 import '../Home/home_layout.dart';
 import '../Library/library.dart' show libraryGridMetrics;
 import '../Podcasts/podcast_empty_state.dart';
@@ -101,7 +103,7 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
         children: [
           if (!widget.isBottomNavActive) _header(context),
           _tabs(context),
-          const SizedBox(height: 4),
+          const SizedBox(height: RiffSpacing.xs),
           Expanded(
             child: RiffScrollUnder(
                 child: _mode == 0
@@ -165,37 +167,50 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
         (2, 'saved'.tr),
         if (plugins.isInstalled(PluginIds.torrentSearch)) (3, 'torrents'.tr),
       ];
+      // §5.6 chips (32 tall in the strip's existing 36 dp slot):
+      // transparent with a divider hairline; selected = accentMuted fill,
+      // accent border and label.
       return SizedBox(
-        height: 36,
+        height: RiffComponentSizes.chip + RiffSpacing.xs,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
           itemCount: tabs.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          separatorBuilder: (_, __) => const SizedBox(width: RiffSpacing.sm),
           itemBuilder: (context, i) {
             final (mode, label) = tabs[i];
             final active = _mode == mode;
-            final accent = Theme.of(context).colorScheme.secondary;
-            return Material(
-              color: active ? accent : homeTileColor(context),
-              shape: StadiumBorder(
-                  side: active ? BorderSide.none : homeTileBorder(context)),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () => _select(mode),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  child: Center(
-                    child: Text(
-                      label,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            color: active
-                                ? RiffSurfaces.voidBlack
-                                : Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.color,
-                          ),
+            final scheme = Theme.of(context).colorScheme;
+            return Center(
+              child: SizedBox(
+                height: RiffComponentSizes.chip,
+                child: Material(
+                  color: active
+                      ? RiffColors.of(context).accentMuted
+                      : Colors.transparent,
+                  shape: StadiumBorder(
+                      side: BorderSide(
+                          color: active
+                              ? scheme.primary
+                              : Theme.of(context).dividerColor)),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () => _select(mode),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: RiffSpacing.md),
+                      child: Center(
+                        child: Text(
+                          label,
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelMedium
+                              ?.copyWith(
+                                  color: active
+                                      ? scheme.primary
+                                      : scheme.onSurface),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -315,7 +330,7 @@ class _DiscoverViewState extends State<_DiscoverView> {
           else if (_free.isEmpty && _store.isEmpty)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.only(top: 60),
+                padding: const EdgeInsets.only(top: RiffSpacing.unit * 15),
                 child: PodcastEmptyState(
                   icon: Icons.wifi_off_rounded,
                   message: 'freeLibraryOffline'.tr,
@@ -374,7 +389,8 @@ class _DiscoverViewState extends State<_DiscoverView> {
               ),
             ),
           ],
-          const SliverToBoxAdapter(child: SizedBox(height: 200)),
+          const SliverToBoxAdapter(
+              child: SizedBox(height: RiffSpacing.listEnd)),
         ],
       ),
     );
@@ -409,16 +425,18 @@ class _DiscoverViewState extends State<_DiscoverView> {
       // Nothing typed yet: offer genres as a starting point.
       return CustomScrollView(slivers: [
         SliverToBoxAdapter(
-            child: HomeSectionHeader('browseByGenre'.tr, top: 8)),
+            child: HomeSectionHeader('browseByGenre'.tr, top: RiffSpacing.sm)),
         _genreGrid(context),
-        const SliverToBoxAdapter(child: SizedBox(height: 200)),
+        const SliverToBoxAdapter(child: SizedBox(height: RiffSpacing.listEnd)),
       ]);
     }
     if (_searchLoading) {
       return const Align(
         alignment: Alignment(0, -0.6),
         child: SizedBox.square(
-            dimension: 28, child: CircularProgressIndicator(strokeWidth: 2.5)),
+            dimension: RiffComponentSizes.spinner,
+            child: CircularProgressIndicator(
+                strokeWidth: RiffComponentSizes.spinnerStroke)),
       );
     }
     if (_freeResults.isEmpty && _storeResults.isEmpty) {
@@ -427,7 +445,7 @@ class _DiscoverViewState extends State<_DiscoverView> {
     }
     final muted = homeMutedColor(context);
     return ListView(
-      padding: const EdgeInsets.only(bottom: 200),
+      padding: const EdgeInsets.only(bottom: RiffSpacing.listEnd),
       children: [
         if (_freeResults.isNotEmpty) ...[
           AudiobookGroupLabel('freeToListen'.tr, badge: 'freeBadge'.tr),
@@ -438,7 +456,8 @@ class _DiscoverViewState extends State<_DiscoverView> {
               title: b.title,
               subtitle: b.author,
               onTap: () => openFreeAudiobook(b),
-              trailing: Icon(Icons.chevron_right_rounded, color: muted),
+              trailing: Icon(Icons.chevron_right_rounded,
+                  size: RiffComponentSizes.trailingIcon, color: muted),
             ),
         ],
         if (_storeResults.isNotEmpty) ...[
@@ -452,7 +471,8 @@ class _DiscoverViewState extends State<_DiscoverView> {
                   .where((s) => s.isNotEmpty)
                   .join(' · '),
               onTap: () => openStoreAudiobook(b),
-              trailing: Icon(Icons.chevron_right_rounded, color: muted),
+              trailing: Icon(Icons.chevron_right_rounded,
+                  size: RiffComponentSizes.trailingIcon, color: muted),
             ),
         ],
       ],
@@ -466,38 +486,40 @@ class _SeeAll extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // §5.4: "See all" is a 15/700 accent text button.
+    final accent = Theme.of(context).colorScheme.primary;
     return TextButton(
       onPressed: onTap,
       style: TextButton.styleFrom(
-        foregroundColor: homeMutedColor(context),
-        minimumSize: const Size(0, 30),
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        foregroundColor: accent,
+        minimumSize: const Size(0, RiffComponentSizes.rowIconHit),
+        padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.sm),
       ),
       // Style on the Text, not the button: a button textStyle replaces the
       // theme font instead of merging with it.
       child: Text('seeAll'.tr,
-          style: Theme.of(context)
-              .textTheme
-              .labelMedium
-              ?.copyWith(color: homeMutedColor(context))),
+          style:
+              Theme.of(context).textTheme.labelLarge?.copyWith(color: accent)),
     );
   }
 }
 
-/// Grey card outlines while the first shelf loads.
+/// Skeleton cards while the first shelf loads (§5.13: surface1 boxes with
+/// the real widgets' radii, pulsing).
 class _ShelfPlaceholder extends StatelessWidget {
   const _ShelfPlaceholder();
 
   @override
   Widget build(BuildContext context) {
-    final c = Theme.of(context).colorScheme.onSurface.withOpacity(0.06);
-    Widget bar(double w, double h) => Container(
+    final c = Theme.of(context).colorScheme.surfaceContainerLow;
+    Widget bar(double w, double h, {double radius = RiffRadii.xs}) => Container(
           width: w,
           height: h,
-          decoration:
-              BoxDecoration(color: c, borderRadius: BorderRadius.circular(6)),
+          decoration: BoxDecoration(
+              color: c, borderRadius: BorderRadius.circular(radius)),
         );
-    return Padding(
+    return RiffSkeletonPulse(
+        child: Padding(
       padding: const EdgeInsets.only(
           left: HomeLayout.gutter, top: HomeLayout.sectionTop),
       child: Column(
@@ -516,8 +538,9 @@ class _ShelfPlaceholder extends StatelessWidget {
               itemBuilder: (_, __) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  bar(HomeLayout.shelfCard, HomeLayout.shelfCard),
-                  const SizedBox(height: 8),
+                  bar(HomeLayout.shelfCard, HomeLayout.shelfCard,
+                      radius: RiffRadii.sm),
+                  const SizedBox(height: RiffSpacing.sm),
                   bar(96, 12),
                 ],
               ),
@@ -525,7 +548,7 @@ class _ShelfPlaceholder extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -546,7 +569,7 @@ class _ContinueFreeShelf extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            HomeSectionHeader('continueListening'.tr, top: 12),
+            HomeSectionHeader('continueListening'.tr, top: RiffSpacing.md),
             SizedBox(
               height: PodcastContinueCard.heightFor(context),
               child: ListView.separated(
@@ -603,7 +626,8 @@ class _SavedView extends StatelessWidget {
           slivers: [
             if (free.isNotEmpty) ...[
               SliverToBoxAdapter(
-                  child: HomeSectionHeader('freeToListen'.tr, top: 12)),
+                  child: HomeSectionHeader('freeToListen'.tr,
+                      top: RiffSpacing.md)),
               SliverPadding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
@@ -621,7 +645,7 @@ class _SavedView extends StatelessWidget {
               SliverToBoxAdapter(
                 child: HomeSectionHeader(
                   'inStores'.tr,
-                  top: free.isEmpty ? 12 : HomeLayout.sectionTop,
+                  top: free.isEmpty ? RiffSpacing.md : HomeLayout.sectionTop,
                   trailing: Padding(
                     padding: const EdgeInsets.only(right: HomeLayout.gutter),
                     child: Text('storeBookNote'.tr,
@@ -642,7 +666,8 @@ class _SavedView extends StatelessWidget {
                 ),
               ),
             ],
-            const SliverToBoxAdapter(child: SizedBox(height: 200)),
+            const SliverToBoxAdapter(
+                child: SizedBox(height: RiffSpacing.listEnd)),
           ],
         );
       });
@@ -652,18 +677,14 @@ class _SavedView extends StatelessWidget {
 
 // ──────────────────────────────────────────────── Library (Audiobookshelf) ──
 
+/// §5.8 text field: transparent, hairline border (radius 4) from the
+/// theme, 2 px accent when focused, label in the secondary colour.
 InputDecoration _fieldDecoration(BuildContext context, String label,
         {String? hint, Widget? suffix}) =>
     InputDecoration(
       labelText: label,
       hintText: hint,
-      filled: true,
-      fillColor: homeTileColor(context),
       suffixIcon: suffix,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
     );
 
 class _AbsLoginForm extends StatefulWidget {
@@ -704,7 +725,7 @@ class _AbsLoginFormState extends State<_AbsLoginForm> {
   Widget build(BuildContext context) {
     final abs = Get.find<AudiobookshelfService>();
     final theme = Theme.of(context);
-    final accent = theme.colorScheme.secondary;
+    final scheme = theme.colorScheme;
     return ListView(
       padding: const EdgeInsets.only(
           left: HomeLayout.gutter,
@@ -714,27 +735,29 @@ class _AbsLoginFormState extends State<_AbsLoginForm> {
       children: [
         Row(
           children: [
+            // Plain glyph in a hairline tile (no accent: it isn't a control).
             Container(
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: accent.withOpacity(0.14),
-                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.dividerColor, width: 0),
+                borderRadius: BorderRadius.circular(RiffRadii.sm),
               ),
-              child: Icon(Icons.dns_rounded, color: accent, size: 24),
+              child: Icon(Icons.dns_rounded,
+                  color: scheme.onSurface, size: RiffComponentSizes.headerIcon),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: RiffSpacing.md),
             Expanded(
               child: Text('absConnectTitle'.tr,
                   style: homeSectionTitleStyle(context)),
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: RiffSpacing.md),
         Text('absConnectDes'.tr,
             style: theme.textTheme.bodyMedium
                 ?.copyWith(color: homeMutedColor(context))),
-        const SizedBox(height: 20),
+        const SizedBox(height: RiffSpacing.xl),
         TextField(
           controller: _host,
           decoration: _fieldDecoration(context, 'absServerUrl'.tr,
@@ -742,13 +765,13 @@ class _AbsLoginFormState extends State<_AbsLoginForm> {
           keyboardType: TextInputType.url,
           textInputAction: TextInputAction.next,
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: RiffSpacing.md),
         TextField(
           controller: _user,
           decoration: _fieldDecoration(context, 'username'.tr),
           textInputAction: TextInputAction.next,
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: RiffSpacing.md),
         TextField(
           controller: _pass,
           obscureText: _obscure,
@@ -764,36 +787,32 @@ class _AbsLoginFormState extends State<_AbsLoginForm> {
           ),
           onSubmitted: (_) => _submit(),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: RiffSpacing.lg),
+        // §5.5 primary pill from the FilledButton theme (keeps its height).
         Obx(() => SizedBox(
-              height: 48,
+              height: RiffSizes.touch,
               child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: accent,
-                  foregroundColor: RiffSurfaces.voidBlack,
-                  shape: const StadiumBorder(),
-                ),
                 onPressed: abs.isLoading.value ? null : _submit,
                 child: abs.isLoading.value
                     ? const SizedBox.square(
-                        dimension: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : Text('absConnect'.tr,
-                        style: theme.textTheme.titleMedium
-                            ?.copyWith(color: RiffSurfaces.voidBlack)),
+                        dimension: RiffComponentSizes.spinner,
+                        child: CircularProgressIndicator(
+                            strokeWidth: RiffComponentSizes.spinnerStroke))
+                    : Text('absConnect'.tr),
               ),
             )),
         Obx(() {
           final msg = abs.statusMessage.value;
           if (msg.isEmpty) return const SizedBox.shrink();
           return Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Text(msg, style: TextStyle(color: theme.colorScheme.error)),
+            padding: const EdgeInsets.only(top: RiffSpacing.md),
+            child: Text(msg,
+                style:
+                    theme.textTheme.bodyMedium?.copyWith(color: scheme.error)),
           );
         }),
-        const SizedBox(height: 18),
-        Text('absDemoHint'.tr,
-            style: homeCardSubtitleStyle(context).copyWith(height: 1.4)),
+        const SizedBox(height: RiffSpacing.lg),
+        Text('absDemoHint'.tr, style: homeCardSubtitleStyle(context)),
       ],
     );
   }
@@ -849,8 +868,9 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
             if (abs.isLoading.value && abs.books.isEmpty) {
               return const Center(
                   child: SizedBox.square(
-                      dimension: 28,
-                      child: CircularProgressIndicator(strokeWidth: 2.5)));
+                      dimension: RiffComponentSizes.spinner,
+                      child: CircularProgressIndicator(
+                          strokeWidth: RiffComponentSizes.spinnerStroke)));
             }
             // A failed load is NOT an empty library. Saying "no books" when the
             // token expired or the server is unreachable sends the user
@@ -883,7 +903,7 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                     if (continueBooks.isNotEmpty) ...[
                       SliverToBoxAdapter(
                           child: HomeSectionHeader('continueListening'.tr,
-                              top: 8)),
+                              top: RiffSpacing.sm)),
                       SliverToBoxAdapter(
                         child: HomeShelf(
                           cardSize: HomeLayout.shelfCard,
@@ -911,7 +931,9 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                     SliverToBoxAdapter(
                       child: HomeSectionHeader(
                         abs.selectedLibrary?.name ?? 'library'.tr,
-                        top: continueBooks.isEmpty ? 8 : HomeLayout.sectionTop,
+                        top: continueBooks.isEmpty
+                            ? RiffSpacing.sm
+                            : HomeLayout.sectionTop,
                       ),
                     ),
                     SliverPadding(
@@ -962,7 +984,8 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
   /// Server, user and library picker on one row; upload and disconnect in
   /// the overflow menu.
   Widget _serverStrip(BuildContext context, AudiobookshelfService abs) {
-    final accent = Theme.of(context).colorScheme.secondary;
+    final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
     return Obx(() {
       final libs = abs.libraries.toList();
       final selected = abs.selectedLibrary;
@@ -973,8 +996,9 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
             bottom: RiffSpacing.xs),
         child: Row(
           children: [
-            Icon(Icons.dns_rounded, size: 20, color: accent),
-            const SizedBox(width: 10),
+            Icon(Icons.dns_rounded,
+                size: RiffComponentSizes.trailingIcon, color: muted),
+            const SizedBox(width: RiffSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -987,7 +1011,7 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                     overflow: TextOverflow.ellipsis,
                     style: homeCardTitleStyle(context),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: RiffSpacing.xxs),
                   Text(
                     abs.username.value,
                     maxLines: 1,
@@ -1009,12 +1033,14 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                       child: Text(l.name),
                     ),
                 ],
+                // §5.6 unselected chip: transparent, divider hairline.
                 child: Container(
-                  height: 32,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: homeTileColor(context),
-                    borderRadius: BorderRadius.circular(999),
+                  height: RiffComponentSizes.chip,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
+                  decoration: ShapeDecoration(
+                    shape: StadiumBorder(
+                        side: BorderSide(color: theme.dividerColor, width: 0)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1025,10 +1051,11 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                           selected?.name ?? 'absLibrary'.tr,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.labelMedium,
+                          style: theme.textTheme.labelMedium,
                         ),
                       ),
-                      const Icon(Icons.expand_more_rounded, size: 18),
+                      Icon(Icons.expand_more_rounded,
+                          size: RiffComponentSizes.chipChevron, color: muted),
                     ],
                   ),
                 ),

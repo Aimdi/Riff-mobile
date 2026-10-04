@@ -12,7 +12,6 @@ import '/models/thumbnail.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/utils/media_item_video.dart';
 import '../../screens/Home/home_layout.dart';
-import '../../utils/theme_controller.dart';
 import '../../widgets/sleep_timer_bottom_sheet.dart';
 import '../player_controller.dart';
 import 'albumart_lyrics.dart';
@@ -24,6 +23,7 @@ import 'podcast_player_tint.dart';
 import 'podcast_transcript_sheet.dart';
 import 'standard_player.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_theme.dart';
 import '/ui/theme/riff_tokens.dart';
 
 /// Now-playing screen for podcasts and audiobooks: the episode or chapter
@@ -50,47 +50,52 @@ class LongFormPlayer extends StatelessWidget {
       final showVideo = song != null &&
           song.canShowPlayerVideo &&
           AlbumArtNLyrics.videoPlaybackEnabledFor(song);
-      // Podcasts: tinted with the show's artwork (audiobooks keep the theme).
-      final base = PodcastPlayerTint.of(song) ?? theme.primaryColor;
+      // Black page (§ Phase 6). Podcasts: the show's artwork colour as a
+      // top gradient of at most 20%; otherwise the cover shows through at
+      // most 20% at the top, as on the music player.
+      final bg = theme.colorScheme.surface;
+      final tint = PodcastPlayerTint.of(song);
       return Stack(
         children: [
-          if (showVideo)
-            Positioned.fill(child: ColoredBox(color: base))
-          else ...[
-            const BackgroudImage(),
+          Positioned.fill(child: ColoredBox(color: bg)),
+          if (!showVideo) ...[
+            if (tint == null) const BackgroudImage(),
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      base.withOpacity(0.72),
-                      base.withOpacity(0.9),
-                      base,
-                    ],
-                    stops: const [0, 0.55, 0.85],
-                  ),
+                  gradient: tint == null
+                      ? LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            bg.withOpacity(1 - RiffPalette.playerTintOpacity),
+                            bg,
+                          ],
+                          stops: const [0, 0.6],
+                        )
+                      : PodcastPlayerTint.backdrop(tint, bg),
                 ),
               ),
             ),
           ],
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.xxl),
             child: landscape
                 ? Row(
                     children: [
                       Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.only(top: 40, bottom: 90),
+                          padding: const EdgeInsets.only(
+                              top: RiffSpacing.unit * 10, bottom: 90),
                           child: _Art(song: song, showVideo: showVideo),
                         ),
                       ),
-                      const SizedBox(width: 24),
+                      const SizedBox(width: RiffSpacing.xxl),
                       Expanded(
                         child: Padding(
                           padding: EdgeInsets.only(
-                              bottom: 80 + Get.mediaQuery.padding.bottom),
+                              bottom: RiffSpacing.unit * 20 +
+                                  Get.mediaQuery.padding.bottom),
                           child: const _Controls(),
                         ),
                       ),
@@ -103,13 +108,15 @@ class LongFormPlayer extends StatelessWidget {
                               Get.mediaQuery.padding.top + PlayerTopBar.height),
                       Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: RiffSpacing.md),
                           child: _Art(song: song, showVideo: showVideo),
                         ),
                       ),
                       Padding(
                         padding: EdgeInsets.only(
-                            bottom: 80 + Get.mediaQuery.padding.bottom),
+                            bottom: RiffSpacing.unit * 20 +
+                                Get.mediaQuery.padding.bottom),
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 520),
                           child: const _Controls(),
@@ -125,7 +132,7 @@ class LongFormPlayer extends StatelessWidget {
   }
 }
 
-/// Square cover with a soft shadow, or the episode video when enabled.
+/// Square cover (radius 8, no shadow), or the episode video when enabled.
 class _Art extends StatelessWidget {
   const _Art({required this.song, required this.showVideo});
   final MediaItem? song;
@@ -143,21 +150,11 @@ class _Art extends StatelessWidget {
       final side = maxW < box.maxHeight ? maxW : box.maxHeight;
       final url = Thumbnail(song?.artUri?.toString() ?? '').extraHigh;
       return Center(
-        child: Container(
+        child: SizedBox(
           width: side,
           height: side,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: RiffColors.of(context).scrim.withOpacity(0.45),
-                blurRadius: 32,
-                offset: const Offset(0, 14),
-              ),
-            ],
-          ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(RiffRadii.sm),
             child: url.isEmpty
                 ? _fallback(context)
                 : CachedNetworkImage(
@@ -187,7 +184,7 @@ class _Art extends StatelessWidget {
           song?.isAudiobook == true
               ? Icons.auto_stories_rounded
               : Icons.podcasts_rounded,
-          size: 72,
+          size: RiffComponentSizes.longFormFallbackIcon,
           color: homeMutedColor(context),
         ),
       );
@@ -200,9 +197,9 @@ class _Controls extends StatelessWidget {
   Widget build(BuildContext context) {
     final pc = Get.find<PlayerController>();
     final theme = Theme.of(context);
-    final fg = theme.textTheme.titleMedium?.color ?? RiffSurfaces.textPrimary;
-    final accent = theme.colorScheme.secondary;
-    final onAccent = theme.colorScheme.onPrimary;
+    final scheme = theme.colorScheme;
+    // Transport glyphs in the primary text colour (§ Phase 6).
+    final fg = scheme.onSurface;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -215,15 +212,20 @@ class _Controls extends StatelessWidget {
               : (song?.artist ?? song?.album ?? '');
           return Column(
             children: [
+              // Kind label: a quiet hairline pill (the accent is for
+              // interactive elements only).
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                decoration: BoxDecoration(
-                  color: accent.withOpacity(0.16),
-                  borderRadius: BorderRadius.circular(999),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: RiffSpacing.sm, vertical: RiffSpacing.xxs),
+                decoration: ShapeDecoration(
+                  shape: StadiumBorder(
+                    side: BorderSide(color: theme.dividerColor, width: 0),
+                  ),
                 ),
                 child: Text(
                   (isBook ? 'audiobookLabel' : 'podcastLabel').tr.toUpperCase(),
-                  style: theme.textTheme.labelSmall?.copyWith(color: accent),
+                  style: theme.textTheme.labelSmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
                 ),
               ),
               const SizedBox(height: 10),
@@ -232,17 +234,17 @@ class _Controls extends StatelessWidget {
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleLarge,
+                style: RiffTextStyles.of(context).playerTitle,
               ),
               if (show.trim().isNotEmpty) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: RiffSpacing.xs),
                 Text(
                   show,
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodyLarge
-                      ?.copyWith(color: fg.withOpacity(0.7)),
+                      ?.copyWith(color: scheme.onSurfaceVariant),
                 ),
               ],
             ],
@@ -253,39 +255,39 @@ class _Controls extends StatelessWidget {
         const SizedBox(height: 10),
         const PlaybackErrorBanner(),
         // Skip-ad pill while inside a detected ad chapter.
-        Obx(() => pc.inAdChapter.isFalse
-            ? const SizedBox.shrink()
-            : Center(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: ActionChip(
-                    avatar: Icon(Icons.fast_forward_rounded,
-                        size: 18, color: onAccent),
-                    label: Text(podcastSkipPillLabel(pc),
-                        style: theme.textTheme.labelMedium
-                            ?.copyWith(color: onAccent)),
-                    backgroundColor: accent,
-                    onPressed: pc.skipAd,
-                  ),
-                ),
-              )),
+        Obx(() => PodcastSkipPill(
+              visible: pc.inAdChapter.isTrue,
+              label: podcastSkipPillLabel(pc),
+              onPressed: pc.skipAd,
+              padding: const EdgeInsets.only(bottom: RiffSpacing.sm),
+            )),
         const RepaintBoundary(child: PlayerSeekScrubber()),
-        const SizedBox(height: 8),
+        const SizedBox(height: RiffSpacing.sm),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             IconButton(
               tooltip: 'previous'.tr,
-              iconSize: 30,
+              iconSize: RiffComponentSizes.longFormEdge,
               onPressed: pc.prev,
               icon: Icon(Icons.skip_previous_rounded, color: fg),
             ),
-            LongFormSkipButton(forward: false, color: fg, size: 38),
-            const AnimatedPlayButton(key: Key('longFormPlayButton'), size: 76),
-            LongFormSkipButton(forward: true, color: fg, size: 38),
+            LongFormSkipButton(
+                forward: false,
+                color: fg,
+                size: RiffComponentSizes.longFormSkip),
+            // Accent circle with the on-accent glyph (§ Phase 6).
+            AnimatedPlayButton(
+                key: const Key('longFormPlayButton'),
+                size: RiffComponentSizes.longFormPlay,
+                iconColor: scheme.onSecondary),
+            LongFormSkipButton(
+                forward: true,
+                color: fg,
+                size: RiffComponentSizes.longFormSkip),
             IconButton(
               tooltip: 'next'.tr,
-              iconSize: 30,
+              iconSize: RiffComponentSizes.longFormEdge,
               onPressed: pc.next,
               icon: Icon(Icons.skip_next_rounded, color: fg),
             ),
@@ -307,8 +309,7 @@ class _ChapterLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final pc = Get.find<PlayerController>();
     final theme = Theme.of(context);
-    final fg = theme.textTheme.titleMedium?.color ?? RiffSurfaces.textPrimary;
-    final riff = RiffColors.of(context);
+    final scheme = theme.colorScheme;
     return Obx(() {
       final song = pc.currentSong.value;
       String label = '';
@@ -331,10 +332,12 @@ class _ChapterLine extends StatelessWidget {
         }
       }
       if (label.isEmpty) return const SizedBox(height: 0);
+      // §5.6 unselected chip: transparent, hairline divider border.
       return Center(
         child: Material(
-          color: riff.onImage.withOpacity(0.08),
-          shape: const StadiumBorder(),
+          color: Colors.transparent,
+          shape: StadiumBorder(
+              side: BorderSide(color: theme.dividerColor, width: 0)),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onTap,
@@ -348,8 +351,9 @@ class _ChapterLine extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.format_list_bulleted_rounded,
-                      size: 16, color: fg.withOpacity(0.8)),
-                  const SizedBox(width: 8),
+                      size: RiffComponentSizes.chipLeadingIcon,
+                      color: scheme.onSurfaceVariant),
+                  const SizedBox(width: RiffSpacing.sm),
                   ConstrainedBox(
                     constraints: BoxConstraints(
                         maxWidth: MediaQuery.sizeOf(context).width * 0.6),
@@ -358,11 +362,12 @@ class _ChapterLine extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.labelMedium
-                          ?.copyWith(color: fg.withOpacity(0.9)),
+                          ?.copyWith(color: scheme.onSurface),
                     ),
                   ),
                   Icon(Icons.chevron_right_rounded,
-                      size: 18, color: fg.withOpacity(0.6)),
+                      size: RiffComponentSizes.chipChevron,
+                      color: scheme.onSurfaceVariant),
                 ],
               ),
             ),
@@ -381,7 +386,9 @@ class _ToolRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final pc = Get.find<PlayerController>();
     final theme = Theme.of(context);
-    final fg = theme.textTheme.titleMedium?.color ?? RiffSurfaces.textPrimary;
+    // §5 Phase 6 action row: 20 dp glyphs in the secondary text colour,
+    // the accent when on.
+    final muted = theme.colorScheme.onSurfaceVariant;
     final accent = theme.colorScheme.secondary;
     return Obx(() {
       final song = pc.currentSong.value;
@@ -396,18 +403,18 @@ class _ToolRow extends StatelessWidget {
 
       Widget tool(IconData icon, String label, VoidCallback? onTap,
           {bool active = false, String? badge}) {
-        final c = active ? accent : fg.withOpacity(0.85);
+        final c = active ? accent : muted;
         return Expanded(
           child: InkWell(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(RiffRadii.sm),
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: RiffSpacing.sm),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icon, size: 22, color: c),
-                  const SizedBox(height: 4),
+                  Icon(icon, size: RiffComponentSizes.trailingIcon, color: c),
+                  const SizedBox(height: RiffSpacing.xs),
                   Text(
                     badge ?? label,
                     maxLines: 1,
@@ -421,19 +428,16 @@ class _ToolRow extends StatelessWidget {
         );
       }
 
-      return Container(
-        decoration: BoxDecoration(
-          color: RiffColors.of(context).onImage.withOpacity(0.06),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 4),
+      // Straight on the page: no card behind the row (§2.1).
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.xs),
         child: Row(
           children: [
             Expanded(
               child: Center(
                   child: pc.isCurrentSongPodcast
-                      ? PodcastSpeedButton(color: fg)
-                      : PlayerSpeedButton(color: fg)),
+                      ? PodcastSpeedButton(color: muted)
+                      : PlayerSpeedButton(color: muted)),
             ),
             tool(
               sleepOn ? Icons.bedtime : Icons.bedtime_outlined,

@@ -1,3 +1,19 @@
+# 1.7.141
+
+**New look, step 7: podcasts and audiobooks**
+* Episode rows: 48 dp covers, bold titles, grey details, thin dividers,
+  and an outlined play pill; progress is a thin accent line
+* Show and book pages: flat covers, bigger titles, Subscribe as a filled
+  pill and Subscribed as an outlined one
+* Section and filter pills are outlined, lighting up in your accent when
+  selected; the podcast search field matches the main search
+* The podcast and audiobook player sits on black with only a soft tint of
+  the show's colour at the top
+* The Skip-ad pill is a 36 dp accent pill that fades and slides in when
+  an ad starts
+* Nothing moved: same screens, rows and buttons in the same order; ad
+  detection, auto-skip and SponsorBlock unchanged
+
 # 1.7.140
 
 **New look, step 6: players**

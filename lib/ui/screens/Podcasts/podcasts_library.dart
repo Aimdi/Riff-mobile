@@ -13,8 +13,6 @@ import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/theme/palettes/podcasts.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
-import '/ui/utils/riff_tokens.dart';
-import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/content_list_widget_item.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/podcast_follow_button.dart';
@@ -37,6 +35,7 @@ import 'podcasts_library_controller.dart';
 import 'podcasts_screen.dart';
 import '/ui/theme/riff_text_metrics.dart';
 import '/ui/widgets/riff_header_bar.dart';
+import '/ui/widgets/song_list_tile.dart' show RiffRowHairline;
 
 class PodcastsLibraryWidget extends StatefulWidget {
   const PodcastsLibraryWidget({super.key, this.isBottomNavActive = false});
@@ -119,7 +118,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
         children: [
           if (!widget.isBottomNavActive) _header(context),
           _tabs(context),
-          const SizedBox(height: 4),
+          const SizedBox(height: RiffSpacing.xs),
           Expanded(
             // Plain builder: section switching is setState-driven. (An Obx
             // here would throw at runtime — its builder reads no Rx values.)
@@ -381,7 +380,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               right: RiffSpacing.xs,
               bottom: RiffSpacing.sm),
           child: SizedBox(
-            height: 40,
+            height: RiffComponentSizes.iconHit,
             child: Row(
               children: [
                 Expanded(
@@ -408,8 +407,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                       on
                           ? Icons.playlist_play_rounded
                           : Icons.playlist_remove_rounded,
-                      color:
-                          on ? Theme.of(context).colorScheme.secondary : null,
+                      color: on ? Theme.of(context).colorScheme.primary : null,
                     ),
                     onPressed: () =>
                         settings.togglePodcastContinuousPlayback(!on),
@@ -447,12 +445,12 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
       (6, 'bookmarks'.tr),
     ];
     return SizedBox(
-      height: 36,
+      height: RiffComponentSizes.buttonCompact,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
         itemCount: tabs.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (_, __) => const SizedBox(width: RiffSpacing.sm),
         itemBuilder: (context, i) {
           final (section, label) = tabs[i];
           if (section != 2) return _tab(context, section, label, null);
@@ -466,21 +464,24 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
     );
   }
 
+  /// One section pill, styled as a §5.6 chip: transparent with a divider
+  /// outline; the active one has an accentMuted fill, accent outline and
+  /// accent label.
   Widget _tab(BuildContext context, int section, String label, String? count) {
     final active = _section == section;
-    final accent = Theme.of(context).colorScheme.secondary;
-    final fg = active
-        ? RiffSurfaces.voidBlack
-        : Theme.of(context).textTheme.titleMedium?.color;
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
+    final fg = active ? accent : theme.colorScheme.onSurface;
     return Material(
-      color: active ? accent : homeTileColor(context),
+      color: active ? RiffColors.of(context).accentMuted : Colors.transparent,
       shape: StadiumBorder(
-          side: active ? BorderSide.none : homeTileBorder(context)),
+          side: BorderSide(
+              color: active ? accent : theme.dividerColor, width: 0)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _select(section),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
           child: Center(
             child: Text.rich(
               TextSpan(children: [
@@ -488,12 +489,14 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                 if (count != null)
                   TextSpan(
                     text: '  $count',
-                    style: TextStyle(color: fg?.withOpacity(0.6)),
+                    style: TextStyle(
+                        color: active
+                            ? accent
+                            : theme.colorScheme.onSurfaceVariant),
                   ),
               ]),
               maxLines: 1,
-              style:
-                  Theme.of(context).textTheme.labelMedium?.copyWith(color: fg),
+              style: theme.textTheme.labelMedium?.copyWith(color: fg),
             ),
           ),
         ),
@@ -518,7 +521,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
   Widget _discoverView(LibraryPodcastsController controller, double itemWidth,
       double itemHeight) {
     final theme = Theme.of(context);
-    final hintColor = theme.textTheme.bodySmall?.color?.withOpacity(0.6);
+    final scheme = theme.colorScheme;
+    final hintColor = scheme.onSurfaceVariant;
     return Column(
       children: [
         Padding(
@@ -527,36 +531,51 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               top: RiffSpacing.sm,
               right: HomeLayout.gutter,
               bottom: RiffSpacing.xs),
-          child: TextField(
-            controller: _searchCtrl,
-            focusNode: _searchFocus,
-            textInputAction: TextInputAction.search,
-            onSubmitted: controller.searchPodcasts,
-            decoration: InputDecoration(
-              hintText: 'searchPodcastsOrYoutube'.tr,
-              hintStyle: theme.textTheme.bodyMedium?.copyWith(color: hintColor),
-              prefixIcon: Icon(Icons.search, color: hintColor),
-              filled: true,
-              fillColor: theme.colorScheme.onSurface.withOpacity(0.07),
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 12),
-              // All three states set explicitly: the app theme's focused
-              // underline would otherwise leak under the pill.
-              border: _searchBorder,
-              enabledBorder: _searchBorder,
-              focusedBorder: _searchBorder,
-              suffixIcon: Obx(() {
-                final active = controller.hasSearched.isTrue ||
-                    controller.searchQuery.isNotEmpty;
-                if (!active) return const SizedBox.shrink();
-                return IconButton(
-                  icon: Icon(Icons.close, color: hintColor),
-                  onPressed: () {
-                    _searchCtrl.clear();
-                    controller.clearSearch();
-                  },
-                );
-              }),
+          // §5.8: surface1 pill, 40 tall, no border at rest, 1 px accent
+          // ring on focus.
+          child: SizedBox(
+            height: RiffComponentSizes.searchField,
+            child: TextField(
+              controller: _searchCtrl,
+              focusNode: _searchFocus,
+              textInputAction: TextInputAction.search,
+              onSubmitted: controller.searchPodcasts,
+              style:
+                  theme.textTheme.bodyLarge?.copyWith(color: scheme.onSurface),
+              textAlignVertical: TextAlignVertical.center,
+              decoration: InputDecoration(
+                hintText: 'searchPodcastsOrYoutube'.tr,
+                hintStyle:
+                    theme.textTheme.bodyLarge?.copyWith(color: hintColor),
+                prefixIcon: Icon(Icons.search,
+                    size: RiffComponentSizes.trailingIcon, color: hintColor),
+                filled: true,
+                fillColor: scheme.surfaceContainerLow,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                // All three states set explicitly: the app theme's focused
+                // underline would otherwise leak under the pill.
+                border: _searchBorder,
+                enabledBorder: _searchBorder,
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(RiffRadii.pill),
+                  borderSide: BorderSide(color: scheme.primary, width: 1),
+                ),
+                suffixIcon: Obx(() {
+                  final active = controller.hasSearched.isTrue ||
+                      controller.searchQuery.isNotEmpty;
+                  if (!active) return const SizedBox.shrink();
+                  return IconButton(
+                    icon: Icon(Icons.close,
+                        size: RiffComponentSizes.trailingIcon,
+                        color: hintColor),
+                    onPressed: () {
+                      _searchCtrl.clear();
+                      controller.clearSearch();
+                    },
+                  );
+                }),
+              ),
             ),
           ),
         ),
@@ -702,7 +721,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                     // and Subscribe. Tapping opens the show; the cover's
                     // play button starts the latest episode.
                     SliverPadding(
-                      padding: const EdgeInsets.only(top: 6, bottom: 200),
+                      padding: const EdgeInsets.only(
+                          top: RiffSpacing.xs, bottom: RiffSpacing.listEnd),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (context, index) => _ShowResultRow(
@@ -715,7 +735,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                       ),
                     ),
                   ] else
-                    const SliverToBoxAdapter(child: SizedBox(height: 80)),
+                    const SliverToBoxAdapter(
+                        child: SizedBox(height: RiffSpacing.unit * 20)),
                 ],
               );
             }
@@ -727,7 +748,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
   }
 
   static final _searchBorder = OutlineInputBorder(
-    borderRadius: BorderRadius.circular(26),
+    borderRadius: BorderRadius.circular(RiffRadii.pill),
     borderSide: BorderSide.none,
   );
 
@@ -809,7 +830,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
             ),
           ),
         ),
-        const SliverToBoxAdapter(child: SizedBox(height: 200)),
+        const SliverToBoxAdapter(child: SizedBox(height: RiffSpacing.listEnd)),
       ],
     );
   }
@@ -820,7 +841,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
     final riff = RiffColors.of(context);
     return Material(
       color: Color.alphaBlend(riff.scrim.withOpacity(0.18), color),
-      borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+      borderRadius: BorderRadius.circular(RiffRadii.sm),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () async {
@@ -833,7 +854,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
         onLongPress: () =>
             Get.to(() => PodcastCategoryScreen(genreId: genreId, name: name)),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
           child: Align(
             alignment: Alignment.centerLeft,
             child: Text(
@@ -936,20 +957,20 @@ class _VideoEpisodeRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final player = Get.find<PlayerController>();
     final theme = Theme.of(context);
-    const cardWidth = 256.0;
+    const cardWidth = RiffComponentSizes.videoEpisodeWidth;
     const thumbHeight = cardWidth * 9 / 16;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        HomeSectionHeader(title, top: 12),
+        HomeSectionHeader(title, top: RiffSpacing.md),
         SizedBox(
           // Thumb + two-line title + one meta line.
           height: thumbHeight +
-              8 +
+              RiffSpacing.sm +
               riffLineHeight(context, homeCardTitleStyle(context)) * 2 +
-              2 +
+              RiffSpacing.xxs +
               riffLineHeight(context, homeCardSubtitleStyle(context)) +
-              6,
+              RiffSpacing.sm,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
@@ -964,7 +985,7 @@ class _VideoEpisodeRow extends StatelessWidget {
               return SizedBox(
                 width: cardWidth,
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(RiffRadii.sm),
                   onLongPress: () => showAddToQueueSheet(context, ep),
                   onTap: () async {
                     if (await openInWizeStreamIfPreferred(ep)) return;
@@ -976,7 +997,7 @@ class _VideoEpisodeRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(RiffRadii.sm),
                         child: SizedBox(
                           width: cardWidth,
                           height: thumbHeight,
@@ -989,25 +1010,31 @@ class _VideoEpisodeRow extends StatelessWidget {
                                   httpHeaders: kCoverImageHeaders,
                                   fit: BoxFit.cover,
                                   memCacheWidth: 480,
-                                  errorWidget: (_, __, ___) =>
-                                      ColoredBox(color: theme.cardColor),
-                                  placeholder: (_, __) =>
-                                      ColoredBox(color: theme.cardColor),
+                                  errorWidget: (_, __, ___) => ColoredBox(
+                                      color: theme
+                                          .colorScheme.surfaceContainerLow),
+                                  placeholder: (_, __) => ColoredBox(
+                                      color: theme
+                                          .colorScheme.surfaceContainerLow),
                                 )
                               else
-                                ColoredBox(color: theme.cardColor),
+                                ColoredBox(
+                                    color:
+                                        theme.colorScheme.surfaceContainerLow),
                               if (clock.isNotEmpty)
                                 Positioned(
-                                  right: 6,
-                                  bottom: 6,
+                                  right: RiffSpacing.sm,
+                                  bottom: RiffSpacing.sm,
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 5, vertical: 2),
+                                        horizontal: RiffSpacing.xs,
+                                        vertical: RiffSpacing.xxs),
                                     decoration: BoxDecoration(
                                       color: RiffColors.of(context)
                                           .scrim
                                           .withOpacity(0.75),
-                                      borderRadius: BorderRadius.circular(4),
+                                      borderRadius:
+                                          BorderRadius.circular(RiffRadii.xs),
                                     ),
                                     child: Text(
                                       clock,
@@ -1022,14 +1049,14 @@ class _VideoEpisodeRow extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: RiffSpacing.sm),
                       Text(
                         ep.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: homeCardTitleStyle(context),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: RiffSpacing.xxs),
                       Text(
                         episodeMetaLine(
                             [ep.artist, '${ep.extras?['date'] ?? ''}']),
@@ -1082,7 +1109,7 @@ class _SimilarPodcastsRow extends StatelessWidget {
             ),
           ),
         HomeSectionHeader(title,
-            top: kicker != null ? 2 : HomeLayout.sectionTop),
+            top: kicker != null ? RiffSpacing.xxs : HomeLayout.sectionTop),
         HomeShelf(
           cardSize: HomeLayout.shelfCard,
           itemCount: podcasts.length,
@@ -1135,70 +1162,78 @@ class _ShowResultRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: _open,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-            horizontal: HomeLayout.gutter, vertical: RiffSpacing.sm),
-        child: Row(
-          children: [
-            PodcastArt(url: show.thumbnailUrl, size: 72),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    show.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium,
+    final theme = Theme.of(context);
+    return Stack(
+      children: [
+        InkWell(
+          onTap: _open,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: HomeLayout.gutter, vertical: RiffSpacing.sm),
+            child: Row(
+              children: [
+                PodcastArt(
+                    url: show.thumbnailUrl,
+                    size: RiffComponentSizes.showRowArt),
+                const SizedBox(width: RiffSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        show.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      if ((show.description ?? '').trim().isNotEmpty) ...[
+                        const SizedBox(height: RiffSpacing.xxs),
+                        Text(
+                          show.description!.trim(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ],
                   ),
-                  if ((show.description ?? '').trim().isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      show.description!.trim(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: homeMutedColor(context)),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Obx(() {
-              final subscribed = controller.libraryPodcasts
-                  .any((p) => p.playlistId == show.playlistId);
-              // Quiet in a list: outlined + to subscribe, accent check once
-              // subscribed (the show page has the full Subscribe button).
-              return IconButton(
-                tooltip: subscribed ? 'subscribed'.tr : 'subscribe'.tr,
-                onPressed: () async {
-                  if (subscribed) {
-                    await controller.removeFromLibrary(show.playlistId);
-                  } else {
-                    await controller.addToLibrary(show);
-                  }
-                },
-                icon: Icon(
-                  subscribed
-                      ? Icons.check_circle_rounded
-                      : Icons.add_circle_outline_rounded,
-                  size: 28,
-                  color: subscribed
-                      ? Theme.of(context).colorScheme.secondary
-                      : homeMutedColor(context),
                 ),
-              );
-            }),
-          ],
+                const SizedBox(width: RiffSpacing.sm),
+                Obx(() {
+                  final subscribed = controller.libraryPodcasts
+                      .any((p) => p.playlistId == show.playlistId);
+                  // Quiet in a list: outline + to subscribe, accent check
+                  // once subscribed (toggled on; the show page has the full
+                  // Subscribe button).
+                  return IconButton(
+                    tooltip: subscribed ? 'subscribed'.tr : 'subscribe'.tr,
+                    onPressed: () async {
+                      if (subscribed) {
+                        await controller.removeFromLibrary(show.playlistId);
+                      } else {
+                        await controller.addToLibrary(show);
+                      }
+                    },
+                    icon: Icon(
+                      subscribed
+                          ? Icons.check_circle_rounded
+                          : Icons.add_circle_outline_rounded,
+                      size: RiffComponentSizes.headerIcon,
+                      color: subscribed
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
         ),
-      ),
+        // Full-width hairline between search results (§5.2).
+        const RiffRowHairline(),
+      ],
     );
   }
 }
