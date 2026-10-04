@@ -165,3 +165,14 @@ metrics now measure the TextTheme slot their text uses
   `RiffScrollUnder` (hairline at the top of content below pinned tabs or
   sort rows). Covered by `test/theme/riff_header_bar_test.dart`.
 - Screenshots: `docs/redesign/phase3/`.
+
+## Phase 4 result (Home)
+
+- Section set and order unchanged; `home_feed_builder.dart` and its
+  tests untouched and green.
+- Spacing: 32 dp above each section (`RiffSpacing.section`), 12 dp from a
+  section title to its content, 16 dp gutter. A full-width hairline sits
+  on each section's top edge (`HomeSectionSlot.divided`), inside the gap.
+- Riff Wave card, station chips, shelf cards, speed dial, Jump back in
+  and Quick picks restyled in place; adjustments are in `SKIPPED.md`.
+- Screenshots: `docs/redesign/phase4/`.
