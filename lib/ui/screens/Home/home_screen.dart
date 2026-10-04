@@ -18,6 +18,7 @@ import '../../navigator.dart';
 import '../../widgets/discovery/riff_wave_hero.dart';
 import '../../utils/riff_tokens.dart';
 import '../../widgets/shimmer_widgets/home_shimmer.dart';
+import '/services/spotify_home.dart';
 import 'home_feed_builder.dart';
 import 'home_feed_data.dart';
 import 'home_greeting.dart';
@@ -257,6 +258,8 @@ class _HomeFeedState extends State<_HomeFeed> {
   void initState() {
     super.initState();
     _loadRecent();
+    // Cached Spotify shelves show at once; stale ones refresh behind them.
+    SpotifyHome.refresh();
   }
 
   Future<void> _loadRecent() async {
@@ -270,7 +273,10 @@ class _HomeFeedState extends State<_HomeFeed> {
 
   Future<void> _refresh() async {
     await _loadRecent();
-    await Get.find<HomeScreenController>().loadContentFromNetwork(silent: true);
+    await Future.wait([
+      Get.find<HomeScreenController>().loadContentFromNetwork(silent: true),
+      SpotifyHome.refresh(force: true),
+    ]);
   }
 
   @override
@@ -308,27 +314,28 @@ class _HomeFeedState extends State<_HomeFeed> {
                 );
               }
               HomeSectionPrefs.ensureLoaded();
-              final input = readHomeFeedInput(recent: _recent);
-              final sections = buildHomeSections(HomeFeedInput(
-                jumpBackIn: input.jumpBackIn,
-                speedDial: input.speedDial,
-                quickPicks: input.quickPicks,
-                personalized: input.personalized,
-                editorial: input.editorial,
-                hasWeek: input.hasWeek,
-                hasExplore: input.hasExplore,
-                hidden: HomeSectionPrefs.hidden.toSet(),
-                chartsTitle: input.chartsTitle,
-                moodTitle: input.moodTitle,
-              ));
+              final hidden = HomeSectionPrefs.hidden.toSet();
+              final sections = buildHomeSections(
+                  readHomeFeedInput(recent: _recent, hidden: hidden));
+              // The Spotify session ended: one card where its shelves go.
+              final reconnect = SpotifyHome.needsReconnect.value &&
+                  !hidden.contains(HomeSection.spotify);
+              final reconnectAt = reconnect
+                  ? sections.indexWhere(
+                      (m) => m.section.index > HomeSection.spotify.index)
+                  : -1;
               return RefreshIndicator(
                 edgeOffset: headerTop,
                 onRefresh: _refresh,
                 child: ListView(
                   padding: EdgeInsets.only(bottom: bottom),
                   children: [
-                    for (final s in sections)
-                      ..._sectionWidgets(home, s, metrics, headerTop),
+                    for (var i = 0; i < sections.length; i++) ...[
+                      if (i == reconnectAt) const _SpotifyReconnectCard(),
+                      ..._sectionWidgets(home, sections[i], metrics, headerTop),
+                    ],
+                    if (reconnect && reconnectAt < 0)
+                      const _SpotifyReconnectCard(),
                   ],
                 ),
               );
@@ -390,6 +397,7 @@ class _HomeFeedState extends State<_HomeFeed> {
           )),
         ];
       case HomeSection.personalized:
+      case HomeSection.spotify:
       case HomeSection.editorial:
         return [
           for (final shelf in m.shelves)
@@ -463,6 +471,35 @@ class _HomeHeader extends StatelessWidget {
                 onPressed: () => _go(ScreenNavigationSetup.searchScreen),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The Spotify session ended (or its six-month sign-in ran out): sign in
+/// again from the Spotify screen.
+class _SpotifyReconnectCard extends StatelessWidget {
+  const _SpotifyReconnectCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          RiffSpacing.gutter, RiffSpacing.section, RiffSpacing.gutter, 0),
+      child: Material(
+        color: theme.colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(RiffSizes.shelfRadius),
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
+          minVerticalPadding: 12,
+          leading: const Icon(Icons.link_off_rounded),
+          title: Text('spotifyHomeReconnect'.tr),
+          subtitle: Text('spotifyHomeReconnectDes'.tr),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => Get.toNamed(ScreenNavigationSetup.spotifyBridgeScreen,
+              id: ScreenNavigationSetup.id),
         ),
       ),
     );

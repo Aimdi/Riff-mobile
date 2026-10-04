@@ -11,6 +11,9 @@ import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/discovery/discovery_types.dart';
+import '/services/spotify_api_service.dart';
+import '/services/spotify_home.dart';
+import '/services/spotify_import_service.dart';
 import '/ui/navigator.dart';
 import '/ui/player/player_controller.dart';
 import '../../widgets/collection_play.dart';
@@ -19,6 +22,9 @@ import '../../widgets/letter_art.dart';
 import '../../widgets/riff_sheet.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
+import '../Plugins/spotify_pages.dart';
+import '../Plugins/spotify_widgets.dart'
+    show playSpotifyTracks, startSpotifyRadio;
 import '../Podcasts/podcasts_screen.dart' show PodcastEpisodesScreen;
 import 'home_feed_builder.dart';
 import 'home_feed_data.dart';
@@ -29,7 +35,9 @@ class ShelfCardSize {
   ShelfCardSize._();
 
   static double width(Object? value, HomeShelfKind kind, HomeMetrics m) {
-    if (value is Artist) return RiffSizes.artistCircle;
+    if (value is Artist || value is SpotifyArtistSummary) {
+      return RiffSizes.artistCircle;
+    }
     if (value is MediaItem) {
       if (value.isPodcastEpisode) return RiffSizes.episodeWidth;
       if (kind == HomeShelfKind.videos) return RiffSizes.videoWidth;
@@ -38,7 +46,9 @@ class ShelfCardSize {
   }
 
   static double artHeight(Object? value, HomeShelfKind kind, HomeMetrics m) {
-    if (value is Artist) return RiffSizes.artistCircle;
+    if (value is Artist || value is SpotifyArtistSummary) {
+      return RiffSizes.artistCircle;
+    }
     if (value is MediaItem) {
       if (value.isPodcastEpisode) return 0;
       if (kind == HomeShelfKind.videos) return RiffSizes.videoWidth * 9 / 16;
@@ -104,6 +114,10 @@ class RiffShelf extends StatelessWidget {
       for (final i in items)
         if (i.value is MediaItem) i.value as MediaItem
     ];
+    final spotifySongs = [
+      for (final i in items)
+        if (i.value is SpotifyTrackRef) i.value as SpotifyTrackRef
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -126,6 +140,7 @@ class RiffShelf extends StatelessWidget {
                 kind: shelf.kind,
                 metrics: metrics,
                 queue: songs,
+                spotifyQueue: spotifySongs,
               ),
             ),
           ),
@@ -143,6 +158,7 @@ class HomeShelfItem extends StatelessWidget {
     required this.kind,
     required this.metrics,
     this.queue = const [],
+    this.spotifyQueue = const [],
   });
 
   final Object? value;
@@ -152,11 +168,16 @@ class HomeShelfItem extends StatelessWidget {
   /// The shelf's songs, so a song card plays the shelf from itself.
   final List<MediaItem> queue;
 
+  /// The shelf's Spotify songs, played the same way.
+  final List<SpotifyTrackRef> spotifyQueue;
+
   @override
   Widget build(BuildContext context) {
     final v = value;
     final w = ShelfCardSize.width(v, kind, metrics);
     final h = ShelfCardSize.artHeight(v, kind, metrics);
+    final spotify = _spotifyCard(context, v, w, h);
+    if (spotify != null) return spotify;
     if (v is Album) {
       final artist = (v.artists != null && v.artists!.isNotEmpty)
           ? '${v.artists!.first['name'] ?? ''}'
@@ -260,6 +281,110 @@ class HomeShelfItem extends StatelessWidget {
       );
     }
     return const SizedBox.shrink();
+  }
+}
+
+extension on HomeShelfItem {
+  /// Cards for Spotify items; null for everything else.
+  Widget? _spotifyCard(BuildContext context, Object? v, double w, double h) {
+    switch (v) {
+      case SpotifyTrackRef t:
+        return _Card(
+          width: w,
+          art: _netArt(t.artUrl, t.title, w),
+          artHeight: h,
+          title: t.title,
+          subtitle: t.artists,
+          onTap: () {
+            final list = spotifyQueue.isEmpty ? [t] : spotifyQueue;
+            final at = list.indexOf(t);
+            playSpotifyTracks(context, list,
+                start: at < 0 ? 0 : at, from: 'Spotify');
+          },
+          onLongPress: () => startSpotifyRadio(context, seed: t),
+        );
+      case SpotifyAlbumSummary a:
+        return _Card(
+          width: w,
+          art: _netArt(a.coverUrl, a.name, w),
+          artHeight: h,
+          title: a.name,
+          subtitle:
+              [a.artists, a.year ?? ''].where((s) => s.isNotEmpty).join(' • '),
+          onTap: () => openSpotifyPage(SpotifyAlbumArgs(a)),
+        );
+      case SpotifyHomePlaylist p:
+        return _Card(
+          width: w,
+          art: _netArt(p.playlist.coverUrl, p.playlist.name, w),
+          artHeight: h,
+          title: p.playlist.name,
+          subtitle: p.playlist.ownerName ?? '',
+          onTap: () => openSpotifyPage(
+              SpotifyPlaylistArgs(p.playlist, readable: p.readable)),
+        );
+      case SpotifyArtistSummary a:
+        return _Card(
+          width: w,
+          circle: true,
+          centered: true,
+          art: _netArt(a.imageUrl, a.name, w, circle: true),
+          artHeight: h,
+          title: a.name,
+          subtitle: a.genres.isEmpty ? '' : a.genres.first,
+          onTap: () => openSpotifyPage(SpotifyArtistArgs(a)),
+        );
+      case SpotifyTasteMix m:
+        return _Card(
+          width: w,
+          art: _CoverCollage(
+              urls: m.covers, size: w, title: 'spotifyTasteMix'.tr),
+          artHeight: h,
+          title: 'spotifyTasteMix'.tr,
+          subtitle: 'spotifyTasteMixDes'.tr,
+          onTap: () => startSpotifyRadio(context),
+        );
+    }
+    return null;
+  }
+}
+
+/// Network cover, or the letter tile when there is none.
+Widget _netArt(String? url, String title, double size, {bool circle = false}) {
+  if (url == null || url.isEmpty) {
+    return LetterArt(title: title, size: size, circle: circle);
+  }
+  return ImageWidget(
+    song: MediaItem(id: url, title: title, artUri: Uri.tryParse(url)),
+    size: size,
+    borderRadius: 0,
+  );
+}
+
+/// Up to four covers in a square, for mix cards built from URLs.
+class _CoverCollage extends StatelessWidget {
+  const _CoverCollage(
+      {required this.urls, required this.size, required this.title});
+  final List<String> urls;
+  final double size;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    if (urls.length < 4) {
+      return _netArt(urls.isEmpty ? null : urls.first, title, size);
+    }
+    final cell = size / 2;
+    return Column(children: [
+      Row(children: [
+        _netArt(urls[0], title, cell),
+        _netArt(urls[1], title, cell)
+      ]),
+      Row(children: [
+        _netArt(urls[2], title, cell),
+        _netArt(urls[3], title, cell)
+      ]),
+    ]);
   }
 }
 

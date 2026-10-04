@@ -12,6 +12,7 @@ enum HomeSection {
   speedDial,
   quickPicks,
   personalized,
+  spotify,
   yourWeek,
   editorial,
   exploreMore,
@@ -20,9 +21,14 @@ enum HomeSection {
 /// One thing on Home: a song, album, playlist, artist, mix, show…
 /// [key] identifies it across sections (`song:<videoId>`, `album:<id>`…).
 class HomeItem<T> {
-  const HomeItem(this.key, this.value, {this.hasArt = true});
+  const HomeItem(this.key, this.value, {this.hasArt = true, this.altKey});
   final String key;
   final T value;
+
+  /// A second identity across sources (`ta:<title>|<artist>`), so a
+  /// Spotify song isn't repeated when the same song is on Home from
+  /// YouTube Music.
+  final String? altKey;
 
   /// False when the item has no artwork of its own (empty URL or the
   /// generic placeholder), for the "mostly missing artwork" rule.
@@ -79,6 +85,7 @@ class HomeFeedInput {
     this.speedDial = const [],
     this.quickPicks = const [],
     this.personalized = const [],
+    this.spotify = const [],
     this.editorial = const [],
     this.hasWeek = false,
     this.hasExplore = false,
@@ -96,6 +103,9 @@ class HomeFeedInput {
 
   /// Riff's own shelves (mixes, "because you played", subscribed shows).
   final List<HomeShelfData> personalized;
+
+  /// Shelves from your Spotify account.
+  final List<HomeShelfData> spotify;
 
   /// The YouTube Music feed, in the order it came.
   final List<HomeShelfData> editorial;
@@ -332,12 +342,23 @@ bool shelfArtMostlyMissing(List<HomeItem> items) =>
   return (editorial: out, personal: personal);
 }
 
+bool _isSeen(HomeItem i, Set<String> seen) =>
+    seen.contains(i.key) || (i.altKey != null && seen.contains(i.altKey));
+
+void _mark(HomeItem i, Set<String> seen) {
+  seen.add(i.key);
+  if (i.altKey != null) seen.add(i.altKey!);
+}
+
 List<HomeItem> _uniqueByKey(Iterable<HomeItem> items) {
   final seen = <String>{};
-  return [
-    for (final i in items)
-      if (seen.add(i.key)) i
-  ];
+  final out = <HomeItem>[];
+  for (final i in items) {
+    if (_isSeen(i, seen)) continue;
+    _mark(i, seen);
+    out.add(i);
+  }
+  return out;
 }
 
 /// Items not yet on Home, recording them as shown.
@@ -345,8 +366,8 @@ List<HomeItem> _claim(Iterable<HomeItem> items, Set<String> seen, {int? max}) {
   final out = <HomeItem>[];
   for (final i in items) {
     if (max != null && out.length >= max) break;
-    if (i.key.isEmpty || seen.contains(i.key)) continue;
-    seen.add(i.key);
+    if (i.key.isEmpty || _isSeen(i, seen)) continue;
+    _mark(i, seen);
     out.add(i);
   }
   return out;
@@ -357,11 +378,13 @@ List<HomeItem> _claim(Iterable<HomeItem> items, Set<String> seen, {int? max}) {
 HomeShelfData? _claimShelf(HomeShelfData s, Set<String> seen, int minItems) {
   final fresh = [
     for (final i in s.items)
-      if (i.key.isNotEmpty && !seen.contains(i.key)) i
+      if (i.key.isNotEmpty && !_isSeen(i, seen)) i
   ];
   final unique = _uniqueByKey(fresh).take(HomeFeedRules.shelfMaxItems).toList();
   if (unique.length < minItems || shelfArtMostlyMissing(unique)) return null;
-  seen.addAll(unique.map((i) => i.key));
+  for (final i in unique) {
+    _mark(i, seen);
+  }
   return s.copyWith(items: unique);
 }
 
@@ -369,7 +392,7 @@ HomeShelfData? _claimShelf(HomeShelfData s, Set<String> seen, int minItems) {
 ///
 /// Claims run in priority order so an item shows once, in its highest
 /// place: Jump back in → Speed dial page 1 → Quick picks → the rest of
-/// Speed dial → personalized → editorial.
+/// Speed dial → personalized → Spotify → editorial.
 List<HomeSectionModel> buildHomeSections(HomeFeedInput data) {
   final seen = <String>{};
   bool shown(HomeSection s) => !data.hidden.contains(s);
@@ -379,11 +402,12 @@ List<HomeSectionModel> buildHomeSections(HomeFeedInput data) {
           _uniqueByKey(data.jumpBackIn.where((i) => i.key.isNotEmpty)))
       : const <HomeItem>[];
   // A tile dropped to even the grid is free to show further down.
-  seen.addAll(jump.map((i) => i.key));
+  for (final i in jump) {
+    _mark(i, seen);
+  }
 
   final dialPool = shown(HomeSection.speedDial)
-      ? _uniqueByKey(data.speedDial.where((i) => !seen.contains(i.key)))
-          .toList()
+      ? _uniqueByKey(data.speedDial.where((i) => !_isSeen(i, seen))).toList()
       : const <HomeItem>[];
   final firstPage = _claim(dialPool, seen, max: HomeFeedRules.speedDialPerPage);
 
@@ -404,6 +428,14 @@ List<HomeSectionModel> buildHomeSections(HomeFeedInput data) {
     for (final s in [...rules.personal, ...data.personalized]) {
       final kept = _claimShelf(s, seen, HomeFeedRules.personalizedMinItems);
       if (kept != null) personal.add(kept);
+    }
+  }
+
+  final spotify = <HomeShelfData>[];
+  if (shown(HomeSection.spotify)) {
+    for (final s in data.spotify) {
+      final kept = _claimShelf(s, seen, HomeFeedRules.personalizedMinItems);
+      if (kept != null) spotify.add(kept);
     }
   }
 
@@ -430,6 +462,8 @@ List<HomeSectionModel> buildHomeSections(HomeFeedInput data) {
       HomeSectionModel(HomeSection.quickPicks, items: picks),
     if (personal.isNotEmpty)
       HomeSectionModel(HomeSection.personalized, shelves: personal),
+    if (spotify.isNotEmpty)
+      HomeSectionModel(HomeSection.spotify, shelves: spotify),
     if (data.hasWeek && shown(HomeSection.yourWeek))
       const HomeSectionModel(HomeSection.yourWeek),
     if (editorial.isNotEmpty)
