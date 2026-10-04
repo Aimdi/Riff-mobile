@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../theme/riff_spacing.dart';
 import '../../utils/riff_tokens.dart';
 import '/ui/theme/riff_text_metrics.dart';
+import '/ui/widgets/riff_header_bar.dart';
 
 /// One set of Home spacing / type values so every shelf lines up.
 class HomeLayout {
@@ -276,8 +277,8 @@ class RiffPageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.paddingOf(context).top;
-    final fg = Theme.of(context).textTheme.titleMedium?.color;
-    return Padding(
+    return RiffHeaderBar(
+        child: Padding(
       padding: EdgeInsets.only(
         left: RiffSpacing.xxs,
         top: top + RiffSpacing.sm,
@@ -289,7 +290,7 @@ class RiffPageHeader extends StatelessWidget {
         children: [
           IconButton(
             tooltip: 'back'.tr,
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded),
             onPressed: onBack ?? () => Navigator.of(context).maybePop(),
           ),
           Expanded(
@@ -300,10 +301,7 @@ class RiffPageHeader extends StatelessWidget {
                 Text(title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineMedium
-                        ?.copyWith(color: fg)),
+                    style: Theme.of(context).textTheme.titleLarge),
                 if (subtitle != null && subtitle!.isNotEmpty)
                   Text(subtitle!,
                       maxLines: 1,
@@ -315,6 +313,6 @@ class RiffPageHeader extends StatelessWidget {
           ...actions,
         ],
       ),
-    );
+    ));
   }
 }

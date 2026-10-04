@@ -33,6 +33,7 @@ import 'home_speed_dial.dart';
 import 'home_stats_card.dart';
 import 'home_station_chips.dart';
 import '../Settings/settings_screen.dart';
+import '/ui/widgets/riff_header_bar.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -430,7 +431,9 @@ class _HomeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
+    // Scrolls with the feed, so no hairline; header icon size and colour.
+    return RiffHeaderBar(
+        child: Padding(
       padding: EdgeInsets.only(
           left: RiffSpacing.gutter, top: top, right: RiffSpacing.xs),
       child: SizedBox(
@@ -474,7 +477,7 @@ class _HomeHeader extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 
