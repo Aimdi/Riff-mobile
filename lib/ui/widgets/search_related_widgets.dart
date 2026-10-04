@@ -8,6 +8,7 @@ import '/models/artist.dart';
 import '/models/playlist.dart';
 import '/ui/widgets/content_list_widget.dart';
 import 'separate_tab_item_widget.dart';
+import '/ui/theme/riff_spacing.dart';
 
 class ResultWidget extends StatelessWidget {
   const ResultWidget({super.key, this.isv2Used = false});
@@ -21,10 +22,10 @@ class ResultWidget extends StatelessWidget {
     return Obx(
       () => Center(
         child: Padding(
-          padding: const EdgeInsets.all(0.0),
+          padding: EdgeInsets.zero,
           child: SingleChildScrollView(
-            padding:
-                EdgeInsets.only(bottom: 200, top: isv2Used ? 0 : topPadding),
+            padding: EdgeInsets.only(
+                bottom: RiffSpacing.listEnd, top: isv2Used ? 0 : topPadding),
             child: searchResScrController.isResultContentFetced.value
                 ? Column(children: [
                     if (!isv2Used)
@@ -32,7 +33,12 @@ class ResultWidget extends StatelessWidget {
                         alignment: Alignment.centerLeft,
                         child: Text(
                           "searchRes".tr,
-                          style: Theme.of(context).textTheme.titleLarge,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface),
                         ),
                       ),
                     if (!isv2Used)
@@ -40,10 +46,10 @@ class ResultWidget extends StatelessWidget {
                         alignment: Alignment.centerLeft,
                         child: Text(
                           "${"for1".tr} \"${searchResScrController.queryString.value}\"",
-                          style: Theme.of(context).textTheme.titleMedium,
+                          style: Theme.of(context).textTheme.bodyMedium,
                         ),
                       ),
-                    SizedBox(height: isv2Used ? 4 : 10),
+                    SizedBox(height: isv2Used ? RiffSpacing.xs : 10),
                     ...generateWidgetList(searchResScrController),
                   ])
                 : const SizedBox.shrink(),
@@ -75,12 +81,11 @@ class ResultWidget extends StatelessWidget {
           items: List<MediaItem>.from(value),
           title: key,
           isCompleteList: false,
-          topPadding: list.isEmpty ? 4 : 20,
+          topPadding: list.isEmpty ? RiffSpacing.xs : RiffSpacing.xl,
         ));
       } else if (key == 'Albums') {
         list.add(ContentListWidget(
-          content: AlbumContent(
-              title: key, albumList: List<Album>.from(value)),
+          content: AlbumContent(title: key, albumList: List<Album>.from(value)),
           isHomeContent: false,
         ));
       } else if (key.contains('playlist') || key == 'Podcasts') {
@@ -96,7 +101,7 @@ class ResultWidget extends StatelessWidget {
           items: List<Artist>.from(value),
           title: key,
           isCompleteList: false,
-          topPadding: list.isEmpty ? 4 : 20,
+          topPadding: list.isEmpty ? RiffSpacing.xs : RiffSpacing.xl,
         ));
       }
     }

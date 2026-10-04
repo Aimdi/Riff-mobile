@@ -4,6 +4,7 @@ import '/ui/screens/Search/search_play_top.dart';
 import '/ui/screens/Search/search_screen_controller.dart';
 
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '../../../navigator.dart';
 import '../../Home/home_layout.dart';
 
@@ -32,7 +33,7 @@ class SearchItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final searchScreenController = Get.find<SearchScreenController>();
-    final muted = homeMutedColor(context);
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     return SearchRow(
       icon: isHistoryString ? Icons.history_rounded : Icons.search_rounded,
       label: queryString,
@@ -62,8 +63,11 @@ class SearchItem extends StatelessWidget {
       onLongPress: () => _openResults(searchScreenController, queryString),
       trailing: IconButton(
         tooltip: isHistoryString ? 'clear'.tr : null,
-        iconSize: 20,
+        iconSize: RiffComponentSizes.trailingIcon,
         color: muted,
+        style: IconButton.styleFrom(
+          minimumSize: const Size.square(RiffComponentSizes.iconHit),
+        ),
         onPressed: () => isHistoryString
             ? searchScreenController.removeQueryFromHistory(queryString)
             : searchScreenController.suggestionInput(queryString),
@@ -73,7 +77,8 @@ class SearchItem extends StatelessWidget {
   }
 }
 
-/// One search list row: a round icon tile, the text, and a trailing action.
+/// One search list row (§5.2): the leading glyph, the text, and a trailing
+/// action, with a full-width hairline drawn inside the bottom edge.
 class SearchRow extends StatelessWidget {
   const SearchRow({
     super.key,
@@ -94,9 +99,10 @@ class SearchRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = homeCardTitleStyle(context);
-    final plain = (Theme.of(context).textTheme.bodyLarge ?? const TextStyle())
-        .copyWith(color: Theme.of(context).colorScheme.onSurface);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final base = theme.textTheme.titleMedium?.copyWith(color: scheme.onSurface);
+    final plain = theme.textTheme.bodyLarge?.copyWith(color: scheme.onSurface);
     // A suggestion that extends what was typed: typed part muted, the
     // completion bold — the eye goes straight to what is new.
     final prefix = typed.trim();
@@ -108,7 +114,7 @@ class SearchRow extends StatelessWidget {
             TextSpan(children: [
               TextSpan(
                   text: label.substring(0, prefix.length),
-                  style: plain.copyWith(color: homeMutedColor(context))),
+                  style: plain?.copyWith(color: scheme.onSurfaceVariant)),
               TextSpan(text: label.substring(prefix.length)),
             ]),
             style: base,
@@ -120,27 +126,35 @@ class SearchRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       onLongPress: onLongPress,
-      child: Padding(
-        padding: const EdgeInsets.only(
-            left: HomeLayout.gutter,
-            top: RiffSpacing.sm,
-            right: HomeLayout.gutter - RiffSpacing.sm,
-            bottom: RiffSpacing.sm),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: homeTileColor(context),
-                shape: BoxShape.circle,
+      child: DecoratedBox(
+        position: DecorationPosition.foreground,
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: theme.dividerColor, width: 0),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.only(
+              left: HomeLayout.gutter,
+              top: RiffSpacing.md,
+              right: HomeLayout.gutter - RiffSpacing.sm,
+              bottom: RiffSpacing.md),
+          child: Row(
+            children: [
+              SizedBox.square(
+                dimension: RiffComponentSizes.iconHit,
+                child: Icon(icon,
+                    size: RiffComponentSizes.trailingIcon,
+                    color: scheme.onSurfaceVariant),
               ),
-              child: Icon(icon, size: 20, color: homeMutedColor(context)),
-            ),
-            const SizedBox(width: 14),
-            Expanded(child: text),
-            if (trailing != null) trailing! else const SizedBox(height: 48),
-          ],
+              const SizedBox(width: RiffSpacing.md),
+              Expanded(child: text),
+              if (trailing != null)
+                trailing!
+              else
+                const SizedBox(height: RiffComponentSizes.iconHit),
+            ],
+          ),
         ),
       ),
     );
