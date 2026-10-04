@@ -29,8 +29,7 @@ class RiffTheme {
       );
 
   /// Rail labels (Phase 3): 11/600, below the §4.5 scale.
-  static TextStyle railLabel(Color color) =>
-      _t(11, 14, FontWeight.w600, color);
+  static TextStyle railLabel(Color color) => _t(11, 14, FontWeight.w600, color);
 
   /// Type scale (§4.5). Every slot is defined so none falls back to
   /// Material's default font or sizes.
@@ -109,7 +108,7 @@ class RiffTheme {
       fontFamily: kRiffFontFamily,
       textTheme: text,
       primaryTextTheme: text,
-      extensions: [colors],
+      extensions: [colors, RiffTextStyles.forColor(RiffPalette.textPrimary)],
       // Material 2 properties some screens still read.
       primaryColor: RiffPalette.bg,
       primaryColorDark: RiffPalette.bg,
@@ -382,6 +381,48 @@ class RiffTheme {
         TargetPlatform.windows: ZoomPageTransitionsBuilder(),
         TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
       }),
+    );
+  }
+}
+
+/// Text styles outside the TextTheme's slots (§4.5 asks for these to live
+/// in a theme extension).
+@immutable
+class RiffTextStyles extends ThemeExtension<RiffTextStyles> {
+  const RiffTextStyles({required this.cardTitle, required this.tileTitle});
+
+  /// Riff Wave card title, 17/800.
+  final TextStyle cardTitle;
+
+  /// Speed dial tile title, 13/700.
+  final TextStyle tileTitle;
+
+  factory RiffTextStyles.forColor(Color primary) => RiffTextStyles(
+        cardTitle: RiffTheme._t(17, 22, FontWeight.w800, primary),
+        tileTitle: RiffTheme._t(13, 16, FontWeight.w700, primary),
+      );
+
+  /// The theme's styles, or ones in its text colour for themes that don't
+  /// carry the extension (light, album colour).
+  static RiffTextStyles of(BuildContext context) {
+    final theme = Theme.of(context);
+    return theme.extension<RiffTextStyles>() ??
+        RiffTextStyles.forColor(theme.colorScheme.onSurface);
+  }
+
+  @override
+  RiffTextStyles copyWith({TextStyle? cardTitle, TextStyle? tileTitle}) =>
+      RiffTextStyles(
+        cardTitle: cardTitle ?? this.cardTitle,
+        tileTitle: tileTitle ?? this.tileTitle,
+      );
+
+  @override
+  RiffTextStyles lerp(ThemeExtension<RiffTextStyles>? other, double t) {
+    if (other is! RiffTextStyles) return this;
+    return RiffTextStyles(
+      cardTitle: TextStyle.lerp(cardTitle, other.cardTitle, t)!,
+      tileTitle: TextStyle.lerp(tileTitle, other.tileTitle, t)!,
     );
   }
 }
