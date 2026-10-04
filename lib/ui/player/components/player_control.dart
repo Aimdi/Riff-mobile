@@ -262,29 +262,11 @@ class PlayerControlWidget extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         // "Skip ad" pill — shown while playback is inside a detected ad chapter.
-        Obx(() => AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: playerController.inAdChapter.isFalse
-                  ? const SizedBox(height: 0, width: double.infinity)
-                  : Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: ActionChip(
-                        avatar: Icon(Icons.fast_forward,
-                            size: 18,
-                            color: Theme.of(context).colorScheme.onSecondary),
-                        label: Text(podcastSkipPillLabel(playerController),
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelMedium
-                                ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSecondary)),
-                        backgroundColor:
-                            Theme.of(context).colorScheme.secondary,
-                        onPressed: playerController.skipAd,
-                      ),
-                    ),
+        Obx(() => PodcastSkipPill(
+              visible: playerController.inAdChapter.isTrue,
+              label: podcastSkipPillLabel(playerController),
+              onPressed: playerController.skipAd,
+              padding: const EdgeInsets.only(bottom: RiffSpacing.sm),
             )),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
