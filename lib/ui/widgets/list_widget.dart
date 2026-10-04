@@ -1,5 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '/models/album.dart';
@@ -13,7 +14,6 @@ import '../player/player_controller.dart';
 import 'collection_play.dart';
 import 'empty_play_hint.dart';
 import 'image_widget.dart';
-import 'riff_sheet.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '../screens/Home/home_layout.dart';
@@ -332,46 +332,49 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
   }
 
   void _showArtistActions(BuildContext context, dynamic artist) {
+    HapticFeedback.mediumImpact();
     showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
-      shape: riffSheetShape,
       builder: (ctx) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.play_arrow_rounded),
-              title: Text('play'.tr),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _playArtistRow(artist);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.shuffle),
-              title: Text('shuffle'.tr),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _playArtistRow(artist, shuffle: true);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.sensors),
-              title: Text('startRadio'.tr),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _playArtistRow(artist, radio: true);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.open_in_new),
-              title: Text('viewAll'.tr),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _openArtist(artist);
-              },
-            ),
-          ],
+        child: _sheetRows(
+          ctx,
+          Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.play_arrow_rounded),
+                title: Text('play'.tr),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _playArtistRow(artist);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.shuffle),
+                title: Text('shuffle'.tr),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _playArtistRow(artist, shuffle: true);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.sensors),
+                title: Text('startRadio'.tr),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _playArtistRow(artist, radio: true);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.open_in_new),
+                title: Text('viewAll'.tr),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _openArtist(artist);
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -481,61 +484,70 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
         final id = isAlbum ? album.browseId : playlist.playlistId;
         final name = isAlbum ? album.title : playlist.title;
         if (id == null) return;
+        HapticFeedback.mediumImpact();
         showModalBottomSheet(
           context: context,
           useRootNavigator: true,
-          shape: riffSheetShape,
-          builder: (ctx) => Wrap(children: [
-            ListTile(
-              leading: const Icon(Icons.play_arrow_rounded),
-              title: Text('play'.tr),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _playWideTile(album: album, playlist: playlist, shuffle: false);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.shuffle),
-              title: Text('shuffle'.tr),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _playWideTile(album: album, playlist: playlist, shuffle: true);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.playlist_play),
-              title: Text('playNext'.tr),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _queueWideTile(album: album, playlist: playlist, radio: false);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.sensors),
-              title: Text('startRadio'.tr),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _queueWideTile(album: album, playlist: playlist, radio: true);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.block),
-              title:
-                  Text(isAlbum ? "neverPlayAlbum".tr : "neverPlayPlaylist".tr),
-              onTap: () async {
-                Navigator.of(ctx).pop();
-                final ok = await BanService.banCollection(
-                    id, name, isAlbum ? "album" : "playlist");
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                    context,
-                    ok
-                        ? "${"collectionBannedMsg".tr} $name"
-                        : "operationFailed".tr,
-                    size: SanckBarSize.BIG));
-              },
-            ),
-          ]),
+          builder: (ctx) => _sheetRows(
+              ctx,
+              Wrap(children: [
+                ListTile(
+                  leading: const Icon(Icons.play_arrow_rounded),
+                  title: Text('play'.tr),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _playWideTile(
+                        album: album, playlist: playlist, shuffle: false);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.shuffle),
+                  title: Text('shuffle'.tr),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _playWideTile(
+                        album: album, playlist: playlist, shuffle: true);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.playlist_play),
+                  title: Text('playNext'.tr),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.of(ctx).pop();
+                    _queueWideTile(
+                        album: album, playlist: playlist, radio: false);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.sensors),
+                  title: Text('startRadio'.tr),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _queueWideTile(
+                        album: album, playlist: playlist, radio: true);
+                  },
+                ),
+                ListTile(
+                  iconColor: Theme.of(ctx).colorScheme.error,
+                  textColor: Theme.of(ctx).colorScheme.error,
+                  leading: const Icon(Icons.block),
+                  title: Text(
+                      isAlbum ? "neverPlayAlbum".tr : "neverPlayPlaylist".tr),
+                  onTap: () async {
+                    Navigator.of(ctx).pop();
+                    final ok = await BanService.banCollection(
+                        id, name, isAlbum ? "album" : "playlist");
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                        context,
+                        ok
+                            ? "${"collectionBannedMsg".tr} $name"
+                            : "operationFailed".tr,
+                        size: SanckBarSize.BIG));
+                  },
+                ),
+              ])),
         );
       },
       child: SizedBox(
@@ -651,3 +663,14 @@ class _ArtPlayBadge extends StatelessWidget {
     );
   }
 }
+
+/// Sheet rows per RIFF_UI_RESTYLE.md §5.10: 15/400 labels and 22 dp icons
+/// in the primary text colour.
+Widget _sheetRows(BuildContext ctx, Widget child) => ListTileTheme.merge(
+      titleTextStyle: Theme.of(ctx).textTheme.bodyLarge,
+      iconColor: Theme.of(ctx).colorScheme.onSurface,
+      child: IconTheme.merge(
+        data: const IconThemeData(size: RiffComponentSizes.headerIcon),
+        child: child,
+      ),
+    );

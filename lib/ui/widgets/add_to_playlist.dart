@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import 'riff_sheet.dart';
@@ -19,9 +20,7 @@ import '/ui/screens/Playlist/playlist_screen_controller.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
-import '/ui/utils/riff_tokens.dart';
 import '/ui/utils/sheet_insets.dart';
-import '/ui/utils/theme_controller.dart';
 import '/ui/widgets/create_playlist_dialog.dart';
 import '../../models/playlist.dart';
 import 'common_dialog_widget.dart';
@@ -81,8 +80,6 @@ Future<void> showAddToPlaylistSheet(
     useRootNavigator: true,
     isScrollControlled: true,
     constraints: const BoxConstraints(maxWidth: 500),
-    backgroundColor: Theme.of(sheetContext).cardColor,
-    barrierColor: RiffColors.of(sheetContext).scrim.withAlpha(100),
     shape: riffSheetShape,
     builder: (context) => AddToPlaylistSheet(songItems: songs),
   );
@@ -195,6 +192,7 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
 
   Future<void> _addToLiked() async {
     if (_busy) return;
+    HapticFeedback.lightImpact();
     setState(() => _busy = true);
     final added = await addSongsToLikedSongs(widget.songItems);
     await _finish(
@@ -204,6 +202,7 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
 
   Future<void> _addToPlaylist(Playlist playlist) async {
     if (_busy) return;
+    HapticFeedback.lightImpact();
     setState(() => _busy = true);
     final controller = _controller();
     controller.playlistType.value =
@@ -233,10 +232,7 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final muted = isDark
-        ? RiffSurfaces.textMuted
-        : theme.textTheme.titleSmall?.color?.withOpacity(0.65);
+    final muted = theme.colorScheme.onSurfaceVariant;
     return Padding(
       padding: EdgeInsets.only(
         bottom: sheetBottomInset(context, liftAboveMiniPlayer: false),
@@ -255,7 +251,7 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
           _SheetRow(
             leading: _SheetIcon(
               icon: Icons.favorite,
-              color: theme.colorScheme.secondary,
+              color: theme.colorScheme.onSurface,
             ),
             title: 'favorites'.tr,
             onTap: _addToLiked,
@@ -306,9 +302,9 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
       // the cap and leave a large empty gap under the message.
       return Padding(
         padding: const EdgeInsets.only(
-            left: RiffSpacing.xl,
+            left: RiffSpacing.lg,
             top: RiffSpacing.sm,
-            right: RiffSpacing.xl,
+            right: RiffSpacing.lg,
             bottom: RiffSpacing.lg),
         child: Text(
           'noPlaylistsYet'.tr,
@@ -320,7 +316,7 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
     }
     return ListView.builder(
       shrinkWrap: true,
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: RiffSpacing.md),
       itemCount: playlists.length,
       itemBuilder: (context, index) {
         final playlist = playlists[index];
@@ -339,6 +335,8 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
   }
 }
 
+/// Sheet row (§5.10): at least 52 tall, 16dp sides (ListTile theme), a
+/// bodyLarge label in the primary text colour.
 class _SheetRow extends StatelessWidget {
   const _SheetRow({
     required this.leading,
@@ -352,13 +350,16 @@ class _SheetRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return ListTile(
+      minTileHeight: RiffComponentSizes.sheetRow,
       leading: leading,
       title: Text(
         title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.titleMedium,
+        style: theme.textTheme.bodyLarge
+            ?.copyWith(color: theme.colorScheme.onSurface),
       ),
       onTap: onTap,
     );
@@ -373,17 +374,15 @@ class _SheetIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Flat surface2 tile on the sheet's surface1, radius 8.
     return Container(
-      width: 40,
-      height: 40,
+      width: RiffComponentSizes.iconHit,
+      height: RiffComponentSizes.iconHit,
       decoration: BoxDecoration(
-        color: isDark
-            ? RiffSurfaces.elevatedSoft
-            : Theme.of(context).primaryColorLight,
-        borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+        color: RiffColors.of(context).surface2,
+        borderRadius: BorderRadius.circular(RiffRadii.sm),
       ),
-      child: Icon(icon, color: color, size: 22),
+      child: Icon(icon, color: color, size: RiffComponentSizes.sheetIcon),
     );
   }
 }
@@ -399,19 +398,23 @@ class AddToPlaylist extends StatelessWidget {
     return CommonDialog(
       child: Container(
         height: isPipedLinked ? 400 : 350,
-        padding:
-            const EdgeInsets.only(top: 20, bottom: 30, left: 20, right: 20),
+        padding: const EdgeInsets.only(
+            top: RiffSpacing.xl,
+            bottom: RiffSpacing.x3l,
+            left: RiffSpacing.xl,
+            right: RiffSpacing.xl),
         child: Stack(
           children: [
             Column(children: [
               Container(
-                padding: const EdgeInsets.only(bottom: 10.0, top: 10),
+                padding: const EdgeInsets.only(
+                    bottom: RiffSpacing.sm, top: RiffSpacing.sm),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.only(left: 8.0),
+                        padding: const EdgeInsets.only(left: RiffSpacing.sm),
                         child: Marquee(
                           id: "createNewPlaylistx",
                           delay: const Duration(milliseconds: 300),
@@ -422,9 +425,7 @@ class AddToPlaylist extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(
-                      width: 10,
-                    ),
+                    const SizedBox(width: RiffSpacing.sm),
                     InkWell(
                       child: const Icon(Icons.playlist_add),
                       onTap: () {
@@ -455,9 +456,7 @@ class AddToPlaylist extends StatelessWidget {
                           Text("Piped".tr),
                         ],
                       ),
-                      const SizedBox(
-                        width: 15,
-                      ),
+                      const SizedBox(width: RiffSpacing.lg),
                       Row(
                         children: [
                           Radio(
@@ -473,9 +472,11 @@ class AddToPlaylist extends StatelessWidget {
                   ),
                 ),
               Container(
+                // Hairline frame instead of a filled box (§2, §5.1).
                 decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColorLight,
-                    borderRadius: BorderRadius.circular(10)),
+                    border: Border.all(
+                        color: Theme.of(context).dividerColor, width: 0),
+                    borderRadius: BorderRadius.circular(RiffRadii.sm)),
                 height: 250,
                 child: Obx(
                   () => addToPlaylistController.playlists.isNotEmpty
@@ -487,6 +488,7 @@ class AddToPlaylist extends StatelessWidget {
                               (addToPlaylistController.playlists[index]).title,
                             ),
                             onTap: () {
+                              HapticFeedback.lightImpact();
                               addToPlaylistController
                                   .addSongsToPlaylist(
                                       songItems,
@@ -516,11 +518,10 @@ class AddToPlaylist extends StatelessWidget {
                     top: 60,
                     right: 8,
                     child: SizedBox(
-                        height: 15,
-                        width: 15,
+                        height: RiffComponentSizes.buttonSpinner,
+                        width: RiffComponentSizes.buttonSpinner,
                         child: CircularProgressIndicator(
-                          backgroundColor: Colors.transparent,
-                          strokeWidth: 2,
+                          strokeWidth: RiffComponentSizes.spinnerStroke,
                         )),
                   )
                 : const SizedBox.shrink()),

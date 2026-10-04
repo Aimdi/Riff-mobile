@@ -14,7 +14,6 @@ import '/ui/widgets/loader.dart';
 import '/utils/helper.dart';
 import '../../services/permission_service.dart';
 import '/ui/theme/riff_spacing.dart';
-import '../screens/Home/home_layout.dart';
 import 'common_dialog_widget.dart';
 
 class BackupDialog extends StatelessWidget {
@@ -44,7 +43,7 @@ class BackupDialog extends StatelessWidget {
                     children: [
                       if (busy) ...[
                         const LoadingIndicator(),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: RiffSpacing.sm),
                       ],
                       Text(
                         c.scanning.isTrue
@@ -55,14 +54,12 @@ class BackupDialog extends StatelessWidget {
                                     ? "backupMsg".tr
                                     : "letsStrart".tr,
                         textAlign: TextAlign.center,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyLarge
-                            ?.copyWith(color: homeMutedColor(context)),
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurface),
                       ),
                       if (GetPlatform.isAndroid &&
                           c.isDownloadedfilesSeclected.isTrue) ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: RiffSpacing.sm),
                         Text("androidBackupWarning".tr,
                             textAlign: TextAlign.center,
                             style: Theme.of(context)
@@ -83,10 +80,9 @@ class BackupDialog extends StatelessWidget {
                     contentPadding: EdgeInsets.zero,
                     dense: true,
                     controlAffinity: ListTileControlAffinity.leading,
-                    activeColor: Theme.of(context).colorScheme.secondary,
-                    checkColor: Theme.of(context).colorScheme.onPrimary,
                     title: Text("includeDownloadedFiles".tr,
-                        style: Theme.of(context).textTheme.bodyLarge),
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurface)),
                     value: c.isDownloadedfilesSeclected.value,
                     onChanged: c.scanning.isTrue ||
                             c.backupRunning.isTrue ||
@@ -94,7 +90,7 @@ class BackupDialog extends StatelessWidget {
                         ? null
                         : (v) => c.isDownloadedfilesSeclected.value = v!,
                   )),
-            const SizedBox(height: 8),
+            const SizedBox(height: RiffSpacing.sm),
             Obx(() => RiffDialogButton(
                   c.isbackupCompleted.isTrue ? "close".tr : "backup".tr,
                   onPressed: c.backupRunning.isTrue || c.scanning.isTrue

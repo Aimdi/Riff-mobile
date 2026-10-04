@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../navigator.dart';
@@ -168,56 +169,63 @@ class ContentListItem extends StatelessWidget {
   }
 
   void _showPlaySheet(BuildContext context) {
+    HapticFeedback.mediumImpact();
     showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
-      ),
       builder: (ctx) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.play_arrow_rounded),
-              title: Text('play'.tr),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _playFromOverlay();
-              },
+        // Sheet rows per RIFF_UI_RESTYLE.md §5.10.
+        child: ListTileTheme.merge(
+          titleTextStyle: Theme.of(ctx).textTheme.bodyLarge,
+          iconColor: Theme.of(ctx).colorScheme.onSurface,
+          child: IconTheme.merge(
+            data: const IconThemeData(size: RiffComponentSizes.headerIcon),
+            child: Wrap(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.play_arrow_rounded),
+                  title: Text('play'.tr),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _playFromOverlay();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.shuffle),
+                  title: Text('shuffle'.tr),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _playFromOverlay(shuffle: true);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.playlist_play),
+                  title: Text('playNext'.tr),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.of(ctx).pop();
+                    _queueFromSheet(radio: false);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.sensors),
+                  title: Text('startRadio'.tr),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _queueFromSheet(radio: true);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.open_in_new),
+                  title: Text('viewAll'.tr),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _openContent();
+                  },
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.shuffle),
-              title: Text('shuffle'.tr),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _playFromOverlay(shuffle: true);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.playlist_play),
-              title: Text('playNext'.tr),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _queueFromSheet(radio: false);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.sensors),
-              title: Text('startRadio'.tr),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _queueFromSheet(radio: true);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.open_in_new),
-              title: Text('viewAll'.tr),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _openContent();
-              },
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -7,7 +7,6 @@ import 'package:harmonymusic/ui/widgets/loader.dart';
 
 import '../../services/permission_service.dart';
 import '/ui/theme/riff_spacing.dart';
-import '../screens/Home/home_layout.dart';
 import 'common_dialog_widget.dart';
 
 class ExportFileDialog extends StatelessWidget {
@@ -32,10 +31,8 @@ class ExportFileDialog extends StatelessWidget {
               height: 120,
               child: Center(
                 child: Obx(() {
-                  final style = Theme.of(context)
-                      .textTheme
-                      .bodyLarge
-                      ?.copyWith(color: homeMutedColor(context));
+                  final style = Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface);
                   if (c.exportProgress.toInt() == c.filesToExport.length) {
                     return Text("exportMsg".tr,
                         textAlign: TextAlign.center, style: style);
@@ -53,7 +50,7 @@ class ExportFileDialog extends StatelessWidget {
                                     color: Theme.of(context)
                                         .colorScheme
                                         .secondary)),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: RiffSpacing.xs),
                         Text("exporting".tr, style: style),
                       ],
                     );
@@ -69,7 +66,7 @@ class ExportFileDialog extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const LoadingIndicator(),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: RiffSpacing.sm),
                         Text("scanning".tr, style: style),
                       ],
                     );
