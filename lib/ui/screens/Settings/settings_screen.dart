@@ -31,6 +31,7 @@ import '/ui/utils/theme_controller.dart';
 import 'components/custom_expansion_tile.dart';
 import '../Home/home_layout.dart';
 import 'settings_screen_controller.dart';
+import '/ui/widgets/riff_header_bar.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key, this.isBottomNavActive = false});
@@ -49,9 +50,12 @@ class SettingsScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Text("settings".tr, style: theme.textTheme.titleLarge),
+          RiffHeaderBar(
+            hairline: false,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text("settings".tr, style: theme.textTheme.titleLarge),
+            ),
           ),
           SizedBox(
             height: 46,
@@ -74,7 +78,10 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           Expanded(
-              child: ListView(
+              // Hairline under the pinned title + search field.
+              child: RiffScrollUnder(
+                  bleed: HomeLayout.gutter,
+                  child: ListView(
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.only(bottom: 200, top: 14),
             children: [
@@ -1328,7 +1335,7 @@ class SettingsScreen extends StatelessWidget {
                 ],
               )
             ],
-          )),
+          ))),
           Padding(
             padding: const EdgeInsets.only(bottom: 16.0, top: 4),
             child: Text(
