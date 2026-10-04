@@ -7,7 +7,6 @@ import '/models/thumbnail.dart';
 import '/ui/navigator.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
-import '/ui/utils/riff_tokens.dart';
 import '/ui/widgets/collection_play.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/podcast_play.dart';
@@ -22,8 +21,8 @@ int podcastSubsColumnCount(double width) {
   return 2;
 }
 
-const double kPodcastSubsHPad = 12;
-const double kPodcastSubsGap = 12;
+const double kPodcastSubsHPad = RiffSpacing.md;
+const double kPodcastSubsGap = RiffSpacing.md;
 const double kPodcastSubsTextBlock = 40;
 
 double podcastSubsCoverSize(double maxWidth, int columns) {
@@ -32,7 +31,7 @@ double podcastSubsCoverSize(double maxWidth, int columns) {
 }
 
 double podcastSubsMainAxisExtent(double coverSize) =>
-    coverSize + 8 + kPodcastSubsTextBlock;
+    coverSize + RiffSpacing.sm + kPodcastSubsTextBlock;
 
 SliverGridDelegate podcastSubsGridDelegate(double width,
     {TextScaler textScaler = TextScaler.noScaling}) {
@@ -41,8 +40,9 @@ SliverGridDelegate podcastSubsGridDelegate(double width,
   return SliverGridDelegateWithFixedCrossAxisCount(
     crossAxisCount: columns,
     crossAxisSpacing: kPodcastSubsGap,
-    mainAxisSpacing: kPodcastSubsGap + 4,
-    mainAxisExtent: cover + 8 + textScaler.scale(kPodcastSubsTextBlock),
+    mainAxisSpacing: kPodcastSubsGap + RiffSpacing.xs,
+    mainAxisExtent:
+        cover + RiffSpacing.sm + textScaler.scale(kPodcastSubsTextBlock),
   );
 }
 
@@ -52,7 +52,8 @@ const EdgeInsets kPodcastSubsGridPadding = EdgeInsets.only(
     right: RiffSpacing.md,
     bottom: RiffSpacing.listEnd);
 
-/// Large cover-filling tile for the Subs grid (and folder contents).
+/// Large cover-filling tile for the Subs grid (and folder contents): a §5.3
+/// card — no background, art radius 8, titleMedium / bodyMedium, gap 8.
 class PodcastCoverTile extends StatelessWidget {
   const PodcastCoverTile({
     super.key,
@@ -84,12 +85,12 @@ class PodcastCoverTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final muted = theme.textTheme.bodySmall?.color?.withOpacity(0.72);
+    final muted = theme.colorScheme.onSurfaceVariant;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
+        borderRadius: BorderRadius.circular(RiffRadii.sm),
         onTap: onTap,
         onLongPress: onLongPress,
         child: Column(
@@ -101,34 +102,38 @@ class PodcastCoverTile extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(RiffRadii.sm),
                     child: cover ?? _art(context),
                   ),
-                  if (badge != null) Positioned(left: 8, top: 8, child: badge!),
+                  if (badge != null)
+                    Positioned(
+                        left: RiffSpacing.sm,
+                        top: RiffSpacing.sm,
+                        child: badge!),
                   if (showPlay)
                     Positioned(
-                      right: 6,
-                      bottom: 6,
+                      right: RiffSpacing.sm,
+                      bottom: RiffSpacing.sm,
                       child: _PlayFab(onPressed: onPlay ?? onTap),
                     ),
                 ],
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: RiffSpacing.sm),
             Text(
               title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelMedium,
+              style: theme.textTheme.titleMedium,
             ),
             if (subtitle != null && subtitle!.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 2),
+                padding: const EdgeInsets.only(top: RiffSpacing.xxs),
                 child: Text(
                   subtitle!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(color: muted),
+                  style: theme.textTheme.bodyMedium?.copyWith(color: muted),
                 ),
               ),
           ],
@@ -139,19 +144,20 @@ class PodcastCoverTile extends StatelessWidget {
 
   Widget _art(BuildContext context) {
     final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
     final fallback = ColoredBox(
-      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.45),
+      color: theme.colorScheme.surfaceContainerLow,
       child: Center(
         child: Image.asset(
           'assets/icons/album.png',
-          width: 72,
-          height: 72,
-          color: theme.iconTheme.color?.withOpacity(0.45),
+          width: RiffComponentSizes.showRowArt,
+          height: RiffComponentSizes.showRowArt,
+          color: muted,
           colorBlendMode: BlendMode.srcATop,
           errorBuilder: (_, __, ___) => Icon(
             Icons.album_outlined,
-            size: 56,
-            color: theme.iconTheme.color?.withOpacity(0.4),
+            size: RiffComponentSizes.emptyStateIcon,
+            color: muted,
           ),
         ),
       ),
@@ -169,9 +175,7 @@ class PodcastCoverTile extends StatelessWidget {
       });
     }
     if (urls.isEmpty) return fallback;
-    final waiting = ColoredBox(
-      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.35),
-    );
+    final waiting = ColoredBox(color: theme.colorScheme.surfaceContainerLow);
     final dpr = MediaQuery.devicePixelRatioOf(context);
 
     return LayoutBuilder(builder: (context, constraints) {
@@ -201,26 +205,26 @@ class PodcastCoverTile extends StatelessWidget {
   }
 }
 
+/// Accent play circle on a cover (a play button, §2.5); flat, no shadow.
 class _PlayFab extends StatelessWidget {
   const _PlayFab({this.onPressed});
   final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final riff = RiffColors.of(context);
+    final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: riff.onImage,
+      color: scheme.primary,
       shape: const CircleBorder(),
-      elevation: 3,
-      shadowColor: riff.scrim.withOpacity(0.54),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onPressed,
         child: SizedBox(
-          width: 30,
-          height: 30,
-          child: Icon(Icons.play_arrow_rounded, color: riff.scrim, size: 20),
+          width: RiffComponentSizes.coverPlay,
+          height: RiffComponentSizes.coverPlay,
+          child: Icon(Icons.play_arrow_rounded,
+              color: scheme.onPrimary, size: RiffComponentSizes.trailingIcon),
         ),
       ),
     );
@@ -245,12 +249,14 @@ String libraryPodcastSubtitle(Playlist podcast) {
 Widget youtubeChannelBadge(BuildContext context) {
   final riff = RiffColors.of(context);
   return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    padding: const EdgeInsets.symmetric(
+        horizontal: RiffSpacing.xs, vertical: RiffSpacing.xxs),
     decoration: BoxDecoration(
       color: riff.scrim.withOpacity(0.65),
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(RiffRadii.xs),
     ),
-    child: Icon(Icons.ondemand_video, size: 14, color: riff.onImage),
+    child: Icon(Icons.ondemand_video,
+        size: RiffSizes.chipGlyph, color: riff.onImage),
   );
 }
 
