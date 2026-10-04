@@ -1,3 +1,16 @@
+# 1.7.135
+
+**New look, step 1: type and colours**
+* Riff now uses Inter, bundled with the app (no font download on first
+  start), with a tighter, bolder type scale
+* Pitch Black follows X's "Lights out" palette: pure black, one-pixel
+  hairlines, softer grey for secondary text, and your accent colour only
+  on things you can tap or that are on (all six accents work)
+* Buttons are pills, presses show a flat highlight instead of a ripple,
+  snackbars use your accent, sliders and progress bars are thinner
+* Nothing moved: every screen keeps its layout. The rest of the restyle
+  comes screen by screen in the next updates
+
 # 1.7.134
 
 **Spotify on Home**
