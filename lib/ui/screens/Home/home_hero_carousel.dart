@@ -1,6 +1,3 @@
-import 'dart:async';
-import 'dart:math' as math;
-
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -10,41 +7,31 @@ import '/ui/player/player_controller.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
-import 'home_layout.dart';
+import 'home_metrics.dart';
 
-/// Quick picks as a compact centred carousel (Echo Music's hero carousel,
-/// scaled down): one card in the middle, neighbours peeking in on both
-/// sides, pages snap, and it moves on by itself every five seconds (never
-/// while the user is scrolling). Sits under a section title further down
-/// Home.
+/// Quick picks as a hero carousel: one large item 16dp from the rail, a
+/// 48dp sliver of the next one, 8dp apart, snapping item by item. Title
+/// and artist sit on a dark gradient; a 40dp play button bottom-right.
 class HomeHeroCarousel extends StatefulWidget {
   const HomeHeroCarousel({
     super.key,
     required this.songs,
+    required this.metrics,
     this.source = DiscoverySource.home,
   });
 
   final List<MediaItem> songs;
+  final HomeMetrics metrics;
   final DiscoverySource source;
 
-  static const maxItems = 12;
-
-  /// Card size: a little wider than tall, about half the phone width.
-  static const cardWidth = 230.0;
-  static const height = 200.0;
-
-  /// Echo: `itemSpacing = 8.dp`.
-  static const spacing = 8.0;
-
-  /// Keep the strip phone-sized on tablets.
-  static const maxWidth = 640.0;
-
-  static const autoAdvance = Duration(seconds: 5);
-
-  /// Share of the viewport one page takes (card plus its spacing); the
-  /// rest is the neighbours peeking in either side.
-  static double viewportFraction(double width) =>
-      ((cardWidth + spacing) / width).clamp(0.3, 1.0);
+  /// Page share of the viewport (pane minus the 16dp lead-in) one item
+  /// and its spacing take.
+  static double viewportFraction(HomeMetrics m) {
+    final viewport = m.w - RiffSpacing.gutter;
+    if (viewport <= 0) return 1;
+    return ((m.carouselItem + RiffSizes.carouselSpacing) / viewport)
+        .clamp(0.2, 1.0);
+  }
 
   @override
   State<HomeHeroCarousel> createState() => _HomeHeroCarouselState();
@@ -53,24 +40,9 @@ class HomeHeroCarousel extends StatefulWidget {
 class _HomeHeroCarouselState extends State<HomeHeroCarousel> {
   PageController? _page;
   double _fraction = 0;
-  Timer? _timer;
 
-  List<MediaItem> get _songs {
-    final seen = <String>{};
-    return widget.songs
-        .where((s) => seen.add(s.id))
-        .take(HomeHeroCarousel.maxItems)
-        .toList();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(HomeHeroCarousel.autoAdvance, (_) => _advance());
-  }
-
-  PageController _controllerFor(double width) {
-    final fraction = HomeHeroCarousel.viewportFraction(width);
+  PageController _controller() {
+    final fraction = HomeHeroCarousel.viewportFraction(widget.metrics);
     if (_page == null || (fraction - _fraction).abs() > 0.001) {
       final old = _page;
       final initial = old?.hasClients == true ? (old!.page ?? 0).round() : 0;
@@ -83,26 +55,14 @@ class _HomeHeroCarouselState extends State<HomeHeroCarousel> {
     return _page!;
   }
 
-  void _advance() {
-    final page = _page;
-    if (!mounted || page == null || !page.hasClients) return;
-    if (page.position.isScrollingNotifier.value) return;
-    final count = _songs.length;
-    if (count < 2) return;
-    final next = ((page.page ?? 0).round() + 1) % count;
-    page.animateToPage(next,
-        duration: const Duration(milliseconds: 550),
-        curve: Curves.easeInOutCubic);
-  }
-
   @override
   void dispose() {
-    _timer?.cancel();
     _page?.dispose();
     super.dispose();
   }
 
-  Future<void> _play(List<MediaItem> songs, int i) async {
+  Future<void> _play(int i) async {
+    final songs = widget.songs;
     final player = Get.find<PlayerController>();
     if (player.currentSong.value?.id == songs[i].id) {
       player.playPause();
@@ -114,31 +74,39 @@ class _HomeHeroCarouselState extends State<HomeHeroCarousel> {
 
   @override
   Widget build(BuildContext context) {
-    final songs = _songs;
+    final songs = widget.songs;
     if (songs.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        HomeSectionHeader('quickpicks'.tr),
-        LayoutBuilder(builder: (context, constraints) {
-          final width =
-              math.min(constraints.maxWidth, HomeHeroCarousel.maxWidth);
-          final controller = _controllerFor(width);
-          return Center(
+        RiffSectionHeader(
+          'quickpicks'.tr,
+          action: TextButton(
+            style: TextButton.styleFrom(
+                minimumSize: const Size(48, RiffSizes.touch)),
+            onPressed: () => _play(0),
+            child: Text('playAll'.tr),
+          ),
+        ),
+        // Items scroll out under the left margin but never over the rail.
+        ClipRect(
+          child: Padding(
+            padding: const EdgeInsets.only(left: RiffSpacing.gutter),
             child: SizedBox(
-              width: width,
-              height: HomeHeroCarousel.height,
+              height: RiffSizes.carouselHeight,
               child: PageView.builder(
-                controller: controller,
+                controller: _controller(),
+                padEnds: false,
+                clipBehavior: Clip.none,
                 physics: const _SnappingPhysics(),
                 itemCount: songs.length,
                 itemBuilder: (context, i) => Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: HomeHeroCarousel.spacing / 2),
+                  padding:
+                      const EdgeInsets.only(right: RiffSizes.carouselSpacing),
                   child: _HeroCard(
                     song: songs[i],
-                    onTap: () => _play(songs, i),
+                    onPlay: () => _play(i),
                     onLongPress: () => showCurrentSongSheet(
                         song: songs[i],
                         context: Get.find<PlayerController>()
@@ -148,15 +116,15 @@ class _HomeHeroCarouselState extends State<HomeHeroCarousel> {
                 ),
               ),
             ),
-          );
-        }),
+          ),
+        ),
       ],
     );
   }
 }
 
 /// Page snapping with a little more drag than the default, so a flick
-/// moves one card, not three.
+/// moves one item, not three.
 class _SnappingPhysics extends PageScrollPhysics {
   const _SnappingPhysics({super.parent});
 
@@ -170,96 +138,96 @@ class _SnappingPhysics extends PageScrollPhysics {
 
 class _HeroCard extends StatelessWidget {
   const _HeroCard(
-      {required this.song, required this.onTap, required this.onLongPress});
+      {required this.song, required this.onPlay, required this.onLongPress});
   final MediaItem song;
-  final VoidCallback onTap;
+  final VoidCallback onPlay;
   final VoidCallback onLongPress;
-
-  static const radius = 22.0;
 
   @override
   Widget build(BuildContext context) {
-    final player = Get.find<PlayerController>();
     final theme = Theme.of(context);
-    return Material(
-      color: homeTileColor(context),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(radius),
-        // Echo: 1dp outlineVariant border.
-        side: BorderSide(
-            color: (homeMutedColor(context) ?? Colors.grey).withOpacity(0.28)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        onLongPress: onLongPress,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            LayoutBuilder(
-              builder: (context, c) => ImageWidget(
-                  song: song,
-                  size: math.max(c.maxWidth, c.maxHeight),
-                  borderRadius: 0),
-            ),
-            // Echo: transparent → transparent → black 70%.
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.transparent,
-                    Color(0xB3000000)
-                  ],
-                ),
-              ),
-            ),
-            Obx(() {
-              final playing = player.currentSong.value?.id == song.id &&
-                  player.buttonState.value == PlayButtonState.playing;
-              if (!playing) return const SizedBox.shrink();
-              return Positioned(
-                top: 12,
-                right: 12,
-                child: Container(
-                  width: 32,
-                  height: 32,
+    final player = Get.find<PlayerController>();
+    final label = [song.title, if ((song.artist ?? '').isNotEmpty) song.artist]
+        .join(', ');
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: Material(
+        color: theme.colorScheme.surfaceContainerHigh,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(RiffSizes.carouselRadius)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPlay,
+          onLongPress: onLongPress,
+          child: LayoutBuilder(
+            builder: (context, c) => Stack(
+              fit: StackFit.expand,
+              children: [
+                ImageWidget(song: song, size: c.maxWidth, borderRadius: 0),
+                const DecoratedBox(
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.secondary,
-                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: [0.35, 1],
+                      colors: [Colors.transparent, Color(0xCC000000)],
+                    ),
                   ),
-                  child: const Icon(Icons.volume_up_rounded,
-                      size: 18, color: Colors.black),
                 ),
-              );
-            }),
-            Positioned(
-              left: 14,
-              right: 14,
-              bottom: 12,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(song.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white)),
-                  if ((song.artist ?? '').isNotEmpty)
-                    Text(song.artist!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 12.5, color: Color(0xB3FFFFFF))),
-                ],
-              ),
+                Positioned(
+                  left: 16,
+                  right: 16 + RiffSizes.carouselPlay + 8,
+                  bottom: 14,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(song.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white)),
+                      if ((song.artist ?? '').isNotEmpty)
+                        Text(song.artist!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: const Color(0xCCFFFFFF))),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  right: 12,
+                  bottom: 12,
+                  child: Obx(() {
+                    final playing = player.currentSong.value?.id == song.id &&
+                        player.buttonState.value == PlayButtonState.playing;
+                    return Material(
+                      color: theme.colorScheme.secondary,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: onPlay,
+                        child: SizedBox.square(
+                          dimension: RiffSizes.carouselPlay,
+                          child: Icon(
+                            playing
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
+                            color: Colors.black,
+                            size: 26,
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

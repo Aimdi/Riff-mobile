@@ -4,14 +4,15 @@ import 'package:hive/hive.dart';
 
 import '/services/stats_service.dart';
 import '/ui/navigator.dart';
-import '/ui/utils/riff_tokens.dart';
-import 'home_layout.dart';
+import 'home_metrics.dart';
 
-/// "Your week" at the end of Home: a seven-day bar strip, the play count
-/// and the top artist, computed from the local listening database.
-/// Tapping opens Stats.
+/// "Your week": plays and top artist (music only) over the last seven
+/// days, with a small bar chart. Tapping opens Stats.
 class HomeStatsCard extends StatelessWidget {
   const HomeStatsCard({super.key});
+
+  void _open() => Get.toNamed(ScreenNavigationSetup.statsScreen,
+      id: ScreenNavigationSetup.id);
 
   @override
   Widget build(BuildContext context) {
@@ -28,75 +29,91 @@ class HomeStatsCard extends StatelessWidget {
         .fold<int>(1, (m, v) => v > m ? v : m);
     final theme = Theme.of(context);
     final accent = theme.colorScheme.secondary;
-    final fg = theme.textTheme.titleMedium?.color;
+    final line1 = '$plays ${'plays'.tr}';
+    final line2 =
+        topArtist == null ? null : '${'rewindTopArtist'.tr}: $topArtist';
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          HomeLayout.gutter, HomeLayout.sectionTop, HomeLayout.gutter, 0),
-      child: Material(
-        color: homeTileColor(context),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(RiffTokens.radiusLg),
-          side: homeTileBorder(context),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => Get.toNamed(ScreenNavigationSetup.statsScreen,
-              id: ScreenNavigationSetup.id),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('yourWeek'.tr,
-                          style: homeSectionTitleStyle(context)
-                              .copyWith(fontSize: 17)),
-                      const SizedBox(height: 4),
-                      Text(
-                        topArtist == null
-                            ? '$plays ${'plays'.tr}'
-                            : '$plays ${'plays'.tr} · ${'rewindTopArtist'.tr}: $topArtist',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: homeCardSubtitleStyle(context)
-                            .copyWith(fontSize: 12.5),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                SizedBox(
-                  height: 44,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      for (final d in days)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 4),
-                          child: Container(
-                            width: 8,
-                            height: (4 + 40 * (d['plays'] as int) / peak)
-                                .toDouble(),
-                            decoration: BoxDecoration(
-                              color: (d['plays'] as int) > 0
-                                  ? accent
-                                  : (fg ?? Colors.grey).withOpacity(0.18),
-                              borderRadius: BorderRadius.circular(3),
-                            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        RiffSectionHeader('yourWeek'.tr, onSeeAll: _open),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.gutter),
+          child: Semantics(
+            button: true,
+            label: [line1, if (line2 != null) line2].join('. '),
+            excludeSemantics: true,
+            child: Material(
+              color: theme.colorScheme.surfaceContainer,
+              borderRadius: BorderRadius.circular(RiffSizes.shelfRadius),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: _open,
+                child: ConstrainedBox(
+                  constraints:
+                      const BoxConstraints(minHeight: RiffSizes.weekHeight),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(line1,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: theme.colorScheme.onSurface)),
+                              if (line2 != null) ...[
+                                const SizedBox(height: 2),
+                                Text(line2,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodySmall
+                                        ?.copyWith(color: riffMuted(context))),
+                              ],
+                            ],
                           ),
                         ),
-                    ],
+                        const SizedBox(width: 16),
+                        SizedBox(
+                          height: 48,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              for (final d in days)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 4),
+                                  child: Container(
+                                    width: 8,
+                                    height: (4 + 44 * (d['plays'] as int) / peak)
+                                        .toDouble(),
+                                    decoration: BoxDecoration(
+                                      color: (d['plays'] as int) > 0
+                                          ? accent
+                                          : theme.colorScheme.onSurface
+                                              .withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(3),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ],
+              ),
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 }

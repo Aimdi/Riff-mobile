@@ -6,9 +6,8 @@ import '../../widgets/cust_switch.dart';
 import 'home_layout.dart';
 import 'home_sections.dart';
 
-/// "Home layout": drag the sections into the order you want, switch off
-/// the ones you don't. The same idea as Echo Music's ordered home
-/// sections, but the order is yours.
+/// "Home layout": switch off the Home sections you don't want. The order
+/// is fixed — your own music first, the YouTube feed after.
 class HomeLayoutScreen extends StatelessWidget {
   const HomeLayoutScreen({super.key});
 
@@ -41,32 +40,19 @@ class HomeLayoutScreen extends StatelessWidget {
           ),
           Expanded(
             child: Obx(() {
-              final order = HomeSectionPrefs.order.toList();
-              final hidden = HomeSectionPrefs.hidden;
-              return ReorderableListView.builder(
+              final hidden = HomeSectionPrefs.hidden.toSet();
+              return ListView(
                 padding: const EdgeInsets.fromLTRB(
                     HomeLayout.gutter, 0, HomeLayout.gutter, 200),
-                buildDefaultDragHandles: false,
-                proxyDecorator: (child, index, animation) => Material(
-                  color: Colors.transparent,
-                  elevation: 6,
-                  shadowColor: Colors.black54,
-                  borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
-                  child: child,
-                ),
-                itemCount: order.length,
-                onReorder: HomeSectionPrefs.reorder,
-                itemBuilder: (context, i) {
-                  final section = order[i];
-                  final shown = !hidden.contains(section);
-                  return _SectionRow(
-                    key: ValueKey(section),
-                    index: i,
-                    section: section,
-                    shown: shown,
-                    onChanged: (v) => HomeSectionPrefs.setHidden(section, !v),
-                  );
-                },
+                children: [
+                  for (final section in switchableHomeSections)
+                    _SectionRow(
+                      key: ValueKey(section),
+                      section: section,
+                      shown: !hidden.contains(section),
+                      onChanged: (v) => HomeSectionPrefs.setHidden(section, !v),
+                    ),
+                ],
               );
             }),
           ),
@@ -79,12 +65,10 @@ class HomeLayoutScreen extends StatelessWidget {
 class _SectionRow extends StatelessWidget {
   const _SectionRow({
     super.key,
-    required this.index,
     required this.section,
     required this.shown,
     required this.onChanged,
   });
-  final int index;
   final HomeSection section;
   final bool shown;
   final ValueChanged<bool> onChanged;
@@ -102,36 +86,37 @@ class _SectionRow extends StatelessWidget {
           side: homeTileBorder(context),
         ),
         clipBehavior: Clip.antiAlias,
-        child: Row(
-          children: [
-            ReorderableDragStartListener(
-              index: index,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
-                child: Icon(Icons.drag_indicator_rounded,
-                    color: homeMutedColor(context)),
-              ),
+        child: InkWell(
+          onTap: () => onChanged(!shown),
+          child: SizedBox(
+            height: 56,
+            child: Row(
+              children: [
+                const SizedBox(width: 16),
+                Icon(section.icon,
+                    size: 22,
+                    color: shown
+                        ? theme.colorScheme.secondary
+                        : homeMutedColor(context)),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    section.labelKey.tr,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: shown ? fg : homeMutedColor(context)),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: CustSwitch(value: shown, onChanged: onChanged),
+                ),
+              ],
             ),
-            Icon(section.icon,
-                size: 22,
-                color: shown ? theme.colorScheme.secondary : homeMutedColor(context)),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                section.labelKey.tr,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: shown ? fg : homeMutedColor(context)),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: CustSwitch(value: shown, onChanged: onChanged),
-            ),
-          ],
+          ),
         ),
       ),
     );

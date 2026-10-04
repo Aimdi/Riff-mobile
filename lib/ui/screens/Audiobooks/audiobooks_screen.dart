@@ -31,18 +31,20 @@ Future<void> _playOrOpenAudiobook(String bookId) async {
   );
 }
 
-/// Resume a free book from its "Continue listening" card; opens the book
-/// when the chapter list can't be loaded.
-Future<void> _resumeFreeBook(Map<String, dynamic> record) async {
+/// Resume a free book from its "Continue listening" card (here and on
+/// Home); opens the book when the chapter list can't be loaded. False only
+/// when the record names no book.
+Future<bool> resumeFreeAudiobook(Map<String, dynamic> record) async {
   final id = '${record['bookId'] ?? ''}';
-  if (id.isEmpty) return;
+  if (id.isEmpty) return false;
   final detail = await FreeAudiobookService.detail(id);
-  if (detail != null && await playFreeAudiobook(detail)) return;
+  if (detail != null && await playFreeAudiobook(detail)) return true;
   openFreeAudiobook(FreeAudiobook(
     id: id,
     title: '${record['album'] ?? ''}',
     author: '${record['artist'] ?? ''}',
   ));
+  return true;
 }
 
 /// Audiobooks: free LibriVox classics and store bestsellers (Discover), an
@@ -545,7 +547,7 @@ class _ContinueFreeShelf extends StatelessWidget {
                 itemBuilder: (context, i) => FreeAudiobookContinueCard(
                   key: ValueKey(records[i]['bookId']),
                   record: records[i],
-                  onTap: () => _resumeFreeBook(records[i]),
+                  onTap: () => resumeFreeAudiobook(records[i]),
                 ),
               ),
             ),

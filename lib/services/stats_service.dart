@@ -1,6 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:hive/hive.dart';
 
+import '../models/media_item_extras.dart';
 import 'discovery/discovery_math.dart';
 import 'discovery/discovery_tag.dart';
 import 'discovery/discovery_types.dart';
@@ -36,6 +37,10 @@ class StatsService {
       "plays": (prev["plays"] as int? ?? 0) + 1,
       "lastPlayed": now.millisecondsSinceEpoch,
       "lastSource": source,
+      if (item.isPodcastEpisode)
+        "kind": "podcast"
+      else if (item.isAudiobook)
+        "kind": "audiobook",
     });
 
     final dk = _dayKey(now);
@@ -79,14 +84,14 @@ class StatsService {
     });
   }
 
-  static int get totalPlays => _songs.values
-      .fold<int>(0, (sum, v) => sum + _intOf(_asMap(v)["plays"]));
+  static int get totalPlays =>
+      _songs.values.fold<int>(0, (sum, v) => sum + _intOf(_asMap(v)["plays"]));
 
   static int get totalSeconds => _songs.values
       .fold<int>(0, (sum, v) => sum + _intOf(_asMap(v)["seconds"]));
 
-  static int get totalSkips => _songs.values
-      .fold<int>(0, (sum, v) => sum + _intOf(_asMap(v)["skips"]));
+  static int get totalSkips =>
+      _songs.values.fold<int>(0, (sum, v) => sum + _intOf(_asMap(v)["skips"]));
 
   static int get uniqueArtists {
     final set = <String>{};
@@ -151,21 +156,10 @@ class StatsService {
     return list.take(n).toList();
   }
 
-  /// Top artists by play count: [{artist, plays}].
-  static List<Map<String, dynamic>> topArtists([int n = 10]) {
-    final byArtist = <String, int>{};
-    for (final v in _songs.values) {
-      final map = _asMap(v);
-      final artist = (map["artist"] ?? "") as String;
-      if (artist.isEmpty) continue;
-      byArtist[artist] = (byArtist[artist] ?? 0) + _intOf(map["plays"]);
-    }
-    final list = byArtist.entries
-        .map((e) => {"artist": e.key, "plays": e.value})
-        .toList();
-    list.sort((a, b) => (b["plays"] as int).compareTo(a["plays"] as int));
-    return list.take(n).toList();
-  }
+  /// Top artists by play count: [{artist, plays}]. Music only: podcast
+  /// episodes and audiobook chapters are left out (see [rankTopArtists]).
+  static List<Map<String, dynamic>> topArtists([int n = 10]) =>
+      rankTopArtists(_songs.toMap(), n);
 
   /// Plays for each of the last [n] days (oldest first):
   /// [{day, plays, seconds, skips}].
@@ -194,6 +188,47 @@ int _intOf(dynamic v) {
   if (v is int) return v;
   if (v is num) return v.toInt();
   return 0;
+}
+
+/// Artist names the feed gives non-music items ("Podcast" for a YouTube
+/// episode without a show name).
+const _nonMusicArtists = {'podcast', 'podcasts', 'episode', 'audiobook'};
+
+/// True for a SongStats row that isn't a song: a podcast episode or an
+/// audiobook chapter, by the kind stored since 1.7.133, the id prefix, the
+/// source it was played from, or a placeholder artist.
+bool isNonMusicStat(String id, Map<String, dynamic> row) {
+  final kind = '${row['kind'] ?? ''}';
+  if (kind == 'podcast' || kind == 'audiobook') return true;
+  if (id.startsWith('podcast_') ||
+      id.startsWith('abs_') ||
+      id.startsWith('lv_')) {
+    return true;
+  }
+  final source = '${row['lastSource'] ?? ''}';
+  if (source == DiscoverySource.podcast.wireName ||
+      source == DiscoverySource.audiobook.wireName) {
+    return true;
+  }
+  final artist = '${row['artist'] ?? ''}'.trim().toLowerCase();
+  return _nonMusicArtists.contains(artist);
+}
+
+/// Top [n] artists by plays over SongStats rows keyed by item id, music
+/// only. Pure for tests.
+List<Map<String, dynamic>> rankTopArtists(Map<dynamic, dynamic> rows,
+    [int n = 10]) {
+  final byArtist = <String, int>{};
+  rows.forEach((id, raw) {
+    final row = _asMap(raw);
+    final artist = '${row["artist"] ?? ""}'.trim();
+    if (artist.isEmpty || isNonMusicStat('$id', row)) return;
+    byArtist[artist] = (byArtist[artist] ?? 0) + _intOf(row["plays"]);
+  });
+  final list =
+      byArtist.entries.map((e) => {"artist": e.key, "plays": e.value}).toList();
+  list.sort((a, b) => (b["plays"] as int).compareTo(a["plays"] as int));
+  return list.take(n).toList();
 }
 
 /// Pure listen-end merge used by [StatsService.recordListenEnd] and tests.

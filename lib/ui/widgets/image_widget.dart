@@ -9,6 +9,7 @@ import 'package:shimmer/shimmer.dart';
 import '../screens/Settings/settings_screen_controller.dart';
 import '../utils/riff_tokens.dart';
 import '../utils/theme_controller.dart';
+import 'letter_art.dart';
 import '/models/artist.dart';
 import '/models/thumbnail.dart';
 import '/services/cover_resolver.dart';
@@ -39,11 +40,13 @@ class ImageWidget extends StatelessWidget {
   final bool isPlayerArtImage;
   final Artist? artist;
   final double size;
+
   /// Override corner radius for square covers (artists stay circular).
   final double? borderRadius;
 
   double get _radius =>
-      borderRadius ?? (isPlayerArtImage ? RiffTokens.radiusLg : RiffTokens.radiusSm);
+      borderRadius ??
+      (isPlayerArtImage ? RiffTokens.radiusLg : RiffTokens.radiusSm);
 
   String get _rawUrl {
     if (song != null) return song!.artUri?.toString() ?? "";
@@ -61,43 +64,28 @@ class ImageWidget extends StatelessWidget {
     return t.medium;
   }
 
-  /// Asset used when the network image fails.
-  String get _fallbackAsset {
-    if (song != null) return "assets/icons/song.png";
-    if (artist != null) return "assets/icons/artist.png";
-    // Playlists and podcasts share the album placeholder (square cover art).
-    return "assets/icons/album.png";
+  /// Name the fallback art is drawn from.
+  String get _title {
+    if (song != null) return song!.title;
+    if (playlist != null) return playlist!.title;
+    if (album != null) return album!.title;
+    if (artist != null) return artist!.name;
+    return '';
   }
 
-  Widget _placeholder(BuildContext context) {
-    final isCircle = artist != null;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final fill = isDark
-        ? RiffSurfaces.elevatedSoft
-        : Theme.of(context).colorScheme.surfaceContainerHighest;
-    final iconColor = isDark
-        ? RiffSurfaces.textMuted
-        : Theme.of(context).iconTheme.color?.withOpacity(0.45);
-    return Container(
-      height: size,
-      width: size,
-      padding: EdgeInsets.all(size * 0.18),
-      decoration: BoxDecoration(
-        color: fill,
-        shape: isCircle ? BoxShape.circle : BoxShape.rectangle,
-        borderRadius: isCircle ? null : BorderRadius.circular(_radius),
-      ),
-      child: Image.asset(
-        _fallbackAsset,
-        color: iconColor,
-        colorBlendMode: BlendMode.srcATop,
-      ),
-    );
-  }
+  /// No cover, or the cover failed: a gradient with the title's first
+  /// letter (never a generic music-note icon).
+  Widget _placeholder(BuildContext context) => LetterArt(
+        title: _title,
+        size: size,
+        radius: _radius,
+        circle: artist != null,
+      );
 
   @override
   Widget build(BuildContext context) {
-    final raw = _rawUrl;
+    // The shared "no playlist art" image counts as no art.
+    final raw = _rawUrl == Playlist.thumbPlaceholderUrl ? '' : _rawUrl;
     final imageUrl = _scaled(raw);
 
     final bool offlineAvailable =
@@ -143,35 +131,36 @@ class ImageWidget extends StatelessWidget {
                       shimmer: _shimmer(context),
                     )
                   : CachedNetworkImage(
-                  height: size,
-                  width: size,
-                  // One dimension only — setting both forces a square decode and
-                  // elongates 16:9 YouTube frames.
-                  memCacheWidth: decodeSide,
-                  filterQuality: FilterQuality.medium,
-                  imageUrl: imageUrl,
-                  httpHeaders: kCoverImageHeaders,
-                  fit: BoxFit.cover,
-                  alignment: Alignment.center,
-                  errorWidget: (context, url, error) {
-                    if (raw.isNotEmpty && raw != imageUrl) {
-                      return CachedNetworkImage(
-                        height: size,
-                        width: size,
-                        memCacheWidth: decodeSide,
-                        imageUrl: raw,
-                        httpHeaders: kCoverImageHeaders,
-                        fit: BoxFit.cover,
-                        alignment: Alignment.center,
-                        errorWidget: (_, __, ___) => _placeholder(context),
-                        progressIndicatorBuilder: (_, __, ___) =>
-                            _shimmer(context),
-                      );
-                    }
-                    return _placeholder(context);
-                  },
-                  progressIndicatorBuilder: ((_, __, ___) => _shimmer(context)),
-                ),
+                      height: size,
+                      width: size,
+                      // One dimension only — setting both forces a square decode and
+                      // elongates 16:9 YouTube frames.
+                      memCacheWidth: decodeSide,
+                      filterQuality: FilterQuality.medium,
+                      imageUrl: imageUrl,
+                      httpHeaders: kCoverImageHeaders,
+                      fit: BoxFit.cover,
+                      alignment: Alignment.center,
+                      errorWidget: (context, url, error) {
+                        if (raw.isNotEmpty && raw != imageUrl) {
+                          return CachedNetworkImage(
+                            height: size,
+                            width: size,
+                            memCacheWidth: decodeSide,
+                            imageUrl: raw,
+                            httpHeaders: kCoverImageHeaders,
+                            fit: BoxFit.cover,
+                            alignment: Alignment.center,
+                            errorWidget: (_, __, ___) => _placeholder(context),
+                            progressIndicatorBuilder: (_, __, ___) =>
+                                _shimmer(context),
+                          );
+                        }
+                        return _placeholder(context);
+                      },
+                      progressIndicatorBuilder: ((_, __, ___) =>
+                          _shimmer(context)),
+                    ),
     );
   }
 

@@ -1,0 +1,200 @@
+import 'package:audio_service/audio_service.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+import '/models/playlist.dart';
+import '/services/discovery/discovery_service.dart';
+import '/services/discovery/discovery_types.dart';
+import '/services/music_service.dart';
+import '/ui/player/player_controller.dart';
+import '../../widgets/collection_play.dart';
+import '../../widgets/snackbar.dart';
+import 'home_metrics.dart';
+
+/// One station under Riff Wave. Every chip starts playback.
+class HomeStation {
+  const HomeStation(this.key, this.icon, this.colors, {this.query});
+  final String key;
+  final IconData icon;
+  final List<Color> colors;
+
+  /// YouTube Music search for a featured playlist (mood stations); null
+  /// for Riff's own generators.
+  final String? query;
+}
+
+const homeStations = [
+  HomeStation('freshFinds', Icons.auto_awesome_rounded,
+      [Color(0xFF0B6B31), Color(0xFF2BD66B)]),
+  HomeStation('rediscover', Icons.replay_rounded,
+      [Color(0xFFA2400F), Color(0xFFFF9A45)]),
+  HomeStation('stationEnergize', Icons.bolt_rounded,
+      [Color(0xFFB8860B), Color(0xFFFFD54A)],
+      query: 'energize mix'),
+  HomeStation('stationFeelGood', Icons.sentiment_satisfied_alt_rounded,
+      [Color(0xFFB0306A), Color(0xFFFF7EB6)],
+      query: 'feel good mix'),
+  HomeStation(
+      'stationRelax', Icons.spa_rounded, [Color(0xFF1E5AA8), Color(0xFF6FB1FF)],
+      query: 'relax chill mix'),
+  HomeStation('stationWorkout', Icons.fitness_center_rounded,
+      [Color(0xFF8E1540), Color(0xFFFF5A8A)],
+      query: 'workout mix'),
+];
+
+/// The one chip row on Home, 12dp under Riff Wave: Fresh finds,
+/// Rediscover and four moods. Scrolls sideways; the last visible chip is
+/// cut at the edge so the row reads as scrollable.
+class RiffStationChips extends StatefulWidget {
+  const RiffStationChips({super.key});
+
+  @override
+  State<RiffStationChips> createState() => _RiffStationChipsState();
+}
+
+class _RiffStationChipsState extends State<RiffStationChips> {
+  String? _busy;
+
+  Future<void> _start(HomeStation station) async {
+    if (_busy != null) return;
+    setState(() => _busy = station.key);
+    final messenger = ScaffoldMessenger.of(context);
+    void say(String key) => messenger
+        .showSnackBar(snackbar(context, key.tr, size: SanckBarSize.MEDIUM));
+    try {
+      final ok = station.query == null
+          ? await _playGenerated(station.key)
+          : await _playMood(station.query!);
+      if (!ok && mounted) say('mixEmpty');
+    } catch (_) {
+      if (mounted) say('networkError');
+    } finally {
+      if (mounted) setState(() => _busy = null);
+    }
+  }
+
+  /// Fresh finds / Rediscover from the discovery engine.
+  Future<bool> _playGenerated(String key) async {
+    if (!Get.isRegistered<DiscoveryService>()) return false;
+    final disc = Get.find<DiscoveryService>();
+    final List<MediaItem> tracks = key == 'freshFinds'
+        ? await disc.engine.freshFinds()
+        : await disc.engine.rediscover();
+    if (tracks.isEmpty) return false;
+    final source = key == 'freshFinds'
+        ? DiscoverySource.freshFinds
+        : DiscoverySource.discover;
+    return Get.find<PlayerController>()
+        .playPlayListSong(DiscoveryService.tagAll(tracks, source), 0);
+  }
+
+  /// A mood: the first featured playlist YouTube Music finds for it.
+  Future<bool> _playMood(String query) async {
+    final res = await Get.find<MusicServices>()
+        .search(query, filter: 'featured_playlists', limit: 5);
+    final playlist = res.values
+        .whereType<List>()
+        .expand((l) => l)
+        .whereType<Playlist>()
+        .firstOrNull;
+    if (playlist == null) return false;
+    return playCollection(
+        isAlbum: false, id: playlist.playlistId, title: playlist.title);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: RiffSpacing.chipRowTop),
+      child: SizedBox(
+        height: RiffSizes.chipRow,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.gutter),
+          itemCount: homeStations.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, i) {
+            final s = homeStations[i];
+            return _StationChip(
+              station: s,
+              busy: _busy == s.key,
+              onTap: () => _start(s),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _StationChip extends StatelessWidget {
+  const _StationChip(
+      {required this.station, required this.busy, required this.onTap});
+  final HomeStation station;
+  final bool busy;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final label = station.key.tr;
+    return Semantics(
+      button: true,
+      label: '${'startStation'.tr}: $label',
+      excludeSemantics: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: onTap,
+          // 48dp touch target around a 40dp chip.
+          child: SizedBox(
+            height: RiffSizes.chipRow,
+            child: Center(
+              child: Container(
+                height: RiffSizes.chipHeight,
+                padding: const EdgeInsets.fromLTRB(4, 4, 14, 4),
+                decoration: ShapeDecoration(
+                  color: theme.colorScheme.surfaceContainerHigh,
+                  shape: const StadiumBorder(),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: station.colors,
+                        ),
+                      ),
+                      child: busy
+                          ? const Padding(
+                              padding: EdgeInsets.all(8),
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
+                            )
+                          : Icon(station.icon, color: Colors.white, size: 18),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      label,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
