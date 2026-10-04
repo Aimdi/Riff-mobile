@@ -6,7 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:html/parser.dart' as html_parser;
 
 import '/ui/screens/Playlist/playlist_screen_controller.dart';
-import '../screens/Home/home_layout.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import 'common_dialog_widget.dart';
 import 'snackbar.dart';
 
@@ -24,14 +25,15 @@ class PlaylistExportDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return CommonDialog(
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(RiffSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Title
             Padding(
-              padding: const EdgeInsets.only(bottom: 18, top: 4),
+              padding: const EdgeInsets.only(
+                  bottom: RiffSpacing.lg, top: RiffSpacing.xs),
               child: RiffDialogTitle("exportPlaylist".tr,
                   icon: Icons.ios_share_rounded),
             ),
@@ -45,7 +47,7 @@ class PlaylistExportDialog extends StatelessWidget {
                 controller.exportPlaylistToJson(parentContext);
               },
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: RiffSpacing.md),
             // Button 2: Export to CSV
             _ExportButton(
               icon: Icons.table_chart_outlined,
@@ -56,7 +58,7 @@ class PlaylistExportDialog extends StatelessWidget {
                 controller.exportPlaylistToCsv(parentContext);
               },
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: RiffSpacing.md),
             // Button 3: Export to YouTube Music (split button)
             _SplitExportButton(
               icon: Icons.open_in_new,
@@ -71,7 +73,7 @@ class PlaylistExportDialog extends StatelessWidget {
                 _copyYouTubeMusicLink();
               },
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: RiffSpacing.md),
             RiffDialogButton("close".tr,
                 primary: false, onPressed: () => Navigator.of(context).pop()),
           ],
@@ -134,7 +136,9 @@ class PlaylistExportDialog extends StatelessWidget {
   }
 }
 
-/// Icon badge, title and subtitle of one export option.
+/// Icon, title and subtitle of one export option. Text stays in the
+/// primary colour on the raised tile (§5.11 contrast); the icon box is
+/// unfilled (the accent is kept for interactive things).
 class _OptionLabel extends StatelessWidget {
   const _OptionLabel(
       {required this.icon, required this.title, required this.subtitle});
@@ -144,26 +148,25 @@ class _OptionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = Theme.of(context).colorScheme.secondary;
+    final theme = Theme.of(context);
+    final fg = theme.colorScheme.onSurface;
     return Row(
       children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: accent.withOpacity(0.16),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: accent, size: 22),
+        SizedBox(
+          width: RiffComponentSizes.iconHit,
+          height: RiffComponentSizes.iconHit,
+          child: Icon(icon, color: fg, size: RiffComponentSizes.sheetIcon),
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: RiffSpacing.md),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 2),
-              Text(subtitle, style: homeCardSubtitleStyle(context)),
+              Text(title,
+                  style: theme.textTheme.titleMedium?.copyWith(color: fg)),
+              const SizedBox(height: RiffSpacing.xxs),
+              Text(subtitle,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: fg)),
             ],
           ),
         ),
@@ -188,13 +191,14 @@ class _ExportButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: homeTileColor(context),
-      borderRadius: BorderRadius.circular(14),
+      // One step above the dialog's surface1, flat, radius 8.
+      color: RiffColors.of(context).surface2,
+      borderRadius: BorderRadius.circular(RiffRadii.sm),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(RiffSpacing.md),
           child: _OptionLabel(icon: icon, title: title, subtitle: subtitle),
         ),
       ),
@@ -220,8 +224,8 @@ class _SplitExportButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: homeTileColor(context),
-      borderRadius: BorderRadius.circular(14),
+      color: RiffColors.of(context).surface2,
+      borderRadius: BorderRadius.circular(RiffRadii.sm),
       clipBehavior: Clip.antiAlias,
       child: IntrinsicHeight(
         child: Row(
@@ -230,29 +234,27 @@ class _SplitExportButton extends StatelessWidget {
               child: InkWell(
                 onTap: onMainTap,
                 child: Padding(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(RiffSpacing.md),
                   child: _OptionLabel(
                       icon: icon, title: title, subtitle: subtitle),
                 ),
               ),
             ),
+            // Hairline (§5.1).
             VerticalDivider(
               width: 1,
-              thickness: 1,
-              indent: 12,
-              endIndent: 12,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurfaceVariant
-                  .withOpacity(0.25),
+              thickness: 0,
+              indent: RiffSpacing.md,
+              endIndent: RiffSpacing.md,
+              color: Theme.of(context).dividerColor,
             ),
             InkWell(
               onTap: onCopyTap,
               child: SizedBox(
-                width: 56,
+                width: RiffComponentSizes.splitAction,
                 child: Icon(Icons.copy_rounded,
-                    size: 20,
-                    color: Theme.of(context).textTheme.titleMedium?.color),
+                    size: RiffComponentSizes.trailingIcon,
+                    color: Theme.of(context).colorScheme.onSurface),
               ),
             ),
           ],

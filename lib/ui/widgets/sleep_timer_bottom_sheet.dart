@@ -3,9 +3,7 @@ import 'package:get/get.dart';
 
 import '/ui/player/play_queue_order.dart';
 import '/ui/player/player_controller.dart';
-import '../screens/Home/home_layout.dart';
 import '/ui/theme/riff_tokens.dart';
-import '../utils/riff_tokens.dart';
 import '/ui/theme/riff_spacing.dart';
 import 'riff_sheet.dart';
 import 'snackbar.dart';
@@ -19,7 +17,6 @@ Future<void> showSleepTimerSheet(BuildContext? context) async {
     shape: riffSheetShape,
     isScrollControlled: true,
     context: sheetContext,
-    barrierColor: RiffColors.of(sheetContext).scrim.withAlpha(100),
     builder: (context) => const SleepTimerBottomSheet(),
   );
 }
@@ -46,11 +43,10 @@ class SleepTimerBottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final playerController = Get.find<PlayerController>();
     final theme = Theme.of(context);
-    final fg =
-        theme.textTheme.titleMedium?.color ?? theme.colorScheme.onSurface;
-    final accent = theme.colorScheme.secondary;
+    final fg = theme.colorScheme.onSurface;
     return Padding(
-      padding: EdgeInsets.only(bottom: Get.mediaQuery.padding.bottom + 12),
+      padding: EdgeInsets.only(
+          bottom: Get.mediaQuery.padding.bottom + RiffSpacing.md),
       child: Obx(() {
         final active = playerController.isSleepTimerActive.isTrue;
         final endOfChapter = playerController.isSleepEndOfChapterActive.isTrue;
@@ -66,9 +62,10 @@ class SleepTimerBottomSheet extends StatelessWidget {
           children: [
             const RiffSheetHandle(),
             RiffSheetTitle('sleepTimer'.tr,
-                trailing: Icon(Icons.bedtime_rounded, color: accent)),
+                trailing: Icon(Icons.bedtime_rounded,
+                    size: RiffComponentSizes.sheetIcon, color: fg)),
             if (active) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: RiffSpacing.sm),
               Center(
                 child: Text(
                   endOfChapter
@@ -86,9 +83,9 @@ class SleepTimerBottomSheet extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: RiffSpacing.xl),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.lg),
                 child: Row(
                   children: [
                     if (!endOfSong) ...[
@@ -96,12 +93,12 @@ class SleepTimerBottomSheet extends StatelessWidget {
                         child: FilledButton.tonal(
                           onPressed: playerController.addFiveMinutes,
                           style: FilledButton.styleFrom(
-                              minimumSize: const Size.fromHeight(48),
-                              textStyle: theme.textTheme.labelLarge),
+                              minimumSize: const Size.fromHeight(
+                                  RiffComponentSizes.button)),
                           child: Text('add5Minutes'.tr),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: RiffSpacing.sm),
                     ],
                     Expanded(
                       child: OutlinedButton(
@@ -110,10 +107,8 @@ class SleepTimerBottomSheet extends StatelessWidget {
                           _done(context, 'cancelTimerAlert'.tr);
                         },
                         style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48),
-                          foregroundColor: fg,
-                          side: BorderSide(color: fg.withOpacity(0.4)),
-                          textStyle: theme.textTheme.labelLarge,
+                          minimumSize:
+                              const Size.fromHeight(RiffComponentSizes.button),
                         ),
                         child: Text('cancelTimer'.tr),
                       ),
@@ -132,8 +127,8 @@ class SleepTimerBottomSheet extends StatelessWidget {
                   crossAxisCount: 3,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
+                  mainAxisSpacing: RiffSpacing.sm,
+                  crossAxisSpacing: RiffSpacing.sm,
                   childAspectRatio: 2.4,
                   children: [
                     for (final dur in const [5, 10, 15, 30, 45, 60])
@@ -174,11 +169,12 @@ class SleepTimerBottomSheet extends StatelessWidget {
               if (playerController.isCurrentSongPodcast)
                 Padding(
                   padding: const EdgeInsets.only(
-                      left: RiffSpacing.xl,
+                      left: RiffSpacing.lg,
                       top: RiffSpacing.xs,
-                      right: RiffSpacing.xl),
+                      right: RiffSpacing.lg),
                   child: Text('podcastSleepFadeNote'.tr,
-                      style: homeCardSubtitleStyle(context)),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant)),
                 ),
             ],
           ],
@@ -197,11 +193,11 @@ class _DurationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    final fg =
-        text.titleMedium?.color ?? Theme.of(context).colorScheme.onSurface;
+    final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: homeTileColor(context),
-      borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
+      // One step above the sheet's surface1, flat, radius 8.
+      color: RiffColors.of(context).surface2,
+      borderRadius: BorderRadius.circular(RiffRadii.sm),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -210,11 +206,11 @@ class _DurationTile extends StatelessWidget {
             TextSpan(children: [
               TextSpan(
                   text: '$minutes',
-                  style: text.titleLarge?.copyWith(color: fg)),
+                  style: text.titleLarge?.copyWith(color: scheme.onSurface)),
               TextSpan(
                   text: ' ${'minShort'.tr}',
-                  style:
-                      text.labelMedium?.copyWith(color: fg.withOpacity(0.7))),
+                  style: text.labelMedium
+                      ?.copyWith(color: scheme.onSurfaceVariant)),
             ]),
           ),
         ),

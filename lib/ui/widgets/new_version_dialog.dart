@@ -23,7 +23,7 @@ class NewVersionDialog extends StatelessWidget {
           children: [
             RiffDialogTitle("newVersionAvailable".tr,
                 icon: Icons.system_update_rounded),
-            const SizedBox(height: 20),
+            const SizedBox(height: RiffSpacing.xl),
             RiffDialogButton(
               "download".tr,
               onPressed: () {
@@ -35,16 +35,19 @@ class NewVersionDialog extends StatelessWidget {
                 );
               },
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: RiffSpacing.xs),
             GetX<HomeScreenController>(
                 builder: (controller) => CheckboxListTile(
                       contentPadding: EdgeInsets.zero,
                       dense: true,
                       controlAffinity: ListTileControlAffinity.leading,
-                      activeColor: Theme.of(context).colorScheme.secondary,
-                      checkColor: Theme.of(context).colorScheme.onPrimary,
                       title: Text("dontShowInfoAgain".tr,
-                          style: Theme.of(context).textTheme.bodyLarge),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyLarge
+                              ?.copyWith(
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface)),
                       value: controller.showVersionDialog.isFalse,
                       onChanged: (val) =>
                           controller.onChangeVersionVisibility(val ?? false),

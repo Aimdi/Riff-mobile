@@ -1,5 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/services/downloader.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
@@ -82,6 +83,7 @@ class SongDownloadButton extends StatelessWidget {
                                 context, "songAlreadyOfflineAlert".tr,
                                 size: SanckBarSize.BIG));
                           } else {
+                            HapticFeedback.lightImpact();
                             downloader.download(song);
                           }
                         }));

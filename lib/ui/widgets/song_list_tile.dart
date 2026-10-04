@@ -1,6 +1,7 @@
 import 'package:audio_service/audio_service.dart' show MediaItem;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:get/get.dart';
 import 'package:widget_marquee/widget_marquee.dart';
@@ -13,7 +14,6 @@ import '/ui/theme/riff_tokens.dart';
 import '/ui/theme/riff_spacing.dart';
 import 'add_to_playlist.dart';
 import 'image_widget.dart';
-import 'riff_sheet.dart';
 import 'snackbar.dart';
 import 'song_favourite.dart';
 import 'songinfo_bottom_sheet.dart';
@@ -53,11 +53,9 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
     if (sheetContext == null) return;
     showModalBottomSheet(
       constraints: const BoxConstraints(maxWidth: 500),
-      shape: riffSheetShape,
       isScrollControlled: true,
       useRootNavigator: true,
       context: sheetContext,
-      barrierColor: RiffColors.of(sheetContext).scrim.withAlpha(100),
       builder: (context) => SongInfoBottomSheet(
         song,
         playlist: playlist,
@@ -159,7 +157,10 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: onTap,
-                  onLongPress: () => _openSheet(playerController),
+                  onLongPress: () {
+                    HapticFeedback.mediumImpact();
+                    _openSheet(playerController);
+                  },
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: RiffSpacing.lg, vertical: RiffSpacing.md),

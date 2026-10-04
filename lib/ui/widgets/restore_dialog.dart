@@ -12,7 +12,6 @@ import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/utils/helper.dart';
 import '../../services/permission_service.dart';
 import '/ui/theme/riff_spacing.dart';
-import '../screens/Home/home_layout.dart';
 import 'common_dialog_widget.dart';
 
 class RestoreDialog extends StatelessWidget {
@@ -37,10 +36,8 @@ class RestoreDialog extends StatelessWidget {
               height: 120,
               child: Center(
                 child: Obx(() {
-                  final style = Theme.of(context)
-                      .textTheme
-                      .bodyLarge
-                      ?.copyWith(color: homeMutedColor(context));
+                  final style = Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface);
                   if (c.restoreProgress.toInt() == c.filesToRestore.toInt()) {
                     return Text("restoreMsg".tr,
                         textAlign: TextAlign.center, style: style);
@@ -61,7 +58,7 @@ class RestoreDialog extends StatelessWidget {
                                     color: Theme.of(context)
                                         .colorScheme
                                         .secondary)),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: RiffSpacing.xs),
                         Text("restoring".tr, style: style),
                       ],
                     );

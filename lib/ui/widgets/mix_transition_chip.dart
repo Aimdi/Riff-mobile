@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
+import 'riff_sheet.dart';
 import '../../services/playlist_mix_service.dart';
 
 /// Spotify-style "✨ Auto >" chip between playlist tracks in Mix mode.
@@ -77,9 +79,7 @@ Future<MixTransitionStyle?> showMixTransitionPicker(
   return showModalBottomSheet<MixTransitionStyle>(
     context: context,
     constraints: const BoxConstraints(maxWidth: 500),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-    ),
+    shape: riffSheetShape,
     builder: (ctx) {
       return SafeArea(
         child: Column(
@@ -87,30 +87,42 @@ Future<MixTransitionStyle?> showMixTransitionPicker(
           children: [
             Padding(
               padding: const EdgeInsets.only(
-                  left: RiffSpacing.xl,
+                  left: RiffSpacing.lg,
                   top: RiffSpacing.lg,
-                  right: RiffSpacing.xl,
+                  right: RiffSpacing.lg,
                   bottom: RiffSpacing.sm),
+              // Sheet title (§5.10).
               child: Text(
                 'mixChooseTransition'.tr,
-                style: Theme.of(ctx).textTheme.titleMedium,
+                style: Theme.of(ctx)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(color: Theme.of(ctx).colorScheme.onSurface),
               ),
             ),
             ...MixTransitionStyle.values.map((s) {
               final selected = s == current;
+              final theme = Theme.of(ctx);
               return ListTile(
+                minTileHeight: RiffComponentSizes.sheetRow,
                 leading: Icon(
                   selected
                       ? Icons.radio_button_checked
                       : Icons.radio_button_off,
-                  color: selected ? Theme.of(ctx).colorScheme.primary : null,
+                  size: RiffComponentSizes.sheetIcon,
+                  // Toggled-on radio in the accent (§2.5).
+                  color: selected
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurface,
                 ),
-                title: Text(s.labelKey.tr),
+                title: Text(s.labelKey.tr,
+                    style: theme.textTheme.bodyLarge
+                        ?.copyWith(color: theme.colorScheme.onSurface)),
                 subtitle: Text(_subtitleFor(s)),
                 onTap: () => Navigator.pop(ctx, s),
               );
             }),
-            const SizedBox(height: 8),
+            const SizedBox(height: RiffSpacing.sm),
           ],
         ),
       );

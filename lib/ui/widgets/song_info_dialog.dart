@@ -29,7 +29,7 @@ class SongInfoDialog extends StatelessWidget {
             ),
             Expanded(
                 child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 6),
+              padding: const EdgeInsets.symmetric(vertical: RiffSpacing.xs),
               children: [
                 InfoItem(title: "id".tr, value: song.id),
                 InfoItem(title: "title".tr, value: song.title),
@@ -98,22 +98,24 @@ class InfoItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // Dialog text stays in the primary colour on surface1 (§5.11); the
+    // label is the small caps caption, the value the row title.
+    final fg = theme.colorScheme.onSurface;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 7),
+      padding: const EdgeInsets.symmetric(
+          horizontal: RiffSpacing.xl, vertical: RiffSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title.toUpperCase(),
-              style: Theme.of(context)
-                  .textTheme
-                  .labelSmall
-                  ?.copyWith(color: Theme.of(context).colorScheme.secondary)),
-          const SizedBox(height: 2),
+              style: theme.textTheme.labelSmall?.copyWith(color: fg)),
+          const SizedBox(height: RiffSpacing.xxs),
           TextSelectionTheme(
-            data: Theme.of(context).textSelectionTheme,
+            data: theme.textSelectionTheme,
             child: SelectableText(
               value,
-              style: Theme.of(context).textTheme.titleMedium,
+              style: theme.textTheme.titleMedium?.copyWith(color: fg),
             ),
           )
         ],
