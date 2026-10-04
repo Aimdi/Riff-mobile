@@ -12,6 +12,7 @@ import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/riff_equalizer.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/snackbar.dart';
+import '/ui/theme/riff_theme.dart';
 
 /// Home personal-radio card: cover with a waveform, title, round play.
 /// The station chips sit under it ([RiffStationChips]).
@@ -101,7 +102,7 @@ class _RiffWaveHeroState extends State<RiffWaveHero>
     final accent = theme.colorScheme.secondary;
     final riff = RiffColors.of(context);
     final disc = _disc;
-    final surface = theme.colorScheme.surfaceContainerHigh;
+    final surface = theme.colorScheme.surfaceContainerLow;
     final player = Get.find<PlayerController>();
 
     return Padding(
@@ -115,22 +116,15 @@ class _RiffWaveHeroState extends State<RiffWaveHero>
         excludeSemantics: true,
         child: Material(
           color: Colors.transparent,
+          // Lights out: flat surface1 card with a hairline border.
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(RiffSizes.waveRadius),
+            side: BorderSide(color: theme.dividerColor, width: 0),
           ),
           clipBehavior: Clip.antiAlias,
           child: Ink(
             height: RiffSizes.waveHeight,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color.alphaBlend(accent.withOpacity(0.28), surface),
-                  surface,
-                ],
-              ),
-            ),
+            color: surface,
             child: InkWell(
               onTap: _starting ? null : _playWave,
               child: Padding(
@@ -183,16 +177,14 @@ class _RiffWaveHeroState extends State<RiffWaveHero>
                             'riffWave'.tr,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: theme.colorScheme.onSurface,
-                            ),
+                            style: RiffTextStyles.of(context).cardTitle,
                           ),
                           const SizedBox(height: 2),
                           Text(
                             'riffWaveDes'.tr,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall
+                            style: theme.textTheme.bodyMedium
                                 ?.copyWith(color: riffMuted(context)),
                           ),
                         ],
