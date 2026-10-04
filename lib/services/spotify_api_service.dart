@@ -276,8 +276,16 @@ class SpotifyApiService {
     final id = a['id']?.toString() ?? '';
     final name = a['name']?.toString() ?? '';
     if (id.isEmpty || name.isEmpty) return null;
+    final genres = a['genres'];
     return SpotifyArtistSummary(
-        id: id, name: name, imageUrl: _firstImage(a['images']));
+        id: id,
+        name: name,
+        imageUrl: _firstImage(a['images']),
+        genres: [
+          if (genres is List)
+            for (final g in genres)
+              if (g is String && g.isNotEmpty) g
+        ]);
   }
 
   static List<T> _parseList<T>(Object? items, T? Function(dynamic) parse) => [
@@ -336,9 +344,16 @@ class SpotifyApiService {
   /// as long as Spotify asks (up to [maxInlineWait]) and retries twice;
   /// QUOTA_EXCEEDED stops all calls for [quotaCooldown]. With [ttl], a
   /// cached answer younger than that is used unless [force].
-  Future<String> _get(String url, {Duration? ttl, bool force = false}) async {
+  Future<String> _get(String url, {Duration? ttl, bool force = false}) =>
+      _request('GET', url, ttl: ttl, force: force);
+
+  /// [method] [url] with the error handling of [_get]. Writes (PUT,
+  /// DELETE) succeed on any 2xx and are never cached.
+  Future<String> _request(String method, String url,
+      {Duration? ttl, bool force = false}) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    final box = _useCache && ttl != null ? await _cache() : null;
+    final box =
+        _useCache && ttl != null && method == 'GET' ? await _cache() : null;
     if (box != null && !force) {
       final hit = box.get(url);
       if (hit is Map &&
@@ -361,9 +376,10 @@ class SpotifyApiService {
     for (var attempt = 0;; attempt++) {
       final Response res;
       try {
-        res = await _dio.get(
+        res = await _dio.request(
           url,
           options: Options(
+            method: method,
             headers: {'Authorization': 'Bearer $token'},
             validateStatus: (_) => true,
           ),
@@ -372,8 +388,8 @@ class SpotifyApiService {
         throw const SpotifyApiException(SpotifyErrorKind.network);
       }
       final status = res.statusCode ?? 0;
-      if (status == 200) {
-        final body = '${res.data}';
+      if (status == 200 || (method != 'GET' && status >= 200 && status < 300)) {
+        final body = '${res.data ?? ''}';
         await box?.put(url, {'at': now, 'body': body});
         return body;
       }
@@ -540,6 +556,49 @@ class SpotifyApiService {
     return parseSearch(await _get(uri.toString()));
   }
 
+  /// Songs only, for finding a Spotify track for a Riff song.
+  Future<List<SpotifyTrackRef>> searchTracks(String query,
+      {int limit = 5}) async {
+    final uri = Uri.parse('$base/search').replace(queryParameters: {
+      'q': query,
+      'type': 'track',
+      'limit': '${limit.clamp(1, searchPageSize)}',
+    });
+    return parseSearch(await _get(uri.toString())).tracks;
+  }
+
+  /// Most ids per library write.
+  static const libraryBatch = 40;
+
+  /// Add tracks to Liked Songs (`PUT /me/library` with `spotify:track:`
+  /// URIs; the older `PUT /me/tracks` where that isn't known). Needs the
+  /// `user-library-modify` scope.
+  Future<void> saveTracks(List<String> trackIds) =>
+      _libraryWrite('PUT', trackIds);
+
+  /// Remove tracks from Liked Songs.
+  Future<void> removeTracks(List<String> trackIds) =>
+      _libraryWrite('DELETE', trackIds);
+
+  Future<void> _libraryWrite(String method, List<String> ids) async {
+    for (var i = 0; i < ids.length; i += libraryBatch) {
+      final batch = ids.sublist(i, (i + libraryBatch).clamp(0, ids.length));
+      try {
+        await _request(
+            method,
+            Uri.parse('$base/me/library').replace(queryParameters: {
+              'uris': batch.map((id) => 'spotify:track:$id').join(','),
+            }).toString());
+      } on SpotifyApiException catch (e) {
+        if (e.kind != SpotifyErrorKind.notFound) rethrow;
+        await _request(
+            method,
+            Uri.parse('$base/me/tracks')
+                .replace(queryParameters: {'ids': batch.join(',')}).toString());
+      }
+    }
+  }
+
   /// Convenience: a playlist as the same shape the public import produces.
   Future<SpotifyPlaylistImport> fetchPlaylistAsImport(
       SpotifyPlaylistSummary summary) async {
@@ -605,10 +664,16 @@ class SpotifyAlbumSummary {
 
 class SpotifyArtistSummary {
   const SpotifyArtistSummary(
-      {required this.id, required this.name, this.imageUrl});
+      {required this.id,
+      required this.name,
+      this.imageUrl,
+      this.genres = const []});
   final String id;
   final String name;
   final String? imageUrl;
+
+  /// Top and followed artists carry genres; used by Spotify radio.
+  final List<String> genres;
 }
 
 class SpotifySearchPage {

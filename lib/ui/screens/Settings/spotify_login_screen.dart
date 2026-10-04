@@ -46,6 +46,7 @@ class _SpotifyLoginScreenState extends State<SpotifyLoginScreen> {
       clientId: clientId,
       codeChallenge: SpotifyAuthService.codeChallengeS256(_verifier),
       state: _state,
+      scopeList: SpotifyAuthService.requestedScopes,
     );
 
     _controller = WebViewController()

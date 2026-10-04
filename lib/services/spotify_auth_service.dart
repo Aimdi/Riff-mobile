@@ -48,6 +48,18 @@ class SpotifyAuthService {
     'user-read-recently-played',
   ];
 
+  /// Asked for only while like sync is on: adding and removing Liked Songs.
+  static const libraryWriteScope = 'user-library-modify';
+
+  /// AppPrefs key of the like-sync switch.
+  static const likeSyncKey = 'spotifyLikeSync';
+
+  static bool get likeSyncOn => _box.get(likeSyncKey) == true;
+
+  /// What a sign-in asks for now.
+  static List<String> get requestedScopes =>
+      [...scopes, if (likeSyncOn) libraryWriteScope];
+
   // ---- stored settings -------------------------------------------------
 
   static const _kClientId = 'spotifyClientId';
