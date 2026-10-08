@@ -43,9 +43,9 @@ const homeStations = [
       query: 'workout mix'),
 ];
 
-/// The one chip row on Home, 12dp under Riff Wave: Fresh finds,
-/// Rediscover and four moods. Scrolls sideways; the last visible chip is
-/// cut at the edge so the row reads as scrollable.
+/// The station chip row, 12dp under Riff Wave in the Discover tab: Fresh
+/// finds, Rediscover and four moods. Scrolls sideways; the last visible
+/// chip is cut at the edge so the row reads as scrollable.
 class RiffStationChips extends StatefulWidget {
   const RiffStationChips({super.key});
 
@@ -143,6 +143,11 @@ class _StationChip extends StatelessWidget {
     // §5.6: outlined pill; the "selected" look while the station starts.
     final accent = theme.colorScheme.primary;
     final fg = busy ? accent : theme.colorScheme.onSurface;
+    // The chip theme's border, so these match the genre chips under them
+    // in Discover (themes without one keep the hairline).
+    final side = WidgetStateProperty.resolveAs<BorderSide?>(
+            theme.chipTheme.side, {if (busy) WidgetState.selected}) ??
+        BorderSide(color: busy ? accent : theme.dividerColor, width: 0);
     return Semantics(
       button: true,
       label: '${'startStation'.tr}: $label',
@@ -165,10 +170,7 @@ class _StationChip extends StatelessWidget {
                     bottom: RiffSpacing.xs),
                 decoration: ShapeDecoration(
                   color: busy ? riff.accentMuted : Colors.transparent,
-                  shape: StadiumBorder(
-                    side: BorderSide(
-                        color: busy ? accent : theme.dividerColor, width: 0),
-                  ),
+                  shape: StadiumBorder(side: side),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

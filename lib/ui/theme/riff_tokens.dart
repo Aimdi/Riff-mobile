@@ -58,6 +58,11 @@ class RiffPalette {
 
   /// Lyrics lines other than the current one (secondary text at 60%).
   static const double lyricsDimOpacity = 0.6;
+
+  /// Riff Wave card cover: the accent tint shown when there is no cover
+  /// yet, and the scrim under the waveform (keep the current values).
+  static const double waveArtTint = 0.22;
+  static const double waveArtScrim = 0.4;
 }
 
 /// Corner radii (§4.3).

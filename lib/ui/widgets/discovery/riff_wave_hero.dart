@@ -14,8 +14,9 @@ import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/snackbar.dart';
 import '/ui/theme/riff_theme.dart';
 
-/// Home personal-radio card: cover with a waveform, title, round play.
-/// The station chips sit under it ([RiffStationChips]).
+/// Discover's personal-radio card: cover with a waveform, title, round
+/// play. The station chips sit under it ([RiffStationChips]); both lead
+/// the Discover tab's feed, right under the search field.
 class RiffWaveHero extends StatefulWidget {
   const RiffWaveHero({super.key});
 
@@ -106,9 +107,11 @@ class _RiffWaveHeroState extends State<RiffWaveHero>
     final player = Get.find<PlayerController>();
 
     return Padding(
+      // 8 here plus the 8 under Discover's search field: 16 from the field,
+      // as the genre chips had before Wave moved in above them.
       padding: const EdgeInsets.only(
           left: RiffSpacing.gutter,
-          top: RiffSpacing.section,
+          top: RiffSpacing.sm,
           right: RiffSpacing.gutter),
       child: Semantics(
         button: true,
@@ -123,81 +126,92 @@ class _RiffWaveHeroState extends State<RiffWaveHero>
           ),
           clipBehavior: Clip.antiAlias,
           child: Ink(
-            height: RiffSizes.waveHeight,
             color: surface,
             child: InkWell(
               onTap: _starting ? null : _playWave,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Obx(() {
-                      player.currentSong.value;
-                      final playing =
-                          player.buttonState.value == PlayButtonState.playing &&
-                              player.playinfrom.value.name == 'riffWave'.tr;
-                      disc?.dailyMixes.length;
-                      Get.find<HomeScreenController>().quickPicks.value;
-                      final art = _previewArt();
-                      return ClipRRect(
-                        borderRadius:
-                            BorderRadius.circular(RiffSizes.tileRadius),
-                        child: SizedBox.square(
-                          dimension: RiffSizes.waveArt,
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              if (art != null)
-                                ImageWidget(
-                                    song: art,
-                                    size: RiffSizes.waveArt,
-                                    borderRadius: 0)
-                              else
-                                ColoredBox(color: accent.withOpacity(0.22)),
-                              ColoredBox(color: riff.scrim.withOpacity(0.4)),
-                              Center(
-                                child: RiffEqualizer(
-                                  animate: playing,
-                                  color: art != null ? riff.onImage : accent,
-                                  size: 26,
+              // At least the card's height; taller only when large system
+              // text needs the room, so nothing is cut or overflows.
+              child: ConstrainedBox(
+                constraints:
+                    const BoxConstraints(minHeight: RiffSizes.waveHeight),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: RiffSpacing.lg, vertical: RiffSpacing.md),
+                  child: Row(
+                    children: [
+                      Obx(() {
+                        player.currentSong.value;
+                        final playing = player.buttonState.value ==
+                                PlayButtonState.playing &&
+                            player.playinfrom.value.name == 'riffWave'.tr;
+                        disc?.dailyMixes.length;
+                        Get.find<HomeScreenController>().quickPicks.value;
+                        final art = _previewArt();
+                        return ClipRRect(
+                          borderRadius:
+                              BorderRadius.circular(RiffSizes.tileRadius),
+                          child: SizedBox.square(
+                            dimension: RiffSizes.waveArt,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                if (art != null)
+                                  ImageWidget(
+                                      song: art,
+                                      size: RiffSizes.waveArt,
+                                      borderRadius: 0)
+                                else
+                                  ColoredBox(
+                                      color: accent.withOpacity(
+                                          RiffPalette.waveArtTint)),
+                                ColoredBox(
+                                    color: riff.scrim
+                                        .withOpacity(RiffPalette.waveArtScrim)),
+                                Center(
+                                  child: RiffEqualizer(
+                                    animate: playing,
+                                    color: art != null ? riff.onImage : accent,
+                                    size: RiffSizes.waveEqualizer,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
+                        );
+                      }),
+                      const SizedBox(width: RiffSpacing.lg),
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'riffWave'.tr,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: RiffTextStyles.of(context).cardTitle,
+                            ),
+                            const SizedBox(height: RiffSpacing.xxs),
+                            // Two lines, so phones read the whole line.
+                            Text(
+                              'riffWaveDes'.tr,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodyMedium
+                                  ?.copyWith(color: riffMuted(context)),
+                            ),
+                          ],
                         ),
-                      );
-                    }),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'riffWave'.tr,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: RiffTextStyles.of(context).cardTitle,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'riffWaveDes'.tr,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodyMedium
-                                ?.copyWith(color: riffMuted(context)),
-                          ),
-                        ],
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    _PlayButton(
-                      accent: accent,
-                      starting: _starting,
-                      pulse: _playPulse,
-                      onTap: _playWave,
-                    ),
-                  ],
+                      const SizedBox(width: RiffSpacing.md),
+                      _PlayButton(
+                        accent: accent,
+                        starting: _starting,
+                        pulse: _playPulse,
+                        onTap: _playWave,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

@@ -35,10 +35,14 @@ class ExploreScreen extends StatelessWidget {
 /// The Explore page's content: YouTube's genre chips and every YouTube
 /// Music shelf they filter. Shown by [ExploreScreen] and the Discover tab.
 class ExploreFeed extends StatefulWidget {
-  const ExploreFeed({super.key, this.focusTitle});
+  const ExploreFeed({super.key, this.focusTitle, this.leading = const []});
 
   /// When set, scroll that shelf into view after first frame.
   final String? focusTitle;
+
+  /// Shown above the genre chips and scrolling with the feed (the Discover
+  /// tab puts Riff Wave here).
+  final List<Widget> leading;
 
   @override
   State<ExploreFeed> createState() => _ExploreFeedState();
@@ -103,6 +107,7 @@ class _ExploreFeedState extends State<ExploreFeed> {
           controller: _scroll,
           padding: EdgeInsets.only(bottom: homeBottomPadding(context)),
           children: [
+            ...widget.leading,
             if (chips.isNotEmpty)
               SizedBox(
                 height: RiffSizes.chipRow,

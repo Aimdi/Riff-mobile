@@ -44,7 +44,7 @@ class RiffSpacing {
   /// Inside grids (Jump back in, Speed dial).
   static const double gridGap = 8;
 
-  /// Riff Wave card to its chip row.
+  /// Riff Wave card to its station chip row (Discover).
   static const double chipRowTop = 12;
 
   /// Bottom margin of the app's snackbars, so they float above the mini
@@ -65,9 +65,12 @@ class RiffSizes {
   static const double jumpArt = 48;
   static const double progressBar = 3;
 
+  /// Riff Wave card (Discover): its height (it grows only for large
+  /// system text), cover, play circle and the waveform over the cover.
   static const double waveHeight = 88;
   static const double waveArt = 56;
   static const double wavePlay = 48;
+  static const double waveEqualizer = 26;
   static const double chipRow = 48;
   static const double chipHeight = 32;
   static const double chipIcon = 24;

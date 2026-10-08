@@ -53,6 +53,7 @@ void main() {
       'lib/ui/screens/Home/home_sections.dart',
       'lib/ui/screens/Home/home_layout_screen.dart',
       'lib/ui/screens/Home/explore_screen.dart',
+      'lib/ui/screens/Home/discover_screen.dart',
       'lib/ui/widgets/discovery/riff_wave_hero.dart',
       'lib/ui/screens/Settings/webdav_sync_screen.dart',
       'lib/ui/screens/Plugins/spotify_bridge_screen.dart',
