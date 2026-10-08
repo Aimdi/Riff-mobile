@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '/ui/player/components/gesture_player.dart';
 import '/ui/player/components/long_form_player.dart';
 import '/ui/player/components/standard_player.dart';
+import '/ui/player/components/up_next_card.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
@@ -32,97 +33,43 @@ class Player extends StatelessWidget {
     return Scaffold(
       /// SlidingUpPanel is used to create a panel that can slide up and down
       /// It is used to show the current queue panel in mobile
-      body: Obx(
-        () => SlidingUpPanel(
-          boxShadow: const [],
-          minHeight: settingsScreenController.playerUi.value == 0
-              ? 65 + Get.mediaQuery.padding.bottom
-              : 0,
+      body: Obx(() {
+        // Standard player: the queue waits in a slim card at the bottom.
+        final showCard = settingsScreenController.playerUi.value == 0;
+        final bottomInset = Get.mediaQuery.padding.bottom;
+        return SlidingUpPanel(
+          // No sheet: collapsed, only the card floats over the player, and
+          // the queue (which paints its own background) fades in as it
+          // opens.
+          renderPanelSheet: false,
+          fadePanelWhenCollapsed: true,
+          minHeight: showCard ? UpNextCard.extent + bottomInset : 0,
           maxHeight: size.height,
           isDraggable: !GetPlatform.isDesktop,
           controller: GetPlatform.isDesktop
               ? null
               : playerController.queuePanelController,
-
-          /// Collapsed queue strip — elevated surface, hairline top, drag pill.
-          collapsed: InkWell(
-            onTap: () {
-              /// queue open in end drawer in desktop
-              if (GetPlatform.isDesktop) {
-                playerController.homeScaffoldkey.currentState?.openEndDrawer();
-              } else {
-                playerController.queuePanelController.open();
-              }
-            },
-            child: Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerLow,
-                  border: Border(
-                    top: BorderSide(
-                        color: Theme.of(context).dividerColor, width: 0),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    SizedBox(
-                      height: 65,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: RiffComponentSizes.handleWidth,
-                            height: RiffComponentSizes.handleHeight,
-                            decoration: BoxDecoration(
-                              color: RiffColors.of(context).handle,
-                              borderRadius:
-                                  BorderRadius.circular(RiffRadii.pill),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            "upNext".tr,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelMedium
-                                ?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                                ),
-                          ),
-                          Obx(() {
-                            final upcoming = playerController.upcomingQueue;
-                            if (upcoming.isEmpty) {
-                              return const SizedBox.shrink();
-                            }
-                            return Padding(
-                              padding: const EdgeInsets.only(
-                                  left: RiffSpacing.xl,
-                                  top: RiffSpacing.xxs,
-                                  right: RiffSpacing.xl),
-                              child: Text(
-                                upcomingPreviewLabel(
-                                    upcoming.first.title, upcoming.length),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurface,
-                                    ),
-                              ),
-                            );
-                          }),
-                        ],
-                      ),
-                    ),
-                  ],
-                )),
-          ),
+          collapsed: showCard
+              ? Obx(() {
+                  final upcoming = playerController.upcomingQueue;
+                  return UpNextCard(
+                    preview: upcoming.isEmpty
+                        ? ''
+                        : upcomingPreviewLabel(
+                            upcoming.first.title, upcoming.length),
+                    bottomInset: bottomInset,
+                    onTap: () {
+                      /// queue open in end drawer in desktop
+                      if (GetPlatform.isDesktop) {
+                        playerController.homeScaffoldkey.currentState
+                            ?.openEndDrawer();
+                      } else {
+                        playerController.queuePanelController.open();
+                      }
+                    },
+                  );
+                })
+              : null,
 
           /// Panel for queue
           panelBuilder: (ScrollController sc, onReorderStart, onReorderEnd) {
@@ -244,8 +191,8 @@ class Player extends StatelessWidget {
                     ? const StandardPlayer()
                     : const GesturePlayer()),
           ),
-        ),
-      ),
+        );
+      }),
     );
   }
 }
