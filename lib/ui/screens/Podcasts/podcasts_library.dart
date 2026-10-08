@@ -54,6 +54,11 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
   int _section = 1;
   int _inboxRefreshNonce = 0;
 
+  /// The Inbox's library filter (New, In progress, …), picked from the
+  /// selected Inbox chip's menu; null is the plain Inbox. Kept while other
+  /// sections are open.
+  EpisodeFilter? _inboxFilter;
+
   // "Listeners of X also enjoy" discovery rows, loaded lazily when the search
   // field is focused (shown first in the search view, above the categories).
   final _discoveryRows = <String, List<Map<String, dynamic>>>{};
@@ -128,6 +133,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                 return PodcastInboxScreen(
                   embedded: true,
                   refreshNonce: _inboxRefreshNonce,
+                  filter: _inboxFilter,
+                  onFilterChanged: _setInboxFilter,
                   onDiscover: () {
                     _loadDiscoveryRows();
                     setState(() => _section = 4);
@@ -466,42 +473,62 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
 
   /// One section pill, styled as a §5.6 chip: transparent with a divider
   /// outline; the active one has an accentMuted fill, accent outline and
-  /// accent label.
+  /// accent label. The active Inbox pill also names its filter and has a
+  /// caret: tapping it again opens the filter menu.
   Widget _tab(BuildContext context, int section, String label, String? count) {
     final active = _section == section;
+    final filters = active && section == 1;
     final theme = Theme.of(context);
     final accent = theme.colorScheme.primary;
     final fg = active ? accent : theme.colorScheme.onSurface;
-    return Material(
-      color: active ? RiffColors.of(context).accentMuted : Colors.transparent,
-      shape: StadiumBorder(
-          side: BorderSide(
-              color: active ? accent : theme.dividerColor, width: 0)),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => _select(section),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
-          child: Center(
-            child: Text.rich(
-              TextSpan(children: [
-                TextSpan(text: label),
-                if (count != null)
-                  TextSpan(
-                    text: '  $count',
-                    style: TextStyle(
-                        color: active
-                            ? accent
-                            : theme.colorScheme.onSurfaceVariant),
-                  ),
-              ]),
-              maxLines: 1,
-              style: theme.textTheme.labelMedium?.copyWith(color: fg),
+    final text = Text.rich(
+      TextSpan(children: [
+        TextSpan(text: filters ? inboxChipLabel(_inboxFilter) : label),
+        if (count != null)
+          TextSpan(
+            text: '  $count',
+            style: TextStyle(
+                color: active ? accent : theme.colorScheme.onSurfaceVariant),
+          ),
+      ]),
+      maxLines: 1,
+      style: theme.textTheme.labelMedium?.copyWith(color: fg),
+    );
+    final pill = Builder(
+      builder: (chip) => Material(
+        color: active ? RiffColors.of(context).accentMuted : Colors.transparent,
+        shape: StadiumBorder(
+            side: BorderSide(
+                color: active ? accent : theme.dividerColor, width: 0)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: filters
+              ? () => showInboxFilterMenu(chip,
+                  current: _inboxFilter, onSelected: _setInboxFilter)
+              : () => _select(section),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
+            child: Center(
+              child: filters
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        text,
+                        Icon(Icons.expand_more_rounded,
+                            size: RiffComponentSizes.chipChevron, color: fg),
+                      ],
+                    )
+                  : text,
             ),
           ),
         ),
       ),
     );
+    return filters ? Tooltip(message: 'filterInbox'.tr, child: pill) : pill;
+  }
+
+  void _setInboxFilter(EpisodeFilter? filter) {
+    if (mounted) setState(() => _inboxFilter = filter);
   }
 
   void _select(int section) {

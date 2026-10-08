@@ -5312,6 +5312,7 @@ Map<String, Map<String, String>> get keys => {
     "episodeFilter_short": "Under 20 min",
     "noFilteredEpisodes": "No episodes here right now.",
     "clearFilter": "Back to the Inbox",
+    "filterInbox": "Filter the Inbox",
     "playLast": "Play last",
     "playLastDes": "After everything that's lined up to play",
     "playLastMsg": "Added to the end of what's playing",
