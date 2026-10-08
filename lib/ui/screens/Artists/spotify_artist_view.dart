@@ -13,6 +13,7 @@ import '/ui/player/player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/collection_play.dart';
+import '/ui/widgets/generated_cover.dart';
 import '/ui/screens/Podcasts/podcasts_library_controller.dart';
 import '/ui/widgets/songinfo_bottom_sheet.dart';
 import '../../navigator.dart';
@@ -628,18 +629,30 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
     );
   }
 
-  Widget _cover(BuildContext context, String url, IconData fallback) =>
+  Widget _cover(BuildContext context, String url, IconData fallback,
+          {Widget? missing}) =>
       CachedNetworkImage(
         imageUrl: Thumbnail(url).high,
         fit: BoxFit.cover,
         memCacheWidth:
             (HomeLayout.shelfCard * MediaQuery.devicePixelRatioOf(context))
                 .round(),
-        errorWidget: (_, __, ___) => ColoredBox(
-          color: homeTileColor(context),
-          child: Icon(fallback, size: 40, color: homeMutedColor(context)),
-        ),
+        errorWidget: (_, __, ___) =>
+            missing ??
+            ColoredBox(
+              color: homeTileColor(context),
+              child: Icon(fallback, size: 40, color: homeMutedColor(context)),
+            ),
       );
+
+  /// A playlist's cover, or its generated one when it has none (or the
+  /// cover fails to load).
+  Widget _playlistCover(BuildContext context, Playlist p) {
+    final generated = GeneratedCover.playlist(p, size: HomeLayout.shelfCard);
+    if (!p.hasArt) return generated;
+    return _cover(context, p.thumbnailUrl, Icons.queue_music_rounded,
+        missing: generated);
+  }
 
   Widget _releaseShelf(
       BuildContext context, String key, String title, List albums) {
@@ -681,8 +694,10 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
             final p = playlists[i];
             return HomeShelfCard(
               size: HomeLayout.shelfCard,
-              art: _cover(context, '${p.thumbnailUrl ?? ''}',
-                  Icons.queue_music_rounded),
+              art: p is Playlist
+                  ? _playlistCover(context, p)
+                  : _cover(context, '${p.thumbnailUrl ?? ''}',
+                      Icons.queue_music_rounded),
               title: '${p.title ?? ''}',
               subtitle: '${p.description ?? ''}',
               onTap: () => shouldPlayCollectionOnTap()

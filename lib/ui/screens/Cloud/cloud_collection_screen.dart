@@ -7,6 +7,7 @@ import '/services/cloud_music_service.dart';
 import '/services/discovery/discovery_types.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/widgets/generated_cover.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import '/ui/widgets/snackbar.dart';
 import 'cloud_screen.dart';
@@ -103,6 +104,22 @@ class _CloudCollectionScreenState extends State<CloudCollectionScreen> {
     );
   }
 
+  /// No cover, or it failed: a playlist's generated cover, else the icon.
+  Widget _missingCover(ThemeData theme, CloudCollection d) {
+    if (widget.isPlaylist) {
+      return GeneratedCover(
+          seed: widget.collectionId, title: d.name, size: _coverSide);
+    }
+    return Container(
+      width: _coverSide,
+      height: _coverSide,
+      color: theme.primaryColorLight,
+      child: const Icon(Icons.album, size: 40),
+    );
+  }
+
+  static const double _coverSide = 120;
+
   Widget _buildBody(ThemeData theme) {
     final d = _detail!;
     final cloud = Get.find<CloudMusicService>();
@@ -122,31 +139,13 @@ class _CloudCollectionScreenState extends State<CloudCollectionScreen> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: cover.isEmpty
-                    ? Container(
-                        width: 120,
-                        height: 120,
-                        color: theme.primaryColorLight,
-                        child: Icon(
-                            widget.isPlaylist
-                                ? Icons.library_music
-                                : Icons.album,
-                            size: 40),
-                      )
+                    ? _missingCover(theme, d)
                     : CachedNetworkImage(
                         imageUrl: cover,
-                        width: 120,
-                        height: 120,
+                        width: _coverSide,
+                        height: _coverSide,
                         fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => Container(
-                          width: 120,
-                          height: 120,
-                          color: theme.primaryColorLight,
-                          child: Icon(
-                              widget.isPlaylist
-                                  ? Icons.library_music
-                                  : Icons.album,
-                              size: 40),
-                        ),
+                        errorWidget: (_, __, ___) => _missingCover(theme, d),
                       ),
               ),
             ),

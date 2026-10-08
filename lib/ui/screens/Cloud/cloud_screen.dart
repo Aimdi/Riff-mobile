@@ -7,6 +7,7 @@ import '/services/cloud_music_service.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/services/discovery/discovery_types.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/widgets/generated_cover.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import '/ui/widgets/snackbar.dart';
 import 'cloud_collection_screen.dart';
@@ -461,7 +462,8 @@ class _PlaylistsView extends StatelessWidget {
                   icon: Icons.library_music,
                   iconSize: 24,
                   width: 52,
-                  height: 52),
+                  height: 52,
+                  playlist: (id: p.id, name: p.name)),
             ),
             title: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis),
             subtitle: count != null
@@ -652,22 +654,31 @@ class _CloudCover extends StatelessWidget {
       required this.icon,
       required this.iconSize,
       this.width,
-      this.height});
+      this.height,
+      this.playlist});
   final String url;
   final IconData icon;
   final double iconSize;
   final double? width;
   final double? height;
 
+  /// The playlist this is the cover of: without a cover (or when it fails
+  /// to load) it shows the playlist's generated cover, not the icon.
+  final ({String id, String name})? playlist;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    Widget placeholder() => Container(
-          width: width,
-          height: height,
-          color: theme.primaryColorLight,
-          child: Icon(icon, size: iconSize),
-        );
+    final pl = playlist;
+    final side = width ?? height;
+    Widget placeholder() => pl != null && side != null
+        ? GeneratedCover(seed: pl.id, title: pl.name, size: side)
+        : Container(
+            width: width,
+            height: height,
+            color: theme.primaryColorLight,
+            child: Icon(icon, size: iconSize),
+          );
     if (url.isEmpty) return placeholder();
     return CachedNetworkImage(
       imageUrl: url,

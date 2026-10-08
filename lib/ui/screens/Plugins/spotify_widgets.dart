@@ -14,6 +14,7 @@ import '/services/spotify_playback.dart';
 import '/services/spotify_radio.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/generated_cover.dart';
 import '../Home/home_layout.dart';
 import 'spotify_connect_ui.dart';
 
@@ -53,11 +54,16 @@ class SpotifyArt extends StatelessWidget {
       this.url,
       this.size = 48,
       this.round = false,
-      this.icon = Icons.music_note_rounded});
+      this.icon = Icons.music_note_rounded,
+      this.playlist});
   final String? url;
   final double size;
   final bool round;
   final IconData icon;
+
+  /// The playlist this is the cover of: without a cover (or when it fails
+  /// to load) it shows the playlist's generated cover, not the icon.
+  final SpotifyPlaylistSummary? playlist;
 
   @override
   Widget build(BuildContext context) {
@@ -67,15 +73,19 @@ class SpotifyArt extends StatelessWidget {
       color: homeTileColor(context),
       child: Icon(icon, size: size * 0.45, color: homeMutedColor(context)),
     );
-    final img = url == null || url!.isEmpty
+    final pl = playlist;
+    final missing = pl == null
         ? placeholder
+        : GeneratedCover(seed: pl.id, title: pl.name, size: size);
+    final img = url == null || url!.isEmpty
+        ? missing
         : CachedNetworkImage(
             imageUrl: url!,
             width: size,
             height: size,
             fit: BoxFit.cover,
             placeholder: (_, __) => placeholder,
-            errorWidget: (_, __, ___) => placeholder,
+            errorWidget: (_, __, ___) => missing,
           );
     return round
         ? ClipOval(child: img)
