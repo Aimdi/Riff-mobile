@@ -15,7 +15,6 @@ export 'home_feed_builder.dart' show HomeSection;
 /// first, the YouTube feed after.
 const switchableHomeSections = [
   HomeSection.jumpBackIn,
-  HomeSection.riffWave,
   HomeSection.speedDial,
   HomeSection.quickPicks,
   HomeSection.personalized,
@@ -29,7 +28,6 @@ extension HomeSectionLabels on HomeSection {
   String get labelKey => switch (this) {
         HomeSection.header => 'home',
         HomeSection.jumpBackIn => 'jumpBackIn',
-        HomeSection.riffWave => 'riffWave',
         HomeSection.speedDial => 'speedDial',
         HomeSection.quickPicks => 'quickpicks',
         HomeSection.personalized => 'homeSectionPersonal',
@@ -42,7 +40,6 @@ extension HomeSectionLabels on HomeSection {
   IconData get icon => switch (this) {
         HomeSection.header => Icons.home_rounded,
         HomeSection.jumpBackIn => Icons.play_circle_outline_rounded,
-        HomeSection.riffWave => Icons.graphic_eq_rounded,
         HomeSection.speedDial => Icons.grid_view_rounded,
         HomeSection.quickPicks => Icons.view_carousel_outlined,
         HomeSection.personalized => Icons.blender_outlined,
@@ -55,7 +52,9 @@ extension HomeSectionLabels on HomeSection {
 
 /// Stored names from before the fixed order (1.7.132 and older) mapped to
 /// today's sections; chips and generators are gone (one chip row under
-/// Riff Wave now).
+/// Riff Wave now). Names of sections that left Home, like `riffWave`
+/// (Riff Wave and its chips moved to the Discover tab after 1.7.148),
+/// match nothing and are dropped, so an old hidden list loads cleanly.
 const _legacyNames = {
   'resume': HomeSection.jumpBackIn,
   'dailyMixes': HomeSection.personalized,

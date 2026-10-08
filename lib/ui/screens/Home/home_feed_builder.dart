@@ -4,11 +4,11 @@
 library;
 
 /// The blocks of Home, top to bottom. The order never changes; sections
-/// with nothing to show are left out.
+/// with nothing to show are left out. (Riff Wave and its station chips
+/// live in the Discover tab.)
 enum HomeSection {
   header,
   jumpBackIn,
-  riffWave,
   speedDial,
   quickPicks,
   personalized,
@@ -455,8 +455,6 @@ List<HomeSectionModel> buildHomeSections(HomeFeedInput data) {
   return [
     const HomeSectionModel(HomeSection.header),
     if (jump.isNotEmpty) HomeSectionModel(HomeSection.jumpBackIn, items: jump),
-    if (shown(HomeSection.riffWave))
-      const HomeSectionModel(HomeSection.riffWave),
     if (dial.isNotEmpty) HomeSectionModel(HomeSection.speedDial, items: dial),
     if (picks.isNotEmpty)
       HomeSectionModel(HomeSection.quickPicks, items: picks),

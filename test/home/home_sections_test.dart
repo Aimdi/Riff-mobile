@@ -22,6 +22,23 @@ void main() {
     expect(parseHiddenHomeSections('garbage'), isEmpty);
   });
 
+  test('Riff Wave moved to Discover: no switch for it in Home layout', () {
+    expect(
+        switchableHomeSections.map((s) => s.name), isNot(contains('riffWave')));
+    expect(switchableHomeSections.map((s) => s.labelKey),
+        isNot(contains('riffWave')));
+  });
+
+  test('an old saved hidden list that names riffWave loads cleanly', () {
+    // 1.7.148 and older could hide Riff Wave; the name is dropped and
+    // the rest of the list still applies.
+    expect(parseHiddenHomeSections(['riffWave']), isEmpty);
+    expect(
+        parseHiddenHomeSections(
+            ['speedDial', 'riffWave', 'yourWeek', 'resume']),
+        {HomeSection.speedDial, HomeSection.yourWeek, HomeSection.jumpBackIn});
+  });
+
   group('HomeSectionPrefs (no Hive: in memory)', () {
     setUp(HomeSectionPrefs.reset);
 
