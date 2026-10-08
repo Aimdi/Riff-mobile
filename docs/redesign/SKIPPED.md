@@ -44,6 +44,7 @@ elements (or can't be done on this SDK), and what was done instead.
 | 8 | Page transition 250 ms (§4.7) | See Phase 1 row: route builders fix their own durations | unchanged |
 | 8 | Sleep-timer countdown tabular figures | A non-colour `copyWith` (fontFeatures) kept so the digits don't jitter | kept |
 | 3 (revised after 1.7.142) | Rail: no indicator, outline/filled glyphs 24, 11/600 labels, right hairline | The owner preferred the pre-restyle rail | pre-restyle rail look restored: accent box (16% fill, 28% outline) behind the active glyph, muted inactive items, titleMedium/bodyLarge labels, no right hairline; width 47, items, order and the selection haptic unchanged |
+| 6 (revised after 1.7.144) | Full-width 65 dp queue strip (handle, "Up Next" and the next song on two lines, hairline top) | The owner asked for it smaller and rounded | a 44 dp floating card in the mini player's style (surface1, hairline edge, radius 24), 24 dp side margins in line with the player content and clear of the system inset; handle kept, "Up Next" and the next song on one line; the queue fades in as it opens; tap and drag unchanged |
 
 ## Known side effects of Phase 1 (to settle in later phases)
 

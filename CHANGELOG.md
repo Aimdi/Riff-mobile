@@ -1,3 +1,12 @@
+# 1.7.145
+
+**A smaller, rounded Up Next**
+* At the bottom of the player, Up Next is now a slim rounded card floating
+  above the gesture bar instead of a full-width block, lined up with the
+  controls above it
+* "Up Next" and the next song share one line; tap or swipe it up to open
+  the queue, same as before
+
 # 1.7.144
 
 **What's playing? Name the song around you**
