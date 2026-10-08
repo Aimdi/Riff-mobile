@@ -114,6 +114,7 @@ Future<bool> playCollection({
     playfrom: PlaylingFrom(
       name: title,
       type: isAlbum ? PlaylingFromType.ALBUM : PlaylingFromType.PLAYLIST,
+      id: id,
     ),
     source: isAlbum ? DiscoverySource.album : sourceFromPlaylistId(id),
   );
@@ -161,6 +162,7 @@ Future<bool> playArtist(
     playfrom: PlaylingFrom(
       name: artist.name,
       type: PlaylingFromType.ARTIST,
+      id: artist.browseId,
     ),
     source: DiscoverySource.artist,
   );
