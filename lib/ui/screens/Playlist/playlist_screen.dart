@@ -436,8 +436,11 @@ class _PodcastShow extends StatelessWidget {
           final ok = await player.playPlayListSong(
             [for (final m in c.songList) withPodcastShowId(m, pl.playlistId)],
             i,
-            playfrom:
-                PlaylingFrom(name: pl.title, type: PlaylingFromType.PLAYLIST),
+            playfrom: PlaylingFrom(
+                name: pl.title,
+                type: PlaylingFromType.PLAYLIST,
+                id: pl.playlistId,
+                item: pl),
             source: DiscoverySource.podcast,
           );
           if (!ok) snackOperationFailed();
@@ -520,7 +523,10 @@ Widget _actions(
             }
             final ok = await player.playPlayListSong(list, 0,
                 playfrom: PlaylingFrom(
-                    name: pl.title, type: PlaylingFromType.PLAYLIST));
+                    name: pl.title,
+                    type: PlaylingFromType.PLAYLIST,
+                    id: pl.playlistId,
+                    item: pl));
             if (!ok) snackOperationFailed();
           },
     leading: [
@@ -667,6 +673,8 @@ Future<void> _playPlaylistFrom(
     playfrom: PlaylingFrom(
       name: pl.title,
       type: PlaylingFromType.PLAYLIST,
+      id: pl.playlistId,
+      item: pl,
     ),
   );
   if (!ok) snackOperationFailed();

@@ -280,7 +280,8 @@ class _Controls extends StatelessWidget {
             AnimatedPlayButton(
                 key: const Key('longFormPlayButton'),
                 size: RiffComponentSizes.longFormPlay,
-                iconColor: scheme.onSecondary),
+                iconColor: scheme.onSecondary,
+                holdToSeek: true),
             LongFormSkipButton(
                 forward: true,
                 color: fg,

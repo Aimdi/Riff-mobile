@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '/ui/player/components/gesture_player.dart';
 import '/ui/player/components/long_form_player.dart';
+import '/ui/player/components/queue_panel.dart';
 import '/ui/player/components/standard_player.dart';
 import '/ui/player/components/up_next_card.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
@@ -11,7 +12,6 @@ import '/ui/theme/riff_tokens.dart';
 import '../../utils/helper.dart';
 import '../widgets/add_to_playlist.dart';
 import '../widgets/snackbar.dart';
-import '../widgets/up_next_queue.dart';
 import '/ui/player/play_queue_order.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/player/upcoming_queue.dart';
@@ -74,105 +74,98 @@ class Player extends StatelessWidget {
           /// Panel for queue
           panelBuilder: (ScrollController sc, onReorderStart, onReorderEnd) {
             playerController.scrollController = sc;
-            return Stack(
-              children: [
-                /// Stack first child
-                /// UpNextQueue widget contains list of songs in queue
-                UpNextQueue(
-                  onReorderEnd: onReorderEnd,
-                  onReorderStart: onReorderStart,
-                ),
+            // Up next / Similar songs tabs over the queue or the similar
+            // list.
+            return QueuePanel(
+              onReorderEnd: onReorderEnd,
+              onReorderStart: onReorderStart,
 
-                /// Stack second child
-                /// Bottom bar: queue loop / shuffle / clear — solid frost
-                /// (BackdropFilter blur was a queue-panel jank source).
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Builder(builder: (context) {
-                    final theme = Theme.of(context);
-                    // Opaque, so queue rows never show through the footer.
-                    return Container(
-                      padding: EdgeInsets.only(
-                          left: RiffSpacing.xl,
-                          right: RiffSpacing.sm,
-                          bottom: Get.mediaQuery.padding.bottom),
-                      decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerLow,
-                          border: Border(
-                            top:
-                                BorderSide(color: theme.dividerColor, width: 0),
-                          )),
-                      height: 60 + Get.mediaQuery.padding.bottom,
-                      child: Row(
-                        children: [
-                          /// number of songs in queue
-                          Expanded(
-                            child: Obx(
-                              () => Text(
-                                "${playerController.currentQueue.length} ${"songs".tr}",
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelMedium
-                                    ?.copyWith(
-                                        color:
-                                            theme.colorScheme.onSurfaceVariant),
-                              ),
+              /// Bottom bar: queue loop / shuffle / clear — solid frost
+              /// (BackdropFilter blur was a queue-panel jank source).
+              queueFooter: Align(
+                alignment: Alignment.bottomCenter,
+                child: Builder(builder: (context) {
+                  final theme = Theme.of(context);
+                  // Opaque, so queue rows never show through the footer.
+                  return Container(
+                    padding: EdgeInsets.only(
+                        left: RiffSpacing.xl,
+                        right: RiffSpacing.sm,
+                        bottom: Get.mediaQuery.padding.bottom),
+                    decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerLow,
+                        border: Border(
+                          top: BorderSide(color: theme.dividerColor, width: 0),
+                        )),
+                    height: 60 + Get.mediaQuery.padding.bottom,
+                    child: Row(
+                      children: [
+                        /// number of songs in queue
+                        Expanded(
+                          child: Obx(
+                            () => Text(
+                              "${playerController.currentQueue.length} ${"songs".tr}",
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelMedium
+                                  ?.copyWith(
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant),
                             ),
                           ),
-                          Obx(() => _QueueBarButton(
-                                tooltip: "queueLoop".tr,
-                                icon: Icons.repeat_rounded,
-                                active: playerController
-                                    .isQueueLoopModeEnabled.isTrue,
-                                onTap: playerController.toggleQueueLoopMode,
-                              )),
-                          _QueueBarButton(
-                            tooltip: "shuffleQueue".tr,
-                            icon: Icons.shuffle_rounded,
-                            onTap: () {
-                              if (playerController
-                                  .isShuffleModeEnabled.isTrue) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    snackbar(
-                                        context, "queueShufflingDeniedMsg".tr,
-                                        size: SanckBarSize.BIG));
-                                return;
-                              }
-                              playerController.shuffleQueue();
-                            },
-                          ),
-                          _QueueBarButton(
-                            tooltip: "saveQueueAsPlaylist".tr,
-                            icon: Icons.playlist_add_rounded,
-                            onTap: () {
-                              final queue =
-                                  playerController.currentQueue.toList();
-                              if (!canSaveQueueAsPlaylist(queue.length)) {
-                                ScaffoldMessenger.of(context).showSnackBar(
+                        ),
+                        Obx(() => _QueueBarButton(
+                              tooltip: "queueLoop".tr,
+                              icon: Icons.repeat_rounded,
+                              active: playerController
+                                  .isQueueLoopModeEnabled.isTrue,
+                              onTap: playerController.toggleQueueLoopMode,
+                            )),
+                        _QueueBarButton(
+                          tooltip: "shuffleQueue".tr,
+                          icon: Icons.shuffle_rounded,
+                          onTap: () {
+                            if (playerController.isShuffleModeEnabled.isTrue) {
+                              ScaffoldMessenger.of(context).showSnackBar(
                                   snackbar(
-                                    context,
-                                    'emptyPlaylist'.tr,
-                                    size: SanckBarSize.MEDIUM,
-                                  ),
-                                );
-                                return;
-                              }
-                              showAddToPlaylistSheet(context, queue);
-                            },
-                          ),
-                          _QueueBarButton(
-                            tooltip: "clearQueue".tr,
-                            icon: Icons.playlist_remove_rounded,
-                            onTap: playerController.clearQueue,
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                ),
-              ],
+                                      context, "queueShufflingDeniedMsg".tr,
+                                      size: SanckBarSize.BIG));
+                              return;
+                            }
+                            playerController.shuffleQueue();
+                          },
+                        ),
+                        _QueueBarButton(
+                          tooltip: "saveQueueAsPlaylist".tr,
+                          icon: Icons.playlist_add_rounded,
+                          onTap: () {
+                            final queue =
+                                playerController.currentQueue.toList();
+                            if (!canSaveQueueAsPlaylist(queue.length)) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                snackbar(
+                                  context,
+                                  'emptyPlaylist'.tr,
+                                  size: SanckBarSize.MEDIUM,
+                                ),
+                              );
+                              return;
+                            }
+                            showAddToPlaylistSheet(context, queue);
+                          },
+                        ),
+                        _QueueBarButton(
+                          tooltip: "clearQueue".tr,
+                          icon: Icons.playlist_remove_rounded,
+                          onTap: playerController.clearQueue,
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ),
             );
           },
 

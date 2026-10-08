@@ -37,6 +37,7 @@ void main() {
 
     for (final label in [
       'home',
+      'discoverTab',
       'songs',
       'podcasts',
       'audiobooks',

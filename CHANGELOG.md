@@ -1,3 +1,20 @@
+# 1.7.147
+
+**Discover in the side rail**
+* New Discover tab with a compass, right under Home: a search field on top
+  (tap it to search, with your history and suggestions) and YouTube's
+  genres and music shelves below it
+* The search and compass buttons are gone from the top right of Home
+
+**Player**
+* Similar songs moved off the player: swipe up the Up Next tab and switch
+  to Similar songs at the top of the panel; tap one to play it
+* The Up Next tab at the bottom is smaller and sits on the bottom edge
+* Tap "Playing from …" at the top to open the album, playlist or artist
+  that's playing
+* Hold the play/pause button and slide left to jump back, right to jump
+  forward (5 second steps, shown in a bubble while you slide)
+
 # 1.7.146
 
 **Player buttons moved into ⋮**

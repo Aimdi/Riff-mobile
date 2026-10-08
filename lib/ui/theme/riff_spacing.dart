@@ -30,6 +30,11 @@ class RiffSpacing {
   /// Height of a section's title row.
   static const double headerRow = 48;
 
+  /// Top inset of a rail tab's page (the Library, Podcasts, Audiobooks
+  /// and Settings tabs use these values), portrait and landscape.
+  static const double tabTop = 90;
+  static const double tabTopLandscape = 50;
+
   /// Title row to content.
   static const double headerToContent = md;
 

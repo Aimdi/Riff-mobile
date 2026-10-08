@@ -17,7 +17,6 @@ import '/ui/player/components/podcast_transcript_sheet.dart';
 import '/ui/utils/theme_controller.dart';
 import '/services/podcast_service.dart' show PodcastChapter;
 import '../../screens/Settings/settings_screen_controller.dart';
-import '../../widgets/discovery/player_similar_row.dart';
 import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/sleep_timer_bottom_sheet.dart';
 import '../chapter_marks.dart';
@@ -86,22 +85,14 @@ class PlayerControlWidget extends StatelessWidget {
               ? _podcastControls(playerController, context)
               : _musicControls(playerController, context)),
           // Music has no button row: lyrics, sleep timer, radio, add to
-          // playlist and share are in the ⋮ sheet.
+          // playlist and share are in the ⋮ sheet, similar songs in the
+          // swipe-up panel.
           Obx(() => playerController.usesLongFormTransport
               ? Padding(
                   padding: const EdgeInsets.only(top: 10),
                   child: _podcastActions(playerController, context),
                 )
               : const SizedBox.shrink()),
-          // Similar songs are music-only, and only where the cover keeps
-          // most of the screen.
-          Obx(() => playerController.usesLongFormTransport ||
-                  MediaQuery.sizeOf(context).height < 820
-              ? const SizedBox.shrink()
-              : const Padding(
-                  padding: EdgeInsets.only(top: 6),
-                  child: PlayerSimilarRow(),
-                )),
         ]);
   }
 
@@ -179,7 +170,8 @@ class PlayerControlWidget extends StatelessWidget {
         AnimatedPlayButton(
             key: const Key("playButton"),
             size: 68,
-            iconColor: scheme.onSecondary),
+            iconColor: scheme.onSecondary,
+            holdToSeek: true),
         _nextButton(playerController, context),
         Obx(() {
           final state = playerController.repeatState;
@@ -225,7 +217,8 @@ class PlayerControlWidget extends StatelessWidget {
                 ? PodcastSpeedButton(color: color)
                 : PlayerSpeedButton(color: color),
             LongFormSkipButton(forward: false, color: color, size: 34),
-            const AnimatedPlayButton(key: Key('podcastPlayButton'), size: 68),
+            const AnimatedPlayButton(
+                key: Key('podcastPlayButton'), size: 68, holdToSeek: true),
             LongFormSkipButton(forward: true, color: color, size: 34),
             _nextButton(playerController, context),
           ],

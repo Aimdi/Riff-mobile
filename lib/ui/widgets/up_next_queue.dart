@@ -25,10 +25,14 @@ class UpNextQueue extends StatelessWidget {
       {super.key,
       this.onReorderEnd,
       this.onReorderStart,
-      this.isQueueInSlidePanel = true});
+      this.isQueueInSlidePanel = true,
+      this.topPadding = 55});
   final void Function(int)? onReorderStart;
   final void Function(int)? onReorderEnd;
   final bool isQueueInSlidePanel;
+
+  /// Room above the first row in the slide panel (its tab strip).
+  final double topPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +73,7 @@ class UpNextQueue extends StatelessWidget {
             return _kQueueRowExtent;
           },
           padding: EdgeInsets.only(
-              top: isQueueInSlidePanel ? 55 : 0,
+              top: isQueueInSlidePanel ? topPadding : 0,
               bottom: isQueueInSlidePanel ? 80 : 0),
           physics: const AlwaysScrollableScrollPhysics(),
           itemBuilder: (context, index) {

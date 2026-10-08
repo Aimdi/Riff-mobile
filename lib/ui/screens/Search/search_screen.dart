@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'components/search_item.dart';
+import 'components/search_pill.dart';
 import '../../widgets/modified_text_field.dart';
 import '../../theme/riff_spacing.dart';
 import '../../theme/riff_tokens.dart';
@@ -156,13 +157,6 @@ class _SearchField extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    const pill = BorderRadius.all(Radius.circular(RiffRadii.pill));
-    // §5.8: surface1 pill, no border at rest, 1 px accent ring on focus.
-    const restBorder =
-        OutlineInputBorder(borderRadius: pill, borderSide: BorderSide.none);
-    // Prefix/suffix keep their 48 dp slots so the text stays put.
-    const iconSlot = BoxConstraints(
-        minWidth: RiffSizes.touch, minHeight: RiffComponentSizes.searchField);
     return SizedBox(
       height: RiffComponentSizes.searchField,
       child: ModifiedTextField(
@@ -175,26 +169,9 @@ class _SearchField extends StatelessWidget {
         style: theme.textTheme.bodyLarge?.copyWith(color: scheme.onSurface),
         textAlignVertical: TextAlignVertical.center,
         cursorColor: scheme.primary,
-        decoration: InputDecoration(
-          isDense: true,
-          filled: true,
-          fillColor: scheme.surfaceContainerLow,
-          contentPadding: EdgeInsets.zero,
-          hintText: "searchDes".tr,
-          hintStyle: theme.textTheme.bodyLarge
-              ?.copyWith(color: scheme.onSurfaceVariant),
-          prefixIcon: Icon(Icons.search_rounded,
-              size: RiffComponentSizes.trailingIcon,
-              color: scheme.onSurfaceVariant),
-          prefixIconConstraints: iconSlot,
-          suffixIconConstraints: iconSlot,
-          border: restBorder,
-          enabledBorder: restBorder,
-          disabledBorder: restBorder,
-          focusedBorder: OutlineInputBorder(
-            borderRadius: pill,
-            borderSide: BorderSide(color: scheme.primary, width: 1),
-          ),
+        // §5.8: surface1 pill, no border at rest, 1 px accent ring on focus.
+        decoration: searchFieldDecoration(
+          context,
           suffixIcon: ValueListenableBuilder<TextEditingValue>(
             valueListenable: controller.textInputController,
             builder: (context, value, _) => value.text.isEmpty

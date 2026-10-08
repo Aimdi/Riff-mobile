@@ -1,5 +1,8 @@
 import 'package:get/get.dart';
 
+import '/models/album.dart';
+import '/models/playling_from.dart';
+import '/models/playlist.dart';
 import '../navigator.dart';
 import 'player_controller.dart';
 import 'player_media_ids.dart';
@@ -14,6 +17,34 @@ void openCurrentAlbum(PlayerController playerController) {
   playerController.playerPanelController.close();
   Get.toNamed(ScreenNavigationSetup.albumScreen,
       id: ScreenNavigationSetup.id, arguments: (null, albumId));
+}
+
+/// Open the album, playlist or artist playback came from (the player's
+/// "Playing from" header). Returns false when there is nowhere to go.
+bool openPlayingFrom(PlayerController playerController) {
+  final from = playerController.playinfrom.value;
+  if (!from.canOpen) return false;
+  playerController.playerPanelController.close();
+  switch (from.type) {
+    case PlaylingFromType.ALBUM:
+      final item = from.item;
+      Get.toNamed(ScreenNavigationSetup.albumScreen,
+          id: ScreenNavigationSetup.id,
+          arguments: (item is Album ? item : null, from.id));
+    case PlaylingFromType.PLAYLIST:
+      final item = from.item;
+      Get.toNamed(ScreenNavigationSetup.playlistScreen,
+          id: ScreenNavigationSetup.id,
+          arguments: [item is Playlist ? item : null, from.id]);
+    case PlaylingFromType.ARTIST:
+      Get.toNamed(ScreenNavigationSetup.artistScreen,
+          id: ScreenNavigationSetup.id,
+          preventDuplicates: true,
+          arguments: [true, from.id]);
+    case PlaylingFromType.SELECTION:
+      return false;
+  }
+  return true;
 }
 
 /// Open the artist page for the currently-playing song. Uses extras.artistId

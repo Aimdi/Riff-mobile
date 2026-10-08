@@ -43,8 +43,8 @@ class Home extends StatelessWidget {
           if (Get.nestedKey(ScreenNavigationSetup.id)!.currentState!.canPop()) {
             Get.nestedKey(ScreenNavigationSetup.id)!.currentState!.pop();
           } else {
-            if (homeScreenController.tabIndex.value != 0) {
-              homeScreenController.onSideBarTabSelected(0);
+            if (homeScreenController.tabIndex.value != RailTab.home) {
+              homeScreenController.onSideBarTabSelected(RailTab.home);
             } else if (playerController.buttonState.value ==
                 PlayButtonState.playing) {
               SystemNavigator.pop();

@@ -9,6 +9,7 @@ import '/models/playling_from.dart';
 import '/utils/media_item_video.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
 import '../player_controller.dart';
+import '../player_media_nav.dart';
 import 'albumart_lyrics.dart';
 import 'backgroud_image.dart';
 import 'lyrics_switch.dart';
@@ -198,10 +199,10 @@ class PlayerTopBar extends StatelessWidget {
             ),
             Expanded(
               child: Obx(() {
-                final label =
-                    playingFromLabel(playerController.playinfrom.value);
+                final from = playerController.playinfrom.value;
+                final label = playingFromLabel(from);
                 if (label == null) return const SizedBox.shrink();
-                return Column(
+                final header = Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
@@ -228,6 +229,16 @@ class PlayerTopBar extends StatelessWidget {
                       ),
                     ],
                   ],
+                );
+                // Album, playlist or artist: tap to open it.
+                if (!from.canOpen) return header;
+                return Semantics(
+                  button: true,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(RiffRadii.sm),
+                    onTap: () => openPlayingFrom(playerController),
+                    child: header,
+                  ),
                 );
               }),
             ),

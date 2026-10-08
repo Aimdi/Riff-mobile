@@ -19,6 +19,7 @@ import '../../widgets/discovery/riff_wave_hero.dart';
 import '../../utils/riff_tokens.dart';
 import '../../widgets/shimmer_widgets/home_shimmer.dart';
 import '/services/spotify_home.dart';
+import 'discover_screen.dart';
 import 'home_feed_builder.dart';
 import 'home_feed_data.dart';
 import 'home_greeting.dart';
@@ -46,9 +47,9 @@ class HomeScreen extends StatelessWidget {
         Get.find<SettingsScreenController>();
 
     return Scaffold(
-        // Search lives in the Home title row; keep FAB only for Library add.
+        // Search lives in the Discover tab; keep FAB only for Library add.
         floatingActionButton: Obx(
-          () => homeScreenController.tabIndex.value == 4
+          () => homeScreenController.tabIndex.value == RailTab.playlists
               ? Obx(
                   () => Padding(
                     padding: EdgeInsets.only(
@@ -119,7 +120,8 @@ class Body extends StatelessWidget {
                 ? 80.0
                 : 85.0;
     const leftPadding = 0.0;
-    if (homeScreenController.tabIndex.value == 0) {
+    final tab = homeScreenController.tabIndex.value;
+    if (tab == RailTab.home) {
       return Padding(
         padding: const EdgeInsets.only(left: leftPadding),
         child: Stack(
@@ -214,23 +216,25 @@ class Body extends StatelessWidget {
           ],
         ),
       );
-    } else if (homeScreenController.tabIndex.value == 1) {
+    } else if (tab == RailTab.discover) {
+      return const DiscoverScreen();
+    } else if (tab == RailTab.songs) {
       return const SongsLibraryWidget();
-    } else if (homeScreenController.tabIndex.value == 2) {
+    } else if (tab == RailTab.podcasts) {
       return const PodcastsLibraryWidget();
-    } else if (homeScreenController.tabIndex.value == 3) {
+    } else if (tab == RailTab.audiobooks) {
       return const AudiobooksScreen();
-    } else if (homeScreenController.tabIndex.value == 4) {
+    } else if (tab == RailTab.playlists) {
       return const PlaylistNAlbumLibraryWidget(isAlbumContent: false);
-    } else if (homeScreenController.tabIndex.value == 5) {
+    } else if (tab == RailTab.albums) {
       return const PlaylistNAlbumLibraryWidget();
-    } else if (homeScreenController.tabIndex.value == 6) {
+    } else if (tab == RailTab.artists) {
       return const LibraryArtistWidget();
-    } else if (homeScreenController.tabIndex.value == 7) {
+    } else if (tab == RailTab.settings) {
       return const SettingsScreen();
     } else {
       return Center(
-        child: Text("${homeScreenController.tabIndex.value}"),
+        child: Text("$tab"),
       );
     }
   }
@@ -431,8 +435,9 @@ class _HomeFeedState extends State<_HomeFeed> {
   }
 }
 
-/// Greeting on the left (one line), Explore, Stats and Search on the
-/// right. Only this row clears the status bar.
+/// Greeting on the left (one line), Stats (and "What's playing?" on
+/// Android) on the right; search and Explore live in the Discover tab.
+/// Only this row clears the status bar.
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader({super.key, required this.top});
   final double top;
@@ -470,21 +475,10 @@ class _HomeHeader extends StatelessWidget {
               ),
             ),
             IconButton(
-              tooltip: 'explore'.tr,
-              icon: const Icon(Icons.explore_outlined),
-              onPressed: () => _go(ScreenNavigationSetup.exploreScreen),
-            ),
-            IconButton(
               tooltip: 'stats'.tr,
               icon: const Icon(Icons.bar_chart_rounded),
               onPressed: () => _go(ScreenNavigationSetup.statsScreen),
             ),
-            if (!GetPlatform.isDesktop)
-              IconButton(
-                tooltip: 'search'.tr,
-                icon: const Icon(Icons.search_rounded),
-                onPressed: () => _go(ScreenNavigationSetup.searchScreen),
-              ),
             // "What's playing?" — listen and name the song (Android).
             if (GetPlatform.isAndroid)
               IconButton(

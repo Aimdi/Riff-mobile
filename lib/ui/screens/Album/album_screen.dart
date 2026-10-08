@@ -162,8 +162,8 @@ class AlbumScreen extends StatelessWidget {
                                   child: _header(context, albumController),
                                 );
                               } else if (index == 1) {
-                                return _actions(context, albumController,
-                                    playerController);
+                                return _actions(
+                                    context, albumController, playerController);
                               } else if (index == 2) {
                                 return Padding(
                                   padding: const EdgeInsets.only(right: 4),
@@ -378,6 +378,8 @@ Future<void> _playAlbumFrom(
     playfrom: PlaylingFrom(
       name: albumController.album.value.title,
       type: PlaylingFromType.ALBUM,
+      id: albumController.album.value.browseId,
+      item: albumController.album.value,
     ),
   );
   if (!ok) snackOperationFailed();

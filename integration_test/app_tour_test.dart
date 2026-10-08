@@ -39,7 +39,8 @@ void _record(String what, StackTrace? stack) {
   final first = what.split('\n').first;
   final key = '$first @ $frames';
   _errors.putIfAbsent(key, () => []).add(_step);
-  _log('ERROR in [$_step]: $first${frames.isEmpty ? '' : '\n      at $frames'}');
+  _log(
+      'ERROR in [$_step]: $first${frames.isEmpty ? '' : '\n      at $frames'}');
 }
 
 Future<void> _wait(WidgetTester tester, int seconds) async {
@@ -49,8 +50,9 @@ Future<void> _wait(WidgetTester tester, int seconds) async {
   }
 }
 
-Future<void> _step_(WidgetTester tester, String name,
-    Future<void> Function() body, {int settle = 4}) async {
+Future<void> _step_(
+    WidgetTester tester, String name, Future<void> Function() body,
+    {int settle = 4}) async {
   _step = name;
   _log('--- $name');
   try {
@@ -74,11 +76,9 @@ Future<void> _tapIfShown(WidgetTester tester, Finder f, String label) async {
 Future<void> _scroll(WidgetTester tester) async {
   final s = find.byType(Scrollable);
   if (s.evaluate().isEmpty) return;
-  await tester.fling(s.first, const Offset(0, -900), 2500,
-      warnIfMissed: false);
+  await tester.fling(s.first, const Offset(0, -900), 2500, warnIfMissed: false);
   await _wait(tester, 2);
-  await tester.fling(s.first, const Offset(0, 900), 2500,
-      warnIfMissed: false);
+  await tester.fling(s.first, const Offset(0, 900), 2500, warnIfMissed: false);
 }
 
 void _go(String route, Object? args) => Get.toNamed(route,
@@ -106,7 +106,9 @@ void main() {
 
     await _step_(tester, 'home feed', () => _scroll(tester));
 
+    // Rail order after Home (RailTab 1…8).
     const tabs = [
+      'discover',
       'songs',
       'podcasts',
       'audiobooks',
@@ -169,11 +171,25 @@ void main() {
     await tester.runAsync(() async {
       try {
         final a = await ms.search('Coldplay', filter: 'artists', limit: 3);
-        artist = a.values.whereType<List>().expand((l) => l).whereType<Artist>().firstOrNull;
-        final b = await ms.search('Coldplay Parachutes', filter: 'albums', limit: 3);
-        album = b.values.whereType<List>().expand((l) => l).whereType<Album>().firstOrNull;
-        final p = await ms.search('chill hits', filter: 'community_playlists', limit: 3);
-        playlist = p.values.whereType<List>().expand((l) => l).whereType<Playlist>().firstOrNull;
+        artist = a.values
+            .whereType<List>()
+            .expand((l) => l)
+            .whereType<Artist>()
+            .firstOrNull;
+        final b =
+            await ms.search('Coldplay Parachutes', filter: 'albums', limit: 3);
+        album = b.values
+            .whereType<List>()
+            .expand((l) => l)
+            .whereType<Album>()
+            .firstOrNull;
+        final p = await ms.search('chill hits',
+            filter: 'community_playlists', limit: 3);
+        playlist = p.values
+            .whereType<List>()
+            .expand((l) => l)
+            .whereType<Playlist>()
+            .firstOrNull;
       } catch (e, st) {
         _record('search for pages: $e', st);
       }
@@ -213,7 +229,8 @@ void main() {
       await _tapIfShown(tester, find.byIcon(Icons.repeat_rounded), 'repeat');
       await _tapIfShown(tester, find.byIcon(Icons.skip_next_rounded), 'next');
       await _wait(tester, 6);
-      await _tapIfShown(tester, find.byIcon(Icons.skip_previous_rounded), 'previous');
+      await _tapIfShown(
+          tester, find.byIcon(Icons.skip_previous_rounded), 'previous');
       await _wait(tester, 4);
       await _tapIfShown(tester, find.byIcon(Icons.lyrics_outlined), 'lyrics');
       await _wait(tester, 6);
@@ -251,7 +268,11 @@ void main() {
       await tester.runAsync(() async {
         final r = await ms.search('Handelsblatt Economic Challenges',
             filter: 'podcasts', limit: 5);
-        show = r.values.whereType<List>().expand((l) => l).whereType<Playlist>().firstOrNull;
+        show = r.values
+            .whereType<List>()
+            .expand((l) => l)
+            .whereType<Playlist>()
+            .firstOrNull;
       });
       if (show == null) return;
       _go(ScreenNavigationSetup.playlistScreen, [show, show!.playlistId, true]);

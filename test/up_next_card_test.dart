@@ -41,20 +41,24 @@ final _panelFade = find.ancestor(
         matching: find.byType(FadeTransition)));
 
 void main() {
-  testWidgets('a slim rounded card floating above the system inset',
+  testWidgets('a slim tab standing on the bottom edge, rounded on top',
       (tester) async {
     _screen(tester, _phone);
     await tester.pumpWidget(_card());
 
     final rect = tester.getRect(_cardSurface);
-    expect(rect.height, RiffComponentSizes.queueCard);
+    expect(rect.height, RiffComponentSizes.queueCard + _inset);
     expect(rect.left, RiffSpacing.xxl);
     expect(rect.right, _phone.width - RiffSpacing.xxl);
-    expect(rect.bottom, _phone.height - _inset - RiffSpacing.sm);
+    expect(rect.bottom, _phone.height);
+    // The label stays clear of the system inset.
+    expect(tester.getRect(find.text('upNext · Dreams · 10 more')).bottom,
+        lessThanOrEqualTo(_phone.height - _inset));
 
     final shape =
         tester.widget<Material>(_cardSurface).shape! as RoundedRectangleBorder;
-    expect(shape.borderRadius, BorderRadius.circular(RiffRadii.miniPlayer));
+    expect(shape.borderRadius,
+        const BorderRadius.vertical(top: Radius.circular(RiffRadii.lg)));
   });
 
   testWidgets('label and next song share one line', (tester) async {
@@ -67,7 +71,7 @@ void main() {
     expect(find.text('upNext'), findsOneWidget);
   });
 
-  testWidgets('the card and the gap around it open the queue', (tester) async {
+  testWidgets('the tab and the gap beside it open the queue', (tester) async {
     _screen(tester, _phone);
     var taps = 0;
     await tester.pumpWidget(_card(onTap: () => taps++));
@@ -75,7 +79,7 @@ void main() {
     await tester.tap(find.text('upNext · Dreams · 10 more'));
     final rect = tester.getRect(_cardSurface);
     await tester.tapAt(Offset(RiffSpacing.xxl / 2, rect.center.dy));
-    await tester.tapAt(Offset(rect.center.dx, rect.bottom + RiffSpacing.sm));
+    await tester.tapAt(Offset(rect.center.dx, rect.bottom - _inset / 2));
     expect(taps, 3);
   });
 
