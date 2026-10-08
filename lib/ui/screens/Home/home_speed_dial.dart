@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
+import '/models/playlist.dart';
 import '/services/discovery/discovery_types.dart';
 import '/ui/navigator.dart';
 import '/ui/player/player_controller.dart';
@@ -233,6 +234,15 @@ class _PinArt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (pin.art.isEmpty) {
+      if (pin.type == 'playlist') {
+        // The same generated cover the playlist shows everywhere else.
+        return ImageWidget(
+          playlist:
+              Playlist(title: pin.title, playlistId: pin.id, thumbnailUrl: ''),
+          size: size,
+          borderRadius: 0,
+        );
+      }
       return LetterArt(
           title: pin.title, size: size, circle: pin.type == 'artist');
     }
