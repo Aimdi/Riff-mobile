@@ -65,7 +65,8 @@ class SongInfoBottomSheet extends StatelessWidget {
       this.playlist,
       this.calledFromPlayer = false,
       this.calledFromQueue = false,
-      this.showPlayerTools = false});
+      this.showPlayerTools = false,
+      this.onLyrics});
   final MediaItem song;
   final Playlist? playlist;
   final bool calledFromPlayer;
@@ -74,6 +75,9 @@ class SongInfoBottomSheet extends StatelessWidget {
   /// The full player's ⋮: lyrics and the sleep timer sit right under the
   /// quick actions, since the player has no button row of its own.
   final bool showPlayerTools;
+
+  /// How this player shows lyrics; null toggles them over the cover.
+  final VoidCallback? onLyrics;
 
   /// Reuses the sheet's controller across rebuilds (Get.put in build used to
   /// construct — and run the Hive lookups of — a throwaway controller every
@@ -236,7 +240,7 @@ class SongInfoBottomSheet extends StatelessWidget {
               ),
             ]),
             const SizedBox(height: RiffSpacing.xs),
-            if (showPlayerTools) const PlayerToolTiles(),
+            if (showPlayerTools) PlayerToolTiles(onLyrics: onLyrics),
             RiffSheetTile(
               icon: Icons.graphic_eq_rounded,
               title: "similarSongs".tr,
@@ -502,7 +506,11 @@ class SongInfoBottomSheet extends StatelessWidget {
 /// Lyrics on/off and the sleep timer (with the time left while it runs),
 /// for the full player's ⋮ sheet. Both close the sheet.
 class PlayerToolTiles extends StatelessWidget {
-  const PlayerToolTiles({super.key});
+  const PlayerToolTiles({super.key, this.onLyrics});
+
+  /// How the player shows lyrics (the gesture player opens a dialog);
+  /// null toggles them over the cover.
+  final VoidCallback? onLyrics;
 
   @override
   Widget build(BuildContext context) {
@@ -521,7 +529,8 @@ class PlayerToolTiles extends StatelessWidget {
             onTap: () {
               Navigator.of(context).pop();
               if (!lyricsOn) HapticFeedback.lightImpact();
-              playerController.showLyrics();
+              final show = onLyrics;
+              show != null ? show() : playerController.showLyrics();
             },
           ),
           RiffSheetTile(

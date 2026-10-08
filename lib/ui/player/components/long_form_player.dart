@@ -18,7 +18,9 @@ import 'albumart_lyrics.dart';
 import 'animated_play_button.dart';
 import 'backgroud_image.dart';
 import 'player_control.dart';
+import '/services/podcast_playback_profile.dart';
 import '/services/podcast_transcripts.dart';
+import '/ui/widgets/riff_sheet.dart';
 import 'podcast_player_tint.dart';
 import 'podcast_transcript_sheet.dart';
 import 'standard_player.dart';
@@ -294,8 +296,6 @@ class _Controls extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 14),
-        const _ToolRow(),
       ],
     );
   }
@@ -379,107 +379,127 @@ class _ChapterLine extends StatelessWidget {
   }
 }
 
-/// Speed · sleep · notes / chapters · transcript · video · autoplay.
-class _ToolRow extends StatelessWidget {
-  const _ToolRow();
+/// The long-form player's ⋮ (top right): speed, sleep timer, shownotes or
+/// chapters, transcript, video and autoplay; podcasts add bookmarks and
+/// segments below.
+void openLongFormMenu(BuildContext context) {
+  final pc = Get.find<PlayerController>();
+  if (pc.isCurrentSongPodcast) {
+    showPodcastSegmentsSheet(context, header: const LongFormToolTiles());
+    return;
+  }
+  showModalBottomSheet<void>(
+    context: pc.homeScaffoldkey.currentContext ?? context,
+    useRootNavigator: true,
+    isScrollControlled: true,
+    constraints: const BoxConstraints(maxWidth: 520),
+    builder: (sheet) => const SafeArea(
+      top: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          RiffSheetHandle(),
+          LongFormToolTiles(),
+          SizedBox(height: RiffSpacing.sm),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Speed · sleep timer · shownotes / chapters · transcript · video ·
+/// autoplay, as rows of the ⋮ sheet. Toggles and the audiobook speed stay
+/// in the sheet; the rest close it and open their own.
+class LongFormToolTiles extends StatelessWidget {
+  const LongFormToolTiles({super.key});
 
   @override
   Widget build(BuildContext context) {
     final pc = Get.find<PlayerController>();
+    final settings = Get.find<SettingsScreenController>();
     final theme = Theme.of(context);
-    // §5 Phase 6 action row: 20 dp glyphs in the secondary text colour,
-    // the accent when on.
-    final muted = theme.colorScheme.onSurfaceVariant;
-    final accent = theme.colorScheme.secondary;
     return Obx(() {
       final song = pc.currentSong.value;
       final isBook = song?.isAudiobook == true;
+      final isPodcast = pc.isCurrentSongPodcast;
       final hasTranscript =
           PodcastTranscriptService.available(song) && song != null;
       final canVideo = song?.canShowPlayerVideo == true;
       final videoOn = canVideo && AlbumArtNLyrics.videoPlaybackEnabledFor(song);
-      final settings = Get.find<SettingsScreenController>();
       final autoOn = settings.podcastContinuousPlaybackEnabled.value;
       final sleepOn = pc.isSleepTimerActive.isTrue;
+      final left = sleepTimerBadge(pc.timerDurationLeft.value);
+      PodcastPlaybackPrefs.rev.value;
+      final speed = isPodcast
+          ? podcastSpeedLabel(pc.currentPodcastProfile.speed)
+          : speedLabel(settings.playbackSpeed.value);
 
-      Widget tool(IconData icon, String label, VoidCallback? onTap,
-          {bool active = false, String? badge}) {
-        final c = active ? accent : muted;
-        return Expanded(
-          child: InkWell(
-            borderRadius: BorderRadius.circular(RiffRadii.sm),
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: RiffSpacing.sm),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, size: RiffComponentSizes.trailingIcon, color: c),
-                  const SizedBox(height: RiffSpacing.xs),
-                  Text(
-                    badge ?? label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelSmall?.copyWith(color: c),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
+      /// Closes this sheet; the next one opens from the player's scaffold.
+      BuildContext closeSheet() {
+        final host = pc.homeScaffoldkey.currentContext ?? context;
+        Navigator.of(context).pop();
+        return host;
       }
 
-      // Straight on the page: no card behind the row (§2.1).
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.xs),
-        child: Row(
-          children: [
-            Expanded(
-              child: Center(
-                  child: pc.isCurrentSongPodcast
-                      ? PodcastSpeedButton(color: muted)
-                      : PlayerSpeedButton(color: muted)),
+      Future<void> toggleVideo() async {
+        await AlbumArtNLyrics.setVideoPlaybackEnabled(song, !videoOn);
+        pc.currentSong.refresh();
+      }
+
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          RiffSheetTile(
+            icon: Icons.speed_rounded,
+            title: 'speed'.tr,
+            trailing: Text(speed, style: theme.textTheme.labelMedium),
+            onTap: isPodcast
+                ? () => showPodcastSpeedSheet(closeSheet())
+                : cyclePlayerSpeed,
+          ),
+          RiffSheetTile(
+            icon: sleepOn ? Icons.bedtime : Icons.bedtime_outlined,
+            title: 'sleepTimer'.tr,
+            subtitle: sleepOn && left.isNotEmpty ? '$left ${"left".tr}' : null,
+            onTap: () => showSleepTimerSheet(closeSheet()),
+          ),
+          if (isBook)
+            RiffSheetTile(
+              icon: Icons.format_list_bulleted_rounded,
+              title: 'chapters'.tr,
+              onTap: () => openQueueChaptersSheet(closeSheet()),
+            )
+          else
+            RiffSheetTile(
+              icon: Icons.notes_rounded,
+              title: 'shownotes'.tr,
+              onTap: () => openShownotesSheet(pc, closeSheet()),
             ),
-            tool(
-              sleepOn ? Icons.bedtime : Icons.bedtime_outlined,
-              'sleepTimer'.tr,
-              () => showSleepTimerSheet(
-                  pc.homeScaffoldkey.currentContext ?? context),
-              active: sleepOn,
-              badge:
-                  sleepOn ? sleepTimerBadge(pc.timerDurationLeft.value) : null,
+          if (hasTranscript)
+            RiffSheetTile(
+              icon: Icons.subtitles_outlined,
+              title: 'transcript'.tr,
+              onTap: () => PodcastTranscriptSheet.open(closeSheet(), song),
             ),
-            if (isBook)
-              tool(Icons.format_list_bulleted_rounded, 'chapters'.tr,
-                  () => openQueueChaptersSheet(context))
-            else
-              tool(Icons.notes_rounded, 'shownotes'.tr,
-                  () => openShownotesSheet(pc, context)),
-            if (hasTranscript)
-              tool(
-                Icons.subtitles_outlined,
-                'transcript'.tr,
-                () => PodcastTranscriptSheet.open(context, song),
-              ),
-            if (canVideo)
-              tool(
-                videoOn ? Icons.videocam_rounded : Icons.videocam_outlined,
-                'video'.tr,
-                () async {
-                  await AlbumArtNLyrics.setVideoPlaybackEnabled(song, !videoOn);
-                  pc.currentSong.refresh();
-                },
-                active: videoOn,
-              ),
-            if (!isBook)
-              tool(
-                Icons.playlist_play_rounded,
-                'autoplayShort'.tr,
-                () => settings.togglePodcastContinuousPlayback(!autoOn),
-                active: autoOn,
-              ),
-          ],
-        ),
+          if (canVideo)
+            RiffSheetTile(
+              icon: videoOn ? Icons.videocam_rounded : Icons.videocam_outlined,
+              title: 'video'.tr,
+              trailing: Switch(value: videoOn, onChanged: (_) => toggleVideo()),
+              onTap: toggleVideo,
+            ),
+          if (!isBook)
+            RiffSheetTile(
+              icon: Icons.playlist_play_rounded,
+              title: 'autoplayEpisodes'.tr,
+              trailing: Switch(
+                  value: autoOn,
+                  onChanged: settings.togglePodcastContinuousPlayback),
+              onTap: () => settings.togglePodcastContinuousPlayback(!autoOn),
+            ),
+        ],
       );
     });
   }

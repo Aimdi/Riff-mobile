@@ -4,8 +4,8 @@ import 'package:get/get.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 
-/// The full player's collapsed queue: a slim tab standing on the bottom
-/// edge, rounded on top, as wide as the player's content above it. It runs
+/// The full player's collapsed queue: a slim one-line tab standing on the
+/// bottom edge, rounded on top, as wide as the player's content above it. It runs
 /// down through the system inset; its label stays above it. The whole
 /// strip, the tab and the gap beside it, opens the queue, so a tap never
 /// reaches the hidden queue underneath.
@@ -51,22 +51,20 @@ class UpNextCard extends StatelessWidget {
                 child: Container(
                   width: double.infinity,
                   height: RiffComponentSizes.queueCard + bottomInset,
-                  padding: EdgeInsets.only(bottom: bottomInset),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  padding: EdgeInsets.only(
+                      left: RiffSpacing.lg,
+                      right: RiffSpacing.lg,
+                      bottom: bottomInset),
+                  alignment: Alignment.center,
+                  // One line: an up-arrow (pull me up), then "Up Next ·
+                  // next song".
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        width: RiffComponentSizes.handleWidth,
-                        height: RiffComponentSizes.handleHeight,
-                        decoration: BoxDecoration(
-                          color: RiffColors.of(context).handle,
-                          borderRadius: BorderRadius.circular(RiffRadii.pill),
-                        ),
-                      ),
-                      const SizedBox(height: RiffSpacing.xs),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: RiffSpacing.lg),
+                      Icon(Icons.keyboard_arrow_up_rounded,
+                          size: RiffComponentSizes.trailingIcon, color: muted),
+                      const SizedBox(width: RiffSpacing.xs),
+                      Flexible(
                         child: Text.rich(
                           TextSpan(children: [
                             TextSpan(

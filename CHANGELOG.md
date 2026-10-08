@@ -1,3 +1,17 @@
+# 1.7.148
+
+**Everything under ⋮, in every player**
+* Podcasts and audiobooks: the button row under the controls is gone.
+  Speed, sleep timer, shownotes (chapters for books), transcript, video
+  and autoplay are in the ⋮ at the top right, above bookmarks and segments
+* Audiobooks get that ⋮ too
+* Cover-filling (gesture) player: lyrics, sleep timer and share moved into
+  a ⋮ next to the heart
+
+**Player polish**
+* "Playing from …" at the top stays readable on light covers
+* The Up Next tab at the bottom is one slim line with an up-arrow
+
 # 1.7.147
 
 **Discover in the side rail**

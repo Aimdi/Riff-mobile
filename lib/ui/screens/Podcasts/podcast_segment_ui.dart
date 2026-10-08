@@ -91,22 +91,7 @@ class PodcastSkipPill extends StatelessWidget {
 
 String _clock(double sec) => formatSegmentLength(sec);
 
-/// Overflow button in the podcast player's top bar (music keeps the empty
-/// slot): bookmarks, this episode's segments and marking new ones.
-class PodcastPlayerMenuButton extends StatelessWidget {
-  const PodcastPlayerMenuButton({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: 'moreOptions'.tr,
-      icon: const Icon(Icons.more_vert_rounded),
-      onPressed: () => showPodcastSegmentsSheet(context),
-    );
-  }
-}
-
-Future<void> showPodcastSegmentsSheet(BuildContext context) {
+Future<void> showPodcastSegmentsSheet(BuildContext context, {Widget? header}) {
   final pc = Get.find<PlayerController>();
   return showModalBottomSheet<void>(
     context: pc.homeScaffoldkey.currentContext ?? context,
@@ -134,6 +119,7 @@ Future<void> showPodcastSegmentsSheet(BuildContext context) {
             shrinkWrap: true,
             children: [
               const RiffSheetHandle(),
+              if (header != null) ...[header, const RiffSheetDivider()],
               RiffSheetTile(
                 icon: Icons.bookmark_add_outlined,
                 title: 'bookmarkThisMoment'.tr,

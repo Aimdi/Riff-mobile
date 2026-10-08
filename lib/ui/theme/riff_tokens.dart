@@ -45,6 +45,12 @@ class RiffPalette {
   /// background (CLAUDE.md rule 4: ≤ 20% over black).
   static const double playerTintOpacity = 0.2;
 
+  /// Scrim behind the player's "Playing from" header over the cover: dark
+  /// at the very top, half that where the header text ends, so it stays
+  /// readable on light covers.
+  static const double playerHeaderScrim = 0.75;
+  static const double playerHeaderScrimMid = 0.45;
+
   /// Lyrics lines other than the current one (secondary text at 60%).
   static const double lyricsDimOpacity = 0.6;
 }
@@ -175,7 +181,7 @@ class RiffComponentSizes {
   /// The full player's collapsed "Up Next" tab: its height above the
   /// system inset (it runs down to the screen edge), and the widest it gets
   /// (tablets; the player controls column is as wide).
-  static const double queueCard = 36;
+  static const double queueCard = 30;
   static const double queueCardMaxWidth = 500;
 
   /// Wide (desktop) mini player: skip glyphs, their hit widths, the

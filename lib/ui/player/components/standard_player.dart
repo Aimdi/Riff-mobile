@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
-import '/ui/screens/Podcasts/podcast_segment_ui.dart';
 
 import '../../screens/Settings/settings_screen_controller.dart';
 import '/models/playling_from.dart';
@@ -12,6 +11,7 @@ import '../player_controller.dart';
 import '../player_media_nav.dart';
 import 'albumart_lyrics.dart';
 import 'backgroud_image.dart';
+import 'long_form_player.dart' show openLongFormMenu;
 import 'lyrics_switch.dart';
 import 'lyrics_widget.dart';
 import 'player_video_surface.dart';
@@ -242,10 +242,15 @@ class PlayerTopBar extends StatelessWidget {
                 );
               }),
             ),
-            // Podcast episodes: segments menu. Music: balances the collapse
-            // button (song options sit by the title).
-            Obx(() => playerController.isCurrentSongPodcast
-                ? const PodcastPlayerMenuButton()
+            // Podcasts and audiobooks: the ⋮ with speed, sleep timer and
+            // the rest. Music: balances the collapse button (song options
+            // sit by the title).
+            Obx(() => playerController.usesLongFormTransport
+                ? IconButton(
+                    tooltip: 'moreOptions'.tr,
+                    icon: const Icon(Icons.more_vert_rounded),
+                    onPressed: () => openLongFormMenu(context),
+                  )
                 : const SizedBox(width: RiffSizes.touch)),
           ],
         ),
@@ -284,8 +289,12 @@ class _HeroArtBackdrop extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [riff.scrim.withOpacity(0.54), Colors.transparent],
-                stops: const [0, 0.3],
+                colors: [
+                  riff.scrim.withOpacity(RiffPalette.playerHeaderScrim),
+                  riff.scrim.withOpacity(RiffPalette.playerHeaderScrimMid),
+                  Colors.transparent,
+                ],
+                stops: const [0, 0.22, 0.42],
               ),
             ),
           ),
@@ -414,7 +423,8 @@ class _HeroArtRegion extends StatelessWidget {
 
 /// Song options for the current track: radio, play next, add to playlist,
 /// share, lyrics, sleep timer, album / artist …
-void openNowPlayingSheet(PlayerController playerController) {
+void openNowPlayingSheet(PlayerController playerController,
+    {VoidCallback? onLyrics}) {
   final sheetContext =
       playerController.homeScaffoldkey.currentContext ?? Get.context;
   final song = playerController.currentSong.value;
@@ -425,6 +435,6 @@ void openNowPlayingSheet(PlayerController playerController) {
     isScrollControlled: true,
     context: sheetContext,
     builder: (context) => SongInfoBottomSheet(song,
-        calledFromPlayer: true, showPlayerTools: true),
+        calledFromPlayer: true, showPlayerTools: true, onLyrics: onLyrics),
   ).whenComplete(() => Get.delete<SongInfoController>());
 }
