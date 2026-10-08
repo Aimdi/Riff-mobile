@@ -9,21 +9,17 @@ import '/ui/screens/Podcasts/podcast_segment_ui.dart';
 
 import '/ui/screens/Podcasts/podcast_playback_controls.dart';
 import 'package:ionicons/ionicons.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
 import '/ui/player/components/animated_play_button.dart';
 import '/services/podcast_transcripts.dart';
 import '/ui/player/components/podcast_transcript_sheet.dart';
 import '/ui/utils/theme_controller.dart';
-import '/utils/content_filters.dart';
 import '/services/podcast_service.dart' show PodcastChapter;
 import '../../screens/Settings/settings_screen_controller.dart';
-import '../../widgets/add_to_playlist.dart';
 import '../../widgets/discovery/player_similar_row.dart';
 import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/sleep_timer_bottom_sheet.dart';
-import '../../widgets/snackbar.dart';
 import '../chapter_marks.dart';
 import '../player_controller.dart';
 import '../radio_continuation.dart';
@@ -89,10 +85,14 @@ class PlayerControlWidget extends StatelessWidget {
           Obx(() => playerController.usesLongFormTransport
               ? _podcastControls(playerController, context)
               : _musicControls(playerController, context)),
-          const SizedBox(height: 10),
+          // Music has no button row: lyrics, sleep timer, radio, add to
+          // playlist and share are in the ⋮ sheet.
           Obx(() => playerController.usesLongFormTransport
-              ? _podcastActions(playerController, context)
-              : _musicActions(playerController, context)),
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: _podcastActions(playerController, context),
+                )
+              : const SizedBox.shrink()),
           // Similar songs are music-only, and only where the cover keeps
           // most of the screen.
           Obx(() => playerController.usesLongFormTransport ||
@@ -103,56 +103,6 @@ class PlayerControlWidget extends StatelessWidget {
                   child: PlayerSimilarRow(),
                 )),
         ]);
-  }
-
-  /// Lyrics · sleep timer · radio · add to playlist · share. Everything
-  /// else for the song is in the ⋮ sheet.
-  Widget _musicActions(
-      PlayerController playerController, BuildContext context) {
-    final song = playerController.currentSong.value;
-    return PlayerActionBar(actions: [
-      PlayerAction(
-        icon: Icons.lyrics_outlined,
-        activeIcon: Icons.lyrics,
-        tooltip: 'lyrics'.tr,
-        active: playerController.showLyricsflag.isTrue,
-        onTap: () {
-          if (playerController.showLyricsflag.isFalse) {
-            HapticFeedback.lightImpact();
-          }
-          playerController.showLyrics();
-        },
-      ),
-      _sleepAction(playerController, context),
-      PlayerAction(
-        icon: Icons.sensors_rounded,
-        tooltip: 'startRadio'.tr,
-        onTap: song == null
-            ? null
-            : () async {
-                final ok = await playerController.startRadio(song);
-                if (!context.mounted || ok) return;
-                ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                  context,
-                  "radioNotAvailable".tr,
-                  size: SanckBarSize.MEDIUM,
-                ));
-              },
-      ),
-      PlayerAction(
-        icon: Icons.playlist_add_rounded,
-        tooltip: 'addToPlaylist'.tr,
-        onTap:
-            song == null ? null : () => showAddToPlaylistSheet(context, [song]),
-      ),
-      PlayerAction(
-        icon: Icons.share_outlined,
-        tooltip: 'shareSong'.tr,
-        onTap: song == null
-            ? null
-            : () => Share.share(SongLinkShare.shareText(song)),
-      ),
-    ]);
   }
 
   /// Autoplay · shownotes · chapters · transcript · sleep timer.
