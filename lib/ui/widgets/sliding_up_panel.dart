@@ -101,6 +101,12 @@ class SlidingUpPanel extends StatefulWidget {
   /// Set to false to disable the panel from snapping open or closed.
   final bool panelSnapping;
 
+  /// Keeps the [panel] hidden while collapsed and fades it in over the
+  /// start of the slide, so a [collapsed] widget that doesn't fill the
+  /// collapsed area (a floating card) shows the [body] around it. Pair
+  /// with [renderPanelSheet] false; the [panel] paints its own background.
+  final bool fadePanelWhenCollapsed;
+
   /// If non-null, this can be used to control the state of the panel.
   final PanelController? controller;
 
@@ -187,6 +193,7 @@ class SlidingUpPanel extends StatefulWidget {
       this.margin,
       this.renderPanelSheet = true,
       this.panelSnapping = true,
+      this.fadePanelWhenCollapsed = false,
       this.controller,
       this.backdropEnabled = false,
       this.backdropColor = RiffPalette.scrim,
@@ -216,6 +223,10 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
   late AnimationController _ac;
   late ScrollController _sc;
 
+  /// [SlidingUpPanel.fadePanelWhenCollapsed]: clear when collapsed, fully
+  /// opaque a tenth of the way open.
+  late CurvedAnimation _panelOpacity;
+
   bool _scrollingEnabled = false;
   final VelocityTracker _vt = VelocityTracker.withKind(PointerDeviceKind.touch);
 
@@ -244,6 +255,9 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
         }
         //printINFO("offset :${_sc.offset}");
       });
+
+    _panelOpacity =
+        CurvedAnimation(parent: _ac, curve: const Interval(0.0, 0.1));
 
     // prevent the panel content from being scrolled only if the widget is
     // draggable and panel scrolling is enabled
@@ -358,9 +372,9 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
                                   : 0),
                           child: SizedBox(
                             height: widget.maxHeight,
-                            child: widget.panel ??
+                            child: _fadeWhenCollapsed(widget.panel ??
                                 widget.panelBuilder!(
-                                    _sc, onListReorderStart, onListReorderEnd),
+                                    _sc, onListReorderStart, onListReorderEnd)),
                           )),
 
                       // header
@@ -435,8 +449,13 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
     );
   }
 
+  Widget _fadeWhenCollapsed(Widget panel) => widget.fadePanelWhenCollapsed
+      ? FadeTransition(opacity: _panelOpacity, child: panel)
+      : panel;
+
   @override
   void dispose() {
+    _panelOpacity.dispose();
     _ac.dispose();
     _sc.dispose();
     super.dispose();
