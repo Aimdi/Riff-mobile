@@ -307,6 +307,47 @@ class RiffComponentSizes {
   static const double buttonSpinner = 16;
 }
 
+/// Generated covers for playlists without artwork (colours in
+/// palettes/generated_covers.dart).
+class RiffCoverArt {
+  RiffCoverArt._();
+
+  /// Smaller covers show only the colour blobs: list rows and the 96 dp
+  /// collection header already print the title next to the art.
+  static const double titleMinSize = 100;
+
+  /// The title is laid out on a cover this big, then scaled with the cover,
+  /// so it wraps the same way at every size.
+  static const double titleDesignSize = 160;
+
+  /// Title lines: the large style, then the compact one for long titles.
+  static const int titleMaxLines = 2;
+  static const int titleMaxLinesCompact = 3;
+
+  /// Blur of the colour blobs, as a share of the cover's side.
+  static const double blobBlur = 0.17;
+
+  /// Film grain: side of the repeating noise tile (px), share of its pixels
+  /// that get a speck, and the specks' strength.
+  static const int grainTile = 128;
+  static const double grainDensity = 0.55;
+  static const double grainLightOpacity = 0.06;
+  static const double grainDarkOpacity = 0.09;
+
+  /// Shade behind the title: its strength at the bottom edge, and how far
+  /// up the cover it reaches (share of the side).
+  static const double titleShadeOpacity = 0.36;
+  static const double titleShadeExtent = 0.6;
+
+  /// Raster sizes (physical px) a cover is drawn at: the smallest one at
+  /// least as big as the cover on screen, so a few sizes serve every list.
+  static const List<int> rasterSizes = [96, 160, 256, 384, 512, 768, 1024];
+
+  /// Most memory the drawn covers may keep (bytes); older ones are dropped
+  /// and drawn again when they scroll back in.
+  static const int cacheBytes = 24 * 1024 * 1024;
+}
+
 /// Theme-dependent colours Material's [ColorScheme] has no slot for.
 @immutable
 class RiffColors extends ThemeExtension<RiffColors> {
