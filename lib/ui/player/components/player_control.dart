@@ -406,18 +406,7 @@ class PlayerSpeedButton extends StatelessWidget {
   const PlayerSpeedButton({super.key, required this.color});
   final Color? color;
 
-  static const _speeds = [0.8, 1.0, 1.2, 1.5, 1.75, 2.0];
-
-  void _cycle() {
-    final settings = Get.find<SettingsScreenController>();
-    final cur = settings.playbackSpeed.value;
-    final idx = _speeds.indexWhere((s) => (s - cur).abs() < 0.01);
-    final next = _speeds[(idx + 1) % _speeds.length];
-    settings.setBox.put("playbackSpeed", next);
-    settings.playbackSpeed.value = next;
-    Get.find<PlayerController>()
-        .setSpeedAndPitch(speed: next, pitch: settings.playbackPitch.value);
-  }
+  void _cycle() => cyclePlayerSpeed();
 
   @override
   Widget build(BuildContext context) {
@@ -448,6 +437,21 @@ class PlayerSpeedButton extends StatelessWidget {
       ),
     );
   }
+}
+
+const _playerSpeeds = [0.8, 1.0, 1.2, 1.5, 1.75, 2.0];
+
+/// Next common speed (0.8× … 2×, then round again), saved like the
+/// speed/pitch dialog.
+void cyclePlayerSpeed() {
+  final settings = Get.find<SettingsScreenController>();
+  final cur = settings.playbackSpeed.value;
+  final idx = _playerSpeeds.indexWhere((s) => (s - cur).abs() < 0.01);
+  final next = _playerSpeeds[(idx + 1) % _playerSpeeds.length];
+  settings.setBox.put("playbackSpeed", next);
+  settings.playbackSpeed.value = next;
+  Get.find<PlayerController>()
+      .setSpeedAndPitch(speed: next, pitch: settings.playbackPitch.value);
 }
 
 /// 1.0 → "1×", 1.25 → "1.25×", 1.5 → "1.5×".
