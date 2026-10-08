@@ -1,11 +1,16 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/models/album.dart';
 import 'package:harmonymusic/models/playlist.dart';
 import 'package:harmonymusic/ui/theme/palettes/generated_covers.dart';
 import 'package:harmonymusic/ui/theme/riff_theme.dart';
 import 'package:harmonymusic/ui/theme/riff_tokens.dart';
+import 'package:harmonymusic/ui/widgets/content_list_widget_item.dart';
 import 'package:harmonymusic/ui/widgets/generated_cover.dart';
+import 'package:harmonymusic/ui/widgets/image_widget.dart';
+import 'package:harmonymusic/ui/widgets/letter_art.dart';
 
 Widget _app(Widget child) => GetMaterialApp(
       theme: RiffTheme.dark(const Color(0xFF1DB954)),
@@ -74,6 +79,17 @@ void main() {
       expect(GeneratedCoverCache.rasterSizeFor(144), 160);
       expect(GeneratedCoverCache.rasterSizeFor(384), 384);
       expect(GeneratedCoverCache.rasterSizeFor(5000), 1024);
+    });
+  });
+
+  group('Playlist.hasArt', () {
+    test('no url and the shared placeholder are no art', () {
+      Playlist pl(String url) =>
+          Playlist(title: 't', playlistId: 'p', thumbnailUrl: url);
+      expect(pl('').hasArt, isFalse);
+      expect(pl(Playlist.thumbPlaceholderUrl).hasArt, isFalse);
+      expect(
+          pl('https://lh3.googleusercontent.com/x=w544-h544').hasArt, isTrue);
     });
   });
 
@@ -193,5 +209,82 @@ void main() {
       expect(fit.compact, isTrue);
       expect(fit.scale, lessThan(1));
     });
+  });
+
+  group('ImageWidget', () {
+    testWidgets('a playlist without art gets its generated cover',
+        (tester) async {
+      final pl = Playlist(
+          title: 'Road Trip',
+          playlistId: 'LOCAL_1',
+          thumbnailUrl: Playlist.thumbPlaceholderUrl,
+          isCloudPlaylist: false);
+      await tester.pumpWidget(_app(ImageWidget(playlist: pl, size: 160)));
+      final cover = tester.widget<GeneratedCover>(find.byType(GeneratedCover));
+      expect(cover.seed, 'LOCAL_1');
+      expect(_coverTitle('Road Trip'), findsOneWidget);
+      expect(find.byType(LetterArt), findsNothing);
+      expect(find.byType(CachedNetworkImage), findsNothing);
+    });
+
+    testWidgets('an empty thumbnail counts as no art too', (tester) async {
+      await tester.pumpWidget(_app(ImageWidget(
+          playlist: Playlist(title: 'Mix', playlistId: 'PL2', thumbnailUrl: ''),
+          size: RiffComponentSizes.rowArt)));
+      expect(find.byType(GeneratedCover), findsOneWidget);
+      expect(find.text('Mix'), findsNothing);
+    });
+
+    testWidgets('a playlist with art shows the image', (tester) async {
+      await tester.pumpWidget(_app(ImageWidget(
+          playlist: Playlist(
+              title: 'Hits',
+              playlistId: 'PL3',
+              thumbnailUrl: 'https://lh3.googleusercontent.com/abc=w544-h544'),
+          size: 160)));
+      expect(find.byType(CachedNetworkImage), findsOneWidget);
+      expect(find.byType(GeneratedCover), findsNothing);
+    });
+
+    testWidgets('albums and podcast shows keep the letter tile',
+        (tester) async {
+      await tester
+          .pumpWidget(_app(Column(mainAxisSize: MainAxisSize.min, children: [
+        ImageWidget(
+            album: Album(
+                title: 'LP',
+                browseId: 'MPREb_1',
+                thumbnailUrl: Playlist.thumbPlaceholderUrl,
+                artists: const []),
+            size: 120),
+        ImageWidget(
+            playlist: Playlist(
+                title: 'Show',
+                playlistId: 'MPSPshow',
+                thumbnailUrl: Playlist.thumbPlaceholderUrl,
+                kind: 'podcast'),
+            size: 120),
+      ])));
+      expect(find.byType(GeneratedCover), findsNothing);
+      expect(find.byType(LetterArt), findsNWidgets(2));
+    });
+  });
+
+  testWidgets('a library playlist tile uses the generated cover',
+      (tester) async {
+    await tester.pumpWidget(_app(ContentListItem(
+      content: Playlist(
+        title: 'Gym Bangers',
+        playlistId: 'LOCAL_9',
+        thumbnailUrl: Playlist.thumbPlaceholderUrl,
+        isCloudPlaylist: false,
+      ),
+      isLibraryItem: true,
+      size: 128,
+    )));
+    expect(find.byType(GeneratedCover), findsOneWidget);
+    expect(_coverTitle('Gym Bangers'), findsOneWidget);
+    // The tile's own label is still there under the cover.
+    expect(find.text('Gym Bangers'), findsNWidgets(2));
   });
 }
