@@ -106,7 +106,9 @@ void main() {
 
     await _step_(tester, 'home feed', () => _scroll(tester));
 
+    // Rail order after Home (RailTab 1…8).
     const tabs = [
+      'discover',
       'songs',
       'podcasts',
       'audiobooks',

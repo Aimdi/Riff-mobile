@@ -36,6 +36,12 @@ class _SideNavBarState extends State<SideNavBar> {
       iconOutlined: Icons.home_outlined,
     ),
     _RailDestination(
+      index: RailTab.discover,
+      labelKey: 'discoverTab',
+      icon: Icons.explore_rounded,
+      iconOutlined: Icons.explore_outlined,
+    ),
+    _RailDestination(
       index: RailTab.songs,
       labelKey: 'songs',
       icon: Icons.music_note_rounded,
@@ -106,6 +112,12 @@ class _SideNavBarState extends State<SideNavBar> {
                         homeScreenController,
                         sel,
                         destination: _destination(RailTab.home),
+                      ),
+                      // Discover: search and the Explore feed.
+                      _railItem(
+                        homeScreenController,
+                        sel,
+                        destination: _destination(RailTab.discover),
                       ),
                       // Songs — tap opens Songs, the caret expands the sub-section.
                       _railItem(

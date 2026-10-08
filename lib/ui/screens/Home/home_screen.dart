@@ -19,6 +19,7 @@ import '../../widgets/discovery/riff_wave_hero.dart';
 import '../../utils/riff_tokens.dart';
 import '../../widgets/shimmer_widgets/home_shimmer.dart';
 import '/services/spotify_home.dart';
+import 'discover_screen.dart';
 import 'home_feed_builder.dart';
 import 'home_feed_data.dart';
 import 'home_greeting.dart';
@@ -215,6 +216,8 @@ class Body extends StatelessWidget {
           ],
         ),
       );
+    } else if (tab == RailTab.discover) {
+      return const DiscoverScreen();
     } else if (tab == RailTab.songs) {
       return const SongsLibraryWidget();
     } else if (tab == RailTab.podcasts) {

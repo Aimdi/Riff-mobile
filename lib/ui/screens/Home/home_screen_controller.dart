@@ -23,13 +23,16 @@ import '/ui/widgets/new_version_dialog.dart';
 /// Playlists / Albums / Artists sit under Songs on the phone rail.
 abstract final class RailTab {
   static const home = 0;
-  static const songs = 1;
-  static const podcasts = 2;
-  static const audiobooks = 3;
-  static const playlists = 4;
-  static const albums = 5;
-  static const artists = 6;
-  static const settings = 7;
+
+  /// Search field and the Explore feed, right under Home.
+  static const discover = 1;
+  static const songs = 2;
+  static const podcasts = 3;
+  static const audiobooks = 4;
+  static const playlists = 5;
+  static const albums = 6;
+  static const artists = 7;
+  static const settings = 8;
 }
 
 class HomeScreenController extends GetxController {

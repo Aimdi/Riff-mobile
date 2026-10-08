@@ -5779,7 +5779,8 @@ Map<String, Map<String, String>> get keys => {
     "recognizeOnlyAndroid": "Song recognition works on Android only.",
     "recognizeRemove": "Remove from recent finds",
     "showLyrics": "Show lyrics",
-    "hideLyrics": "Hide lyrics"
+    "hideLyrics": "Hide lyrics",
+    "discoverTab": "Discover"
 }
 ,"pt" : {
     "renamePlaylist": "Renomear Playlist",
