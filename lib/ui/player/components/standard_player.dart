@@ -401,8 +401,8 @@ class _HeroArtRegion extends StatelessWidget {
   return (type: type, name: name);
 }
 
-/// Song options for the current track (radio, play next, share, sleep
-/// timer, album / artist …).
+/// Song options for the current track: radio, play next, add to playlist,
+/// share, lyrics, sleep timer, album / artist …
 void openNowPlayingSheet(PlayerController playerController) {
   final sheetContext =
       playerController.homeScaffoldkey.currentContext ?? Get.context;
@@ -413,6 +413,7 @@ void openNowPlayingSheet(PlayerController playerController) {
     constraints: const BoxConstraints(maxWidth: 500),
     isScrollControlled: true,
     context: sheetContext,
-    builder: (context) => SongInfoBottomSheet(song, calledFromPlayer: true),
+    builder: (context) => SongInfoBottomSheet(song,
+        calledFromPlayer: true, showPlayerTools: true),
   ).whenComplete(() => Get.delete<SongInfoController>());
 }

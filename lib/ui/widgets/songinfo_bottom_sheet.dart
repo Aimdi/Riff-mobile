@@ -17,6 +17,7 @@ import '../screens/Playlist/playlist_screen_controller.dart';
 import '/utils/helper.dart';
 import '/services/piped_service.dart';
 import '/ui/widgets/sleep_timer_bottom_sheet.dart';
+import '/ui/player/components/player_control.dart' show sleepTimerBadge;
 import '/ui/player/player_controller.dart';
 import '../screens/Library/library_controller.dart';
 import '/ui/widgets/add_to_playlist.dart';
@@ -63,11 +64,16 @@ class SongInfoBottomSheet extends StatelessWidget {
       {super.key,
       this.playlist,
       this.calledFromPlayer = false,
-      this.calledFromQueue = false});
+      this.calledFromQueue = false,
+      this.showPlayerTools = false});
   final MediaItem song;
   final Playlist? playlist;
   final bool calledFromPlayer;
   final bool calledFromQueue;
+
+  /// The full player's ⋮: lyrics and the sleep timer sit right under the
+  /// quick actions, since the player has no button row of its own.
+  final bool showPlayerTools;
 
   /// Reuses the sheet's controller across rebuilds (Get.put in build used to
   /// construct — and run the Hive lookups of — a throwaway controller every
@@ -230,6 +236,7 @@ class SongInfoBottomSheet extends StatelessWidget {
               ),
             ]),
             const SizedBox(height: RiffSpacing.xs),
+            if (showPlayerTools) const PlayerToolTiles(),
             RiffSheetTile(
               icon: Icons.graphic_eq_rounded,
               title: "similarSongs".tr,
@@ -352,17 +359,18 @@ class SongInfoBottomSheet extends StatelessWidget {
                     )
                   : const SizedBox.shrink(),
             ),
-            RiffSheetTile(
-              icon: Icons.bedtime_outlined,
-              title: "sleepTimer".tr,
-              onTap: () {
-                Navigator.of(context).pop();
-                final sheetContext =
-                    playerController.homeScaffoldkey.currentContext ??
-                        Get.context;
-                showSleepTimerSheet(sheetContext);
-              },
-            ),
+            if (!showPlayerTools)
+              RiffSheetTile(
+                icon: Icons.bedtime_outlined,
+                title: "sleepTimer".tr,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  final sheetContext =
+                      playerController.homeScaffoldkey.currentContext ??
+                          Get.context;
+                  showSleepTimerSheet(sheetContext);
+                },
+              ),
             // Open in YouTube / YouTube Music / WizeStream.
             Padding(
               padding: const EdgeInsets.only(
@@ -488,6 +496,48 @@ class SongInfoBottomSheet extends StatelessWidget {
           },
         ),
     ];
+  }
+}
+
+/// Lyrics on/off and the sleep timer (with the time left while it runs),
+/// for the full player's ⋮ sheet. Both close the sheet.
+class PlayerToolTiles extends StatelessWidget {
+  const PlayerToolTiles({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final playerController = Get.find<PlayerController>();
+    return Obx(() {
+      final lyricsOn = playerController.showLyricsflag.isTrue;
+      final sleepOn = playerController.isSleepTimerActive.isTrue;
+      final left = sleepTimerBadge(playerController.timerDurationLeft.value);
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          RiffSheetTile(
+            icon: lyricsOn ? Icons.lyrics : Icons.lyrics_outlined,
+            title: (lyricsOn ? "hideLyrics" : "showLyrics").tr,
+            onTap: () {
+              Navigator.of(context).pop();
+              if (!lyricsOn) HapticFeedback.lightImpact();
+              playerController.showLyrics();
+            },
+          ),
+          RiffSheetTile(
+            icon: sleepOn ? Icons.bedtime : Icons.bedtime_outlined,
+            title: "sleepTimer".tr,
+            subtitle: sleepOn && left.isNotEmpty ? '$left ${"left".tr}' : null,
+            onTap: () {
+              Navigator.of(context).pop();
+              showSleepTimerSheet(
+                  playerController.homeScaffoldkey.currentContext ??
+                      Get.context);
+            },
+          ),
+        ],
+      );
+    });
   }
 }
 
