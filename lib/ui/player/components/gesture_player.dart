@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/lyrics_dialog.dart';
-import '../../widgets/sleep_timer_bottom_sheet.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
-import '/utils/content_filters.dart';
 import '../player_controller.dart';
 import 'animated_play_button.dart';
 import 'backgroud_image.dart';
@@ -61,12 +58,13 @@ class GesturePlayer extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  riff.scrim.withOpacity(0.35),
+                  riff.scrim.withOpacity(RiffPalette.playerHeaderScrim),
+                  riff.scrim.withOpacity(RiffPalette.playerHeaderScrimMid),
                   Colors.transparent,
                   page.withOpacity(0.85),
                   page,
                 ],
-                stops: const [0, 0.25, 0.62, 0.85],
+                stops: const [0, 0.1, 0.25, 0.62, 0.85],
               ),
             ),
             child: const SizedBox.expand(),
@@ -139,6 +137,15 @@ class GesturePlayer extends StatelessWidget {
                         }),
                       ),
                       const SizedBox(width: RiffSpacing.sm),
+                      // Lyrics, sleep timer, radio, add to playlist and
+                      // share are in here (no button row).
+                      IconButton(
+                        tooltip: 'moreOptions'.tr,
+                        icon: Icon(Icons.more_vert_rounded,
+                            color: theme.colorScheme.onSurface),
+                        onPressed: () => openNowPlayingSheet(pc,
+                            onLyrics: () => showGestureLyrics(pc, context)),
+                      ),
                       FavoriteHeartButton(
                         isFav: pc.isCurrentSongFav,
                         onToggleFav: () {
@@ -157,8 +164,6 @@ class GesturePlayer extends StatelessWidget {
                   const RepaintBoundary(child: PlayerSeekScrubber()),
                   const SizedBox(height: 6),
                   _Transport(pc: pc),
-                  const SizedBox(height: 10),
-                  _Actions(pc: pc),
                 ],
               ),
             ),
@@ -227,52 +232,15 @@ class _Transport extends StatelessWidget {
   }
 }
 
-/// Lyrics · sleep timer · share.
-class _Actions extends StatelessWidget {
-  const _Actions({required this.pc});
-  final PlayerController pc;
-
-  @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      final song = pc.currentSong.value;
-      final sleepOn = pc.isSleepTimerActive.isTrue;
-      return PlayerActionBar(actions: [
-        PlayerAction(
-          icon: Icons.lyrics_outlined,
-          activeIcon: Icons.lyrics,
-          tooltip: 'lyrics'.tr,
-          active: pc.showLyricsflag.isTrue,
-          onTap: () {
-            if (pc.showLyricsflag.isFalse) HapticFeedback.lightImpact();
-            pc.showLyrics();
-            pc.isDesktopLyricsDialogOpen = true;
-            showDialog(
-              context: context,
-              builder: (context) => const LyricsDialog(),
-            ).whenComplete(() {
-              pc.isDesktopLyricsDialogOpen = false;
-              pc.showLyricsflag.value = false;
-            });
-          },
-        ),
-        PlayerAction(
-          icon: Icons.bedtime_outlined,
-          activeIcon: Icons.bedtime,
-          tooltip: 'sleepTimer'.tr,
-          active: sleepOn,
-          badge: sleepOn ? sleepTimerBadge(pc.timerDurationLeft.value) : null,
-          onTap: () =>
-              showSleepTimerSheet(pc.homeScaffoldkey.currentContext ?? context),
-        ),
-        PlayerAction(
-          icon: Icons.share_outlined,
-          tooltip: 'shareSong'.tr,
-          onTap: song == null
-              ? null
-              : () => Share.share(SongLinkShare.shareText(song)),
-        ),
-      ]);
-    });
-  }
+/// The gesture player has no lyrics overlay: lyrics open in a dialog.
+void showGestureLyrics(PlayerController pc, BuildContext context) {
+  pc.showLyrics();
+  pc.isDesktopLyricsDialogOpen = true;
+  showDialog(
+    context: context,
+    builder: (context) => const LyricsDialog(),
+  ).whenComplete(() {
+    pc.isDesktopLyricsDialogOpen = false;
+    pc.showLyricsflag.value = false;
+  });
 }
