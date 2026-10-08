@@ -172,10 +172,10 @@ class RiffComponentSizes {
   static const double miniErrorIcon = 14;
   static const double miniProgress = 2;
 
-  /// The full player's collapsed "Up Next" card: a slim floating card in
-  /// the mini player's style, and the widest it gets (tablets; the player
-  /// controls column is as wide).
-  static const double queueCard = 44;
+  /// The full player's collapsed "Up Next" tab: its height above the
+  /// system inset (it runs down to the screen edge), and the widest it gets
+  /// (tablets; the player controls column is as wide).
+  static const double queueCard = 36;
   static const double queueCardMaxWidth = 500;
 
   /// Wide (desktop) mini player: skip glyphs, their hit widths, the

@@ -4,11 +4,11 @@ import 'package:get/get.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 
-/// The full player's collapsed queue: a slim floating card in the mini
-/// player's style (rounded, hairline edge, clear of the system inset), as
-/// wide as the player's content above it. The whole strip, the card and
-/// the gap around it, opens the queue, so a tap never reaches the hidden
-/// queue underneath.
+/// The full player's collapsed queue: a slim tab standing on the bottom
+/// edge, rounded on top, as wide as the player's content above it. It runs
+/// down through the system inset; its label stays above it. The whole
+/// strip, the tab and the gap beside it, opens the queue, so a tap never
+/// reaches the hidden queue underneath.
 class UpNextCard extends StatelessWidget {
   const UpNextCard({
     super.key,
@@ -17,9 +17,8 @@ class UpNextCard extends StatelessWidget {
     required this.onTap,
   });
 
-  /// Height of the strip above the system inset: the card and the gap
-  /// below it.
-  static const double extent = RiffComponentSizes.queueCard + RiffSpacing.sm;
+  /// Height of the strip above the system inset.
+  static const double extent = RiffComponentSizes.queueCard;
 
   /// "First title · N more"; empty when nothing comes next.
   final String preview;
@@ -34,11 +33,7 @@ class UpNextCard extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Padding(
-        padding: EdgeInsets.only(
-          left: RiffSpacing.xxl,
-          right: RiffSpacing.xxl,
-          bottom: RiffSpacing.sm + bottomInset,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.xxl),
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(
@@ -46,15 +41,17 @@ class UpNextCard extends StatelessWidget {
             child: Material(
               color: theme.colorScheme.surfaceContainerLow,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(RiffRadii.miniPlayer),
+                borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(RiffRadii.lg)),
                 side: BorderSide(color: theme.dividerColor, width: 0),
               ),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
                 onTap: onTap,
-                child: SizedBox(
+                child: Container(
                   width: double.infinity,
-                  height: RiffComponentSizes.queueCard,
+                  height: RiffComponentSizes.queueCard + bottomInset,
+                  padding: EdgeInsets.only(bottom: bottomInset),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
