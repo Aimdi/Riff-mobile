@@ -198,7 +198,8 @@ class _Transport extends StatelessWidget {
         AnimatedPlayButton(
             key: const Key('gesturePlayButton'),
             size: 68,
-            iconColor: scheme.onSecondary),
+            iconColor: scheme.onSecondary,
+            holdToSeek: true),
         IconButton(
           tooltip: 'next'.tr,
           iconSize: 38,

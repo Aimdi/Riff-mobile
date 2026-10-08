@@ -170,7 +170,8 @@ class PlayerControlWidget extends StatelessWidget {
         AnimatedPlayButton(
             key: const Key("playButton"),
             size: 68,
-            iconColor: scheme.onSecondary),
+            iconColor: scheme.onSecondary,
+            holdToSeek: true),
         _nextButton(playerController, context),
         Obx(() {
           final state = playerController.repeatState;
@@ -216,7 +217,8 @@ class PlayerControlWidget extends StatelessWidget {
                 ? PodcastSpeedButton(color: color)
                 : PlayerSpeedButton(color: color),
             LongFormSkipButton(forward: false, color: color, size: 34),
-            const AnimatedPlayButton(key: Key('podcastPlayButton'), size: 68),
+            const AnimatedPlayButton(
+                key: Key('podcastPlayButton'), size: 68, holdToSeek: true),
             LongFormSkipButton(forward: true, color: color, size: 34),
             _nextButton(playerController, context),
           ],
