@@ -39,6 +39,7 @@ class ImageWidget extends StatelessWidget {
     required this.size,
     this.isPlayerArtImage = false,
     this.borderRadius,
+    this.coverTitleRightInset = 0,
   });
   final MediaItem? song;
   final Playlist? playlist;
@@ -49,6 +50,10 @@ class ImageWidget extends StatelessWidget {
 
   /// Override corner radius for square covers (artists stay circular).
   final double? borderRadius;
+
+  /// A playlist's generated cover keeps this much room (dp) clear on the
+  /// right of its title, for a button over the art's bottom-right corner.
+  final double coverTitleRightInset;
 
   double get _radius =>
       borderRadius ??
@@ -87,7 +92,8 @@ class ImageWidget extends StatelessWidget {
     final pl = playlist;
     if (song == null && pl != null && playlistUsesGeneratedCover(pl)) {
       // The container around it already clips to [_radius].
-      return GeneratedCover.playlist(pl, size: size);
+      return GeneratedCover.playlist(pl,
+          size: size, titleRightInset: coverTitleRightInset);
     }
     return LetterArt(
       title: _title,

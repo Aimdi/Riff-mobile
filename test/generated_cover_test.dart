@@ -287,4 +287,35 @@ void main() {
     // The tile's own label is still there under the cover.
     expect(find.text('Gym Bangers'), findsNWidgets(2));
   });
+
+  testWidgets('the cover title stays clear of the tile\'s play button',
+      (tester) async {
+    for (final title in ['Chill Vibes', 'Throwbacks', 'Late Night Drive']) {
+      await tester.pumpWidget(_app(ContentListItem(
+        content: Playlist(
+          title: title,
+          playlistId: 'LOCAL_$title',
+          thumbnailUrl: Playlist.thumbPlaceholderUrl,
+          isCloudPlaylist: false,
+        ),
+        isLibraryItem: true,
+        size: 117,
+      )));
+      final text = tester.getRect(_coverTitle(title));
+      final play = tester.getRect(find.byIcon(Icons.play_circle_fill));
+      expect(text.right, lessThanOrEqualTo(play.left), reason: title);
+    }
+  });
+
+  test('a right inset narrows the title and can switch to the compact style',
+      () {
+    final styles = RiffTextStyles.forColor(Colors.white);
+    final full = GeneratedCoverTitleFit.of('Chill Vibes', styles.coverTitle,
+        styles.coverTitleCompact, TextDirection.ltr);
+    final narrow = GeneratedCoverTitleFit.of('Chill Vibes', styles.coverTitle,
+        styles.coverTitleCompact, TextDirection.ltr,
+        width: GeneratedCoverTitleFit.fullWidth / 3);
+    expect(full.compact, isFalse);
+    expect(narrow.compact, isTrue);
+  });
 }

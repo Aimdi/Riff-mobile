@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '../navigator.dart';
 import '../player/player_controller.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '../utils/riff_tokens.dart';
 import '../utils/theme_controller.dart';
@@ -23,6 +24,14 @@ class ContentListItem extends StatelessWidget {
   /// Cover width of a shelf card; grids pass a size that fills a column.
   static const double defaultSize = 112;
   final double size;
+
+  /// The play button over the cover's bottom-right corner: its offset from
+  /// the edges, its padding and glyph (keep the current sizes), and how
+  /// far in from the right edge it reaches.
+  static const double _playInset = RiffSpacing.xs;
+  static const double _playPadding = RiffSpacing.xxs;
+  static const double _playGlyph = 26;
+  static const double _playReach = _playInset + 2 * _playPadding + _playGlyph;
 
   /// Height of a card of [size]: cover, gap, one-line title and subtitle,
   /// grown with the system text size.
@@ -248,6 +257,8 @@ class ContentListItem extends StatelessWidget {
         size: size,
         playlist: content,
         borderRadius: RiffTokens.radiusSm,
+        // A generated cover's title wraps before the play button.
+        coverTitleRightInset: _playReach,
       );
     } else {
       child = Container(
@@ -276,8 +287,8 @@ class ContentListItem extends StatelessWidget {
         children: [
           child,
           Positioned(
-            right: 4,
-            bottom: 4,
+            right: _playInset,
+            bottom: _playInset,
             child: Tooltip(
               message: "play".tr,
               child: Material(
@@ -290,10 +301,10 @@ class ContentListItem extends StatelessWidget {
                     _playFromOverlay();
                   },
                   child: Padding(
-                    padding: const EdgeInsets.all(2),
+                    padding: const EdgeInsets.all(_playPadding),
                     child: Icon(
                       Icons.play_circle_fill,
-                      size: 26,
+                      size: _playGlyph,
                       color: RiffColors.of(context).onImage,
                     ),
                   ),

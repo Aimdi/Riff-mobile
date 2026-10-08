@@ -27,6 +27,7 @@ class GeneratedCover extends StatelessWidget {
     required this.size,
     this.radius = 0,
     this.showTitle,
+    this.titleRightInset = 0,
   });
 
   /// The cover of [playlist] (seeded by its id, else its title).
@@ -36,6 +37,7 @@ class GeneratedCover extends StatelessWidget {
     required this.size,
     this.radius = 0,
     this.showTitle,
+    this.titleRightInset = 0,
   })  : seed = seedOf(playlist),
         title = playlist.title;
 
@@ -50,6 +52,10 @@ class GeneratedCover extends StatelessWidget {
   /// Overrides the size rule for the title (e.g. off for a hero backdrop
   /// that has the title under it).
   final bool? showTitle;
+
+  /// Room (dp) kept clear between the title and the cover's right edge,
+  /// for a button over the bottom-right corner: the title wraps before it.
+  final double titleRightInset;
 
   /// A playlist's seed: its id, or its title when it has none.
   static String seedOf(Playlist playlist) {
@@ -68,7 +74,14 @@ class GeneratedCover extends StatelessWidget {
     if (titled) {
       art = Stack(
         fit: StackFit.expand,
-        children: [art, _CoverTitle(title: text)],
+        children: [
+          art,
+          _CoverTitle(
+            title: text,
+            // In the title's layout units (a titleDesignSize cover).
+            rightInset: titleRightInset * RiffCoverArt.titleDesignSize / size,
+          ),
+        ],
       );
     }
     if (radius > 0) {
@@ -154,7 +167,7 @@ class GeneratedCoverTitleFit {
   final double scale;
 
   /// Room for the title on a [RiffCoverArt.titleDesignSize] cover.
-  static const double width =
+  static const double fullWidth =
       RiffCoverArt.titleDesignSize - 2 * _CoverTitle._inset;
 
   static final Map<String, GeneratedCoverTitleFit> _memo = {};
@@ -163,10 +176,12 @@ class GeneratedCoverTitleFit {
   /// The large style when [title] fits [RiffCoverArt.titleMaxLines] lines
   /// of it without splitting a word, else the compact one over
   /// [RiffCoverArt.titleMaxLinesCompact] lines, shrunk if a word is still
-  /// too wide. Memoised: grids rebuild the same titles.
+  /// too wide, all within [width]. Memoised: grids rebuild the same titles.
   static GeneratedCoverTitleFit of(
-      String title, TextStyle large, TextStyle compact, TextDirection dir) {
-    final key = '${large.hashCode}|${compact.hashCode}|${dir.index}|$title';
+      String title, TextStyle large, TextStyle compact, TextDirection dir,
+      {double width = fullWidth}) {
+    final key =
+        '${large.hashCode}|${compact.hashCode}|${dir.index}|$width|$title';
     final hit = _memo[key];
     if (hit != null) return hit;
 
@@ -212,23 +227,29 @@ class GeneratedCoverTitleFit {
 /// The title, laid out on a [RiffCoverArt.titleDesignSize] cover and
 /// scaled to the real one, so it wraps the same at every size.
 class _CoverTitle extends StatelessWidget {
-  const _CoverTitle({required this.title});
+  const _CoverTitle({required this.title, this.rightInset = 0});
   final String title;
+
+  /// Clear room on the right, in layout units (at least [_inset]).
+  final double rightInset;
 
   static const double _inset = RiffSpacing.md;
 
   @override
   Widget build(BuildContext context) {
     final styles = RiffTextStyles.of(context);
+    final right = math.max(_inset, rightInset);
     final fit = GeneratedCoverTitleFit.of(title, styles.coverTitle,
-        styles.coverTitleCompact, Directionality.of(context));
+        styles.coverTitleCompact, Directionality.of(context),
+        width: RiffCoverArt.titleDesignSize - _inset - right);
     return ExcludeSemantics(
       child: FittedBox(
         fit: BoxFit.contain,
         child: SizedBox.square(
           dimension: RiffCoverArt.titleDesignSize,
           child: Padding(
-            padding: const EdgeInsets.all(_inset),
+            padding: EdgeInsets.only(
+                left: _inset, top: _inset, right: right, bottom: _inset),
             child: Align(
               alignment: AlignmentDirectional.bottomStart,
               child: Text(
