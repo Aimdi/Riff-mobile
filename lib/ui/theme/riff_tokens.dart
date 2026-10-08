@@ -37,6 +37,11 @@ class RiffPalette {
   /// Pulse ring behind the listen button.
   static const double recognizeRingOpacity = 0.2;
 
+  /// Podcast folder tile without a photo: the colour's tint behind the
+  /// folder icon, and its hairline edge.
+  static const double folderTint = 0.22;
+  static const double folderEdge = 0.55;
+
   /// Active rail item: accent fill and outline strengths.
   static const double railActiveFillOpacity = 0.16;
   static const double railActiveBorderOpacity = 0.28;
@@ -239,6 +244,9 @@ class RiffComponentSizes {
   static const double videoEpisodeWidth = 256;
   static const double coverPlay = 30;
   static const double folderIcon = 64;
+
+  /// Podcast folder photo: the frame in the folder colour around it.
+  static const double folderPhotoFrame = 6;
   static const double emptyStateIcon = 56;
 
   /// Settings (Phase 8): a settings row's minimum height (§5.9 / Phase 8),

@@ -1178,5 +1178,8 @@
     "recognizeRemove": "Remove from recent finds",
     "showLyrics": "Show lyrics",
     "hideLyrics": "Hide lyrics",
-    "discoverTab": "Discover"
+    "discoverTab": "Discover",
+    "setFolderPhoto": "Set photo",
+    "changeFolderPhoto": "Change photo",
+    "removeFolderPhoto": "Remove photo"
 }

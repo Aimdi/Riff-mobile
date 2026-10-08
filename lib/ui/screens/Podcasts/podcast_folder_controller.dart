@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
+import '/services/folder_cover.dart';
 import '/ui/theme/palettes/podcast_folders.dart';
 
 export '/ui/theme/palettes/podcast_folders.dart' show PodcastFolderColors;
@@ -28,11 +29,16 @@ List<T> reorderList<T>(List<T> list, int oldIndex, int newIndex) {
 /// show ids (YouTube playlistIds, or `rss:<feed>` for feed shows); the show
 /// data itself lives in LibraryPodcasts and the feed subscriptions.
 class PodcastFolder {
-  PodcastFolder(this.id, this.name, this.podcastIds, {this.colorIndex = 0});
+  PodcastFolder(this.id, this.name, this.podcastIds,
+      {this.colorIndex = 0, this.imagePath});
   final String id;
   String name;
   List<String> podcastIds;
   int colorIndex;
+
+  /// The folder's own photo (a square JPEG from [FolderCoverStore]), shown
+  /// inside a frame in the folder colour; null for the plain folder icon.
+  String? imagePath;
 
   Color get color => PodcastFolderColors.of(colorIndex);
 
@@ -41,6 +47,7 @@ class PodcastFolder {
         'name': name,
         'ids': podcastIds,
         'color': colorIndex,
+        if (imagePath != null) 'image': imagePath,
       };
 
   factory PodcastFolder.fromMap(Map m) => PodcastFolder(
@@ -50,6 +57,9 @@ class PodcastFolder {
         colorIndex: (m['color'] is int)
             ? m['color'] as int
             : int.tryParse('${m['color'] ?? 0}') ?? 0,
+        imagePath: m['image'] is String && (m['image'] as String).isNotEmpty
+            ? m['image'] as String
+            : null,
       );
 }
 
@@ -111,6 +121,19 @@ class PodcastFolderController extends GetxController {
     _persist();
   }
 
+  /// Sets (or with null, removes) the folder's photo; the old file goes.
+  void setImage(String id, String? path) {
+    final f = findById(id);
+    if (f == null) {
+      FolderCoverStore.delete(path);
+      return;
+    }
+    if (f.imagePath != path) FolderCoverStore.delete(f.imagePath);
+    f.imagePath = path;
+    folders.refresh();
+    _persist();
+  }
+
   /// Drag to reorder (ReorderableListView indices).
   void move(int oldIndex, int newIndex) {
     folders.assignAll(reorderList(folders, oldIndex, newIndex));
@@ -118,6 +141,7 @@ class PodcastFolderController extends GetxController {
   }
 
   void deleteFolder(String id) {
+    FolderCoverStore.delete(findById(id)?.imagePath);
     folders.removeWhere((f) => f.id == id);
     _persist();
   }

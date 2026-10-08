@@ -5780,7 +5780,10 @@ Map<String, Map<String, String>> get keys => {
     "recognizeRemove": "Remove from recent finds",
     "showLyrics": "Show lyrics",
     "hideLyrics": "Hide lyrics",
-    "discoverTab": "Discover"
+    "discoverTab": "Discover",
+    "setFolderPhoto": "Set photo",
+    "changeFolderPhoto": "Change photo",
+    "removeFolderPhoto": "Remove photo"
 }
 ,"pt" : {
     "renamePlaylist": "Renomear Playlist",
