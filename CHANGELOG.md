@@ -1,3 +1,13 @@
+# 1.7.146
+
+**Player buttons moved into ⋮**
+* The row of buttons under the song (lyrics, sleep timer, radio, add to
+  playlist, share) is gone; the cover gets the room
+* All five are in the ⋮ menu next to the song title: Start radio, Add to
+  playlist and Share at the top as before, then Show/Hide lyrics and Sleep
+  timer, which shows the time left while it runs
+* Tapping the cover still shows the lyrics
+
 # 1.7.145
 
 **A smaller, rounded Up Next**

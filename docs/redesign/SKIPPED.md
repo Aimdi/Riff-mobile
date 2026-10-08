@@ -45,6 +45,7 @@ elements (or can't be done on this SDK), and what was done instead.
 | 8 | Sleep-timer countdown tabular figures | A non-colour `copyWith` (fontFeatures) kept so the digits don't jitter | kept |
 | 3 (revised after 1.7.142) | Rail: no indicator, outline/filled glyphs 24, 11/600 labels, right hairline | The owner preferred the pre-restyle rail | pre-restyle rail look restored: accent box (16% fill, 28% outline) behind the active glyph, muted inactive items, titleMedium/bodyLarge labels, no right hairline; width 47, items, order and the selection haptic unchanged |
 | 6 (revised after 1.7.144) | Full-width 65 dp queue strip (handle, "Up Next" and the next song on two lines, hairline top) | The owner asked for it smaller and rounded | a 44 dp floating card in the mini player's style (surface1, hairline edge, radius 24), 24 dp side margins in line with the player content and clear of the system inset; handle kept, "Up Next" and the next song on one line; the queue fades in as it opens; tap and drag unchanged |
+| 6 (revised after 1.7.145) | Music player action row under the transport (lyrics, sleep timer, radio, add to playlist, share) | The owner asked for all of them under the ⋮ | row removed from the music player; the ⋮ sheet already had radio, add to playlist and share, and now opens with Show/Hide lyrics and Sleep timer (time left as subtitle while it runs) under its quick actions; the podcast/audiobook and gesture players keep their rows |
 
 ## Known side effects of Phase 1 (to settle in later phases)
 
