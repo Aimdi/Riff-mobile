@@ -19,6 +19,19 @@ import '/utils/content_filters.dart';
 import '../Settings/settings_screen_controller.dart';
 import '/ui/widgets/new_version_dialog.dart';
 
+/// Side-rail tab indices ([HomeScreenController.tabIndex]), in rail order.
+/// Playlists / Albums / Artists sit under Songs on the phone rail.
+abstract final class RailTab {
+  static const home = 0;
+  static const songs = 1;
+  static const podcasts = 2;
+  static const audiobooks = 3;
+  static const playlists = 4;
+  static const albums = 5;
+  static const artists = 6;
+  static const settings = 7;
+}
+
 class HomeScreenController extends GetxController {
   final MusicServices _musicServices = Get.find<MusicServices>();
   final isContentFetched = false.obs;
@@ -283,7 +296,8 @@ class HomeScreenController extends GetxController {
     chipLoading.value = true;
     try {
       final sections = await _musicServices.getHome(
-          limit: Get.find<SettingsScreenController>().noOfHomeScreenContent.value,
+          limit:
+              Get.find<SettingsScreenController>().noOfHomeScreenContent.value,
           params: chip.params);
       if (selectedChip.value != chip) return;
       chipContent.value = _setContentList(List.of(sections as List));

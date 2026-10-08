@@ -48,7 +48,7 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
         // Search lives in the Home title row; keep FAB only for Library add.
         floatingActionButton: Obx(
-          () => homeScreenController.tabIndex.value == 4
+          () => homeScreenController.tabIndex.value == RailTab.playlists
               ? Obx(
                   () => Padding(
                     padding: EdgeInsets.only(
@@ -119,7 +119,8 @@ class Body extends StatelessWidget {
                 ? 80.0
                 : 85.0;
     const leftPadding = 0.0;
-    if (homeScreenController.tabIndex.value == 0) {
+    final tab = homeScreenController.tabIndex.value;
+    if (tab == RailTab.home) {
       return Padding(
         padding: const EdgeInsets.only(left: leftPadding),
         child: Stack(
@@ -214,23 +215,23 @@ class Body extends StatelessWidget {
           ],
         ),
       );
-    } else if (homeScreenController.tabIndex.value == 1) {
+    } else if (tab == RailTab.songs) {
       return const SongsLibraryWidget();
-    } else if (homeScreenController.tabIndex.value == 2) {
+    } else if (tab == RailTab.podcasts) {
       return const PodcastsLibraryWidget();
-    } else if (homeScreenController.tabIndex.value == 3) {
+    } else if (tab == RailTab.audiobooks) {
       return const AudiobooksScreen();
-    } else if (homeScreenController.tabIndex.value == 4) {
+    } else if (tab == RailTab.playlists) {
       return const PlaylistNAlbumLibraryWidget(isAlbumContent: false);
-    } else if (homeScreenController.tabIndex.value == 5) {
+    } else if (tab == RailTab.albums) {
       return const PlaylistNAlbumLibraryWidget();
-    } else if (homeScreenController.tabIndex.value == 6) {
+    } else if (tab == RailTab.artists) {
       return const LibraryArtistWidget();
-    } else if (homeScreenController.tabIndex.value == 7) {
+    } else if (tab == RailTab.settings) {
       return const SettingsScreen();
     } else {
       return Center(
-        child: Text("${homeScreenController.tabIndex.value}"),
+        child: Text("$tab"),
       );
     }
   }

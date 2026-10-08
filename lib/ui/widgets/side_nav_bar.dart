@@ -14,9 +14,8 @@ import 'package:harmonymusic/ui/theme/riff_tokens.dart';
 /// its content from the pane that is left.
 const double kRailWidth = 47;
 
-// Tab indices used by HomeScreenController.onSideBarTabSelected:
-// 0 Home, 1 Songs, 2 Podcasts, 3 Audiobooks, 4 Playlists,
-// 5 Albums, 6 Artists, 7 Settings.
+// Tab indices used by HomeScreenController.onSideBarTabSelected are the
+// [RailTab] constants, in rail order.
 // Cloud lives under Songs (toolbar toggle), not on the rail.
 class SideNavBar extends StatefulWidget {
   const SideNavBar({super.key});
@@ -31,55 +30,58 @@ class _SideNavBarState extends State<SideNavBar> {
 
   static const _destinations = <_RailDestination>[
     _RailDestination(
-      index: 0,
+      index: RailTab.home,
       labelKey: 'home',
       icon: Icons.home_rounded,
       iconOutlined: Icons.home_outlined,
     ),
     _RailDestination(
-      index: 1,
+      index: RailTab.songs,
       labelKey: 'songs',
       icon: Icons.music_note_rounded,
       iconOutlined: Icons.music_note_outlined,
     ),
     _RailDestination(
-      index: 2,
+      index: RailTab.podcasts,
       labelKey: 'podcasts',
       icon: Icons.podcasts_rounded,
       iconOutlined: Icons.podcasts_outlined,
     ),
     _RailDestination(
-      index: 3,
+      index: RailTab.audiobooks,
       labelKey: 'audiobooks',
       icon: Icons.headphones_rounded,
       iconOutlined: Icons.headphones_outlined,
     ),
     _RailDestination(
-      index: 4,
+      index: RailTab.playlists,
       labelKey: 'playlists',
       icon: Icons.queue_music_rounded,
       iconOutlined: Icons.queue_music,
     ),
     _RailDestination(
-      index: 5,
+      index: RailTab.albums,
       labelKey: 'albums',
       icon: Icons.album_rounded,
       iconOutlined: Icons.album_outlined,
     ),
     _RailDestination(
-      index: 6,
+      index: RailTab.artists,
       labelKey: 'artists',
       icon: Icons.mic_rounded,
       iconOutlined: Icons.mic_none_rounded,
     ),
     _RailDestination(
-      index: 7,
+      index: RailTab.settings,
       labelKey: 'settings',
       icon: Icons.settings_rounded,
       iconOutlined: Icons.settings_outlined,
       iconOnly: true,
     ),
   ];
+
+  static _RailDestination _destination(int tab) =>
+      _destinations.firstWhere((d) => d.index == tab);
 
   @override
   Widget build(BuildContext context) {
@@ -103,15 +105,20 @@ class _SideNavBarState extends State<SideNavBar> {
                       _railItem(
                         homeScreenController,
                         sel,
-                        destination: _destinations[0],
+                        destination: _destination(RailTab.home),
                       ),
                       // Songs — tap opens Songs, the caret expands the sub-section.
                       _railItem(
                         homeScreenController,
                         sel,
-                        destination: _destinations[1],
+                        destination: _destination(RailTab.songs),
                         // sub-items are "selected" too so Songs stays highlighted
-                        selectedForIndices: const [1, 4, 5, 6],
+                        selectedForIndices: const [
+                          RailTab.songs,
+                          RailTab.playlists,
+                          RailTab.albums,
+                          RailTab.artists,
+                        ],
                         trailing: Semantics(
                           button: true,
                           expanded: _songsExpanded,
@@ -160,19 +167,21 @@ class _SideNavBarState extends State<SideNavBar> {
                                     _railItem(
                                       homeScreenController,
                                       sel,
-                                      destination: _destinations[4],
+                                      destination:
+                                          _destination(RailTab.playlists),
                                       sub: true,
                                     ),
                                     _railItem(
                                       homeScreenController,
                                       sel,
-                                      destination: _destinations[5],
+                                      destination: _destination(RailTab.albums),
                                       sub: true,
                                     ),
                                     _railItem(
                                       homeScreenController,
                                       sel,
-                                      destination: _destinations[6],
+                                      destination:
+                                          _destination(RailTab.artists),
                                       sub: true,
                                     ),
                                   ],
@@ -183,17 +192,17 @@ class _SideNavBarState extends State<SideNavBar> {
                       _railItem(
                         homeScreenController,
                         sel,
-                        destination: _destinations[2],
+                        destination: _destination(RailTab.podcasts),
                       ),
                       _railItem(
                         homeScreenController,
                         sel,
-                        destination: _destinations[3],
+                        destination: _destination(RailTab.audiobooks),
                       ),
                       _railItem(
                         homeScreenController,
                         sel,
-                        destination: _destinations[7],
+                        destination: _destination(RailTab.settings),
                       ),
                     ],
                   );
@@ -203,7 +212,9 @@ class _SideNavBarState extends State<SideNavBar> {
           : Padding(
               padding: const EdgeInsets.only(bottom: 100.0),
               child: SideBarAnimated(
-                onTap: homeScreenController.onSideBarTabSelected,
+                // The package reports the position in [sidebarItems].
+                onTap: (i) => homeScreenController
+                    .onSideBarTabSelected(_destinations[i].index),
                 // Lights out: black bar, flat surface2 press feedback. The
                 // package draws the active glyph white on its floating
                 // indicator, so the indicator keeps the accent (see
