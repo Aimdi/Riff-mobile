@@ -20,6 +20,7 @@ import '/ui/widgets/playlist_album_scroll_behaviour.dart';
 import '../../navigator.dart';
 import '../../player/player_controller.dart';
 import '../../widgets/create_playlist_dialog.dart';
+import '../../widgets/generated_cover.dart';
 import '../../widgets/collection_header.dart';
 import '../../widgets/header_hero_fade.dart';
 import '../Home/home_layout.dart';
@@ -103,50 +104,61 @@ class PlaylistScreen extends StatelessWidget {
                             leftShadowOffset: -size.height,
                             bottomShadowOffset:
                                 landscape ? size.height : size.width + 80,
-                            child: CachedNetworkImage(
-                              imageUrl: Thumbnail(playlistController
-                                      .playlist.value.thumbnailUrl)
-                                  .extraHigh,
-                              fit: landscape ? BoxFit.fitHeight : BoxFit.cover,
-                              width: landscape ? null : size.width,
-                              height: landscape ? size.height : size.width,
-                              memCacheWidth: landscape
-                                  ? null
-                                  : (size.width *
-                                          MediaQuery.devicePixelRatioOf(
-                                              context))
-                                      .round(),
-                              memCacheHeight: landscape
-                                  ? (size.height *
-                                          MediaQuery.devicePixelRatioOf(
-                                              context))
-                                      .round()
-                                  : null,
-                              errorWidget: (_, __, ___) => CachedNetworkImage(
-                                imageUrl: playlistController
-                                    .playlist.value.thumbnailUrl,
-                                fit:
-                                    landscape ? BoxFit.fitHeight : BoxFit.cover,
-                                width: landscape ? null : size.width,
-                                height: landscape ? size.height : size.width,
-                                memCacheWidth: landscape
-                                    ? null
-                                    : (size.width *
-                                            MediaQuery.devicePixelRatioOf(
-                                                context))
-                                        .round(),
-                                memCacheHeight: landscape
-                                    ? (size.height *
-                                            MediaQuery.devicePixelRatioOf(
-                                                context))
-                                        .round()
-                                    : null,
-                                errorWidget: (_, __, ___) => Container(
-                                  color:
-                                      Theme.of(context).colorScheme.secondary,
-                                ),
-                              ),
-                            ),
+                            // No art of its own (or it fails to load): the
+                            // generated cover, without the title (the header
+                            // under it shows that).
+                            child: !playlistController.playlist.value.hasArt
+                                ? _heroCover(playlistController.playlist.value,
+                                    landscape ? size.height : size.width)
+                                : CachedNetworkImage(
+                                    imageUrl: Thumbnail(playlistController
+                                            .playlist.value.thumbnailUrl)
+                                        .extraHigh,
+                                    fit: landscape
+                                        ? BoxFit.fitHeight
+                                        : BoxFit.cover,
+                                    width: landscape ? null : size.width,
+                                    height:
+                                        landscape ? size.height : size.width,
+                                    memCacheWidth: landscape
+                                        ? null
+                                        : (size.width *
+                                                MediaQuery.devicePixelRatioOf(
+                                                    context))
+                                            .round(),
+                                    memCacheHeight: landscape
+                                        ? (size.height *
+                                                MediaQuery.devicePixelRatioOf(
+                                                    context))
+                                            .round()
+                                        : null,
+                                    errorWidget: (_, __, ___) =>
+                                        CachedNetworkImage(
+                                      imageUrl: playlistController
+                                          .playlist.value.thumbnailUrl,
+                                      fit: landscape
+                                          ? BoxFit.fitHeight
+                                          : BoxFit.cover,
+                                      width: landscape ? null : size.width,
+                                      height:
+                                          landscape ? size.height : size.width,
+                                      memCacheWidth: landscape
+                                          ? null
+                                          : (size.width *
+                                                  MediaQuery.devicePixelRatioOf(
+                                                      context))
+                                              .round(),
+                                      memCacheHeight: landscape
+                                          ? (size.height *
+                                                  MediaQuery.devicePixelRatioOf(
+                                                      context))
+                                              .round()
+                                          : null,
+                                      errorWidget: (_, __, ___) => _heroCover(
+                                          playlistController.playlist.value,
+                                          landscape ? size.height : size.width),
+                                    ),
+                                  ),
                           );
                         }))
                     : SizedBox(
@@ -454,6 +466,10 @@ class _PodcastShow extends StatelessWidget {
     });
   }
 }
+
+/// Header backdrop for a playlist without a cover of its own.
+Widget _heroCover(Playlist pl, double side) =>
+    GeneratedCover.playlist(pl, size: side, showTitle: false);
 
 bool _isPodcastPage(Playlist pl) =>
     pl.kind == 'podcast' ||

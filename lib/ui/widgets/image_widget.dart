@@ -8,12 +8,19 @@ import 'package:shimmer/shimmer.dart';
 
 import '../screens/Settings/settings_screen_controller.dart';
 import '../utils/riff_tokens.dart';
+import 'generated_cover.dart';
 import 'letter_art.dart';
+import 'podcast_play.dart' show isPodcastCollection;
 import '/models/artist.dart';
 import '/models/thumbnail.dart';
 import '/services/cover_resolver.dart';
 import '../../models/album.dart';
 import '../../models/playlist.dart';
+
+/// Whether [playlist] gets a generated cover when it has no art of its
+/// own. Podcast shows and channels (also [Playlist]s) keep the letter tile.
+bool playlistUsesGeneratedCover(Playlist playlist) =>
+    !isPodcastCollection(kind: playlist.kind, id: playlist.playlistId);
 
 /// CDNs (Apple artwork, some Google user-content) 404 a bare Dart UA.
 const kCoverImageHeaders = {
@@ -32,6 +39,7 @@ class ImageWidget extends StatelessWidget {
     required this.size,
     this.isPlayerArtImage = false,
     this.borderRadius,
+    this.coverTitleRightInset = 0,
   });
   final MediaItem? song;
   final Playlist? playlist;
@@ -42,6 +50,10 @@ class ImageWidget extends StatelessWidget {
 
   /// Override corner radius for square covers (artists stay circular).
   final double? borderRadius;
+
+  /// A playlist's generated cover keeps this much room (dp) clear on the
+  /// right of its title, for a button over the art's bottom-right corner.
+  final double coverTitleRightInset;
 
   double get _radius =>
       borderRadius ??
@@ -72,14 +84,24 @@ class ImageWidget extends StatelessWidget {
     return '';
   }
 
-  /// No cover, or the cover failed: a gradient with the title's first
-  /// letter (never a generic music-note icon).
-  Widget _placeholder(BuildContext context) => LetterArt(
-        title: _title,
-        size: size,
-        radius: _radius,
-        circle: artist != null,
-      );
+  /// No cover, or the cover failed: a playlist gets its generated cover
+  /// (colour blobs, and its title when big enough); anything else a
+  /// gradient with the title's first letter (never a generic music-note
+  /// icon).
+  Widget _placeholder(BuildContext context) {
+    final pl = playlist;
+    if (song == null && pl != null && playlistUsesGeneratedCover(pl)) {
+      // The container around it already clips to [_radius].
+      return GeneratedCover.playlist(pl,
+          size: size, titleRightInset: coverTitleRightInset);
+    }
+    return LetterArt(
+      title: _title,
+      size: size,
+      radius: _radius,
+      circle: artist != null,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

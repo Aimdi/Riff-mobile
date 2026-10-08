@@ -4,6 +4,7 @@ import '/models/album.dart';
 import '/models/playling_from.dart';
 import '/models/playlist.dart';
 import '../navigator.dart';
+import 'components/artist_chooser_sheet.dart';
 import 'player_controller.dart';
 import 'player_media_ids.dart';
 
@@ -47,11 +48,24 @@ bool openPlayingFrom(PlayerController playerController) {
   return true;
 }
 
-/// Open the artist page for the currently-playing song. Uses extras.artistId
-/// or the first artist that has a browse id (no-op when none is available).
+/// Open the artist page for the currently-playing song. A song credited to
+/// several artists first asks which one ("Choose artist", like Spotify);
+/// no-op when none has a page.
 void openCurrentArtist(PlayerController playerController) {
-  final artistId = songArtistId(playerController.currentSong.value);
-  if (artistId == null) return;
+  final artists = songArtists(playerController.currentSong.value);
+  if (artists.isEmpty) return;
+  if (artists.length == 1) {
+    _openArtistPage(playerController, artists.first.id);
+    return;
+  }
+  final context =
+      playerController.homeScaffoldkey.currentContext ?? Get.context;
+  if (context == null) return;
+  showArtistChooser(context, artists,
+      onPick: (id) => _openArtistPage(playerController, id));
+}
+
+void _openArtistPage(PlayerController playerController, String artistId) {
   playerController.playerPanelController.close();
   Get.toNamed(ScreenNavigationSetup.artistScreen,
       id: ScreenNavigationSetup.id,

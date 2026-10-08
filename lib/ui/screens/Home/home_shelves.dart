@@ -18,6 +18,7 @@ import '/services/spotify_import_service.dart';
 import '/ui/navigator.dart';
 import '/ui/player/player_controller.dart';
 import '../../widgets/collection_play.dart';
+import '../../widgets/generated_cover.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/letter_art.dart';
 import '../../widgets/riff_sheet.dart';
@@ -255,7 +256,9 @@ class HomeShelfItem extends StatelessWidget {
             ? _Collage(tracks: tracks.take(4).toList(), size: w)
             : tracks.isNotEmpty
                 ? ImageWidget(song: tracks.first, size: w, borderRadius: 0)
-                : LetterArt(title: v.title, size: w),
+                // Opens as the playlist RIFF_<id>: the same generated cover.
+                : GeneratedCover(
+                    seed: _mixPlaylistId(v), title: v.title, size: w),
         artHeight: h,
         title: v.title,
         subtitle:
@@ -320,7 +323,10 @@ extension on HomeShelfItem {
       case SpotifyHomePlaylist p:
         return _Card(
           width: w,
-          art: _netArt(p.playlist.coverUrl, p.playlist.name, w),
+          art: (p.playlist.coverUrl ?? '').isEmpty
+              ? GeneratedCover(
+                  seed: p.playlist.id, title: p.playlist.name, size: w)
+              : _netArt(p.playlist.coverUrl, p.playlist.name, w),
           artHeight: h,
           title: p.playlist.name,
           subtitle: p.playlist.ownerName ?? '',
@@ -429,10 +435,13 @@ Future<void> _playMix(GeneratedMix mix, {bool shuffle = true}) async {
   if (!ok) snackOperationFailed();
 }
 
+/// The playlist a mix opens as.
+String _mixPlaylistId(GeneratedMix mix) => 'RIFF_${mix.id}';
+
 Future<void> _openMix(GeneratedMix mix) async {
   if (!Get.isRegistered<DiscoveryService>()) return;
   await Get.find<DiscoveryService>().materializeMixPlaylists();
-  final id = 'RIFF_${mix.id}';
+  final id = _mixPlaylistId(mix);
   final tracks = _mixTracks(mix);
   _openPlaylist(Playlist(
     title: mix.title,

@@ -30,3 +30,35 @@ String? songArtistId(MediaItem? song) {
   }
   return null;
 }
+
+/// One of a song's artists that has a page to open.
+typedef SongArtistRef = ({String id, String name});
+
+/// Every artist of [song] with a browse id, in credit order, once each
+/// (extras['artists']; else extras['artistId'] with the song's artist line).
+List<SongArtistRef> songArtists(MediaItem? song) {
+  final extras = song?.extras;
+  if (extras == null) return const [];
+  String? clean(dynamic v) {
+    if (v == null) return null;
+    final s = '$v'.trim();
+    return s.isEmpty || s == 'null' ? null : s;
+  }
+
+  final out = <SongArtistRef>[];
+  final seen = <String>{};
+  final artists = extras['artists'];
+  if (artists is List) {
+    for (final a in artists) {
+      if (a is! Map) continue;
+      final id = clean(a['id']);
+      if (id == null || !seen.add(id)) continue;
+      out.add((id: id, name: clean(a['name']) ?? song?.artist ?? ''));
+    }
+  }
+  if (out.isEmpty) {
+    final id = clean(extras['artistId']);
+    if (id != null) out.add((id: id, name: song?.artist ?? ''));
+  }
+  return out;
+}

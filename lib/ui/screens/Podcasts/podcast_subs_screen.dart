@@ -1,15 +1,21 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '/models/playlist.dart';
+import '/services/folder_cover.dart';
 import '/services/podcast_service.dart';
 import '/services/wizestream_service.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/snackbar.dart';
 import '../Home/home_layout.dart';
 import 'podcast_cover_tile.dart';
 import 'podcast_empty_state.dart';
+import 'podcast_folder_cover.dart';
 import 'podcast_folder_controller.dart';
 import 'podcast_folder_screen.dart';
 import 'podcast_layout.dart';
@@ -326,14 +332,8 @@ class PodcastSubsScreen extends StatelessWidget {
               );
             }
             final rss = rssSubs[subIndex - subs.length];
-            return PodcastCoverTile(
-              title: (rss['title'] ?? '').toString(),
-              subtitle: (rss['author'] ?? '').toString(),
-              imageUrl: rssArtworkUrl(rss),
-              onTap: () => playOrOpenRssPodcast(rss),
-              onPlay: () => playOrOpenRssPodcast(rss),
-              onLongPress: () => showRssPodcastSheet(context, rss),
-            );
+            return rssPodcastTile(rss,
+                onLongPress: () => showRssPodcastSheet(context, rss));
           },
         );
       });
@@ -421,20 +421,7 @@ class PodcastSubsScreen extends StatelessWidget {
       title: folder.name,
       subtitle: podcastShowCount(folder.podcastIds.length),
       showPlay: false,
-      cover: Container(
-        decoration: BoxDecoration(
-          color: folder.color.withOpacity(0.22),
-          border: Border.all(
-            color: folder.color.withOpacity(0.55),
-            width: 0,
-          ),
-        ),
-        child: Icon(
-          Icons.folder_rounded,
-          size: RiffComponentSizes.folderIcon,
-          color: folder.color,
-        ),
-      ),
+      cover: PodcastFolderCover(folder: folder),
       onTap: () => Get.to(() => PodcastFolderScreen(folderId: folder.id)),
       onLongPress: () => _folderOptions(context, fc, folder),
     );
@@ -470,6 +457,30 @@ class PodcastSubsScreen extends StatelessWidget {
                   onChanged: (i) => fc.setColor(current.id, i),
                 ),
                 const SizedBox(height: RiffSpacing.sm),
+                // A photo of its own, framed in the folder colour.
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  titleTextStyle: Theme.of(ctx).textTheme.bodyLarge,
+                  leading: const Icon(Icons.add_photo_alternate_outlined,
+                      size: RiffComponentSizes.headerIcon),
+                  title: Text((current.imagePath == null
+                          ? "setFolderPhoto"
+                          : "changeFolderPhoto")
+                      .tr),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    pickPodcastFolderPhoto(context, current.id);
+                  },
+                ),
+                if (current.imagePath != null)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    titleTextStyle: Theme.of(ctx).textTheme.bodyLarge,
+                    leading: const Icon(Icons.hide_image_outlined,
+                        size: RiffComponentSizes.headerIcon),
+                    title: Text("removeFolderPhoto".tr),
+                    onTap: () => fc.setImage(current.id, null),
+                  ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   iconColor: Theme.of(ctx).colorScheme.error,
@@ -490,4 +501,28 @@ class PodcastSubsScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Pick a photo for a folder: it is cropped to a square, shrunk and saved
+/// (see [FolderCoverStore]); the tile shows it framed in the folder colour.
+Future<void> pickPodcastFolderPhoto(
+    BuildContext context, String folderId) async {
+  final res = await FilePicker.platform
+      .pickFiles(type: FileType.image, withData: false);
+  final file = res?.files.firstOrNull;
+  if (file == null) return;
+  Uint8List? bytes = file.bytes;
+  final path = file.path;
+  if (bytes == null && path != null) {
+    try {
+      bytes = await File(path).readAsBytes();
+    } catch (_) {}
+  }
+  final saved =
+      bytes == null ? null : await FolderCoverStore.save(folderId, bytes);
+  if (saved == null) {
+    if (context.mounted) snackOperationFailed(context);
+    return;
+  }
+  Get.find<PodcastFolderController>().setImage(folderId, saved);
 }

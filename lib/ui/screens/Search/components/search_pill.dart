@@ -24,6 +24,9 @@ InputDecoration searchFieldDecoration(BuildContext context,
     fillColor: scheme.surfaceContainerLow,
     contentPadding: EdgeInsets.zero,
     hintText: "searchDes".tr,
+    // One line, cut with an ellipsis: with large system text the launcher
+    // field (no TextField to set this) would wrap the hint and clip it.
+    hintMaxLines: 1,
     hintStyle:
         theme.textTheme.bodyLarge?.copyWith(color: scheme.onSurfaceVariant),
     prefixIcon: Icon(Icons.search_rounded,

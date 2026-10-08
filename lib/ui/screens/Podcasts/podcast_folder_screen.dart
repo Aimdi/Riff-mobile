@@ -71,14 +71,8 @@ class PodcastFolderScreen extends StatelessWidget {
               itemBuilder: (context, index) {
                 if (index >= items.length) {
                   final rss = feeds[index - items.length];
-                  return PodcastCoverTile(
-                    title: '${rss['title'] ?? ''}',
-                    subtitle: '${rss['author'] ?? ''}',
-                    imageUrl: rssArtworkUrl(rss),
-                    onTap: () => playOrOpenRssPodcast(rss),
-                    onPlay: () => playOrOpenRssPodcast(rss),
-                    onLongPress: () => showRssPodcastSheet(context, rss),
-                  );
+                  return rssPodcastTile(rss,
+                      onLongPress: () => showRssPodcastSheet(context, rss));
                 }
                 final podcast = items[index];
                 return PodcastCoverTile(

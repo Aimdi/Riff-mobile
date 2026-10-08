@@ -168,7 +168,7 @@ class _PlaylistPage extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(24),
             child: Column(children: [
-              SpotifyArt(url: p.coverUrl, size: 120),
+              SpotifyArt(url: p.coverUrl, size: 120, playlist: p),
               const SizedBox(height: 16),
               Text('spotifyPlaylistLocked'.tr,
                   textAlign: TextAlign.center,

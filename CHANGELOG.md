@@ -1,3 +1,30 @@
+# 1.7.149
+
+**Riff Wave lives in Discover**
+* The Riff Wave card and its stations (Fresh finds, Rediscover, …) moved
+  off Home to the top of the Discover tab, right under the search field,
+  and scroll with the rest of Discover
+* Home keeps every other section in the same order
+
+**Playlist covers**
+* Playlists without a cover get their own generated one: a soft colour
+  blend with grain and the playlist name in bold, the same on every
+  device. Library, Home, playlist pages, Spotify and Navidrome playlists
+
+**Player**
+* Tap the artist of a song with several artists and Riff asks which one
+  you mean ("Choose artist", with their photos)
+
+**Podcasts**
+* Folders can have their own photo: long-press a folder › Set photo. It
+  is cropped and shrunk to fit, and keeps the folder colour as a frame
+* The second row of filters on the Inbox is gone: tap the Inbox chip to
+  pick New, In progress, Queued, Downloaded, Bookmarked or Under 20 min.
+  The chip shows the filter you picked
+* Fixed: tapping a show you follow in Subscriptions or a folder started
+  an episode instead of opening the show. It now opens the show's page
+  with its episodes; the play button on the cover still plays
+
 # 1.7.148
 
 **Everything under ⋮, in every player**

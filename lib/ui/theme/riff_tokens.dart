@@ -37,6 +37,11 @@ class RiffPalette {
   /// Pulse ring behind the listen button.
   static const double recognizeRingOpacity = 0.2;
 
+  /// Podcast folder tile without a photo: the colour's tint behind the
+  /// folder icon, and its hairline edge.
+  static const double folderTint = 0.22;
+  static const double folderEdge = 0.55;
+
   /// Active rail item: accent fill and outline strengths.
   static const double railActiveFillOpacity = 0.16;
   static const double railActiveBorderOpacity = 0.28;
@@ -53,6 +58,11 @@ class RiffPalette {
 
   /// Lyrics lines other than the current one (secondary text at 60%).
   static const double lyricsDimOpacity = 0.6;
+
+  /// Riff Wave card cover: the accent tint shown when there is no cover
+  /// yet, and the scrim under the waveform (keep the current values).
+  static const double waveArtTint = 0.22;
+  static const double waveArtScrim = 0.4;
 }
 
 /// Corner radii (§4.3).
@@ -239,6 +249,9 @@ class RiffComponentSizes {
   static const double videoEpisodeWidth = 256;
   static const double coverPlay = 30;
   static const double folderIcon = 64;
+
+  /// Podcast folder photo: the frame in the folder colour around it.
+  static const double folderPhotoFrame = 6;
   static const double emptyStateIcon = 56;
 
   /// Settings (Phase 8): a settings row's minimum height (§5.9 / Phase 8),
@@ -281,6 +294,9 @@ class RiffComponentSizes {
   static const double sheetIcon = 22;
   static const double sheetQuickIcon = 24;
 
+  /// Widest a bottom sheet gets on tablets (the song sheet's width).
+  static const double sheetMaxWidth = 500;
+
   /// Artwork in the song sheet's header (keeps its current size).
   static const double sheetHeaderArt = 56;
 
@@ -294,6 +310,47 @@ class RiffComponentSizes {
 
   /// Spinner inside a button's icon slot (keeps its current size).
   static const double buttonSpinner = 16;
+}
+
+/// Generated covers for playlists without artwork (colours in
+/// palettes/generated_covers.dart).
+class RiffCoverArt {
+  RiffCoverArt._();
+
+  /// Smaller covers show only the colour blobs: list rows and the 96 dp
+  /// collection header already print the title next to the art.
+  static const double titleMinSize = 100;
+
+  /// The title is laid out on a cover this big, then scaled with the cover,
+  /// so it wraps the same way at every size.
+  static const double titleDesignSize = 160;
+
+  /// Title lines: the large style, then the compact one for long titles.
+  static const int titleMaxLines = 2;
+  static const int titleMaxLinesCompact = 3;
+
+  /// Blur of the colour blobs, as a share of the cover's side.
+  static const double blobBlur = 0.17;
+
+  /// Film grain: side of the repeating noise tile (px), share of its pixels
+  /// that get a speck, and the specks' strength.
+  static const int grainTile = 128;
+  static const double grainDensity = 0.55;
+  static const double grainLightOpacity = 0.06;
+  static const double grainDarkOpacity = 0.09;
+
+  /// Shade behind the title: its strength at the bottom edge, and how far
+  /// up the cover it reaches (share of the side).
+  static const double titleShadeOpacity = 0.36;
+  static const double titleShadeExtent = 0.6;
+
+  /// Raster sizes (physical px) a cover is drawn at: the smallest one at
+  /// least as big as the cover on screen, so a few sizes serve every list.
+  static const List<int> rasterSizes = [96, 160, 256, 384, 512, 768, 1024];
+
+  /// Most memory the drawn covers may keep (bytes); older ones are dropped
+  /// and drawn again when they scroll back in.
+  static const int cacheBytes = 24 * 1024 * 1024;
 }
 
 /// Theme-dependent colours Material's [ColorScheme] has no slot for.

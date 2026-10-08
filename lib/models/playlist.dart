@@ -43,6 +43,11 @@ class Playlist {
   static const thumbPlaceholderUrl =
       "https://raw.githubusercontent.com/anandnet/Harmony-Music/refs/heads/main/playlist_placeholder.png";
 
+  /// Whether the playlist has a cover of its own (not none, and not the
+  /// shared placeholder image).
+  bool get hasArt =>
+      thumbnailUrl.trim().isNotEmpty && thumbnailUrl != thumbPlaceholderUrl;
+
   factory Playlist.fromJson(Map<dynamic, dynamic> json) {
     final thumbs = json["thumbnails"];
     final kind = json["kind"]?.toString();

@@ -635,7 +635,8 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
     ].join(' · ');
     return ListTile(
       contentPadding: const EdgeInsets.only(left: HomeLayout.gutter, right: 4),
-      leading: SpotifyArt(url: p.coverUrl, icon: Icons.queue_music_rounded),
+      leading: SpotifyArt(
+          url: p.coverUrl, icon: Icons.queue_music_rounded, playlist: p),
       title: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(sub,
           maxLines: 1,

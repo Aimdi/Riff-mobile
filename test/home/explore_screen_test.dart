@@ -5,6 +5,7 @@ import 'package:harmonymusic/models/album.dart';
 import 'package:harmonymusic/models/home_chip.dart';
 import 'package:harmonymusic/ui/screens/Home/explore_screen.dart';
 import 'package:harmonymusic/ui/screens/Home/home_screen_controller.dart';
+import 'package:harmonymusic/ui/widgets/discovery/riff_wave_hero.dart';
 
 class _FakeHome extends GetxController implements HomeScreenController {
   @override
@@ -65,5 +66,7 @@ void main() {
     expect(find.text('Albums for you'), findsOneWidget);
     expect(find.text('Throwback jams'), findsOneWidget);
     expect(find.text('Album 0'), findsOneWidget);
+    // Riff Wave sits on top of the Discover tab's feed, not this page.
+    expect(find.byType(RiffWaveHero), findsNothing);
   });
 }

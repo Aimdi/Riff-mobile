@@ -15,7 +15,6 @@ import '../Settings/settings_screen_controller.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/create_playlist_dialog.dart';
 import '../../navigator.dart';
-import '../../widgets/discovery/riff_wave_hero.dart';
 import '../../utils/riff_tokens.dart';
 import '../../widgets/shimmer_widgets/home_shimmer.dart';
 import '/services/spotify_home.dart';
@@ -32,7 +31,6 @@ import 'home_sections.dart';
 import 'home_shelves.dart';
 import 'home_speed_dial.dart';
 import 'home_stats_card.dart';
-import 'home_station_chips.dart';
 import '../Settings/settings_screen.dart';
 import '/ui/widgets/riff_header_bar.dart';
 
@@ -391,13 +389,6 @@ class _HomeFeedState extends State<_HomeFeed> {
         ];
       case HomeSection.jumpBackIn:
         return [slot(HomeJumpBackIn(items: m.items, metrics: metrics))];
-      case HomeSection.riffWave:
-        return [
-          slot(const Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [RiffWaveHero(), RiffStationChips()],
-          )),
-        ];
       case HomeSection.speedDial:
         return [slot(HomeSpeedDial(items: m.items, metrics: metrics))];
       case HomeSection.quickPicks:

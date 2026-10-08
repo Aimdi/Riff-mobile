@@ -36,6 +36,8 @@ class PodcastInboxScreen extends StatefulWidget {
     this.embedded = false,
     this.onDiscover,
     this.refreshNonce = 0,
+    this.filter,
+    this.onFilterChanged,
   });
 
   /// When true, render just the content (no Scaffold/AppBar) so it can be shown
@@ -47,6 +49,14 @@ class PodcastInboxScreen extends StatefulWidget {
 
   /// Bumped by the parent refresh shortcut to reload inbox episodes.
   final int refreshNonce;
+
+  /// Library filter, picked from the parent's Inbox chip
+  /// ([showInboxFilterMenu]); null shows the normal Inbox.
+  final EpisodeFilter? filter;
+
+  /// Asks the parent to change [filter] (the empty state's "Back to the
+  /// Inbox" passes null).
+  final ValueChanged<EpisodeFilter?>? onFilterChanged;
 
   @override
   State<PodcastInboxScreen> createState() => _PodcastInboxScreenState();
@@ -62,9 +72,6 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
 
   /// Refreshing behind what's on screen (thin bar at the top).
   bool _refreshing = false;
-
-  /// Library filter chip; null shows the normal Inbox.
-  EpisodeFilter? _filter;
 
   @override
   void initState() {
@@ -219,7 +226,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
           .where((e) => !PodcastProgressService.isPlayed(e.id))
           .toList();
 
-  /// With a chip on: every episode Riff knows about (Inbox, in progress,
+  /// With a filter on: every episode Riff knows about (Inbox, in progress,
   /// Up Next, downloads, bookmarks) that matches it.
   List<MediaItem> _filtered(EpisodeFilter f) {
     final bookmarks = PodcastBookmarkStore.all;
@@ -363,7 +370,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     if (_loading) {
       return const SongListShimmer(itemCount: 8, topPadding: 8);
     }
-    final filter = _filter;
+    final filter = widget.filter;
     final list = filter == null ? _episodes : _filtered(filter);
     final continueItems = filter != null
         ? const <Map<String, dynamic>>[]
@@ -392,7 +399,6 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
                   : null,
             ),
           ),
-          SliverToBoxAdapter(child: _chips(context)),
           if (filter == null && expected.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: HomeSectionHeader('expectedToday'.tr, top: RiffSpacing.md),
@@ -427,7 +433,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
               child: HomeSectionHeader(
                   filter == null
                       ? "latestEpisodes".tr
-                      : '${_filterLabel(filter)} · ${list.length}',
+                      : '${episodeFilterLabel(filter)} · ${list.length}',
                   top: continueItems.isEmpty
                       ? RiffSpacing.md
                       : HomeLayout.sectionTop),
@@ -454,7 +460,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
                       message: 'noFilteredEpisodes'.tr,
                       actionLabel: 'clearFilter'.tr,
                       actionIcon: Icons.close_rounded,
-                      onAction: () => setState(() => _filter = null),
+                      onAction: () => widget.onFilterChanged?.call(null),
                     ),
             ),
           const SliverToBoxAdapter(
@@ -489,8 +495,6 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
       onLongPress: () => showAddToQueueSheet(context, item),
     );
   }
-
-  static String _filterLabel(EpisodeFilter f) => 'episodeFilter_${f.name}'.tr;
 
   /// "Expected today": followed shows whose usual release day is today,
   /// with roughly when. The new episode joins the list once it's out.
@@ -562,33 +566,6 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     );
   }
 
-  /// New · In progress · Queued · Downloaded · Bookmarked · Short. One at a
-  /// time; tap the selected one again to go back to the Inbox.
-  Widget _chips(BuildContext context) {
-    return SizedBox(
-      height: RiffSpacing.sm + RiffSizes.chipHeight + RiffSpacing.xxs,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.only(
-            left: HomeLayout.gutter,
-            top: RiffSpacing.sm,
-            right: HomeLayout.gutter,
-            bottom: RiffSpacing.xxs),
-        itemCount: EpisodeFilter.values.length,
-        separatorBuilder: (_, __) => const SizedBox(width: RiffSpacing.sm),
-        itemBuilder: (context, i) {
-          final f = EpisodeFilter.values[i];
-          final on = _filter == f;
-          return _FilterPill(
-            label: _filterLabel(f),
-            selected: on,
-            onTap: () => setState(() => _filter = on ? null : f),
-          );
-        },
-      ),
-    );
-  }
-
   Widget _row(BuildContext context, List<MediaItem> list, int i) {
     final e = list[i];
     return PodcastEpisodeTile(
@@ -604,44 +581,56 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
   }
 }
 
-/// Filter chip (§5.6): transparent with a divider outline; selected is an
-/// accentMuted fill, accent outline and accent label.
-class _FilterPill extends StatelessWidget {
-  const _FilterPill(
-      {required this.label, required this.selected, required this.onTap});
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+/// "New", "In progress", … for [f].
+String episodeFilterLabel(EpisodeFilter f) => 'episodeFilter_${f.name}'.tr;
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final accent = theme.colorScheme.primary;
-    final fg = selected ? accent : theme.colorScheme.onSurface;
-    return Material(
-      color: selected ? RiffColors.of(context).accentMuted : Colors.transparent,
-      shape: StadiumBorder(
-          side: BorderSide(
-              color: selected ? accent : theme.dividerColor, width: 0)),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (selected) ...[
-                Icon(Icons.check_rounded,
-                    size: RiffSizes.chipGlyph, color: accent),
-                const SizedBox(width: RiffSpacing.xs),
-              ],
-              Text(label,
-                  style: theme.textTheme.labelMedium?.copyWith(color: fg)),
-            ],
-          ),
-        ),
+/// The Inbox section chip's label: "Inbox", or "Inbox · In progress" with
+/// a filter on.
+String inboxChipLabel(EpisodeFilter? f) => f == null
+    ? 'podcastInbox'.tr
+    : '${'podcastInbox'.tr} · ${episodeFilterLabel(f)}';
+
+/// The Inbox chip's filter menu, opened under [chip]: the plain Inbox, then
+/// New · In progress · Queued · Downloaded · Bookmarked · Short, the
+/// [current] one checked. One at a time; [onSelected] gets the choice
+/// (null = the plain Inbox). Dismissing it changes nothing.
+Future<void> showInboxFilterMenu(
+  BuildContext chip, {
+  required EpisodeFilter? current,
+  required ValueChanged<EpisodeFilter?> onSelected,
+}) async {
+  final box = chip.findRenderObject()! as RenderBox;
+  final overlay =
+      Navigator.of(chip).overlay!.context.findRenderObject()! as RenderBox;
+  final under = Offset(0, box.size.height + RiffSpacing.xs);
+  final position = RelativeRect.fromRect(
+    Rect.fromPoints(
+      box.localToGlobal(under, ancestor: overlay),
+      box.localToGlobal(box.size.bottomRight(under), ancestor: overlay),
+    ),
+    Offset.zero & overlay.size,
+  );
+  // Wrapped in a record so picking the plain Inbox (null) isn't mistaken
+  // for dismissing the menu.
+  final picked = await showMenu<(EpisodeFilter?,)>(
+    context: chip,
+    position: position,
+    items: [
+      CheckedPopupMenuItem(
+        height: RiffComponentSizes.sheetRow,
+        value: (null,),
+        checked: current == null,
+        child: Text('podcastInbox'.tr),
       ),
-    );
-  }
+      const PopupMenuDivider(),
+      for (final f in EpisodeFilter.values)
+        CheckedPopupMenuItem(
+          height: RiffComponentSizes.sheetRow,
+          value: (f,),
+          checked: current == f,
+          child: Text(episodeFilterLabel(f)),
+        ),
+    ],
+  );
+  if (picked != null) onSelected(picked.$1);
 }

@@ -32,7 +32,6 @@ void main() {
       expect(order(s), [
         HomeSection.header,
         HomeSection.jumpBackIn,
-        HomeSection.riffWave,
         HomeSection.speedDial,
         HomeSection.quickPicks,
         HomeSection.personalized,
@@ -42,9 +41,24 @@ void main() {
       ]);
     });
 
+    test('Riff Wave is not on Home (it lives in the Discover tab)', () {
+      expect(
+          HomeSection.values.map((s) => s.name), isNot(contains('riffWave')));
+      // Speed dial follows Jump back in directly, with nothing between.
+      final s = buildHomeSections(HomeFeedInput(
+        jumpBackIn: [item('ep:1'), item('session:q')],
+        speedDial: items('song:d', 3),
+      ));
+      expect(order(s), [
+        HomeSection.header,
+        HomeSection.jumpBackIn,
+        HomeSection.speedDial,
+      ]);
+    });
+
     test('the feed cannot push the fixed sections down', () {
       // However many editorial shelves come in, and in whatever order,
-      // sections 1–4 keep their places.
+      // sections 1–3 keep their places.
       final s = buildHomeSections(HomeFeedInput(
         jumpBackIn: [item('ep:1')],
         speedDial: items('song:d', 3),
@@ -53,22 +67,20 @@ void main() {
           for (var i = 0; i < 20; i++) shelf('Shelf $i', items('pl$i:', 5))
         ],
       ));
-      expect(order(s).take(5).toList(), [
+      expect(order(s).take(4).toList(), [
         HomeSection.header,
         HomeSection.jumpBackIn,
-        HomeSection.riffWave,
         HomeSection.speedDial,
         HomeSection.quickPicks,
       ]);
     });
 
-    test('no listening history: only header, Riff Wave and the feed', () {
+    test('no listening history: only the header and the feed', () {
       final s = buildHomeSections(HomeFeedInput(
         editorial: [shelf('Shelf', items('pl:', 5))],
       ));
       expect(order(s), [
         HomeSection.header,
-        HomeSection.riffWave,
         HomeSection.editorial,
       ]);
     });
@@ -79,7 +91,7 @@ void main() {
         hasWeek: true,
         hidden: const {HomeSection.speedDial, HomeSection.yourWeek},
       ));
-      expect(order(s), [HomeSection.header, HomeSection.riffWave]);
+      expect(order(s), [HomeSection.header]);
     });
   });
 
