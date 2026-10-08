@@ -53,4 +53,33 @@ void main() {
       'UCdirect',
     );
   });
+
+  test('songArtists lists every artist with a page, once, in order', () {
+    expect(songArtists(song()), isEmpty);
+    expect(songArtists(song(extras: {'artistId': 'UCabc'})),
+        [(id: 'UCabc', name: 'Artist')]);
+    expect(
+      songArtists(song(extras: {
+        'artistId': 'UCa',
+        'artists': [
+          {'name': 'Anyma', 'id': 'UCa'},
+          {'name': 'No page', 'id': null},
+          {'name': 'Grimes', 'id': 'UCg'},
+          {'name': 'Anyma again', 'id': 'UCa'},
+          'junk',
+        ]
+      })),
+      [(id: 'UCa', name: 'Anyma'), (id: 'UCg', name: 'Grimes')],
+    );
+    // No linked artist in the list: fall back to extras.artistId.
+    expect(
+      songArtists(song(extras: {
+        'artistId': 'UCx',
+        'artists': [
+          {'name': 'A', 'id': 'null'},
+        ]
+      })),
+      [(id: 'UCx', name: 'Artist')],
+    );
+  });
 }

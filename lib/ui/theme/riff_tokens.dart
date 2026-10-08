@@ -289,6 +289,9 @@ class RiffComponentSizes {
   static const double sheetIcon = 22;
   static const double sheetQuickIcon = 24;
 
+  /// Widest a bottom sheet gets on tablets (the song sheet's width).
+  static const double sheetMaxWidth = 500;
+
   /// Artwork in the song sheet's header (keeps its current size).
   static const double sheetHeaderArt = 56;
 
