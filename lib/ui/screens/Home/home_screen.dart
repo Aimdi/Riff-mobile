@@ -47,7 +47,7 @@ class HomeScreen extends StatelessWidget {
         Get.find<SettingsScreenController>();
 
     return Scaffold(
-        // Search lives in the Home title row; keep FAB only for Library add.
+        // Search lives in the Discover tab; keep FAB only for Library add.
         floatingActionButton: Obx(
           () => homeScreenController.tabIndex.value == RailTab.playlists
               ? Obx(
@@ -435,8 +435,9 @@ class _HomeFeedState extends State<_HomeFeed> {
   }
 }
 
-/// Greeting on the left (one line), Explore, Stats and Search on the
-/// right. Only this row clears the status bar.
+/// Greeting on the left (one line), Stats (and "What's playing?" on
+/// Android) on the right; search and Explore live in the Discover tab.
+/// Only this row clears the status bar.
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader({super.key, required this.top});
   final double top;
@@ -474,21 +475,10 @@ class _HomeHeader extends StatelessWidget {
               ),
             ),
             IconButton(
-              tooltip: 'explore'.tr,
-              icon: const Icon(Icons.explore_outlined),
-              onPressed: () => _go(ScreenNavigationSetup.exploreScreen),
-            ),
-            IconButton(
               tooltip: 'stats'.tr,
               icon: const Icon(Icons.bar_chart_rounded),
               onPressed: () => _go(ScreenNavigationSetup.statsScreen),
             ),
-            if (!GetPlatform.isDesktop)
-              IconButton(
-                tooltip: 'search'.tr,
-                icon: const Icon(Icons.search_rounded),
-                onPressed: () => _go(ScreenNavigationSetup.searchScreen),
-              ),
             // "What's playing?" — listen and name the song (Android).
             if (GetPlatform.isAndroid)
               IconButton(
