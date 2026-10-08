@@ -21,6 +21,9 @@
 * The second row of filters on the Inbox is gone: tap the Inbox chip to
   pick New, In progress, Queued, Downloaded, Bookmarked or Under 20 min.
   The chip shows the filter you picked
+* Fixed: tapping a show you follow in Subscriptions or a folder started
+  an episode instead of opening the show. It now opens the show's page
+  with its episodes; the play button on the cover still plays
 
 # 1.7.148
 

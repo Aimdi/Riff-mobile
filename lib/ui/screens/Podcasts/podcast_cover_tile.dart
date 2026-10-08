@@ -304,10 +304,34 @@ void openLibraryPodcast(Playlist podcast) {
   );
 }
 
+/// The show page of an RSS / Apple podcast: about, follow, episodes.
+void openRssPodcast(Map<String, dynamic> podcast) {
+  Get.to(() => PodcastEpisodesScreen(podcast: podcast));
+}
+
+/// The cover's play button: plays the show, else opens its page.
 Future<void> playOrOpenRssPodcast(Map<String, dynamic> podcast) async {
   final ok = await playPodcastShow(podcast);
   if (ok) return;
-  Get.to(() => PodcastEpisodesScreen(podcast: podcast));
+  openRssPodcast(podcast);
+}
+
+/// Subs grid / folder tile for an RSS show. A tap opens the show page;
+/// only the play button on the cover plays.
+PodcastCoverTile rssPodcastTile(
+  Map<String, dynamic> rss, {
+  required VoidCallback onLongPress,
+  void Function(Map<String, dynamic>) open = openRssPodcast,
+  Future<void> Function(Map<String, dynamic>) play = playOrOpenRssPodcast,
+}) {
+  return PodcastCoverTile(
+    title: (rss['title'] ?? '').toString(),
+    subtitle: (rss['author'] ?? '').toString(),
+    imageUrl: rssArtworkUrl(rss),
+    onTap: () => open(rss),
+    onPlay: () => play(rss),
+    onLongPress: onLongPress,
+  );
 }
 
 String rssArtworkUrl(Map<String, dynamic> podcast) {

@@ -332,14 +332,8 @@ class PodcastSubsScreen extends StatelessWidget {
               );
             }
             final rss = rssSubs[subIndex - subs.length];
-            return PodcastCoverTile(
-              title: (rss['title'] ?? '').toString(),
-              subtitle: (rss['author'] ?? '').toString(),
-              imageUrl: rssArtworkUrl(rss),
-              onTap: () => playOrOpenRssPodcast(rss),
-              onPlay: () => playOrOpenRssPodcast(rss),
-              onLongPress: () => showRssPodcastSheet(context, rss),
-            );
+            return rssPodcastTile(rss,
+                onLongPress: () => showRssPodcastSheet(context, rss));
           },
         );
       });
