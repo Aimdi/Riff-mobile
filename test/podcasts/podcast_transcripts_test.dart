@@ -26,6 +26,24 @@ void main() {
       expect(out.first.endSec, 2.5);
     });
 
+    test('a fetched transcript is parsed off the UI isolate, same result',
+        () async {
+      const srt = '1\n00:00:01,000 --> 00:00:02,000\nAlex: Hello there.\n\n'
+          '2\n00:00:03,000 --> 00:00:04,500\nSam: Hi!\n';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((req) => req.response
+        ..write(srt)
+        ..close());
+      final cues = await PodcastService.transcript(
+          'http://127.0.0.1:${server.port}/t.srt',
+          type: 'application/srt');
+      final direct =
+          PodcastService.parseTranscriptDocument(srt, type: 'application/srt');
+      expect(cues.map((c) => c.toJson()), direct.map((c) => c.toJson()));
+      expect(cues.map((c) => c.speaker), ['Alex', 'Sam']);
+    });
+
     test('tiny cues merge into sentence-length lines', () {
       const vtt = 'WEBVTT\n\n'
           '00:00.000 --> 00:01.000\nSo today we\n\n'

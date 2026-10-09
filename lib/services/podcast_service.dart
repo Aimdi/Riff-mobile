@@ -159,7 +159,10 @@ class PodcastService {
     try {
       final res = await _dio.get(url,
           options: Options(responseType: ResponseType.plain));
-      return parseTranscriptDocument('${res.data ?? ''}', type: type);
+      final body = '${res.data ?? ''}';
+      // A long episode's transcript is a megabyte or two of cues; parse it
+      // off the UI isolate, like feeds.
+      return await Isolate.run(() => parseTranscriptDocument(body, type: type));
     } catch (e) {
       printERROR('Transcript fetch failed: $e');
       return [];
