@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 /// A short log of what the app was doing, kept in a file across launches
@@ -6,7 +7,8 @@ import 'dart:io';
 /// Lines go through a plain `write()` as they arrive: the kernel keeps
 /// them even when the process dies a moment later, so no flush is needed.
 /// [printINFO] / [printERROR] feed it in every build mode; the file is
-/// trimmed on launch so it never grows past a few hundred lines.
+/// trimmed on launch, and rewritten from the in-memory tail every
+/// [_compactEvery] lines, so it never grows past a few thousand lines.
 class DiagLog {
   DiagLog._();
 
@@ -14,9 +16,17 @@ class DiagLog {
   static const _keepLines = 400;
   static const _lineMax = 600;
 
+  /// Lines appended before the file is rewritten as this run's start
+  /// marker plus its last [_keepLines] lines. A resident player logs for
+  /// days between launches; without this the file only shrank on the next
+  /// launch, which then read all of it on the UI isolate.
+  static const _compactEvery = _keepLines * 4;
+
   static final List<String> _lines = <String>[];
   static List<String> _before = const <String>[];
   static RandomAccessFile? _file;
+  static String _startMarker = '';
+  static int _sinceCompact = 0;
 
   /// Opens (and trims) the log in [dir], remembering what the previous
   /// launch wrote. Lines logged before this call are written now.
@@ -25,7 +35,11 @@ class DiagLog {
       final file = File('$dir/$fileName');
       var old = <String>[];
       if (file.existsSync()) {
-        old = file.readAsLinesSync();
+        // Malformed UTF-8 (a write cut off by a crash) must not throw here:
+        // that left the log off for good, since the bad bytes never went.
+        final text = const Utf8Decoder(allowMalformed: true)
+            .convert(file.readAsBytesSync());
+        old = const LineSplitter().convert(text);
         if (old.length > _keepLines) {
           old = old.sublist(old.length - _keepLines);
         }
@@ -34,7 +48,10 @@ class DiagLog {
       _before = old;
       _file?.closeSync();
       _file = file.openSync(mode: FileMode.append);
-      _write('=== Riff $version started ${DateTime.now().toIso8601String()} ===');
+      _startMarker =
+          '=== Riff $version started ${DateTime.now().toIso8601String()} ===';
+      _sinceCompact = 0;
+      _write(_startMarker);
       for (final l in _lines) {
         _write(l);
       }
@@ -51,7 +68,25 @@ class DiagLog {
     if (_lines.length > _keepLines) {
       _lines.removeRange(0, _lines.length - _keepLines);
     }
-    if (_file != null) _write(entry);
+    if (_file != null) {
+      _write(entry);
+      if (++_sinceCompact >= _compactEvery) _compact();
+    }
+  }
+
+  /// Rewrites the file as this run's start marker and its in-memory tail.
+  /// The previous run's lines stay readable through [previousRun].
+  static void _compact() {
+    _sinceCompact = 0;
+    final file = _file;
+    if (file == null) return;
+    try {
+      file.truncateSync(0);
+      // The file is open in append mode by position, not O_APPEND: rewind,
+      // or the next write lands past a hole of zero bytes.
+      file.setPositionSync(0);
+      file.writeStringSync('$_startMarker\n${_lines.join('\n')}\n');
+    } catch (_) {}
   }
 
   static void _write(String line) {
@@ -84,5 +119,7 @@ class DiagLog {
     _file = null;
     _lines.clear();
     _before = const [];
+    _startMarker = '';
+    _sinceCompact = 0;
   }
 }
