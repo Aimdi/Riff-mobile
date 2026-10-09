@@ -55,6 +55,19 @@ class FakeMusicServices extends GetxService implements MusicServices {
     return const {};
   }
 
+  /// Pending artist tab loads by category ("Songs", "Albums", ...).
+  final artistTabs = <String, List<Completer<Map<String, dynamic>>>>{};
+
+  @override
+  Future<Map<String, dynamic>> getArtistRealtedContent(
+      Map<String, dynamic> browseEndpoint, String category,
+      {String additionalParams = ""}) {
+    if (error != null) return Future.error(error!);
+    final c = Completer<Map<String, dynamic>>();
+    (artistTabs[category] ??= []).add(c);
+    return c.future;
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
