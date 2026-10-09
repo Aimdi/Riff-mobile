@@ -24,13 +24,10 @@ class _FakeMusic extends GetxService implements MusicServices {
     return (pending[query] = Completer<Map<String, dynamic>>()).future;
   }
 
-  void answer(String query, String showTitle) =>
-      pending[query]!.complete({
+  void answer(String query, String showTitle) => pending[query]!.complete({
         'Podcasts': [
           Playlist(
-              title: showTitle,
-              playlistId: 'PL_$showTitle',
-              thumbnailUrl: ''),
+              title: showTitle, playlistId: 'PL_$showTitle', thumbnailUrl: ''),
         ],
       });
 
@@ -50,6 +47,8 @@ Future<(HttpServer, List<String>)> _brokenYoutube() async {
   });
   return (server, hits);
 }
+
+Future<void> _settle() => Future<void>.delayed(Duration.zero);
 
 void main() {
   final defaultYoutube = YoutubePodcastService.baseUrl;
@@ -103,6 +102,33 @@ void main() {
       expect(c.searchResults, isEmpty);
       expect(c.hasSearched.isFalse, isTrue);
       expect(c.isSearching.isFalse, isTrue);
+    });
+  });
+
+  group('YouTube popular rows', () {
+    test('an empty load is not refetched on every rebuild', () async {
+      final c = LibraryPodcastsController();
+      await c.loadYoutubePodcasts();
+      await _settle();
+      // Shows + episodes: one request each.
+      expect(hits, hasLength(2));
+      expect(c.ytPopularShows, isEmpty);
+
+      // The Discover view asks again after each rebuild with empty rows.
+      for (var i = 0; i < 5; i++) {
+        await c.loadYoutubePodcasts();
+      }
+      await _settle();
+      expect(hits, hasLength(2));
+      expect(c.isYtLoading.isFalse, isTrue);
+    });
+
+    test('a forced load still goes out', () async {
+      final c = LibraryPodcastsController();
+      await c.loadYoutubePodcasts();
+      await c.loadYoutubePodcasts(force: true);
+      await _settle();
+      expect(hits, hasLength(4));
     });
   });
 }

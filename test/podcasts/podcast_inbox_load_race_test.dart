@@ -32,10 +32,7 @@ class _FakeLib extends GetxController implements LibraryPodcastsController {
   @override
   final libraryPodcasts = <Playlist>[
     Playlist(
-        title: 'Show',
-        playlistId: 'PLshow',
-        thumbnailUrl: '',
-        kind: 'podcast'),
+        title: 'Show', playlistId: 'PLshow', thumbnailUrl: '', kind: 'podcast'),
   ].obs;
   final stored = <List<MediaItem>>[];
   @override

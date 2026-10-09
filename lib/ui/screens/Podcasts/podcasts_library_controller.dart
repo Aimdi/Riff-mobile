@@ -109,10 +109,25 @@ class LibraryPodcastsController extends GetxController {
     loadYoutubePodcasts();
   }
 
+  /// How soon an unforced load may try again after one that brought
+  /// nothing (offline, or YouTube changed its page). The Discover view asks
+  /// for a load whenever it builds with empty YouTube rows, and each empty
+  /// result rebuilds it, so without a pause it refetched in a tight loop.
+  static const ytRetryDelay = Duration(minutes: 1);
+  DateTime? _ytEmptyAt;
+
   /// Popular shows + popular episodes from YouTube's Podcasts page.
   Future<void> loadYoutubePodcasts({bool force = false}) async {
     if (!youtubePodcastsEnabled || isYtLoading.isTrue) return;
     if (!force && ytPopularShows.isNotEmpty) return;
+    final emptyAt = _ytEmptyAt;
+    if (!force &&
+        emptyAt != null &&
+        DateTime.now().difference(emptyAt) < ytRetryDelay) {
+      return;
+    }
+    // Cleared below once something arrives.
+    _ytEmptyAt = DateTime.now();
     isYtLoading.value = true;
     try {
       final results = await Future.wait([
@@ -125,6 +140,9 @@ class LibraryPodcastsController extends GetxController {
       ytPopularShows.assignAll(shows.take(30).map(ytShowAsPodcast));
       ytPopularEpisodes
           .assignAll((results[1] as List<MediaItem>).take(20).toList());
+      if (ytPopularShows.isNotEmpty || ytPopularEpisodes.isNotEmpty) {
+        _ytEmptyAt = null;
+      }
     } finally {
       isYtLoading.value = false;
     }
