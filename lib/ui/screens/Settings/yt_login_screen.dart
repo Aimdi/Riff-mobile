@@ -15,9 +15,38 @@ class YtLoginScreen extends StatefulWidget {
   State<YtLoginScreen> createState() => _YtLoginScreenState();
 }
 
+/// Decides when a finished page means the sign-in is done.
+///
+/// music.youtube.com can finish loading several times in a row (redirects),
+/// and each finish used to capture the cookies and close the screen: two
+/// successes closed the screen underneath as well.
+class YtLoginCapture {
+  YtLoginCapture({Future<bool> Function()? capture})
+      : _capture = capture ?? YtAuthService.captureFromWebView;
+
+  final Future<bool> Function() _capture;
+  bool _done = false;
+
+  /// True exactly once: for the first finished page whose cookies hold a
+  /// signed-in session.
+  Future<bool> onPageFinished(String url) async {
+    if (_done || !url.startsWith('https://music.youtube.com')) return false;
+    final bool ok;
+    try {
+      ok = await _capture();
+    } catch (_) {
+      // The cookie channel failed; the next finished page tries again.
+      return false;
+    }
+    if (!ok || _done) return false;
+    _done = true;
+    return true;
+  }
+}
+
 class _YtLoginScreenState extends State<YtLoginScreen> {
   late final WebViewController controller;
-  bool _captured = false;
+  final _capture = YtLoginCapture();
 
   @override
   void initState() {
@@ -26,12 +55,7 @@ class _YtLoginScreenState extends State<YtLoginScreen> {
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(NavigationDelegate(
         onPageFinished: (url) async {
-          if (_captured || !url.startsWith('https://music.youtube.com')) {
-            return;
-          }
-          final ok = await YtAuthService.captureFromWebView();
-          if (ok && mounted) {
-            _captured = true;
+          if (await _capture.onPageFinished(url) && mounted) {
             Get.back(result: true);
           }
         },
