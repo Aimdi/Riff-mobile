@@ -50,16 +50,9 @@ class ContentListItem extends StatelessWidget {
 
   /// Built-in library playlists store their title as a translation key
   /// (the list is built before translations load), so show the real name.
-  static const _builtInPlaylists = {
-    'LIBRP',
-    'LIBFAV',
-    'SongsCache',
-    'SongDownloads'
-  };
-
   String get _title {
     final title = content.title?.toString() ?? '';
-    if (!_isAlbum && _builtInPlaylists.contains(content.playlistId)) {
+    if (!_isAlbum && isSystemLibraryPlaylistId('${content.playlistId}')) {
       return title.tr;
     }
     return title;
