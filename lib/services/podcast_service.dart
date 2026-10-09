@@ -704,7 +704,10 @@ class PodcastService {
       final url = enclosure?.getAttribute('url');
       if (url == null || url.isEmpty) continue;
       final title = item.getElement('title')?.innerText.trim() ?? "Episode";
-      final guid = item.getElement('guid')?.innerText.trim() ?? url;
+      // An empty <guid/> must not give every such episode the same id
+      // (progress, played state and downloads are keyed on it).
+      final rawGuid = item.getElement('guid')?.innerText.trim() ?? '';
+      final guid = rawGuid.isNotEmpty ? rawGuid : url;
       final sizeBytes =
           int.tryParse(enclosure?.getAttribute('length') ?? '') ?? 0;
       final epArtRaw =

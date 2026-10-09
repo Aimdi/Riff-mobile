@@ -78,6 +78,17 @@ void main() {
     expect(remote, local);
   });
 
+  test('an empty guid falls back to the enclosure URL', () {
+    // Both used to get the id of '' and share progress / played state.
+    const feed = '''<rss><channel><title>S</title>
+<item><title>A</title><guid></guid><enclosure url="https://example.com/a.mp3"/></item>
+<item><title>B</title><guid isPermaLink="false"> </guid><enclosure url="https://example.com/b.mp3"/></item>
+</channel></rss>''';
+    final eps = parsePodcastFeed(feed, 'S', '');
+    expect(eps[0]['id'], 'podcast_${'https://example.com/a.mp3'.hashCode}');
+    expect(eps[1]['id'], 'podcast_${'https://example.com/b.mp3'.hashCode}');
+  });
+
   test('one item with an impossible date does not drop the feed', () {
     // Used to throw a RangeError from the date label, so the show listed
     // no episodes at all.
