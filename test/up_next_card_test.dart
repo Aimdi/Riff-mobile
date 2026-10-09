@@ -41,24 +41,33 @@ final _panelFade = find.ancestor(
         matching: find.byType(FadeTransition)));
 
 void main() {
-  testWidgets('a slim tab standing on the bottom edge, rounded on top',
+  testWidgets('a slim tab standing on the bottom edge, arched on top',
       (tester) async {
     _screen(tester, _phone);
     await tester.pumpWidget(_card());
 
     final rect = tester.getRect(_cardSurface);
     expect(rect.height, RiffComponentSizes.queueCard + _inset);
-    expect(rect.left, RiffSpacing.xxl);
-    expect(rect.right, _phone.width - RiffSpacing.xxl);
+    // Edge to edge.
+    expect(rect.left, 0);
+    expect(rect.right, _phone.width);
     expect(rect.bottom, _phone.height);
     // The label stays clear of the system inset.
     expect(tester.getRect(find.text('upNext · Dreams · 10 more')).bottom,
         lessThanOrEqualTo(_phone.height - _inset));
 
-    final shape =
-        tester.widget<Material>(_cardSurface).shape! as RoundedRectangleBorder;
-    expect(shape.borderRadius,
-        const BorderRadius.vertical(top: Radius.circular(RiffRadii.lg)));
+    // The top is one shallow arc into the screen edges, the bottom flat.
+    final shape = tester.widget<Material>(_cardSurface).shape! as ArcTopBorder;
+    expect(shape.arc, RiffComponentSizes.queueCardArc);
+    expect(shape.corner, 0);
+    final path = shape.getOuterPath(rect);
+    // Apex at the top middle; the top ends sit lower than the apex.
+    expect(path.contains(Offset(rect.center.dx, rect.top + 1)), isTrue);
+    expect(path.contains(Offset(rect.left + 2, rect.top + 2)), isFalse);
+    expect(path.contains(Offset(rect.right - 2, rect.top + 2)), isFalse);
+    // Square bottom corners on the screen edge.
+    expect(path.contains(Offset(rect.left + 1, rect.bottom - 1)), isTrue);
+    expect(path.contains(Offset(rect.right - 1, rect.bottom - 1)), isTrue);
   });
 
   testWidgets('label and next song share one line', (tester) async {
@@ -78,19 +87,18 @@ void main() {
 
     await tester.tap(find.text('upNext · Dreams · 10 more'));
     final rect = tester.getRect(_cardSurface);
-    await tester.tapAt(Offset(RiffSpacing.xxl / 2, rect.center.dy));
+    await tester.tapAt(Offset(RiffSpacing.xxl / 2, rect.bottom - _inset / 2));
     await tester.tapAt(Offset(rect.center.dx, rect.bottom - _inset / 2));
     expect(taps, 3);
   });
 
-  testWidgets('stays card-sized on a tablet', (tester) async {
+  testWidgets('runs edge to edge on a tablet too', (tester) async {
     const tablet = Size(1280, 800);
     _screen(tester, tablet);
     await tester.pumpWidget(_card());
 
     final rect = tester.getRect(_cardSurface);
-    expect(rect.width, RiffComponentSizes.queueCardMaxWidth);
-    expect(rect.center.dx, tablet.width / 2);
+    expect(rect.width, tablet.width);
   });
 
   testWidgets('a fading panel stays hidden behind the collapsed card',
@@ -118,9 +126,9 @@ void main() {
     double opacity() => tester.widget<FadeTransition>(_panelFade).opacity.value;
     expect(opacity(), 0);
 
-    // A tap beside the card never lands on the hidden queue.
-    await tester.tapAt(
-        Offset(RiffSpacing.xxl / 2, tester.getRect(_cardSurface).center.dy));
+    // A tap at the card's edge never lands on the hidden queue.
+    await tester.tapAt(Offset(
+        RiffSpacing.xxl / 2, tester.getRect(_cardSurface).bottom - _inset / 2));
     expect(cardTaps, 1);
     expect(queueTaps, 0);
 
