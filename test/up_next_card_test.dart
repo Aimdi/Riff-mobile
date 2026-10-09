@@ -41,7 +41,7 @@ final _panelFade = find.ancestor(
         matching: find.byType(FadeTransition)));
 
 void main() {
-  testWidgets('a slim tab standing on the bottom edge, rounded on top',
+  testWidgets('a slim tab standing on the bottom edge, arched on top',
       (tester) async {
     _screen(tester, _phone);
     await tester.pumpWidget(_card());
@@ -55,10 +55,18 @@ void main() {
     expect(tester.getRect(find.text('upNext · Dreams · 10 more')).bottom,
         lessThanOrEqualTo(_phone.height - _inset));
 
-    final shape =
-        tester.widget<Material>(_cardSurface).shape! as RoundedRectangleBorder;
-    expect(shape.borderRadius,
-        const BorderRadius.vertical(top: Radius.circular(RiffRadii.lg)));
+    // The top is one shallow arc (eased into the sides), the bottom flat.
+    final shape = tester.widget<Material>(_cardSurface).shape! as ArcTopBorder;
+    expect(shape.arc, RiffComponentSizes.queueCardArc);
+    expect(shape.corner, RiffRadii.lg);
+    final path = shape.getOuterPath(rect);
+    // Apex at the top middle; the top ends sit lower than the apex.
+    expect(path.contains(Offset(rect.center.dx, rect.top + 1)), isTrue);
+    expect(path.contains(Offset(rect.left + 2, rect.top + 2)), isFalse);
+    expect(path.contains(Offset(rect.right - 2, rect.top + 2)), isFalse);
+    // Square bottom corners on the screen edge.
+    expect(path.contains(Offset(rect.left + 1, rect.bottom - 1)), isTrue);
+    expect(path.contains(Offset(rect.right - 1, rect.bottom - 1)), isTrue);
   });
 
   testWidgets('label and next song share one line', (tester) async {

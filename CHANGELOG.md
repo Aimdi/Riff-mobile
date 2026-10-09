@@ -1,3 +1,8 @@
+# 1.7.151
+
+* The Up Next tab at the bottom of the player has an arched top, like the
+  top slice of a circle, with soft ends. Same size as before
+
 # 1.7.150
 
 A clean-up release: bugs, memory and speed across the whole app, and
