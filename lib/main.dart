@@ -54,6 +54,9 @@ import 'services/spotify_like_sync.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   _startDiagnostics();
+  // The Keystore-backed secure-storage read is slow on a cold start; run it
+  // while the Hive boxes open below instead of after them.
+  SecureCredentials.prefetch();
   // Video mode's mpv engine. In the lite (audio-only) APK the library is
   // stripped: init throws, the flag stays false and video mode hides.
   try {
