@@ -135,6 +135,14 @@ Future<void> _initAudioAndWarm(Future<void> deferredBoxes) async {
   await _warmUp('Smart queue', () async {
     if (!Get.isRegistered<SmartQueueService>()) {
       Get.put(SmartQueueService().init(), permanent: true);
+      // The player attaches the smart queue in its own init, which only
+      // waits for the audio handler and so has usually run by now, before
+      // this service existed. Attach here when the player is already up
+      // (attach() replaces its workers, so a second attach is harmless).
+      if (Get.isRegistered<PlayerController>() &&
+          !Get.isPrepared<PlayerController>()) {
+        Get.find<SmartQueueService>().attach(Get.find<PlayerController>());
+      }
     }
   });
   // WebDAV sync (when switched on), after the first screen settles.
