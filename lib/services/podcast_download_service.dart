@@ -78,9 +78,25 @@ class PodcastDownloadService {
     return dir.path;
   }
 
+  /// Downloads still running, by episode id.
+  static final _inFlight = <String, Future<bool>>{};
+
   /// Download [episode]'s audio. Returns true on success (or if already
   /// downloaded). [onProgress] receives 0..1.
+  ///
+  /// Asking again while that episode is still downloading joins the
+  /// running download: two at once wrote the same file, and the one that
+  /// failed deleted the file the other was finishing.
   static Future<bool> download(MediaItem episode,
+      {void Function(double)? onProgress}) {
+    final running = _inFlight[episode.id];
+    if (running != null) return running;
+    final job = _download(episode, onProgress: onProgress);
+    _inFlight[episode.id] = job;
+    return job.whenComplete(() => _inFlight.remove(episode.id));
+  }
+
+  static Future<bool> _download(MediaItem episode,
       {void Function(double)? onProgress}) async {
     final url = episode.extras?['url'] as String?;
     if (url == null || url.isEmpty) return false;
