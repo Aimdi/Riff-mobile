@@ -944,6 +944,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     );
   }
 
+  static int _streamingQualityIndex() {
+    final prefs = Hive.box('AppPrefs');
+    return streamingQualityIndex(
+        dataSaver: prefs.get('dataSaver'),
+        streamingQuality: prefs.get('streamingQuality'));
+  }
+
   static bool _hasDirectStreamUrl(String id) =>
       id.startsWith("podcast_") ||
       id.startsWith("abs_") ||
@@ -1392,9 +1399,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
             jsonData['streamInfo'] = dbStreamData != null
                 ? [
                     true,
-                    dbStreamData[(Hive.box('AppPrefs').get('dataSaver') ==
-                                true ||
-                            Hive.box('AppPrefs').get('streamingQuality') == 0)
+                    dbStreamData[_streamingQualityIndex() == 0
                         ? 'lowQualityAudio'
                         : "highQualityAudio"]
                   ]
@@ -1947,11 +1952,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     } else {
       //check if song stream url is cached and allocate url accordingly
       final songsUrlCacheBox = Hive.box("SongsUrlCache");
-      final qualityIndex = (() {
-        final dataSaver = Hive.box('AppPrefs').get('dataSaver') == true;
-        if (dataSaver) return 0; // Low
-        return Hive.box('AppPrefs').get('streamingQuality') ?? 1;
-      })();
+      final qualityIndex = _streamingQualityIndex();
       HMStreamingData? streamInfo;
       if (songsUrlCacheBox.containsKey(songId) && !generateNewUrl) {
         try {
@@ -2038,7 +2039,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
       }
 
-      streamInfo.setQualityIndex(qualityIndex as int);
+      streamInfo.setQualityIndex(qualityIndex);
       return streamInfo;
     }
   }

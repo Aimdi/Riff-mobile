@@ -351,13 +351,17 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
   /// resolved stream if fresh, else a fresh resolve at the user's
   /// streaming-quality setting.
   Future<String?> _audioUrlFor(String songId) async {
-    final quality = Hive.box('AppPrefs').get('streamingQuality') ?? 1;
+    // Data saver included, as in the audio pipeline.
+    final prefs = Hive.box('AppPrefs');
+    final quality = streamingQualityIndex(
+        dataSaver: prefs.get('dataSaver'),
+        streamingQuality: prefs.get('streamingQuality'));
     try {
       if (Hive.isBoxOpen('SongsUrlCache')) {
         final cached = Hive.box('SongsUrlCache').get(songId);
         if (cached is Map && cached['playable'] == true) {
           final data = HMStreamingData.fromJson(cached)
-            ..setQualityIndex(quality is int ? quality : 1);
+            ..setQualityIndex(quality);
           final url = data.audio?.url;
           if (url != null && !isExpired(url: url)) return url;
         }
