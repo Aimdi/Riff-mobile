@@ -56,10 +56,10 @@ void main() {
     expect(tester.getRect(find.text('upNext · Dreams · 10 more')).bottom,
         lessThanOrEqualTo(_phone.height - _inset));
 
-    // The top is one shallow arc (eased into the sides), the bottom flat.
+    // The top is one shallow arc into the screen edges, the bottom flat.
     final shape = tester.widget<Material>(_cardSurface).shape! as ArcTopBorder;
     expect(shape.arc, RiffComponentSizes.queueCardArc);
-    expect(shape.corner, RiffRadii.lg);
+    expect(shape.corner, 0);
     final path = shape.getOuterPath(rect);
     // Apex at the top middle; the top ends sit lower than the apex.
     expect(path.contains(Offset(rect.center.dx, rect.top + 1)), isTrue);

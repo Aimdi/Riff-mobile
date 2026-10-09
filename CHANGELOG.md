@@ -1,7 +1,8 @@
 # 1.7.151
 
-* The Up Next tab at the bottom of the player has an arched top, like the
-  top slice of a circle, with soft ends. Same size as before
+* The Up Next tab at the bottom of the player now runs edge to edge with
+  a gently arched top, like the top slice of a circle. Same height as
+  before
 
 # 1.7.150
 

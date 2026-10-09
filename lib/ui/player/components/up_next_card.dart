@@ -38,6 +38,8 @@ class UpNextCard extends StatelessWidget {
         color: theme.colorScheme.surfaceContainerLow,
         shape: ArcTopBorder(
           arc: RiffComponentSizes.queueCardArc,
+          // The arc runs straight into the screen edges.
+          corner: 0,
           side: BorderSide(color: theme.dividerColor, width: 0),
         ),
         clipBehavior: Clip.antiAlias,
@@ -50,7 +52,8 @@ class UpNextCard extends StatelessWidget {
             // where the arc has room for it.
             padding: EdgeInsets.only(
                 left: RiffSpacing.lg,
-                top: math.min(RiffComponentSizes.queueCardArc / 2, RiffSpacing.xs),
+                top: math.min(
+                    RiffComponentSizes.queueCardArc / 2, RiffSpacing.xs),
                 right: RiffSpacing.lg,
                 bottom: bottomInset),
             alignment: Alignment.center,
