@@ -29,6 +29,7 @@ class BetterLyricsService {
   static const _base = 'https://lyrics-api.boidu.dev';
 
   static final _dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 10),
     receiveTimeout: const Duration(seconds: 10),
     sendTimeout: const Duration(seconds: 8),
     headers: {'accept': 'application/json'},
@@ -57,13 +58,15 @@ class BetterLyricsService {
       if (data is! Map) return null;
       final ttml = data['ttml'];
       if (ttml is! String || ttml.isEmpty) return null;
-      final lrc = ttmlToLrc(ttml);
+      // Parsed once for both renderings (it was parsed twice per fetch).
+      final lines = parseTimedLines(ttml);
+      final lrc = _linesToLrc(lines);
       if (lrc == null) return null;
       printINFO('Synced lyrics from Better Lyrics (word-capable)');
       return BetterLyricsResult(
         ttml: ttml,
         lrc: lrc,
-        plain: ttmlToPlain(ttml),
+        plain: _linesToPlain(lines),
       );
     } on DioException catch (e) {
       printINFO('Better Lyrics miss: ${e.response?.statusCode ?? e.message}');
@@ -74,25 +77,10 @@ class BetterLyricsService {
     }
   }
 
-  /// Returns LRC text only (legacy callers / tests).
-  static Future<String?> getSyncedLyrics({
-    required String artist,
-    required String title,
-    String? album,
-    int? durationSec,
-  }) async {
-    final r = await fetch(
-      artist: artist,
-      title: title,
-      album: album,
-      durationSec: durationSec,
-    );
-    return r?.lrc;
-  }
-
   /// Convert Apple Music–style TTML (`<p begin>` lines) to LRC.
-  static String? ttmlToLrc(String ttml) {
-    final lines = parseTimedLines(ttml);
+  static String? ttmlToLrc(String ttml) => _linesToLrc(parseTimedLines(ttml));
+
+  static String? _linesToLrc(List<TtmlLine> lines) {
     if (lines.isEmpty) return null;
     final buf = StringBuffer();
     for (final line in lines) {
@@ -104,8 +92,10 @@ class BetterLyricsService {
     return out.contains('[') ? out : null;
   }
 
-  static String? ttmlToPlain(String ttml) {
-    final lines = parseTimedLines(ttml);
+  static String? ttmlToPlain(String ttml) =>
+      _linesToPlain(parseTimedLines(ttml));
+
+  static String? _linesToPlain(List<TtmlLine> lines) {
     if (lines.isEmpty) return null;
     return lines.map((l) => l.text).join('\n');
   }
