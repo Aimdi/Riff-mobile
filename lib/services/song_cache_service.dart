@@ -95,8 +95,9 @@ class SongCacheService {
       final name = entity.uri.pathSegments.isEmpty
           ? ''
           : entity.uri.pathSegments.last;
+      // LockCachingAudioSource's `<id>.mp3.part` / `.mp3.mime` side files
+      // don't end in .mp3.
       if (!name.endsWith('.mp3')) continue;
-      if (name.endsWith('.mp3.part') || name.contains('.mime')) continue;
       final id = name.substring(0, name.length - 4);
       if (id.isEmpty) continue;
       try {
