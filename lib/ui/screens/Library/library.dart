@@ -39,43 +39,39 @@ import '/ui/theme/riff_text_metrics.dart';
 import '/ui/widgets/riff_header_bar.dart';
 
 class SongsLibraryWidget extends StatelessWidget {
-  const SongsLibraryWidget({super.key, this.isBottomNavActive = false});
-  final bool isBottomNavActive;
+  const SongsLibraryWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
     final topPadding = context.isLandscape ? 50.0 : 90.0;
     final libSongsController = Get.find<LibrarySongsController>();
     return Padding(
-      padding: isBottomNavActive
-          ? const EdgeInsets.only(top: 10)
-          : EdgeInsets.only(top: topPadding),
+      padding: EdgeInsets.only(top: topPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!isBottomNavActive)
-            Obx(() {
-              final cloudMode = libSongsController.showCloudSongs.value;
-              final canPlay = shouldShowLibrarySongsPlayBar(
-                cloudMode: cloudMode,
-                songCount: libSongsController.librarySongsList.length,
-              );
-              return LibraryHeader(
-                title: cloudMode ? "cloud".tr : "libSongs".tr,
-                actions: [
-                  if (canPlay) ...[
-                    IconButton(
-                      tooltip: 'shuffle'.tr,
-                      icon: const Icon(Icons.shuffle_rounded),
-                      onPressed: () => _playLibrarySongs(shuffle: true),
-                    ),
-                    LibraryPlayButton(
-                        onPressed: () => _playLibrarySongs(shuffle: false)),
-                  ],
+          Obx(() {
+            final cloudMode = libSongsController.showCloudSongs.value;
+            final canPlay = shouldShowLibrarySongsPlayBar(
+              cloudMode: cloudMode,
+              songCount: libSongsController.librarySongsList.length,
+            );
+            return LibraryHeader(
+              title: cloudMode ? "cloud".tr : "libSongs".tr,
+              actions: [
+                if (canPlay) ...[
+                  IconButton(
+                    tooltip: 'shuffle'.tr,
+                    icon: const Icon(Icons.shuffle_rounded),
+                    onPressed: () => _playLibrarySongs(shuffle: true),
+                  ),
+                  LibraryPlayButton(
+                      onPressed: () => _playLibrarySongs(shuffle: false)),
                 ],
-              );
-            }),
-          if (!isBottomNavActive) const _LibraryPinnedRow(),
+              ],
+            );
+          }),
+          const _LibraryPinnedRow(),
           Obx(() {
             final cloudMode = libSongsController.showCloudSongs.value;
             final cloud = Get.find<CloudMusicService>();
@@ -110,17 +106,6 @@ class SongsLibraryWidget extends StatelessWidget {
                   libSongsController.cancelAdditionalOperation,
             );
           }),
-          // Bottom-nav layout has no header: keep Play all / Shuffle.
-          if (isBottomNavActive)
-            Obx(() {
-              if (!shouldShowLibrarySongsPlayBar(
-                cloudMode: libSongsController.showCloudSongs.value,
-                songCount: libSongsController.librarySongsList.length,
-              )) {
-                return const SizedBox.shrink();
-              }
-              return const _LibrarySongsPlayBar();
-            }),
           Expanded(
             child: RiffScrollUnder(child: Obx(() {
               if (libSongsController.showCloudSongs.value) {
@@ -270,46 +255,6 @@ class LibraryPlayButton extends StatelessWidget {
   return (columns: columns, cover: cover);
 }
 
-/// Play all / Shuffle for the offline Songs tab (bottom-nav layout).
-class _LibrarySongsPlayBar extends StatelessWidget {
-  const _LibrarySongsPlayBar();
-
-  Future<void> _play({required bool shuffle}) =>
-      _playLibrarySongs(shuffle: shuffle);
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = theme.textTheme.titleMedium?.color;
-    final style = TextButton.styleFrom(
-      foregroundColor: color,
-      visualDensity: VisualDensity.compact,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-    );
-    return Padding(
-      padding: const EdgeInsets.only(
-          left: RiffSpacing.sm, right: RiffSpacing.md, bottom: RiffSpacing.xs),
-      child: Row(
-        children: [
-          TextButton.icon(
-            onPressed: () => _play(shuffle: false),
-            icon: const Icon(Icons.play_arrow_rounded, size: 20),
-            label: Text('playAll'.tr),
-            style: style,
-          ),
-          TextButton.icon(
-            onPressed: () => _play(shuffle: true),
-            icon: const Icon(Icons.shuffle, size: 18),
-            label: Text('shuffle'.tr),
-            style: style,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// Cloud songs (or connect form) shown when the Songs toolbar cloud toggle is on.
 class _CloudSongsPane extends StatelessWidget {
   const _CloudSongsPane();
@@ -388,10 +333,8 @@ class _CloudSongsPane extends StatelessWidget {
 }
 
 class PlaylistNAlbumLibraryWidget extends StatefulWidget {
-  const PlaylistNAlbumLibraryWidget(
-      {super.key, this.isAlbumContent = true, this.isBottomNavActive = false});
+  const PlaylistNAlbumLibraryWidget({super.key, this.isAlbumContent = true});
   final bool isAlbumContent;
-  final bool isBottomNavActive;
 
   @override
   State<PlaylistNAlbumLibraryWidget> createState() =>
@@ -405,7 +348,6 @@ class _PlaylistNAlbumLibraryWidgetState
   final _gridScroll = ScrollController(keepScrollOffset: false);
 
   bool get isAlbumContent => widget.isAlbumContent;
-  bool get isBottomNavActive => widget.isBottomNavActive;
 
   @override
   void dispose() {
@@ -423,22 +365,19 @@ class _PlaylistNAlbumLibraryWidgetState
     final topPadding = context.isLandscape ? 50.0 : 90.0;
 
     return Padding(
-      padding: isBottomNavActive
-          ? const EdgeInsets.only(top: 10)
-          : EdgeInsets.only(top: topPadding),
+      padding: EdgeInsets.only(top: topPadding),
       child: Column(
         children: [
-          if (!isBottomNavActive)
-            LibraryHeader(
-              title: isAlbumContent ? "libAlbums".tr : "libPlaylists".tr,
-              actions: [
-                if (!isAlbumContent &&
-                    settingscrnController.isLinkedWithPiped.isTrue)
-                  PipedSyncWidget(
-                    padding: EdgeInsets.only(right: size.width * .02),
-                  ),
-              ],
-            ),
+          LibraryHeader(
+            title: isAlbumContent ? "libAlbums".tr : "libPlaylists".tr,
+            actions: [
+              if (!isAlbumContent &&
+                  settingscrnController.isLinkedWithPiped.isTrue)
+                PipedSyncWidget(
+                  padding: EdgeInsets.only(right: size.width * .02),
+                ),
+            ],
+          ),
           Obx(
             () => isAlbumContent
                 ? SortWidget(
@@ -523,20 +462,17 @@ class _PlaylistNAlbumLibraryWidgetState
 }
 
 class LibraryArtistWidget extends StatelessWidget {
-  const LibraryArtistWidget({super.key, this.isBottomNavActive = false});
-  final bool isBottomNavActive;
+  const LibraryArtistWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
     final cntrller = Get.find<LibraryArtistsController>();
     final topPadding = context.isLandscape ? 50.0 : 90.0;
     return Padding(
-      padding: isBottomNavActive
-          ? const EdgeInsets.only(top: 10)
-          : EdgeInsets.only(top: topPadding),
+      padding: EdgeInsets.only(top: topPadding),
       child: Column(
         children: [
-          if (!isBottomNavActive) LibraryHeader(title: "libArtists".tr),
+          LibraryHeader(title: "libArtists".tr),
           Obx(
             () => SortWidget(
               tag: "LibArtistSort",
