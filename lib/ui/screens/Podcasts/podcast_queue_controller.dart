@@ -52,7 +52,12 @@ class PodcastQueueController extends GetxController {
     _persist();
   }
 
+  /// Callers fire this for episodes that usually aren't queued (every one
+  /// "Keep latest" archives on each Inbox load, every finished episode),
+  /// so do nothing then: RxList.removeWhere notifies every listener and
+  /// _persist rewrites the whole queue even when nothing was removed.
   void removeById(String id) {
+    if (!isQueued(id)) return;
     queue.removeWhere((e) => e.id == id);
     _persist();
   }

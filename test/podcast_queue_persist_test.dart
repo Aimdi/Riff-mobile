@@ -85,4 +85,27 @@ void main() {
     c.removeById('podcast_ep3');
     expect(c.queue.map((e) => e.id), ['podcast_ep4']);
   });
+
+  test('removeById of an episode not queued notifies and writes nothing',
+      () async {
+    final c = Get.find<PodcastQueueController>();
+    c.add(const MediaItem(id: 'podcast_ep5', title: 'Episode 5'));
+    var notified = 0;
+    var written = 0;
+    final rx = c.queue.listen((_) => notified++);
+    final box = Hive.box('PodcastQueue').watch().listen((_) => written++);
+    addTearDown(rx.cancel);
+    addTearDown(box.cancel);
+
+    c.removeById('podcast_not_queued');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(notified, 0);
+    expect(written, 0);
+
+    c.removeById('podcast_ep5');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(c.queue, isEmpty);
+    expect(notified, 1);
+    expect(written, 1);
+  });
 }
