@@ -1,14 +1,32 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:audio_service/audio_service.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/services/spotify_api_service.dart';
+import 'package:harmonymusic/services/spotify_auth_service.dart';
 import 'package:harmonymusic/services/spotify_import_service.dart';
 import 'package:harmonymusic/services/spotify_match_store.dart';
 import 'package:harmonymusic/services/spotify_playback.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:hive/hive.dart';
 import 'package:path/path.dart' as p;
+
+class _Adapter implements HttpClientAdapter {
+  _Adapter(this.body);
+  final String body;
+
+  @override
+  Future<ResponseBody> fetch(RequestOptions o, Stream<Uint8List>? requestStream,
+          Future<void>? cancelFuture) async =>
+      ResponseBody.fromString(body, 200);
+
+  @override
+  void close({bool force = false}) {}
+}
 
 /// Resolves every track to a song with the same id, after a moment.
 class _FakeImporter extends GetxService implements SpotifyImportService {
@@ -83,6 +101,32 @@ void main() {
       final item = await SpotifyImportService().resolveTrack(_ref('sp1'));
       expect(item?.id, 'pickedVid');
     });
+
+    test('stale cached answers are pruned, fresh ones kept', () async {
+      final box = await Hive.openBox('spotify_cache_prune_test');
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final old = now - SpotifyApiService.libraryTtl.inMilliseconds - 60 * 1000;
+      await box.putAll({
+        'fresh': {'at': now - 1000, 'body': '{}'},
+        'old': {'at': old, 'body': '{}'},
+        'broken': 'not a map',
+        'noTime': {'body': '{}'},
+      });
+      expect(await SpotifyApiService.pruneCache(box, now), 3);
+      expect(box.keys, ['fresh']);
+    });
+  });
+
+  test('followed artists of an unexpected shape are skipped, not a crash',
+      () async {
+    final api = SpotifyApiService(
+      auth: SpotifyAuthService(),
+      dio: Dio()..httpClientAdapter = _Adapter(jsonEncode({'artists': []})),
+      token: () async => 'tok',
+      refresh: () async => false,
+      useCache: false,
+    );
+    expect(await api.fetchFollowedArtists(), isEmpty);
   });
 
   group('playback', () {
