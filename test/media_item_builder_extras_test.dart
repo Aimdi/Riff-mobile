@@ -1,3 +1,4 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/models/media_Item_builder.dart';
 
@@ -44,6 +45,15 @@ void main() {
     final age = DateTime.now().toUtc().millisecondsSinceEpoch - ms;
     expect(age, lessThan(3 * 60 * 60 * 1000));
     expect(age, greaterThan(60 * 60 * 1000));
+  });
+
+  test('toJson works for an item built without extras', () {
+    // e.g. StatsService.mostRecentSong(); extras! used to throw here.
+    final json = MediaItemBuilder.toJson(
+        const MediaItem(id: 'v1', title: 'T', artist: 'A'));
+    expect(json['videoId'], 'v1');
+    expect(json['album'], isNull);
+    expect(MediaItemBuilder.fromJson(json).id, 'v1');
   });
 
   test('a malformed stored length is no duration, not an exception', () {

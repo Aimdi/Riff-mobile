@@ -175,15 +175,15 @@ class MediaItemBuilder {
   static Map<String, dynamic> toJson(MediaItem mediaItem) => {
         "videoId": mediaItem.id,
         "title": mediaItem.title,
-        'album': mediaItem.extras!['album'],
-        'artists': mediaItem.extras!['artists'],
-        'length': mediaItem.extras!['length'],
+        'album': mediaItem.extras?['album'],
+        'artists': mediaItem.extras?['artists'],
+        'length': mediaItem.extras?['length'],
         'duration': mediaItem.duration?.inSeconds,
-        'date': mediaItem.extras!['date'],
+        'date': mediaItem.extras?['date'],
         'thumbnails': [
           {'url': mediaItem.artUri.toString()}
         ],
-        'url': mediaItem.extras!['url'],
+        'url': mediaItem.extras?['url'],
         'trackDetails': mediaItem.extras?['trackDetails'],
         'year': mediaItem.extras?['year'],
         'videoType': mediaItem.extras?['videoType'],
