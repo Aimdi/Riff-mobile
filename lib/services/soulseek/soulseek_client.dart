@@ -5,6 +5,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 
 import 'slsk_message.dart';
@@ -134,7 +135,10 @@ class SoulseekClient {
   final _peers = <String, _PeerConn>{};
   final _searchCallbacks = <String, void Function(SoulseekFile)>{};
   final _downloadByToken = <String, _DownloadJob>{};
-  final _downloadByKey = <String, _DownloadJob>{};
+
+  /// Peers that connected to us; nothing is read from them yet, but they
+  /// are closed with the client.
+  final _incoming = <Socket>{};
 
   String? username;
   bool get isConnected => _server != null;
@@ -142,6 +146,10 @@ class SoulseekClient {
 
   Completer<void>? _loginCompleter;
 
+  /// Connects and signs in. On any failure (unreachable server, rejected
+  /// login, timeout) everything opened so far is closed again before the
+  /// error is thrown, so a failed attempt leaves no socket or listening
+  /// port behind.
   Future<void> connectAndLogin({
     required String user,
     required String pass,
@@ -161,48 +169,89 @@ class SoulseekClient {
       _listener = null;
     }
 
-    _server = await Socket.connect(host, port,
-        timeout: const Duration(seconds: 20));
-    _server!.listen(
-      _onServerData,
-      onError: (_) {},
-      onDone: () {
-        loggedIn = false;
-      },
-      cancelOnError: false,
-    );
+    // Bound to this attempt: a socket closed by an earlier disconnect may
+    // report done after a new login started.
+    final login = Completer<void>();
+    // It may be failed before anything awaits it (e.g. the connect throws).
+    login.future.ignore();
+    _loginCompleter = login;
+    try {
+      final server = await Socket.connect(host, port,
+          timeout: const Duration(seconds: 20));
+      _quietWriteErrors(server);
+      _server = server;
+      server.listen(
+        _onServerData,
+        onError: (_) => _failLogin(login, 'Connection to the server failed'),
+        onDone: () {
+          if (identical(_server, server)) loggedIn = false;
+          _failLogin(login, 'The server closed the connection');
+        },
+        cancelOnError: false,
+      );
 
-    _loginCompleter = Completer<void>();
-    final hash = md5.convert(utf8.encode('$username$password')).toString();
-    // Client version fields: unique-ish minor for Riff (see Soulseek.NET notes).
-    _sendServer(
-      SlskWriter()
-          .write32(1) // Login
-          .writeStr(username!)
-          .writeStr(password)
-          .write32(160)
-          .writeStr(hash)
-          .write32(42),
-    );
-    _sendServer(SlskWriter().write32(2).write32(listenPort)); // SetWaitPort
+      final hash = md5.convert(utf8.encode('$username$password')).toString();
+      // Client version fields: unique-ish minor for Riff (see Soulseek.NET notes).
+      _sendServer(
+        SlskWriter()
+            .write32(1) // Login
+            .writeStr(username!)
+            .writeStr(password)
+            .write32(160)
+            .writeStr(hash)
+            .write32(42),
+      );
+      _sendServer(SlskWriter().write32(2).write32(listenPort)); // SetWaitPort
 
-    await _loginCompleter!.future.timeout(
-      const Duration(seconds: 25),
-      onTimeout: () => throw SoulseekException('Login timed out'),
-    );
+      await login.future.timeout(
+        const Duration(seconds: 25),
+        onTimeout: () => throw SoulseekException('Login timed out'),
+      );
+    } catch (_) {
+      await disconnect();
+      rethrow;
+    }
+  }
+
+  /// dart:io reports a failed write (the other side hung up) on the
+  /// socket's `done` future; unobserved, every such hang-up became an
+  /// uncaught async error. Read errors still arrive on the listeners.
+  static void _quietWriteErrors(Socket s) => s.done.ignore();
+
+  /// Ends [login] if it is still waiting for the server's answer.
+  void _failLogin(Completer<void> login, String reason) {
+    if (identical(_loginCompleter, login)) _loginCompleter = null;
+    if (!login.isCompleted) login.completeError(SoulseekException(reason));
   }
 
   Future<void> disconnect() async {
     loggedIn = false;
+    final login = _loginCompleter;
+    if (login != null) _failLogin(login, 'Disconnected');
     for (final p in _peers.values.toList()) {
       p.destroy();
     }
     _peers.clear();
     _searchCallbacks.clear();
-    await _server?.close();
+    _peerAddressWaiters.clear();
+    for (final s in _incoming.toList()) {
+      s.destroy();
+    }
+    _incoming.clear();
+    // Transfers can't go on without the client: fail them now instead of
+    // letting each wait out its 30-minute timeout.
+    for (final job in _downloadByToken.values.toList()) {
+      _failJob(job, SoulseekException('Disconnected'));
+    }
+    _downloadByToken.clear();
+    final server = _server;
     _server = null;
-    await _listener?.close();
+    server?.destroy();
+    final listener = _listener;
     _listener = null;
+    try {
+      await listener?.close();
+    } catch (_) {}
     _framer.reset();
   }
 
@@ -264,26 +313,32 @@ class SoulseekClient {
     void Function(double progress)? onProgress,
   }) async {
     if (!loggedIn) throw SoulseekException('Not logged in');
-    Directory(saveDirectory).createSync(recursive: true);
+    await Directory(saveDirectory).create(recursive: true);
 
     var peer = _peers[file.username];
     if (peer == null || peer.host == null || peer.port == null) {
       final addr = Completer<_PeerAddr>();
-      late void Function(_PeerAddr) handler;
-      handler = (a) {
+      void handler(_PeerAddr a) {
         if (a.user == file.username && !addr.isCompleted) {
           addr.complete(a);
         }
-      };
+      }
+
       _peerAddressWaiters.add(handler);
-      _sendServer(SlskWriter().write32(3).writeStr(file.username));
-      final resolved = await addr.future.timeout(
-        const Duration(seconds: 12),
-        onTimeout: () => throw SoulseekException(
-          'Could not reach peer ${file.username}',
-        ),
-      );
-      _peerAddressWaiters.remove(handler);
+      final _PeerAddr resolved;
+      try {
+        _sendServer(SlskWriter().write32(3).writeStr(file.username));
+        resolved = await addr.future.timeout(
+          const Duration(seconds: 12),
+          onTimeout: () => throw SoulseekException(
+            'Could not reach peer ${file.username}',
+          ),
+        );
+      } finally {
+        // Also on timeout: a waiter left behind is called for every later
+        // peer address and is never freed.
+        _peerAddressWaiters.remove(handler);
+      }
       peer = await _connectPeer(resolved.user, resolved.host, resolved.port);
     }
 
@@ -301,7 +356,6 @@ class SoulseekClient {
       onProgress: onProgress,
     );
     _downloadByToken[token] = job;
-    _downloadByKey['${file.username}_${file.filename}'] = job;
 
     peer.send(
       SlskWriter()
@@ -315,10 +369,36 @@ class SoulseekClient {
     return completer.future.timeout(
       const Duration(minutes: 30),
       onTimeout: () {
-        _downloadByToken.remove(token);
-        throw SoulseekException('Download timed out');
+        final timedOut = SoulseekException('Download timed out');
+        _failJob(job, timedOut);
+        throw timedOut;
       },
     );
+  }
+
+  /// Tests: receive one file from [host]:[port] the way a peer transfer
+  /// does, without the server round trips that find the peer.
+  @visibleForTesting
+  Future<File> debugReceiveFile({
+    required String host,
+    required int port,
+    required String savePath,
+    required int size,
+    bool pierce = true,
+  }) {
+    final token = _randomToken();
+    final job = _DownloadJob(
+      user: 'peer',
+      filename: savePath,
+      size: size,
+      token: token,
+      savePath: savePath,
+      completer: Completer<File>(),
+    );
+    _downloadByToken[token] = job;
+    unawaited(_downloadPeerFile(
+        host: host, port: port, token: token, user: 'peer', pierce: pierce));
+    return job.completer.future;
   }
 
   final _peerAddressWaiters = <void Function(_PeerAddr)>[];
@@ -455,6 +535,7 @@ class SoulseekClient {
       peerPort,
       timeout: const Duration(seconds: 12),
     );
+    _quietWriteErrors(socket);
     final peer = _PeerConn(
       socket: socket,
       user: user,
@@ -478,7 +559,15 @@ class SoulseekClient {
 
   void _onIncomingPeer(Socket socket) {
     // Minimal accept — full reverse connections need PeerInit parsing.
-    socket.listen((_) {}, onError: (_) {}, onDone: () {});
+    // Tracked so disconnect() closes them too.
+    _quietWriteErrors(socket);
+    _incoming.add(socket);
+    void drop() {
+      _incoming.remove(socket);
+      socket.destroy();
+    }
+
+    socket.listen((_) {}, onError: (_) => drop(), onDone: drop);
   }
 
   void _onPeerSearchResult(String token, List<SoulseekFile> files) {
@@ -533,13 +622,10 @@ class SoulseekClient {
       socket = await Socket.connect(host, port,
           timeout: const Duration(seconds: 15));
     } catch (e) {
-      if (!job.completer.isCompleted) {
-        job.completer.completeError(
-          SoulseekException('Peer connection failed'),
-        );
-      }
+      _failJob(job, SoulseekException('Peer connection failed'));
       return;
     }
+    _quietWriteErrors(socket);
 
     if (pierce) {
       socket.add(SlskWriter().write8(0).writeRawHex(token).toPacket());
@@ -556,11 +642,48 @@ class SoulseekClient {
       socket.add(Uint8List(8)); // 8 zero bytes
     }
 
-    final builder = BytesBuilder(copy: false);
+    // Streamed to a part file of its own (a job can get more than one
+    // connection; the first to finish wins) and renamed when complete, so
+    // a whole FLAC is never held in memory or written on the UI isolate.
+    final part = File('${job.savePath}.${_randomToken()}.part');
+    final sink = part.openWrite();
+    var got = 0;
     var started = pierce;
-    late StreamSubscription sub;
+    var finished = false;
+    late final StreamSubscription<Uint8List> sub;
+    late final void Function() abortThis;
+
+    Future<void> end({SoulseekException? error}) async {
+      if (finished) return;
+      finished = true;
+      job.aborts.remove(abortThis);
+      await sub.cancel();
+      socket.destroy();
+      try {
+        await sink.close();
+      } catch (e) {
+        error ??= SoulseekException('$e');
+      }
+      if (error != null || job.completer.isCompleted) {
+        try {
+          await part.delete();
+        } catch (_) {}
+        if (error != null) _failJob(job, error);
+        return;
+      }
+      try {
+        _completeJob(job, await part.rename(job.savePath));
+      } catch (e) {
+        try {
+          await part.delete();
+        } catch (_) {}
+        _failJob(job, SoulseekException('$e'));
+      }
+    }
+
     sub = socket.listen(
       (data) {
+        if (finished) return;
         if (!started && !pierce) {
           // first chunk may be token ack
           started = true;
@@ -569,42 +692,43 @@ class SoulseekClient {
             return;
           }
         }
-        if (!pierce && builder.isEmpty && data.length <= 8) {
+        if (!pierce && got == 0 && data.length <= 8) {
           socket.add(Uint8List(8));
         }
-        builder.add(data);
-        final got = builder.length;
+        sink.add(data);
+        got += data.length;
         if (job.size > 0) {
           job.onProgress?.call((got / job.size).clamp(0.0, 1.0));
-        }
-        if (job.size > 0 && got >= job.size) {
-          unawaited(sub.cancel());
-          unawaited(socket.close());
-        }
-      },
-      onDone: () => _finishDownload(job, builder.toBytes()),
-      onError: (e) {
-        if (!job.completer.isCompleted) {
-          job.completer.completeError(SoulseekException('$e'));
+          // Done as soon as the whole file is here; peers often keep the
+          // connection open, so waiting for it to close could hang.
+          if (got >= job.size) unawaited(end());
         }
       },
+      onDone: () => unawaited(end(
+          error: job.size > 0 && got < job.size
+              ? SoulseekException('Transfer ended early')
+              : null)),
+      onError: (Object e) => unawaited(end(error: SoulseekException('$e'))),
       cancelOnError: true,
     );
+    abortThis = () => unawaited(end(error: SoulseekException('Cancelled')));
+    job.aborts.add(abortThis);
   }
 
-  void _finishDownload(_DownloadJob job, Uint8List bytes) {
-    try {
-      final file = File(job.savePath);
-      file.writeAsBytesSync(bytes);
-      if (!job.completer.isCompleted) job.completer.complete(file);
-    } catch (e) {
-      if (!job.completer.isCompleted) {
-        job.completer.completeError(SoulseekException('$e'));
-      }
-    } finally {
+  void _completeJob(_DownloadJob job, File file) {
+    if (identical(_downloadByToken[job.token], job)) {
       _downloadByToken.remove(job.token);
-      _downloadByKey.remove('${job.user}_${job.filename}');
     }
+    job.abort();
+    if (!job.completer.isCompleted) job.completer.complete(file);
+  }
+
+  void _failJob(_DownloadJob job, SoulseekException error) {
+    if (identical(_downloadByToken[job.token], job)) {
+      _downloadByToken.remove(job.token);
+    }
+    job.abort();
+    if (!job.completer.isCompleted) job.completer.completeError(error);
   }
 
   static String _randomToken() {
@@ -653,6 +777,18 @@ class _DownloadJob {
   final String savePath;
   final Completer<File> completer;
   final void Function(double progress)? onProgress;
+
+  /// Stops this job's open transfers (the job finished another way, timed
+  /// out, or the client disconnected).
+  final aborts = <void Function()>{};
+
+  void abort() {
+    final all = aborts.toList();
+    aborts.clear();
+    for (final a in all) {
+      a();
+    }
+  }
 }
 
 class _PeerConn {
