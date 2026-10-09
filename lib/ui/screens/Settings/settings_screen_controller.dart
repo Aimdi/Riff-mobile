@@ -53,8 +53,6 @@ class SettingsScreenController extends GetxController {
   final ytConnected = false.obs;
   final playbackSpeed = 1.0.obs;
   final playbackPitch = 1.0.obs;
-  // audD API token for Shazam-style song recognition (empty = not configured).
-  final auddApiToken = ''.obs;
   final bassBoost = 0.obs;
   final volumeBoostMb = 0.obs;
   final reverbPreset = 0.obs;
@@ -129,8 +127,6 @@ class SettingsScreenController extends GetxController {
   /// package version resolves.
   String get currentVersion => currentVersionRx.value;
 
-  get currentVision => currentVersion;
-
   Future<void> _loadAppVersion() async {
     currentVersionRx.value = await AppVersion.load();
     if (updateCheckFlag) _checkNewVersion();
@@ -202,7 +198,6 @@ class SettingsScreenController extends GetxController {
     ytConnected.value = YtAuthService.isConnected;
     playbackSpeed.value = (setBox.get("playbackSpeed") ?? 1.0).toDouble();
     playbackPitch.value = (setBox.get("playbackPitch") ?? 1.0).toDouble();
-    auddApiToken.value = setBox.get("auddApiToken") ?? '';
     bassBoost.value = _asInt(setBox.get("bassBoost"), 0);
     volumeBoostMb.value = _asInt(setBox.get("volumeBoostMb"), 0);
     reverbPreset.value = _asInt(setBox.get("reverbPreset"), 0);
@@ -385,14 +380,6 @@ class SettingsScreenController extends GetxController {
     settingsSearch.value = q;
   }
 
-  bool settingsMatch(String title, [String? subtitle]) {
-    final q = settingsSearch.value.trim().toLowerCase();
-    if (q.isEmpty) return true;
-    if (title.toLowerCase().contains(q)) return true;
-    if (subtitle != null && subtitle.toLowerCase().contains(q)) return true;
-    return false;
-  }
-
   void setPlayerUi(dynamic val) {
     final playerCon = Get.find<PlayerController>();
     setBox.put("playerUi", val);
@@ -541,11 +528,6 @@ class SettingsScreenController extends GetxController {
     Get.find<PlayerController>().toggleSkipSilence(val);
     setBox.put('skipSilenceEnabled', val);
     skipSilenceEnabled.value = val;
-  }
-
-  void togglePodcastAutoSkipAds(bool val) {
-    setBox.put('podcastAutoSkipAds', val);
-    podcastAutoSkipAdsEnabled.value = val;
   }
 
   void togglePodcastContinuousPlayback(bool val) {

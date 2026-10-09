@@ -124,18 +124,6 @@ void main() {
   });
 
   group('choosing and building', () {
-    const a = SpotifyDevice(id: 'a', name: 'A');
-    const b = SpotifyDevice(id: 'b', name: 'B', isActive: true);
-    const r = SpotifyDevice(id: 'r', name: 'R', isRestricted: true);
-
-    test('device: picked before, else active, else first usable', () {
-      expect(pickTargetDevice([a, b], preferredId: 'a')!.id, 'a');
-      expect(pickTargetDevice([a, b], preferredId: 'gone')!.id, 'b');
-      expect(pickTargetDevice([r, a])!.id, 'a');
-      expect(pickTargetDevice([r]), isNull);
-      expect(pickTargetDevice([r], preferredId: 'r'), isNull);
-    });
-
     test('a playlist or album plays as itself', () {
       expect(connectPlayBody(contextUri: 'spotify:album:x', start: 3), {
         'context_uri': 'spotify:album:x',

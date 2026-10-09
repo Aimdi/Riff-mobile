@@ -85,6 +85,9 @@ class SpotifyAuthService {
   static const kRefreshToken = 'spotifyRefreshToken';
   static const _kExpiresAt = 'spotifyTokenExpiresAt';
   static const _kScopes = 'spotifyGrantedScopes';
+
+  /// Older builds kept the PKCE verifier here (it was never read back);
+  /// only cleared now.
   static const _kVerifier = 'spotifyPkceVerifier';
 
   /// Set when Spotify turned the session down (refresh token expired after
@@ -344,15 +347,6 @@ class SpotifyAuthService {
     if (!isExpired(expiresAtMs, now)) return accessToken;
     final ok = await refresh(nowMsOverride: now);
     return ok ? accessToken : null;
-  }
-
-  /// Persist the verifier across the WebView round trip — the app can be
-  /// backgrounded or recreated while the user is on Spotify's login page.
-  static Future<void> stashVerifier(String v) => _box.put(_kVerifier, v);
-  static String? takeStashedVerifier() {
-    final v = _box.get(_kVerifier) as String?;
-    _box.delete(_kVerifier);
-    return v;
   }
 }
 

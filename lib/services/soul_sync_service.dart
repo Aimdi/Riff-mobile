@@ -208,18 +208,6 @@ class SoulSyncService extends GetxController {
     return '${data['request_id'] ?? data['status'] ?? 'queued'}';
   }
 
-  /// GET /api/v1/downloads
-  Future<List<Map<String, dynamic>>> listDownloads({int limit = 30}) async {
-    final res = await _dio.get(
-      '${host.value}/api/v1/downloads',
-      queryParameters: {'limit': limit},
-      options: _authOptions(),
-    );
-    final data = _unwrap(res.data) ?? {};
-    final list = (data['downloads'] as List?) ?? const [];
-    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-  }
-
   Map<String, dynamic>? _unwrap(dynamic raw) {
     if (raw is! Map) return null;
     final map = Map<String, dynamic>.from(raw);

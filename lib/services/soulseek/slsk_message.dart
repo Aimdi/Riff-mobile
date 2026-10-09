@@ -33,11 +33,6 @@ class SlskWriter {
     return this;
   }
 
-  SlskWriter writeBytes(List<int> bytes) {
-    _buf.add(bytes is Uint8List ? bytes : Uint8List.fromList(bytes));
-    return this;
-  }
-
   /// Prefix with 4-byte little-endian length (Soulseek framing).
   Uint8List toPacket() {
     final payload = _buf.toBytes();
@@ -47,8 +42,6 @@ class SlskWriter {
     out.add(payload);
     return out.toBytes();
   }
-
-  Uint8List toBytes() => _buf.toBytes();
 }
 
 /// Binary reader for Soulseek protocol messages (little-endian).
@@ -57,8 +50,6 @@ class SlskReader {
 
   final Uint8List _data;
   int pointer;
-
-  int get remaining => _data.length - pointer;
 
   int read8() {
     final v = _data[pointer];
@@ -94,14 +85,6 @@ class SlskReader {
     pointer += size;
     return hex;
   }
-
-  Uint8List readBytes(int size) {
-    final out = _data.sublist(pointer, pointer + size);
-    pointer += size;
-    return out;
-  }
-
-  void seek(int n) => pointer += n;
 }
 
 /// Splits a TCP byte stream into length-prefixed Soulseek messages.

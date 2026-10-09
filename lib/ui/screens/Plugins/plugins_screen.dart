@@ -69,9 +69,6 @@ class PluginsScreen extends StatelessWidget {
             child: Obx(() {
               // Touch obs so the list rebuilds on install/uninstall.
               final _ = plugins.installed.length;
-              if (_offers.isEmpty) {
-                return _EmptyPluginsState(accent: accent);
-              }
               return ListView.separated(
                 padding: const EdgeInsets.only(
                     left: HomeLayout.gutter,
@@ -91,40 +88,6 @@ class PluginsScreen extends StatelessWidget {
             }),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _EmptyPluginsState extends StatelessWidget {
-  const _EmptyPluginsState({required this.accent});
-
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.extension_outlined, size: 56, color: accent),
-            const SizedBox(height: 16),
-            Text(
-              'pluginsEmptyTitle'.tr,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'pluginsEmptyDes'.tr,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium,
-            ),
-          ],
-        ),
       ),
     );
   }

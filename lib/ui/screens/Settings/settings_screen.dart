@@ -36,8 +36,7 @@ import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key, this.isBottomNavActive = false});
-  final bool isBottomNavActive;
+  const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -1267,7 +1266,7 @@ class SettingsScreen extends StatelessWidget {
                     contentPadding: settingsTilePadding,
                     title: Text("github".tr),
                     subtitle: Text(
-                      "${"githubDes".tr}${((Get.find<PlayerController>().playerPanelMinHeight.value) == 0 || !isBottomNavActive) ? "" : "\n\n${settingsController.currentVersion}"}",
+                      "githubDes".tr,
                       style: settingsSubtitleStyle(context),
                     ),
                     isThreeLine: true,

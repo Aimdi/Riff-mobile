@@ -22,8 +22,6 @@ class SeekerScreen extends StatelessWidget {
   /// When true, omit the full-screen chrome so it can sit inside Home search.
   final bool embedded;
 
-  static const seekerGithub = 'https://github.com/jackBonadies/SeekerAndroid';
-
   @override
   Widget build(BuildContext context) {
     final svc = Get.find<SoulseekService>();

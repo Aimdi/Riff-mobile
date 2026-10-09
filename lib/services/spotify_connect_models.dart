@@ -101,21 +101,6 @@ SpotifyPlaybackState? parsePlaybackState(String body,
   );
 }
 
-/// The device to play on: the one picked before if it's there, else the
-/// active one, else the first that takes commands.
-SpotifyDevice? pickTargetDevice(List<SpotifyDevice> devices,
-    {String? preferredId}) {
-  final usable = devices.where((d) => !d.isRestricted).toList();
-  if (usable.isEmpty) return null;
-  for (final d in usable) {
-    if (d.id == preferredId) return d;
-  }
-  for (final d in usable) {
-    if (d.isActive) return d;
-  }
-  return usable.first;
-}
-
 /// Most track URIs sent in one play request.
 const connectMaxUris = 100;
 
