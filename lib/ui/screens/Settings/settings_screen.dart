@@ -66,27 +66,31 @@ class SettingsScreen extends StatelessWidget {
           // ring on focus.
           SizedBox(
             height: RiffComponentSizes.searchField,
-            child: TextField(
-              onChanged: settingsController.setSettingsSearch,
-              textAlignVertical: TextAlignVertical.center,
-              style: theme.textTheme.bodyLarge
-                  ?.copyWith(color: scheme.onSurface),
-              decoration: InputDecoration(
-                hintText: 'settingsSearch'.tr,
-                hintStyle: theme.textTheme.bodyLarge
-                    ?.copyWith(color: scheme.onSurfaceVariant),
-                prefixIcon: Icon(Icons.search_rounded,
-                    size: RiffComponentSizes.trailingIcon,
-                    color: scheme.onSurfaceVariant),
-                filled: true,
-                fillColor: scheme.surfaceContainerLow,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                border: pillBorder,
-                enabledBorder: pillBorder,
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(RiffRadii.pill),
-                  borderSide: BorderSide(color: scheme.primary, width: 1),
+            child: SettingsSearchField(
+              query: settingsController.settingsSearch.value,
+              builder: (controller) => TextField(
+                controller: controller,
+                onChanged: settingsController.setSettingsSearch,
+                textAlignVertical: TextAlignVertical.center,
+                style: theme.textTheme.bodyLarge
+                    ?.copyWith(color: scheme.onSurface),
+                decoration: InputDecoration(
+                  hintText: 'settingsSearch'.tr,
+                  hintStyle: theme.textTheme.bodyLarge
+                      ?.copyWith(color: scheme.onSurfaceVariant),
+                  prefixIcon: Icon(Icons.search_rounded,
+                      size: RiffComponentSizes.trailingIcon,
+                      color: scheme.onSurfaceVariant),
+                  filled: true,
+                  fillColor: scheme.surfaceContainerLow,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                  border: pillBorder,
+                  enabledBorder: pillBorder,
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(RiffRadii.pill),
+                    borderSide: BorderSide(color: scheme.primary, width: 1),
+                  ),
                 ),
               ),
             ),

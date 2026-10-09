@@ -39,6 +39,34 @@ class SettingsSearchable extends StatelessWidget {
   Widget build(BuildContext context) => child;
 }
 
+/// Holds the Settings search text, starting from [query] (the search in
+/// effect). The query outlives the Settings screen, which is rebuilt on
+/// every return to the tab; a field without a controller came back empty
+/// above a list still filtered by the old text.
+class SettingsSearchField extends StatefulWidget {
+  const SettingsSearchField(
+      {super.key, required this.query, required this.builder});
+
+  final String query;
+  final Widget Function(TextEditingController controller) builder;
+
+  @override
+  State<SettingsSearchField> createState() => _SettingsSearchFieldState();
+}
+
+class _SettingsSearchFieldState extends State<SettingsSearchField> {
+  late final _controller = TextEditingController(text: widget.query);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(_controller);
+}
+
 String? _textOf(Widget? w) {
   if (w is Text) return w.data ?? w.textSpan?.toPlainText();
   return null;
