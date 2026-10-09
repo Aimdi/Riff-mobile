@@ -172,6 +172,9 @@ class _SoulSyncConnectedViewState extends State<_SoulSyncConnectedView> {
   bool _searched = false;
   String? _error;
 
+  /// Bumped by every search; an older search's late answer is dropped.
+  int _searchSeq = 0;
+
   @override
   void dispose() {
     _searchCtrl.dispose();
@@ -181,6 +184,7 @@ class _SoulSyncConnectedViewState extends State<_SoulSyncConnectedView> {
   Future<void> _search() async {
     final q = _searchCtrl.text.trim();
     if (q.isEmpty) return;
+    final seq = ++_searchSeq;
     setState(() {
       _loading = true;
       _error = null;
@@ -188,13 +192,13 @@ class _SoulSyncConnectedViewState extends State<_SoulSyncConnectedView> {
     });
     try {
       final hits = await Get.find<SoulSyncService>().searchTracks(q);
-      if (!mounted) return;
+      if (!mounted || seq != _searchSeq) return;
       setState(() {
         _results = hits;
         _loading = false;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || seq != _searchSeq) return;
       setState(() {
         _loading = false;
         _error = 'soulSyncSearchFailed'.tr;

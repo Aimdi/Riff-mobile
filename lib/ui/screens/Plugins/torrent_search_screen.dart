@@ -17,11 +17,14 @@ import '/ui/theme/riff_tokens.dart';
 /// Private (API key / cookie): MyAnonamouse, Redacted, Orpheus.
 /// Optional: send results to a qBittorrent WebUI.
 class TorrentSearchScreen extends StatefulWidget {
-  const TorrentSearchScreen({super.key, this.initialQuery});
+  const TorrentSearchScreen({super.key, this.initialQuery, this.facade});
 
   /// Optional query to prefill and run when the screen opens (e.g. from an
   /// audiobook detail "Search torrents" action).
   final String? initialQuery;
+
+  /// The search backends (tests pass a fake).
+  final TorrentSearchFacade? facade;
 
   @override
   State<TorrentSearchScreen> createState() => _TorrentSearchScreenState();
@@ -29,7 +32,7 @@ class TorrentSearchScreen extends StatefulWidget {
 
 class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
   final _searchCtrl = TextEditingController();
-  final _facade = TorrentSearchFacade();
+  late final _facade = widget.facade ?? TorrentSearchFacade();
   final _redacted = GazelleTorrentService.redacted();
   final _orpheus = GazelleTorrentService.orpheus();
 
@@ -40,6 +43,13 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
   bool _searched = false;
   String? _error;
   String? _partialError;
+
+  /// Bumped by every search; an older search's late answer is dropped.
+  int _searchSeq = 0;
+
+  /// What the listed results were searched for: "Load more" continues
+  /// that search even after the text field was edited.
+  String _resultsQuery = '';
 
   @override
   void initState() {
@@ -132,8 +142,9 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
   }
 
   Future<void> _search({bool loadMore = false}) async {
-    final q = _searchCtrl.text.trim();
+    final q = loadMore ? _resultsQuery : _searchCtrl.text.trim();
     if (q.isEmpty) return;
+    final seq = ++_searchSeq;
     setState(() {
       _loading = true;
       _error = null;
@@ -142,6 +153,7 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
         _results = [];
         _csvNext = null;
         _searched = true;
+        _resultsQuery = q;
       }
     });
     try {
@@ -152,7 +164,7 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
             : _sources,
         csvAfter: loadMore ? _csvNext : null,
       );
-      if (!mounted) return;
+      if (!mounted || seq != _searchSeq) return;
       setState(() {
         if (loadMore) {
           _results = [..._results, ...res.torrents];
@@ -167,7 +179,7 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
         }
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || seq != _searchSeq) return;
       setState(() {
         _loading = false;
         _error = 'torrentSearchFailed'.tr;

@@ -174,6 +174,10 @@ class _CloudLibraryViewState extends State<_CloudLibraryView> {
   CloudSearchResult? _searchResult;
   bool _searchLoading = false;
 
+  /// Bumped by every search and by clearing it: a search still running
+  /// then must not bring its results (or its spinner) back.
+  int _searchSeq = 0;
+
   @override
   void dispose() {
     _search.dispose();
@@ -182,24 +186,35 @@ class _CloudLibraryViewState extends State<_CloudLibraryView> {
 
   Future<void> _runSearch(String query) async {
     final q = query.trim();
+    final seq = ++_searchSeq;
     if (q.isEmpty) {
-      setState(() => _searchResult = null);
+      setState(() {
+        _searchResult = null;
+        _searchLoading = false;
+      });
       return;
     }
     setState(() => _searchLoading = true);
+    CloudSearchResult res;
     try {
-      final res = await Get.find<CloudMusicService>().search(q);
-      if (mounted) setState(() => _searchResult = res);
+      res = await Get.find<CloudMusicService>().search(q);
     } catch (_) {
-      if (mounted) setState(() => _searchResult = CloudSearchResult());
-    } finally {
-      if (mounted) setState(() => _searchLoading = false);
+      res = CloudSearchResult();
     }
+    if (!mounted || seq != _searchSeq) return;
+    setState(() {
+      _searchResult = res;
+      _searchLoading = false;
+    });
   }
 
   void _clearSearch() {
     _search.clear();
-    setState(() => _searchResult = null);
+    _searchSeq++;
+    setState(() {
+      _searchResult = null;
+      _searchLoading = false;
+    });
   }
 
   @override
