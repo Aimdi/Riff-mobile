@@ -152,7 +152,12 @@ class AlbumScreen extends StatelessWidget {
                                       : 160,
                               bottom: 200,
                             ),
-                            itemCount: albumController.songList.isEmpty
+                            // isContentFetched is read first (|| would skip
+                            // it while the list is empty), so an album that
+                            // loads empty or fails leaves the shimmer.
+                            itemCount: albumController
+                                        .isContentFetched.isFalse ||
+                                    albumController.songList.isEmpty
                                 ? 4
                                 : albumController.songList.length + 3,
                             itemBuilder: (_, index) {

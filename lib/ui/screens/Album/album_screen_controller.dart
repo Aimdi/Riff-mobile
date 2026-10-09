@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:harmonymusic/base_class/playlist_album_screen_con_base.dart';
 import 'package:harmonymusic/models/album.dart';
 import 'package:harmonymusic/models/playlist.dart';
+import 'package:harmonymusic/ui/widgets/snackbar.dart';
 import 'package:harmonymusic/utils/helper.dart';
 import 'package:hive/hive.dart';
 
@@ -77,10 +78,18 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
         // it here, or the player and other screens using it fail mid-write.
       }
       checkDownloadStatus();
-      isContentFetched.value = true;
     } catch (e) {
       // Handle any errors that occur during the fetch
       printERROR("Error fetching album details: $e");
+      final ctx = Get.context;
+      if (!isClosed && ctx != null && ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+            snackbar(ctx, "networkError".tr, size: SanckBarSize.MEDIUM));
+      }
+    } finally {
+      // As on the playlist page: a failed load must not leave the track
+      // list shimmering forever.
+      if (!isClosed) isContentFetched.value = true;
     }
   }
 

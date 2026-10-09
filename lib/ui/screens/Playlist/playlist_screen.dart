@@ -192,9 +192,12 @@ class PlaylistScreen extends StatelessWidget {
                                         : 160,
                                 bottom: 200,
                               ),
-                              itemCount: playlistController.songList.isEmpty ||
-                                      playlistController
-                                          .isContentFetched.isFalse
+                              // isContentFetched first: behind an empty
+                              // list, || never read it, so the Obx missed
+                              // a failed load and kept the shimmer.
+                              itemCount: playlistController
+                                          .isContentFetched.isFalse ||
+                                      playlistController.songList.isEmpty
                                   ? 4
                                   : playlistController.songList.length + 3,
                               itemBuilder: (_, index) {
