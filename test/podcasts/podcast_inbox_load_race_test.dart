@@ -77,8 +77,7 @@ class _HostState extends State<_Host> {
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<int>(
         valueListenable: widget.nonce,
-        builder: (_, n, __) =>
-            PodcastInboxScreen(embedded: true, refreshNonce: n),
+        builder: (_, n, __) => PodcastInboxScreen(refreshNonce: n),
       );
 }
 

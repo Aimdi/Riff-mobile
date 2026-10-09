@@ -33,16 +33,11 @@ import 'podcasts_library_controller.dart';
 class PodcastInboxScreen extends StatefulWidget {
   const PodcastInboxScreen({
     super.key,
-    this.embedded = false,
     this.onDiscover,
     this.refreshNonce = 0,
     this.filter,
     this.onFilterChanged,
   });
-
-  /// When true, render just the content (no Scaffold/AppBar) so it can be shown
-  /// inline inside the Podcasts library screen.
-  final bool embedded;
 
   /// Switches the parent to the Discover tab (shown on the empty state).
   final VoidCallback? onDiscover;
@@ -369,19 +364,9 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     return fmt.isEmpty ? '' : '$fmt ${'left'.tr}';
   }
 
+  /// Shown inline in the Podcasts tab (no page header of its own).
   @override
   Widget build(BuildContext context) {
-    final body = _body(context);
-    if (widget.embedded) return body;
-    return Scaffold(
-      body: Column(children: [
-        RiffPageHeader("podcastInbox".tr),
-        Expanded(child: body),
-      ]),
-    );
-  }
-
-  Widget _body(BuildContext context) {
     if (_loading) {
       return const SongListShimmer(itemCount: 8, topPadding: 8);
     }

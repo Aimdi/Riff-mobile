@@ -250,13 +250,10 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode,
 /// played in order. Reorder by dragging the handle, swipe/remove to drop one,
 /// tap to play from that point.
 class PodcastQueueScreen extends StatelessWidget {
-  const PodcastQueueScreen({super.key, this.embedded = false, this.onDiscover});
+  const PodcastQueueScreen({super.key, this.onDiscover});
 
-  /// Jumps to the Discover tab (embedded mode) from the empty state.
+  /// Jumps to the Discover tab from the empty state.
   final VoidCallback? onDiscover;
-
-  /// When true, render just the content (no Scaffold/AppBar) for inline use.
-  final bool embedded;
 
   static String _fmtTotal(Duration d) {
     final h = d.inHours;
@@ -305,14 +302,12 @@ class PodcastQueueScreen extends StatelessWidget {
                           ?.copyWith(color: homeMutedColor(context)),
                     ),
                   ),
-                  // Non-embedded gets the clear action in the AppBar instead.
-                  if (embedded)
-                    IconButton(
-                      tooltip: "clear".tr,
-                      icon: const Icon(Icons.delete_sweep_outlined,
-                          size: RiffComponentSizes.headerIcon),
-                      onPressed: controller.clear,
-                    ),
+                  IconButton(
+                    tooltip: "clear".tr,
+                    icon: const Icon(Icons.delete_sweep_outlined,
+                        size: RiffComponentSizes.headerIcon),
+                    onPressed: controller.clear,
+                  ),
                 ],
               ),
             ),
@@ -330,21 +325,7 @@ class PodcastQueueScreen extends StatelessWidget {
         ],
       );
     });
-    if (embedded) return body;
-    return Scaffold(
-      body: Column(children: [
-        RiffPageHeader("queue".tr, actions: [
-          Obx(() => controller.queue.isEmpty
-              ? const SizedBox.shrink()
-              : IconButton(
-                  tooltip: "clear".tr,
-                  icon: const Icon(Icons.clear_all_rounded),
-                  onPressed: controller.clear,
-                )),
-        ]),
-        Expanded(child: body),
-      ]),
-    );
+    return body;
   }
 
   Widget _row(BuildContext context, PodcastQueueController controller,

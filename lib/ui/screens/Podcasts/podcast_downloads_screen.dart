@@ -1,4 +1,3 @@
-import '../Home/home_layout.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -16,13 +15,8 @@ import 'podcast_queue_screen.dart' show showAddToQueueSheet;
 
 /// AntennaPod-style Downloads hub: list offline episodes and remove them.
 class PodcastDownloadsScreen extends StatefulWidget {
-  const PodcastDownloadsScreen({
-    super.key,
-    this.embedded = false,
-    this.onDiscover,
-  });
+  const PodcastDownloadsScreen({super.key, this.onDiscover});
 
-  final bool embedded;
   final VoidCallback? onDiscover;
 
   @override
@@ -116,12 +110,6 @@ class _PodcastDownloadsScreenState extends State<PodcastDownloadsScreen> {
             },
           );
 
-    if (widget.embedded) return body;
-    return Scaffold(
-      body: Column(children: [
-        RiffPageHeader('downloads'.tr),
-        Expanded(child: body),
-      ]),
-    );
+    return body;
   }
 }

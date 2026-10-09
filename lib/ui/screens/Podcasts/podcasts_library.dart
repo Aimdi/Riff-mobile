@@ -129,7 +129,6 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               // ── Inline Inbox / Queue / Subs / Discover ──────────
               if (_section == 1) {
                 return PodcastInboxScreen(
-                  embedded: true,
                   refreshNonce: _inboxRefreshNonce,
                   filter: _inboxFilter,
                   onFilterChanged: _setInboxFilter,
@@ -141,7 +140,6 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               }
               if (_section == 2) {
                 return PodcastQueueScreen(
-                  embedded: true,
                   onDiscover: () {
                     _loadDiscoveryRows();
                     setState(() => _section = 4);
@@ -150,7 +148,6 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               }
               if (_section == 3) {
                 return PodcastSubsScreen(
-                  embedded: true,
                   onDiscover: () {
                     _loadDiscoveryRows();
                     setState(() => _section = 4);
@@ -166,7 +163,6 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               }
               // Section 5: Downloads (the tabs offer only 1–6).
               return PodcastDownloadsScreen(
-                embedded: true,
                 onDiscover: () {
                   _loadDiscoveryRows();
                   setState(() => _section = 4);
