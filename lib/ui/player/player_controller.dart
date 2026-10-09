@@ -1159,12 +1159,7 @@ class PlayerController extends GetxController
           }
         }
         if (_shouldFetchRadioContinuation()) {
-          _radioContinuationInFlight = true;
-          try {
-            await _addRadioContinuation(radioInitiatorItem);
-          } finally {
-            _radioContinuationInFlight = false;
-          }
+          await _fetchRadioContinuation();
         }
       }
     });
@@ -1566,6 +1561,22 @@ class PlayerController extends GetxController
     );
   }
 
+  /// Fetches the next radio batch, one request at a time. A failed fetch
+  /// (offline, YouTube Music error) is logged rather than thrown, so the
+  /// caller falls through to its "nothing more to play" handling instead
+  /// of the error escaping a stream listener or a skip.
+  Future<void> _fetchRadioContinuation() async {
+    if (_radioContinuationInFlight) return;
+    _radioContinuationInFlight = true;
+    try {
+      await _addRadioContinuation(radioInitiatorItem);
+    } catch (e) {
+      printERROR('Radio continuation failed: $e');
+    } finally {
+      _radioContinuationInFlight = false;
+    }
+  }
+
   Future<void> _addRadioContinuation(dynamic item) async {
     final isSong = item.runtimeType.toString() == "MediaItem";
     // Prefer smart radio pipeline when discovery is available.
@@ -1749,14 +1760,7 @@ class PlayerController extends GetxController
         notifyPlayError('radioContinuationFailed');
         return false;
       }
-      if (!_radioContinuationInFlight) {
-        _radioContinuationInFlight = true;
-        try {
-          await _addRadioContinuation(radioInitiatorItem);
-        } finally {
-          _radioContinuationInFlight = false;
-        }
-      }
+      await _fetchRadioContinuation();
       if (currentQueue.length > currentSongIndex.value + 1) {
         return next();
       }
