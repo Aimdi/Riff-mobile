@@ -26,22 +26,34 @@ class AppLinksController extends GetxController with ProcessLink {
   Future<void> initDeepLinks() async {
     _appLinks = AppLinks();
 
-    // Check initial link if app was in cold state (terminated)
-    final appLink = await _appLinks.getInitialAppLink();
-    if (appLink != null) {
-      await filterLinks(appLink);
+    // Check initial link if app was in cold state (terminated). A failure
+    // here (e.g. the player panel not laid out yet) used to throw past the
+    // subscription below, so no shared link opened for the whole session.
+    try {
+      final appLink = await _appLinks.getInitialAppLink();
+      if (appLink != null) {
+        await filterLinks(appLink);
+      }
+    } catch (e) {
+      printERROR('Opening the launch link failed: $e');
     }
 
     // Handle link when app is in warm state (front or background)
     _linkSubscription = _appLinks.uriLinkStream.listen((uri) async {
-      await filterLinks(uri);
+      try {
+        await filterLinks(uri);
+      } catch (e) {
+        printERROR('Opening link $uri failed: $e');
+      }
     });
   }
 
+  // GetX calls onClose when the controller is deleted; the dispose()
+  // override this replaces was never called, so the subscription leaked.
   @override
-  void dispose() {
+  void onClose() {
     _linkSubscription?.cancel();
-    super.dispose();
+    super.onClose();
   }
 }
 
