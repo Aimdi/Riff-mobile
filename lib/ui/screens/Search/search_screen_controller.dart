@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
 import '/utils/app_link_controller.dart' show ProcessLink;
+import '/utils/helper.dart' show printERROR;
 import '/services/music_service.dart';
 
 class SearchScreenController extends GetxController with ProcessLink {
@@ -57,8 +58,16 @@ class SearchScreenController extends GetxController with ProcessLink {
 
   Future<void> _fetchSuggestions(String text) async {
     final gen = ++_suggestionGen;
-    final results = await musicServices.getSearchSuggestion(text);
-    if (gen != _suggestionGen) return;
+    final List<String> results;
+    try {
+      results = await musicServices.getSearchSuggestion(text);
+    } catch (e) {
+      // Offline or a bad reply: keep what is shown. This runs from a timer,
+      // so a throw here was an uncaught error on every debounced keystroke.
+      printERROR('Search suggestions for "$text" failed: $e');
+      return;
+    }
+    if (isClosed || gen != _suggestionGen) return;
     if (textInputController.text != text) return;
     suggestionList.value = results;
   }
@@ -73,12 +82,14 @@ class SearchScreenController extends GetxController with ProcessLink {
   }
 
   Future<void> addToHistryQueryList(String txt) async {
-    if (historyQuerylist.length > 9) {
-      final queryForRemoval = queryBox.getAt(0);
-      await queryBox.deleteAt(0);
-      historyQuerylist.removeWhere((element) => element == queryForRemoval);
-    }
+    // Only a new query makes room: searching one already in the history
+    // used to drop the oldest entry anyway, shrinking the list.
     if (!historyQuerylist.contains(txt)) {
+      if (historyQuerylist.length > 9) {
+        final queryForRemoval = queryBox.getAt(0);
+        await queryBox.deleteAt(0);
+        historyQuerylist.removeWhere((element) => element == queryForRemoval);
+      }
       await queryBox.add(txt);
       historyQuerylist.insert(0, txt);
     }
@@ -96,7 +107,7 @@ class SearchScreenController extends GetxController with ProcessLink {
 
   Future<void> removeQueryFromHistory(String txt) async {
     final index = queryBox.values.toList().indexOf(txt);
-    await queryBox.deleteAt(index);
+    if (index >= 0) await queryBox.deleteAt(index);
     historyQuerylist.remove(txt);
   }
 
