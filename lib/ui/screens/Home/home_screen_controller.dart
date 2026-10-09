@@ -376,10 +376,17 @@ class HomeScreenController extends GetxController {
   Future<void> changeDiscoverContent(dynamic val, {String? songId}) async {
     QuickPicks? quickPicks_;
     if (val == 'QP') {
-      final homeContentListMap = await _musicServices.getHome(limit: 3);
-      quickPicks_ = QuickPicks(
-          List<MediaItem>.from(homeContentListMap[0]["contents"]),
-          title: homeContentListMap[0]["title"]);
+      // Offline or an empty feed: keep the current Quick picks, as the
+      // other content types do (this was an uncaught error from the
+      // Settings switch).
+      try {
+        final homeContentListMap = await _musicServices.getHome(limit: 3);
+        quickPicks_ = QuickPicks(
+            List<MediaItem>.from(homeContentListMap[0]["contents"]),
+            title: homeContentListMap[0]["title"]);
+      } catch (e) {
+        printERROR("Quick picks currently not available: $e");
+      }
     } else if (val == "TMV" || val == 'TR') {
       try {
         final charts = await _musicServices.getCharts(val);

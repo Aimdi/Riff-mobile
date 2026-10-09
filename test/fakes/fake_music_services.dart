@@ -55,6 +55,15 @@ class FakeMusicServices extends GetxService implements MusicServices {
     return const {};
   }
 
+  int homeCalls = 0;
+
+  @override
+  Future<dynamic> getHome({int limit = 4, String? params}) async {
+    homeCalls++;
+    if (error != null) throw error!;
+    return [];
+  }
+
   /// Pending artist tab loads by category ("Songs", "Albums", ...).
   final artistTabs = <String, List<Completer<Map<String, dynamic>>>>{};
 
