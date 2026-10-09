@@ -7,8 +7,7 @@ import '/services/plugin_service.dart';
 import '/ui/player/play_queue_order.dart';
 import '/ui/widgets/sort_widget.dart';
 
-class SearchResultScreenController extends GetxController
-    with GetTickerProviderStateMixin {
+class SearchResultScreenController extends GetxController {
   final navigationRailCurrentIndex = 0.obs;
   final isResultContentFetced = false.obs;
   final isSeparatedResultContentFetced = false.obs;
@@ -19,7 +18,6 @@ class SearchResultScreenController extends GetxController
   final railItems = <String>[].obs;
   final additionalParamNext = {};
   bool continuationInProgress = false;
-  TabController? tabController;
   bool isTabTransitionReversed = false;
   //ScrollContollers List
   final Map<String, ScrollController> scrollControllers = {};
@@ -66,8 +64,7 @@ class SearchResultScreenController extends GetxController
   /// Tabs whose scroll controller already pages in more results.
   final Set<String> _pagedTabs = {};
 
-  Future<void> onDestinationSelected(int value,
-      {bool ignoreTabCommand = false}) async {
+  Future<void> onDestinationSelected(int value) async {
     if (railItems.isEmpty) {
       return;
     }
@@ -76,10 +73,6 @@ class SearchResultScreenController extends GetxController
 
     isSeparatedResultContentFetced.value = false;
     navigationRailCurrentIndex.value = value;
-
-    if (tabController != null && !ignoreTabCommand) {
-      tabController?.animateTo(value);
-    }
 
     if (value > 0) {
       final tabName = railItems[value - 1];
@@ -210,7 +203,6 @@ class SearchResultScreenController extends GetxController
         resultContent.value = {};
         railItems.clear();
         _ensureSoulseekRail();
-        _initDesktopTabsIfNeeded();
         isResultContentFetced.value = true;
         return;
       }
@@ -245,49 +237,8 @@ class SearchResultScreenController extends GetxController
       for (String item in railItems) {
         scrollControllers.putIfAbsent(item, () => ScrollController());
       }
-
-      if (GetPlatform.isDesktop) {
-        for (var element in railItems) {
-          separatedResultContent[element] = [];
-        }
-
-        tabController =
-            TabController(length: railItems.length + 1, vsync: this);
-
-        tabController?.animation?.addListener(() {
-          int indexChange = tabController!.offset.round();
-          int index = tabController!.index + indexChange;
-
-          if (index != navigationRailCurrentIndex.value) {
-            onDestinationSelected(index, ignoreTabCommand: true);
-          }
-        });
-      }
       isResultContentFetced.value = true;
     }
-  }
-
-  void _initDesktopTabsIfNeeded() {
-    if (!GetPlatform.isDesktop) {
-      return;
-    }
-    for (var element in railItems) {
-      if (!isSoulseekRail(element)) {
-        separatedResultContent.putIfAbsent(element, () => []);
-      }
-    }
-
-    tabController?.dispose();
-    tabController = TabController(length: railItems.length + 1, vsync: this);
-
-    tabController?.animation?.addListener(() {
-      int indexChange = tabController!.offset.round();
-      int index = tabController!.index + indexChange;
-
-      if (index != navigationRailCurrentIndex.value) {
-        onDestinationSelected(index, ignoreTabCommand: true);
-      }
-    });
   }
 
   void onSort(SortType sortType, bool isAscending, String title) {
@@ -316,7 +267,6 @@ class SearchResultScreenController extends GetxController
     for (String item in railItems) {
       scrollControllers[item]?.dispose();
     }
-    tabController?.dispose();
     super.onClose();
   }
 }

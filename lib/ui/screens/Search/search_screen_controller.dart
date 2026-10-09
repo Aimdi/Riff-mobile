@@ -16,10 +16,6 @@ class SearchScreenController extends GetxController with ProcessLink {
   late Box<dynamic> queryBox;
   final urlPasted = false.obs;
 
-  // Desktop search bar related
-  final focusNode = FocusNode();
-  final isSearchBarInFocus = false.obs;
-
   Timer? _suggestionDebounce;
   int _suggestionGen = 0;
 
@@ -30,11 +26,6 @@ class SearchScreenController extends GetxController with ProcessLink {
   }
 
   _init() async {
-    if(GetPlatform.isDesktop){
-      focusNode.addListener((){
-        isSearchBarInFocus.value = focusNode.hasFocus;
-      });
-    }
     queryBox = await Hive.openBox("searchQuery");
     historyQuerylist.value = queryBox.values.toList().reversed.toList();
   }
@@ -122,7 +113,6 @@ class SearchScreenController extends GetxController with ProcessLink {
   @override
   void onClose() {
     _suggestionDebounce?.cancel();
-    focusNode.dispose();
     textInputController.dispose();
     super.onClose();
   }

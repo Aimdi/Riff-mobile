@@ -27,7 +27,6 @@ class SearchItem extends StatelessWidget {
     Get.toNamed(ScreenNavigationSetup.searchResultScreen,
         id: ScreenNavigationSetup.id, arguments: q);
     c.addToHistryQueryList(q);
-    if (GetPlatform.isDesktop) c.focusNode.unfocus();
   }
 
   @override
@@ -54,9 +53,6 @@ class SearchItem extends StatelessWidget {
             Get.toNamed(ScreenNavigationSetup.searchResultScreen,
                 id: ScreenNavigationSetup.id, arguments: q);
           },
-          onAfterSubmit: GetPlatform.isDesktop
-              ? searchScreenController.focusNode.unfocus
-              : null,
           onPlayFailed: () => showSearchPlayFailed(context),
         );
       },

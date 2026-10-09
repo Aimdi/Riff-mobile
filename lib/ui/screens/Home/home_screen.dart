@@ -4,8 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
-import '../Search/components/desktop_search_bar.dart';
-import '/ui/screens/Search/search_screen_controller.dart';
 import '/ui/widgets/animated_screen_transition.dart';
 import '../../widgets/side_nav_bar.dart';
 import '../Library/library.dart';
@@ -109,14 +107,6 @@ class Body extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final homeScreenController = Get.find<HomeScreenController>();
-    final size = MediaQuery.of(context).size;
-    final topPadding = GetPlatform.isDesktop
-        ? 85.0
-        : context.isLandscape
-            ? 50.0
-            : size.height < 750
-                ? 80.0
-                : 85.0;
     const leftPadding = 0.0;
     final tab = homeScreenController.tabIndex.value;
     if (tab == RailTab.home) {
@@ -124,93 +114,65 @@ class Body extends StatelessWidget {
         padding: const EdgeInsets.only(left: leftPadding),
         child: Stack(
           children: [
-            GestureDetector(
-              onTap: () {
-                // for Desktop search bar
-                if (GetPlatform.isDesktop) {
-                  final sscontroller = Get.find<SearchScreenController>();
-                  if (sscontroller.focusNode.hasFocus) {
-                    sscontroller.focusNode.unfocus();
-                  }
-                }
-              },
-              child: Obx(
-                () => homeScreenController.networkError.isTrue
-                    ? SizedBox(
-                        height: MediaQuery.of(context).size.height - 180,
-                        child: Column(
-                          children: [
-                            Align(
-                              alignment: Alignment.topLeft,
-                              child: Padding(
-                                padding: const EdgeInsets.only(left: 12),
-                                child: Text(
-                                  "home".tr,
-                                  style: Theme.of(context).textTheme.titleLarge,
-                                ),
+            Obx(
+              () => homeScreenController.networkError.isTrue
+                  ? SizedBox(
+                      height: MediaQuery.of(context).size.height - 180,
+                      child: Column(
+                        children: [
+                          Align(
+                            alignment: Alignment.topLeft,
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 12),
+                              child: Text(
+                                "home".tr,
+                                style: Theme.of(context).textTheme.titleLarge,
                               ),
                             ),
-                            Expanded(
-                              child: Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      "networkError1".tr,
-                                      style: Theme.of(context)
+                          ),
+                          Expanded(
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    "networkError1".tr,
+                                    style:
+                                        Theme.of(context).textTheme.titleMedium,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 15, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context)
                                           .textTheme
-                                          .titleMedium,
+                                          .titleLarge!
+                                          .color,
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
-                                    const SizedBox(height: 10),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 15, vertical: 10),
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge!
-                                            .color,
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: InkWell(
-                                        onTap: () {
-                                          homeScreenController
-                                              .loadContentFromNetwork();
-                                        },
-                                        child: Text(
-                                          "retry".tr,
-                                          style: TextStyle(
-                                            color:
-                                                Theme.of(context).canvasColor,
-                                          ),
+                                    child: InkWell(
+                                      onTap: () {
+                                        homeScreenController
+                                            .loadContentFromNetwork();
+                                      },
+                                      child: Text(
+                                        "retry".tr,
+                                        style: TextStyle(
+                                          color: Theme.of(context).canvasColor,
                                         ),
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-                      )
-                    : _HomeFeed(topPadding: topPadding),
-              ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : const _HomeFeed(),
             ),
-            if (GetPlatform.isDesktop)
-              Align(
-                alignment: Alignment.topCenter,
-                child: LayoutBuilder(builder: (context, constraints) {
-                  return SizedBox(
-                    width: constraints.maxWidth > 800
-                        ? 800
-                        : constraints.maxWidth - 40,
-                    child: const Padding(
-                      padding: EdgeInsets.only(top: 15.0),
-                      child: DesktopSearchBar(),
-                    ),
-                  );
-                }),
-              ),
           ],
         ),
       );
@@ -243,10 +205,7 @@ class Body extends StatelessWidget {
 /// gets the status-bar inset, and a gradient keeps text from showing
 /// behind the status-bar icons as the feed scrolls under it.
 class _HomeFeed extends StatefulWidget {
-  const _HomeFeed({required this.topPadding});
-
-  /// Desktop: room for the search bar above the header.
-  final double topPadding;
+  const _HomeFeed();
 
   @override
   State<_HomeFeed> createState() => _HomeFeedState();
@@ -289,7 +248,7 @@ class _HomeFeedState extends State<_HomeFeed> {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
     final statusTop = MediaQuery.paddingOf(context).top;
-    final headerTop = GetPlatform.isDesktop ? widget.topPadding : statusTop + 8;
+    final headerTop = statusTop + 8;
     final bg = theme.scaffoldBackgroundColor;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
