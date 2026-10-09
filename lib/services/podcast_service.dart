@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 import 'package:xml/xml.dart';
@@ -20,10 +21,16 @@ class PodcastService {
   PodcastService._();
 
   static final _dio = Dio(BaseOptions(
+    // Without a connect timeout one unreachable feed host held the whole
+    // Inbox load (it waits for every feed) for the OS's TCP timeout.
+    connectTimeout: const Duration(seconds: 15),
     receiveTimeout: const Duration(seconds: 15),
     followRedirects: true,
     headers: {'user-agent': 'Riff/1.0 (podcast)'},
   ));
+
+  @visibleForTesting
+  static BaseOptions get httpOptions => _dio.options;
 
   static Box get _subs => Hive.box("PodcastSubs");
 
@@ -72,51 +79,6 @@ class PodcastService {
     } catch (e) {
       printERROR("Podcast search failed: $e");
       return [];
-    }
-  }
-
-  /// Popular podcasts to seed an empty Podcasts screen (Apple top charts).
-  static Future<List<Map<String, dynamic>>> topPodcasts() async {
-    try {
-      final res = await _dio.get(
-          'https://itunes.apple.com/us/rss/toppodcasts/limit=25/json');
-      final entries = _asMap(res.data)?['feed']?['entry'] as List?;
-      if (entries == null) return [];
-      return entries
-          .map((e) {
-            // Apple top-charts feed includes several im:image sizes; take the last
-            // (largest) then upscale via Thumbnail for player-quality art.
-            final images = e['im:image'] as List?;
-            final raw = (images != null && images.isNotEmpty)
-                ? (images.last['label'] ?? '').toString()
-                : '';
-            return {
-              'title': e['im:name']?['label'] ?? '',
-              'author': e['im:artist']?['label'] ?? '',
-              'artwork': Thumbnail(raw).extraHigh,
-              'collectionId': e['id']?['attributes']?['im:id'],
-            };
-          })
-          .where((e) => e['collectionId'] != null)
-          .toList();
-    } catch (e) {
-      printERROR("Top podcasts failed: $e");
-      return [];
-    }
-  }
-
-  /// Resolves a feed URL from an Apple collection id (top-charts entries
-  /// don't include the feed URL directly).
-  static Future<String?> feedUrlForCollection(String collectionId) async {
-    try {
-      final res = await _dio.get('https://itunes.apple.com/lookup',
-          queryParameters: {'id': collectionId});
-      final results = _asMap(res.data)?['results'] as List?;
-      return results != null && results.isNotEmpty
-          ? results.first['feedUrl']
-          : null;
-    } catch (_) {
-      return null;
     }
   }
 
@@ -186,23 +148,21 @@ class PodcastService {
     return 1; // unknown type — still try to sniff-parse it
   }
 
-  static final _transcriptCache = <String, List<PodcastTranscriptCue>>{};
-
   /// Fetch and parse a Podcasting 2.0 episode transcript into cues, coalesced
   /// into readable lines. Cues carry startSec = -1 when the source has no
   /// timestamps (plain text/HTML) — the viewer then skips live sync.
-  /// Returns [] when unavailable or unparseable.
+  /// Returns [] when unavailable or unparseable. Not cached here:
+  /// PodcastTranscriptService keeps the results (memory + its box).
   static Future<List<PodcastTranscriptCue>> transcript(String url,
       {String type = ''}) async {
     if (url.isEmpty) return [];
-    final cached = _transcriptCache[url];
-    if (cached != null) return cached;
     try {
       final res = await _dio.get(url,
           options: Options(responseType: ResponseType.plain));
-      final cues = parseTranscriptDocument('${res.data ?? ''}', type: type);
-      _transcriptCache[url] = cues;
-      return cues;
+      final body = '${res.data ?? ''}';
+      // A long episode's transcript is a megabyte or two of cues; parse it
+      // off the UI isolate, like feeds.
+      return await Isolate.run(() => parseTranscriptDocument(body, type: type));
     } catch (e) {
       printERROR('Transcript fetch failed: $e');
       return [];
@@ -704,7 +664,10 @@ class PodcastService {
       final url = enclosure?.getAttribute('url');
       if (url == null || url.isEmpty) continue;
       final title = item.getElement('title')?.innerText.trim() ?? "Episode";
-      final guid = item.getElement('guid')?.innerText.trim() ?? url;
+      // An empty <guid/> must not give every such episode the same id
+      // (progress, played state and downloads are keyed on it).
+      final rawGuid = item.getElement('guid')?.innerText.trim() ?? '';
+      final guid = rawGuid.isNotEmpty ? rawGuid : url;
       final sizeBytes =
           int.tryParse(enclosure?.getAttribute('length') ?? '') ?? 0;
       final epArtRaw =
@@ -915,10 +878,18 @@ class PodcastService {
     try {
       final dt = DateTime.parse(raw.trim());
       final iso = _isoDateRe.firstMatch(raw);
+      final year = iso != null ? int.parse(iso.group(1)!) : dt.year;
+      final month = iso != null ? int.parse(iso.group(2)!) : dt.month;
+      final day = iso != null ? int.parse(iso.group(3)!) : dt.day;
+      // DateTime.parse rolls impossible dates over ("2024-13-01" is read as
+      // January 2025) instead of failing. Month 13 or 0 used to crash the
+      // date label, and with it the whole feed.
+      final written = DateTime.utc(year, month, day);
+      if (written.month != month || written.day != day) return null;
       return (
-        year: iso != null ? int.parse(iso.group(1)!) : dt.year,
-        month: iso != null ? int.parse(iso.group(2)!) : dt.month,
-        day: iso != null ? int.parse(iso.group(3)!) : dt.day,
+        year: year,
+        month: month,
+        day: day,
         // A zone-less ISO date parses as local time; toUtc() keeps it right.
         utcMs: dt.toUtc().millisecondsSinceEpoch,
       );

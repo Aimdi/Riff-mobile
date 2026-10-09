@@ -10,6 +10,7 @@ import '../../services/discovery/discovery_types.dart';
 import '../../services/music_service.dart';
 import '../../services/piped_service.dart';
 import '../../services/playlist_mix_service.dart';
+import '../../utils/helper.dart' show printERROR;
 import '../player/play_queue_order.dart';
 import '../player/player_controller.dart';
 
@@ -25,13 +26,38 @@ bool isSystemLibraryPlaylistId(String id) =>
 /// impossible to browse.
 bool shouldPlayCollectionOnTap() => false;
 
-/// Load album/playlist tracks from Hive, Piped, or MusicServices.
+/// Load album/playlist tracks from Hive, Piped, or MusicServices. Empty when
+/// there is nothing (or the request failed): callers then open the page,
+/// which shows its own error state.
 Future<List<MediaItem>> loadCollectionPlayTracks({
   required bool isAlbum,
   required String id,
   bool isLibraryItem = false,
   bool isPipedPlaylist = false,
   bool isCloudPlaylist = true,
+}) async {
+  try {
+    return await _loadCollectionPlayTracks(
+      isAlbum: isAlbum,
+      id: id,
+      isLibraryItem: isLibraryItem,
+      isPipedPlaylist: isPipedPlaylist,
+      isCloudPlaylist: isCloudPlaylist,
+    );
+  } catch (e) {
+    // Offline or a bad reply: most callers only check for an empty list,
+    // so a throw used to escape them as an uncaught error with no fallback.
+    printERROR('Collection $id tracks failed to load: $e');
+    return const [];
+  }
+}
+
+Future<List<MediaItem>> _loadCollectionPlayTracks({
+  required bool isAlbum,
+  required String id,
+  required bool isLibraryItem,
+  required bool isPipedPlaylist,
+  required bool isCloudPlaylist,
 }) async {
   if (id.isEmpty) return const [];
 
@@ -87,7 +113,9 @@ Future<List<MediaItem>> tracksFromOpenBox(String id) async {
 }
 
 /// Play an album/playlist immediately. Returns false when there is nothing
-/// to play so the caller can open the detail screen instead.
+/// to play (or its tracks failed to load) so the caller can open the detail
+/// screen instead; with [throwOnError] a failed load throws, for callers
+/// that report a network error apart from an empty collection.
 Future<bool> playCollection({
   required bool isAlbum,
   required String id,
@@ -96,8 +124,11 @@ Future<bool> playCollection({
   bool isLibraryItem = false,
   bool isPipedPlaylist = false,
   bool isCloudPlaylist = true,
+  bool throwOnError = false,
 }) async {
-  final tracks = await loadCollectionPlayTracks(
+  final tracks = await (throwOnError
+      ? _loadCollectionPlayTracks
+      : loadCollectionPlayTracks)(
     isAlbum: isAlbum,
     id: id,
     isLibraryItem: isLibraryItem,
@@ -148,7 +179,15 @@ Future<bool> playArtist(
   }
 
   if (!Get.isRegistered<MusicServices>()) return false;
-  final data = await Get.find<MusicServices>().getArtist(artist.browseId);
+  final Map<String, dynamic> data;
+  try {
+    data = await Get.find<MusicServices>().getArtist(artist.browseId);
+  } catch (e) {
+    // Offline: false makes the caller open the artist page (with its
+    // retry) instead of an uncaught error.
+    printERROR('Artist ${artist.browseId} failed to load: $e');
+    return false;
+  }
   final songs = artistTopSongsFromResponse(data);
   if (songs.isEmpty) return false;
 

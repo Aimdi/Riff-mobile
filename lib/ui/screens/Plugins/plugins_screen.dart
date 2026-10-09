@@ -69,9 +69,6 @@ class PluginsScreen extends StatelessWidget {
             child: Obx(() {
               // Touch obs so the list rebuilds on install/uninstall.
               final _ = plugins.installed.length;
-              if (_offers.isEmpty) {
-                return _EmptyPluginsState(accent: accent);
-              }
               return ListView.separated(
                 padding: const EdgeInsets.only(
                     left: HomeLayout.gutter,
@@ -91,40 +88,6 @@ class PluginsScreen extends StatelessWidget {
             }),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _EmptyPluginsState extends StatelessWidget {
-  const _EmptyPluginsState({required this.accent});
-
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.extension_outlined, size: 56, color: accent),
-            const SizedBox(height: 16),
-            Text(
-              'pluginsEmptyTitle'.tr,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'pluginsEmptyDes'.tr,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium,
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -158,6 +121,9 @@ class _PluginOfferTile extends StatelessWidget {
   Future<void> _install(BuildContext context) async {
     final isSoulseek = offer.id == PluginIds.seeker;
     if (isSoulseek && context.mounted) {
+      // Back still closes the dialog; then a blind pop() below would close
+      // the screen underneath instead.
+      var showing = true;
       showDialog<void>(
         context: context,
         barrierDismissible: false,
@@ -174,11 +140,13 @@ class _PluginOfferTile extends StatelessWidget {
             ],
           ),
         ),
-      );
+      ).whenComplete(() => showing = false);
       // Brief pause so the “install engine” moment is visible — the client
       // ships in-app; install still just enables the plugin.
       await Future<void>.delayed(const Duration(milliseconds: 900));
-      if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+      if (showing && context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
     }
     await Get.find<PluginService>().install(offer.id);
     if (!context.mounted) return;

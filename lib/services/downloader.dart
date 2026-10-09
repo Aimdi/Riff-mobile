@@ -20,7 +20,6 @@ import '/models/media_Item_builder.dart';
 import '../ui/screens/Library/library_controller.dart';
 import 'discovery/discovery_service.dart';
 import 'music_service.dart';
-//import '../models/thumbnail.dart' as th;
 
 class Downloader extends GetxService {
   // receiveTimeout is the max gap between chunks, so a stalled download
@@ -211,17 +210,6 @@ class Downloader extends GetxService {
     final downloadingFormat = settingsScreenController.downloadingFormat.string;
 
     final playerResponse = await StreamProvider.fetch(song.id);
-    // if (!playerResponse.playable) {
-    //   printINFO("Network error! Check your network connection.");
-    //   ScaffoldMessenger.of(Get.context!).showSnackBar(snackbar(
-    //       Get.context!, playerResponse.statusMSG,
-    //       size: SanckBarSize.BIG,
-    //       duration: const Duration(seconds: 2),
-    //       top: !GetPlatform.isDesktop));
-    //   complete.complete();
-    //   return complete.future;
-    // }
-
     if (!playerResponse.playable) {
       _showSnack(playerResponse.statusMSG.tr);
       printINFO("Requested song is not downloadable. You may try again");

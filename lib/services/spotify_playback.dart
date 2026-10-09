@@ -52,14 +52,18 @@ class SpotifyPlayback {
   }
 
   static Future<SpotifyPlayResult> play(
-    List<SpotifyTrackRef> tracks, {
+    List<SpotifyTrackRef> list, {
     int start = 0,
     bool shuffle = false,
     required String from,
   }) async {
-    if (tracks.isEmpty || !Get.isRegistered<PlayerController>()) {
+    if (list.isEmpty || !Get.isRegistered<PlayerController>()) {
       return SpotifyPlayResult.failed;
     }
+    // The queue fills for a while after this returns; a caller's list can
+    // change meanwhile (Spotify search clears its results on a new search),
+    // which threw a RangeError here or queued the wrong songs.
+    final tracks = List<SpotifyTrackRef>.of(list, growable: false);
     final gen = ++_generation;
     if (!Get.isRegistered<SpotifyImportService>()) {
       Get.put(SpotifyImportService());

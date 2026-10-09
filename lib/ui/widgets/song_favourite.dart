@@ -2,48 +2,8 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '/models/media_Item_builder.dart';
 import '/ui/player/player_controller.dart';
 import '/utils/hive_boxes.dart';
-
-/// Planned LIBFAV write for a like/unlike tap (same shape as Hive).
-class FavouriteTogglePlan {
-  const FavouriteTogglePlan({
-    required this.adding,
-    required this.songId,
-    this.record,
-  });
-
-  final bool adding;
-  final String songId;
-
-  /// Hive value when [adding] is true (`MediaItemBuilder.toJson`).
-  final Map<String, dynamic>? record;
-}
-
-FavouriteTogglePlan planFavouriteToggle(
-  MediaItem song, {
-  required bool currentlyFavourite,
-}) {
-  final adding = !currentlyFavourite;
-  return FavouriteTogglePlan(
-    adding: adding,
-    songId: song.id,
-    record: adding ? MediaItemBuilder.toJson(song) : null,
-  );
-}
-
-/// Apply [plan] to an in-memory LIBFAV map (Hive box contract).
-void applyFavouriteToggle(
-  Map<dynamic, dynamic> libFav,
-  FavouriteTogglePlan plan,
-) {
-  if (plan.adding) {
-    libFav[plan.songId] = plan.record;
-  } else {
-    libFav.remove(plan.songId);
-  }
-}
 
 bool songIsInLibFav(String songId) => HiveBoxes.favContains(songId);
 

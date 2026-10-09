@@ -25,12 +25,9 @@ class PipedSyncWidget extends StatelessWidget {
             ), // <-- Icon
             onPressed: () async {
               try {
-                //printINFO(librplstCntrller.controller.status);
                 librplstCntrller.controller.forward();
                 librplstCntrller.controller.repeat();
                 final ok = await librplstCntrller.syncPipedPlaylist();
-                librplstCntrller.controller.stop();
-                librplstCntrller.controller.reset();
                 ScaffoldMessenger.of(Get.context!).showSnackBar(snackbar(
                     Get.context!,
                     ok ? "pipedplstSyncAlert".tr : "errorOccuredAlert".tr,
@@ -40,6 +37,11 @@ class PipedSyncWidget extends StatelessWidget {
                     Get.context!, "errorOccuredAlert".tr,
                     size: SanckBarSize.BIG));
                 printERROR(e);
+              } finally {
+                // Also after a failed sync: the icon used to keep spinning
+                // (and ticking every frame) until the app was restarted.
+                librplstCntrller.controller.stop();
+                librplstCntrller.controller.reset();
               }
             }),
       ),

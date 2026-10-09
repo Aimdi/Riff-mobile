@@ -22,7 +22,6 @@ import '../../../services/music_service.dart';
 import '../../../services/piped_service.dart';
 import '../../../services/playlist_mix_service.dart';
 import '../../../services/track_analysis_service.dart';
-import '../Home/home_screen_controller.dart';
 import '../Library/library_controller.dart';
 import '../Podcasts/podcasts_library_controller.dart';
 
@@ -44,8 +43,7 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
   // optional 3rd navigation argument).
   final showSimilarPodcasts = false.obs;
 
-  // Add this RxBool to track export progress
-  final isExporting = false.obs;
+  /// Export progress, shown in the export dialog.
   final exportProgress = 0.0.obs;
 
   /// Spotify-like Mix mode: BPM / Camelot + Auto transitions.
@@ -62,11 +60,9 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
 
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
-  late Animation<double> _heightAnimation;
 
   AnimationController get animationController => _animationController;
   Animation<double> get scaleAnimation => _scaleAnimation;
-  Animation<double> get heightAnimation => _heightAnimation;
   @override
   void onInit() {
     super.onInit();
@@ -78,10 +74,6 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     _scaleAnimation =
         Tween<double>(begin: 0, end: 1.0).animate(animationController);
 
-    // Tall enough for the cover thumbnail + title row (64px art).
-    _heightAnimation =
-        Tween<double>(begin: 10.0, end: 80.0).animate(CurvedAnimation(parent: animationController, curve: Curves.easeOutBack));
-
     final args = Get.arguments as List;
     final Playlist? playlist = args[0];
     final playlistId = args[1];
@@ -89,8 +81,6 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     showSimilarPodcasts.value = args.length > 2 && args[2] == true;
     fetchPlaylistDetails(playlist, playlistId);
     _restoreMixState(playlistId);
-    Future.delayed(const Duration(milliseconds: 200),
-        () => Get.find<HomeScreenController>().whenHomeScreenOnTop());
   }
 
   void _restoreMixState(String playlistId) {
@@ -546,7 +536,6 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
   void onClose() {
     tempListContainer.clear();
     _animationController.dispose();
-    Get.find<HomeScreenController>().whenHomeScreenOnTop();
     super.onClose();
   }
 
@@ -561,7 +550,6 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     }
 
     try {
-      isExporting.value = true;
       exportProgress.value = 0.1;
 
       // Show progress dialog
@@ -641,7 +629,6 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
             snackbar(context, errorMsg, size: SanckBarSize.MEDIUM));
       }
     } finally {
-      isExporting.value = false;
       exportProgress.value = 0.0;
     }
   }
@@ -657,7 +644,6 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     }
 
     try {
-      isExporting.value = true;
       exportProgress.value = 0.1;
 
       // Show progress dialog
@@ -732,7 +718,6 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
             snackbar(context, errorMsg, size: SanckBarSize.MEDIUM));
       }
     } finally {
-      isExporting.value = false;
       exportProgress.value = 0.0;
     }
   }

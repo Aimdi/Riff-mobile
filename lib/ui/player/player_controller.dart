@@ -9,6 +9,7 @@ import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import '../../models/playling_from.dart';
 import '../../models/media_item_extras.dart';
 import '../../utils/hive_boxes.dart';
+import 'abs_session.dart';
 import 'long_form_queue.dart';
 import 'play_queue_order.dart';
 import 'video_handoff.dart';
@@ -93,17 +94,12 @@ class PlayerController extends GetxController
 
   final playerPaneOpacity = (1.0).obs;
   final isPlayerpanelTopVisible = true.obs;
-  final isPanelGTHOpened = false.obs;
 
   /// True when the main player panel is nearly fully open. Muted in-player
   /// video pauses while this is false so decoding stops behind the mini player.
   final isPlayerPanelOpen = false.obs;
-
-  /// Bumped on every seek so [PlayerVideoSurface] can hard-sync immediately.
-  final videoSeekSignal = 0.obs;
   final playerPanelMinHeight = 0.0.obs;
   bool initFlagForPlayer = true;
-  final isQueueReorderingInProcess = false.obs;
   PanelController playerPanelController = PanelController();
   PanelController queuePanelController = PanelController();
   AnimationController? gesturePlayerStateAnimationController;
@@ -148,8 +144,6 @@ class PlayerController extends GetxController
   List<MediaItem> get upcomingQueue =>
       upcomingAfterIndex(currentQueue, currentSongIndex.value);
 
-  final isFirstSong = true;
-  final isLastSong = true;
   final isQueueLoopModeEnabled = false.obs;
   final isLoopModeEnabled = false.obs;
   final isShuffleModeEnabled = false.obs;
@@ -178,21 +172,18 @@ class PlayerController extends GetxController
   bool _wakelockActive = false;
 
   var _newSongFlag = true;
-  final isCurrentSongBuffered = false.obs;
 
   /// SponsorBlock segments for the current video id.
   List<SponsorBlockSegment> _sponsorSegments = const [];
   String? _sponsorVideoId;
   String? _lastSkippedSegmentUuid;
   bool _sponsorSeekInFlight = false;
-  final sponsorBlockActiveCategory = RxnString();
 
   /// Podcasting 2.0 chapters for the current podcast episode (ad auto-skip).
   final chapters = <PodcastChapter>[].obs;
   String? _chaptersForSongId;
   // True while playback is inside an ad chapter (drives the "Skip ad" chip).
   final inAdChapter = false.obs;
-  bool get hasChapters => chapters.isNotEmpty;
 
   Box get _prefs => HiveBoxes.prefs();
 
@@ -243,15 +234,21 @@ class PlayerController extends GetxController
   String? _pendingResumeId;
   int _pendingResumeMs = 0;
 
-  late StreamSubscription<bool> keyboardSubscription;
+  /// Audio handler / keyboard subscriptions and workers, released in
+  /// [onClose] (two workers watch app-wide observables and would otherwise
+  /// keep a closed controller alive and running).
+  final _subscriptions = <StreamSubscription>[];
+  final _workers = <Worker>[];
 
   @override
   onInit() {
     _init();
     // Podcast segments follow chapters, settings and manual marks.
-    ever(chapters, (_) => _rebuildPodcastSegments());
-    ever(PodcastSegmentStore.rev, (_) => _rebuildPodcastSegments());
-    ever(PodcastPlaybackPrefs.rev, (_) => _rebuildPodcastSegments());
+    _workers.addAll([
+      ever(chapters, (_) => _rebuildPodcastSegments()),
+      ever(PodcastSegmentStore.rev, (_) => _rebuildPodcastSegments()),
+      ever(PodcastPlaybackPrefs.rev, (_) => _rebuildPodcastSegments()),
+    ]);
     super.onInit();
   }
 
@@ -262,6 +259,8 @@ class PlayerController extends GetxController
     }
     () async {
       await _waitForAudioHandler();
+      // Closed meanwhile: don't load the saved queue into the handler.
+      if (isClosed) return;
       if (_audioReady) await _restorePrevSession();
       await _refreshContinueListeningChip();
     }();
@@ -271,11 +270,12 @@ class PlayerController extends GetxController
   void _init() async {
     // Prefs / UI can initialize before AudioService; wait so listeners attach.
     await _waitForAudioHandler();
+    // Closed while waiting: listeners attached now would never be released.
+    if (isClosed) return;
     if (!_audioReady) {
       printERROR('AudioHandler not ready; player listeners skipped');
       return;
     }
-    //_createAppDocDir();
     _listenForChangesInPlayerState();
     _listenForChangesInPosition();
     _listenForChangesInBufferedPosition();
@@ -339,11 +339,6 @@ class PlayerController extends GetxController
       }
     }
 
-    final gthOpen = x > 0.6;
-    if (isPanelGTHOpened.value != gthOpen) {
-      isPanelGTHOpened.value = gthOpen;
-    }
-
     // Hysteresis near fully-open so the last bit of the gesture doesn't thrash.
     final open = isPlayerPanelOpen.value ? x >= 0.85 : x >= 0.95;
     if (isPlayerPanelOpen.value != open) {
@@ -353,14 +348,14 @@ class PlayerController extends GetxController
 
   void _listenForKeyboardActivity() {
     var keyboardVisibilityController = KeyboardVisibilityController();
-    keyboardSubscription =
-        keyboardVisibilityController.onChange.listen((bool visible) {
+    _subscriptions
+        .add(keyboardVisibilityController.onChange.listen((bool visible) {
       visible ? playerPanelController.hide() : playerPanelController.show();
-    });
+    }));
   }
 
   void _listenForChangesInPlayerState() {
-    _audioHandler.playbackState.listen((playerState) {
+    _subscriptions.add(_audioHandler.playbackState.listen((playerState) {
       // Video mode drives buttonState from the mpv engine's state.
       if (_videoModeActive) return;
       final isPlaying = playerState.playing;
@@ -387,7 +382,7 @@ class PlayerController extends GetxController
       // Keep the screen awake whenever playback is active and the setting is enabled.
       final shouldEnable = settings.keepScreenAwake.isTrue && isPlaying;
       _setWakelock(shouldEnable);
-    });
+    }));
   }
 
   void _setWakelock(bool enable) {
@@ -412,12 +407,12 @@ class PlayerController extends GetxController
   final _playLogGate = PlayLogGate();
 
   void _listenForChangesInPosition() {
-    AudioService.position.listen((position) {
+    _subscriptions.add(AudioService.position.listen((position) {
       // While video mode's engine owns playback it feeds [onPlaybackPosition]
       // itself; the (paused) audio pipeline's stale ticks must not fight it.
       if (_videoModeActive) return;
       onPlaybackPosition(position);
-    });
+    }));
   }
 
   /// One position tick from whichever engine is playing (audio pipeline or
@@ -584,10 +579,11 @@ class PlayerController extends GetxController
 
     final startOff = song.absStartOffsetSec;
     final bookAbsolute = startOff + position.inMilliseconds / 1000.0;
-    final bookDuration = currentQueue.fold<double>(0, (sum, m) {
-      if (!_isAbsItem(m)) return sum;
-      return sum + (m.duration?.inMilliseconds ?? 0) / 1000.0;
-    });
+    final bookDuration = absQueuedBookSec(currentQueue);
+    if (bookDuration > 0) {
+      _absSyncedSessionId = sessionId;
+      _absSyncedBookSec = bookDuration;
+    }
     final listened = _absTimeListenedSec;
     _absTimeListenedSec = 0;
 
@@ -601,8 +597,16 @@ class PlayerController extends GetxController
     ));
   }
 
-  /// Best-effort ABS session close when leaving an ABS item.
-  void _maybeCloseAbsSession(MediaItem? previous, MediaItem? next) {
+  /// Book length seen by the last progress sync of session
+  /// [_absSyncedSessionId], for closing it once the queue has moved on.
+  String? _absSyncedSessionId;
+  double _absSyncedBookSec = 0;
+
+  /// Best-effort ABS session close when leaving an ABS item. [outgoing] is
+  /// the item's own progress: by now the shared progress bar (and often the
+  /// queue) already belong to the incoming item.
+  void _maybeCloseAbsSession(
+      MediaItem? previous, MediaItem? next, OutgoingProgress outgoing) {
     if (previous == null || !_isAbsItem(previous)) return;
     if (next != null && next.id == previous.id) return;
     final sessionId = previous.absSessionId;
@@ -610,13 +614,13 @@ class PlayerController extends GetxController
     if (!Get.isRegistered<AudiobookshelfService>()) return;
 
     final startOff = previous.absStartOffsetSec;
-    final posMs = progressBarStatus.value.current.inMilliseconds;
-    final bookAbsolute = startOff + posMs / 1000.0;
-    final bookDuration = currentQueue.fold<double>(0, (sum, m) {
-      if (!_isAbsItem(m)) return sum;
-      return sum + (m.duration?.inMilliseconds ?? 0) / 1000.0;
-    });
-    final totalSec = progressBarStatus.value.total.inMilliseconds / 1000.0;
+    final bookAbsolute = startOff + outgoing.position.inMilliseconds / 1000.0;
+    final stillQueued = currentQueue.any((m) => m.id == previous.id);
+    final bookDuration = absCloseBookSec(
+      queuedBookSec: stillQueued ? absQueuedBookSec(currentQueue) : 0,
+      syncedBookSec: _absSyncedSessionId == sessionId ? _absSyncedBookSec : 0,
+      outgoingTotal: outgoing.total,
+    );
     final listened = _absTimeListenedSec;
     _absTimeListenedSec = 0;
     _absLastTickMs = 0;
@@ -625,7 +629,7 @@ class PlayerController extends GetxController
     unawaited(Get.find<AudiobookshelfService>().closeSession(
       sessionId,
       currentTime: bookAbsolute,
-      duration: bookDuration > 0 ? bookDuration : totalSec,
+      duration: bookDuration,
       timeListened: listened,
     ));
   }
@@ -925,7 +929,6 @@ class PlayerController extends GetxController
     _sponsorVideoId = videoId;
     _sponsorSegments = const [];
     _lastSkippedSegmentUuid = null;
-    sponsorBlockActiveCategory.value = null;
     // Podcast episodes use the podcast segment engine instead.
     if (isCurrentSongPodcast) return;
     if (!Get.isRegistered<SponsorBlockService>()) return;
@@ -952,12 +955,7 @@ class PlayerController extends GetxController
 
     final sec = position.inMilliseconds / 1000.0;
     final active = sb.activeSegment(_sponsorSegments, sec);
-    if (active == null) {
-      if (sponsorBlockActiveCategory.value != null) {
-        sponsorBlockActiveCategory.value = null;
-      }
-      return;
-    }
+    if (active == null) return;
     if (active.uuid == _lastSkippedSegmentUuid) return;
     if (isCurrentSongPodcast) return;
 
@@ -985,7 +983,6 @@ class PlayerController extends GetxController
 
     _lastSkippedSegmentUuid = active.uuid;
     _sponsorSeekInFlight = true;
-    sponsorBlockActiveCategory.value = active.category;
     printINFO(
         'SponsorBlock skip ${active.category} ${active.start.toStringAsFixed(1)}s → ${active.end.toStringAsFixed(1)}s');
     final Future<void> skip = h != null && !_videoModeActive
@@ -999,10 +996,10 @@ class PlayerController extends GetxController
         const Duration(milliseconds: 350), () => _sponsorSeekInFlight = false));
   }
 
-  DateTime? _lastBufferedUiAt;
+  final _bufferedUiThrottle = BufferedUiThrottle();
 
   void _listenForChangesInBufferedPosition() {
-    _audioHandler.playbackState.listen((playbackState) {
+    _subscriptions.add(_audioHandler.playbackState.listen((playbackState) {
       if (_videoModeActive) return;
       final oldState = progressBarStatus.value;
       if (progressBarStatus.value.total.inSeconds != 0 &&
@@ -1017,26 +1014,20 @@ class PlayerController extends GetxController
       }
       final buffered = playbackState.bufferedPosition;
       // Skip no-op / dense buffered updates — they rebuild progress widgets.
-      if (buffered == oldState.buffered) return;
-      final now = DateTime.now();
-      if (_lastBufferedUiAt != null &&
-          now.difference(_lastBufferedUiAt!) <
-              const Duration(milliseconds: 200) &&
-          (buffered - oldState.buffered).abs() <
-              const Duration(milliseconds: 500)) {
+      if (!_bufferedUiThrottle.shouldUpdate(
+          buffered: buffered, previousUiBuffered: oldState.buffered)) {
         return;
       }
-      _lastBufferedUiAt = now;
       progressBarStatus.update((val) {
         val!.buffered = buffered;
         val.current = oldState.current;
         val.total = oldState.total;
       });
-    });
+    }));
   }
 
   void _listenForChangesInDuration() {
-    _audioHandler.mediaItem.listen((mediaItem) async {
+    _subscriptions.add(_audioHandler.mediaItem.listen((mediaItem) async {
       // ProgressBarState is mutable and Rx.update mutates it in place, so
       // `oldState` aliased the very object being retargeted — the current/
       // buffered reassignments were no-ops, and reading `.total` afterwards
@@ -1050,7 +1041,6 @@ class PlayerController extends GetxController
       if (mediaItem != null) {
         printINFO(mediaItem.title);
         _newSongFlag = true;
-        isCurrentSongBuffered.value = false;
         // Capture position before switching so DiscoveryService can score the skip.
         final posMs = outgoingProgress.position.inMilliseconds;
         // Persist the outgoing podcast episode against ITS OWN duration.
@@ -1061,7 +1051,7 @@ class PlayerController extends GetxController
             Duration(milliseconds: posMs), outgoingProgress.total,
             nowMs: DateTime.now().millisecondsSinceEpoch);
         // Close ABS listening session when leaving an ABS item (best effort).
-        _maybeCloseAbsSession(currentSong.value, mediaItem);
+        _maybeCloseAbsSession(currentSong.value, mediaItem, outgoingProgress);
         final outgoing = currentSong.value;
         // The handler re-emits the playing item after queue edits, shuffle
         // and stream retries; only a different id is a song change.
@@ -1159,24 +1149,19 @@ class PlayerController extends GetxController
           }
         }
         if (_shouldFetchRadioContinuation()) {
-          _radioContinuationInFlight = true;
-          try {
-            await _addRadioContinuation(radioInitiatorItem);
-          } finally {
-            _radioContinuationInFlight = false;
-          }
+          await _fetchRadioContinuation();
         }
       }
-    });
+    }));
   }
 
   void _listenForPlaylistChange() {
-    _audioHandler.queue.listen((queue) {
+    _subscriptions.add(_audioHandler.queue.listen((queue) {
       // The handler edits one list in place and re-emits it; GetX drops a
       // same-object assignment, so the queue UI (and SmartQueue's worker)
       // never heard about adds/removes/reorders. Copy to notify.
       currentQueue.value = List.of(queue);
-    });
+    }));
   }
 
   Future<void> _restorePrevSession() async {
@@ -1287,11 +1272,11 @@ class PlayerController extends GetxController
   }
 
   void _listenForCustomEvents() {
-    _audioHandler.customEvent.listen((event) {
+    _subscriptions.add(_audioHandler.customEvent.listen((event) {
       if (event['eventType'] == 'playFromMediaId') {
-        _playViaAndroidAuto(event['songId'], event['libraryId']);
+        unawaited(playViaAndroidAuto(event['songId'], event['libraryId']));
       }
-    });
+    }));
   }
 
   ///pushSongToPlaylist method clear previous song queue, plays the tapped song and push related
@@ -1566,6 +1551,22 @@ class PlayerController extends GetxController
     );
   }
 
+  /// Fetches the next radio batch, one request at a time. A failed fetch
+  /// (offline, YouTube Music error) is logged rather than thrown, so the
+  /// caller falls through to its "nothing more to play" handling instead
+  /// of the error escaping a stream listener or a skip.
+  Future<void> _fetchRadioContinuation() async {
+    if (_radioContinuationInFlight) return;
+    _radioContinuationInFlight = true;
+    try {
+      await _addRadioContinuation(radioInitiatorItem);
+    } catch (e) {
+      printERROR('Radio continuation failed: $e');
+    } finally {
+      _radioContinuationInFlight = false;
+    }
+  }
+
   Future<void> _addRadioContinuation(dynamic item) async {
     final isSong = item.runtimeType.toString() == "MediaItem";
     // Prefer smart radio pipeline when discovery is available.
@@ -1648,43 +1649,45 @@ class PlayerController extends GetxController
     return true;
   }
 
-  void _playViaAndroidAuto(String songId, String? libraryId) {
+  /// Android Auto "play": [songId] with the list it was browsed in as the
+  /// queue.
+  @visibleForTesting
+  Future<void> playViaAndroidAuto(String songId, String? libraryId) async {
     if (libraryId == null) {
       printERROR('Android Auto play: no list for $songId');
       return;
     }
-    // Podcast lists (Continue listening, a followed show) come from the
-    // browse cache; the long-form queue window keeps them small.
-    if (libraryId.startsWith('aa_pod_')) {
-      () async {
-        final list = MediaLibrary.autoPodcastLists[libraryId] ??
-            await MediaLibrary().getByRootId(libraryId);
-        if (list.isEmpty) return;
-        final i = list.indexWhere((e) => e.id == songId);
-        await playPlayListSong(list, i < 0 ? 0 : i,
-            source: DiscoverySource.androidAuto);
-      }();
+    // Lists built for the car, not stored in a box named after them:
+    // podcast lists (Continue listening, a followed show; from the browse
+    // cache, the long-form queue window keeps them small) and discovery
+    // mixes / Fresh finds (read from riff_mixes).
+    if (MediaLibrary.isBuiltList(libraryId)) {
+      final list = MediaLibrary.autoPodcastLists[libraryId] ??
+          await MediaLibrary().getByRootId(libraryId);
+      if (list.isEmpty) return;
+      final i = list.indexWhere((e) => e.id == songId);
+      await playPlayListSong(list, i < 0 ? 0 : i,
+          source: DiscoverySource.androidAuto);
       return;
     }
-    Hive.openBox(libraryId).then((box) async {
-      List<MediaItem> songList = [];
-      final songJson = box.values.toList();
-      int songIndex = 0;
-      for (int i = 0; i < box.length; i++) {
-        final song = MediaItemBuilder.fromJson(songJson[i]);
-        if (song.id == songId) {
-          songIndex = i;
-        }
-        songList.add(song);
+    final box = await Hive.openBox(libraryId);
+    List<MediaItem> songList = [];
+    final songJson = box.values.toList();
+    int songIndex = 0;
+    for (int i = 0; i < box.length; i++) {
+      final song = MediaItemBuilder.fromJson(songJson[i]);
+      if (song.id == songId) {
+        songIndex = i;
       }
-      await playPlayListSong(
-        songList,
-        songIndex,
-        source: DiscoverySource.androidAuto,
-      );
-      // Shared box (Hive hands every caller the same instance): never close
-      // it here, or the player and other screens using it fail mid-write.
-    });
+      songList.add(song);
+    }
+    await playPlayListSong(
+      songList,
+      songIndex,
+      source: DiscoverySource.androidAuto,
+    );
+    // Shared box (Hive hands every caller the same instance): never close
+    // it here, or the player and other screens using it fail mid-write.
   }
 
   /// Insert [songs] after the current track, preserving list order.
@@ -1749,14 +1752,7 @@ class PlayerController extends GetxController
         notifyPlayError('radioContinuationFailed');
         return false;
       }
-      if (!_radioContinuationInFlight) {
-        _radioContinuationInFlight = true;
-        try {
-          await _addRadioContinuation(radioInitiatorItem);
-        } finally {
-          _radioContinuationInFlight = false;
-        }
-      }
+      await _fetchRadioContinuation();
       if (currentQueue.length > currentSongIndex.value + 1) {
         return next();
       }
@@ -1820,14 +1816,6 @@ class PlayerController extends GetxController
     if (!_audioReady) return;
     _audioHandler.customAction(
         "reorderQueue", {"oldIndex": oldIndex, "newIndex": newIndex});
-  }
-
-  void onReorderStart(int index) {
-    isQueueReorderingInProcess.value = true;
-  }
-
-  void onReorderEnd(int index) {
-    isQueueReorderingInProcess.value = false;
   }
 
   /// True while video mode's mpv engine owns playback — the transport
@@ -2448,23 +2436,31 @@ class PlayerController extends GetxController
     }
   }
 
+  /// GetX calls this on delete (it never calls [dispose] on a controller).
+  /// The audio handler and its player outlive the controller, so playback
+  /// is left alone; the panel's ScrollController belongs to the panel.
   @override
-  void dispose() {
-    _audioHandler.customAction('dispose');
-    keyboardSubscription.cancel();
-    scrollController.dispose();
+  void onClose() {
+    for (final s in _subscriptions) {
+      s.cancel();
+    }
+    _subscriptions.clear();
+    for (final w in _workers) {
+      w.dispose();
+    }
+    _workers.clear();
+    if (Get.isRegistered<SmartQueueService>()) {
+      Get.find<SmartQueueService>().detach(this);
+    }
+    // Before super.onClose: the ticker mixin asserts no ticker is active.
     gesturePlayerStateAnimationController?.dispose();
+    gesturePlayerStateAnimationController = null;
     sleepTimer?.cancel();
     if (GetPlatform.isWindows) {
       Get.delete<WindowsAudioService>();
     }
-    // ensure wakelock disabled when player controller disposed
-    try {
-      _setWakelock(false);
-    } catch (e) {
-      printERROR(e);
-    }
-    super.dispose();
+    _setWakelock(false);
+    super.onClose();
   }
 }
 

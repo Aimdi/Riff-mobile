@@ -54,6 +54,9 @@ import 'services/spotify_like_sync.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   _startDiagnostics();
+  // The Keystore-backed secure-storage read is slow on a cold start; run it
+  // while the Hive boxes open below instead of after them.
+  SecureCredentials.prefetch();
   // Video mode's mpv engine. In the lite (audio-only) APK the library is
   // stripped: init throws, the flag stays false and video mode hides.
   try {
@@ -109,33 +112,55 @@ void _startDiagnostics() {
 
 /// AudioService + deferred Hive / discovery. Never blocks first frame.
 Future<void> _initAudioAndWarm(Future<void> deferredBoxes) async {
-  try {
+  await _warmUp('AudioService', () async {
     if (!Get.isRegistered<AudioHandler>()) {
       final handler = await initAudioService();
       Get.put<AudioHandler>(handler, permanent: true);
     }
-  } catch (e) {
-    printERROR('AudioService init failed: $e');
-  }
-  try {
-    await deferredBoxes;
+  });
+  await deferredBoxes;
+  // Each step on its own: one shared try used to let a failing step (e.g.
+  // discovery on a damaged box) skip playback rules, the smart queue,
+  // auto-sync and the Spotify flush for the whole session.
+  await _warmUp('Discovery', () async {
     if (!Get.isRegistered<DiscoveryService>()) {
       await Get.putAsync(() => DiscoveryService().init(), permanent: true);
     }
-    if (!GetPlatform.isDesktop && !Get.isRegistered<PlaybackRulesService>()) {
-      await Get.putAsync(() => PlaybackRulesService().init(), permanent: true);
-    }
+  });
+  if (!GetPlatform.isDesktop) {
+    await _warmUp('Playback rules', () async {
+      if (!Get.isRegistered<PlaybackRulesService>()) {
+        await Get.putAsync(() => PlaybackRulesService().init(),
+            permanent: true);
+      }
+    });
+  }
+  await _warmUp('Smart queue', () async {
     if (!Get.isRegistered<SmartQueueService>()) {
       Get.put(SmartQueueService().init(), permanent: true);
+      // The player attaches the smart queue in its own init, which only
+      // waits for the audio handler and so has usually run by now, before
+      // this service existed. Attach here when the player is already up
+      // (attach() replaces its workers, so a second attach is harmless).
+      if (Get.isRegistered<PlayerController>() &&
+          !Get.isPrepared<PlayerController>()) {
+        Get.find<SmartQueueService>().attach(Get.find<PlayerController>());
+      }
     }
-    // WebDAV sync (when switched on), after the first screen settles.
-    Future<void>.delayed(
-        const Duration(seconds: 10), WebDavSyncService.maybeAutoSync);
-    // Spotify like changes left over from last time.
-    SpotifyLikeSync.flushSoon(delay: const Duration(seconds: 20));
+  });
+  // WebDAV sync (when switched on), after the first screen settles.
+  Future<void>.delayed(
+      const Duration(seconds: 10), WebDavSyncService.maybeAutoSync);
+  // Spotify like changes left over from last time.
+  SpotifyLikeSync.flushSoon(delay: const Duration(seconds: 20));
+}
+
+/// Runs one background start-up step; a failure is logged, never thrown.
+Future<void> _warmUp(String what, Future<void> Function() step) async {
+  try {
+    await step();
   } catch (e) {
-    // Never block the UI on background warm-up failures.
-    printERROR('Background warm-up failed: $e');
+    printERROR('$what init failed: $e');
   }
 }
 

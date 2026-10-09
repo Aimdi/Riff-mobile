@@ -199,22 +199,6 @@ class DiscoveryService extends GetxService {
   Future<void> onNeverPlay(MediaItem song) =>
       taste.logNeverPlay(song.id, song.artist, song.title);
 
-  Future<void> onThumbs(MediaItem song, {required bool up, String? surface}) =>
-      taste.logThumbs(
-        videoId: song.id,
-        artist: song.artist,
-        title: song.title,
-        up: up,
-        surface: surface,
-      );
-
-  Future<void> onDismiss(MediaItem song, {String? surface}) => taste.logDismiss(
-        videoId: song.id,
-        artist: song.artist,
-        title: song.title,
-        surface: surface,
-      );
-
   // ─── Mix scheduler (resume / launch, no WorkManager) ──────────────────
 
   DateTime? _lastMixRegenAt;
@@ -317,16 +301,6 @@ class DiscoveryService extends GetxService {
           }
         }
       }
-    } catch (_) {}
-  }
-
-  Future<void> refreshPersonalHome() async {
-    if (!taste.hasEnoughSignal) {
-      personalSections.clear();
-      return;
-    }
-    try {
-      personalSections.assignAll(await engine.homeSections());
     } catch (_) {}
   }
 

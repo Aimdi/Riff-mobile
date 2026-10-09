@@ -17,7 +17,9 @@ class BlacklistScreen extends StatefulWidget {
 }
 
 class _BlacklistScreenState extends State<BlacklistScreen> {
+  /// Called after the (awaited) unban: the screen may be gone by then.
   void _removed(String label, Future<void> Function() undo) {
+    if (!mounted) return;
     setState(() {});
     ScaffoldMessenger.maybeOf(context)
       ?..hideCurrentSnackBar()

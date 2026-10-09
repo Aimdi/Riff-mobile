@@ -17,6 +17,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/services/music_service.dart';
 import 'package:harmonymusic/services/network_policy.dart';
+import 'package:harmonymusic/services/podcast_download_service.dart';
+import 'package:harmonymusic/services/podcast_service.dart';
 import 'package:harmonymusic/services/stream_service.dart';
 
 Response _resp(int status) =>
@@ -168,6 +170,22 @@ void main() {
               _dioError(DioExceptionType.connectionTimeout)),
           isTrue);
       expect(ApiRetryPolicy.shouldRetryError(StateError('x')), isFalse);
+    });
+  });
+
+  group('podcast dio clients', () {
+    // One unreachable feed host held the whole Inbox load; a download to a
+    // host that never answered stayed "started" forever.
+    test('feeds and downloads time out connecting and waiting', () {
+      for (final options in [
+        PodcastService.httpOptions,
+        PodcastDownloadService.httpOptions,
+      ]) {
+        expect(options.connectTimeout, isNotNull);
+        expect(options.connectTimeout, greaterThan(Duration.zero));
+        expect(options.receiveTimeout, isNotNull);
+        expect(options.receiveTimeout, greaterThan(Duration.zero));
+      }
     });
   });
 

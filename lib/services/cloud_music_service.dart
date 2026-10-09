@@ -11,6 +11,12 @@ import 'package:hive/hive.dart';
 import '../utils/helper.dart';
 import '../utils/secure_credentials.dart';
 
+/// An int from a Subsonic number field. Some servers send numbers as
+/// strings; the `as num?` casts this replaces threw on those and lost the
+/// whole list being parsed.
+int? _asInt(Object? v) =>
+    v is num ? v.toInt() : (v is String ? num.tryParse(v)?.toInt() : null);
+
 /// A song on the self-hosted server (Subsonic `child` object).
 class CloudSong {
   CloudSong({
@@ -35,7 +41,7 @@ class CloudSong {
 
   static CloudSong? fromJson(dynamic j) {
     if (j is! Map || j['id'] == null) return null;
-    final durSec = (j['duration'] as num?)?.toInt();
+    final durSec = _asInt(j['duration']);
     return CloudSong(
       id: j['id'].toString(),
       title: (j['title'] ?? j['name'] ?? 'Untitled').toString(),
@@ -44,7 +50,7 @@ class CloudSong {
       albumId: j['albumId']?.toString(),
       coverArt: j['coverArt']?.toString(),
       duration: durSec != null && durSec > 0 ? Duration(seconds: durSec) : null,
-      track: (j['track'] as num?)?.toInt(),
+      track: _asInt(j['track']),
     );
   }
 }
@@ -74,8 +80,8 @@ class CloudAlbum {
       name: (j['name'] ?? j['title'] ?? j['album'] ?? 'Album').toString(),
       artist: j['artist']?.toString(),
       coverArt: j['coverArt']?.toString(),
-      songCount: (j['songCount'] as num?)?.toInt(),
-      year: (j['year'] as num?)?.toInt(),
+      songCount: _asInt(j['songCount']),
+      year: _asInt(j['year']),
     );
   }
 }
@@ -98,12 +104,12 @@ class CloudPlaylist {
 
   static CloudPlaylist? fromJson(dynamic j) {
     if (j is! Map || j['id'] == null) return null;
-    final durSec = (j['duration'] as num?)?.toInt();
+    final durSec = _asInt(j['duration']);
     return CloudPlaylist(
       id: j['id'].toString(),
       name: (j['name'] ?? 'Playlist').toString(),
       coverArt: j['coverArt']?.toString(),
-      songCount: (j['songCount'] as num?)?.toInt(),
+      songCount: _asInt(j['songCount']),
       duration: durSec != null && durSec > 0 ? Duration(seconds: durSec) : null,
     );
   }
@@ -195,6 +201,12 @@ class CloudMusicService extends GetxService {
   void onInit() {
     super.onInit();
     _restoreSession();
+  }
+
+  @override
+  void onClose() {
+    _dio.close();
+    super.onClose();
   }
 
   void _restoreSession() {
@@ -302,7 +314,7 @@ class CloudMusicService extends GetxService {
     if (body['status'] != 'ok') {
       final err = body['error'];
       throw CloudApiException(
-        err is Map ? (err['code'] as num?)?.toInt() : null,
+        err is Map ? _asInt(err['code']) : null,
         err is Map ? (err['message'] ?? '').toString() : '',
       );
     }

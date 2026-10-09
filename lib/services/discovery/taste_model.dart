@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'discovery_math.dart';
 import 'discovery_repository.dart';
 import 'discovery_score.dart';
@@ -209,53 +207,6 @@ class TasteModel {
         displayName: artist);
   }
 
-  Future<void> logThumbs({
-    required String videoId,
-    required String? artist,
-    required String? title,
-    required bool up,
-    String? surface,
-  }) async {
-    final artistKey = normalizeArtistKey(artist);
-    await repo.appendEvent(DiscoveryEvent(
-      videoId: videoId,
-      artistKey: artistKey,
-      ts: DateTime.now().millisecondsSinceEpoch,
-      source: DiscoverySource.discover,
-      event: up ? DiscoveryEventKind.thumbsUp : DiscoveryEventKind.thumbsDown,
-      title: title,
-      artist: artist,
-      surface: surface,
-    ));
-    await repo.bumpAffinity(
-        artistKey, up ? AffinityWeights.thumbsUp : AffinityWeights.thumbsDown,
-        displayName: artist);
-  }
-
-  Future<void> logDismiss({
-    required String videoId,
-    required String? artist,
-    required String? title,
-    String? surface,
-  }) async {
-    final artistKey = normalizeArtistKey(artist);
-    await repo.appendEvent(DiscoveryEvent(
-      videoId: videoId,
-      artistKey: artistKey,
-      ts: DateTime.now().millisecondsSinceEpoch,
-      source: DiscoverySource.discover,
-      event: DiscoveryEventKind.dismiss,
-      title: title,
-      artist: artist,
-      surface: surface,
-    ));
-    await repo.bumpAffinity(artistKey, AffinityWeights.dismiss,
-        displayName: artist);
-  }
-
-  Future<void> logImpression(String videoId, String surface) =>
-      repo.logImpression(videoId, surface);
-
   // ─── Scoring helpers used by the pipeline ─────────────────────────────
 
   /// Score a candidate track. Higher is better.
@@ -309,9 +260,6 @@ class TasteModel {
 
     return score;
   }
-
-  /// Same value as counting `recentEvents(limit: 20000)`, without decoding.
-  int get lifetimeEventCount => math.min(repo.eventCount, 20000);
 
   /// Enough listens for personal sections (~20).
   bool get hasEnoughSignal {

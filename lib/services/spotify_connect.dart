@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
@@ -23,6 +25,18 @@ class SpotifyConnect {
   static final lastError = Rxn<SpotifyApiException>();
   static Timer? _poll;
   static var _watchers = 0;
+  static var _polling = false;
+
+  /// Whether the app is on screen. Polling pauses while it isn't: audio
+  /// keeps the process alive in the background, and an open remote panel
+  /// otherwise kept calling the Web API every few seconds for hours.
+  @visibleForTesting
+  static bool Function() isForeground = () {
+    final s = SchedulerBinding.instance.lifecycleState;
+    return s == null ||
+        s == AppLifecycleState.resumed ||
+        s == AppLifecycleState.inactive;
+  };
 
   static SpotifyApiService api = SpotifyApiService(auth: SpotifyAuthService());
 
@@ -38,6 +52,7 @@ class SpotifyConnect {
     await Hive.box('AppPrefs').put(SpotifyAuthService.connectKey, on);
     if (!on) {
       _poll?.cancel();
+      _poll = null;
       devices.clear();
       state.value = null;
     }
@@ -78,8 +93,21 @@ class SpotifyConnect {
   static void watch() {
     _watchers++;
     if (_watchers == 1) {
-      unawaited(refresh());
-      _poll = Timer.periodic(pollEvery, (_) => unawaited(refresh()));
+      unawaited(_tick());
+      _poll = Timer.periodic(pollEvery, (_) => unawaited(_tick()));
+    }
+  }
+
+  /// One poll: skipped while the app is in the background, and while the
+  /// previous one is still running (a slow answer or a rate-limit wait
+  /// used to stack up another pair of requests every [pollEvery]).
+  static Future<void> _tick() async {
+    if (_polling || !isForeground()) return;
+    _polling = true;
+    try {
+      await refresh();
+    } finally {
+      _polling = false;
     }
   }
 

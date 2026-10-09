@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
+import '/models/album.dart';
 import '../navigator.dart';
 import '../player/player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
@@ -49,16 +50,9 @@ class ContentListItem extends StatelessWidget {
 
   /// Built-in library playlists store their title as a translation key
   /// (the list is built before translations load), so show the real name.
-  static const _builtInPlaylists = {
-    'LIBRP',
-    'LIBFAV',
-    'SongsCache',
-    'SongDownloads'
-  };
-
   String get _title {
     final title = content.title?.toString() ?? '';
-    if (!_isAlbum && _builtInPlaylists.contains(content.playlistId)) {
+    if (!_isAlbum && isSystemLibraryPlaylistId('${content.playlistId}')) {
       return title.tr;
     }
     return title;
@@ -72,7 +66,7 @@ class ContentListItem extends StatelessWidget {
   /// "Similar podcasts" section at the bottom.
   final bool showSimilarOnOpen;
 
-  bool get _isAlbum => content.runtimeType.toString() == "Album";
+  bool get _isAlbum => content is Album;
 
   String _subtitle(bool isAlbum) {
     if (isAlbum) {

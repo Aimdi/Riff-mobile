@@ -350,6 +350,15 @@ class StreamProvider {
   }
 }
 
+/// Audio quality the music pipeline plays at, as an index into the
+/// streaming data's qualities: 0 (low) while Data saver is on, else the
+/// Streaming quality setting (1, high, when unset). Takes the raw AppPrefs
+/// values.
+int streamingQualityIndex({Object? dataSaver, Object? streamingQuality}) {
+  if (dataSaver == true) return 0;
+  return streamingQuality is int ? streamingQuality : 1;
+}
+
 /// Merges optional YouTube login cookies into explode's default headers.
 class _AuthedYoutubeHttpClient extends YoutubeHttpClient {
   _AuthedYoutubeHttpClient(this._extra);

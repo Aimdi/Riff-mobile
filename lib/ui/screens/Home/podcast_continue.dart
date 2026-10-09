@@ -2,13 +2,6 @@ import 'package:audio_service/audio_service.dart';
 
 import '/services/podcast_progress_service.dart';
 
-/// Newest in-progress episode, or null when the inbox is empty.
-Map<String, dynamic>? latestPodcastContinue(
-    List<Map<String, dynamic>> rows) {
-  if (rows.isEmpty) return null;
-  return rows.first;
-}
-
 /// Rebuild playable items from stored progress rows (newest first).
 List<MediaItem> podcastContinueQueue(List<Map<String, dynamic>> rows) {
   final out = <MediaItem>[];

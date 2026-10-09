@@ -32,7 +32,6 @@ import '../../widgets/podcast_follow_button.dart';
 import '../../widgets/podcast_play.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/song_list_tile.dart';
-import '../../widgets/songinfo_bottom_sheet.dart';
 import '../../widgets/sort_widget.dart';
 import '../Library/library_controller.dart';
 import 'playlist_screen_controller.dart';
@@ -192,9 +191,12 @@ class PlaylistScreen extends StatelessWidget {
                                         : 160,
                                 bottom: 200,
                               ),
-                              itemCount: playlistController.songList.isEmpty ||
-                                      playlistController
-                                          .isContentFetched.isFalse
+                              // isContentFetched first: behind an empty
+                              // list, || never read it, so the Obx missed
+                              // a failed load and kept the shimmer.
+                              itemCount: playlistController
+                                          .isContentFetched.isFalse ||
+                                      playlistController.songList.isEmpty
                                   ? 4
                                   : playlistController.songList.length + 3,
                               itemBuilder: (_, index) {
@@ -392,16 +394,6 @@ class PlaylistScreen extends StatelessWidget {
         ),
       );
     });
-  }
-
-  Future openBottomSheet(BuildContext context, MediaItem song) {
-    return showModalBottomSheet(
-      useRootNavigator: true,
-      constraints: const BoxConstraints(maxWidth: 500),
-      isScrollControlled: true,
-      context: context,
-      builder: (context) => SongInfoBottomSheet(song),
-    ).whenComplete(() => Get.delete<SongInfoController>());
   }
 }
 

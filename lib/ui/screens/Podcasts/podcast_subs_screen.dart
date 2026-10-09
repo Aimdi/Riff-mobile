@@ -277,13 +277,10 @@ class _FolderColorPicker extends StatelessWidget {
 /// play button on each tile (AntennaPod-style). Folders come first;
 /// long-press a show to file it, long-press a folder to delete it.
 class PodcastSubsScreen extends StatelessWidget {
-  const PodcastSubsScreen({super.key, this.embedded = false, this.onDiscover});
+  const PodcastSubsScreen({super.key, this.onDiscover});
 
-  /// Jumps to the Discover tab (embedded mode) from the empty state.
+  /// Jumps to the Discover tab from the empty state.
   final VoidCallback? onDiscover;
-
-  /// When true, render just the content (no Scaffold/AppBar) for inline use.
-  final bool embedded;
 
   @override
   Widget build(BuildContext context) {
@@ -338,80 +335,59 @@ class PodcastSubsScreen extends StatelessWidget {
         );
       });
     });
-    if (embedded) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // "New folder" only makes sense once something can be filed —
-          // don't float a lone action over the empty state.
-          Obx(() {
-            PodcastService.subsRev.value;
-            final hasAny = controller.libraryPodcasts.isNotEmpty ||
-                PodcastService.subscriptions.isNotEmpty ||
-                folders.folders.isNotEmpty;
-            if (!hasAny) return const SizedBox.shrink();
-            final shows = controller.libraryPodcasts.length +
-                PodcastService.subscriptions.length;
-            return Padding(
-              padding: const EdgeInsets.only(
-                  left: HomeLayout.gutter,
-                  top: RiffSpacing.sm,
-                  right: RiffSpacing.xs,
-                  bottom: RiffSpacing.xxs),
-              child: SizedBox(
-                height: RiffComponentSizes.iconHit,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        podcastShowCount(shows),
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(color: homeMutedColor(context)),
-                      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // "New folder" only makes sense once something can be filed —
+        // don't float a lone action over the empty state.
+        Obx(() {
+          PodcastService.subsRev.value;
+          final hasAny = controller.libraryPodcasts.isNotEmpty ||
+              PodcastService.subscriptions.isNotEmpty ||
+              folders.folders.isNotEmpty;
+          if (!hasAny) return const SizedBox.shrink();
+          final shows = controller.libraryPodcasts.length +
+              PodcastService.subscriptions.length;
+          return Padding(
+            padding: const EdgeInsets.only(
+                left: HomeLayout.gutter,
+                top: RiffSpacing.sm,
+                right: RiffSpacing.xs,
+                bottom: RiffSpacing.xxs),
+            child: SizedBox(
+              height: RiffComponentSizes.iconHit,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      podcastShowCount(shows),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: homeMutedColor(context)),
                     ),
-                    if (folders.folders.length > 1)
-                      IconButton(
-                        tooltip: 'reorderFolders'.tr,
-                        icon: const Icon(Icons.swap_vert_rounded,
-                            size: RiffComponentSizes.headerIcon),
-                        onPressed: () => showReorderFoldersSheet(context),
-                      ),
-                    // Accent text button from the theme (§5.5).
-                    TextButton.icon(
-                      onPressed: () => showNewPodcastFolderDialog(context),
-                      icon: const Icon(Icons.create_new_folder_outlined,
-                          size: RiffComponentSizes.trailingIcon),
-                      label: Text("newFolder".tr),
+                  ),
+                  if (folders.folders.length > 1)
+                    IconButton(
+                      tooltip: 'reorderFolders'.tr,
+                      icon: const Icon(Icons.swap_vert_rounded,
+                          size: RiffComponentSizes.headerIcon),
+                      onPressed: () => showReorderFoldersSheet(context),
                     ),
-                  ],
-                ),
+                  // Accent text button from the theme (§5.5).
+                  TextButton.icon(
+                    onPressed: () => showNewPodcastFolderDialog(context),
+                    icon: const Icon(Icons.create_new_folder_outlined,
+                        size: RiffComponentSizes.trailingIcon),
+                    label: Text("newFolder".tr),
+                  ),
+                ],
               ),
-            );
-          }),
-          Expanded(child: content),
-        ],
-      );
-    }
-    return Scaffold(
-      body: Column(children: [
-        RiffPageHeader("subscriptions".tr, actions: [
-          Obx(() => folders.folders.length > 1
-              ? IconButton(
-                  tooltip: 'reorderFolders'.tr,
-                  icon: const Icon(Icons.swap_vert_rounded),
-                  onPressed: () => showReorderFoldersSheet(context),
-                )
-              : const SizedBox.shrink()),
-          IconButton(
-            tooltip: "newFolder".tr,
-            icon: const Icon(Icons.create_new_folder_outlined),
-            onPressed: () => showNewPodcastFolderDialog(context),
-          ),
-        ]),
+            ),
+          );
+        }),
         Expanded(child: content),
-      ]),
+      ],
     );
   }
 

@@ -43,4 +43,41 @@ void main() {
       isTrue,
     );
   });
+
+  test('buffered: unchanged never refreshes, small moves are batched', () {
+    final t = BufferedUiThrottle();
+    final t0 = DateTime(2026, 1, 1, 12, 0, 0);
+    const b = Duration(seconds: 20);
+
+    expect(
+        t.shouldUpdate(buffered: b, previousUiBuffered: Duration.zero, now: t0),
+        isTrue);
+    // ExoPlayer video mode: the same buffer with every position tick.
+    expect(
+        t.shouldUpdate(
+            buffered: b,
+            previousUiBuffered: b,
+            now: t0.add(const Duration(seconds: 5))),
+        isFalse);
+    // A small move right after a refresh waits for the next one.
+    expect(
+        t.shouldUpdate(
+            buffered: b + const Duration(milliseconds: 250),
+            previousUiBuffered: b,
+            now: t0.add(const Duration(milliseconds: 100))),
+        isFalse);
+    expect(
+        t.shouldUpdate(
+            buffered: b + const Duration(milliseconds: 250),
+            previousUiBuffered: b,
+            now: t0.add(const Duration(milliseconds: 250))),
+        isTrue);
+    // A big jump (seek, new source) shows at once.
+    expect(
+        t.shouldUpdate(
+            buffered: const Duration(minutes: 3),
+            previousUiBuffered: b,
+            now: t0.add(const Duration(milliseconds: 260))),
+        isTrue);
+  });
 }

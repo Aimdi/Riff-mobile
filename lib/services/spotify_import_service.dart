@@ -254,6 +254,10 @@ class SpotifyImportService extends GetxService {
   /// One track's YouTube Music match: stored match first, then search
   /// (ISRC, then title and artist). Null when nothing is close enough.
   Future<MediaItem?> resolveTrack(SpotifyTrackRef t) async {
+    // Playback calls this directly, often before anything opened the
+    // store; reading it closed missed the stored match (even one the
+    // listener picked) and searched again.
+    await SpotifyMatchStore.open();
     final cached = SpotifyMatchStore.itemFor(t.id);
     if (cached != null) return cached;
     final ranked = await rankCandidates(t, stopAtConfident: true);

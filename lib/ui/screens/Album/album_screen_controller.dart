@@ -4,12 +4,12 @@ import 'package:get/get.dart';
 import 'package:harmonymusic/base_class/playlist_album_screen_con_base.dart';
 import 'package:harmonymusic/models/album.dart';
 import 'package:harmonymusic/models/playlist.dart';
+import 'package:harmonymusic/ui/widgets/snackbar.dart';
 import 'package:harmonymusic/utils/helper.dart';
 import 'package:hive/hive.dart';
 
 import '../../../mixins/additional_opeartion_mixin.dart';
 import '../../../models/media_Item_builder.dart';
-import '../Home/home_screen_controller.dart';
 import '../Library/library_controller.dart';
 
 ///AlbumScreenController handles album screen
@@ -19,16 +19,13 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
     with AdditionalOpeartionMixin, GetSingleTickerProviderStateMixin {
   final album =
       Album(title: "", browseId: "", thumbnailUrl: "", artists: []).obs;
-  final isOfflineAlbum = false.obs;
 
   // Title animation
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
-  late Animation<double> _heightAnimation;
 
   AnimationController get animationController => _animationController;
   Animation<double> get scaleAnimation => _scaleAnimation;
-  Animation<double> get heightAnimation => _heightAnimation;
 
 
   @override
@@ -41,15 +38,8 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
 
     _scaleAnimation = Tween<double>(begin: 0, end: 1.0).animate(animationController);
 
-    // Tall enough for cover thumbnail + title/artist lines.
-    _heightAnimation = Tween<double>(begin: 10.0, end: 90.0).animate(
-        CurvedAnimation(
-            parent: animationController, curve: Curves.easeOutBack));
-
     final args = Get.arguments as (Album?, String);
     fetchAlbumDetails(args.$1, args.$2);
-    Future.delayed(const Duration(milliseconds: 200),
-        () => Get.find<HomeScreenController>().whenHomeScreenOnTop());
   }
 
   @override
@@ -80,10 +70,18 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
         // it here, or the player and other screens using it fail mid-write.
       }
       checkDownloadStatus();
-      isContentFetched.value = true;
     } catch (e) {
       // Handle any errors that occur during the fetch
       printERROR("Error fetching album details: $e");
+      final ctx = Get.context;
+      if (!isClosed && ctx != null && ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+            snackbar(ctx, "networkError".tr, size: SanckBarSize.MEDIUM));
+      }
+    } finally {
+      // As on the playlist page: a failed load must not leave the track
+      // list shimmering forever.
+      if (!isClosed) isContentFetched.value = true;
     }
   }
 
@@ -136,7 +134,6 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
   void onClose() {
     tempListContainer.clear();
     _animationController.dispose();
-    Get.find<HomeScreenController>().whenHomeScreenOnTop();
     super.onClose();
   }
 

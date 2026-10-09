@@ -30,9 +30,6 @@ double podcastSubsCoverSize(double maxWidth, int columns) {
       columns;
 }
 
-double podcastSubsMainAxisExtent(double coverSize) =>
-    coverSize + RiffSpacing.sm + kPodcastSubsTextBlock;
-
 SliverGridDelegate podcastSubsGridDelegate(double width,
     {TextScaler textScaler = TextScaler.noScaling}) {
   final columns = podcastSubsColumnCount(width);

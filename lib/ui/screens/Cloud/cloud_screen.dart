@@ -174,6 +174,10 @@ class _CloudLibraryViewState extends State<_CloudLibraryView> {
   CloudSearchResult? _searchResult;
   bool _searchLoading = false;
 
+  /// Bumped by every search and by clearing it: a search still running
+  /// then must not bring its results (or its spinner) back.
+  int _searchSeq = 0;
+
   @override
   void dispose() {
     _search.dispose();
@@ -182,24 +186,35 @@ class _CloudLibraryViewState extends State<_CloudLibraryView> {
 
   Future<void> _runSearch(String query) async {
     final q = query.trim();
+    final seq = ++_searchSeq;
     if (q.isEmpty) {
-      setState(() => _searchResult = null);
+      setState(() {
+        _searchResult = null;
+        _searchLoading = false;
+      });
       return;
     }
     setState(() => _searchLoading = true);
+    CloudSearchResult res;
     try {
-      final res = await Get.find<CloudMusicService>().search(q);
-      if (mounted) setState(() => _searchResult = res);
+      res = await Get.find<CloudMusicService>().search(q);
     } catch (_) {
-      if (mounted) setState(() => _searchResult = CloudSearchResult());
-    } finally {
-      if (mounted) setState(() => _searchLoading = false);
+      res = CloudSearchResult();
     }
+    if (!mounted || seq != _searchSeq) return;
+    setState(() {
+      _searchResult = res;
+      _searchLoading = false;
+    });
   }
 
   void _clearSearch() {
     _search.clear();
-    setState(() => _searchResult = null);
+    _searchSeq++;
+    setState(() {
+      _searchResult = null;
+      _searchLoading = false;
+    });
   }
 
   @override
@@ -507,9 +522,11 @@ class _SongsView extends StatelessWidget {
         return _EmptyState(
             icon: Icons.music_note_outlined, text: 'cloudNoSongs'.tr);
       }
+      // One copy per build, not one per row built while scrolling.
+      final list = cloud.songs.toList();
       return ListView.builder(
         padding: const EdgeInsets.only(bottom: 200, right: 8),
-        itemCount: cloud.songs.length + 1,
+        itemCount: list.length + 1,
         itemBuilder: (context, i) {
           if (i == 0) {
             // Random slice of the library — re-roll on demand.
@@ -525,7 +542,7 @@ class _SongsView extends StatelessWidget {
                     tooltip: 'playAll'.tr,
                     icon: const Icon(Icons.play_arrow_rounded, size: 22),
                     onPressed: () => playCloudSongsOrNotify(
-                      cloud.toMediaItems(cloud.songs.toList()),
+                      cloud.toMediaItems(list),
                       shuffle: false,
                     ),
                   ),
@@ -538,7 +555,6 @@ class _SongsView extends StatelessWidget {
               ),
             );
           }
-          final list = cloud.songs.toList();
           return CloudSongTile(songs: list, index: i - 1);
         },
       );

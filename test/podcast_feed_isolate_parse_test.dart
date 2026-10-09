@@ -78,6 +78,33 @@ void main() {
     expect(remote, local);
   });
 
+  test('an empty guid falls back to the enclosure URL', () {
+    // Both used to get the id of '' and share progress / played state.
+    const feed = '''<rss><channel><title>S</title>
+<item><title>A</title><guid></guid><enclosure url="https://example.com/a.mp3"/></item>
+<item><title>B</title><guid isPermaLink="false"> </guid><enclosure url="https://example.com/b.mp3"/></item>
+</channel></rss>''';
+    final eps = parsePodcastFeed(feed, 'S', '');
+    expect(eps[0]['id'], 'podcast_${'https://example.com/a.mp3'.hashCode}');
+    expect(eps[1]['id'], 'podcast_${'https://example.com/b.mp3'.hashCode}');
+  });
+
+  test('one item with an impossible date does not drop the feed', () {
+    // Used to throw a RangeError from the date label, so the show listed
+    // no episodes at all.
+    const feed = '''<rss><channel><title>S</title>
+<item><title>Bad date</title><guid>b</guid><pubDate>2026-13-01</pubDate>
+<enclosure url="https://example.com/b.mp3"/></item>
+<item><title>Good</title><guid>g</guid><pubDate>2026-07-19T08:00:00Z</pubDate>
+<enclosure url="https://example.com/g.mp3"/></item>
+</channel></rss>''';
+    final eps = parsePodcastFeed(feed, 'S', '');
+    expect(eps.map((e) => e['title']), ['Bad date', 'Good']);
+    expect(eps[0]['date'], '2026-13-01');
+    expect(eps[0]['pubDateMs'], 0);
+    expect(eps[1]['date'], '19 Jul 2026');
+  });
+
   test('malformed XML throws', () {
     expect(() => parsePodcastFeed('<rss><channel>', 'S', ''),
         throwsA(anything));

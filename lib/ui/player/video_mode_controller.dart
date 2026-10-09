@@ -16,6 +16,7 @@ import '/utils/helper.dart';
 import '/utils/media_item_video.dart';
 import 'mpv_video_engine.dart';
 import 'player_controller.dart';
+import 'progress_ui_throttle.dart';
 import 'video_engine.dart';
 import 'video_handoff.dart';
 
@@ -53,6 +54,7 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
   String? _activeSongId;
   final List<StreamSubscription> _subs = [];
   Worker? _songWorker;
+  final _bufferedUi = BufferedUiThrottle();
 
   /// Engine currently holding the video frames (null when inactive).
   VideoEngine? get engine => isActive.value ? _engine : null;
@@ -305,6 +307,13 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
     }));
     _subs.add(e.bufferStream.listen((buf) {
       if (!isActive.value) return;
+      // ExoPlayer reports the buffer with every 250 ms position tick, mostly
+      // unchanged; each update rebuilds every progress widget.
+      if (!_bufferedUi.shouldUpdate(
+          buffered: buf,
+          previousUiBuffered: _pc.progressBarStatus.value.buffered)) {
+        return;
+      }
       _pc.progressBarStatus.update((val) {
         val!.buffered = buf;
       });
@@ -351,13 +360,17 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
   /// resolved stream if fresh, else a fresh resolve at the user's
   /// streaming-quality setting.
   Future<String?> _audioUrlFor(String songId) async {
-    final quality = Hive.box('AppPrefs').get('streamingQuality') ?? 1;
+    // Data saver included, as in the audio pipeline.
+    final prefs = Hive.box('AppPrefs');
+    final quality = streamingQualityIndex(
+        dataSaver: prefs.get('dataSaver'),
+        streamingQuality: prefs.get('streamingQuality'));
     try {
       if (Hive.isBoxOpen('SongsUrlCache')) {
         final cached = Hive.box('SongsUrlCache').get(songId);
         if (cached is Map && cached['playable'] == true) {
           final data = HMStreamingData.fromJson(cached)
-            ..setQualityIndex(quality is int ? quality : 1);
+            ..setQualityIndex(quality);
           final url = data.audio?.url;
           if (url != null && !isExpired(url: url)) return url;
         }

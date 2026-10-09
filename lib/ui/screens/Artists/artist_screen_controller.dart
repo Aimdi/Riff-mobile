@@ -11,10 +11,8 @@ import '../../../utils/helper.dart';
 import '../Library/library_controller.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/music_service.dart';
-import '/ui/screens/Home/home_screen_controller.dart';
 
-class ArtistScreenController extends GetxController
-    with GetSingleTickerProviderStateMixin {
+class ArtistScreenController extends GetxController {
   final isArtistContentFetced = false.obs;
 
   /// The artist could not be loaded (offline, or not an artist channel).
@@ -22,7 +20,6 @@ class ArtistScreenController extends GetxController
   String _artistId = '';
   final navigationRailCurrentIndex = 0.obs;
   final musicServices = Get.find<MusicServices>();
-  final railItems = <String>[].obs;
   final artistData = <String, dynamic>{}.obs;
   final sepataredContent = <String, dynamic>{}.obs;
   final isSeparatedArtistContentFetced = false.obs;
@@ -36,32 +33,12 @@ class ArtistScreenController extends GetxController
   bool continuationInProgress = false;
   late Artist artist_;
   Map<String, List> tempListContainer = {};
-  TabController? tabController;
-  bool isTabTransitionReversed = false;
 
   @override
   void onInit() {
     final args = Get.arguments;
     _init(args[0], args[1]);
-    if (GetPlatform.isDesktop) {
-      tabController = TabController(vsync: this, length: 5);
-      tabController?.animation?.addListener(() {
-        int indexChange = tabController!.offset.round();
-        int index = tabController!.index + indexChange;
-
-        if (index != navigationRailCurrentIndex.value) {
-          onDestinationSelected(index);
-          navigationRailCurrentIndex.value = index;
-        }
-      });
-    }
     super.onInit();
-  }
-
-  @override
-  void onReady() {
-    Get.find<HomeScreenController>().whenHomeScreenOnTop();
-    super.onReady();
   }
 
   _init(bool isIdOnly, dynamic artist) {
@@ -130,8 +107,12 @@ class ArtistScreenController extends GetxController
     }
   }
 
+  /// List loads in flight, by tab: opening a tab again while it is still
+  /// loading waits for that request instead of sending a second one (and
+  /// stacking a second load-more listener).
+  final Map<String, Future<void>> _tabLoads = {};
+
   Future<void> onDestinationSelected(int val) async {
-    isTabTransitionReversed = val > navigationRailCurrentIndex.value;
     navigationRailCurrentIndex.value = val;
     final tabName = ["About", "Songs", "Videos", "Albums", "Singles"][val];
 
@@ -142,19 +123,38 @@ class ArtistScreenController extends GetxController
     }
 
     //skip for about page
-    if (val == 0 || sepataredContent.containsKey(tabName)) return;
+    if (val == 0) return;
+    if (sepataredContent.containsKey(tabName)) {
+      // Already loaded: another tab's load still running must not keep
+      // this list behind the shimmer.
+      isSeparatedArtistContentFetced.value = true;
+      return;
+    }
     if (artistData[tabName] == null) {
       isSeparatedArtistContentFetced.value = true;
       return;
     }
     isSeparatedArtistContentFetced.value = false;
+    await (_tabLoads[tabName] ??= _loadTab(val, tabName).whenComplete(() {
+      _tabLoads.remove(tabName);
+    }));
+    // A slower load for a tab the user has left doesn't mark the tab now
+    // on screen as loaded.
+    if (!isClosed && navigationRailCurrentIndex.value == val) {
+      isSeparatedArtistContentFetced.value = true;
+    }
+  }
 
+  Future<void> _loadTab(int val, String tabName) async {
     //check if params available for continuation
     //tab browse endpoint & top result stored in [artistData], tabContent & addtionalParams for continuation stored in Separated Content
     if ((artistData[tabName]).containsKey("params")) {
       try {
-        sepataredContent[tabName] = await musicServices
-            .getArtistRealtedContent(artistData[tabName], tabName);
+        final content = await musicServices.getArtistRealtedContent(
+            artistData[tabName], tabName);
+        // Closed meanwhile: its scroll controllers are disposed.
+        if (isClosed) return;
+        sepataredContent[tabName] = content;
       } catch (e) {
         // Fall back to the overview shelf instead of loading forever.
         printERROR('Artist "$tabName" list failed: $e');
@@ -162,17 +162,15 @@ class ArtistScreenController extends GetxController
           "results": List.from(artistData[tabName]['content'] ?? const []),
           "additionalParams": '&ctoken=null&continuation=null',
         };
-        isSeparatedArtistContentFetced.value = true;
         return;
       }
     } else {
       sepataredContent[tabName] = {"results": artistData[tabName]['content']};
-      isSeparatedArtistContentFetced.value = true;
       return;
     }
 
-    // observered - continuation available only for song & vid
-    if (val != 0) {
+    // Loads the next page once the list is scrolled halfway. A loaded tab
+    // is never fetched again, so this runs once per tab.
     final scrollController = val == 1
         ? songScrollController
         : val == 2
@@ -193,8 +191,6 @@ class ArtistScreenController extends GetxController
         }
       }
     });
-   }
-    isSeparatedArtistContentFetced.value = true;
   }
 
   Future<void> getContinuationContents(browseEndpoint, tabName) async {
@@ -324,8 +320,6 @@ class ArtistScreenController extends GetxController
     videoScrollController.dispose();
     albumScrollController.dispose();
     singlesScrollController.dispose();
-    tabController?.dispose();
-    Get.find<HomeScreenController>().whenHomeScreenOnTop();
     super.onClose();
   }
 }

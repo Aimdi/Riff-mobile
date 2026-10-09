@@ -15,7 +15,6 @@ import '../../widgets/image_widget.dart';
 import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/song_list_tile.dart';
-import '../../widgets/songinfo_bottom_sheet.dart';
 import '../../widgets/sort_widget.dart';
 import 'album_screen_controller.dart';
 
@@ -152,7 +151,12 @@ class AlbumScreen extends StatelessWidget {
                                       : 160,
                               bottom: 200,
                             ),
-                            itemCount: albumController.songList.isEmpty
+                            // isContentFetched is read first (|| would skip
+                            // it while the list is empty), so an album that
+                            // loads empty or fails leaves the shimmer.
+                            itemCount: albumController
+                                        .isContentFetched.isFalse ||
+                                    albumController.songList.isEmpty
                                 ? 4
                                 : albumController.songList.length + 3,
                             itemBuilder: (_, index) {
@@ -351,16 +355,6 @@ class AlbumScreen extends StatelessWidget {
                 "https://youtube.com/playlist?list=${albumController.album.value.audioPlaylistId}")),
       ],
     );
-  }
-
-  Future openBottomSheet(BuildContext context, MediaItem song) {
-    return showModalBottomSheet(
-      useRootNavigator: true,
-      constraints: const BoxConstraints(maxWidth: 500),
-      isScrollControlled: true,
-      context: context,
-      builder: (context) => SongInfoBottomSheet(song),
-    ).whenComplete(() => Get.delete<SongInfoController>());
   }
 }
 

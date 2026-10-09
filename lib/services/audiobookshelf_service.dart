@@ -392,11 +392,31 @@ class AudiobookshelfService extends GetxService {
       int maxPages = 40,
       String? libraryId}) async {
     _ensureConnected();
+    await _fetchBooks(
+        page: page,
+        limit: limit,
+        maxPages: maxPages,
+        libraryId: libraryId,
+        load: page == 0 ? ++_booksLoad : _booksLoad);
+  }
+
+  /// Bumped when a library load starts over (first page) and by every
+  /// search: pages of an older load must not land on a newer list (a
+  /// search's results got the rest of the library appended to them).
+  int _booksLoad = 0;
+
+  Future<void> _fetchBooks(
+      {required int page,
+      required int limit,
+      required int maxPages,
+      required String? libraryId,
+      required int load}) async {
     // Pages carry the library they started with: re-reading the selection
     // per page mixed two libraries if the user switched mid-load.
     final libId = libraryId ?? selectedLibraryId.value;
     if (libId.isEmpty) return;
     if (libId != selectedLibraryId.value) return; // selection changed; stop
+    if (load != _booksLoad) return; // a newer load or search took over
     isLoading.value = true;
     try {
       final res = await _dio.get(
@@ -410,9 +430,9 @@ class AudiobookshelfService extends GetxService {
         },
         options: _authOptions,
       );
-      // The user switched libraries while this page was in flight: drop it
-      // (the new selection's own load owns `books` now).
-      if (libId != selectedLibraryId.value) return;
+      // The user switched libraries (or searched) while this page was in
+      // flight: drop it (the newer load owns `books` now).
+      if (libId != selectedLibraryId.value || load != _booksLoad) return;
       final results = res.data is Map ? res.data['results'] : null;
       final list = <AbsBook>[];
       if (results is List) {
@@ -446,11 +466,12 @@ class AudiobookshelfService extends GetxService {
       // truncated with no indication anything was missing.
       if (list.length >= limit) {
         if (page + 1 < maxPages) {
-          await fetchBooks(
+          await _fetchBooks(
               page: page + 1,
               limit: limit,
               maxPages: maxPages,
-              libraryId: libId);
+              libraryId: libId,
+              load: load);
         } else {
           printINFO(
               'ABS: stopped paging at $maxPages pages; library list truncated');
@@ -459,7 +480,7 @@ class AudiobookshelfService extends GetxService {
     } catch (e) {
       // Never leave a failure looking like an empty library: the shelf would
       // tell the user they own no books when in fact nothing was fetched.
-      if (page == 0 && libId == selectedLibraryId.value) {
+      if (page == 0 && libId == selectedLibraryId.value && load == _booksLoad) {
         loadError.value = _describeLoadError(e);
         books.clear();
         inProgressBooks.clear();
@@ -467,7 +488,9 @@ class AudiobookshelfService extends GetxService {
       printERROR('ABS library load failed: $e');
     } finally {
       // A superseded load must not hide the new selection's spinner.
-      if (libId == selectedLibraryId.value) isLoading.value = false;
+      if (libId == selectedLibraryId.value && load == _booksLoad) {
+        isLoading.value = false;
+      }
     }
   }
 
@@ -574,6 +597,7 @@ class AudiobookshelfService extends GetxService {
       await fetchBooks();
       return;
     }
+    final load = ++_booksLoad;
     isLoading.value = true;
     try {
       final res = await _dio.get(
@@ -581,6 +605,7 @@ class AudiobookshelfService extends GetxService {
         queryParameters: {'q': query.trim(), 'limit': 40},
         options: _authOptions,
       );
+      if (load != _booksLoad) return; // a newer search or load took over
       final list = <AbsBook>[];
       final bookHits = res.data is Map ? res.data['book'] : null;
       if (bookHits is List) {
@@ -605,8 +630,12 @@ class AudiobookshelfService extends GetxService {
         }
       }
       books.assignAll(list);
+    } catch (e) {
+      // Called straight from the search field: an error here went nowhere
+      // (unhandled). The list on screen stays as it was.
+      printERROR('ABS search failed: $e');
     } finally {
-      isLoading.value = false;
+      if (load == _booksLoad) isLoading.value = false;
     }
   }
 

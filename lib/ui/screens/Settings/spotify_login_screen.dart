@@ -40,10 +40,7 @@ class _SpotifyLoginScreenState extends State<SpotifyLoginScreen> {
     }
 
     _verifier = SpotifyAuthService.generateCodeVerifier();
-    // The app can be killed while the user is on Spotify's login page, so the
-    // verifier is persisted rather than held only in memory.
-    SpotifyAuthService.stashVerifier(_verifier);
-    _state = SpotifyAuthService.generateCodeVerifier(length: 43);
+    _state =SpotifyAuthService.generateCodeVerifier(length: 43);
 
     final url = SpotifyAuthService.buildAuthUrl(
       clientId: clientId,
@@ -80,7 +77,6 @@ class _SpotifyLoginScreenState extends State<SpotifyLoginScreen> {
         code: result.code!,
         verifier: _verifier,
       );
-      SpotifyAuthService.takeStashedVerifier();
       if (mounted) Get.back(result: true);
     } catch (e) {
       _error.value = e.toString().replaceFirst('Exception: ', '');

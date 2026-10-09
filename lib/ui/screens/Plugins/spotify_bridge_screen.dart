@@ -89,12 +89,11 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
 
   Future<void> _saveClientId() async {
     await SpotifyAuthService.setClientId(_clientIdController.text);
+    if (!mounted) return;
     setState(() {});
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(snackbar(
-          context, 'spotifyClientIdSaved'.tr,
-          size: SanckBarSize.MEDIUM));
-    }
+    ScaffoldMessenger.of(context).showSnackBar(snackbar(
+        context, 'spotifyClientIdSaved'.tr,
+        size: SanckBarSize.MEDIUM));
   }
 
   Future<void> _signIn() async {
@@ -108,6 +107,7 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
       // A new (or the same) account: Home's Spotify shelves start over.
       await SpotifyHome.clear();
       SpotifyHome.refresh(force: true);
+      if (!mounted) return;
       setState(() {
         _connected = true;
         _status.value = '';
@@ -122,6 +122,7 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
     await SpotifyConnect.forgetAccount();
     await SpotifyApiService.clearCache();
     await SpotifyHome.clear();
+    if (!mounted) return;
     setState(() {
       _connected = false;
       _status.value = '';

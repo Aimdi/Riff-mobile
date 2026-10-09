@@ -155,16 +155,19 @@ class MediaItemBuilder {
       if (sec > 0) return Duration(seconds: sec);
     }
 
+    // tryParse: this runs for every song read back from Hive, and one
+    // malformed "length" used to throw and lose the whole list it was in.
     int sec = 0;
-    final splitted = time.split(":");
-    if (splitted.length == 3) {
-      sec += int.parse(splitted[0]) * 3600 +
-          int.parse(splitted[1]) * 60 +
-          int.parse(splitted[2]);
-    } else if (splitted.length == 2) {
-      sec += int.parse(splitted[0]) * 60 + int.parse(splitted[1]);
-    } else if (splitted.length == 1) {
-      sec += int.tryParse(splitted[0]) ?? 0;
+    final splitted =
+        time.split(":").map((p) => int.tryParse(p.trim())).toList();
+    if (splitted.length > 1 && splitted.contains(null)) return null;
+    final parts = splitted.map((p) => p ?? 0).toList();
+    if (parts.length == 3) {
+      sec += parts[0] * 3600 + parts[1] * 60 + parts[2];
+    } else if (parts.length == 2) {
+      sec += parts[0] * 60 + parts[1];
+    } else if (parts.length == 1) {
+      sec += parts[0];
     }
     return Duration(seconds: sec);
   }
@@ -172,15 +175,15 @@ class MediaItemBuilder {
   static Map<String, dynamic> toJson(MediaItem mediaItem) => {
         "videoId": mediaItem.id,
         "title": mediaItem.title,
-        'album': mediaItem.extras!['album'],
-        'artists': mediaItem.extras!['artists'],
-        'length': mediaItem.extras!['length'],
+        'album': mediaItem.extras?['album'],
+        'artists': mediaItem.extras?['artists'],
+        'length': mediaItem.extras?['length'],
         'duration': mediaItem.duration?.inSeconds,
-        'date': mediaItem.extras!['date'],
+        'date': mediaItem.extras?['date'],
         'thumbnails': [
           {'url': mediaItem.artUri.toString()}
         ],
-        'url': mediaItem.extras!['url'],
+        'url': mediaItem.extras?['url'],
         'trackDetails': mediaItem.extras?['trackDetails'],
         'year': mediaItem.extras?['year'],
         'videoType': mediaItem.extras?['videoType'],

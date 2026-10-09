@@ -48,11 +48,39 @@ void showBookmarkSavedSnack(BuildContext context, PodcastBookmark bm) {
 }
 
 Future<void> editBookmarkNote(BuildContext context, PodcastBookmark bm) async {
-  final ctrl = TextEditingController(text: bm.note ?? '');
-  final saved = await showDialog<bool>(
+  final note = await showDialog<String>(
     context: context,
     useRootNavigator: true,
-    builder: (d) => CommonDialog(
+    builder: (_) => _BookmarkNoteDialog(bm),
+  );
+  if (note != null) await PodcastBookmarkStore.setNote(bm, note);
+}
+
+/// The note editor. Owns its text controller: disposing it as soon as
+/// showDialog returned (the dialog is still animating out, its field still
+/// focused) threw "A TextEditingController was used after being disposed".
+/// Pops with the text on Save, null on Cancel.
+class _BookmarkNoteDialog extends StatefulWidget {
+  const _BookmarkNoteDialog(this.bm);
+  final PodcastBookmark bm;
+
+  @override
+  State<_BookmarkNoteDialog> createState() => _BookmarkNoteDialogState();
+}
+
+class _BookmarkNoteDialogState extends State<_BookmarkNoteDialog> {
+  late final _ctrl = TextEditingController(text: widget.bm.note ?? '');
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext d) {
+    final bm = widget.bm;
+    return CommonDialog(
       child: Padding(
         padding: const EdgeInsets.only(
             left: RiffSpacing.xl,
@@ -69,7 +97,7 @@ Future<void> editBookmarkNote(BuildContext context, PodcastBookmark bm) async {
                 subtitle: bm.quote.isEmpty ? null : '“${bm.quote}”'),
             const SizedBox(height: RiffSpacing.md),
             TextField(
-              controller: ctrl,
+              controller: _ctrl,
               autofocus: true,
               minLines: 2,
               maxLines: 5,
@@ -81,16 +109,14 @@ Future<void> editBookmarkNote(BuildContext context, PodcastBookmark bm) async {
             ),
             const SizedBox(height: RiffSpacing.sm),
             RiffDialogButton('save'.tr,
-                onPressed: () => Navigator.of(d).pop(true)),
+                onPressed: () => Navigator.of(d).pop(_ctrl.text)),
             RiffDialogButton('cancel'.tr,
-                primary: false, onPressed: () => Navigator.of(d).pop(false)),
+                primary: false, onPressed: () => Navigator.of(d).pop()),
           ],
         ),
       ),
-    ),
-  );
-  if (saved == true) await PodcastBookmarkStore.setNote(bm, ctrl.text);
-  ctrl.dispose();
+    );
+  }
 }
 
 Future<void> _removeWithUndo(BuildContext context, PodcastBookmark bm) async {

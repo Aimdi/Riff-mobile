@@ -1,3 +1,59 @@
+# 1.7.150
+
+A clean-up release: bugs, memory and speed across the whole app, and
+about 2,300 lines of code that did nothing removed. Nothing looks
+different.
+
+**Playback**
+* Editing the queue (remove, reorder, shuffle) while a song was loading
+  could drop that song, leaving nothing playing and the app stuck on
+  "loading"
+* "Remove from queue" from an older menu no longer moves you to the
+  wrong song
+* Radio / Wave running out while offline no longer breaks every skip
+* Android Auto: Daily Mixes and Fresh finds play again
+* "Never play this" now also applies to radio, Up Next and Home's song
+  shelves
+* Smart queue (Settings) now actually works after starting the app:
+  when two or fewer songs are left it adds a few similar ones. You can
+  turn it off in Settings
+* Video mode follows Data saver
+* Audiobookshelf gets the right book length when you switch to music
+
+**Podcasts and audiobooks**
+* YouTube Music podcast episodes no longer show lengths like 56 hours
+* A feed with one bad date no longer shows "No episodes"
+* Episodes without an id in their feed no longer share progress and
+  downloads
+* Pull-to-refresh and Discover search can't be overwritten by an older,
+  slower load
+* Tapping Download twice no longer breaks the download
+* One unreachable feed no longer holds up the whole Inbox for minutes
+* Saving or cancelling a bookmark note no longer throws an error
+* Audiobookshelf search while the library loads shows only results
+
+**Everywhere else**
+* Albums and playlists that fail to load show the error instead of
+  loading forever
+* Switching search filters quickly no longer crashes the results
+* The new-playlist name no longer clears itself while you type
+* Play on a tile while offline opens the page instead of doing nothing
+* The app follows the system's light/dark setting correctly again
+* Lyrics fall back to the next provider when LRCLIB answers oddly
+* Soulseek downloads finish (they used to wait 30 minutes and fail)
+* Spotify: the first play after launch uses your saved match; the
+  remote panel stops polling in the background
+* Settings search no longer keeps an invisible filter when you come back
+
+**Memory and speed**
+* Player, link handling and other listeners are released properly
+* Caches that grew forever are capped (covers, transcripts, SponsorBlock,
+  Spotify, Soulseek, the diagnostics log)
+* Large transcripts are read in the background; Home does half the work
+  on each track change; video mode redraws the progress bar less often
+* Startup runs its steps independently and reads secure storage
+  alongside the database
+
 # 1.7.149
 
 **Riff Wave lives in Discover**

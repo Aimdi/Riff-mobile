@@ -149,11 +149,6 @@ class ExoVideoEngine implements VideoEngine {
     });
   }
 
-  /// Audio session of the native player (to bind audio effects to video
-  /// mode), or null before [open].
-  Future<int?> audioSessionId() =>
-      _methods.invokeMethod<int>('audioSessionId');
-
   @override
   Future<void> play() => _methods.invokeMethod('play');
 

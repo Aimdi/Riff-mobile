@@ -428,23 +428,3 @@ class PlayerVideoEnableButton extends StatelessWidget {
     );
   }
 }
-
-/// Compact toggle used when video is hidden (audio-only mode for a video item).
-class PlayerVideoShowChip extends StatelessWidget {
-  const PlayerVideoShowChip({super.key, required this.onShow});
-
-  final VoidCallback onShow;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton.icon(
-      onPressed: onShow,
-      icon: const Icon(Icons.videocam_outlined, size: 18),
-      label: Text('videoShow'.tr),
-      style: TextButton.styleFrom(
-        visualDensity: VisualDensity.compact,
-        textStyle: Theme.of(context).textTheme.labelMedium,
-      ),
-    );
-  }
-}

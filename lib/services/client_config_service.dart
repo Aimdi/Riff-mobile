@@ -128,10 +128,13 @@ class ClientConfigService {
   }
 
   static Future<void> _fetchAndStore({bool forced = false}) async {
+    // Closed below: a Dio per fetch that is never closed keeps its
+    // HttpClient (and idle socket) around after every refresh.
+    final dio = Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 10),
+    ));
     try {
-      final res = await Dio(BaseOptions(
-        connectTimeout: const Duration(seconds: 10),
-      )).get(_url,
+      final res = await dio.get(_url,
           options: Options(
               responseType: ResponseType.plain,
               receiveTimeout: const Duration(seconds: 10)));
@@ -160,6 +163,8 @@ class ClientConfigService {
           : "Stream client config refreshed from repo");
     } catch (e) {
       printERROR("Stream client config refresh failed: $e");
+    } finally {
+      dio.close();
     }
   }
 }

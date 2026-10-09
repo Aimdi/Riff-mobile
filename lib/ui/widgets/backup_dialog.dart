@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
@@ -169,26 +168,6 @@ class BackupDialogController extends GetxController {
       printERROR('Error during compression: $e');
     });
   }
-}
-
-// Function to convert file paths to base64-encoded file data
-List<String> filePathsToBase64(List<String> filePaths) {
-  List<String> base64Data = [];
-
-  for (String path in filePaths) {
-    try {
-      // Read the file data as bytes
-      File file = File(path);
-      List<int> fileData = file.readAsBytesSync();
-      // Convert bytes to base64
-      String base64String = base64Encode(fileData);
-      base64Data.add(base64String);
-    } catch (e) {
-      printERROR('Error reading file $path: $e');
-    }
-  }
-
-  return base64Data;
 }
 
 // Function to convert file paths to file data (List<int>)

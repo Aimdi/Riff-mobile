@@ -11,6 +11,7 @@ import '/utils/helper.dart';
 class SmartQueueService extends GetxService {
   Worker? _queueWorker;
   Worker? _songWorker;
+  PlayerController? _player;
   bool _injecting = false;
   DateTime _lastInject = DateTime.fromMillisecondsSinceEpoch(0);
 
@@ -19,10 +20,25 @@ class SmartQueueService extends GetxService {
   }
 
   void attach(PlayerController player) {
-    _queueWorker?.dispose();
-    _songWorker?.dispose();
+    _disposeWorkers();
+    _player = player;
     _queueWorker = ever(player.currentQueue, (_) => _maybeInject(player));
     _songWorker = ever(player.currentSong, (_) => _maybeInject(player));
+  }
+
+  /// Stop following [player] (it is closing), unless another player has
+  /// attached since.
+  void detach(PlayerController player) {
+    if (!identical(_player, player)) return;
+    _disposeWorkers();
+    _player = null;
+  }
+
+  void _disposeWorkers() {
+    _queueWorker?.dispose();
+    _songWorker?.dispose();
+    _queueWorker = null;
+    _songWorker = null;
   }
 
   bool get enabled => Hive.box('AppPrefs').get('smartQueueInjection') ?? true;
@@ -38,7 +54,9 @@ class SmartQueueService extends GetxService {
       return;
     }
     final q = player.currentQueue;
-    final idx = player.currentSongIndex.value;
+    // Not player.currentSongIndex: the player sets it after currentSong, so
+    // on a song change it still points at the previous song.
+    final idx = q.indexWhere((e) => e.id == song.id);
     if (idx < 0) return;
     final remaining = q.length - idx - 1;
     if (remaining > 2) return;
@@ -69,8 +87,8 @@ class SmartQueueService extends GetxService {
 
   @override
   void onClose() {
-    _queueWorker?.dispose();
-    _songWorker?.dispose();
+    _disposeWorkers();
+    _player = null;
     super.onClose();
   }
 }

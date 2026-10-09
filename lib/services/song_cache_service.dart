@@ -95,8 +95,9 @@ class SongCacheService {
       final name = entity.uri.pathSegments.isEmpty
           ? ''
           : entity.uri.pathSegments.last;
+      // LockCachingAudioSource's `<id>.mp3.part` / `.mp3.mime` side files
+      // don't end in .mp3.
       if (!name.endsWith('.mp3')) continue;
-      if (name.endsWith('.mp3.part') || name.contains('.mime')) continue;
       final id = name.substring(0, name.length - 4);
       if (id.isEmpty) continue;
       try {
@@ -119,8 +120,12 @@ class SongCacheService {
   Future<void> _deleteCachedSong(String id) async {
     final dir = await cachedSongsDir();
     final file = File('${dir.path}/$id.mp3');
+    // LockCachingAudioSource writes the content type to `<file>.mime` next
+    // to every cached song; left behind, one piled up per evicted song.
+    final mimeFile = File('${file.path}.mime');
     try {
       if (await file.exists()) await file.delete();
+      if (await mimeFile.exists()) await mimeFile.delete();
     } catch (e) {
       printERROR('song cache delete file failed ($id): $e');
     }

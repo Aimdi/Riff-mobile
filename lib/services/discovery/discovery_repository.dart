@@ -73,12 +73,14 @@ class DiscoveryRepository {
   }
 
   List<DiscoveryEvent> recentEvents({int limit = 500}) {
-    final values = _events.values.toList();
-    final start = values.length > limit ? values.length - limit : 0;
-    return values
-        .sublist(start)
-        .map((e) => DiscoveryEvent.fromJson(Map.from(e as Map)))
-        .toList();
+    // Indexed reads of just the tail: copying `values` materialised every
+    // stored event (up to [maxEvents]) on each call.
+    final length = _events.length;
+    final start = length > limit ? length - limit : 0;
+    return [
+      for (var i = start; i < length; i++)
+        DiscoveryEvent.fromJson(Map.from(_events.getAt(i) as Map)),
+    ];
   }
 
   Future<void> pruneEvents() async {
@@ -303,17 +305,6 @@ class DiscoveryRepository {
     return TrackListenStats.fromMap(Map<String, dynamic>.from(prev));
   }
 
-  double familiarityOf(String videoId, {DateTime? now}) {
-    final prev = _trackStats.get(videoId);
-    if (prev is! Map) return 0;
-    final decayedPlays = (prev['decayedPlays'] as num?)?.toDouble() ?? 0;
-    final lastTs = prev['lastPlayedTs'] as int? ?? 0;
-    final n = now ?? DateTime.now();
-    final elapsed =
-        Duration(milliseconds: n.millisecondsSinceEpoch - lastTs);
-    return decayed(decayedPlays, elapsed, familiarityHalfLife);
-  }
-
   int? lastPlayedTs(String videoId) {
     final prev = _trackStats.get(videoId);
     if (prev is! Map) return null;
@@ -530,8 +521,6 @@ class DiscoveryRepository {
 
   Future<void> unfollowArtist(String channelId) => _follows.delete(channelId);
 
-  bool isFollowed(String channelId) => _follows.containsKey(channelId);
-
   List<Map<String, dynamic>> followedArtists() {
     return _follows.keys
         .map((k) {
@@ -596,14 +585,5 @@ class DiscoveryRepository {
     }
     await setPref('backfilledFromStats', true);
     return count;
-  }
-
-  Future<void> seedSessionCooccurrence(List<String> videoIdsInOrder) async {
-    for (var i = 0; i < videoIdsInOrder.length; i++) {
-      for (var j = i + 1; j < videoIdsInOrder.length && j < i + 6; j++) {
-        await bumpCooccurrence(videoIdsInOrder[i], videoIdsInOrder[j],
-            weight: 0.5);
-      }
-    }
   }
 }

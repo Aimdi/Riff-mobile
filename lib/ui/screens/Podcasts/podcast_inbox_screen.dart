@@ -33,16 +33,11 @@ import 'podcasts_library_controller.dart';
 class PodcastInboxScreen extends StatefulWidget {
   const PodcastInboxScreen({
     super.key,
-    this.embedded = false,
     this.onDiscover,
     this.refreshNonce = 0,
     this.filter,
     this.onFilterChanged,
   });
-
-  /// When true, render just the content (no Scaffold/AppBar) so it can be shown
-  /// inline inside the Podcasts library screen.
-  final bool embedded;
 
   /// Switches the parent to the Discover tab (shown on the empty state).
   final VoidCallback? onDiscover;
@@ -146,14 +141,26 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
         _subsKey(lib.libraryPodcasts.toList(), PodcastService.subscriptions));
   }
 
+  /// Bumped by every [_load]. Loads overlap (pull to refresh during the
+  /// header's refresh or the first load); only the newest may land.
+  int _loadGen = 0;
+
   Future<void> _load({bool force = false}) async {
+    final gen = ++_loadGen;
     // Two subscription sources: YouTube-Music library shows and iTunes/RSS
     // subscriptions (from Discover / categories). Merge both into the inbox.
     final lib = Get.find<LibraryPodcastsController>();
     final ytSubs = lib.libraryPodcasts.toList();
     final rssSubs = PodcastService.subscriptions;
     if (ytSubs.isEmpty && rssSubs.isEmpty) {
-      if (mounted) setState(() => _loading = false);
+      // Nothing followed any more: don't keep the old shows' episodes.
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _merged = const [];
+          _episodes = [];
+        });
+      }
       return;
     }
     final subsKey = _subsKey(ytSubs, rssSubs);
@@ -207,6 +214,9 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     ];
     final lists =
         await mapWithConcurrency(tasks, _fetchConcurrency, (t) => t());
+    // A newer load started meanwhile: its result (maybe for other
+    // subscriptions) wins; don't overwrite it or the stored Inbox.
+    if (gen != _loadGen) return;
     final merged = _mergeNewestFirst(lists.where((l) => l.isNotEmpty).toList());
     // Offline or every feed failed: keep what's on screen.
     if (merged.isEmpty && _merged.isNotEmpty) {
@@ -354,19 +364,9 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     return fmt.isEmpty ? '' : '$fmt ${'left'.tr}';
   }
 
+  /// Shown inline in the Podcasts tab (no page header of its own).
   @override
   Widget build(BuildContext context) {
-    final body = _body(context);
-    if (widget.embedded) return body;
-    return Scaffold(
-      body: Column(children: [
-        RiffPageHeader("podcastInbox".tr),
-        Expanded(child: body),
-      ]),
-    );
-  }
-
-  Widget _body(BuildContext context) {
     if (_loading) {
       return const SongListShimmer(itemCount: 8, topPadding: 8);
     }

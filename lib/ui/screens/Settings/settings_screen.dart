@@ -36,8 +36,7 @@ import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key, this.isBottomNavActive = false});
-  final bool isBottomNavActive;
+  const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -67,27 +66,31 @@ class SettingsScreen extends StatelessWidget {
           // ring on focus.
           SizedBox(
             height: RiffComponentSizes.searchField,
-            child: TextField(
-              onChanged: settingsController.setSettingsSearch,
-              textAlignVertical: TextAlignVertical.center,
-              style: theme.textTheme.bodyLarge
-                  ?.copyWith(color: scheme.onSurface),
-              decoration: InputDecoration(
-                hintText: 'settingsSearch'.tr,
-                hintStyle: theme.textTheme.bodyLarge
-                    ?.copyWith(color: scheme.onSurfaceVariant),
-                prefixIcon: Icon(Icons.search_rounded,
-                    size: RiffComponentSizes.trailingIcon,
-                    color: scheme.onSurfaceVariant),
-                filled: true,
-                fillColor: scheme.surfaceContainerLow,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                border: pillBorder,
-                enabledBorder: pillBorder,
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(RiffRadii.pill),
-                  borderSide: BorderSide(color: scheme.primary, width: 1),
+            child: SettingsSearchField(
+              query: settingsController.settingsSearch.value,
+              builder: (controller) => TextField(
+                controller: controller,
+                onChanged: settingsController.setSettingsSearch,
+                textAlignVertical: TextAlignVertical.center,
+                style: theme.textTheme.bodyLarge
+                    ?.copyWith(color: scheme.onSurface),
+                decoration: InputDecoration(
+                  hintText: 'settingsSearch'.tr,
+                  hintStyle: theme.textTheme.bodyLarge
+                      ?.copyWith(color: scheme.onSurfaceVariant),
+                  prefixIcon: Icon(Icons.search_rounded,
+                      size: RiffComponentSizes.trailingIcon,
+                      color: scheme.onSurfaceVariant),
+                  filled: true,
+                  fillColor: scheme.surfaceContainerLow,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                  border: pillBorder,
+                  enabledBorder: pillBorder,
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(RiffRadii.pill),
+                    borderSide: BorderSide(color: scheme.primary, width: 1),
+                  ),
                 ),
               ),
             ),
@@ -1267,7 +1270,7 @@ class SettingsScreen extends StatelessWidget {
                     contentPadding: settingsTilePadding,
                     title: Text("github".tr),
                     subtitle: Text(
-                      "${"githubDes".tr}${((Get.find<PlayerController>().playerPanelMinHeight.value) == 0 || !isBottomNavActive) ? "" : "\n\n${settingsController.currentVersion}"}",
+                      "githubDes".tr,
                       style: settingsSubtitleStyle(context),
                     ),
                     isThreeLine: true,

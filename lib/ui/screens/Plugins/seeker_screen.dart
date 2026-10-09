@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../Home/home_layout.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -21,8 +23,6 @@ class SeekerScreen extends StatelessWidget {
 
   /// When true, omit the full-screen chrome so it can sit inside Home search.
   final bool embedded;
-
-  static const seekerGithub = 'https://github.com/jackBonadies/SeekerAndroid';
 
   @override
   Widget build(BuildContext context) {
@@ -214,6 +214,12 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
   String? _downloadingKey;
   double? _downloadProgress;
 
+  /// Live hits arrive by the hundred; ranking every result again for each
+  /// one made long searches do quadratic work on the UI isolate. They are
+  /// re-ranked at most once per [hitRefresh] instead.
+  static const hitRefresh = Duration(milliseconds: 150);
+  Timer? _hitTimer;
+
   @override
   void initState() {
     super.initState();
@@ -231,6 +237,7 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
 
   @override
   void dispose() {
+    _hitTimer?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -249,6 +256,8 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
     final q = _searchCtrl.text.trim();
     if (q.isEmpty) return;
     final parsed = SoulseekQuery.parse(q, _mode);
+    _hitTimer?.cancel();
+    _hitTimer = null;
     setState(() {
       _loading = true;
       _error = null;
@@ -265,12 +274,15 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
         timeout: const Duration(seconds: 10),
         onHit: (hit) {
           if (!mounted) return;
-          setState(() {
-            _rawHits.add(hit);
-            _reproject();
+          _rawHits.add(hit);
+          _hitTimer ??= Timer(hitRefresh, () {
+            _hitTimer = null;
+            if (mounted) setState(_reproject);
           });
         },
       );
+      _hitTimer?.cancel();
+      _hitTimer = null;
       if (!mounted) return;
       setState(() {
         // Final pass in case anything arrived after last onHit paint.
@@ -281,8 +293,11 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
         _loading = false;
       });
     } catch (_) {
+      _hitTimer?.cancel();
+      _hitTimer = null;
       if (!mounted) return;
       setState(() {
+        _reproject();
         _loading = false;
         _error = 'soulseekSearchFailed'.tr;
       });
@@ -850,15 +865,18 @@ class _CoverThumbState extends State<_CoverThumb> {
   }
 
   Future<void> _load() async {
+    // Rows are reused as results re-rank: a lookup for the key this row
+    // showed before can finish after the current one and must not win.
+    final key = widget.lookupKey;
     try {
       final url = await widget.loader();
-      if (!mounted) return;
+      if (!mounted || key != widget.lookupKey) return;
       setState(() {
         _url = (url != null && url.isNotEmpty) ? url : null;
         _loading = false;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || key != widget.lookupKey) return;
       setState(() {
         _url = null;
         _loading = false;

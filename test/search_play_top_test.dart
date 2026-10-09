@@ -20,13 +20,6 @@ void main() {
     );
   });
 
-  test('search submit plays typed queries, not pasted URLs', () {
-    expect(shouldPlaySearchSubmit(''), isFalse);
-    expect(shouldPlaySearchSubmit('   '), isFalse);
-    expect(shouldPlaySearchSubmit('https://youtube.com/watch?v=x'), isFalse);
-    expect(shouldPlaySearchSubmit('radiohead'), isTrue);
-  });
-
   test('suggestion rows play on tap, same as Enter', () {
     expect(shouldPlaySearchItemOnTap(), isTrue);
   });

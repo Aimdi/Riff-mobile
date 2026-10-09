@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive/hive.dart';
 
@@ -16,6 +17,16 @@ class SecureCredentials {
 
   static final Map<String, String> _cache = {};
   static bool ready = false;
+  static Future<Map<String, String>>? _prefetched;
+
+  /// Starts the secure-storage read now so it overlaps other cold-start
+  /// work (main() opens the Hive boxes meanwhile); [init] uses its result.
+  static void prefetch() {
+    if (ready) return;
+    // ignore(): a failure is reported where init() awaits it, not as an
+    // unhandled error while nobody is listening yet.
+    _prefetched ??= _storage.readAll()..ignore();
+  }
 
   /// Flat AppPrefs keys migrated into secure storage.
   static const flatKeys = <String>[
@@ -40,7 +51,7 @@ class SecureCredentials {
     try {
       // One platform-channel round trip instead of a read per key (twice,
       // with the migration pass) — this sits on the cold-start path.
-      final stored = await _storage.readAll();
+      final stored = await (_prefetched ?? _storage.readAll());
       for (final key in [
         ...flatKeys,
         for (final e in nestedSecrets.entries) '${e.key}.${e.value}',
@@ -63,7 +74,15 @@ class SecureCredentials {
     } catch (e) {
       printERROR('SecureCredentials.init failed: $e');
     }
+    _prefetched = null;
     ready = true;
+  }
+
+  @visibleForTesting
+  static void resetForTest() {
+    _cache.clear();
+    _prefetched = null;
+    ready = false;
   }
 
   static Future<void> _migrateFlat(Box prefs, String key) async {

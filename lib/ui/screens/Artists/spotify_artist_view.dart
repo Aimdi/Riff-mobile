@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '/models/album.dart';
 import '/models/artist.dart';
 import '/models/playlist.dart';
 import '/models/playling_from.dart';
@@ -145,10 +146,10 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
       final albums = _albumsOf(c.artistData['Albums']);
       final singles = _albumsOf(c.artistData['Singles']);
       final featured = _content(c.artistData['Featured'])
-          .where((e) => e != null && e.runtimeType.toString() == 'Playlist')
+          .whereType<Playlist>()
           .toList();
       final related = _content(c.artistData['Related'])
-          .where((e) => e != null && e.runtimeType.toString() == 'Artist')
+          .whereType<Artist>()
           .toList();
       final description = '${c.artistData['description'] ?? ''}'.trim();
       final popularCount = _popularExpanded
@@ -212,7 +213,7 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
   }
 
   List _albumsOf(dynamic section) => _content(section)
-      .where((e) => e != null && e.runtimeType.toString() == 'Album')
+      .whereType<Album>()
       .toList();
 
   // ───────────────────────────────────────────────────────────── header ──

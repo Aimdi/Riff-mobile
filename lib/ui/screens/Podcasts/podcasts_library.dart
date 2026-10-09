@@ -19,7 +19,6 @@ import '/ui/widgets/podcast_follow_button.dart';
 import '/ui/widgets/podcast_play.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import '/ui/widgets/snackbar.dart';
-import '/ui/widgets/sort_widget.dart';
 import '/ui/navigator.dart';
 import '../Home/home_layout.dart';
 import 'podcast_category_screen.dart';
@@ -112,7 +111,6 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
     final controller = Get.find<LibraryPodcastsController>();
     final topPadding = context.isLandscape ? 50.0 : 90.0;
     const double itemHeight = 180;
-    const double itemWidth = 130;
 
     return Padding(
       padding: widget.isBottomNavActive
@@ -131,7 +129,6 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               // ── Inline Inbox / Queue / Subs / Discover ──────────
               if (_section == 1) {
                 return PodcastInboxScreen(
-                  embedded: true,
                   refreshNonce: _inboxRefreshNonce,
                   filter: _inboxFilter,
                   onFilterChanged: _setInboxFilter,
@@ -143,7 +140,6 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               }
               if (_section == 2) {
                 return PodcastQueueScreen(
-                  embedded: true,
                   onDiscover: () {
                     _loadDiscoveryRows();
                     setState(() => _section = 4);
@@ -152,7 +148,6 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               }
               if (_section == 3) {
                 return PodcastSubsScreen(
-                  embedded: true,
                   onDiscover: () {
                     _loadDiscoveryRows();
                     setState(() => _section = 4);
@@ -161,213 +156,17 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               }
               if (_section == 4) {
                 // Discover tab: search + discovery rows + categories.
-                return _discoverView(controller, itemWidth, itemHeight);
+                return _discoverView(controller, itemHeight);
               }
               if (_section == 6) {
                 return const PodcastBookmarksScreen(embedded: true);
               }
-              if (_section == 5) {
-                return PodcastDownloadsScreen(
-                  embedded: true,
-                  onDiscover: () {
-                    _loadDiscoveryRows();
-                    setState(() => _section = 4);
-                  },
-                );
-              }
-
-              // ── Fallback (unused: default section is Inbox) ─────
-              return RefreshIndicator(
-                onRefresh: () => controller.loadDiscovery(force: true),
-                child: CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(
-                      parent: BouncingScrollPhysics()),
-                  slivers: [
-                    // ── Discovery ──────────────────────────────────────
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding:
-                            const EdgeInsets.only(left: 5, top: 8, right: 8),
-                        child: Row(
-                          children: [
-                            Text(
-                              'discoverPodcasts'.tr,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const Spacer(),
-                            Obx(() {
-                              if (controller.isDiscoveryLoading.isTrue) {
-                                return const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
-                                );
-                              }
-                              return IconButton(
-                                tooltip: 'retry'.tr,
-                                icon: const Icon(Icons.refresh, size: 20),
-                                onPressed: () =>
-                                    controller.loadDiscovery(force: true),
-                              );
-                            }),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Obx(() {
-                      if (controller.discoveryError.isTrue &&
-                          controller.topEpisodes.isEmpty &&
-                          controller.featuredPodcasts.isEmpty) {
-                        return SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Center(
-                              child: Column(
-                                children: [
-                                  Text('networkError1'.tr,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleSmall),
-                                  const SizedBox(height: 8),
-                                  TextButton(
-                                    onPressed: () =>
-                                        controller.loadDiscovery(force: true),
-                                    child: Text('retry'.tr),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }
-                      return const SliverToBoxAdapter(child: SizedBox.shrink());
-                    }),
-                    // Top episodes row
-                    Obx(() {
-                      if (controller.topEpisodes.isEmpty) {
-                        return const SliverToBoxAdapter(
-                            child: SizedBox.shrink());
-                      }
-                      return SliverToBoxAdapter(
-                        child: _EpisodeDiscoveryRow(
-                          title: 'topEpisodes'.tr,
-                          episodes: controller.topEpisodes.toList(),
-                        ),
-                      );
-                    }),
-                    // Featured podcasts row
-                    Obx(() {
-                      if (controller.featuredPodcasts.isEmpty) {
-                        return const SliverToBoxAdapter(
-                            child: SizedBox.shrink());
-                      }
-                      return SliverToBoxAdapter(
-                        child: _PodcastCarousel(
-                          title: 'featuredPodcasts'.tr,
-                          podcasts: controller.featuredPodcasts.toList(),
-                        ),
-                      );
-                    }),
-                    // Similar podcasts row ("Popular with listeners of X")
-                    Obx(() {
-                      if (controller.similarPodcasts.isEmpty) {
-                        return const SliverToBoxAdapter(
-                            child: SizedBox.shrink());
-                      }
-                      final seed = controller.similarSeedTitle.value;
-                      final title = seed.isEmpty ? 'similarPodcasts'.tr : seed;
-                      return SliverToBoxAdapter(
-                        child: _SimilarPodcastsRow(
-                          kicker: seed.isEmpty ? null : 'Because you follow',
-                          title: title,
-                          podcasts: controller.similarPodcasts.toList(),
-                        ),
-                      );
-                    }),
-                    // ── Library ────────────────────────────────────────
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 5, top: 16),
-                        child: Text(
-                          'libPodcasts'.tr,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: Obx(
-                        () => SortWidget(
-                          tag: 'LibPodcastSort',
-                          screenController: controller,
-                          isAdditionalOperationRequired: false,
-                          isSearchFeatureRequired: true,
-                          itemCountTitle:
-                              '${controller.libraryPodcasts.length} ${'items'.tr}',
-                          requiredSortTypes: buildSortTypeSet(),
-                          onSort: controller.onSort,
-                          onSearch: controller.onSearch,
-                          onSearchClose: controller.onSearchClose,
-                          onSearchStart: controller.onSearchStart,
-                        ),
-                      ),
-                    ),
-                    Obx(() {
-                      final items = controller.libraryPodcasts;
-                      if (items.isEmpty) {
-                        return SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Text(
-                                'noPodcastsBookmarked'.tr,
-                                style: Theme.of(context).textTheme.titleMedium,
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ),
-                        );
-                      }
-                      return SliverLayoutBuilder(
-                        builder: (context, constraints) {
-                          final availableWidth = constraints.crossAxisExtent;
-                          final width =
-                              availableWidth > 300 && availableWidth < 394
-                                  ? 310.0
-                                  : availableWidth;
-                          final columns =
-                              (width / itemWidth).floor().clamp(2, 6);
-                          return SliverPadding(
-                            padding: const EdgeInsets.only(
-                                bottom: 200, top: 10, left: 0, right: 0),
-                            sliver: SliverGrid(
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: columns,
-                                childAspectRatio: itemWidth / itemHeight,
-                              ),
-                              delegate: SliverChildBuilderDelegate(
-                                (context, index) => Center(
-                                  child: GestureDetector(
-                                    // Long-press to file this show into a folder.
-                                    onLongPress: () => showPodcastFolderSheet(
-                                        context, items[index]),
-                                    child: ContentListItem(
-                                      content: items[index],
-                                      isLibraryItem: true,
-                                    ),
-                                  ),
-                                ),
-                                childCount: items.length,
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    }),
-                  ],
-                ),
+              // Section 5: Downloads (the tabs offer only 1–6).
+              return PodcastDownloadsScreen(
+                onDiscover: () {
+                  _loadDiscoveryRows();
+                  setState(() => _section = 4);
+                },
               );
             })),
           ),
@@ -545,8 +344,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
 
   /// Discover tab: a rounded search bar on top; below it either the search
   /// results or the browse view (discovery rows + categories + suggestions).
-  Widget _discoverView(LibraryPodcastsController controller, double itemWidth,
-      double itemHeight) {
+  Widget _discoverView(
+      LibraryPodcastsController controller, double itemHeight) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final hintColor = scheme.onSurfaceVariant;
@@ -767,7 +566,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                 ],
               );
             }
-            return _browseView(controller, itemWidth, itemHeight);
+            return _browseView(controller);
           }),
         ),
       ],
@@ -785,8 +584,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
   /// Search-focus landing: first the "listeners of X also enjoy" discovery
   /// scrollwheels, then Apple-Podcasts category tiles, then featured
   /// suggestions.
-  Widget _browseView(LibraryPodcastsController controller, double itemWidth,
-      double itemHeight) {
+  Widget _browseView(LibraryPodcastsController controller) {
     const genres = PodcastService.podcastGenres;
     final suggestions = controller.featuredPodcasts.toList();
     final discoverySeeds =
@@ -924,41 +722,6 @@ class _PodcastCarousel extends StatelessWidget {
             itemBuilder: (_, i) =>
                 ContentListItem(content: podcasts[i], showSimilarOnOpen: true),
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _EpisodeDiscoveryRow extends StatelessWidget {
-  const _EpisodeDiscoveryRow({required this.title, required this.episodes});
-  final String title;
-  final List<MediaItem> episodes;
-
-  @override
-  Widget build(BuildContext context) {
-    final player = Get.find<PlayerController>();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        HomeSectionHeader(title),
-        HomeShelf(
-          cardSize: HomeLayout.shelfCard,
-          itemCount: episodes.length,
-          itemBuilder: (context, i) {
-            final ep = episodes[i];
-            return HomeShelfCard(
-              size: HomeLayout.shelfCard,
-              art: ImageWidget(song: ep, size: HomeLayout.shelfCard),
-              title: ep.title,
-              subtitle: ep.artist ?? '',
-              onTap: () async {
-                if (await openInWizeStreamIfPreferred(ep)) return;
-                final ok = await player.playPlayListSong(episodes, i);
-                if (!ok) snackOperationFailed();
-              },
-            );
-          },
         ),
       ],
     );
@@ -1164,16 +927,6 @@ class _SimilarPodcastsRow extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-/// Bookmark / unbookmark helper used from playlist screen when content is a podcast.
-Future<void> togglePodcastLibrary(Playlist podcast, {required bool add}) async {
-  final c = Get.find<LibraryPodcastsController>();
-  if (add) {
-    await c.addToLibrary(podcast);
-  } else {
-    await c.removeFromLibrary(podcast.playlistId);
   }
 }
 

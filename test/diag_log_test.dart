@@ -56,6 +56,41 @@ void main() {
     expect(DiagLog.tail().single, endsWith('…'));
   });
 
+  test('a long session does not grow the file without bound', () {
+    DiagLog.init(dir.path, version: '1.0.0');
+    for (var i = 0; i < 5000; i++) {
+      DiagLog.add('line $i');
+    }
+    final file = File('${dir.path}/${DiagLog.fileName}');
+    final bytes = file.readAsBytesSync();
+    // Rewound after the rewrite: no hole of zero bytes before new lines.
+    expect(bytes.contains(0), isFalse);
+    final lines = file.readAsLinesSync();
+    expect(lines.length, lessThan(2100));
+    expect(lines.first, startsWith('=== Riff 1.0.0 started'));
+    expect(lines.last, endsWith('line 4999'));
+
+    // The next launch still sees how this run ended.
+    DiagLog.reset();
+    DiagLog.init(dir.path, version: '1.0.1');
+    final previous = DiagLog.previousRun();
+    expect(previous, hasLength(150));
+    expect(previous.last, endsWith('line 4999'));
+  });
+
+  test('a log with malformed UTF-8 is still read and written', () {
+    final file = File('${dir.path}/${DiagLog.fileName}');
+    file.writeAsBytesSync([
+      ...'=== Riff 0.9 started ===\nbefore crash ⏎'.codeUnits.take(30),
+      0xE2, 0x8F, // a multi-byte character cut short
+      10,
+    ]);
+    DiagLog.init(dir.path, version: '1.0.0');
+    DiagLog.add('after');
+    expect(DiagLog.previousRun().first, '=== Riff 0.9 started ===');
+    expect(file.readAsStringSync(), contains('after'));
+  });
+
   test('a newline inside a message stays on one line', () {
     DiagLog.init(dir.path, version: '1.0.0');
     DiagLog.add('a\nb');

@@ -37,12 +37,27 @@ int resolveShuffledQueueIndex({
 bool isValidQueueIndex(int index, int length) =>
     index >= 0 && index < length;
 
-/// A superseded playByIndex must drop the loading spinner.
-bool shouldClearLoadingOnStalePlayByIndex({
-  required int requestedIndex,
-  required int currentIndex,
+/// A playByIndex whose song is no longer the queue's current item (the
+/// queue was replaced under it) must only drop the loading spinner.
+/// Comparing ids, not indexes: a queue edit while the stream resolves
+/// (reorder, removing an earlier song, shuffle, clear) moves the loading
+/// song to another index, and it must still play.
+bool isStalePlayByIndex({
+  required String requestedSongId,
+  required String? currentSongId,
 }) =>
-    requestedIndex != currentIndex;
+    currentSongId != requestedSongId;
+
+/// Where the playing item (or the shuffle cursor) sits once the item at
+/// [removedIndex] leaves the list: one up when that item was before it.
+/// -1 (not in the list, e.g. already removed) leaves it where it is.
+int indexAfterRemoval({
+  required int currentIndex,
+  required int removedIndex,
+}) =>
+    removedIndex >= 0 && removedIndex < currentIndex
+        ? currentIndex - 1
+        : currentIndex;
 
 /// Cloud items store `cloud_{serverId}` — refresh uses the server id.
 String cloudServerSongId(String songId) {

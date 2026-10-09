@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/ui/screens/Plugins/seeker_screen.dart';
-import '/ui/screens/Search/search_result_screen_v2.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import '../../navigator.dart';
 import '../../theme/riff_spacing.dart';
@@ -23,7 +22,6 @@ class SearchResultScreen extends StatelessWidget {
         Get.isRegistered<SearchResultScreenController>()
             ? Get.find<SearchResultScreenController>()
             : Get.put(SearchResultScreenController());
-    if (GetPlatform.isDesktop) return const SearchResultScreenBN();
     final topPadding = context.isLandscape ? 50.0 : 80.0;
     return Scaffold(
       body: Padding(
@@ -212,7 +210,7 @@ class Body extends StatelessWidget {
                 : null,
           );
         }
-        return const ResultWidget(isv2Used: true);
+        return const ResultWidget();
       });
     } else {
       if (searchResScrController.isResultContentFetced.isTrue) {

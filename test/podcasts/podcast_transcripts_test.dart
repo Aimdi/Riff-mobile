@@ -26,6 +26,24 @@ void main() {
       expect(out.first.endSec, 2.5);
     });
 
+    test('a fetched transcript is parsed off the UI isolate, same result',
+        () async {
+      const srt = '1\n00:00:01,000 --> 00:00:02,000\nAlex: Hello there.\n\n'
+          '2\n00:00:03,000 --> 00:00:04,500\nSam: Hi!\n';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((req) => req.response
+        ..write(srt)
+        ..close());
+      final cues = await PodcastService.transcript(
+          'http://127.0.0.1:${server.port}/t.srt',
+          type: 'application/srt');
+      final direct =
+          PodcastService.parseTranscriptDocument(srt, type: 'application/srt');
+      expect(cues.map((c) => c.toJson()), direct.map((c) => c.toJson()));
+      expect(cues.map((c) => c.speaker), ['Alex', 'Sam']);
+    });
+
     test('tiny cues merge into sentence-length lines', () {
       const vtt = 'WEBVTT\n\n'
           '00:00.000 --> 00:01.000\nSo today we\n\n'
@@ -194,6 +212,26 @@ void main() {
       expect(t.youtube, isTrue);
       expect(t.auto, isTrue);
       expect(t.timed, isTrue);
+    });
+
+    test('only the most recent transcripts stay parsed in memory', () async {
+      final box = Hive.box(PodcastTranscriptService.box);
+      for (var i = 0; i < 10; i++) {
+        await box.put('https://x/$i.json', {
+          'at': i,
+          'cues': [cue(0, 'Line $i').toJson()],
+        });
+      }
+      MediaItem feedEp(int i) =>
+          ep('podcast_$i', extras: {'transcriptUrl': 'https://x/$i.json'});
+      for (var i = 0; i < 10; i++) {
+        await PodcastTranscriptService.load(feedEp(i));
+      }
+      // Every transcript used to stay in memory for the whole session.
+      expect(PodcastTranscriptService.memoryCount, lessThanOrEqualTo(4));
+      // An evicted one comes back from the box.
+      final first = await PodcastTranscriptService.load(feedEp(0));
+      expect(first.cues.single.text, 'Line 0');
     });
 
     test('availability: feed sync, YouTube after a probe/cache', () async {

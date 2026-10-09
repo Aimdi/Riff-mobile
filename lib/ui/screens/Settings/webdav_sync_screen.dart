@@ -234,7 +234,7 @@ class _WebDavSyncScreenState extends State<WebDavSyncScreen> {
                   onChanged: _saved
                       ? (v) async {
                           await WebDavSyncService.setAutoSync(v);
-                          setState(() => _auto = v);
+                          if (mounted) setState(() => _auto = v);
                         }
                       : null,
                 ),

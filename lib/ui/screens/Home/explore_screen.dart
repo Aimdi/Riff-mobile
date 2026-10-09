@@ -82,7 +82,7 @@ class _ExploreFeedState extends State<ExploreFeed> {
   List<HomeShelfData> _shelves(List raw) {
     final shelves = [
       for (final s in raw)
-        if (youTubeShelf(s) != null) youTubeShelf(s)!,
+        if (youTubeShelf(s) case final shelf?) shelf,
     ];
     return [
       for (final s in shelves)

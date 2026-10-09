@@ -95,12 +95,18 @@ class WebDavClient {
   final String _auth;
   final Dio _dio;
 
+  /// Releases the connection pool; the client can't be used afterwards.
+  void close() => _dio.close();
+
   Future<Response<String>> _send(String method, String path,
       {Map<String, String> headers = const {}, String? body}) async {
+    // Encoded once: a playlists file is sent as these bytes and measured
+    // for Content-Length (it used to be encoded twice).
+    final bytes = body == null ? null : utf8.encode(body);
     try {
       return await _dio.requestUri<String>(
         webDavUrl(baseUrl, path),
-        data: body == null ? null : utf8.encode(body),
+        data: bytes,
         options: Options(
           method: method,
           responseType: ResponseType.plain,
@@ -108,7 +114,7 @@ class WebDavClient {
           followRedirects: false,
           headers: {
             'Authorization': _auth,
-            if (body != null) 'Content-Length': '${utf8.encode(body).length}',
+            if (bytes != null) 'Content-Length': '${bytes.length}',
             ...headers,
           },
         ),

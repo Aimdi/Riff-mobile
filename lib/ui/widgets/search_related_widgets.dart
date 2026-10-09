@@ -11,45 +11,21 @@ import 'separate_tab_item_widget.dart';
 import '/ui/theme/riff_spacing.dart';
 
 class ResultWidget extends StatelessWidget {
-  const ResultWidget({super.key, this.isv2Used = false});
-  final bool isv2Used;
+  const ResultWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
     final SearchResultScreenController searchResScrController =
         Get.find<SearchResultScreenController>();
-    final topPadding = context.isLandscape ? 50.0 : 80.0;
     return Obx(
       () => Center(
         child: Padding(
           padding: EdgeInsets.zero,
           child: SingleChildScrollView(
-            padding: EdgeInsets.only(
-                bottom: RiffSpacing.listEnd, top: isv2Used ? 0 : topPadding),
+            padding: const EdgeInsets.only(bottom: RiffSpacing.listEnd),
             child: searchResScrController.isResultContentFetced.value
                 ? Column(children: [
-                    if (!isv2Used)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          "searchRes".tr,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface),
-                        ),
-                      ),
-                    if (!isv2Used)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          "${"for1".tr} \"${searchResScrController.queryString.value}\"",
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ),
-                    SizedBox(height: isv2Used ? RiffSpacing.xs : 10),
+                    const SizedBox(height: RiffSpacing.xs),
                     ...generateWidgetList(searchResScrController),
                   ])
                 : const SizedBox.shrink(),

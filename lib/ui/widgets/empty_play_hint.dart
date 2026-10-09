@@ -5,9 +5,6 @@ import '../navigator.dart';
 import '../player/player_controller.dart';
 import 'snackbar.dart';
 
-/// Actions offered when a list has nothing to play yet.
-List<String> emptyPlayHintActionKeys() => const ['riffWave', 'search'];
-
 /// Library / Explore / empty search lists: start Wave or open Search.
 class EmptyPlayHint extends StatelessWidget {
   const EmptyPlayHint({super.key, required this.message});

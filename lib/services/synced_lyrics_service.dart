@@ -1,5 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:get/get.dart';
 import 'package:harmonymusic/utils/helper.dart';
 import 'package:hive/hive.dart';
@@ -10,6 +11,28 @@ import '/services/lrclib_query.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 
 class SyncedLyricsService {
+  // One client for every LRCLIB lookup (was a new, never-closed Dio per
+  // song) with a connect timeout, so a dead network can't park the lookup.
+  static final _lrclibDio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 10),
+    receiveTimeout: const Duration(seconds: 10),
+    sendTimeout: const Duration(seconds: 8),
+  ));
+
+  /// The cache entry for an LRCLIB `/api/get` answer, or null when it has
+  /// no synced lyrics or isn't the JSON object it should be.
+  @visibleForTesting
+  static Map<String, dynamic>? lrclibHit(dynamic response) {
+    if (response is! Map) return null;
+    final synced = response["syncedLyrics"];
+    if (synced is! String || synced.isEmpty) return null;
+    return {
+      "synced": synced,
+      "plainLyrics": response["plainLyrics"],
+      "source": "lrclib",
+    };
+  }
+
   static LyricsSource _preferredSource() {
     if (Get.isRegistered<SettingsScreenController>()) {
       return Get.find<SettingsScreenController>().lyricsSource.value;
@@ -56,11 +79,7 @@ class SyncedLyricsService {
 
     Future<Map<String, dynamic>?> tryLrclib() async {
       try {
-        final dio = Dio(BaseOptions(
-          receiveTimeout: const Duration(seconds: 10),
-          sendTimeout: const Duration(seconds: 8),
-        ));
-        final response = (await dio.get(
+        final response = (await _lrclibDio.get(
           lrclibGetUrl,
           queryParameters: buildLrclibGetParams(
             artist: artist,
@@ -69,16 +88,15 @@ class SyncedLyricsService {
             durationSec: dur,
           ),
         )).data;
-        if (response["syncedLyrics"] != null) {
-          printINFO("Synced lyrics from LRCLIB");
-          return {
-            "synced": response["syncedLyrics"],
-            "plainLyrics": response["plainLyrics"],
-            "source": "lrclib",
-          };
-        }
+        final hit = lrclibHit(response);
+        if (hit != null) printINFO("Synced lyrics from LRCLIB");
+        return hit;
       } on DioException catch (e) {
         printINFO("LRCLIB miss: ${e.response?.statusCode}");
+      } catch (e) {
+        // Anything else (an unexpected body) must not end the provider
+        // chain: the next provider still gets its turn.
+        printINFO("LRCLIB lookup failed: $e");
       }
       return null;
     }

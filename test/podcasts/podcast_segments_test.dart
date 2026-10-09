@@ -264,6 +264,17 @@ void main() {
               'ep', now.add(const Duration(hours: 25))),
           isNull);
 
+      // Writing drops answers past their 24 h (they are never read again).
+      final box = Hive.box(PodcastSegmentStore.cacheBox);
+      final expired = now.subtract(const Duration(hours: 25));
+      await box.put('old', {
+        'fetchedAt': expired.millisecondsSinceEpoch,
+        'segments': const [],
+      });
+      await box.put('junk', 'x');
+      await PodcastSegmentStore.putCache('ep2', const [], now);
+      expect(box.keys.toSet(), {'ep', 'ep2'});
+
       await PodcastSegmentStore.addManual(
           'ep', seg('m', 10, 20, source: SegmentSource.manual));
       expect(PodcastSegmentStore.manual('ep').single.id, 'm');

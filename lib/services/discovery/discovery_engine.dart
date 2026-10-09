@@ -186,42 +186,6 @@ class DiscoveryEngine {
     return '${t.substring(0, 30).trimRight()}…';
   }
 
-  /// Suggest tracks matching a playlist's aggregate profile.
-  Future<List<MediaItem>> suggestForPlaylist(List<MediaItem> members,
-      {int limit = 10}) async {
-    if (members.isEmpty) return [];
-    final artistScores = <String, double>{};
-    for (final m in members) {
-      final k = normalizeArtistKey(m.artist);
-      artistScores[k] = (artistScores[k] ?? 0) + 1;
-    }
-    final candidates = <Map<String, dynamic>>[];
-    final seed = members.first;
-    candidates.addAll(await sources.relatedTracks(seed.id, limit: 30));
-    for (final m in members.take(5)) {
-      for (final n in sources.localNeighborIds(m.id, limit: 8)) {
-        final ts = repo.lastPlayedTs(n);
-        // neighbor ids only — try pull from related of seed
-        if (ts != null) {
-          // already known locally; skip adding bare id
-        }
-      }
-      candidates.addAll(await sources.relatedTracks(m.id, limit: 10));
-    }
-    final memberIds = members.map((e) => e.id).toSet();
-    final scored = _scoreAll(
-      candidates,
-      seedVideoId: seed.id,
-      noveltyBonus: true,
-      sourceConfidence: 0.8,
-      excludeIds: memberIds,
-    );
-    final picked = _constrain(scored, limit: limit, radioMode: false);
-    await repo.logImpressions(
-        picked.map((c) => c.videoId), DiscoverySurface.playlistSuggest);
-    return _toMedia(picked, DiscoverySource.discover);
-  }
-
   // ─── Pipeline internals ───────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> _gatherForSeed(MediaItem seed,

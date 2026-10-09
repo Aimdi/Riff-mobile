@@ -234,8 +234,8 @@ class BanService {
       .toList();
 
   /// Removes banned songs (and songs by banned artists or from banned
-  /// albums) from a raw track
-  /// list (maps with 'videoId' / 'artists'). [keepVideoId] survives the
+  /// albums) from a track list: [MediaItem]s (watch playlists, home shelves)
+  /// or raw maps with 'videoId' / 'artists'. [keepVideoId] survives the
   /// filter so an explicitly requested song is never dropped from its own
   /// watch playlist.
   static List<dynamic> filterTracks(List<dynamic> tracks,
@@ -246,6 +246,11 @@ class BanService {
       return tracks;
     }
     return tracks.where((t) {
+      // Both callers pass MediaItems; letting every non-map through meant
+      // bans never reached radio, up next or the home song shelves.
+      if (t is MediaItem) {
+        return t.id == keepVideoId || !isMediaItemBlocked(t);
+      }
       if (t is! Map) return true;
       if (t['videoId'] == keepVideoId) return true;
       return !isTrackBlocked(t);

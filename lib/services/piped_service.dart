@@ -19,16 +19,23 @@ class PipedServices extends GetxService {
 
   PipedServices() {
     final appPrefsBox = Hive.box('AppPrefs');
-    final piped = appPrefsBox.get('piped') ??
-        {"isLoggedIn": false, "token": "", "instApiUrl": ""};
-    _isLoggedIn = piped["isLoggedIn"];
+    final piped = appPrefsBox.get('piped');
+    // A partial / foreign entry must not make the constructor throw: every
+    // Get.find<PipedServices>() (Library, playlists) would fail with it.
+    _isLoggedIn = piped is Map && piped["isLoggedIn"] == true;
     if (isLoggedIn) {
-      _headers["Authorization"] = piped['token'];
-      _insApiUrl = piped["instApiUrl"];
+      _headers["Authorization"] = '${piped['token'] ?? ''}';
+      _insApiUrl = '${piped["instApiUrl"] ?? ''}';
     }
   }
 
   bool get isLoggedIn => _isLoggedIn;
+
+  @override
+  void onClose() {
+    _dio.close();
+    super.onClose();
+  }
 
   Future<Res> login(String insApiUrl, String userName, String password) async {
     final url = "$insApiUrl/login";
@@ -154,27 +161,38 @@ class PipedServices extends GetxService {
   Future<List<MediaItem>> getPlaylistSongs(String playlistid) async {
     final res = await _sendRequest("/playlists/$playlistid",
         reqType: "get", isSongListReq: true);
-    if (res.code == 1) {
-      return (res.response['relatedStreams'])
-          .map((item) {
-            return MediaItem(
-                id: (item['url']).split("?v=")[1],
-                title: item['title'],
-                artist: item['uploaderName'],
-                duration: Duration(seconds: item['duration']),
-                artUri: Uri.tryParse(
-                  item['thumbnail'],
-                ),
-                extras: {
-                  'artists': [
-                    {"name": item['uploaderName']}
-                  ],
-                });
-          })
-          .whereType<MediaItem>()
-          .toList();
-    }
-    return [];
+    final streams = res.code == 1 && res.response is Map
+        ? res.response['relatedStreams']
+        : null;
+    if (streams is! List) return [];
+    return streams.map(streamToMediaItem).whereType<MediaItem>().toList();
+  }
+
+  /// One Piped `relatedStreams` entry as a [MediaItem]; null when it has no
+  /// video id. One odd entry (no duration, a channel row) used to throw and
+  /// lose the whole playlist.
+  static MediaItem? streamToMediaItem(dynamic item) {
+    if (item is! Map) return null;
+    final url = '${item['url'] ?? ''}';
+    final at = url.indexOf('?v=');
+    if (at < 0) return null;
+    final id = url.substring(at + 3).split('&').first;
+    if (id.isEmpty) return null;
+    final duration = item['duration'];
+    final thumbnail = item['thumbnail'];
+    return MediaItem(
+        id: id,
+        title: '${item['title'] ?? ''}',
+        artist: item['uploaderName']?.toString(),
+        duration: duration is num && duration > 0
+            ? Duration(seconds: duration.toInt())
+            : null,
+        artUri: thumbnail is String ? Uri.tryParse(thumbnail) : null,
+        extras: {
+          'artists': [
+            {"name": item['uploaderName']}
+          ],
+        });
   }
 }
 

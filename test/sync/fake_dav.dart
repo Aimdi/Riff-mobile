@@ -64,8 +64,11 @@ class FakeDav implements HttpClientAdapter {
     return ResponseBody.fromString('', 405);
   }
 
+  /// How many clients on this server were closed.
+  var closed = 0;
+
   @override
-  void close({bool force = false}) {}
+  void close({bool force = false}) => closed++;
 }
 
 WebDavClient client(FakeDav dav, {String password = 'secret'}) {

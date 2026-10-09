@@ -376,14 +376,39 @@ class SpotifyApiService {
 
   // ---- cache -----------------------------------------------------------
 
+  static bool _pruned = false;
+
   static Future<Box?> _cache() async {
     try {
-      return Hive.isBoxOpen(cacheBox)
+      final box = Hive.isBoxOpen(cacheBox)
           ? Hive.box(cacheBox)
           : await Hive.openBox(cacheBox);
+      if (!_pruned) {
+        _pruned = true;
+        await pruneCache(box, DateTime.now().millisecondsSinceEpoch);
+      }
+      return box;
     } catch (_) {
       return null;
     }
+  }
+
+  /// Drop answers no request can use any more (older than [libraryTtl],
+  /// the longest time anything is kept). Done once per launch: the box is
+  /// read into memory whole, and every album, artist or playlist opened
+  /// used to stay in it until sign-out. Returns how many went.
+  @visibleForTesting
+  static Future<int> pruneCache(Box box, int nowMs) async {
+    bool isStale(Object? v) =>
+        v is! Map ||
+        v['at'] is! int ||
+        !spotifyCacheFresh(v['at'] as int, nowMs, libraryTtl);
+    final stale = [
+      for (final k in box.keys)
+        if (isStale(box.get(k))) k
+    ];
+    if (stale.isNotEmpty) await box.deleteAll(stale);
+    return stale.length;
   }
 
   /// Forget every cached answer (sign-out, account switch).
@@ -566,12 +591,11 @@ class SpotifyApiService {
   /// Followed artists (cursor-paged under `artists`).
   Future<List<SpotifyArtistSummary>> fetchFollowedArtists(
           {bool force = false}) =>
-      _paged(
-          '$base/me/following?type=artist&limit=$pageSize',
-          (b) => _parseList(
-              (_tryDecode(b)?['artists'] as Map?)?['items'], parseArtist),
-          nextUnder: 'artists',
-          force: force);
+      _paged('$base/me/following?type=artist&limit=$pageSize', (b) {
+        final artists = _tryDecode(b)?['artists'];
+        return _parseList(
+            artists is Map ? artists['items'] : null, parseArtist);
+      }, nextUnder: 'artists', force: force);
 
   /// An artist's albums and singles.
   Future<List<SpotifyAlbumSummary>> fetchArtistAlbums(String artistId,

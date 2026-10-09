@@ -34,7 +34,7 @@ class StatsService {
       ...prev,
       "title": item.title,
       "artist": item.artist ?? prev["artist"] ?? "",
-      "plays": (prev["plays"] as int? ?? 0) + 1,
+      "plays": _intOf(prev["plays"]) + 1,
       "lastPlayed": now.millisecondsSinceEpoch,
       "lastSource": source,
       if (item.isPodcastEpisode)
@@ -47,7 +47,7 @@ class StatsService {
     final day = _asMap(_days.get(dk));
     await _days.put(dk, {
       ...day,
-      "plays": (day["plays"] as int? ?? 0) + 1,
+      "plays": _intOf(day["plays"]) + 1,
     });
   }
 
@@ -76,11 +76,10 @@ class StatsService {
     final dk = _dayKey(now);
     final day = _asMap(_days.get(dk));
     final addedSecs = (listenedMs / 1000).round().clamp(0, 24 * 3600);
-    final skipped = next["skips"] != prev["skips"];
     await _days.put(dk, {
       ...day,
-      "seconds": (day["seconds"] as int? ?? 0) + addedSecs,
-      "skips": (day["skips"] as int? ?? 0) + (skipped ? 1 : 0),
+      "seconds": _intOf(day["seconds"]) + addedSecs,
+      "skips": _intOf(day["skips"]) + (listenEndWasSkip(prev, next) ? 1 : 0),
     });
   }
 
@@ -96,7 +95,7 @@ class StatsService {
   static int get uniqueArtists {
     final set = <String>{};
     for (final v in _songs.values) {
-      final a = (_asMap(v)["artist"] ?? "") as String;
+      final a = '${_asMap(v)["artist"] ?? ""}';
       if (a.isNotEmpty) set.add(a);
     }
     return set.length;
@@ -124,7 +123,7 @@ class StatsService {
     for (final k in _songs.keys) {
       final v = _songs.get(k);
       if (v is! Map) continue;
-      final ts = (v['lastPlayed'] as int?) ?? 0;
+      final ts = _intOf(v['lastPlayed']);
       if (ts > bestTs) {
         bestTs = ts;
         bestId = k.toString();
@@ -230,6 +229,14 @@ List<Map<String, dynamic>> rankTopArtists(Map<dynamic, dynamic> rows,
   list.sort((a, b) => (b["plays"] as int).compareTo(a["plays"] as int));
   return list.take(n).toList();
 }
+
+/// Whether a listen end ([prev] → [next] from [applyListenEnd]) was a skip.
+///
+/// Compares counts, not raw values: a song's first listen end has no
+/// "skips" key in [prev] yet, and `0 != null` used to count every first
+/// completed listen as a skip in the daily stats.
+bool listenEndWasSkip(Map<String, dynamic> prev, Map<String, dynamic> next) =>
+    _intOf(next["skips"]) > _intOf(prev["skips"]);
 
 /// Pure listen-end merge used by [StatsService.recordListenEnd] and tests.
 ///

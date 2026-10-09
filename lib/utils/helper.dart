@@ -1,9 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:get/get.dart';
 
 import '/services/diag_log.dart';
-import '/ui/navigator.dart';
 import '/ui/widgets/sort_widget.dart';
 import 'app_version.dart';
 
@@ -23,15 +21,6 @@ void printINFO(dynamic text, {String tag = 'Harmony Music'}) {
   DiagLog.add('I $text');
   if (kReleaseMode) return;
   debugPrint("\x1B[32m[$tag]: $text\x1B[34m");
-}
-
-String? getCurrentRouteName() {
-  String? currentPath;
-  Get.nestedKey(ScreenNavigationSetup.id)?.currentState?.popUntil((route) {
-    currentPath = route.settings.name;
-    return true;
-  });
-  return currentPath;
 }
 
 void sortSongsNVideos(
@@ -167,26 +156,19 @@ void sortArtist(
 
 /// Return true if new version available
 Future<bool> newVersionCheck(String currentVersion) async {
+  final dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 10),
+    receiveTimeout: const Duration(seconds: 15),
+  ));
   try {
-    final tags = (await Dio(BaseOptions(
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 15),
-    )).get("https://api.github.com/repos/Aimdi/Riff-mobile/tags"))
-        .data;
+    final tags =
+        (await dio.get("https://api.github.com/repos/Aimdi/Riff-mobile/tags"))
+            .data;
     final availableVersion = tags[0]['name'] as String;
     return isNewerVersion(availableVersion, currentVersion);
   } catch (e) {
     return false;
+  } finally {
+    dio.close();
   }
-}
-
-String getTimeString(Duration time) {
-  final minutes = time.inMinutes.remainder(Duration.minutesPerHour).toString();
-  final seconds = time.inSeconds
-      .remainder(Duration.secondsPerMinute)
-      .toString()
-      .padLeft(2, '0');
-  return time.inHours > 0
-      ? "${time.inHours}:${minutes.padLeft(2, "0")}:$seconds"
-      : "$minutes:$seconds";
 }

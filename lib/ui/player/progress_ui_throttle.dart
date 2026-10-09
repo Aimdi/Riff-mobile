@@ -34,3 +34,38 @@ class ProgressUiThrottle {
 
   void reset() => _lastUiAt = null;
 }
+
+/// Decides whether a buffered-position event should refresh progress UI.
+///
+/// Engines report the buffer far more often than it visibly moves (ExoPlayer
+/// video mode with every 250 ms position tick, mostly unchanged). An
+/// unchanged value never refreshes; a small move within [minInterval] of the
+/// last refresh is skipped.
+class BufferedUiThrottle {
+  BufferedUiThrottle({
+    this.minInterval = const Duration(milliseconds: 200),
+    this.jumpThreshold = const Duration(milliseconds: 500),
+  });
+
+  final Duration minInterval;
+  final Duration jumpThreshold;
+
+  DateTime? _lastUiAt;
+
+  /// Returns true when the UI should republish [buffered].
+  bool shouldUpdate({
+    required Duration buffered,
+    required Duration previousUiBuffered,
+    DateTime? now,
+  }) {
+    if (buffered == previousUiBuffered) return false;
+    final clock = now ?? DateTime.now();
+    if (_lastUiAt != null &&
+        clock.difference(_lastUiAt!) < minInterval &&
+        (buffered - previousUiBuffered).abs() < jumpThreshold) {
+      return false;
+    }
+    _lastUiAt = clock;
+    return true;
+  }
+}
