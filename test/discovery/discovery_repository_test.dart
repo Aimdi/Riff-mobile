@@ -162,4 +162,17 @@ void main() {
     await repo.deleteMixes(['daily_mix_5', 'nope']);
     expect(mixes.isEmpty, isTrue);
   });
+
+  test('recentEvents returns the newest events, oldest first', () async {
+    final events = Hive.box(DiscoveryBoxes.events);
+    await events.addAll([
+      for (var i = 0; i < 30; i++) {'ts': i, 'videoId': 'v$i'},
+    ]);
+    // Pruning deletes from the front; indexes must still line up.
+    await events.deleteAt(0);
+    expect(repo.recentEvents(limit: 3).map((e) => e.videoId),
+        ['v27', 'v28', 'v29']);
+    expect(repo.recentEvents(limit: 100), hasLength(29));
+    expect(repo.recentEvents(limit: 100).first.videoId, 'v1');
+  });
 }

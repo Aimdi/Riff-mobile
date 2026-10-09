@@ -73,12 +73,14 @@ class DiscoveryRepository {
   }
 
   List<DiscoveryEvent> recentEvents({int limit = 500}) {
-    final values = _events.values.toList();
-    final start = values.length > limit ? values.length - limit : 0;
-    return values
-        .sublist(start)
-        .map((e) => DiscoveryEvent.fromJson(Map.from(e as Map)))
-        .toList();
+    // Indexed reads of just the tail: copying `values` materialised every
+    // stored event (up to [maxEvents]) on each call.
+    final length = _events.length;
+    final start = length > limit ? length - limit : 0;
+    return [
+      for (var i = start; i < length; i++)
+        DiscoveryEvent.fromJson(Map.from(_events.getAt(i) as Map)),
+    ];
   }
 
   Future<void> pruneEvents() async {
