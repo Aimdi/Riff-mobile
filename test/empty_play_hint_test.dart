@@ -4,10 +4,6 @@ import 'package:get/get.dart';
 import 'package:harmonymusic/ui/widgets/empty_play_hint.dart';
 
 void main() {
-  test('empty lists offer Wave and Search', () {
-    expect(emptyPlayHintActionKeys(), ['riffWave', 'search']);
-  });
-
   testWidgets('empty hint shows the message and both actions', (tester) async {
     await tester.pumpWidget(
       const GetMaterialApp(

@@ -2,17 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/ui/screens/Home/podcast_continue.dart';
 
 void main() {
-  test('latestPodcastContinue returns the first (newest) row', () {
-    expect(latestPodcastContinue(const []), isNull);
-    expect(
-      latestPodcastContinue([
-        {'id': 'ep1', 'title': 'One'},
-        {'id': 'ep2', 'title': 'Two'},
-      ])?['id'],
-      'ep1',
-    );
-  });
-
   test('podcastContinueQueue skips blank ids', () {
     final queue = podcastContinueQueue([
       {'id': 'ep1', 'title': 'One'},

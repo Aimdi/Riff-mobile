@@ -27,12 +27,6 @@ List<MediaItem> songsFromSearchResult(Map<String, dynamic> result) {
   return const [];
 }
 
-/// Keyboard submit plays the top hit unless the query is a pasted URL.
-bool shouldPlaySearchSubmit(String query) {
-  final q = query.trim();
-  return q.isNotEmpty && !q.contains('https://');
-}
-
 /// History and suggestion rows use the same play-first path as Enter.
 bool shouldPlaySearchItemOnTap() => true;
 

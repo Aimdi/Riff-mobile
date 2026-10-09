@@ -41,10 +41,6 @@ String emptyListLabelKey(String title, {bool searchContext = false}) {
   return 'noBookmarks';
 }
 
-/// Search album/playlist long-press play actions (plus Ban).
-List<String> wideCollectionLongPressPlayKeys() =>
-    const ['play', 'shuffle', 'playNext', 'startRadio'];
-
 void _snackPlayFailed() => snackOperationFailed();
 
 class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
