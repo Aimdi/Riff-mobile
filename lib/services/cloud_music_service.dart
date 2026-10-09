@@ -197,6 +197,12 @@ class CloudMusicService extends GetxService {
     _restoreSession();
   }
 
+  @override
+  void onClose() {
+    _dio.close();
+    super.onClose();
+  }
+
   void _restoreSession() {
     final cfg = _prefs.get('cloudMusic');
     if (cfg is! Map) return;

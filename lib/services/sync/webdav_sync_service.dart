@@ -153,13 +153,16 @@ class WebDavSyncService {
   static Future<WebDavError?> testConnection(
       String url, String user, String password) async {
     if (!validWebDavBase(url)) return WebDavError.notFound;
+    final dav = _client(url, user, password);
     try {
-      await _client(url, user, password).check();
+      await dav.check();
       return null;
     } on WebDavException catch (e) {
       return e.error;
     } catch (_) {
       return WebDavError.network;
+    } finally {
+      dav.close();
     }
   }
 
@@ -187,21 +190,31 @@ class WebDavSyncService {
     _lastAttemptMs = DateTime.now().millisecondsSinceEpoch;
     syncing.value = true;
     var outcome = const SyncOutcome();
+    // A client per sync; closed after it so its HttpClient doesn't linger.
+    final dav = _client(serverUrl, user, password);
     try {
-      outcome = await _syncAll(_client(serverUrl, user, password));
+      outcome = await _syncAll(dav);
     } on WebDavException catch (e) {
       outcome = SyncOutcome(error: e.error);
     } catch (e) {
       printERROR('WebDAV sync failed: $e');
       outcome = const SyncOutcome(error: WebDavError.server);
+    } finally {
+      dav.close();
     }
     final now = DateTime.now().millisecondsSinceEpoch;
     lastError.value = outcome.error?.name ?? '';
     if (outcome.ok) lastSyncAt.value = now;
-    await _putConfig({
-      'lastError': lastError.value,
-      if (outcome.ok) 'lastSyncAt': now,
-    });
+    try {
+      await _putConfig({
+        'lastError': lastError.value,
+        if (outcome.ok) 'lastSyncAt': now,
+      });
+    } catch (e) {
+      // The settings page would otherwise spin on "syncing" for good, and
+      // auto-sync callers don't await this future.
+      printERROR('WebDAV sync status not saved: $e');
+    }
     syncing.value = false;
     return outcome;
   }

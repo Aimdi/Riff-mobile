@@ -213,4 +213,18 @@ void main() {
     expect(out.ok, isFalse);
     expect(WebDavSyncService.lastError.value, 'auth');
   });
+
+  test('each sync and connection check closes its client', () async {
+    await newDevice('aaaa');
+    expect((await WebDavSyncService.syncNow()).ok, isTrue);
+    expect(dav.closed, 1);
+    dav.password = 'changed';
+    expect((await WebDavSyncService.syncNow()).ok, isFalse);
+    expect(dav.closed, 2);
+    expect(
+        await WebDavSyncService.testConnection(
+            'https://cloud.example.com/dav', 'me', 'secret'),
+        isNotNull);
+    expect(dav.closed, 3);
+  });
 }

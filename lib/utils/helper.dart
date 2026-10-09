@@ -167,16 +167,20 @@ void sortArtist(
 
 /// Return true if new version available
 Future<bool> newVersionCheck(String currentVersion) async {
+  final dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 10),
+    receiveTimeout: const Duration(seconds: 15),
+  ));
   try {
-    final tags = (await Dio(BaseOptions(
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 15),
-    )).get("https://api.github.com/repos/Aimdi/Riff-mobile/tags"))
-        .data;
+    final tags =
+        (await dio.get("https://api.github.com/repos/Aimdi/Riff-mobile/tags"))
+            .data;
     final availableVersion = tags[0]['name'] as String;
     return isNewerVersion(availableVersion, currentVersion);
   } catch (e) {
     return false;
+  } finally {
+    dio.close();
   }
 }
 

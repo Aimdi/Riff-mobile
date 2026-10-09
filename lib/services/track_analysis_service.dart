@@ -55,6 +55,14 @@ class TrackAnalysisService extends GetxController {
 
   DateTime _lastMbCall = DateTime.fromMillisecondsSinceEpoch(0);
 
+  // A fenix lazyPut controller: GetX deletes and re-creates it as screens
+  // come and go, and each instance owns a Dio (with its HttpClient).
+  @override
+  void onClose() {
+    _dio.close();
+    super.onClose();
+  }
+
   Box get _box {
     if (!Hive.isBoxOpen(_boxName)) {
       throw StateError('TrackAnalysisCache box not open');
