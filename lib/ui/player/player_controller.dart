@@ -243,15 +243,21 @@ class PlayerController extends GetxController
   String? _pendingResumeId;
   int _pendingResumeMs = 0;
 
-  late StreamSubscription<bool> keyboardSubscription;
+  /// Audio handler / keyboard subscriptions and workers, released in
+  /// [onClose] (two workers watch app-wide observables and would otherwise
+  /// keep a closed controller alive and running).
+  final _subscriptions = <StreamSubscription>[];
+  final _workers = <Worker>[];
 
   @override
   onInit() {
     _init();
     // Podcast segments follow chapters, settings and manual marks.
-    ever(chapters, (_) => _rebuildPodcastSegments());
-    ever(PodcastSegmentStore.rev, (_) => _rebuildPodcastSegments());
-    ever(PodcastPlaybackPrefs.rev, (_) => _rebuildPodcastSegments());
+    _workers.addAll([
+      ever(chapters, (_) => _rebuildPodcastSegments()),
+      ever(PodcastSegmentStore.rev, (_) => _rebuildPodcastSegments()),
+      ever(PodcastPlaybackPrefs.rev, (_) => _rebuildPodcastSegments()),
+    ]);
     super.onInit();
   }
 
@@ -262,6 +268,8 @@ class PlayerController extends GetxController
     }
     () async {
       await _waitForAudioHandler();
+      // Closed meanwhile: don't load the saved queue into the handler.
+      if (isClosed) return;
       if (_audioReady) await _restorePrevSession();
       await _refreshContinueListeningChip();
     }();
@@ -271,6 +279,8 @@ class PlayerController extends GetxController
   void _init() async {
     // Prefs / UI can initialize before AudioService; wait so listeners attach.
     await _waitForAudioHandler();
+    // Closed while waiting: listeners attached now would never be released.
+    if (isClosed) return;
     if (!_audioReady) {
       printERROR('AudioHandler not ready; player listeners skipped');
       return;
@@ -353,14 +363,14 @@ class PlayerController extends GetxController
 
   void _listenForKeyboardActivity() {
     var keyboardVisibilityController = KeyboardVisibilityController();
-    keyboardSubscription =
-        keyboardVisibilityController.onChange.listen((bool visible) {
+    _subscriptions
+        .add(keyboardVisibilityController.onChange.listen((bool visible) {
       visible ? playerPanelController.hide() : playerPanelController.show();
-    });
+    }));
   }
 
   void _listenForChangesInPlayerState() {
-    _audioHandler.playbackState.listen((playerState) {
+    _subscriptions.add(_audioHandler.playbackState.listen((playerState) {
       // Video mode drives buttonState from the mpv engine's state.
       if (_videoModeActive) return;
       final isPlaying = playerState.playing;
@@ -387,7 +397,7 @@ class PlayerController extends GetxController
       // Keep the screen awake whenever playback is active and the setting is enabled.
       final shouldEnable = settings.keepScreenAwake.isTrue && isPlaying;
       _setWakelock(shouldEnable);
-    });
+    }));
   }
 
   void _setWakelock(bool enable) {
@@ -412,12 +422,12 @@ class PlayerController extends GetxController
   final _playLogGate = PlayLogGate();
 
   void _listenForChangesInPosition() {
-    AudioService.position.listen((position) {
+    _subscriptions.add(AudioService.position.listen((position) {
       // While video mode's engine owns playback it feeds [onPlaybackPosition]
       // itself; the (paused) audio pipeline's stale ticks must not fight it.
       if (_videoModeActive) return;
       onPlaybackPosition(position);
-    });
+    }));
   }
 
   /// One position tick from whichever engine is playing (audio pipeline or
@@ -1002,7 +1012,7 @@ class PlayerController extends GetxController
   DateTime? _lastBufferedUiAt;
 
   void _listenForChangesInBufferedPosition() {
-    _audioHandler.playbackState.listen((playbackState) {
+    _subscriptions.add(_audioHandler.playbackState.listen((playbackState) {
       if (_videoModeActive) return;
       final oldState = progressBarStatus.value;
       if (progressBarStatus.value.total.inSeconds != 0 &&
@@ -1032,11 +1042,11 @@ class PlayerController extends GetxController
         val.current = oldState.current;
         val.total = oldState.total;
       });
-    });
+    }));
   }
 
   void _listenForChangesInDuration() {
-    _audioHandler.mediaItem.listen((mediaItem) async {
+    _subscriptions.add(_audioHandler.mediaItem.listen((mediaItem) async {
       // ProgressBarState is mutable and Rx.update mutates it in place, so
       // `oldState` aliased the very object being retargeted — the current/
       // buffered reassignments were no-ops, and reading `.total` afterwards
@@ -1162,16 +1172,16 @@ class PlayerController extends GetxController
           await _fetchRadioContinuation();
         }
       }
-    });
+    }));
   }
 
   void _listenForPlaylistChange() {
-    _audioHandler.queue.listen((queue) {
+    _subscriptions.add(_audioHandler.queue.listen((queue) {
       // The handler edits one list in place and re-emits it; GetX drops a
       // same-object assignment, so the queue UI (and SmartQueue's worker)
       // never heard about adds/removes/reorders. Copy to notify.
       currentQueue.value = List.of(queue);
-    });
+    }));
   }
 
   Future<void> _restorePrevSession() async {
@@ -1282,11 +1292,11 @@ class PlayerController extends GetxController
   }
 
   void _listenForCustomEvents() {
-    _audioHandler.customEvent.listen((event) {
+    _subscriptions.add(_audioHandler.customEvent.listen((event) {
       if (event['eventType'] == 'playFromMediaId') {
         _playViaAndroidAuto(event['songId'], event['libraryId']);
       }
-    });
+    }));
   }
 
   ///pushSongToPlaylist method clear previous song queue, plays the tapped song and push related
@@ -2452,23 +2462,32 @@ class PlayerController extends GetxController
     }
   }
 
+  /// GetX calls this on delete (it never calls [dispose] on a controller).
+  /// The audio handler and its player outlive the controller, so playback
+  /// is left alone; the panel's ScrollController belongs to the panel.
   @override
-  void dispose() {
-    _audioHandler.customAction('dispose');
-    keyboardSubscription.cancel();
-    scrollController.dispose();
+  void onClose() {
+    for (final s in _subscriptions) {
+      s.cancel();
+    }
+    _subscriptions.clear();
+    for (final w in _workers) {
+      w.dispose();
+    }
+    _workers.clear();
+    if (Get.isRegistered<SmartQueueService>()) {
+      Get.find<SmartQueueService>().detach(this);
+    }
+    // Before super.onClose: the ticker mixin asserts no ticker is active.
     gesturePlayerStateAnimationController?.dispose();
+    gesturePlayerStateAnimationController = null;
+    gesturePlayerStateAnimation = null;
     sleepTimer?.cancel();
     if (GetPlatform.isWindows) {
       Get.delete<WindowsAudioService>();
     }
-    // ensure wakelock disabled when player controller disposed
-    try {
-      _setWakelock(false);
-    } catch (e) {
-      printERROR(e);
-    }
-    super.dispose();
+    _setWakelock(false);
+    super.onClose();
   }
 }
 
