@@ -9,6 +9,7 @@ import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import '../../models/playling_from.dart';
 import '../../models/media_item_extras.dart';
 import '../../utils/hive_boxes.dart';
+import 'abs_session.dart';
 import 'long_form_queue.dart';
 import 'play_queue_order.dart';
 import 'video_handoff.dart';
@@ -594,10 +595,11 @@ class PlayerController extends GetxController
 
     final startOff = song.absStartOffsetSec;
     final bookAbsolute = startOff + position.inMilliseconds / 1000.0;
-    final bookDuration = currentQueue.fold<double>(0, (sum, m) {
-      if (!_isAbsItem(m)) return sum;
-      return sum + (m.duration?.inMilliseconds ?? 0) / 1000.0;
-    });
+    final bookDuration = absQueuedBookSec(currentQueue);
+    if (bookDuration > 0) {
+      _absSyncedSessionId = sessionId;
+      _absSyncedBookSec = bookDuration;
+    }
     final listened = _absTimeListenedSec;
     _absTimeListenedSec = 0;
 
@@ -611,8 +613,16 @@ class PlayerController extends GetxController
     ));
   }
 
-  /// Best-effort ABS session close when leaving an ABS item.
-  void _maybeCloseAbsSession(MediaItem? previous, MediaItem? next) {
+  /// Book length seen by the last progress sync of session
+  /// [_absSyncedSessionId], for closing it once the queue has moved on.
+  String? _absSyncedSessionId;
+  double _absSyncedBookSec = 0;
+
+  /// Best-effort ABS session close when leaving an ABS item. [outgoing] is
+  /// the item's own progress: by now the shared progress bar (and often the
+  /// queue) already belong to the incoming item.
+  void _maybeCloseAbsSession(
+      MediaItem? previous, MediaItem? next, OutgoingProgress outgoing) {
     if (previous == null || !_isAbsItem(previous)) return;
     if (next != null && next.id == previous.id) return;
     final sessionId = previous.absSessionId;
@@ -620,13 +630,13 @@ class PlayerController extends GetxController
     if (!Get.isRegistered<AudiobookshelfService>()) return;
 
     final startOff = previous.absStartOffsetSec;
-    final posMs = progressBarStatus.value.current.inMilliseconds;
-    final bookAbsolute = startOff + posMs / 1000.0;
-    final bookDuration = currentQueue.fold<double>(0, (sum, m) {
-      if (!_isAbsItem(m)) return sum;
-      return sum + (m.duration?.inMilliseconds ?? 0) / 1000.0;
-    });
-    final totalSec = progressBarStatus.value.total.inMilliseconds / 1000.0;
+    final bookAbsolute = startOff + outgoing.position.inMilliseconds / 1000.0;
+    final stillQueued = currentQueue.any((m) => m.id == previous.id);
+    final bookDuration = absCloseBookSec(
+      queuedBookSec: stillQueued ? absQueuedBookSec(currentQueue) : 0,
+      syncedBookSec: _absSyncedSessionId == sessionId ? _absSyncedBookSec : 0,
+      outgoingTotal: outgoing.total,
+    );
     final listened = _absTimeListenedSec;
     _absTimeListenedSec = 0;
     _absLastTickMs = 0;
@@ -635,7 +645,7 @@ class PlayerController extends GetxController
     unawaited(Get.find<AudiobookshelfService>().closeSession(
       sessionId,
       currentTime: bookAbsolute,
-      duration: bookDuration > 0 ? bookDuration : totalSec,
+      duration: bookDuration,
       timeListened: listened,
     ));
   }
@@ -1065,7 +1075,7 @@ class PlayerController extends GetxController
             Duration(milliseconds: posMs), outgoingProgress.total,
             nowMs: DateTime.now().millisecondsSinceEpoch);
         // Close ABS listening session when leaving an ABS item (best effort).
-        _maybeCloseAbsSession(currentSong.value, mediaItem);
+        _maybeCloseAbsSession(currentSong.value, mediaItem, outgoingProgress);
         final outgoing = currentSong.value;
         // The handler re-emits the playing item after queue edits, shuffle
         // and stream retries; only a different id is a song change.
