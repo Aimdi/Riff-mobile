@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import 'soulseek_client.dart';
 import 'soulseek_search.dart';
@@ -27,20 +28,23 @@ class SoulseekCoverService {
 
   final Dio _dio;
 
-  /// Resolved cover URLs by cache key. Empty string = looked up, no art found.
-  final Map<String, String> _cache = {};
-  final Map<String, Future<String?>> _inflight = {};
+  /// Most lookups kept (each search adds a row's worth); the least
+  /// recently used go first.
+  static const maxEntries = 500;
 
-  /// Stable completed futures so FutureBuilder / State doesn't reset.
-  final Map<String, Future<String?>> _completed = {};
+  /// One lookup per cache key, in flight or done (null: no art found), so
+  /// a row asking again gets the same future. Map order is recency.
+  final Map<String, Future<String?>> _covers = {};
+
+  static final Future<String?> _none = Future<String?>.value(null);
 
   static final instance = SoulseekCoverService();
 
-  void clear() {
-    _cache.clear();
-    _inflight.clear();
-    _completed.clear();
-  }
+  /// Lookups currently kept.
+  @visibleForTesting
+  int get cachedCount => _covers.length;
+
+  void clear() => _covers.clear();
 
   /// Cover for a single file result.
   Future<String?> coverForFile(
@@ -71,32 +75,16 @@ class SoulseekCoverService {
 
   Future<String?> coverForHint(CoverLookupHint hint) {
     final key = hint.cacheKey;
-    if (key.isEmpty || key == '||') {
-      return _completed.putIfAbsent(key, () => Future<String?>.value(null));
+    if (key.isEmpty || key == '||') return _none;
+    final known = _covers.remove(key);
+    if (known != null) return _covers[key] = known;
+    final Future<String?> lookup =
+        _lookup(hint).then((url) => url, onError: (Object _) => null);
+    _covers[key] = lookup;
+    while (_covers.length > maxEntries) {
+      _covers.remove(_covers.keys.first);
     }
-    if (_completed.containsKey(key)) return _completed[key]!;
-    if (_cache.containsKey(key)) {
-      final v = _cache[key]!;
-      final fut = Future<String?>.value(v.isEmpty ? null : v);
-      _completed[key] = fut;
-      return fut;
-    }
-    return _inflight.putIfAbsent(key, () async {
-      try {
-        final url = await _lookup(hint);
-        _cache[key] = url ?? '';
-        final fut = Future<String?>.value(url);
-        _completed[key] = fut;
-        return url;
-      } catch (_) {
-        _cache[key] = '';
-        final fut = Future<String?>.value(null);
-        _completed[key] = fut;
-        return null;
-      } finally {
-        _inflight.remove(key);
-      }
-    });
+    return lookup;
   }
 
   Future<String?> _lookup(CoverLookupHint hint) async {

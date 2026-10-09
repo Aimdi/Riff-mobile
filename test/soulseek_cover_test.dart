@@ -132,4 +132,49 @@ void main() {
     );
     expect(url, 'https://cdn.example/cover.jpg');
   });
+
+  group('cache', () {
+    late int requests;
+    late SoulseekCoverService svc;
+    setUp(() {
+      requests = 0;
+      final dio = Dio(BaseOptions(responseType: ResponseType.plain));
+      dio.httpClientAdapter = _FakeAdapter((options) {
+        requests++;
+        return ResponseBody.fromString(
+            jsonEncode({
+              'results': [
+                {'artworkUrl100': 'https://example.com/a/100x100bb.jpg'}
+              ]
+            }),
+            200);
+      });
+      svc = SoulseekCoverService(dio: dio);
+    });
+
+    test('a row asking again shares the one lookup', () async {
+      const hint = CoverLookupHint(artist: 'A', title: 'T');
+      final first = svc.coverForHint(hint);
+      expect(identical(svc.coverForHint(hint), first), isTrue);
+      await first;
+      expect(identical(svc.coverForHint(hint), first), isTrue);
+      expect(requests, 1);
+    });
+
+    test('stays bounded, dropping the least recently used', () async {
+      const kept = CoverLookupHint(artist: 'Keep', title: 'Me');
+      await svc.coverForHint(kept);
+      for (var i = 0; i < SoulseekCoverService.maxEntries + 50; i++) {
+        await svc.coverForHint(CoverLookupHint(artist: 'A$i', title: 'T'));
+        // Looking at it again keeps it fresh.
+        if (i % 100 == 0) await svc.coverForHint(kept);
+      }
+      expect(svc.cachedCount, SoulseekCoverService.maxEntries);
+      final before = requests;
+      await svc.coverForHint(kept);
+      expect(requests, before, reason: 'recently used entry was kept');
+      await svc.coverForHint(const CoverLookupHint(artist: 'A0', title: 'T'));
+      expect(requests, before + 1, reason: 'oldest entry was dropped');
+    });
+  });
 }
