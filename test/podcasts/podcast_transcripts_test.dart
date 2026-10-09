@@ -196,6 +196,26 @@ void main() {
       expect(t.timed, isTrue);
     });
 
+    test('only the most recent transcripts stay parsed in memory', () async {
+      final box = Hive.box(PodcastTranscriptService.box);
+      for (var i = 0; i < 10; i++) {
+        await box.put('https://x/$i.json', {
+          'at': i,
+          'cues': [cue(0, 'Line $i').toJson()],
+        });
+      }
+      MediaItem feedEp(int i) =>
+          ep('podcast_$i', extras: {'transcriptUrl': 'https://x/$i.json'});
+      for (var i = 0; i < 10; i++) {
+        await PodcastTranscriptService.load(feedEp(i));
+      }
+      // Every transcript used to stay in memory for the whole session.
+      expect(PodcastTranscriptService.memoryCount, lessThanOrEqualTo(4));
+      // An evicted one comes back from the box.
+      final first = await PodcastTranscriptService.load(feedEp(0));
+      expect(first.cues.single.text, 'Line 0');
+    });
+
     test('availability: feed sync, YouTube after a probe/cache', () async {
       expect(
           PodcastTranscriptService.available(

@@ -186,23 +186,18 @@ class PodcastService {
     return 1; // unknown type — still try to sniff-parse it
   }
 
-  static final _transcriptCache = <String, List<PodcastTranscriptCue>>{};
-
   /// Fetch and parse a Podcasting 2.0 episode transcript into cues, coalesced
   /// into readable lines. Cues carry startSec = -1 when the source has no
   /// timestamps (plain text/HTML) — the viewer then skips live sync.
-  /// Returns [] when unavailable or unparseable.
+  /// Returns [] when unavailable or unparseable. Not cached here:
+  /// PodcastTranscriptService keeps the results (memory + its box).
   static Future<List<PodcastTranscriptCue>> transcript(String url,
       {String type = ''}) async {
     if (url.isEmpty) return [];
-    final cached = _transcriptCache[url];
-    if (cached != null) return cached;
     try {
       final res = await _dio.get(url,
           options: Options(responseType: ResponseType.plain));
-      final cues = parseTranscriptDocument('${res.data ?? ''}', type: type);
-      _transcriptCache[url] = cues;
-      return cues;
+      return parseTranscriptDocument('${res.data ?? ''}', type: type);
     } catch (e) {
       printERROR('Transcript fetch failed: $e');
       return [];
