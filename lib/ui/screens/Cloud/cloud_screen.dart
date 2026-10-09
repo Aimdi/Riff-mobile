@@ -522,9 +522,11 @@ class _SongsView extends StatelessWidget {
         return _EmptyState(
             icon: Icons.music_note_outlined, text: 'cloudNoSongs'.tr);
       }
+      // One copy per build, not one per row built while scrolling.
+      final list = cloud.songs.toList();
       return ListView.builder(
         padding: const EdgeInsets.only(bottom: 200, right: 8),
-        itemCount: cloud.songs.length + 1,
+        itemCount: list.length + 1,
         itemBuilder: (context, i) {
           if (i == 0) {
             // Random slice of the library — re-roll on demand.
@@ -540,7 +542,7 @@ class _SongsView extends StatelessWidget {
                     tooltip: 'playAll'.tr,
                     icon: const Icon(Icons.play_arrow_rounded, size: 22),
                     onPressed: () => playCloudSongsOrNotify(
-                      cloud.toMediaItems(cloud.songs.toList()),
+                      cloud.toMediaItems(list),
                       shuffle: false,
                     ),
                   ),
@@ -553,7 +555,6 @@ class _SongsView extends StatelessWidget {
               ),
             );
           }
-          final list = cloud.songs.toList();
           return CloudSongTile(songs: list, index: i - 1);
         },
       );
