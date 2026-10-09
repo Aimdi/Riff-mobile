@@ -68,6 +68,20 @@ void main() {
       expect(PodcastService.pubDateMs('19 Foo 2026 08:00:00 GMT'), 0);
     });
 
+    // DateTime.parse rolls these over (month 13 → next January) instead of
+    // failing; they must read as unparseable, not as another date.
+    test('impossible ISO dates → 0', () {
+      for (final raw in [
+        '2026-13-01',
+        '2026-00-10',
+        '2026-02-30T10:00:00Z',
+        '2026-12-45',
+      ]) {
+        expect(PodcastService.parseRssDate(raw), isNull, reason: raw);
+        expect(PodcastService.pubDateMs(raw), 0, reason: raw);
+      }
+    });
+
     test('sorts newest-first across mixed zones', () {
       final raws = [
         'Sat, 19 Jul 2026 08:00:00 EST', // 13:00Z
@@ -102,6 +116,14 @@ void main() {
       expect(PodcastService.formatPubDate(null), '');
       expect(PodcastService.formatPubDate(''), '');
       expect(PodcastService.formatPubDate('last week'), 'last week');
+    });
+
+    test('an impossible ISO date shows as written instead of throwing', () {
+      // Month 13 / 0 used to index past the month names (RangeError).
+      expect(PodcastService.formatPubDate('2026-13-01'), '2026-13-01');
+      expect(PodcastService.formatPubDate('2026-00-10'), '2026-00-10');
+      expect(PodcastService.formatPubDate('2026-02-30T10:00:00Z'),
+          '2026-02-30T10:00:00Z');
     });
   });
 }

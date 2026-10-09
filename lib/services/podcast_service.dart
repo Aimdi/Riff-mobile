@@ -915,10 +915,18 @@ class PodcastService {
     try {
       final dt = DateTime.parse(raw.trim());
       final iso = _isoDateRe.firstMatch(raw);
+      final year = iso != null ? int.parse(iso.group(1)!) : dt.year;
+      final month = iso != null ? int.parse(iso.group(2)!) : dt.month;
+      final day = iso != null ? int.parse(iso.group(3)!) : dt.day;
+      // DateTime.parse rolls impossible dates over ("2024-13-01" is read as
+      // January 2025) instead of failing. Month 13 or 0 used to crash the
+      // date label, and with it the whole feed.
+      final written = DateTime.utc(year, month, day);
+      if (written.month != month || written.day != day) return null;
       return (
-        year: iso != null ? int.parse(iso.group(1)!) : dt.year,
-        month: iso != null ? int.parse(iso.group(2)!) : dt.month,
-        day: iso != null ? int.parse(iso.group(3)!) : dt.day,
+        year: year,
+        month: month,
+        day: day,
         // A zone-less ISO date parses as local time; toUtc() keeps it right.
         utcMs: dt.toUtc().millisecondsSinceEpoch,
       );
