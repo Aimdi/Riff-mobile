@@ -7,7 +7,6 @@ import 'package:get/get.dart';
 
 import 'riff_sheet.dart';
 import 'package:hive/hive.dart';
-import 'package:widget_marquee/widget_marquee.dart';
 
 import '../../services/discovery/discovery_service.dart';
 import '../../services/downloader.dart';
@@ -24,7 +23,6 @@ import '/ui/utils/sheet_insets.dart';
 import '/ui/widgets/create_playlist_dialog.dart';
 import '../../models/playlist.dart';
 import 'collection_play.dart' show isSystemLibraryPlaylistId;
-import 'common_dialog_widget.dart';
 import 'snackbar.dart';
 
 /// Built-in library playlists (Favourites, Recently played, Cached,
@@ -61,7 +59,7 @@ BuildContext? safeAddToPlaylistContext(BuildContext? context) {
   return null;
 }
 
-/// Spotify-like 1–2 tap add-to-playlist. Preferred over [AddToPlaylist].
+/// Spotify-like 1–2 tap add-to-playlist.
 Future<void> showAddToPlaylistSheet(
   BuildContext context,
   List<MediaItem> songs,
@@ -377,151 +375,6 @@ class _SheetIcon extends StatelessWidget {
         borderRadius: BorderRadius.circular(RiffRadii.sm),
       ),
       child: Icon(icon, color: color, size: RiffComponentSizes.sheetIcon),
-    );
-  }
-}
-
-class AddToPlaylist extends StatelessWidget {
-  const AddToPlaylist(this.songItems, {super.key});
-  final List<MediaItem> songItems;
-
-  @override
-  Widget build(BuildContext context) {
-    final addToPlaylistController = Get.put(AddToPlaylistController());
-    final isPipedLinked = Get.find<PipedServices>().isLoggedIn;
-    return CommonDialog(
-      child: Container(
-        height: isPipedLinked ? 400 : 350,
-        padding: const EdgeInsets.only(
-            top: RiffSpacing.xl,
-            bottom: RiffSpacing.x3l,
-            left: RiffSpacing.xl,
-            right: RiffSpacing.xl),
-        child: Stack(
-          children: [
-            Column(children: [
-              Container(
-                padding: const EdgeInsets.only(
-                    bottom: RiffSpacing.sm, top: RiffSpacing.sm),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: RiffSpacing.sm),
-                        child: Marquee(
-                          id: "createNewPlaylistx",
-                          delay: const Duration(milliseconds: 300),
-                          child: Text(
-                            "CreateNewPlaylist".tr,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: RiffSpacing.sm),
-                    InkWell(
-                      child: const Icon(Icons.playlist_add),
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        showDialog(
-                          context: context,
-                          builder: (context) => CreateNRenamePlaylistPopup(
-                              isCreateNadd: true, songItems: songItems),
-                        );
-                      },
-                    )
-                  ],
-                ),
-              ),
-              if (isPipedLinked)
-                Obx(
-                  () => Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Radio(
-                              value: "piped",
-                              groupValue:
-                                  addToPlaylistController.playlistType.value,
-                              onChanged:
-                                  addToPlaylistController.changePlaylistType),
-                          Text("Piped".tr),
-                        ],
-                      ),
-                      const SizedBox(width: RiffSpacing.lg),
-                      Row(
-                        children: [
-                          Radio(
-                              value: "local",
-                              groupValue:
-                                  addToPlaylistController.playlistType.value,
-                              onChanged:
-                                  addToPlaylistController.changePlaylistType),
-                          Text("local".tr),
-                        ],
-                      )
-                    ],
-                  ),
-                ),
-              Container(
-                // Hairline frame instead of a filled box (§2, §5.1).
-                decoration: BoxDecoration(
-                    border: Border.all(
-                        color: Theme.of(context).dividerColor, width: 0),
-                    borderRadius: BorderRadius.circular(RiffRadii.sm)),
-                height: 250,
-                child: Obx(
-                  () => addToPlaylistController.playlists.isNotEmpty
-                      ? ListView.builder(
-                          itemCount: addToPlaylistController.playlists.length,
-                          itemBuilder: (context, index) => ListTile(
-                            leading: const Icon(Icons.playlist_play),
-                            title: Text(
-                              (addToPlaylistController.playlists[index]).title,
-                            ),
-                            onTap: () {
-                              HapticFeedback.lightImpact();
-                              addToPlaylistController
-                                  .addSongsToPlaylist(
-                                      songItems,
-                                      (addToPlaylistController.playlists[index])
-                                          .playlistId,
-                                      context)
-                                  .then((outcome) {
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    snackbar(context,
-                                        playlistAddMessageKey(outcome).tr,
-                                        size: SanckBarSize.MEDIUM));
-                                Navigator.of(context).pop();
-                              });
-                            },
-                          ),
-                        )
-                      : Center(
-                          child: Text("noLibPlaylist".tr),
-                        ),
-                ),
-              )
-            ]),
-            Obx(() => (addToPlaylistController.additionInProgress.isTrue &&
-                    isPipedLinked)
-                ? const Positioned(
-                    top: 60,
-                    right: 8,
-                    child: SizedBox(
-                        height: RiffComponentSizes.buttonSpinner,
-                        width: RiffComponentSizes.buttonSpinner,
-                        child: CircularProgressIndicator(
-                          strokeWidth: RiffComponentSizes.spinnerStroke,
-                        )),
-                  )
-                : const SizedBox.shrink()),
-          ],
-        ),
-      ),
     );
   }
 }
