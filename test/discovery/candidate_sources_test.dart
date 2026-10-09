@@ -17,9 +17,6 @@ class _FakeMusic extends MusicServices {
   Completer<void> gate = Completer<void>()..complete();
 
   @override
-  void onInit() {}
-
-  @override
   Future<Map<String, dynamic>> getWatchPlaylist(
       {String videoId = "",
       String? playlistId,

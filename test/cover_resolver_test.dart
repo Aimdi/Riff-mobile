@@ -12,7 +12,7 @@ class _FakeMusic extends MusicServices {
   Completer<void> release = Completer<void>()..complete();
 
   @override
-  void onInit() {} // no Hive / network in tests
+  Future<void> init() async {} // no Hive / network in tests
 
   @override
   Future<String?> squareCoverForVideo(String videoId,
