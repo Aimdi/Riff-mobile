@@ -177,16 +177,23 @@ HomeItem homeSongItem(MediaItem m) => HomeItem(homeSongKey(m.id), m,
     hasArt: _hasArtUrl(m.artUri?.toString()),
     altKey: titleArtistKey(m.title, m.artist ?? ''));
 
+// titleArtistKey runs for every song on Home each time the feed rebuilds
+// (every track change), so its patterns are built once.
+final _bracketed = RegExp(r'[(\[].*?[)\]]');
+final _dashSuffix = RegExp(r'\s+-\s+.*$');
+final _nonAlnum = RegExp(r'[^\p{L}\p{N}]+', unicode: true);
+final _artistSeparator = RegExp(r',|&| feat\.? | ft\.? | x ');
+
 /// Same song from any source: lower-case title without bracketed extras
 /// ("(Remastered 2011)", "[Official Video]") and the first artist.
 String titleArtistKey(String title, String artists) {
   String norm(String s) => s
       .toLowerCase()
-      .replaceAll(RegExp(r'[(\[].*?[)\]]'), ' ')
-      .replaceAll(RegExp(r'\s+-\s+.*$'), ' ')
-      .replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ')
+      .replaceAll(_bracketed, ' ')
+      .replaceAll(_dashSuffix, ' ')
+      .replaceAll(_nonAlnum, ' ')
       .trim();
-  final first = artists.split(RegExp(r',|&| feat\.? | ft\.? | x ')).first;
+  final first = artists.split(_artistSeparator).first;
   return 'ta:${norm(title)}|${norm(first)}';
 }
 
@@ -433,9 +440,10 @@ HomeFeedInput readHomeFeedInput(
   disc?.dailyMixes.length;
   disc?.personalSections.length;
   PodcastService.subsRev.value;
+  // Built once per shelf (it was built twice: once for the null check).
   final yt = [
     for (final s in [...home.middleContent, ...home.fixedContent])
-      if (youTubeShelf(s) != null) youTubeShelf(s)!,
+      if (youTubeShelf(s) case final shelf?) shelf,
   ];
   return HomeFeedInput(
     jumpBackIn: [for (final r in homeResumables()) _resumeItem(r)],
