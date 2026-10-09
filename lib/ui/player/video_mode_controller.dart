@@ -16,6 +16,7 @@ import '/utils/helper.dart';
 import '/utils/media_item_video.dart';
 import 'mpv_video_engine.dart';
 import 'player_controller.dart';
+import 'progress_ui_throttle.dart';
 import 'video_engine.dart';
 import 'video_handoff.dart';
 
@@ -53,6 +54,7 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
   String? _activeSongId;
   final List<StreamSubscription> _subs = [];
   Worker? _songWorker;
+  final _bufferedUi = BufferedUiThrottle();
 
   /// Engine currently holding the video frames (null when inactive).
   VideoEngine? get engine => isActive.value ? _engine : null;
@@ -305,6 +307,13 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
     }));
     _subs.add(e.bufferStream.listen((buf) {
       if (!isActive.value) return;
+      // ExoPlayer reports the buffer with every 250 ms position tick, mostly
+      // unchanged; each update rebuilds every progress widget.
+      if (!_bufferedUi.shouldUpdate(
+          buffered: buf,
+          previousUiBuffered: _pc.progressBarStatus.value.buffered)) {
+        return;
+      }
       _pc.progressBarStatus.update((val) {
         val!.buffered = buf;
       });

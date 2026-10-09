@@ -1009,7 +1009,7 @@ class PlayerController extends GetxController
         const Duration(milliseconds: 350), () => _sponsorSeekInFlight = false));
   }
 
-  DateTime? _lastBufferedUiAt;
+  final _bufferedUiThrottle = BufferedUiThrottle();
 
   void _listenForChangesInBufferedPosition() {
     _subscriptions.add(_audioHandler.playbackState.listen((playbackState) {
@@ -1027,16 +1027,10 @@ class PlayerController extends GetxController
       }
       final buffered = playbackState.bufferedPosition;
       // Skip no-op / dense buffered updates — they rebuild progress widgets.
-      if (buffered == oldState.buffered) return;
-      final now = DateTime.now();
-      if (_lastBufferedUiAt != null &&
-          now.difference(_lastBufferedUiAt!) <
-              const Duration(milliseconds: 200) &&
-          (buffered - oldState.buffered).abs() <
-              const Duration(milliseconds: 500)) {
+      if (!_bufferedUiThrottle.shouldUpdate(
+          buffered: buffered, previousUiBuffered: oldState.buffered)) {
         return;
       }
-      _lastBufferedUiAt = now;
       progressBarStatus.update((val) {
         val!.buffered = buffered;
         val.current = oldState.current;
