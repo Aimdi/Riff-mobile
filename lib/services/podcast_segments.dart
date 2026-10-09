@@ -389,6 +389,15 @@ class PodcastSegmentStore {
   static Future<void> putCache(
       String episodeId, List<PodcastSegment> segments, DateTime now) async {
     final box = _box(cacheBox) ?? await Hive.openBox(cacheBox);
+    // Expired answers are never read again, yet stayed in the box (which
+    // Hive holds in memory) for every YouTube episode ever played.
+    bool expired(Object? v) =>
+        v is! Map || !segmentCacheFresh(v['fetchedAt'], now);
+    final stale = [
+      for (final k in box.keys)
+        if (k != episodeId && expired(box.get(k))) k
+    ];
+    if (stale.isNotEmpty) await box.deleteAll(stale);
     await box.put(episodeId, {
       'fetchedAt': now.millisecondsSinceEpoch,
       'segments': [for (final s in segments) s.toJson()],
