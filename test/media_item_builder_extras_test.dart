@@ -45,4 +45,17 @@ void main() {
     expect(age, lessThan(3 * 60 * 60 * 1000));
     expect(age, greaterThan(60 * 60 * 1000));
   });
+
+  test('a malformed stored length is no duration, not an exception', () {
+    expect(MediaItemBuilder.toDuration('3:45'),
+        const Duration(minutes: 3, seconds: 45));
+    expect(MediaItemBuilder.toDuration('1:02:03'),
+        const Duration(hours: 1, minutes: 2, seconds: 3));
+    expect(MediaItemBuilder.toDuration('Live'), Duration.zero);
+    expect(MediaItemBuilder.toDuration('1:xx'), isNull);
+    // fromJson is how every library / playlist box is read back.
+    final item = MediaItemBuilder.fromJson(
+        {'videoId': 'v', 'title': 'T', 'length': '4:0a'});
+    expect(item.duration, isNull);
+  });
 }
