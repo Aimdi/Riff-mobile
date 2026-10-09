@@ -1036,10 +1036,6 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     }
     _watchdog.reset();
     await _player.seek(position);
-    // Notification / OS seeks bypass PlayerController.seek — still nudge video.
-    if (Get.isRegistered<PlayerController>()) {
-      Get.find<PlayerController>().videoSeekSignal.value++;
-    }
   }
 
   @override

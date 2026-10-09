@@ -94,17 +94,12 @@ class PlayerController extends GetxController
 
   final playerPaneOpacity = (1.0).obs;
   final isPlayerpanelTopVisible = true.obs;
-  final isPanelGTHOpened = false.obs;
 
   /// True when the main player panel is nearly fully open. Muted in-player
   /// video pauses while this is false so decoding stops behind the mini player.
   final isPlayerPanelOpen = false.obs;
-
-  /// Bumped on every seek so [PlayerVideoSurface] can hard-sync immediately.
-  final videoSeekSignal = 0.obs;
   final playerPanelMinHeight = 0.0.obs;
   bool initFlagForPlayer = true;
-  final isQueueReorderingInProcess = false.obs;
   PanelController playerPanelController = PanelController();
   PanelController queuePanelController = PanelController();
   AnimationController? gesturePlayerStateAnimationController;
@@ -149,8 +144,6 @@ class PlayerController extends GetxController
   List<MediaItem> get upcomingQueue =>
       upcomingAfterIndex(currentQueue, currentSongIndex.value);
 
-  final isFirstSong = true;
-  final isLastSong = true;
   final isQueueLoopModeEnabled = false.obs;
   final isLoopModeEnabled = false.obs;
   final isShuffleModeEnabled = false.obs;
@@ -179,21 +172,18 @@ class PlayerController extends GetxController
   bool _wakelockActive = false;
 
   var _newSongFlag = true;
-  final isCurrentSongBuffered = false.obs;
 
   /// SponsorBlock segments for the current video id.
   List<SponsorBlockSegment> _sponsorSegments = const [];
   String? _sponsorVideoId;
   String? _lastSkippedSegmentUuid;
   bool _sponsorSeekInFlight = false;
-  final sponsorBlockActiveCategory = RxnString();
 
   /// Podcasting 2.0 chapters for the current podcast episode (ad auto-skip).
   final chapters = <PodcastChapter>[].obs;
   String? _chaptersForSongId;
   // True while playback is inside an ad chapter (drives the "Skip ad" chip).
   final inAdChapter = false.obs;
-  bool get hasChapters => chapters.isNotEmpty;
 
   Box get _prefs => HiveBoxes.prefs();
 
@@ -286,7 +276,6 @@ class PlayerController extends GetxController
       printERROR('AudioHandler not ready; player listeners skipped');
       return;
     }
-    //_createAppDocDir();
     _listenForChangesInPlayerState();
     _listenForChangesInPosition();
     _listenForChangesInBufferedPosition();
@@ -348,11 +337,6 @@ class PlayerController extends GetxController
       if (isPlayerpanelTopVisible.value) {
         isPlayerpanelTopVisible.value = false;
       }
-    }
-
-    final gthOpen = x > 0.6;
-    if (isPanelGTHOpened.value != gthOpen) {
-      isPanelGTHOpened.value = gthOpen;
     }
 
     // Hysteresis near fully-open so the last bit of the gesture doesn't thrash.
@@ -945,7 +929,6 @@ class PlayerController extends GetxController
     _sponsorVideoId = videoId;
     _sponsorSegments = const [];
     _lastSkippedSegmentUuid = null;
-    sponsorBlockActiveCategory.value = null;
     // Podcast episodes use the podcast segment engine instead.
     if (isCurrentSongPodcast) return;
     if (!Get.isRegistered<SponsorBlockService>()) return;
@@ -972,12 +955,7 @@ class PlayerController extends GetxController
 
     final sec = position.inMilliseconds / 1000.0;
     final active = sb.activeSegment(_sponsorSegments, sec);
-    if (active == null) {
-      if (sponsorBlockActiveCategory.value != null) {
-        sponsorBlockActiveCategory.value = null;
-      }
-      return;
-    }
+    if (active == null) return;
     if (active.uuid == _lastSkippedSegmentUuid) return;
     if (isCurrentSongPodcast) return;
 
@@ -1005,7 +983,6 @@ class PlayerController extends GetxController
 
     _lastSkippedSegmentUuid = active.uuid;
     _sponsorSeekInFlight = true;
-    sponsorBlockActiveCategory.value = active.category;
     printINFO(
         'SponsorBlock skip ${active.category} ${active.start.toStringAsFixed(1)}s → ${active.end.toStringAsFixed(1)}s');
     final Future<void> skip = h != null && !_videoModeActive
@@ -1064,7 +1041,6 @@ class PlayerController extends GetxController
       if (mediaItem != null) {
         printINFO(mediaItem.title);
         _newSongFlag = true;
-        isCurrentSongBuffered.value = false;
         // Capture position before switching so DiscoveryService can score the skip.
         final posMs = outgoingProgress.position.inMilliseconds;
         // Persist the outgoing podcast episode against ITS OWN duration.
@@ -1838,14 +1814,6 @@ class PlayerController extends GetxController
     if (!_audioReady) return;
     _audioHandler.customAction(
         "reorderQueue", {"oldIndex": oldIndex, "newIndex": newIndex});
-  }
-
-  void onReorderStart(int index) {
-    isQueueReorderingInProcess.value = true;
-  }
-
-  void onReorderEnd(int index) {
-    isQueueReorderingInProcess.value = false;
   }
 
   /// True while video mode's mpv engine owns playback — the transport
