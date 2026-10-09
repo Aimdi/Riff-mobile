@@ -120,8 +120,12 @@ class SongCacheService {
   Future<void> _deleteCachedSong(String id) async {
     final dir = await cachedSongsDir();
     final file = File('${dir.path}/$id.mp3');
+    // LockCachingAudioSource writes the content type to `<file>.mime` next
+    // to every cached song; left behind, one piled up per evicted song.
+    final mimeFile = File('${file.path}.mime');
     try {
       if (await file.exists()) await file.delete();
+      if (await mimeFile.exists()) await mimeFile.delete();
     } catch (e) {
       printERROR('song cache delete file failed ($id): $e');
     }
