@@ -54,7 +54,9 @@ class SmartQueueService extends GetxService {
       return;
     }
     final q = player.currentQueue;
-    final idx = player.currentSongIndex.value;
+    // Not player.currentSongIndex: the player sets it after currentSong, so
+    // on a song change it still points at the previous song.
+    final idx = q.indexWhere((e) => e.id == song.id);
     if (idx < 0) return;
     final remaining = q.length - idx - 1;
     if (remaining > 2) return;
