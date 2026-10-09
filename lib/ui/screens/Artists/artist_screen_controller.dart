@@ -12,8 +12,7 @@ import '../Library/library_controller.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/music_service.dart';
 
-class ArtistScreenController extends GetxController
-    with GetSingleTickerProviderStateMixin {
+class ArtistScreenController extends GetxController {
   final isArtistContentFetced = false.obs;
 
   /// The artist could not be loaded (offline, or not an artist channel).
@@ -21,7 +20,6 @@ class ArtistScreenController extends GetxController
   String _artistId = '';
   final navigationRailCurrentIndex = 0.obs;
   final musicServices = Get.find<MusicServices>();
-  final railItems = <String>[].obs;
   final artistData = <String, dynamic>{}.obs;
   final sepataredContent = <String, dynamic>{}.obs;
   final isSeparatedArtistContentFetced = false.obs;
@@ -35,25 +33,11 @@ class ArtistScreenController extends GetxController
   bool continuationInProgress = false;
   late Artist artist_;
   Map<String, List> tempListContainer = {};
-  TabController? tabController;
-  bool isTabTransitionReversed = false;
 
   @override
   void onInit() {
     final args = Get.arguments;
     _init(args[0], args[1]);
-    if (GetPlatform.isDesktop) {
-      tabController = TabController(vsync: this, length: 5);
-      tabController?.animation?.addListener(() {
-        int indexChange = tabController!.offset.round();
-        int index = tabController!.index + indexChange;
-
-        if (index != navigationRailCurrentIndex.value) {
-          onDestinationSelected(index);
-          navigationRailCurrentIndex.value = index;
-        }
-      });
-    }
     super.onInit();
   }
 
@@ -129,7 +113,6 @@ class ArtistScreenController extends GetxController
   final Map<String, Future<void>> _tabLoads = {};
 
   Future<void> onDestinationSelected(int val) async {
-    isTabTransitionReversed = val > navigationRailCurrentIndex.value;
     navigationRailCurrentIndex.value = val;
     final tabName = ["About", "Songs", "Videos", "Albums", "Singles"][val];
 
@@ -337,7 +320,6 @@ class ArtistScreenController extends GetxController
     videoScrollController.dispose();
     albumScrollController.dispose();
     singlesScrollController.dispose();
-    tabController?.dispose();
     super.onClose();
   }
 }
