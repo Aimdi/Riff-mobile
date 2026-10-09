@@ -48,8 +48,6 @@ import '/models/media_Item_builder.dart';
 import '/utils/songs_url_cache.dart';
 import '../ui/screens/Settings/settings_screen_controller.dart';
 import '../ui/screens/Library/library_controller.dart';
-// ignore: unused_import, implementation_imports, depend_on_referenced_packages
-import "package:media_kit/src/player/platform_player.dart" show MPVLogLevel;
 
 Future<AudioHandler> initAudioService() async {
   return await AudioService.init(
@@ -76,8 +74,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   dynamic currentIndex;
   int currentShuffleIndex = 0;
 
-  /// Bumped by every playByIndex / setSourceNPlay; a request whose id is no
-  /// longer current was superseded and must not touch the player.
+  /// Bumped by every playByIndex; a request whose id is no longer current
+  /// was superseded and must not touch the player.
   int _playRequestId = 0;
 
   /// In-flight stream lookups per song id, so the prefetch and the real
@@ -89,7 +87,6 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   bool queueLoopModeEnabled = false;
   bool shuffleModeEnabled = false;
   bool loudnessNormalizationEnabled = false;
-  // var networkErrorPause = false;
   bool isSongLoading = true;
   double _baseVolume = 1.0;
 
@@ -167,7 +164,6 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     _addEmptyList();
     _notifyAudioHandlerAboutPlaybackEvents();
     _listenToPlaybackForNextSong();
-    _listenForSequenceStateChanges();
     final appPrefsBox = Hive.box("AppPrefs");
     _player
         .setSkipSilenceEnabled(appPrefsBox.get("skipSilenceEnabled") ?? false);
@@ -486,8 +482,6 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         _consecutiveResolveFails = 0;
       }
       _publishPlaybackState();
-
-      //print("set ${playbackState.value.queueIndex},${event.currentIndex}");
     }, onError: (Object e, StackTrace st) async {
       if (e is PlayerException) {
         printERROR('Error code: ${e.code}');
@@ -850,13 +844,6 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     }
   }
 
-  void _listenForSequenceStateChanges() {
-    _player.sequenceStateStream.listen((SequenceState? sequenceState) {
-      final sequence = sequenceState?.effectiveSequence;
-      if (sequence == null || sequence.isEmpty) return;
-    });
-  }
-
   void _listenForDurationChanges() {
     _player.durationStream.listen((duration) async {
       final currQueue = queue.value;
@@ -1002,17 +989,6 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       await customAction("playByIndex", {'index': currentIndex});
       return;
     }
-    // Workaround for network error pause in case of PlayingUsingLockCachingSource
-    // if (isPlayingUsingLockCachingSource && networkErrorPause) {
-    //   await _player.play();
-    //   Future.delayed(const Duration(seconds: 2)).then((value) {
-    //     if (_player.playing) {
-    //       networkErrorPause = false;
-    //     }
-    //   });
-    //   await _player.play();
-    //   return;
-    // }
     await _maybeSmartResume();
     try {
       await _player.play();
@@ -1228,11 +1204,6 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   @override
   Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) async {
     switch (name) {
-      case 'dispose':
-        await _player.dispose();
-        super.stop();
-        break;
-
       case 'setSpeedAndPitch':
         await _player.setSpeed((extras!['speed'] as num).toDouble());
         await _player.setPitch((extras['pitch'] as num).toDouble());
@@ -1414,59 +1385,6 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
             }
           }
         }
-        break;
-
-      case 'setSourceNPlay':
-        final currMed = (extras!['mediaItem'] as MediaItem);
-        final requestId = ++_playRequestId;
-        final futureStreamInfo = checkNGetUrl(currMed.id);
-        isSongLoading = true;
-        currentIndex = 0;
-        await _playList.clear();
-        mediaItem.add(currMed);
-        queue.add([currMed]);
-        _podcastPausedAt = null;
-        await _applyPlaybackProfile(currMed);
-        late final HMStreamingData streamInfo;
-        try {
-          streamInfo = await futureStreamInfo;
-          if (requestId != _playRequestId) return;
-        } catch (e) {
-          if (requestId != _playRequestId) return;
-          printERROR('setSourceNPlay stream resolve failed: $e');
-          currentSongUrl = null;
-          isSongLoading = false;
-          Get.find<PlayerController>().notifyPlayError("streamLoadFailed");
-          playbackState.add(playbackState.value
-              .copyWith(processingState: AudioProcessingState.error));
-          return;
-        }
-        if (!streamInfo.playable) {
-          currentSongUrl = null;
-          isSongLoading = false;
-          Get.find<PlayerController>().notifyPlayError(streamInfo.statusMSG);
-          playbackState.add(playbackState.value
-              .copyWith(processingState: AudioProcessingState.error));
-          return;
-        }
-        currentSongUrl = currMed.extras!['url'] = streamInfo.audio!.url;
-
-        await _playList.add(_createAudioSource(currMed));
-        isSongLoading = false;
-
-        // Normalize audio
-        if (loudnessNormalizationEnabled && GetPlatform.isAndroid) {
-          _normalizeVolume(streamInfo.audio!.loudnessDb);
-        }
-
-        try {
-          await _player.play();
-        } catch (e) {
-          printERROR('setSourceNPlay player start failed: $e');
-          await _handleRuntimePlaybackError(e, position: Duration.zero);
-          return false;
-        }
-        prefetchNextInQueue();
         break;
 
       case 'toggleSkipSilence':
@@ -1772,11 +1690,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     // Podcast episodes, Audiobookshelf tracks and Cloud (self-hosted music
     // server) songs carry a direct stream URL — no YouTube stream resolution
     // needed (same pattern Lissen uses for ABS).
-    if (songId.startsWith("podcast_") ||
-        songId.startsWith("abs_") ||
-        songId.startsWith("lv_") ||
-        songId.startsWith("cloud_") ||
-        songId.startsWith("slsk_")) {
+    if (_hasDirectStreamUrl(songId)) {
       MediaItem? item;
       for (final e in queue.value) {
         if (e.id == songId) {
@@ -2046,14 +1960,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   /// Warm [SongsUrlCache] for [songId] without blocking playback.
   void prefetchStreamUrl(String songId) {
-    if (songId.isEmpty ||
-        songId.startsWith('podcast_') ||
-        songId.startsWith('abs_') ||
-        songId.startsWith('lv_') ||
-        songId.startsWith('cloud_') ||
-        songId.startsWith('slsk_')) {
-      return;
-    }
+    if (songId.isEmpty || _hasDirectStreamUrl(songId)) return;
     unawaited(() async {
       try {
         await checkNGetUrl(songId);
@@ -2071,10 +1978,6 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       prefetchStreamUrl(queue.value[next].id);
     } catch (_) {}
   }
-}
-
-class UrlError extends Error {
-  String message() => 'Unable to fetch url';
 }
 
 // for Android Auto
