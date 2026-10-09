@@ -1,9 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:get/get.dart';
 
 import '/services/diag_log.dart';
-import '/ui/navigator.dart';
 import '/ui/widgets/sort_widget.dart';
 import 'app_version.dart';
 
@@ -23,15 +21,6 @@ void printINFO(dynamic text, {String tag = 'Harmony Music'}) {
   DiagLog.add('I $text');
   if (kReleaseMode) return;
   debugPrint("\x1B[32m[$tag]: $text\x1B[34m");
-}
-
-String? getCurrentRouteName() {
-  String? currentPath;
-  Get.nestedKey(ScreenNavigationSetup.id)?.currentState?.popUntil((route) {
-    currentPath = route.settings.name;
-    return true;
-  });
-  return currentPath;
 }
 
 void sortSongsNVideos(
@@ -182,15 +171,4 @@ Future<bool> newVersionCheck(String currentVersion) async {
   } finally {
     dio.close();
   }
-}
-
-String getTimeString(Duration time) {
-  final minutes = time.inMinutes.remainder(Duration.minutesPerHour).toString();
-  final seconds = time.inSeconds
-      .remainder(Duration.secondsPerMinute)
-      .toString()
-      .padLeft(2, '0');
-  return time.inHours > 0
-      ? "${time.inHours}:${minutes.padLeft(2, "0")}:$seconds"
-      : "$minutes:$seconds";
 }

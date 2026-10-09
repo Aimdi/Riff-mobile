@@ -25,14 +25,6 @@ extension MediaItemExtras on MediaItem {
     return fallback;
   }
 
-  int extrasInt(String key, {int fallback = 0}) {
-    final v = extras?[key];
-    if (v is int) return v;
-    if (v is num) return v.toInt();
-    if (v is String) return int.tryParse(v) ?? fallback;
-    return fallback;
-  }
-
   /// Stream / file URL stored by [MediaItemBuilder] and cache writes.
   String? get extrasUrl => extrasString('url');
 

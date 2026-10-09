@@ -40,12 +40,3 @@ extension MediaItemVideoX on MediaItem {
     return isYoutubeVideo;
   }
 }
-
-/// Same logic for maps / seeds that are not yet MediaItems.
-bool looksLikeYoutubeVideo({String? videoType, String? resultType}) {
-  final vt = videoType ?? '';
-  if (vt.contains('PODCAST')) return false;
-  if (vt == 'MUSIC_VIDEO_TYPE_ATV') return false;
-  if (vt.isNotEmpty) return true;
-  return (resultType ?? '').toLowerCase() == 'video';
-}

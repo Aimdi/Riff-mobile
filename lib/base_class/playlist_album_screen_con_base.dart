@@ -16,9 +16,6 @@ abstract class PlaylistAlbumScreenControllerBase extends GetxController {
   /// Instance of [MusicServices] used to interact with music-related services.
   final MusicServices musicServices = Get.find<MusicServices>();
 
-  /// Observable boolean indicating whether the album is offline.
-  final RxBool isOffline = false.obs;
-
   /// Observable list of songs represented as [MediaItem].
   final RxList<MediaItem> songList = <MediaItem>[].obs;
 
