@@ -32,7 +32,6 @@ import '../../widgets/podcast_follow_button.dart';
 import '../../widgets/podcast_play.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/song_list_tile.dart';
-import '../../widgets/songinfo_bottom_sheet.dart';
 import '../../widgets/sort_widget.dart';
 import '../Library/library_controller.dart';
 import 'playlist_screen_controller.dart';
@@ -395,16 +394,6 @@ class PlaylistScreen extends StatelessWidget {
         ),
       );
     });
-  }
-
-  Future openBottomSheet(BuildContext context, MediaItem song) {
-    return showModalBottomSheet(
-      useRootNavigator: true,
-      constraints: const BoxConstraints(maxWidth: 500),
-      isScrollControlled: true,
-      context: context,
-      builder: (context) => SongInfoBottomSheet(song),
-    ).whenComplete(() => Get.delete<SongInfoController>());
   }
 }
 

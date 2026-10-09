@@ -9,8 +9,6 @@ import '/ui/screens/Podcasts/podcasts_library_controller.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/podcast_follow_button.dart';
-import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
-import '../../widgets/separate_tab_item_widget.dart';
 import '../../widgets/snackbar.dart';
 import 'artist_screen_controller.dart';
 import 'spotify_artist_view.dart';
@@ -68,66 +66,6 @@ class ArtistScreen extends StatelessWidget {
               artistScreenController: artistScreenController, tag: tag)
           : SpotifyArtistView(controller: artistScreenController, tag: tag),
     );
-  }
-
-  NavigationRailDestination railDestination(String label) {
-    return NavigationRailDestination(
-      icon: const SizedBox.shrink(),
-      label: RotatedBox(quarterTurns: -1, child: Text(label)),
-    );
-  }
-}
-
-class Body extends StatelessWidget {
-  const Body({
-    super.key,
-    required this.tag,
-  });
-
-  final String tag;
-
-  @override
-  Widget build(BuildContext context) {
-    final ArtistScreenController artistScreenController =
-        Get.find<ArtistScreenController>(tag: tag);
-
-    final tabIndex = artistScreenController.navigationRailCurrentIndex.value;
-
-    if (tabIndex == 0) {
-      return Obx(() => artistScreenController.isArtistContentFetced.isTrue
-          ? AboutArtist(
-              artistScreenController: artistScreenController,
-            )
-          : const SongListShimmer(itemCount: 6, topPadding: 12));
-    } else {
-      final separatedContent = artistScreenController.sepataredContent;
-      final currentTabName =
-          ["About", "Songs", "Videos", "Albums", "Singles"][tabIndex];
-      return Obx(() {
-        if (artistScreenController.isSeparatedArtistContentFetced.isFalse &&
-            artistScreenController.navigationRailCurrentIndex.value != 0) {
-          return const SongListShimmer(itemCount: 8, topPadding: 12);
-        }
-        return SeparateTabItemWidget(
-          artistControllerTag: tag,
-          isResultWidget: false,
-          items: separatedContent.containsKey(currentTabName)
-              ? separatedContent[currentTabName]['results']
-              : [],
-          title: currentTabName,
-          topPadding: context.isLandscape ? 50.0 : 80.0,
-          scrollController: currentTabName == "Songs"
-              ? artistScreenController.songScrollController
-              : currentTabName == "Videos"
-                  ? artistScreenController.videoScrollController
-                  : currentTabName == "Albums"
-                      ? artistScreenController.albumScrollController
-                      : currentTabName == "Singles"
-                          ? artistScreenController.singlesScrollController
-                          : null,
-        );
-      });
-    }
   }
 }
 

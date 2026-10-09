@@ -15,7 +15,6 @@ import '../../widgets/image_widget.dart';
 import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/song_list_tile.dart';
-import '../../widgets/songinfo_bottom_sheet.dart';
 import '../../widgets/sort_widget.dart';
 import 'album_screen_controller.dart';
 
@@ -356,16 +355,6 @@ class AlbumScreen extends StatelessWidget {
                 "https://youtube.com/playlist?list=${albumController.album.value.audioPlaylistId}")),
       ],
     );
-  }
-
-  Future openBottomSheet(BuildContext context, MediaItem song) {
-    return showModalBottomSheet(
-      useRootNavigator: true,
-      constraints: const BoxConstraints(maxWidth: 500),
-      isScrollControlled: true,
-      context: context,
-      builder: (context) => SongInfoBottomSheet(song),
-    ).whenComplete(() => Get.delete<SongInfoController>());
   }
 }
 
