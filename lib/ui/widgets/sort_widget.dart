@@ -441,7 +441,7 @@ class SortWidgetController extends GetxController {
   final isDeletionEnabled = false.obs;
   final isAddtoPlaylistEnabled = false.obs;
   final isAllSelected = false.obs;
-  TextEditingController textEditingController = TextEditingController();
+  final textEditingController = TextEditingController();
 
   void setActiveMode(OperationMode mode) {
     isAddtoPlaylistEnabled.value = OperationMode.addToPlaylist == mode;
@@ -475,5 +475,13 @@ class SortWidgetController extends GetxController {
 
   void toggleSearch() {
     isSearchingEnabled.value = !isSearchingEnabled.value;
+  }
+
+  @override
+  void onClose() {
+    // One controller per album / playlist / artist tab, deleted with its
+    // route: the search field's controller went with it undisposed.
+    textEditingController.dispose();
+    super.onClose();
   }
 }
