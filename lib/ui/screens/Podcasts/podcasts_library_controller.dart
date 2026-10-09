@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
@@ -11,7 +9,6 @@ import '/services/music_service.dart';
 import '/services/podcast_service.dart';
 import '/services/youtube_podcast_service.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
-import '/ui/widgets/sort_widget.dart';
 import '/utils/youtube_channel_url.dart';
 
 /// A YouTube Podcasts show as a library podcast. YouTube Music serves the
@@ -38,18 +35,9 @@ Playlist ytShowAsPodcast(YtPodcastShow show) {
 
 class LibraryPodcastsController extends GetxController {
   final libraryPodcasts = <Playlist>[].obs;
-  final topEpisodes = <MediaItem>[].obs;
   final featuredPodcasts = <Playlist>[].obs;
 
   final isDiscoveryLoading = false.obs;
-  final discoveryError = false.obs;
-  final isContentFetched = false.obs;
-
-  // "Popular with listeners of X" — similar podcasts to a random one you
-  // follow, sourced from Apple's genre charts (see PodcastService.similar).
-  final similarPodcasts = <Map<String, dynamic>>[].obs;
-  final similarSeedTitle = ''.obs;
-  final isSimilarLoading = false.obs;
 
   // YouTube Podcasts (WizeStream-style): YouTube's own podcast catalog.
   final ytPopularShows = <Playlist>[].obs;
@@ -68,8 +56,6 @@ class LibraryPodcastsController extends GetxController {
   final channelSearchResults = <Playlist>[].obs;
   final isSearching = false.obs;
   final hasSearched = false.obs;
-
-  List<Playlist> tempListContainer = [];
 
   // Inbox: merged latest episodes across every subscription (newest first,
   // played ones not yet filtered). Kept here, not in the Inbox widget, so
@@ -101,10 +87,7 @@ class LibraryPodcastsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    refreshLib().then((_) {
-      loadSimilar();
-      PodcastService.refreshMissingArtwork();
-    });
+    refreshLib().then((_) => PodcastService.refreshMissingArtwork());
     loadDiscovery();
     loadYoutubePodcasts();
   }
@@ -148,30 +131,6 @@ class LibraryPodcastsController extends GetxController {
     }
   }
 
-  /// Load "similar podcasts" for a random subscription. Cheap & cached, so it
-  /// runs on open and after the first subscription is added.
-  Future<void> loadSimilar({bool force = false}) async {
-    if (isSimilarLoading.isTrue) return;
-    if (!force && similarPodcasts.isNotEmpty) return;
-    final libs = libraryPodcasts.toList();
-    if (libs.isEmpty) {
-      similarPodcasts.clear();
-      similarSeedTitle.value = '';
-      return;
-    }
-    isSimilarLoading.value = true;
-    try {
-      final seed = libs[Random().nextInt(libs.length)];
-      similarSeedTitle.value = seed.title;
-      final res = await PodcastService.similar(seed.title);
-      similarPodcasts.assignAll(res);
-    } catch (_) {
-      similarPodcasts.clear();
-    } finally {
-      isSimilarLoading.value = false;
-    }
-  }
-
   Future<void> refreshLib() async {
     final box = await Hive.openBox('LibraryPodcasts');
     libraryPodcasts.value = box.values
@@ -184,24 +143,19 @@ class LibraryPodcastsController extends GetxController {
         })
         .whereType<Playlist>()
         .toList();
-    isContentFetched.value = true;
   }
 
   Future<void> loadDiscovery({bool force = false}) async {
     if (isDiscoveryLoading.isTrue) return;
-    if (!force && (topEpisodes.isNotEmpty || featuredPodcasts.isNotEmpty)) {
-      return;
-    }
+    if (!force && featuredPodcasts.isNotEmpty) return;
     isDiscoveryLoading.value = true;
-    discoveryError.value = false;
     try {
       final data = await Get.find<MusicServices>().getPodcastDiscovery();
-      topEpisodes
-          .assignAll(List<MediaItem>.from(data['topEpisodes'] ?? const []));
+      // Only the featured shows are shown (Discover › Suggestions).
       featuredPodcasts
           .assignAll(List<Playlist>.from(data['featuredPodcasts'] ?? const []));
     } catch (_) {
-      discoveryError.value = true;
+      // Suggestions just stay empty.
     } finally {
       isDiscoveryLoading.value = false;
     }
@@ -352,13 +306,6 @@ class LibraryPodcastsController extends GetxController {
     return out;
   }
 
-  /// Entering the search field shows the "browse" state (a suggestions grid)
-  /// even before a query is typed — AntennaPod's add-podcast behaviour.
-  void enterSearchMode() {
-    hasSearched.value = true;
-    if (featuredPodcasts.isEmpty) loadDiscovery();
-  }
-
   void clearSearch() {
     _searchGen++;
     searchQuery.value = '';
@@ -380,8 +327,6 @@ class LibraryPodcastsController extends GetxController {
           (kind == 'yt_channel' ? 'YouTube channel' : 'Podcast'),
     });
     await refreshLib();
-    // Seed the "similar" row once we have something to base it on.
-    if (similarPodcasts.isEmpty) loadSimilar();
   }
 
   /// Subscribe to a YouTube channel as a podcast (videos = episodes).
@@ -420,47 +365,6 @@ class LibraryPodcastsController extends GetxController {
     final box = await Hive.openBox('LibraryPodcasts');
     await box.delete(playlistId);
     await refreshLib();
-    if (libraryPodcasts.isEmpty) {
-      similarPodcasts.clear();
-      similarSeedTitle.value = '';
-    }
-  }
-
-  bool isInLibrary(String playlistId) {
-    return libraryPodcasts.any((p) => p.playlistId == playlistId);
-  }
-
-  void onSort(SortType sortType, bool isAscending) {
-    final list = libraryPodcasts.toList();
-    switch (sortType) {
-      case SortType.Name:
-        list.sort(
-            (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
-        break;
-      default:
-        list.sort(
-            (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
-    }
-    if (!isAscending) {
-      libraryPodcasts.value = list.reversed.toList();
-    } else {
-      libraryPodcasts.value = list;
-    }
-  }
-
-  void onSearchStart(String? tag) {
-    tempListContainer = libraryPodcasts.toList();
-  }
-
-  void onSearch(String value, String? tag) {
-    libraryPodcasts.value = tempListContainer
-        .where((e) => e.title.toLowerCase().contains(value.toLowerCase()))
-        .toList();
-  }
-
-  void onSearchClose(String? tag) {
-    libraryPodcasts.value = tempListContainer.toList();
-    tempListContainer.clear();
   }
 }
 
