@@ -18,7 +18,6 @@ class SearchResultScreenController extends GetxController
   final musicServices = Get.find<MusicServices>();
   final queryString = ''.obs;
   final railItems = <String>[].obs;
-  final railitemHeight = Get.size.height.obs;
   final additionalParamNext = {};
   bool continuationInProgress = false;
   TabController? tabController;
@@ -62,6 +61,13 @@ class SearchResultScreenController extends GetxController
     super.onReady();
   }
 
+  /// First-page loads in flight, by tab: going back to a tab that is still
+  /// loading waits for that request instead of sending another.
+  final Map<String, Future<void>> _tabLoads = {};
+
+  /// Tabs whose scroll controller already pages in more results.
+  final Set<String> _pagedTabs = {};
+
   Future<void> onDestinationSelected(int value,
       {bool ignoreTabCommand = false}) async {
     if (railItems.isEmpty) {
@@ -86,49 +92,68 @@ class SearchResultScreenController extends GetxController
       }
       if (!separatedResultContent.containsKey(tabName) ||
           separatedResultContent[tabName].isEmpty) {
-        final itemCount = (tabName == 'Songs' ||
-                tabName == 'Videos' ||
-                tabName == 'Episodes')
-            ? 25
-            : 10;
-        try {
-          final endpoints = (resultContent['searchEndpoint'] as Map?)
-                  ?.cast<String, dynamic>() ??
-              {};
-          final x = await musicServices.search(queryString.value,
-              filter: tabName.replaceAll(' ', '_').toLowerCase(),
-              limit: itemCount,
-              filterParams: endpoints[tabName]);
-          separatedResultContent[tabName] =
-              _listFromSearchResponse(x, tabName);
-          additionalParamNext[tabName] = x['params'];
-          isSeparatedResultContentFetced.value = true;
-          final scrollController = scrollControllers[tabName];
-          scrollController?.addListener(() {
-            if (scrollController.hasClients == false) return;
-            double maxScroll = scrollController.position.maxScrollExtent;
-            double currentScroll = scrollController.position.pixels;
-            final next = additionalParamNext[tabName];
-            if (next is! Map) return;
-            if (currentScroll >= maxScroll / 2 &&
-                next['additionalParams'] !=
-                    '&ctoken=null&continuation=null') {
-              if (!continuationInProgress) {
-                printINFO("Acchhsk");
-                continuationInProgress = true;
-                getContinuationContents();
-              }
-            }
-          });
-        } catch (e) {
-          printERROR('Search filter "$tabName" failed: $e');
-          separatedResultContent[tabName] =
-              searchTabFallback(overview: resultContent[tabName]);
-          isSeparatedResultContentFetced.value = true;
-        }
+        // Block body: `=> _tabLoads.remove(..)` would hand whenComplete
+        // this very future to wait on, and it would never complete.
+        await (_tabLoads[tabName] ??= _loadTab(tabName).whenComplete(() {
+          _tabLoads.remove(tabName);
+        }));
       }
     }
-    isSeparatedResultContentFetced.value = true;
+    // A slower load for a tab the user has already left must not mark the
+    // tab now on screen as loaded: its list isn't there yet, and the list
+    // widget would be handed null.
+    if (!isClosed && navigationRailCurrentIndex.value == value) {
+      isSeparatedResultContentFetced.value = true;
+    }
+  }
+
+  /// Fetches the first page of [tabName] (or falls back to the overview's
+  /// items) and starts paging it on scroll.
+  Future<void> _loadTab(String tabName) async {
+    final itemCount =
+        (tabName == 'Songs' || tabName == 'Videos' || tabName == 'Episodes')
+            ? 25
+            : 10;
+    try {
+      final endpoints =
+          (resultContent['searchEndpoint'] as Map?)?.cast<String, dynamic>() ??
+              {};
+      final x = await musicServices.search(queryString.value,
+          filter: tabName.replaceAll(' ', '_').toLowerCase(),
+          limit: itemCount,
+          filterParams: endpoints[tabName]);
+      if (isClosed) return;
+      separatedResultContent[tabName] = _listFromSearchResponse(x, tabName);
+      additionalParamNext[tabName] = x['params'];
+      _pageOnScroll(tabName);
+    } catch (e) {
+      printERROR('Search filter "$tabName" failed: $e');
+      if (isClosed) return;
+      separatedResultContent[tabName] =
+          searchTabFallback(overview: resultContent[tabName]);
+    }
+  }
+
+  /// Loads the next page of [tabName] once its list is scrolled halfway.
+  /// Added once per tab (a tab reloaded after an empty first page used to
+  /// stack another listener each time).
+  void _pageOnScroll(String tabName) {
+    final scrollController = scrollControllers[tabName];
+    if (scrollController == null || !_pagedTabs.add(tabName)) return;
+    scrollController.addListener(() {
+      if (scrollController.hasClients == false) return;
+      double maxScroll = scrollController.position.maxScrollExtent;
+      double currentScroll = scrollController.position.pixels;
+      final next = additionalParamNext[tabName];
+      if (next is! Map) return;
+      if (currentScroll >= maxScroll / 2 &&
+          next['additionalParams'] != '&ctoken=null&continuation=null') {
+        if (!continuationInProgress) {
+          continuationInProgress = true;
+          getContinuationContents();
+        }
+      }
+    });
   }
 
   List _listFromSearchResponse(Map<String, dynamic> x, String tabName) {
@@ -218,12 +243,6 @@ class SearchResultScreenController extends GetxController
         ...available.where((k) => !preferredRailOrder.contains(k)),
       ];
       _ensureSoulseekRail();
-
-      final len =
-          railItems.where((element) => element.contains('playlists')).length;
-      final calH = 30 + (railItems.length + 1 - len) * 123 + len * 150.0;
-      railitemHeight.value =
-          calH >= railitemHeight.value ? calH : railitemHeight.value;
 
       for (String item in railItems) {
         scrollControllers.putIfAbsent(item, () => ScrollController());
