@@ -1,6 +1,5 @@
 // ignore_for_file: constant_identifier_names
 
-import 'dart:math';
 import 'nav_parser.dart';
 
 const CONTINUATION_TOKEN = [
@@ -68,10 +67,15 @@ Future<List<dynamic>> getContinuations(
     additionalParams_ = null;
 
     final Map<String, dynamic> response = await requestFunc(additionalParams);
-    //print("Checking........=${response.containsKey('continuationContents')}");
-    //inspect(response);
     if (response.containsKey('continuationContents')) {
-      results = response['continuationContents'][continuationType];
+      final next = nav(response, ['continuationContents', continuationType]);
+      // A page of another continuation type has nothing for us: treat it as
+      // the end instead of handing null on as the next page (a TypeError).
+      if (next is! Map<String, dynamic>) {
+        results = const <String, dynamic>{};
+        break;
+      }
+      results = next;
     } else {
       break;
     }
@@ -90,47 +94,6 @@ Future<List<dynamic>> getContinuations(
   } else {
     return items;
   }
-}
-
-Future<List<dynamic>> getValidatedContinuations(
-    Map<String, dynamic> results,
-    String continuationType,
-    int limit,
-    int perPage,
-    Future<dynamic> Function(dynamic additionalParams) requestFunc,
-    List<dynamic> Function(Map<String, dynamic> continuationContents) parseFunc,
-    {String ctokenPath = ""}) async {
-  List<dynamic> items = [];
-
-  while (results.containsKey('continuations') && items.length < limit) {
-    final String additionalParams =
-        getContinuationParams(results, ctokenPath: ctokenPath);
-
-    final Map<String, dynamic> response =
-        await resendRequestUntilParsedResponseIsValid(
-            requestFunc,
-            additionalParams,
-            (response) => getParsedContinuationItems(
-                response, parseFunc, continuationType),
-            (parsed) => validateResponse(parsed, perPage, limit, items.length),
-            3);
-
-    results = response['results'];
-    items.addAll(response['parsed']);
-  }
-  return items;
-}
-
-Map<String, dynamic> getParsedContinuationItems(
-    Map<String, dynamic> response,
-    List<dynamic> Function(Map<String, dynamic> continuationContents) parseFunc,
-    String continuationType) {
-  Map<String, dynamic> results =
-      response['continuationContents'][continuationType];
-  return {
-    'results': results,
-    'parsed': getContinuationContents(results, parseFunc),
-  };
 }
 
 String getContinuationParams(dynamic results, {String ctokenPath = ''}) {
@@ -162,32 +125,4 @@ List<dynamic> getContinuationContents(
     }
   }
   return [];
-}
-
-Future<Map<String, dynamic>> resendRequestUntilParsedResponseIsValid(
-    Function requestFunc,
-    String requestAdditionalParams,
-    Function parseFunc,
-    Function validateFunc,
-    int maxRetries) async {
-  var response = await requestFunc(requestAdditionalParams);
-  var parsedObject = parseFunc(response);
-  int retryCounter = 0;
-  while (!validateFunc(parsedObject) && retryCounter < maxRetries) {
-    response = await requestFunc(requestAdditionalParams);
-    final attempt = parseFunc(response);
-    if (attempt['parsed'].length > parsedObject['parsed'].length) {
-      parsedObject = attempt;
-    }
-    retryCounter++;
-  }
-  return parsedObject;
-}
-
-bool validateResponse(
-    Map<String, dynamic> response, int perPage, int limit, int currentCount) {
-  final remainingItemsCount = limit - currentCount;
-  final expectedItemsCount = min(perPage, remainingItemsCount);
-
-  return response['parsed'].length >= expectedItemsCount;
 }

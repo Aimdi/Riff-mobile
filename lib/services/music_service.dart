@@ -251,7 +251,9 @@ class MusicServices extends getx.GetxService {
   Future<Map<String, dynamic>> getChartItems(
       Map<String, dynamic> item, String catogory) async {
     final catString = catogory == "TMV" ? "Top Music Videos" : "Trending";
-    if ((item['title'])!.contains(catString)) {
+    // A card without a browse id has nothing to open; fetching it threw
+    // (null albumId) and Future.wait then dropped every chart.
+    if ('${item['title']}'.contains(catString) && item['browseId'] is String) {
       final songs = (await getPlaylistOrAlbumSongs(
               playlistId: item['browseId'], limit: 24))['tracks'] ??
           [];
@@ -269,7 +271,8 @@ class MusicServices extends getx.GetxService {
       bool shuffle = false,
       String? additionalParamsNext,
       bool onlyRelated = false}) async {
-    if (videoId.isNotEmpty && videoId.substring(0, 4) == "MPED") {
+    // startsWith: substring(0, 4) threw a RangeError for ids under 4 chars.
+    if (videoId.startsWith("MPED")) {
       videoId = videoId.substring(4);
     }
     final data = _ctx();
@@ -567,13 +570,12 @@ class MusicServices extends getx.GetxService {
         }
       }
       playlist['trackCount'] = songCount ?? playlist['tracks'].length;
-      playlist['duration_seconds'] = sumTotalDuration(playlist);
       return playlist;
     }
 
     //album content
     final album = parseAlbumHeader(response);
-    dynamic results = nav(
+    final dynamic results = nav(
           response,
           [
             'contents',
@@ -601,30 +603,18 @@ class MusicServices extends getx.GetxService {
           ],
         );
 
-    album['tracks'] = parsePlaylistItems(results['contents'],
+    final dynamic albumRows = nav(results, ['contents']);
+    if (albumRows is! List) {
+      throw FormatException('Unrecognised album page for $browseId');
+    }
+    // (An "other versions" carousel used to be parsed here too. Nothing read
+    // it, and a carousel in an unexpected shape threw away the whole album.)
+    album['tracks'] = parsePlaylistItems(albumRows,
         artistsM: album['artists'],
         thumbnailsM: album["thumbnails"],
         albumIdName: {"id": albumId, 'name': album['title']},
         albumYear: album['year'],
         isAlbum: true);
-    results = nav(
-      response,
-      [...single_column_tab, ...section_list, 1, 'musicCarouselShelfRenderer'],
-    );
-    if (results != null) {
-      List contents = [];
-      if (results.runtimeType.toString().contains("Iterable") ||
-          results.runtimeType.toString().contains("List")) {
-        for (dynamic result in results) {
-          contents.add(parseAlbum(result['musicTwoRowItemRenderer']));
-        }
-      } else {
-        contents
-            .add(parseAlbum(results['contents'][0]['musicTwoRowItemRenderer']));
-      }
-      album['other_versions'] = contents;
-    }
-    album['duration_seconds'] = sumTotalDuration(album);
 
     return album;
   }
@@ -964,14 +954,17 @@ class MusicServices extends getx.GetxService {
             (await _sendRequest("music/get_search_suggestions", data)).data,
             ['contents', 0, 'searchSuggestionsSectionRenderer', 'contents']) ??
         [];
+    // Non-query rows (history, "did you mean" cards) have no query; calling
+    // toString() on that null used to suggest the literal text "null".
     return res
         .map<String?>((item) {
-          return (nav(item, [
+          final query = nav(item, [
             'searchSuggestionRenderer',
             'navigationEndpoint',
             'searchEndpoint',
             'query'
-          ])).toString();
+          ]);
+          return query is String ? query : null;
         })
         .whereType<String>()
         .toList();
@@ -1558,25 +1551,21 @@ class MusicServices extends getx.GetxService {
   Future<String?> getSongYear(String songId) async {
     final data = _ctx();
     data['browseId'] = "MPTC$songId";
-    try {
-      final response = (await _sendRequest('browse', data)).data;
-      String? year = nav(response, [
-        "onResponseReceivedActions",
-        0,
-        "openPopupAction",
-        "popup",
-        "dismissableDialogRenderer",
-        "metadata",
-        "musicMultiRowListItemRenderer",
-        "secondTitle",
-        "runs",
-        2,
-        "text"
-      ]);
-      return year;
-    } catch (e) {
-      rethrow;
-    }
+    final response = (await _sendRequest('browse', data)).data;
+    final year = nav(response, [
+      "onResponseReceivedActions",
+      0,
+      "openPopupAction",
+      "popup",
+      "dismissableDialogRenderer",
+      "metadata",
+      "musicMultiRowListItemRenderer",
+      "secondTitle",
+      "runs",
+      2,
+      "text"
+    ]);
+    return year is String ? year : null;
   }
 
   @override

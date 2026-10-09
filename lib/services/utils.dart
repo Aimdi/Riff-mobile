@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'nav_parser.dart';
 
 int getDatestamp() {
@@ -10,15 +8,21 @@ int getDatestamp() {
   return days;
 }
 
+/// Seconds in a "h:mm:ss" / "m:ss" / "ss" duration, or null when [duration]
+/// is missing or not of that shape (more than three parts, non-digits).
 int? parseDuration(String? duration) {
   if (duration == null) {
     return null;
   }
-  List<int> mappedIncrements = List.generate(3, (i) => max(0, 3600 - 60 * i));
-  List<String> times = duration.split(":").reversed.toList();
+  // Seconds, minutes, hours — read from the right (ytmusicapi's rule).
+  const increments = [1, 60, 3600];
+  final times = duration.trim().split(":").reversed.toList();
+  if (times.length > increments.length) return null;
   int seconds = 0;
   for (var i = 0; i < times.length; i++) {
-    seconds += mappedIncrements[i] * int.parse(times[i]);
+    final part = int.tryParse(times[i].trim());
+    if (part == null) return null;
+    seconds += increments[i] * part;
   }
   return seconds;
 }
@@ -27,53 +31,42 @@ String validatePlaylistId(String playlistId) {
   return playlistId.startsWith('VL') ? playlistId.substring(2) : playlistId;
 }
 
-int sumTotalDuration(Map<String, dynamic> item) {
-  if (!item.containsKey('tracks')) {
-    return 0;
-  }
-
-  List tracks = item['tracks'];
-  int totalDuration = 0;
-
-  for (var track in tracks) {
-    if (track.extras['duration_seconds'] != null) {
-      totalDuration += track.extras['duration_seconds'] as int;
-    }
-  }
-
-  return totalDuration;
-}
-
 String? getItemText(Map<String, dynamic> item, int index,
     {int runIndex = 0, bool noneIfAbsent = false}) {
-  dynamic column = getFlexColumnItem(item, index);
-  if (column == null) {
+  // getFlexColumnItem never returns null: a missing column is an empty map,
+  // and indexing into that used to throw and drop the whole page.
+  final column = getFlexColumnItem(item, index);
+  final runs = nav(column, ['text', 'runs']);
+  if (runs is! List || runs.length <= runIndex) {
     return noneIfAbsent ? null : "";
   }
-  List<dynamic> runs = column['text']['runs'];
-  if (noneIfAbsent && runs.length < runIndex + 1) {
-    return null;
-  }
-  return runs[runIndex]['text'];
+  final text = nav(runs, [runIndex, 'text']);
+  return text is String ? text : (noneIfAbsent ? null : "");
 }
 
-Map<String, dynamic>? getFixedColumnItem(Map<String, dynamic> item, int index) {
-  if (!item['fixedColumns'][index]['musicResponsiveListItemFixedColumnRenderer']
-          ['text']
-      .containsKey('runs')) {
-    return null;
-  }
-
-  return item['fixedColumns'][index]
-      ['musicResponsiveListItemFixedColumnRenderer'];
+/// Text of a list row's first fixed column (the duration), whether YouTube
+/// sends it as `simpleText` or as `runs`; null when there is none.
+String? getFixedColumnText(Map<String, dynamic> item) {
+  final text = nav(item, [
+    'fixedColumns',
+    0,
+    'musicResponsiveListItemFixedColumnRenderer',
+    'text'
+  ]);
+  if (text is! Map) return null;
+  final value = text['simpleText'] ?? nav(text, ['runs', 0, 'text']);
+  return value is String ? value : null;
 }
+
+final _expireParam = RegExp(".expire=([0-9]+)?&");
 
 ///Check if Steam Url or given epoch is expired
 bool isExpired({String? url, int? epoch}) {
   if (url != null) {
-    RegExpMatch? match = RegExp(".expire=([0-9]+)?&").firstMatch(url);
+    final match = _expireParam.firstMatch(url);
     if (match != null) {
-      epoch = int.parse(match[1]!);
+      // "expire=&" (no digits) counts as expired instead of throwing.
+      epoch = int.tryParse(match[1] ?? '');
     }
   }
 
@@ -84,56 +77,20 @@ bool isExpired({String? url, int? epoch}) {
   return true;
 }
 
-void parseMenuPlaylists(
-    Map<String, dynamic> data, Map<String, dynamic> result) {
-  var watchMenu = findObjectsByKey(nav(data, ['menu', 'menuRenderer', 'items']),
-      'menuNavigationItemRenderer');
-  for (var item
-      in watchMenu.map((item) => item['menuNavigationItemRenderer']).toList()) {
-    String watchKey;
-    var icon = nav(item, ['icon', 'iconType']);
-    if (icon == 'MUSIC_SHUFFLE') {
-      watchKey = 'shuffleId';
-    } else if (icon == 'MIX') {
-      watchKey = 'radioId';
-    } else {
-      continue;
-    }
-    var watchId = nav(
-        item, ['navigationEndpoint', 'watchPlaylistEndpoint', 'playlistId']);
-    watchId ??=
-        nav(item, ['navigationEndpoint', 'watchEndpoint', 'playlistId']);
-    if (watchId != null) {
-      result[watchKey] = watchId;
-    }
-  }
-}
-
-dynamic findObjectByKey(List objectList, dynamic key,
+/// The first map in [objectList] holding [key] (or that value, with
+/// [isKey]). Tolerates a missing list and non-map entries.
+dynamic findObjectByKey(dynamic objectList, dynamic key,
     {String? nested, bool isKey = false}) {
+  if (objectList is! List) return null;
   for (var item in objectList) {
-    if (nested != null) {
+    if (nested != null && item is Map) {
       item = item[nested];
     }
-    if (item.containsKey(key)) {
+    if (item is Map && item.containsKey(key)) {
       return isKey ? item[key] : item;
     }
   }
   return null;
-}
-
-List<dynamic> findObjectsByKey(List<dynamic> objectList, String key,
-    {String? nested}) {
-  List<dynamic> objects = [];
-  for (dynamic item in objectList) {
-    if (nested != null) {
-      item = item[nested];
-    }
-    if (item.containsKey(key)) {
-      objects.add(item);
-    }
-  }
-  return objects;
 }
 
 String? getSearchParams(String? filter, String? scope, bool ignoreSpelling) {
@@ -214,7 +171,10 @@ String? _getParam2(String filter) {
   return filterParams[filter];
 }
 
-dynamic getDotSeparatorIndex(List<dynamic> runs) {
-  return runs.indexWhere(
-      ((element) => ({'text': " • "}).toString() == element.toString()));
+/// Index of the first " • " separator run, or `runs.length` when there is
+/// none (ytmusicapi's rule) — never -1, which made `sublist` throw.
+int getDotSeparatorIndex(List<dynamic> runs) {
+  final i =
+      runs.indexWhere((e) => e is Map && e.length == 1 && e['text'] == ' • ');
+  return i < 0 ? runs.length : i;
 }
