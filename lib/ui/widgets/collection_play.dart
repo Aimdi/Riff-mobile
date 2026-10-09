@@ -113,7 +113,9 @@ Future<List<MediaItem>> tracksFromOpenBox(String id) async {
 }
 
 /// Play an album/playlist immediately. Returns false when there is nothing
-/// to play so the caller can open the detail screen instead.
+/// to play (or its tracks failed to load) so the caller can open the detail
+/// screen instead; with [throwOnError] a failed load throws, for callers
+/// that report a network error apart from an empty collection.
 Future<bool> playCollection({
   required bool isAlbum,
   required String id,
@@ -122,8 +124,11 @@ Future<bool> playCollection({
   bool isLibraryItem = false,
   bool isPipedPlaylist = false,
   bool isCloudPlaylist = true,
+  bool throwOnError = false,
 }) async {
-  final tracks = await loadCollectionPlayTracks(
+  final tracks = await (throwOnError
+      ? _loadCollectionPlayTracks
+      : loadCollectionPlayTracks)(
     isAlbum: isAlbum,
     id: id,
     isLibraryItem: isLibraryItem,

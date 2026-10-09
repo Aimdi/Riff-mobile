@@ -77,6 +77,14 @@ void main() {
       expect(music.playlistCalls, 1);
     });
 
+    test('a caller that asks for errors still gets the throw', () async {
+      // The mood chips say "network error" rather than "empty mix".
+      await expectLater(
+          playCollection(
+              isAlbum: false, id: 'PLx', title: 'X', throwOnError: true),
+          throwsException);
+    });
+
     test('playing an artist reports false', () async {
       final artist = Artist(name: 'A', browseId: 'UCx', thumbnailUrl: '');
       expect(await playArtist(artist), isFalse);

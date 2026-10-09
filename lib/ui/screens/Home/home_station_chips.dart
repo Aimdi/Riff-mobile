@@ -99,8 +99,13 @@ class _RiffStationChipsState extends State<RiffStationChips> {
         .whereType<Playlist>()
         .firstOrNull;
     if (playlist == null) return false;
+    // A failed load must still reach _start's catch ("network error"),
+    // not read as an empty mix.
     return playCollection(
-        isAlbum: false, id: playlist.playlistId, title: playlist.title);
+        isAlbum: false,
+        id: playlist.playlistId,
+        title: playlist.title,
+        throwOnError: true);
   }
 
   @override
