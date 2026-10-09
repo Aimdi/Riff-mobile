@@ -2455,7 +2455,6 @@ class PlayerController extends GetxController
     // Before super.onClose: the ticker mixin asserts no ticker is active.
     gesturePlayerStateAnimationController?.dispose();
     gesturePlayerStateAnimationController = null;
-    gesturePlayerStateAnimation = null;
     sleepTimer?.cancel();
     if (GetPlatform.isWindows) {
       Get.delete<WindowsAudioService>();
