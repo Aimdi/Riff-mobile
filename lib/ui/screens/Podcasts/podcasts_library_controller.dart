@@ -189,9 +189,14 @@ class LibraryPodcastsController extends GetxController {
     }
   }
 
+  /// Bumped by every search and by [clearSearch]; only the newest search
+  /// may write the results.
+  int _searchGen = 0;
+
   /// Search YTM podcasts and YouTube channels (Podcini-style subscribe).
   Future<void> searchPodcasts(String query) async {
     final term = query.trim();
+    final gen = ++_searchGen;
     searchQuery.value = term;
     if (term.isEmpty) {
       clearSearch();
@@ -244,13 +249,16 @@ class LibraryPodcastsController extends GetxController {
       if (youtubePodcastsEnabled) {
         list.insertAll(0, await _youtubeShowsFor(term, channels));
       }
+      // A newer search (or a cleared field) owns the results now.
+      if (gen != _searchGen) return;
       searchResults.assignAll(_uniqueById(list));
       channelSearchResults.assignAll(_uniqueById(channels));
     } catch (_) {
+      if (gen != _searchGen) return;
       searchResults.clear();
       channelSearchResults.clear();
     } finally {
-      isSearching.value = false;
+      if (gen == _searchGen) isSearching.value = false;
     }
   }
 
@@ -334,6 +342,7 @@ class LibraryPodcastsController extends GetxController {
   }
 
   void clearSearch() {
+    _searchGen++;
     searchQuery.value = '';
     searchResults.clear();
     channelSearchResults.clear();
