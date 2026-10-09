@@ -61,18 +61,6 @@ class SponsorBlockService extends GetxService {
     'music_offtopic',
   ];
 
-  static const allCategories = <String>[
-    'sponsor',
-    'selfpromo',
-    'interaction',
-    'intro',
-    'outro',
-    'preview',
-    'music_offtopic',
-    'filler',
-    'exclusive_access',
-  ];
-
   final Dio _dio = Dio(BaseOptions(
     connectTimeout: const Duration(seconds: 8),
     receiveTimeout: const Duration(seconds: 8),

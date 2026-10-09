@@ -75,51 +75,6 @@ class PodcastService {
     }
   }
 
-  /// Popular podcasts to seed an empty Podcasts screen (Apple top charts).
-  static Future<List<Map<String, dynamic>>> topPodcasts() async {
-    try {
-      final res = await _dio.get(
-          'https://itunes.apple.com/us/rss/toppodcasts/limit=25/json');
-      final entries = _asMap(res.data)?['feed']?['entry'] as List?;
-      if (entries == null) return [];
-      return entries
-          .map((e) {
-            // Apple top-charts feed includes several im:image sizes; take the last
-            // (largest) then upscale via Thumbnail for player-quality art.
-            final images = e['im:image'] as List?;
-            final raw = (images != null && images.isNotEmpty)
-                ? (images.last['label'] ?? '').toString()
-                : '';
-            return {
-              'title': e['im:name']?['label'] ?? '',
-              'author': e['im:artist']?['label'] ?? '',
-              'artwork': Thumbnail(raw).extraHigh,
-              'collectionId': e['id']?['attributes']?['im:id'],
-            };
-          })
-          .where((e) => e['collectionId'] != null)
-          .toList();
-    } catch (e) {
-      printERROR("Top podcasts failed: $e");
-      return [];
-    }
-  }
-
-  /// Resolves a feed URL from an Apple collection id (top-charts entries
-  /// don't include the feed URL directly).
-  static Future<String?> feedUrlForCollection(String collectionId) async {
-    try {
-      final res = await _dio.get('https://itunes.apple.com/lookup',
-          queryParameters: {'id': collectionId});
-      final results = _asMap(res.data)?['results'] as List?;
-      return results != null && results.isNotEmpty
-          ? results.first['feedUrl']
-          : null;
-    } catch (_) {
-      return null;
-    }
-  }
-
   // --- Similar podcasts ("popular with listeners of X") ---
 
   static final Map<String, List<Map<String, dynamic>>> _similarCache = {};
