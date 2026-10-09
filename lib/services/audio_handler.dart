@@ -649,17 +649,23 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   /// After generateNewUrl retry still fails: skip to next once when allowed.
   /// Returns true when skip-to-next was started, false when playback stopped.
   Future<bool> _onPlayByIndexUnresolvable({
-    required int songIndex,
+    required String songId,
     required String errorMessage,
     required int errorCode,
   }) async {
-    if (songIndex != currentIndex) return false;
+    // The queue was replaced while the stream resolved: nothing to report,
+    // but don't leave the session on "loading".
+    if (isStalePlayByIndex(
+        requestedSongId: songId, currentSongId: _currentQueueSongId())) {
+      isSongLoading = false;
+      return false;
+    }
     _consecutiveResolveFails++;
     final next = _getNextSongIndex();
     if (shouldSkipAfterUnresolvableTrack(
       consecutiveFails: _consecutiveResolveFails,
       maxConsecutiveFails: _maxConsecutiveResolveFails,
-      currentIndex: currentIndex is int ? currentIndex as int : songIndex,
+      currentIndex: currentIndex as int,
       nextIndex: next,
       loopOne: loopModeEnabled,
     )) {
@@ -948,21 +954,22 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   @override
   // ignore: avoid_renaming_method_parameters
   Future<void> removeQueueItem(MediaItem mediaItem_) async {
+    final currentQueue = queue.value;
+    final itemIndex = currentQueue.indexOf(mediaItem_);
+    // Already gone (removed from a sheet opened before the queue changed):
+    // moving the cursors anyway pointed them at the previous song.
+    if (itemIndex < 0) return;
     if (shuffleModeEnabled) {
       final id = mediaItem_.id;
-      final itemIndex = shuffledQueue.indexOf(id);
-      if (currentShuffleIndex > itemIndex) {
-        currentShuffleIndex -= 1;
-      }
+      currentShuffleIndex = indexAfterRemoval(
+          currentIndex: currentShuffleIndex,
+          removedIndex: shuffledQueue.indexOf(id));
       shuffledQueue.remove(id);
     }
 
-    final currentQueue = queue.value;
     final currentSong = mediaItem.value;
-    final itemIndex = currentQueue.indexOf(mediaItem_);
-    if (currentIndex > itemIndex) {
-      currentIndex -= 1;
-    }
+    currentIndex =
+        indexAfterRemoval(currentIndex: currentIndex, removedIndex: itemIndex);
     currentQueue.remove(mediaItem_);
     queue.add(currentQueue);
     mediaItem.add(currentSong);
@@ -1294,20 +1301,20 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         if (superseded()) return null;
         if (resolveFailed) {
           return _onPlayByIndexUnresolvable(
-            songIndex: songIndex,
+            songId: currentSong.id,
             errorMessage: "streamLoadFailed",
             errorCode: 500,
           );
         }
-        if (shouldClearLoadingOnStalePlayByIndex(
-          requestedIndex: songIndex,
-          currentIndex: currentIndex,
+        if (isStalePlayByIndex(
+          requestedSongId: currentSong.id,
+          currentSongId: _currentQueueSongId(),
         )) {
           isSongLoading = false;
           return null;
         } else if (!streamInfo.playable) {
           return _onPlayByIndexUnresolvable(
-            songIndex: songIndex,
+            songId: currentSong.id,
             errorMessage: streamInfo.statusMSG,
             errorCode: 404,
           );

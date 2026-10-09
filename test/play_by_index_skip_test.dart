@@ -75,20 +75,45 @@ void main() {
   });
 
   test('stale playByIndex should drop the loading spinner', () {
+    // The queue was replaced: another song is current now.
     expect(
-      shouldClearLoadingOnStalePlayByIndex(
-        requestedIndex: 0,
-        currentIndex: 2,
-      ),
+      isStalePlayByIndex(requestedSongId: 'a', currentSongId: 'c'),
       isTrue,
     );
     expect(
-      shouldClearLoadingOnStalePlayByIndex(
-        requestedIndex: 1,
-        currentIndex: 1,
-      ),
+      isStalePlayByIndex(requestedSongId: 'a', currentSongId: null),
+      isTrue,
+    );
+    expect(
+      isStalePlayByIndex(requestedSongId: 'b', currentSongId: 'b'),
       isFalse,
     );
+  });
+
+  test('a queue edit that only moves the loading song keeps it playing', () {
+    // Loading 'c' at index 2; removing 'a' (index 0) while the stream
+    // resolves moves it to index 1. The old index check (2 != 1) dropped
+    // the load and nothing played.
+    final queue = ['a', 'b', 'c', 'd'];
+    var current = 2;
+    current = indexAfterRemoval(currentIndex: current, removedIndex: 0);
+    queue.removeAt(0);
+    expect(current, 1);
+    expect(
+      isStalePlayByIndex(requestedSongId: 'c', currentSongId: queue[current]),
+      isFalse,
+    );
+  });
+
+  test('removing a later item or one already gone keeps the cursor', () {
+    expect(indexAfterRemoval(currentIndex: 3, removedIndex: 1), 2);
+    expect(indexAfterRemoval(currentIndex: 3, removedIndex: 3), 3);
+    expect(indexAfterRemoval(currentIndex: 3, removedIndex: 5), 3);
+    // Not in the queue any more (a sheet opened before the queue changed):
+    // the old `currentIndex > itemIndex` test moved the cursor to the
+    // previous song.
+    expect(indexAfterRemoval(currentIndex: 3, removedIndex: -1), 3);
+    expect(indexAfterRemoval(currentIndex: 0, removedIndex: -1), 0);
   });
 
   test('cloud server id strips the cloud_ prefix', () {
