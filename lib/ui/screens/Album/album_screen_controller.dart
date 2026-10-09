@@ -19,16 +19,13 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
     with AdditionalOpeartionMixin, GetSingleTickerProviderStateMixin {
   final album =
       Album(title: "", browseId: "", thumbnailUrl: "", artists: []).obs;
-  final isOfflineAlbum = false.obs;
 
   // Title animation
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
-  late Animation<double> _heightAnimation;
 
   AnimationController get animationController => _animationController;
   Animation<double> get scaleAnimation => _scaleAnimation;
-  Animation<double> get heightAnimation => _heightAnimation;
 
 
   @override
@@ -40,11 +37,6 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
     );
 
     _scaleAnimation = Tween<double>(begin: 0, end: 1.0).animate(animationController);
-
-    // Tall enough for cover thumbnail + title/artist lines.
-    _heightAnimation = Tween<double>(begin: 10.0, end: 90.0).animate(
-        CurvedAnimation(
-            parent: animationController, curve: Curves.easeOutBack));
 
     final args = Get.arguments as (Album?, String);
     fetchAlbumDetails(args.$1, args.$2);

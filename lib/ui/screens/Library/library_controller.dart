@@ -25,7 +25,6 @@ import '/models/thumbnail.dart';
 
 class LibrarySongsController extends GetxController {
   late RxList<MediaItem> librarySongsList = RxList();
-  final isSongFetched = false.obs;
   /// When true, Songs shows cloud-server tracks instead of local downloads.
   final showCloudSongs = false.obs;
   List<MediaItem> tempListContainer = [];
@@ -89,7 +88,6 @@ class LibrarySongsController extends GetxController {
         .map<MediaItem?>((item) => MediaItemBuilder.fromJson(item))
         .whereType<MediaItem>()
         .toList());
-    isSongFetched.value = true;
 
     //Remove deleted songs and expired songUrl from database
     startHouseKeeping();
@@ -260,8 +258,7 @@ class LibraryPlaylistsController extends GetxController
   final textInputController = TextEditingController();
   List<Playlist> tempListContainer = [];
 
-  // Add these RxBool to track import progress
-  final isImporting = false.obs;
+  /// Import progress, shown in the import dialog.
   final importProgress = 0.0.obs;
 
   @override
@@ -503,7 +500,6 @@ class LibraryPlaylistsController extends GetxController
 
   Future<void> importPlaylistFromJson(BuildContext context) async {
     try {
-      isImporting.value = true;
       importProgress.value = 0.1;
 
       // Show progress dialog
@@ -523,7 +519,6 @@ class LibraryPlaylistsController extends GetxController
         if (Get.isDialogOpen ?? false) {
           Get.back();
         }
-        isImporting.value = false;
         importProgress.value = 0.0;
         return;
       }
@@ -626,7 +621,6 @@ class LibraryPlaylistsController extends GetxController
             snackbar(context, errorMsg, size: SanckBarSize.MEDIUM));
       }
     } finally {
-      isImporting.value = false;
       importProgress.value = 0.0;
     }
   }
