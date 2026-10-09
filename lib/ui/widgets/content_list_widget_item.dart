@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
+import '/models/album.dart';
 import '../navigator.dart';
 import '../player/player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
@@ -72,7 +73,7 @@ class ContentListItem extends StatelessWidget {
   /// "Similar podcasts" section at the bottom.
   final bool showSimilarOnOpen;
 
-  bool get _isAlbum => content.runtimeType.toString() == "Album";
+  bool get _isAlbum => content is Album;
 
   String _subtitle(bool isAlbum) {
     if (isAlbum) {

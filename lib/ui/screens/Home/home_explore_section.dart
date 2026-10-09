@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/models/album.dart';
 import '../../navigator.dart';
 import '../../widgets/collection_play.dart';
 import '../../widgets/content_list_widget.dart';
@@ -11,7 +12,7 @@ import 'home_screen_controller.dart';
 /// First album/playlist on an Explore shelf — chip tap plays this.
 dynamic firstExploreShelfItem(dynamic shelf) {
   try {
-    if (shelf.runtimeType.toString() == 'AlbumContent') {
+    if (shelf is AlbumContent) {
       final list = shelf.albumList as List;
       return list.isEmpty ? null : list.first;
     }
@@ -34,10 +35,9 @@ void openExploreShelf(String title) {
 Future<void> playOrOpenExploreShelf(dynamic shelf, String title) async {
   final first = firstExploreShelfItem(shelf);
   if (first != null) {
-    final isAlbum = first.runtimeType.toString() == 'Album';
-    final id = isAlbum
-        ? first.browseId?.toString() ?? ''
-        : first.playlistId?.toString() ?? '';
+    final isAlbum = first is Album;
+    final id =
+        isAlbum ? first.browseId : first.playlistId?.toString() ?? '';
     final name = first.title?.toString() ?? title;
     final ok = await playCollection(
       isAlbum: isAlbum,
