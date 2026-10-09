@@ -58,8 +58,6 @@ class HomeScreenController extends GetxController {
   final chipContent = [].obs;
   final chipLoading = false.obs;
   final chipError = false.obs;
-  //isHomeScreenOnTop var only useful if bottom nav enabled
-  final isHomeSreenOnTop = true.obs;
 
   /// Stable horizontal shelf scroll controllers keyed by section id.
   /// Creating/disposing these inside Obx builders was a Home jank source.
@@ -451,11 +449,6 @@ class HomeScreenController extends GetxController {
   void onChangeVersionVisibility(bool val) {
     Hive.box("AppPrefs").put("newVersionVisibility", !val);
     showVersionDialog.value = !val;
-  }
-
-  /// Kept for call sites that refresh mini-player height after nested routes.
-  void whenHomeScreenOnTop() {
-    // Side-rail only: mini-player always accounts for system bottom inset.
   }
 
   Future<void> cachedHomeScreenData({

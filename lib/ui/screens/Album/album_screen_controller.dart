@@ -9,7 +9,6 @@ import 'package:hive/hive.dart';
 
 import '../../../mixins/additional_opeartion_mixin.dart';
 import '../../../models/media_Item_builder.dart';
-import '../Home/home_screen_controller.dart';
 import '../Library/library_controller.dart';
 
 ///AlbumScreenController handles album screen
@@ -48,8 +47,6 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
 
     final args = Get.arguments as (Album?, String);
     fetchAlbumDetails(args.$1, args.$2);
-    Future.delayed(const Duration(milliseconds: 200),
-        () => Get.find<HomeScreenController>().whenHomeScreenOnTop());
   }
 
   @override
@@ -136,7 +133,6 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
   void onClose() {
     tempListContainer.clear();
     _animationController.dispose();
-    Get.find<HomeScreenController>().whenHomeScreenOnTop();
     super.onClose();
   }
 

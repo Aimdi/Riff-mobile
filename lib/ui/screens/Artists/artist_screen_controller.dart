@@ -11,7 +11,6 @@ import '../../../utils/helper.dart';
 import '../Library/library_controller.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/music_service.dart';
-import '/ui/screens/Home/home_screen_controller.dart';
 
 class ArtistScreenController extends GetxController
     with GetSingleTickerProviderStateMixin {
@@ -56,12 +55,6 @@ class ArtistScreenController extends GetxController
       });
     }
     super.onInit();
-  }
-
-  @override
-  void onReady() {
-    Get.find<HomeScreenController>().whenHomeScreenOnTop();
-    super.onReady();
   }
 
   _init(bool isIdOnly, dynamic artist) {
@@ -325,7 +318,6 @@ class ArtistScreenController extends GetxController
     albumScrollController.dispose();
     singlesScrollController.dispose();
     tabController?.dispose();
-    Get.find<HomeScreenController>().whenHomeScreenOnTop();
     super.onClose();
   }
 }

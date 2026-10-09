@@ -22,7 +22,6 @@ import '../../../services/music_service.dart';
 import '../../../services/piped_service.dart';
 import '../../../services/playlist_mix_service.dart';
 import '../../../services/track_analysis_service.dart';
-import '../Home/home_screen_controller.dart';
 import '../Library/library_controller.dart';
 import '../Podcasts/podcasts_library_controller.dart';
 
@@ -89,8 +88,6 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     showSimilarPodcasts.value = args.length > 2 && args[2] == true;
     fetchPlaylistDetails(playlist, playlistId);
     _restoreMixState(playlistId);
-    Future.delayed(const Duration(milliseconds: 200),
-        () => Get.find<HomeScreenController>().whenHomeScreenOnTop());
   }
 
   void _restoreMixState(String playlistId) {
@@ -546,7 +543,6 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
   void onClose() {
     tempListContainer.clear();
     _animationController.dispose();
-    Get.find<HomeScreenController>().whenHomeScreenOnTop();
     super.onClose();
   }
 

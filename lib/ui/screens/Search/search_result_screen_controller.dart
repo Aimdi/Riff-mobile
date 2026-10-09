@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../utils/helper.dart';
-import '../Home/home_screen_controller.dart';
 import '/services/music_service.dart';
 import '/services/plugin_service.dart';
 import '/ui/player/play_queue_order.dart';
@@ -57,7 +56,6 @@ class SearchResultScreenController extends GetxController
   @override
   void onReady() {
     _getInitSearchResult();
-    Get.find<HomeScreenController>().whenHomeScreenOnTop();
     super.onReady();
   }
 
@@ -318,7 +316,6 @@ class SearchResultScreenController extends GetxController
     for (String item in railItems) {
       scrollControllers[item]?.dispose();
     }
-    Get.find<HomeScreenController>().whenHomeScreenOnTop();
     tabController?.dispose();
     super.onClose();
   }
