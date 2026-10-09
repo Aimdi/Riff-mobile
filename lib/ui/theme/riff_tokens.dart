@@ -189,10 +189,8 @@ class RiffComponentSizes {
   static const double miniProgress = 2;
 
   /// The full player's collapsed "Up Next" tab: its height above the
-  /// system inset (it runs down to the screen edge), and the widest it gets
-  /// (tablets; the player controls column is as wide).
+  /// system inset (it runs down to the screen edge and across its width).
   static const double queueCard = 30;
-  static const double queueCardMaxWidth = 500;
 
   /// How far the Up Next tab's arched top drops from its middle to its
   /// sides: the top edge is one shallow arc of a circle, not a straight

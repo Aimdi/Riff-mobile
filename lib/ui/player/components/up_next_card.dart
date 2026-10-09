@@ -7,10 +7,9 @@ import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 
 /// The full player's collapsed queue: a slim one-line tab standing on the
-/// bottom edge, its top one shallow arc (the top slice of a circle), as
-/// wide as the player's content above it. It runs
-/// down through the system inset; its label stays above it. The whole
-/// strip, the tab and the gap beside it, opens the queue, so a tap never
+/// bottom edge, its top one shallow arc (the top slice of a circle), running
+/// edge to edge across the screen. It runs down through the system inset;
+/// its label stays above it. The whole tab opens the queue, so a tap never
 /// reaches the hidden queue underneath.
 class UpNextCard extends StatelessWidget {
   const UpNextCard({
@@ -35,70 +34,61 @@ class UpNextCard extends StatelessWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.xxl),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-                maxWidth: RiffComponentSizes.queueCardMaxWidth),
-            child: Material(
-              color: theme.colorScheme.surfaceContainerLow,
-              shape: ArcTopBorder(
-                arc: RiffComponentSizes.queueCardArc,
-                side: BorderSide(color: theme.dividerColor, width: 0),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: onTap,
-                child: Container(
-                  width: double.infinity,
-                  height: RiffComponentSizes.queueCard + bottomInset,
-                  // The label sits a little lower than the band's middle,
-                  // where the arc has room for it.
-                  padding: EdgeInsets.only(
-                      left: RiffSpacing.lg,
-                      top: RiffComponentSizes.queueCardArc / 2,
-                      right: RiffSpacing.lg,
-                      bottom: bottomInset),
-                  alignment: Alignment.center,
-                  // One line: an up-arrow (pull me up), then "Up Next ·
-                  // next song".
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.keyboard_arrow_up_rounded,
-                          size: RiffComponentSizes.trailingIcon, color: muted),
-                      const SizedBox(width: RiffSpacing.xs),
-                      Flexible(
-                        child: Text.rich(
-                          TextSpan(children: [
-                            TextSpan(
-                              text: 'upNext'.tr,
-                              style: theme.textTheme.labelSmall
-                                  ?.copyWith(color: muted),
-                            ),
-                            if (preview.isNotEmpty) ...[
-                              TextSpan(
-                                text: ' · ',
-                                style: theme.textTheme.bodySmall
-                                    ?.copyWith(color: muted),
-                              ),
-                              TextSpan(
-                                text: preview,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurface),
-                              ),
-                            ],
-                          ]),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                        ),
+      child: Material(
+        color: theme.colorScheme.surfaceContainerLow,
+        shape: ArcTopBorder(
+          arc: RiffComponentSizes.queueCardArc,
+          side: BorderSide(color: theme.dividerColor, width: 0),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            width: double.infinity,
+            height: RiffComponentSizes.queueCard + bottomInset,
+            // The label sits a little lower than the band's middle,
+            // where the arc has room for it.
+            padding: EdgeInsets.only(
+                left: RiffSpacing.lg,
+                top: math.min(RiffComponentSizes.queueCardArc / 2, RiffSpacing.xs),
+                right: RiffSpacing.lg,
+                bottom: bottomInset),
+            alignment: Alignment.center,
+            // One line: an up-arrow (pull me up), then "Up Next ·
+            // next song".
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.keyboard_arrow_up_rounded,
+                    size: RiffComponentSizes.trailingIcon, color: muted),
+                const SizedBox(width: RiffSpacing.xs),
+                Flexible(
+                  child: Text.rich(
+                    TextSpan(children: [
+                      TextSpan(
+                        text: 'upNext'.tr,
+                        style:
+                            theme.textTheme.labelSmall?.copyWith(color: muted),
                       ),
-                    ],
+                      if (preview.isNotEmpty) ...[
+                        TextSpan(
+                          text: ' · ',
+                          style:
+                              theme.textTheme.bodySmall?.copyWith(color: muted),
+                        ),
+                        TextSpan(
+                          text: preview,
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: theme.colorScheme.onSurface),
+                        ),
+                      ],
+                    ]),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                   ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
