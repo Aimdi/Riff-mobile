@@ -1274,7 +1274,7 @@ class PlayerController extends GetxController
   void _listenForCustomEvents() {
     _subscriptions.add(_audioHandler.customEvent.listen((event) {
       if (event['eventType'] == 'playFromMediaId') {
-        _playViaAndroidAuto(event['songId'], event['libraryId']);
+        unawaited(playViaAndroidAuto(event['songId'], event['libraryId']));
       }
     }));
   }
@@ -1649,43 +1649,45 @@ class PlayerController extends GetxController
     return true;
   }
 
-  void _playViaAndroidAuto(String songId, String? libraryId) {
+  /// Android Auto "play": [songId] with the list it was browsed in as the
+  /// queue.
+  @visibleForTesting
+  Future<void> playViaAndroidAuto(String songId, String? libraryId) async {
     if (libraryId == null) {
       printERROR('Android Auto play: no list for $songId');
       return;
     }
-    // Podcast lists (Continue listening, a followed show) come from the
-    // browse cache; the long-form queue window keeps them small.
-    if (libraryId.startsWith('aa_pod_')) {
-      () async {
-        final list = MediaLibrary.autoPodcastLists[libraryId] ??
-            await MediaLibrary().getByRootId(libraryId);
-        if (list.isEmpty) return;
-        final i = list.indexWhere((e) => e.id == songId);
-        await playPlayListSong(list, i < 0 ? 0 : i,
-            source: DiscoverySource.androidAuto);
-      }();
+    // Lists built for the car, not stored in a box named after them:
+    // podcast lists (Continue listening, a followed show; from the browse
+    // cache, the long-form queue window keeps them small) and discovery
+    // mixes / Fresh finds (read from riff_mixes).
+    if (MediaLibrary.isBuiltList(libraryId)) {
+      final list = MediaLibrary.autoPodcastLists[libraryId] ??
+          await MediaLibrary().getByRootId(libraryId);
+      if (list.isEmpty) return;
+      final i = list.indexWhere((e) => e.id == songId);
+      await playPlayListSong(list, i < 0 ? 0 : i,
+          source: DiscoverySource.androidAuto);
       return;
     }
-    Hive.openBox(libraryId).then((box) async {
-      List<MediaItem> songList = [];
-      final songJson = box.values.toList();
-      int songIndex = 0;
-      for (int i = 0; i < box.length; i++) {
-        final song = MediaItemBuilder.fromJson(songJson[i]);
-        if (song.id == songId) {
-          songIndex = i;
-        }
-        songList.add(song);
+    final box = await Hive.openBox(libraryId);
+    List<MediaItem> songList = [];
+    final songJson = box.values.toList();
+    int songIndex = 0;
+    for (int i = 0; i < box.length; i++) {
+      final song = MediaItemBuilder.fromJson(songJson[i]);
+      if (song.id == songId) {
+        songIndex = i;
       }
-      await playPlayListSong(
-        songList,
-        songIndex,
-        source: DiscoverySource.androidAuto,
-      );
-      // Shared box (Hive hands every caller the same instance): never close
-      // it here, or the player and other screens using it fail mid-write.
-    });
+      songList.add(song);
+    }
+    await playPlayListSong(
+      songList,
+      songIndex,
+      source: DiscoverySource.androidAuto,
+    );
+    // Shared box (Hive hands every caller the same instance): never close
+    // it here, or the player and other screens using it fail mid-write.
   }
 
   /// Insert [songs] after the current track, preserving list order.

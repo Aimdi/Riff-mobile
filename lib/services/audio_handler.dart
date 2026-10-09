@@ -1996,6 +1996,15 @@ class MediaLibrary {
 
   static String? listIdFor(String mediaId) => _browsedFrom[mediaId];
 
+  /// Lists assembled for the car (podcasts, discovery mixes, Fresh finds)
+  /// rather than stored in a Hive box named after the list. Opening one of
+  /// these ids as a box creates an empty box, so play them from
+  /// [getByRootId].
+  static bool isBuiltList(String listId) =>
+      listId.startsWith('aa_pod_') ||
+      listId.startsWith('riff_mix_') ||
+      listId == freshFindsRootId;
+
   /// Android Auto `getChildren`: one page when the car asks for pages,
   /// else the whole list if it's short, or sections ("1–100", …) if not.
   /// Items carry only small extras, so no answer can outgrow the binder.
