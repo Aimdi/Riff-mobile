@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 import 'package:xml/xml.dart';
@@ -20,10 +21,16 @@ class PodcastService {
   PodcastService._();
 
   static final _dio = Dio(BaseOptions(
+    // Without a connect timeout one unreachable feed host held the whole
+    // Inbox load (it waits for every feed) for the OS's TCP timeout.
+    connectTimeout: const Duration(seconds: 15),
     receiveTimeout: const Duration(seconds: 15),
     followRedirects: true,
     headers: {'user-agent': 'Riff/1.0 (podcast)'},
   ));
+
+  @visibleForTesting
+  static BaseOptions get httpOptions => _dio.options;
 
   static Box get _subs => Hive.box("PodcastSubs");
 
