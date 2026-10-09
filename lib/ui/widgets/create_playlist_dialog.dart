@@ -13,7 +13,7 @@ import 'riff_sheet.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 
-class CreateNRenamePlaylistPopup extends StatelessWidget {
+class CreateNRenamePlaylistPopup extends StatefulWidget {
   const CreateNRenamePlaylistPopup(
       {super.key,
       this.isCreateNadd = false,
@@ -24,6 +24,31 @@ class CreateNRenamePlaylistPopup extends StatelessWidget {
   final bool renamePlaylist;
   final List<MediaItem>? songItems;
   final Playlist? playlist;
+
+  @override
+  State<CreateNRenamePlaylistPopup> createState() =>
+      _CreateNRenamePlaylistPopupState();
+}
+
+class _CreateNRenamePlaylistPopupState
+    extends State<CreateNRenamePlaylistPopup> {
+  final librPlstCntrller = Get.find<LibraryPlaylistsController>();
+
+  bool get isCreateNadd => widget.isCreateNadd;
+  bool get renamePlaylist => widget.renamePlaylist;
+  List<MediaItem>? get songItems => widget.songItems;
+  Playlist? get playlist => widget.playlist;
+
+  @override
+  void initState() {
+    super.initState();
+    // Once, when the dialog opens. In build this ran again on every
+    // rebuild (a theme change, e.g. the album-colour theme on each new
+    // track) and wiped the name being typed.
+    librPlstCntrller.changeCreationMode("local");
+    librPlstCntrller.textInputController.text =
+        renamePlaylist ? "" : defaultNewPlaylistName(songItems: songItems);
+  }
 
   Future<void> _submit(
       BuildContext context, LibraryPlaylistsController librPlstCntrller) async {
@@ -63,10 +88,6 @@ class CreateNRenamePlaylistPopup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final librPlstCntrller = Get.find<LibraryPlaylistsController>();
-    librPlstCntrller.changeCreationMode("local");
-    librPlstCntrller.textInputController.text =
-        renamePlaylist ? "" : defaultNewPlaylistName(songItems: songItems);
     final isPipedLinked = Get.find<PipedServices>().isLoggedIn;
     final theme = Theme.of(context);
     final fg = theme.colorScheme.onSurface;
