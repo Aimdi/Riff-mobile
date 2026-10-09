@@ -23,19 +23,13 @@ import '/ui/theme/riff_tokens.dart';
 import '/ui/utils/sheet_insets.dart';
 import '/ui/widgets/create_playlist_dialog.dart';
 import '../../models/playlist.dart';
+import 'collection_play.dart' show isSystemLibraryPlaylistId;
 import 'common_dialog_widget.dart';
 import 'snackbar.dart';
 
-/// Built-in library playlists that are not user-created add targets.
-const systemLibraryPlaylistIds = {
-  'LIBFAV',
-  'LIBRP',
-  'SongsCache',
-  'SongDownloads',
-};
-
-bool isSystemLibraryPlaylistId(String id) =>
-    systemLibraryPlaylistIds.contains(id);
+/// Built-in library playlists (Favourites, Recently played, Cached,
+/// Downloads) are not user-created add targets.
+export 'collection_play.dart' show isSystemLibraryPlaylistId;
 
 /// User playlists for the add sheet. [LIBFAV] is pinned separately.
 List<Playlist> userPlaylistsForAddSheet({List<Playlist>? fromLibrary}) {
