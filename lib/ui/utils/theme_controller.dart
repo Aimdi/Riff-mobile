@@ -106,7 +106,11 @@ class ThemeController extends GetxController {
 
   void _listenSystemBrightness() {
     final platformDispatcher = WidgetsBinding.instance.platformDispatcher;
+    // Chained, not replaced: the binding's own handler is what updates
+    // MediaQuery's platformBrightness and tells WidgetsBindingObservers.
+    final previous = platformDispatcher.onPlatformBrightnessChanged;
     platformDispatcher.onPlatformBrightnessChanged = () {
+      previous?.call();
       systemBrightness = platformDispatcher.platformBrightness;
       changeThemeModeType(_themeTypeFromPrefs(Hive.box('AppPrefs')),
           sysCall: true);
