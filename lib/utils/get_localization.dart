@@ -5078,6 +5078,7 @@ Map<String, Map<String, String>> get keys => {
     "ytConnectedDes": "Connected — tap to disconnect",
     "connectYtAccount": "Connect YouTube account",
     "ytConnectedMsg": "YouTube account connected — your feed is now personalized",
+    "desktopSignInUnavailable": "Sign-in isn't available in the desktop app yet",
     "speedAndPitch": "Audio controls",
     "speedAndPitchDes": "Speed, pitch, bass, volume boost, reverb",
     "speed": "Speed",

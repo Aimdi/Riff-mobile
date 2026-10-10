@@ -768,6 +768,11 @@ class SettingsScreen extends StatelessWidget {
                             settingsController.ytConnected.value = false;
                             Get.find<HomeScreenController>()
                                 .loadContentFromNetwork();
+                          } else if (GetPlatform.isDesktop) {
+                            // The login runs in a WebView, which Linux lacks.
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                snackbar(context, "desktopSignInUnavailable".tr,
+                                    size: SanckBarSize.MEDIUM));
                           } else {
                             final ok =
                                 await Get.to(() => const YtLoginScreen());

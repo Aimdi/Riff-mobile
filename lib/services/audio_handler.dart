@@ -50,12 +50,18 @@ import '../ui/screens/Settings/settings_screen_controller.dart';
 import '../ui/screens/Library/library_controller.dart';
 
 Future<AudioHandler> initAudioService() async {
+  // On Linux the MPRIS backend uses the channel name as the player identity
+  // and the channel id in its D-Bus name, so media keys and desktop widgets
+  // show "Riff". Android keeps its existing notification channel.
+  final linux = GetPlatform.isLinux;
   return await AudioService.init(
     builder: () => MyAudioHandler(),
-    config: const AudioServiceConfig(
+    config: AudioServiceConfig(
       androidNotificationIcon: 'drawable/ic_stat_riff',
-      androidNotificationChannelId: 'com.mycompany.myapp.audio',
-      androidNotificationChannelName: 'Harmony Music Notification',
+      androidNotificationChannelId:
+          linux ? 'riff' : 'com.mycompany.myapp.audio',
+      androidNotificationChannelName:
+          linux ? 'Riff' : 'Harmony Music Notification',
       androidNotificationOngoing: true,
       androidStopForegroundOnPause: true,
     ),
@@ -148,7 +154,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   MyAudioHandler() {
     if (GetPlatform.isWindows || GetPlatform.isLinux) {
-      JustAudioMediaKit.title = 'Harmony music';
+      JustAudioMediaKit.title = 'Riff';
       JustAudioMediaKit.protocolWhitelist = const ['http', 'https', 'file'];
     }
     _mediaLibrary = MediaLibrary();
