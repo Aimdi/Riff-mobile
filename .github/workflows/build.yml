@@ -171,7 +171,9 @@ jobs:
           sed -i "s/^pkgver=.*/pkgver=$version/" PKGBUILD
           sed -i "s|/releases/download/v\${pkgver}/|/releases/download/$tag/|" PKGBUILD
           chown -R builder /tmp/pkg
-          su builder -c 'updpkgsums && makepkg -f --noconfirm'
+          # -d: runtime deps come in with pacman -U below, which also
+          # proves every name in depends= resolves from the Arch repos.
+          su builder -c 'updpkgsums && makepkg -f -d --noconfirm'
           namcap PKGBUILD *.pkg.tar.zst || true
           mkdir -p "$GITHUB_WORKSPACE/dist-arch"
           cp *.pkg.tar.zst "$GITHUB_WORKSPACE/dist-arch/"
