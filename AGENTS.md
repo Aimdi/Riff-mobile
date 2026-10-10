@@ -49,5 +49,16 @@ with JDK 21 will fail the Gradle/AGP step.
 There is **no `/dev/kvm`** in this VM, so a hardware-accelerated Android
 emulator is not available and a software emulator is impractically slow.
 Validate core functionality (search, home feed, stream resolution) via
-`test/yt_e2e_diagnose_test.dart` instead of a GUI run. The app targets Android
-only (no web/Linux desktop entry point).
+`test/yt_e2e_diagnose_test.dart` instead of a GUI run.
+
+### Linux desktop build
+
+The app also ships for Linux x86_64 (`linux/`, binary `riff-mobile`, GTK
+application id `com.aimdi.RiffMobile`). `flutter build linux --release` needs
+`clang cmake ninja-build pkg-config libgtk-3-dev libmpv-dev libsecret-1-dev
+libayatana-appindicator3-dev`, a JDK (package:jni) and Rust (audiotags). CI
+builds the tarball on ubuntu-22.04, then builds, installs and launches the Arch
+package (`packaging/arch/PKGBUILD`) in an `archlinux` container. Desktop
+branches use `GetPlatform.isDesktop`/`isLinux`; Android-only plugins
+(WebView, permission_handler, the `riff/*` method channels, jni) must stay
+behind Android checks.

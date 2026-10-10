@@ -1,0 +1,36 @@
+# Maintainer: Aimdi
+# Installs the prebuilt Linux bundle that CI attaches to every GitHub release.
+# CI fills in pkgver and the checksum and attaches the finished PKGBUILD and
+# .pkg.tar.zst to the release; this copy is the template.
+pkgname=riff-mobile-bin
+pkgver=0.0.0
+pkgrel=1
+pkgdesc='YouTube Music, podcasts and audiobooks without ads or an account'
+arch=('x86_64')
+url='https://github.com/Aimdi/Riff-mobile'
+license=('GPL-3.0-only')
+depends=('gtk3' 'mpv' 'libsecret' 'libayatana-appindicator' 'hicolor-icon-theme')
+optdepends=(
+  'gnome-keyring: store account credentials (or any other Secret Service provider, e.g. KWallet)'
+  'zenity: file dialogs for backup, restore and download folder'
+  'kdialog: file dialogs on KDE'
+)
+provides=('riff-mobile')
+conflicts=('riff-mobile')
+# Flutter's AOT snapshot must not be stripped.
+options=('!strip' '!debug')
+_tarball="riff-mobile-${pkgver}-linux-x64.tar.gz"
+source=("${_tarball}::${url}/releases/download/v${pkgver}/${_tarball}")
+sha256sums=('SKIP')
+
+package() {
+  local _id=com.aimdi.RiffMobile
+  cd "${srcdir}/riff-mobile"
+  install -d "${pkgdir}/opt/riff-mobile" "${pkgdir}/usr/bin"
+  cp -r riff-mobile lib data "${pkgdir}/opt/riff-mobile/"
+  ln -s /opt/riff-mobile/riff-mobile "${pkgdir}/usr/bin/riff-mobile"
+  install -Dm644 "${_id}.desktop" \
+    "${pkgdir}/usr/share/applications/${_id}.desktop"
+  install -Dm644 "${_id}.png" \
+    "${pkgdir}/usr/share/icons/hicolor/512x512/apps/${_id}.png"
+}

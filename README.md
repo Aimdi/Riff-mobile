@@ -4,7 +4,7 @@
 
 # Riff Mobile
 
-**YouTube Music, podcasts, audiobooks, and your own servers — on Android.**
+**YouTube Music, podcasts, audiobooks, and your own servers — on Android and Linux.**
 
 No ads. No Google account. No tracking. Personalization stays on your device.
 
@@ -12,7 +12,7 @@ No ads. No Google account. No tracking. Personalization stays on your device.
 [![Latest release](https://img.shields.io/github/v/release/Aimdi/Riff-mobile)](https://github.com/Aimdi/Riff-mobile/releases/latest)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-green)](LICENSE)
 
-[Download the latest APK](https://github.com/Aimdi/Riff-mobile/releases/latest)
+[Download the latest APK or Linux build](https://github.com/Aimdi/Riff-mobile/releases/latest)
 ·
 [Desktop Riff](https://github.com/Aimdi/Riff)
 
@@ -134,6 +134,28 @@ Updates install over the existing app (`com.aimdi.riff`). The app checks this re
 
 > Sideloading: allow installs from your browser/file manager. Riff is not distributed on the Play Store.
 
+### Linux (PC)
+
+Every release also carries an x86_64 Linux build.
+
+**Arch Linux** (and Manjaro, EndeavourOS, …): download `riff-mobile-bin-*.pkg.tar.zst` and install it with pacman, which pulls in mpv, GTK 3, libsecret and the tray library:
+
+```bash
+sudo pacman -U riff-mobile-bin-*.pkg.tar.zst
+riff-mobile
+```
+
+The release also has the matching `PKGBUILD` if you prefer `makepkg -si`. For saved logins, a Secret Service provider (gnome-keyring or KWallet) should be running; `zenity` or `kdialog` gives the file dialogs used by backup/restore.
+
+**Other distros**: download `riff-mobile-*-linux-x64.tar.gz`, install `mpv` (libmpv), GTK 3, libsecret and libayatana-appindicator from your package manager, then:
+
+```bash
+tar xf riff-mobile-*-linux-x64.tar.gz
+cd riff-mobile && ./install.sh     # installs to ~/.local; ./install.sh --uninstall removes it
+```
+
+Your library lives in `~/.local/share/com.aimdi.RiffMobile`. Linux has no in-app YouTube/Spotify sign-in (it needs a WebView); everything else, including playback, downloads, podcasts and sync, works without it.
+
 ## Build from source
 
 Requires [Flutter](https://docs.flutter.dev/get-started/install) **3.24.x**.
@@ -147,7 +169,13 @@ flutter build apk --release
 
 APKs land in `build/app/outputs/flutter-apk/`.
 
-Every push builds APKs on CI. Cutting a GitHub Release: run the *Build Android APK* workflow with a `release_tag` input (or push a `v*` tag).
+Linux (needs `clang cmake ninja pkgconf gtk3 mpv libsecret libayatana-appindicator`, a JDK and Rust):
+
+```bash
+flutter build linux --release   # bundle in build/linux/x64/release/bundle/
+```
+
+Every push builds the APKs, the Linux tarball and the Arch package on CI (the Arch package is built, installed and launched in an Arch container). Cutting a GitHub Release: run the *Build Android APK and Linux* workflow with a `release_tag` input (or push a `v*` tag).
 
 ### Useful targets
 

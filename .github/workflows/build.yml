@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android APK and Linux
 
 on:
   workflow_dispatch:
@@ -73,10 +73,145 @@ jobs:
           name: riff-apks
           path: dist/*.apk
 
+  linux:
+    name: Build Linux bundle
+    # The oldest supported runner, so the bundle's glibc floor stays low and
+    # it runs on Arch as well as older distros.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # package:jni builds its desktop helper against the JDK headers.
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: '3.24.2'
+          cache: true
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev libmpv-dev \
+            libsecret-1-dev libayatana-appindicator3-dev \
+            xvfb dbus-x11 libgl1-mesa-dri
+
+      - name: Build
+        run: |
+          flutter config --enable-linux-desktop
+          flutter pub get
+          flutter build linux --release
+
+      - name: Package tarball
+        run: |
+          version=$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)
+          echo "RIFF_VERSION=$version" >> "$GITHUB_ENV"
+          stage=dist/riff-mobile
+          mkdir -p "$stage"
+          cp -r build/linux/x64/release/bundle/. "$stage/"
+          cp packaging/linux/com.aimdi.RiffMobile.desktop "$stage/"
+          cp assets/icons/icon.png "$stage/com.aimdi.RiffMobile.png"
+          cp packaging/linux/install.sh LICENSE "$stage/"
+          tar -C dist -czf "dist/riff-mobile-$version-linux-x64.tar.gz" riff-mobile
+          ls -la dist
+
+      # Launch the bundle headless; it has to stay up until the timeout
+      # (exit 124) rather than crash on start.
+      - name: Smoke test
+        run: |
+          set +e
+          cd dist/riff-mobile
+          dbus-run-session -- xvfb-run -a timeout 30 ./riff-mobile > ../smoke.log 2>&1
+          code=$?
+          cat ../smoke.log
+          test $code -eq 124
+
+      - name: Upload tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: riff-linux
+          path: dist/*.tar.gz
+
+  arch:
+    name: Build Arch package
+    needs: linux
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: riff-linux
+          path: dist
+
+      - name: Install tools and runtime dependencies
+        run: |
+          pacman -Syu --noconfirm --needed pacman-contrib namcap \
+            gtk3 mpv libsecret libayatana-appindicator hicolor-icon-theme \
+            xorg-server-xvfb dbus mesa
+
+      - name: Build package
+        run: |
+          tarball=$(ls dist/riff-mobile-*-linux-x64.tar.gz)
+          version=$(basename "$tarball" | sed 's/^riff-mobile-\(.*\)-linux-x64.tar.gz$/\1/')
+          tag="${{ github.event.inputs.release_tag || github.ref_name }}"
+          case "$tag" in v*) ;; *) tag="v$version" ;; esac
+          useradd -m builder
+          mkdir -p /tmp/pkg
+          cp packaging/arch/PKGBUILD "$tarball" /tmp/pkg/
+          cd /tmp/pkg
+          sed -i "s/^pkgver=.*/pkgver=$version/" PKGBUILD
+          sed -i "s|/releases/download/v\${pkgver}/|/releases/download/$tag/|" PKGBUILD
+          chown -R builder /tmp/pkg
+          su builder -c 'updpkgsums && makepkg -f --noconfirm'
+          namcap PKGBUILD *.pkg.tar.zst || true
+          mkdir -p "$GITHUB_WORKSPACE/dist-arch"
+          cp *.pkg.tar.zst "$GITHUB_WORKSPACE/dist-arch/"
+          cp PKGBUILD "$GITHUB_WORKSPACE/dist-arch/PKGBUILD"
+
+      # Install with pacman and start it on Arch itself.
+      - name: Install and smoke test on Arch
+        run: |
+          pacman -U --noconfirm dist-arch/*.pkg.tar.zst
+          ldd /opt/riff-mobile/riff-mobile | tee /tmp/ldd.txt
+          ! grep -q 'not found' /tmp/ldd.txt
+          set +e
+          dbus-run-session -- xvfb-run -a timeout 30 riff-mobile > /tmp/smoke.log 2>&1
+          code=$?
+          cat /tmp/smoke.log
+          test $code -eq 124
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: riff-arch
+          path: dist-arch/*
+
+  release:
+    name: Publish release
+    needs: [build, linux, arch]
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
       - name: Create release
-        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.release_tag || github.ref_name }}
-          files: dist/*.apk
+          files: |
+            dist/*.apk
+            dist/*.tar.gz
+            dist/*.pkg.tar.zst
+            dist/PKGBUILD
           generate_release_notes: true

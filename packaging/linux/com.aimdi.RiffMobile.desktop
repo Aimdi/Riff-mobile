@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Riff
+GenericName=Music Player
+Comment=YouTube Music, podcasts and audiobooks without ads or an account
+Exec=riff-mobile %U
+Icon=com.aimdi.RiffMobile
+Terminal=false
+StartupWMClass=com.aimdi.RiffMobile
+Categories=AudioVideo;Audio;Player;Music;
+Keywords=music;youtube;podcast;audiobook;player;
+SingleMainWindow=true
