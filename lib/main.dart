@@ -250,15 +250,13 @@ Future<void> startApplicationServices() async {
 }
 
 initHiveCritical() async {
-  String applicationDataDirectoryPath;
   if (GetPlatform.isDesktop) {
-    applicationDataDirectoryPath =
-        "${(await getApplicationSupportDirectory()).path}/db";
+    // Hive.init, not initFlutter: initFlutter looks up the Documents folder
+    // first, which throws on Linux without xdg-user-dirs and stops start-up.
+    Hive.init("${(await getApplicationSupportDirectory()).path}/db");
   } else {
-    applicationDataDirectoryPath =
-        (await getApplicationDocumentsDirectory()).path;
+    await Hive.initFlutter((await getApplicationDocumentsDirectory()).path);
   }
-  await Hive.initFlutter(applicationDataDirectoryPath);
   // Needed before first paint / first play. Open in parallel.
   // Use safeOpenBox so a corrupt .hive cannot brick cold start.
   await Future.wait([
