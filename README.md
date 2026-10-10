@@ -147,7 +147,7 @@ riff-mobile
 
 The release also has the matching `PKGBUILD` if you prefer `makepkg -si`. For saved logins, a Secret Service provider (gnome-keyring or KWallet) should be running; `zenity` or `kdialog` gives the file dialogs used by backup/restore.
 
-**Other distros**: download `riff-mobile-*-linux-x64.tar.gz`, install `mpv` (libmpv), GTK 3, libsecret and libayatana-appindicator from your package manager, then:
+**Other distros**: download `riff-mobile-*-linux-x64.tar.gz`, install `mpv` 0.35 or newer (it provides `libmpv.so.2`), GTK 3, libsecret and libayatana-appindicator from your package manager, then:
 
 ```bash
 tar xf riff-mobile-*-linux-x64.tar.gz

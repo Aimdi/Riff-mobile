@@ -75,9 +75,9 @@ jobs:
 
   linux:
     name: Build Linux bundle
-    # The oldest supported runner, so the bundle's glibc floor stays low and
-    # it runs on Arch as well as older distros.
-    runs-on: ubuntu-22.04
+    # 24.04 links libmpv.so.2, the soname Arch and current distros ship
+    # (22.04 would link libmpv.so.1, which Arch doesn't have).
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -131,6 +131,7 @@ jobs:
           code=$?
           cat ../smoke.log
           test $code -eq 124
+          if grep 'Unhandled Exception' ../smoke.log; then exit 1; fi
 
       - name: Upload tarball
         uses: actions/upload-artifact@v4
@@ -181,12 +182,13 @@ jobs:
         run: |
           pacman -U --noconfirm dist-arch/*.pkg.tar.zst
           ldd /opt/riff-mobile/riff-mobile | tee /tmp/ldd.txt
-          ! grep -q 'not found' /tmp/ldd.txt
+          if grep 'not found' /tmp/ldd.txt; then exit 1; fi
           set +e
           dbus-run-session -- xvfb-run -a timeout 30 riff-mobile > /tmp/smoke.log 2>&1
           code=$?
           cat /tmp/smoke.log
           test $code -eq 124
+          if grep 'Unhandled Exception' /tmp/smoke.log; then exit 1; fi
 
       - name: Upload package
         uses: actions/upload-artifact@v4

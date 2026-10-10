@@ -174,7 +174,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     _player
         .setSkipSilenceEnabled(appPrefsBox.get("skipSilenceEnabled") ?? false);
     _player.setSpeed((appPrefsBox.get("playbackSpeed") ?? 1.0).toDouble());
-    _player.setPitch((appPrefsBox.get("playbackPitch") ?? 1.0).toDouble());
+    _setPitch((appPrefsBox.get("playbackPitch") ?? 1.0).toDouble());
     loopModeEnabled = appPrefsBox.get("isLoopModeEnabled") ?? false;
     shuffleModeEnabled = appPrefsBox.get("isShuffleModeEnabled") ?? false;
     queueLoopModeEnabled =
@@ -445,6 +445,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   }
 
   static const _fxChannel = MethodChannel('riff/newpipe');
+
+  /// The desktop (mpv) player is created without pitch support, so a pitch
+  /// change throws there; desktop keeps the original pitch instead.
+  Future<void> _setPitch(double pitch) async {
+    if (GetPlatform.isDesktop) return;
+    await _player.setPitch(pitch);
+  }
 
   void _listenSessionIdStream() {
     _player.androidAudioSessionIdStream.listen((int? id) {
@@ -1208,7 +1215,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     switch (name) {
       case 'setSpeedAndPitch':
         await _player.setSpeed((extras!['speed'] as num).toDouble());
-        await _player.setPitch((extras['pitch'] as num).toDouble());
+        await _setPitch((extras['pitch'] as num).toDouble());
         break;
 
       case 'setAudioFx':

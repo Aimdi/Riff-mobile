@@ -57,7 +57,7 @@ The app also ships for Linux x86_64 (`linux/`, binary `riff-mobile`, GTK
 application id `com.aimdi.RiffMobile`). `flutter build linux --release` needs
 `clang cmake ninja-build pkg-config libgtk-3-dev libmpv-dev libsecret-1-dev
 libayatana-appindicator3-dev`, a JDK (package:jni) and Rust (audiotags). CI
-builds the tarball on ubuntu-22.04, then builds, installs and launches the Arch
+builds the tarball on ubuntu-24.04 (libmpv.so.2, as on Arch), then builds, installs and launches the Arch
 package (`packaging/arch/PKGBUILD`) in an `archlinux` container. Desktop
 branches use `GetPlatform.isDesktop`/`isLinux`; Android-only plugins
 (WebView, permission_handler, the `riff/*` method channels, jni) must stay
