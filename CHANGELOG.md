@@ -1,3 +1,18 @@
+# 1.7.152
+
+* Riff now runs on Linux PCs. Every release ships a Linux build next to
+  the APKs:
+  * Arch Linux: `riff-mobile-bin-*.pkg.tar.zst`, install with
+    `sudo pacman -U riff-mobile-bin-*.pkg.tar.zst` (the matching
+    `PKGBUILD` is attached too)
+  * Any other distro: `riff-mobile-*-linux-x64.tar.gz`, unpack and run
+    `./install.sh` (needs mpv, GTK 3, libsecret and libayatana-appindicator)
+* On Linux, media keys and desktop media widgets see Riff, closing the
+  window can keep music playing in the tray (Settings, Background play),
+  and opening Riff again brings back the running window
+* Signing in to YouTube or Spotify needs the Android app for now; the
+  desktop app says so instead of opening an empty page
+
 # 1.7.151
 
 * The Up Next tab at the bottom of the player now runs edge to edge with
