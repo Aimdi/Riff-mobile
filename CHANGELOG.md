@@ -1,3 +1,16 @@
+# 1.7.153
+
+The music player takes its look from the cover, like BitChord:
+* The page under the cover fills with the cover's own colour, darkening
+  towards the bottom, and a second colour from the cover glows behind
+  the play button. Dark themes only; the light theme and videos look as
+  before. With Player canvas on, the glow drifts slowly
+* The line being sung shows under the title for songs with synced
+  lyrics; tap it for the full lyrics
+* Minimising the player shrinks the cover into a card that lands on the
+  mini player, while the screen behind shows through; opening it grows
+  the cover back out
+
 # 1.7.152
 
 * Riff now runs on Linux PCs. Every release ships a Linux build next to
