@@ -11,6 +11,13 @@ The music player takes its look from the cover, like BitChord:
   mini player, while the screen behind shows through; opening it grows
   the cover back out
 
+Home's Speed dial:
+* Swiping now goes round: a swipe right on the first page slides to the
+  last one (and on from the last back to the first), instead of nothing
+  happening
+* Pages shrink and fade a little as they slide, the current page's dot
+  stretches into a pill, and each page change gives a light tick
+
 # 1.7.152
 
 * Riff now runs on Linux PCs. Every release ships a Linux build next to

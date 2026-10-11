@@ -79,6 +79,14 @@ class RiffSizes {
   static const double dot = 6;
   static const double dotsTop = 8;
 
+  /// Speed dial: the current page's dot stretches into a pill this wide.
+  static const double dotActive = 16;
+
+  /// Speed dial pages while swiping: a page one full page away is this
+  /// much smaller and this much fainter, so the grid has depth as it moves.
+  static const double speedDialPageShrink = 0.08;
+  static const double speedDialPageFade = 0.45;
+
   static const double carouselHeight = 200;
   static const double carouselPeek = 48;
   static const double carouselSpacing = 8;
