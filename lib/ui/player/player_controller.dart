@@ -98,6 +98,11 @@ class PlayerController extends GetxController
   /// True when the main player panel is nearly fully open. Muted in-player
   /// video pauses while this is false so decoding stops behind the mini player.
   final isPlayerPanelOpen = false.obs;
+
+  /// The player panel's exact position every frame (0 collapsed, 1 open),
+  /// for the cover's minimise / expand morph. A plain notifier so only the
+  /// morph layer repaints while the panel moves.
+  final playerPanelPosition = ValueNotifier<double>(0.0);
   final playerPanelMinHeight = 0.0.obs;
   bool initFlagForPlayer = true;
   PanelController playerPanelController = PanelController();
@@ -248,8 +253,30 @@ class PlayerController extends GetxController
       ever(chapters, (_) => _rebuildPodcastSegments()),
       ever(PodcastSegmentStore.rev, (_) => _rebuildPodcastSegments()),
       ever(PodcastPlaybackPrefs.rev, (_) => _rebuildPodcastSegments()),
+      // Full player open: fetch lyrics for the line under the title.
+      ever(currentSong, (_) => _scheduleLyricsPrefetch()),
+      ever(isPlayerPanelOpen, (_) => _scheduleLyricsPrefetch()),
     ]);
     super.onInit();
+  }
+
+  Timer? _lyricsPrefetchTimer;
+
+  /// Music in the standard player only, once the player has stayed open a
+  /// moment (not on every skip while it's closed).
+  void _scheduleLyricsPrefetch() {
+    _lyricsPrefetchTimer?.cancel();
+    if (!isPlayerPanelOpen.value) return;
+    _lyricsPrefetchTimer = Timer(const Duration(milliseconds: 800), () {
+      if (isClosed || !isPlayerPanelOpen.value || usesLongFormTransport) {
+        return;
+      }
+      if (Get.isRegistered<SettingsScreenController>() &&
+          Get.find<SettingsScreenController>().playerUi.value != 0) {
+        return;
+      }
+      prefetchLyrics();
+    });
   }
 
   @override
@@ -323,6 +350,10 @@ class PlayerController extends GetxController
   }
 
   void panellistener(double x) {
+    // The notifier is disposed with the controller; a panel still bound to
+    // a closed one must not write to it.
+    if (isClosed) return;
+    playerPanelPosition.value = x;
     // Only publish when values actually change — panel drag used to rewrite
     // opacity/visibility every frame and rebuild the mini player continuously.
     if (x >= 0 && x <= 0.2) {
@@ -2182,40 +2213,64 @@ class PlayerController extends GetxController
 
   Future<void> showLyrics() async {
     showLyricsflag.value = !showLyricsflag.value;
+    if (showLyricsflag.value) await _loadLyrics();
+  }
+
+  /// Fetches the current song's lyrics without opening them, for the lyric
+  /// line under the title in the full player.
+  Future<void> prefetchLyrics() => _loadLyrics();
+
+  /// One lookup per song: a prefetch and a tap on lyrics share it.
+  Future<void>? _lyricsLoad;
+  String? _lyricsLoadId;
+
+  Future<void> _loadLyrics() {
     final song = currentSong.value;
-    if (song != null &&
-        (lyrics["synced"].isEmpty && lyrics['plainLyrics'].isEmpty) &&
-        showLyricsflag.value) {
-      isLyricsLoading.value = true;
-      // A skip during the (sometimes slow) lookups must not put this
-      // song's lyrics on the next one.
-      bool stillCurrent() => currentSong.value?.id == song.id;
-      Map<String, dynamic> result;
-      try {
-        final Map<String, dynamic>? lyricsR =
-            await SyncedLyricsService.getSyncedLyrics(
-                song, progressBarStatus.value.total.inSeconds);
-        if (lyricsR != null) {
-          result = lyricsR;
-        } else {
-          if (!stillCurrent()) return;
-          final related = await _musicServices.getWatchPlaylist(
-              videoId: song.id, onlyRelated: true);
-          final relatedLyricsId = related['lyrics'];
-          if (relatedLyricsId != null) {
-            final lyrics_ = await _musicServices.getLyrics(relatedLyricsId);
-            result = {"synced": "", "plainLyrics": lyrics_};
-          } else {
-            result = {"synced": "", "plainLyrics": "NA"};
-          }
-        }
-      } catch (e) {
-        result = {"synced": "", "plainLyrics": "NA"};
-      }
-      if (!stillCurrent()) return;
-      lyrics.value = result;
-      isLyricsLoading.value = false;
+    if (song == null ||
+        lyrics["synced"].isNotEmpty ||
+        lyrics['plainLyrics'].isNotEmpty) {
+      return Future.value();
     }
+    if (_lyricsLoadId == song.id && _lyricsLoad != null) return _lyricsLoad!;
+    _lyricsLoadId = song.id;
+    return _lyricsLoad = _fetchLyrics(song).whenComplete(() {
+      if (_lyricsLoadId == song.id) {
+        _lyricsLoad = null;
+        _lyricsLoadId = null;
+      }
+    });
+  }
+
+  Future<void> _fetchLyrics(MediaItem song) async {
+    isLyricsLoading.value = true;
+    // A skip during the (sometimes slow) lookups must not put this
+    // song's lyrics on the next one.
+    bool stillCurrent() => currentSong.value?.id == song.id;
+    Map<String, dynamic> result;
+    try {
+      final Map<String, dynamic>? lyricsR =
+          await SyncedLyricsService.getSyncedLyrics(
+              song, progressBarStatus.value.total.inSeconds);
+      if (lyricsR != null) {
+        result = lyricsR;
+      } else {
+        if (!stillCurrent()) return;
+        final related = await _musicServices.getWatchPlaylist(
+            videoId: song.id, onlyRelated: true);
+        final relatedLyricsId = related['lyrics'];
+        if (relatedLyricsId != null) {
+          final lyrics_ = await _musicServices.getLyrics(relatedLyricsId);
+          result = {"synced": "", "plainLyrics": lyrics_};
+        } else {
+          result = {"synced": "", "plainLyrics": "NA"};
+        }
+      }
+    } catch (e) {
+      result = {"synced": "", "plainLyrics": "NA"};
+    }
+    if (!stillCurrent()) return;
+    lyrics.value = result;
+    isLyricsLoading.value = false;
   }
 
   void changeLyricsMode(int? val) {
@@ -2456,10 +2511,12 @@ class PlayerController extends GetxController
     gesturePlayerStateAnimationController?.dispose();
     gesturePlayerStateAnimationController = null;
     sleepTimer?.cancel();
+    _lyricsPrefetchTimer?.cancel();
     if (GetPlatform.isWindows) {
       Get.delete<WindowsAudioService>();
     }
     _setWakelock(false);
+    playerPanelPosition.dispose();
     super.onClose();
   }
 }
