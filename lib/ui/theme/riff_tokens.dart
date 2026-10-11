@@ -56,6 +56,10 @@ class RiffPalette {
   static const double playerHeaderScrim = 0.75;
   static const double playerHeaderScrimMid = 0.45;
 
+  /// Round buttons by the player title (song options, like): white at
+  /// this strength over the page.
+  static const double playerButtonVeil = 0.14;
+
   /// Lyrics lines other than the current one (secondary text at 60%).
   static const double lyricsDimOpacity = 0.6;
 

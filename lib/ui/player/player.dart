@@ -31,6 +31,9 @@ class Player extends StatelessWidget {
     final PlayerController playerController = Get.find<PlayerController>();
     final settingsScreenController = Get.find<SettingsScreenController>();
     return Scaffold(
+      // Clear: the players paint their own page (see home.dart's panel).
+      backgroundColor: Colors.transparent,
+
       /// SlidingUpPanel is used to create a panel that can slide up and down
       /// It is used to show the current queue panel in mobile
       body: Obx(() {
@@ -182,7 +185,9 @@ class Player extends StatelessWidget {
                 ? const LongFormPlayer()
                 : settingsScreenController.playerUi.value == 0
                     ? const StandardPlayer()
-                    : const GesturePlayer()),
+                    : ColoredBox(
+                        color: Theme.of(context).colorScheme.surface,
+                        child: const GesturePlayer())),
           ),
         );
       }),

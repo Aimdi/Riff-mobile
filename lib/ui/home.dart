@@ -186,6 +186,10 @@ class Home extends StatelessWidget {
                   minHeight: playerController.playerPanelMinHeight.value,
                   maxHeight: size.height,
                   isDraggable: !isWideScreen,
+                  // Clear sheet: each player paints its own page, and the
+                  // music player fades it while minimising so the screen
+                  // behind shows through.
+                  color: Colors.transparent,
                   onSwipeUp: () {
                     playerController.queuePanelController.open();
                   },

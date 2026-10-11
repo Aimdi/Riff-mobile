@@ -23,6 +23,7 @@ import '../chapter_marks.dart';
 import '../player_controller.dart';
 import '../radio_continuation.dart';
 import '../player_media_nav.dart';
+import 'lyric_line_preview.dart';
 import 'playback_error_actions.dart';
 import 'standard_player.dart';
 import '/ui/theme/riff_spacing.dart';
@@ -73,6 +74,8 @@ class PlayerControlWidget extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
+          // The line being sung now, as in the reference player.
+          const LyricLinePreview(),
           // Visible reason when a song won't start — snackbar alone is easy to miss.
           const PlaybackErrorBanner(),
           // Spotify-style straight seek bar. Podcasts with chapters split
@@ -546,8 +549,11 @@ class _RoundAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Translucent white: reads on the cover-coloured page and on black.
     return Material(
-      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      color: RiffColors.of(context)
+          .onImage
+          .withOpacity(RiffPalette.playerButtonVeil),
       shape: const CircleBorder(),
       clipBehavior: Clip.antiAlias,
       child: child,
