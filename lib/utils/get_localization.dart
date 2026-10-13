@@ -4934,6 +4934,8 @@ Map<String, Map<String, String>> get keys => {
     "lyricsSourceBetterLyrics": "Better Lyrics",
     "lyricsSourceAuto": "Auto",
     "lyricsSourceLrclib": "LRCLIB",
+    "romanizeLyrics": "Romanized lyrics",
+    "romanizeLyricsDes": "Korean, Cyrillic and Greek lyrics show how they sound in Latin letters under each line",
     "settingsSearch": "Search settings",
     "dataSaver": "Data saver",
     "dataSaverDes": "Use low streaming quality to reduce data usage",

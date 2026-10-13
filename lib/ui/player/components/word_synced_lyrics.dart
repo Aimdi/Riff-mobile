@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/services/better_lyrics_service.dart';
+import '/services/lyrics_romanization.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
@@ -36,6 +37,11 @@ int wordSyncedActiveLine(List<TtmlLine> lines, double posSec) {
 class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
   late final List<TtmlLine> _lines =
       BetterLyricsService.parseTimedLines(widget.ttml);
+
+  /// Each line's romanization (null: none), worked out once.
+  late final List<String?> _romanized = [
+    for (final line in _lines) LyricsRomanization.lineFor(line.text),
+  ];
   final _scroll = ScrollController();
   final _player = Get.find<PlayerController>();
 
@@ -218,22 +224,39 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
               final line = _lines[i];
               final isActive = i == activeLine;
               final isPast = i < activeLine;
+              final Widget row;
               if (line.hasWords) {
-                if (isActive) {
-                  return Obx(() => _wordLine(context, accent, line,
-                      posSec: _posSec, isActive: true, isPast: false));
-                }
-                return _wordLine(context, accent, line,
-                    posSec: 0, isActive: false, isPast: isPast);
+                row = isActive
+                    ? Obx(() => _wordLine(context, accent, line,
+                        posSec: _posSec, isActive: true, isPast: false))
+                    : _wordLine(context, accent, line,
+                        posSec: 0, isActive: false, isPast: isPast);
+              } else {
+                row = Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Text(
+                    line.text,
+                    textAlign: TextAlign.center,
+                    style: _lineStyle(context, accent,
+                        isActive: isActive, isPast: isPast),
+                  ),
+                );
               }
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Text(
-                  line.text,
-                  textAlign: TextAlign.center,
-                  style: _lineStyle(context, accent,
-                      isActive: isActive, isPast: isPast),
-                ),
+              final roman = _romanized[i];
+              if (roman == null) return row;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  row,
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: RiffSpacing.xs),
+                    child: Text(
+                      roman,
+                      textAlign: TextAlign.center,
+                      style: _romanStyle(context, isActive: isActive),
+                    ),
+                  ),
+                ],
               );
             },
           ),
@@ -290,6 +313,16 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
     return base.copyWith(
       color: theme.colorScheme.onSurfaceVariant
           .withOpacity(RiffPalette.lyricsDimOpacity),
+    );
+  }
+
+  /// A line's romanization: `bodyMedium` in the secondary colour, dimmed
+  /// off the current line, as the line-synced lyrics' second lines.
+  TextStyle _romanStyle(BuildContext context, {required bool isActive}) {
+    final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
+    return theme.textTheme.bodyMedium!.copyWith(
+      color: isActive ? muted : muted.withOpacity(RiffPalette.lyricsDimOpacity),
     );
   }
 

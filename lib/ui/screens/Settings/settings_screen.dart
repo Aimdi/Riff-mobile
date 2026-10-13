@@ -16,6 +16,7 @@ import '/ui/widgets/link_piped.dart';
 import '/services/wizestream_service.dart';
 import '/services/crash_report.dart';
 import '/services/better_lyrics_service.dart';
+import '/services/lyrics_romanization.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/listenbrainz_service.dart';
 import '/services/music_service.dart';
@@ -352,6 +353,22 @@ class SettingsScreen extends StatelessWidget {
                         onChanged: settingsController.setLyricsSource,
                       ),
                     ),
+                  ),
+                  SettingsSearchable(
+                    title: 'romanizeLyrics'.tr,
+                    subtitle: 'romanizeLyricsDes'.tr,
+                    child: Obx(() {
+                      return ListTile(
+                        contentPadding: settingsTilePadding,
+                        title: Text('romanizeLyrics'.tr),
+                        subtitle: Text('romanizeLyricsDes'.tr,
+                            style: settingsSubtitleStyle(context)),
+                        trailing: CustSwitch(
+                          value: LyricsRomanization.enabled.isTrue,
+                          onChanged: LyricsRomanization.setEnabled,
+                        ),
+                      );
+                    }),
                   ),
                   SettingsSearchable(
                     title: 'dataSaver'.tr,

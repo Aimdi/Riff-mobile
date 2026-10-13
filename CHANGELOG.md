@@ -20,6 +20,11 @@ Lyrics:
 * Share lyrics as a picture, like Spotify and Apple Music: ⋮ › Share
   lyrics, pick up to 5 lines and share the card (the song's cover
   colours, the lines large, the song and artist) to any app
+* Romanized lyrics, like Metrolist and YouTube Music: Korean, Cyrillic
+  and Greek lyrics show how they sound in Latin letters under each line
+  ("사랑해" → "saranghae", with the sound changes you hear in the song,
+  like "감사합니다" → "gamsahamnida"). Not for the script of the app's own
+  language; Settings › Romanized lyrics turns it off
 
 Mini player (phones):
 * Drag it sideways and the song follows your finger while the next (or

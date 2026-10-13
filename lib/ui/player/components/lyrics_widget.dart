@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_lyric/lyrics_reader.dart';
 import 'package:get/get.dart';
 
+import '/services/lyrics_romanization.dart';
 import '../../widgets/loader.dart';
 import '../player_controller.dart';
 import 'lyric_seek_line.dart';
@@ -26,20 +27,27 @@ class LyricsWidget extends StatelessWidget {
           return const Center(child: LoadingIndicator());
         }
         final theme = Theme.of(context);
+        // Read here so switching it in Settings redraws the lyrics.
+        final romanized = LyricsRomanization.enabled.isTrue;
         if (playerController.lyricsMode.toInt() == 1) {
+          final plain = playerController.lyrics["plainLyrics"] == "NA"
+              ? "lyricsNotAvailable".tr
+              : (playerController.lyrics["plainLyrics"] ?? "").toString();
           return Center(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               padding: padding,
               child: TextSelectionTheme(
                 data: Theme.of(context).textSelectionTheme,
-                child: SelectableText(
-                  playerController.lyrics["plainLyrics"] == "NA"
-                      ? "lyricsNotAvailable".tr
-                      : playerController.lyrics["plainLyrics"] ?? "",
+                child: SelectableText.rich(
+                  romanizedLyricsText(
+                    plain,
+                    style: theme.textTheme.titleLarge!
+                        .copyWith(color: theme.colorScheme.onSurface),
+                    romanStyle: theme.textTheme.bodyMedium!
+                        .copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.titleLarge!
-                      .copyWith(color: theme.colorScheme.onSurface),
                 ),
               ),
             ),
@@ -47,11 +55,16 @@ class LyricsWidget extends StatelessWidget {
         }
         final ttml = (playerController.lyrics['ttml'] ?? '').toString();
         if (ttml.isNotEmpty) {
-          return WordSyncedLyricsWidget(ttml: ttml, padding: padding);
+          return WordSyncedLyricsWidget(
+              key: ValueKey(romanized), ttml: ttml, padding: padding);
         }
         final model = LyricsModelBuilder.create()
             .bindLyricToMain(playerController.lyrics['synced'].toString())
             .getModel();
+        // Romanization goes in each line's second line.
+        for (final line in model.lyrics) {
+          line.extText = LyricsRomanization.lineFor(line.mainText);
+        }
         // Built here (not per progress tick): a new LyricUI makes the
         // reader re-layout.
         final lyricUi = RiffLyricUI.of(context, playerController.lyricUi);
@@ -89,6 +102,24 @@ class LyricsWidget extends StatelessWidget {
   }
 }
 
+/// Plain lyrics as one text, each line followed by its romanization (in
+/// [romanStyle]) when [LyricsRomanization] gives one.
+TextSpan romanizedLyricsText(String lyrics,
+    {required TextStyle style, required TextStyle romanStyle}) {
+  final lines = lyrics.split('\n');
+  return TextSpan(
+    style: style,
+    children: [
+      for (var i = 0; i < lines.length; i++) ...[
+        TextSpan(text: lines[i]),
+        if (LyricsRomanization.lineFor(lines[i]) case final roman?)
+          TextSpan(text: '\n$roman', style: romanStyle),
+        if (i < lines.length - 1) const TextSpan(text: '\n'),
+      ],
+    ],
+  );
+}
+
 /// [LyricsReader] that keeps following the song after a touch it lost:
 /// it marks every touch as a drag on tap-down and clears that on tap-up,
 /// so a touch the host takes as a long-press (song menu) left the lyrics
@@ -121,7 +152,8 @@ class _SeekableLyricsReaderState extends LyricReaderState {
 
 /// Synced (line-level) lyrics in the Lights-out type: the current line
 /// `titleLarge` in the text colour, the others `titleLarge` in the secondary
-/// colour at 60%, translations `labelSmall`. Keeps the controller's layout
+/// colour at 60%, second lines (romanization) `bodyMedium` in the secondary
+/// colour, dimmed off the current line. Keeps the controller's layout
 /// (gaps, bias, alignment, highlight sweep); the sweep is playback progress,
 /// so it is drawn in the accent.
 class RiffLyricUI extends UINetease {
@@ -155,8 +187,8 @@ class RiffLyricUI extends UINetease {
       base,
       playing: text.titleLarge!.copyWith(color: scheme.onSurface),
       other: text.titleLarge!.copyWith(color: dim),
-      playingExt: text.labelSmall!.copyWith(color: scheme.onSurfaceVariant),
-      otherExt: text.labelSmall!.copyWith(color: dim),
+      playingExt: text.bodyMedium!.copyWith(color: scheme.onSurfaceVariant),
+      otherExt: text.bodyMedium!.copyWith(color: dim),
       sweep: scheme.secondary,
     );
   }
