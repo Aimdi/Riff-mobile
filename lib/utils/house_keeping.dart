@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '/models/media_Item_builder.dart';
 import '/services/song_cache_service.dart';
 import '/ui/screens/Library/library_controller.dart';
+import '/ui/screens/Library/library_removal.dart';
 import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 import 'helper.dart';
@@ -14,6 +15,20 @@ import 'songs_url_cache.dart';
 void startHouseKeeping() {
   removeExpiredSongsUrlFromDb();
   unawaited(evictSongCacheInBackground());
+  unawaited(_purgeRemovedSongFiles());
+}
+
+/// Songs removed from the library while the app closed before Undo
+/// timed out: their files go now.
+Future<void> _purgeRemovedSongFiles() async {
+  try {
+    await purgePendingLibraryFiles(HiveBoxes.prefs(),
+        inLibrary: (id) =>
+            Hive.box(HiveBoxes.songDownloads).containsKey(id) ||
+            Hive.box(HiveBoxes.songsCache).containsKey(id));
+  } catch (e) {
+    printERROR('Error in _purgeRemovedSongFiles: $e');
+  }
 }
 
 /// Size / age pass for auto-cached songs. Downloads and the active

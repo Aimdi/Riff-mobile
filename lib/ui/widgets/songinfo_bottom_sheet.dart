@@ -669,12 +669,17 @@ mixin RemoveSongFromPlaylistMixin {
   }
 }
 
-/// Removes [song] from [playlist] and says so; for local playlists the
-/// snackbar has Undo, which puts the song back where it was.
+/// Removes [song] from [playlist] and says so; for local playlists and
+/// the library the snackbar has Undo, which puts the song back where it
+/// was.
 Future<void> removeFromPlaylistWithUndo(MediaItem song, Playlist playlist,
     {BuildContext? context}) async {
-  final remover = _PlaylistSongRemover();
   final ctx = (context != null && context.mounted) ? context : Get.context;
+  if (playlist.playlistId == "SongDownloads" ||
+      playlist.playlistId == "SongsCache") {
+    return _removeFromLibraryWithUndo(song, playlist, ctx);
+  }
+  final remover = _PlaylistSongRemover();
   int? removedAt;
   final ok = await remover.removeSongFromPlaylist(song, playlist,
       onRemovedAt: (i) => removedAt = i);
@@ -695,6 +700,46 @@ Future<void> removeFromPlaylistWithUndo(MediaItem song, Playlist playlist,
 }
 
 class _PlaylistSongRemover with RemoveSongFromPlaylistMixin {}
+
+/// The library's version: the song leaves the Songs list (and an open
+/// Downloads / Cached screen) at once, its download or cached copy is
+/// deleted only when the snackbar goes without Undo.
+Future<void> _removeFromLibraryWithUndo(
+    MediaItem song, Playlist playlist, BuildContext? ctx) async {
+  final library = Get.find<LibrarySongsController>();
+  final tag = Key(playlist.playlistId).hashCode.toString();
+  final screen = Get.isRegistered<PlaylistScreenController>(tag: tag)
+      ? Get.find<PlaylistScreenController>(tag: tag)
+      : null;
+  final screenIndex = screen?.songList.indexWhere((s) => s.id == song.id) ?? -1;
+  if (screenIndex >= 0) screen!.addNRemoveItemsinList(song, action: 'remove');
+  final removal = await library.takeOutOfLibrary(song);
+  if (removal == null) return;
+  if (ctx == null || !ctx.mounted) {
+    await library.commitRemoval(removal);
+    return;
+  }
+  final messenger = ScaffoldMessenger.of(ctx)..hideCurrentSnackBar();
+  final shown = messenger.showSnackBar(snackbar(
+    ctx,
+    "removedFromLibrary".tr,
+    actionLabel: "undo".tr,
+    onAction: () async {
+      await library.undoRemoval(removal);
+      if (screen != null &&
+          !screen.isClosed &&
+          screenIndex >= 0 &&
+          screen.songList.every((s) => s.id != song.id)) {
+        screen.addNRemoveItemsinList(song,
+            action: 'add', index: screenIndex.clamp(0, screen.songList.length));
+      }
+    },
+  ));
+  // Closed any other way (timed out, swiped, replaced): no Undo now.
+  shown.closed.then((reason) {
+    if (reason != SnackBarClosedReason.action) library.commitRemoval(removal);
+  });
+}
 
 /// The song's album (browse id + name), when it has one.
 ({String id, String name})? _albumOf(MediaItem song) {

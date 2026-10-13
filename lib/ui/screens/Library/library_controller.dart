@@ -10,6 +10,7 @@ import 'dart:convert';
 
 import '../../../utils/hive_boxes.dart';
 import 'library_search.dart';
+import 'library_removal.dart';
 import '../../../utils/house_keeping.dart';
 import '../../widgets/add_to_playlist.dart';
 import '/ui/widgets/sort_widget.dart';
@@ -128,6 +129,76 @@ class LibrarySongsController extends GetxController {
   void onSearchClose(String? tag) {
     librarySongsList.value = tempListContainer.toList();
     tempListContainer.clear();
+  }
+
+  /// Takes [song] out of the library: its download and cache entries and
+  /// its place in the list go now; its files stay until [commitRemoval],
+  /// so [undoRemoval] can put everything back. Null when it isn't in the
+  /// library.
+  Future<LibrarySongRemoval?> takeOutOfLibrary(MediaItem song) async {
+    final cacheDir = (await getTemporaryDirectory()).path;
+    final supportDir = Get.find<SettingsScreenController>().supportDirPath;
+    final downloads = Hive.box("SongDownloads");
+    final cache = Hive.box("SongsCache");
+    final download = downloads.get(song.id);
+    final cached = cache.get(song.id);
+    // Decided and done synchronously, so two quick removals can't shift
+    // each other's positions.
+    final listIndex = librarySongsList.indexWhere((s) => s.id == song.id);
+    final searchIndex = tempListContainer.indexWhere((s) => s.id == song.id);
+    if (download == null && cached == null && listIndex < 0) return null;
+    // Every row: a song both downloaded and cached is listed twice.
+    librarySongsList.removeWhere((s) => s.id == song.id);
+    tempListContainer.removeWhere((s) => s.id == song.id);
+    final removal = LibrarySongRemoval(
+      song: song,
+      download: download,
+      cached: cached,
+      listIndex: listIndex,
+      searchIndex: searchIndex,
+      files: libraryFilesOf(
+        id: song.id,
+        download: download,
+        cached: cached != null,
+        cacheDir: cacheDir,
+        supportDir: supportDir,
+      ),
+    );
+    await markPendingLibraryFiles(
+        Hive.box("AppPrefs"), song.id, removal.files);
+    if (download != null) await downloads.delete(song.id);
+    if (cached != null) await cache.delete(song.id);
+    return removal;
+  }
+
+  /// Undo for [takeOutOfLibrary]: the entries and the list place come back.
+  Future<void> undoRemoval(LibrarySongRemoval removal) async {
+    final song = removal.song;
+    await clearPendingLibraryFiles(Hive.box("AppPrefs"), song.id);
+    if (removal.download != null) {
+      await Hive.box("SongDownloads").put(song.id, removal.download);
+    }
+    if (removal.cached != null) {
+      await Hive.box("SongsCache").put(song.id, removal.cached);
+    }
+    if (removal.listIndex >= 0 &&
+        librarySongsList.every((s) => s.id != song.id)) {
+      insertClamped(librarySongsList, removal.listIndex, song);
+    }
+    if (removal.searchIndex >= 0 &&
+        tempListContainer.every((s) => s.id != song.id)) {
+      insertClamped(tempListContainer, removal.searchIndex, song);
+    }
+  }
+
+  /// Undo is no longer offered: the files go, unless the song came back
+  /// into the library meanwhile (played into the cache, downloaded again).
+  Future<void> commitRemoval(LibrarySongRemoval removal) async {
+    final id = removal.song.id;
+    final back = Hive.box("SongDownloads").containsKey(id) ||
+        Hive.box("SongsCache").containsKey(id);
+    if (!back) await deleteLibraryFiles(removal.files);
+    await clearPendingLibraryFiles(Hive.box("AppPrefs"), id);
   }
 
   /// remove song from library list and from storage only, not from database

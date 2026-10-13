@@ -4744,6 +4744,7 @@ Map<String, Map<String, String>> get keys => {
     "queueLoopNotDisMsg1": "Queue loop mode cannot be disabled when shuffle mode is enabled.",
     "queueLoopNotDisMsg2": "Queue loop mode cannot be enabled in radio mode.",
     "removeFromLib": "Remove from Library Songs",
+    "removedFromLibrary": "Removed from your library",
     "sleepTimer": "Sleep Timer",
     "add5Minutes": "Add 5 minutes",
     "cancelTimer": "Cancel timer",

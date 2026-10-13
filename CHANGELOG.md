@@ -66,6 +66,12 @@ Audiobooks:
   start at the speed they played at before
 
 Library:
+* Removing a song (swipe it, or "Remove" in its menu) now says "Removed
+  from your library" with Undo, like YouTube Music; its download or
+  cached copy is only deleted once Undo is gone (or on the next start if
+  the app closed first), so a slip no longer costs the download
+* Removing a song you'd only listened to (cached, not downloaded) from
+  Library Songs now sticks; it used to come back on the next start
 * Search finds songs by artist and album too, not just the title, and
   every word counts ("daft lucky" finds Get Lucky by Daft Punk); accents
   don't matter ("beyonce" finds Beyoncé). Albums match their artist,
