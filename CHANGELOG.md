@@ -136,6 +136,12 @@ Podcasts:
   hear in order stays oldest first. The eye button next to it hides
   played episodes (the count follows), and episodes you finish while the
   page is open drop out of the list; tap it again to show them
+* Previous and next chapter buttons either side of the chapter in the
+  podcast and audiobook player, like Pocket Casts and Audible: next goes
+  to the next chapter; previous starts the chapter playing again, or in
+  its first 3 seconds goes to the one before. For episodes and books with
+  chapters inside them; a book's separate tracks keep the player's own
+  previous / next
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip

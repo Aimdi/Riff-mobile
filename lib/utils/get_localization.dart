@@ -4642,6 +4642,8 @@ Map<String, Map<String, String>> get keys => {
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "previousChapter": "Previous chapter",
+    "nextChapter": "Next chapter",
     "play": "Play",
     "description": "Description",
     "playlists": "Playlists",

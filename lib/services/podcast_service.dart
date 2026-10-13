@@ -1033,6 +1033,27 @@ int chapterIndexAt(List<PodcastChapter> chapters, double sec) {
   return index;
 }
 
+/// How far into a chapter "previous chapter" still goes to the one before
+/// (after that it starts this one again), like a player's previous button.
+const chapterRestartWindowSec = 3.0;
+
+/// Where the previous / next chapter buttons go from [sec] (Pocket Casts,
+/// Audible): the next chapter's start; back, the start of the chapter
+/// playing, or of the one before in its first seconds. Null when there's
+/// nowhere to go.
+double? chapterSkipTarget(List<PodcastChapter> chapters, double sec,
+    {required bool forward}) {
+  final i = chapterIndexAt(chapters, sec);
+  if (forward) {
+    return i + 1 < chapters.length ? chapters[i + 1].startSec : null;
+  }
+  if (i < 0) return null;
+  if (sec - chapters[i].startSec > chapterRestartWindowSec) {
+    return chapters[i].startSec;
+  }
+  return i > 0 ? chapters[i - 1].startSec : null;
+}
+
 /// The art of the chapter playing at [sec] (Pocket Casts and AntennaPod
 /// show it on the cover); null where that chapter has none, so the
 /// episode's own art shows.
