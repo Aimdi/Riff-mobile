@@ -12,6 +12,7 @@ import 'package:ionicons/ionicons.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
 import '/ui/player/components/animated_play_button.dart';
+import '/services/audiobook_playback.dart';
 import '/services/podcast_transcripts.dart';
 import '/ui/player/components/podcast_transcript_sheet.dart';
 import '/ui/utils/theme_controller.dart';
@@ -218,7 +219,7 @@ class PlayerControlWidget extends StatelessWidget {
           children: [
             playerController.isCurrentSongPodcast
                 ? PodcastSpeedButton(color: color)
-                : PlayerSpeedButton(color: color),
+                : AudiobookSpeedButton(color: color),
             LongFormSkipButton(forward: false, color: color, size: 34),
             const AnimatedPlayButton(
                 key: Key('podcastPlayButton'), size: 68, holdToSeek: true),
@@ -402,22 +403,18 @@ class PlaybackErrorBanner extends StatelessWidget {
   }
 }
 
-/// Podcast playback-speed control: shows the current speed, tap cycles through
-/// common podcast speeds. Persists via SettingsScreenController like the
-/// speed/pitch dialog.
-class PlayerSpeedButton extends StatelessWidget {
-  const PlayerSpeedButton({super.key, required this.color});
+/// Audiobook speed pill: shows the books' own speed, a tap steps through
+/// common speeds ([cycleAudiobookSpeed]). Music's speed is left alone.
+class AudiobookSpeedButton extends StatelessWidget {
+  const AudiobookSpeedButton({super.key, required this.color});
   final Color? color;
-
-  void _cycle() => cyclePlayerSpeed();
 
   @override
   Widget build(BuildContext context) {
-    final settings = Get.find<SettingsScreenController>();
     return Tooltip(
       message: 'speed'.tr,
       child: InkWell(
-        onTap: _cycle,
+        onTap: cycleAudiobookSpeed,
         customBorder: const StadiumBorder(),
         child: Container(
           width: 52,
@@ -430,7 +427,7 @@ class PlayerSpeedButton extends StatelessWidget {
             ),
           ),
           child: Obx(() => Text(
-                speedLabel(settings.playbackSpeed.value),
+                speedLabel(_audiobookSpeed()),
                 style: Theme.of(context)
                     .textTheme
                     .labelMedium
@@ -442,19 +439,20 @@ class PlayerSpeedButton extends StatelessWidget {
   }
 }
 
-const _playerSpeeds = [0.8, 1.0, 1.2, 1.5, 1.75, 2.0];
+/// The audiobook speed, read so an Obx rebuilds when it changes.
+double _audiobookSpeed() {
+  AudiobookPlayback.rev.value;
+  return AudiobookPlayback.speed;
+}
 
-/// Next common speed (0.8× … 2×, then round again), saved like the
-/// speed/pitch dialog.
-void cyclePlayerSpeed() {
-  final settings = Get.find<SettingsScreenController>();
-  final cur = settings.playbackSpeed.value;
-  final idx = _playerSpeeds.indexWhere((s) => (s - cur).abs() < 0.01);
-  final next = _playerSpeeds[(idx + 1) % _playerSpeeds.length];
-  settings.setBox.put("playbackSpeed", next);
-  settings.playbackSpeed.value = next;
-  Get.find<PlayerController>()
-      .setSpeedAndPitch(speed: next, pitch: settings.playbackPitch.value);
+/// Next common speed for the playing audiobook (0.8× … 2×, then round
+/// again), saved as the books' own speed and applied right away.
+Future<void> cycleAudiobookSpeed() async {
+  final next = nextAudiobookSpeed(AudiobookPlayback.speed);
+  await AudiobookPlayback.setSpeed(next);
+  Get.find<PlayerController>().setSpeedAndPitch(
+      speed: next,
+      pitch: Get.find<SettingsScreenController>().playbackPitch.value);
 }
 
 /// 1.0 → "1×", 1.25 → "1.25×", 1.5 → "1.5×".

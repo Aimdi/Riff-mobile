@@ -56,6 +56,15 @@ Podcasts:
 * "Sleep at end of episode" (and of the last chapter) stops where a
   skipped outro begins
 
+Audiobooks:
+* The lock screen, notification, Android Auto and headset buttons skip
+  back 10 s / forward 30 s in a book, like podcasts and Audible, instead
+  of previous / next; next stays in the expanded notification
+* Books keep their own speed: the speed pill in the book player (and in
+  its ⋮) no longer changes how fast music plays, and the music speed in
+  Settings no longer changes a book or podcast that's playing. Books
+  start at the speed they played at before
+
 Library:
 * Search finds songs by artist and album too, not just the title, and
   every word counts ("daft lucky" finds Get Lucky by Daft Punk); accents

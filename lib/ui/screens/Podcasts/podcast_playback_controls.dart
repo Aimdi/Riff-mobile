@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/services/audiobook_playback.dart';
 import '/services/podcast_playback_profile.dart';
 import '/ui/player/player_controller.dart';
 import '../../widgets/cust_switch.dart';
@@ -89,8 +90,8 @@ class LongFormSkipButton extends StatelessWidget {
       final podcast = pc.isCurrentSongPodcast;
       final profile = podcast ? pc.currentPodcastProfile : null;
       final secs = forward
-          ? (profile?.skipForwardSec ?? 30)
-          : (profile?.skipBackSec ?? 10);
+          ? (profile?.skipForwardSec ?? AudiobookPlayback.skipForwardSec)
+          : (profile?.skipBackSec ?? AudiobookPlayback.skipBackSec);
       return IconButton(
         tooltip: forward ? '+${secs}s' : '−${secs}s',
         iconSize: size,

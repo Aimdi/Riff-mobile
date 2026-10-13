@@ -1896,7 +1896,8 @@ class _SpeedPitchDialogState extends State<SpeedPitchDialog> {
     settings.setBox.put("playbackPitch", pitch);
     settings.playbackSpeed.value = speed;
     settings.playbackPitch.value = pitch;
-    Get.find<PlayerController>().setSpeedAndPitch(speed: speed, pitch: pitch);
+    Get.find<PlayerController>()
+        .setMusicSpeedAndPitch(speed: speed, pitch: pitch);
   }
 
   void _applyFx() {

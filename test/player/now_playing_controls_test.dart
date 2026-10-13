@@ -4,13 +4,13 @@ import 'package:harmonymusic/services/now_playing_controls.dart';
 
 void main() {
   List<MediaControl> controls({
-    bool podcast = false,
+    bool longForm = false,
     bool playing = true,
     bool canLike = true,
     bool liked = false,
   }) =>
       nowPlayingControls(
-        podcast: podcast,
+        longForm: longForm,
         playing: playing,
         canLike: canLike,
         liked: liked,
@@ -44,7 +44,7 @@ void main() {
       expect(controls(playing: false)[1].action, MediaAction.play);
     });
 
-    test('no heart where liking does not apply (audiobooks)', () {
+    test('no heart where liking does not apply', () {
       expect(controls(canLike: false).map((m) => m.action), [
         MediaAction.skipToPrevious,
         MediaAction.pause,
@@ -52,8 +52,8 @@ void main() {
       ]);
     });
 
-    test('podcasts keep skip back / forward and get no heart', () {
-      expect(controls(podcast: true).map((m) => m.action), [
+    test('podcasts and audiobooks skip back / forward, with no heart', () {
+      expect(controls(longForm: true).map((m) => m.action), [
         MediaAction.rewind,
         MediaAction.pause,
         MediaAction.fastForward,

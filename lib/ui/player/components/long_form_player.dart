@@ -18,6 +18,7 @@ import 'albumart_lyrics.dart';
 import 'animated_play_button.dart';
 import 'backgroud_image.dart';
 import 'player_control.dart';
+import '/services/audiobook_playback.dart';
 import '/services/podcast_playback_profile.dart';
 import '/services/podcast_transcripts.dart';
 import '/ui/widgets/riff_sheet.dart';
@@ -431,9 +432,10 @@ class LongFormToolTiles extends StatelessWidget {
       final sleepOn = pc.isSleepTimerActive.isTrue;
       final left = sleepTimerBadge(pc.timerDurationLeft.value);
       PodcastPlaybackPrefs.rev.value;
+      AudiobookPlayback.rev.value;
       final speed = isPodcast
           ? podcastSpeedLabel(pc.currentPodcastProfile.speed)
-          : speedLabel(settings.playbackSpeed.value);
+          : speedLabel(AudiobookPlayback.speed);
 
       /// Closes this sheet; the next one opens from the player's scaffold.
       BuildContext closeSheet() {
@@ -457,7 +459,7 @@ class LongFormToolTiles extends StatelessWidget {
             trailing: Text(speed, style: theme.textTheme.labelMedium),
             onTap: isPodcast
                 ? () => showPodcastSpeedSheet(closeSheet())
-                : cyclePlayerSpeed,
+                : cycleAudiobookSpeed,
           ),
           RiffSheetTile(
             icon: sleepOn ? Icons.bedtime : Icons.bedtime_outlined,

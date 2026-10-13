@@ -27,6 +27,7 @@ import '/services/android_auto_paging.dart';
 import '/services/playback_hardening.dart';
 import '/services/podcast_service.dart';
 import '/ui/widgets/podcast_play.dart' show podcastEpisodeToMediaItem;
+import '/services/audiobook_playback.dart';
 import '/services/podcast_playback_profile.dart';
 import '/models/media_item_extras.dart';
 import '/services/now_playing_controls.dart';
@@ -378,7 +379,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   }
 
   /// Podcast playback profile (speed, trim silence, voice boost) for
-  /// [item]; any other item gets music's own settings back.
+  /// [item]; any other item gets music's own settings back, except that
+  /// audiobooks keep their own speed.
   Future<void> _applyPlaybackProfile(MediaItem? item) async {
     try {
       if (item != null && item.isPodcastEpisode) {
@@ -395,8 +397,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
       } else {
         final prefs = Hive.box("AppPrefs");
-        await _player
-            .setSpeed((prefs.get("playbackSpeed") ?? 1.0).toDouble());
+        await _player.setSpeed(item != null && item.isAudiobook
+            ? AudiobookPlayback.speed
+            : (prefs.get("playbackSpeed") ?? 1.0).toDouble());
         await _player
             .setSkipSilenceEnabled(prefs.get("skipSilenceEnabled") ?? false);
         if (_podcastLoudnessMb != null) {
@@ -409,15 +412,25 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     }
   }
 
-  /// Notification / headset skip for podcast episodes, by the show's
-  /// skip lengths. Music keeps the handler default (nothing).
-  Future<void> _podcastSkip(
+  /// Notification / headset skip for podcast episodes (by the show's skip
+  /// lengths) and audiobooks. Music keeps the handler default (nothing).
+  Future<void> _longFormSkip(
       {required bool forward, required PlaybackCommandSource source}) async {
     final item = mediaItem.value;
-    if (item == null || !item.isPodcastEpisode) return;
-    final p = PodcastPlaybackPrefs.forItem(item);
-    var target = _player.position +
-        Duration(seconds: forward ? p.skipForwardSec : -p.skipBackSec);
+    if (item == null) return;
+    final int seconds;
+    if (item.isPodcastEpisode) {
+      final p = PodcastPlaybackPrefs.forItem(item);
+      seconds = forward ? p.skipForwardSec : p.skipBackSec;
+    } else if (item.isAudiobook) {
+      seconds = forward
+          ? AudiobookPlayback.skipForwardSec
+          : AudiobookPlayback.skipBackSec;
+    } else {
+      return;
+    }
+    var target =
+        _player.position + Duration(seconds: forward ? seconds : -seconds);
     final total = _player.duration;
     if (target.isNegative) target = Duration.zero;
     if (total != null && target > total) target = total;
@@ -426,11 +439,11 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   @override
   Future<void> fastForward() =>
-      _podcastSkip(forward: true, source: _externalSource());
+      _longFormSkip(forward: true, source: _externalSource());
 
   @override
   Future<void> rewind() =>
-      _podcastSkip(forward: false, source: _externalSource());
+      _longFormSkip(forward: false, source: _externalSource());
 
   Future<void> _createCacheDir() async {
     _cacheDir = (await getTemporaryDirectory()).path;
@@ -519,15 +532,16 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   void _publishPlaybackState() {
       final playing = _player.playing;
       final item = mediaItem.value;
-      final podcast = item?.isPodcastEpisode ?? false;
+      final longForm =
+          item != null && (item.isPodcastEpisode || item.isAudiobook);
       playbackState.add(playbackState.value.copyWith(
-        // Podcast episodes: skip back / forward by the show's lengths
-        // (rewind / fastForward). Music keeps previous / next, plus the
-        // like heart.
+        // Podcast episodes and audiobooks: skip back / forward (rewind /
+        // fastForward) by the show's lengths or the book's. Music keeps
+        // previous / next, plus the like heart.
         controls: nowPlayingControls(
-          podcast: podcast,
+          longForm: longForm,
           playing: playing,
-          canLike: item != null && !podcast && !item.isAudiobook,
+          canLike: item != null && !longForm,
           liked: nowPlayingLiked(
             currentId: item?.id,
             reportedId: _likedReportId,

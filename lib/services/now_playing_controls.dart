@@ -11,12 +11,13 @@ const notLikedIcon = 'drawable/ic_notif_favorite_border';
 
 /// The controls the media session offers for what is playing.
 ///
-/// Podcast episodes: skip back · play/pause · skip forward · next.
-/// Everything else: previous · play/pause · next, and for music a heart
-/// that likes / unlikes the song (like Spotify, YouTube Music and
-/// Metrolist). The compact notification keeps showing the first three.
+/// Podcast episodes and audiobooks ([longForm]): skip back · play/pause ·
+/// skip forward · next. Everything else: previous · play/pause · next, and
+/// for music a heart that likes / unlikes the song (like Spotify, YouTube
+/// Music and Metrolist). The compact notification keeps showing the first
+/// three.
 List<MediaControl> nowPlayingControls({
-  required bool podcast,
+  required bool longForm,
   required bool playing,
   required bool canLike,
   required bool liked,
@@ -24,7 +25,7 @@ List<MediaControl> nowPlayingControls({
   required String unlikeLabel,
 }) {
   final playPause = playing ? MediaControl.pause : MediaControl.play;
-  if (podcast) {
+  if (longForm) {
     return [
       MediaControl.rewind,
       playPause,

@@ -48,6 +48,7 @@ import '/ui/player/radio_continuation.dart';
 import 'upcoming_queue.dart';
 import 'video_mode_controller.dart';
 import '/services/playlist_mix_service.dart';
+import '/services/audiobook_playback.dart';
 import '/services/podcast_playback_profile.dart';
 import '/services/podcast_library.dart';
 import '/services/audio_handler.dart' show MyAudioHandler, MediaLibrary;
@@ -2035,6 +2036,18 @@ class PlayerController extends GetxController
 
   void toggleSkipSilence(bool enable) {
     _audioHandler.customAction("toggleSkipSilence", {"enable": enable});
+  }
+
+  /// Music's speed and pitch from Settings: a podcast episode or audiobook
+  /// playing now keeps its own speed, so only the pitch reaches it.
+  void setMusicSpeedAndPitch({required double speed, required double pitch}) {
+    setSpeedAndPitch(
+        speed: isCurrentSongPodcast
+            ? currentPodcastProfile.speed
+            : isCurrentSongAudiobook
+                ? AudiobookPlayback.speed
+                : speed,
+        pitch: pitch);
   }
 
   void setSpeedAndPitch({required double speed, required double pitch}) {
