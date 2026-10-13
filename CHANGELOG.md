@@ -11,6 +11,14 @@ The music player takes its look from the cover, like BitChord:
   mini player, while the screen behind shows through; opening it grows
   the cover back out
 
+Mini player (phones):
+* Drag it sideways and the song follows your finger while the next (or
+  previous) song slides in beside it; let go past a third of the way,
+  or flick, to skip. A short drag springs back, and where there's
+  nothing to skip to it only gives a little. Swiping back always goes to
+  the previous song (the ⏮ button still restarts the song first when
+  you're more than 3 seconds in)
+
 Home's Speed dial:
 * Swiping now goes round: a swipe right on the first page slides to the
   last one (and on from the last back to the first), instead of nothing

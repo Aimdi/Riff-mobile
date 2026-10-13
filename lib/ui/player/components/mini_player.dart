@@ -20,6 +20,7 @@ import '../../widgets/image_widget.dart';
 import '../../widgets/mini_player_progress_bar.dart';
 import 'animated_play_button.dart';
 import 'playback_error_actions.dart';
+import 'track_swipe.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 
@@ -58,13 +59,18 @@ class MiniPlayer extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const _MiniPlayerArt(),
-                    const SizedBox(
-                      width: RiffSpacing.md,
-                    ),
-                    const Expanded(
-                      child: _MiniPlayerSongInfo(),
-                    ),
+                    if (isWideScreen) ...[
+                      const _MiniPlayerArt(),
+                      const SizedBox(
+                        width: RiffSpacing.md,
+                      ),
+                      const Expanded(
+                        child: _MiniPlayerSongInfo(flingToSkip: true),
+                      ),
+                    ] else
+                      // Phones: art and titles follow a horizontal drag
+                      // with the next / previous track sliding in.
+                      const Expanded(child: _MiniPlayerSwipeTrack()),
                     isWideScreen
                         ? const SizedBox(
                             width: _wideTransportWidth,
@@ -177,21 +183,134 @@ class _MiniPlayerArt extends StatelessWidget {
   }
 }
 
+/// Phone mini player: art + titles in a [TrackSwipe], fed the neighbour
+/// tracks from the queue.
+class _MiniPlayerSwipeTrack extends StatelessWidget {
+  const _MiniPlayerSwipeTrack();
+
+  static const _current = Row(
+    children: [
+      _MiniPlayerArt(),
+      SizedBox(width: RiffSpacing.md),
+      Expanded(child: _MiniPlayerSongInfo()),
+    ],
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final playerController = Get.find<PlayerController>();
+    return Obx(() {
+      final queue = playerController.currentQueue;
+      final song = playerController.currentSong.value;
+      var index = playerController.currentSongIndex.value;
+      // The index can trail the song for a moment; trust the song.
+      if (song != null &&
+          (index < 0 || index >= queue.length || queue[index].id != song.id)) {
+        index = queue.indexWhere((s) => s.id == song.id);
+      }
+      final n = swipeNeighbours(
+        queueLength: queue.length,
+        index: index,
+        shuffleOn: playerController.isShuffleModeEnabled.isTrue,
+        queueLoopOn: playerController.isQueueLoopModeEnabled.isTrue,
+        radioOn: playerController.isRadioModeOn,
+      );
+      return TrackSwipe(
+        currentKey: song?.id,
+        current: _current,
+        canNext: n.canNext,
+        canPrevious: n.canPrevious,
+        peekNext: n.next == null ? null : _MiniTrackPeek(song: queue[n.next!]),
+        peekPrevious: n.previous == null
+            ? null
+            : _MiniTrackPeek(song: queue[n.previous!]),
+        onNext: playerController.next,
+        onPrevious: () => playerController.prev(restart: false),
+      );
+    });
+  }
+}
+
+/// A queued track as the mini player would show it, sliding in while the
+/// playing one is dragged away.
+class _MiniTrackPeek extends StatelessWidget {
+  const _MiniTrackPeek({required this.song});
+  final MediaItem song;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: theme.dividerColor, width: 0),
+          ),
+          child: ClipOval(
+            child: ImageWidget(
+              size: RiffComponentSizes.miniArt,
+              song: song,
+              borderRadius: 0,
+            ),
+          ),
+        ),
+        const SizedBox(width: RiffSpacing.md),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                height: RiffComponentSizes.miniLine,
+                child: Text(
+                  song.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(color: theme.colorScheme.onSurface),
+                ),
+              ),
+              SizedBox(
+                height: RiffComponentSizes.miniLine,
+                child: Text(
+                  song.artist ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _MiniPlayerSongInfo extends StatelessWidget {
-  const _MiniPlayerSongInfo();
+  const _MiniPlayerSongInfo({this.flingToSkip = false});
+
+  /// Wide screens: a fling on the titles skips (phones use [TrackSwipe]).
+  final bool flingToSkip;
 
   @override
   Widget build(BuildContext context) {
     final playerController = Get.find<PlayerController>();
     final theme = Theme.of(context);
     return GestureDetector(
-      onHorizontalDragEnd: (DragEndDetails details) {
-        if (details.primaryVelocity! < 0) {
-          playerController.next();
-        } else if (details.primaryVelocity! > 0) {
-          playerController.prev();
-        }
-      },
+      onHorizontalDragEnd: !flingToSkip
+          ? null
+          : (DragEndDetails details) {
+              if (details.primaryVelocity! < 0) {
+                playerController.next();
+              } else if (details.primaryVelocity! > 0) {
+                playerController.prev();
+              }
+            },
       onTap: () {
         playerController.playerPanelController.open();
       },

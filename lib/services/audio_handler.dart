@@ -1173,10 +1173,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   }
 
   /// True when previous restarted the track or started the prior item.
+  /// [restart] false always goes to the prior item (the mini player's
+  /// swipe shows that track sliding in, so restarting would contradict it).
   Future<bool> skipToPreviousResult(
-      {PlaybackCommandSource source = PlaybackCommandSource.system}) async {
+      {PlaybackCommandSource source = PlaybackCommandSource.system,
+      bool restart = true}) async {
     _logCommand('skipToPrevious', source);
-    if (shouldRestartOnPrevious(_player.position)) {
+    if (restart && shouldRestartOnPrevious(_player.position)) {
       _player.seek(Duration.zero);
       return true;
     }
@@ -1228,7 +1231,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
       case 'skipToPrevious':
         return skipToPreviousResult(
-            source: PlaybackCommandSource.parse(extras?['source']));
+            source: PlaybackCommandSource.parse(extras?['source']),
+            restart: extras?['restart'] != false);
 
       case 'playByIndex':
         final songIndex = coercePlayByIndex(extras!['index']);

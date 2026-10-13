@@ -1902,11 +1902,13 @@ class PlayerController extends GetxController
     return action();
   }
 
-  Future<bool> prev() async {
+  /// [restart] false skips the "restart when past 3 s" rule and always goes
+  /// to the previous track (the mini player's swipe).
+  Future<bool> prev({bool restart = true}) async {
     if (!_audioReady) return false;
     return _handoffVideoThen(() async {
-      final result = await _audioHandler
-          .customAction('skipToPrevious', {'source': 'user'});
+      final result = await _audioHandler.customAction(
+          'skipToPrevious', {'source': 'user', if (!restart) 'restart': false});
       return playByIndexDidStart(result);
     });
   }
