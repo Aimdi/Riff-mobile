@@ -5505,6 +5505,7 @@ Map<String, Map<String, String>> get keys => {
     "customSleepTimer": "Custom",
     "hourShort": "h",
     "startSleepTimer": "Start",
+    "coverArt": "Cover art",
     "homeSectionSpotify": "Spotify: your top songs, new releases and playlists",
     "spotifyHomeJumpBackIn": "Jump back in",
     "spotifyHomeOnRepeat": "On repeat",

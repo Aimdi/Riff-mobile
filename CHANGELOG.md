@@ -39,6 +39,10 @@ Screen readers (TalkBack):
   playlist, remove) and on an Up Next row (remove) is in TalkBack's
   actions for that row, as in Spotify; with TalkBack on, a swipe moves
   between items, so those were out of reach
+* The gesture player's cover (swipe for next / previous, double-tap to
+  play or pause) reads as "Cover art" with Play / Pause, Next and
+  Previous in TalkBack's actions, and double-tap and hold still opens
+  the song's options
 
 Sleep timer:
 * Music and audiobooks now fade out over the last 10 seconds before the
