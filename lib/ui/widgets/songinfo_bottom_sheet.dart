@@ -19,6 +19,7 @@ import '/utils/helper.dart';
 import '/services/piped_service.dart';
 import '/ui/widgets/sleep_timer_bottom_sheet.dart';
 import '/ui/player/components/player_control.dart' show sleepTimerBadge;
+import '/ui/player/components/lyrics_share.dart';
 import '/ui/player/player_controller.dart';
 import '../screens/Library/library_controller.dart';
 import '/ui/widgets/add_to_playlist.dart';
@@ -527,6 +528,16 @@ class PlayerToolTiles extends StatelessWidget {
               if (!lyricsOn) HapticFeedback.lightImpact();
               final show = onLyrics;
               show != null ? show() : playerController.showLyrics();
+            },
+          ),
+          RiffSheetTile(
+            icon: Icons.format_quote_rounded,
+            title: "shareLyrics".tr,
+            onTap: () {
+              Navigator.of(context).pop();
+              showLyricsShareSheet(
+                  playerController.homeScaffoldkey.currentContext ??
+                      Get.context);
             },
           ),
           RiffSheetTile(

@@ -4926,6 +4926,8 @@ Map<String, Map<String, String>> get keys => {
     "artistBookmarkRemoveAlert": "Artist bookmark removed!",
     "lyricsNotAvailable": "Lyrics not available!",
     "syncedLyricsNotAvailable": "Synced lyrics not available!",
+    "shareLyrics": "Share lyrics",
+    "pickLyricLines": "Pick up to @count lines",
     "playFromHere": "Play from here",
     "lyricsSource": "Lyrics source",
     "lyricsSourceDes": "Where synced lyrics are fetched from",
