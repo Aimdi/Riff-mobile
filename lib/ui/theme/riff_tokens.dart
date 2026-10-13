@@ -231,6 +231,9 @@ class RiffComponentSizes {
   static const double chipLeadingIcon = 16;
   static const double chipChevron = 18;
 
+  /// The pin before a pinned Library playlist's subtitle, inside its line.
+  static const double pinMark = 12;
+
   /// Audiobook headers, keeping the current sizes: the Audiobookshelf
   /// book's 2:3 cover (also the "Similar titles" cards), the square store
   /// cover, and the chapter-number circle on Audiobookshelf chapter rows.

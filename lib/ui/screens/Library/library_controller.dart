@@ -10,6 +10,7 @@ import 'dart:convert';
 
 import '../../../utils/hive_boxes.dart';
 import 'library_search.dart';
+import 'library_pins.dart';
 import 'library_removal.dart';
 import '/services/pending_file_deletes.dart';
 import '../../../utils/house_keeping.dart';
@@ -356,6 +357,8 @@ class LibraryPlaylistsController extends GetxController
   }
 
   void refreshLib() async {
+    // Rebuilt in stored order: no sort is applied any more.
+    _sort = null;
     // Shared box, kept open: closing it here raced other openers (playlist
     // screen, add-to-playlist) and forced a file re-read on every refresh.
     final box = await HiveBoxes.open("LibraryPlaylists");
@@ -366,14 +369,14 @@ class LibraryPlaylistsController extends GetxController
     final pipedShown = pipedLoggedIn
         ? libraryPlaylists.where((p) => p.isPipedPlaylist).toList()
         : const <Playlist>[];
-    libraryPlaylists.value = [
+    libraryPlaylists.value = _ordered([
       ...initPlst,
       ...(box.values
           .map<Playlist?>((item) => Playlist.fromJson(item))
           .whereType<Playlist>()
           .toList()),
       ...pipedShown,
-    ];
+    ]);
     // Local content is ready: don't hold the spinner on the network sync.
     isContentFetched.value = true;
 
@@ -444,6 +447,8 @@ class LibraryPlaylistsController extends GetxController
               (element) => element.playlistId == playlist.playlistId);
         }
       }
+      // New ones were added at the end; a pinned one goes back up.
+      libraryPlaylists.value = _ordered(libraryPlaylists.toList());
     }
     return res.code == 1;
   }
@@ -553,11 +558,43 @@ class LibraryPlaylistsController extends GetxController
   }
 
   void onSort(SortType sortType, bool isAscending) {
+    _sort = (sortType, isAscending);
     final playlists = libraryPlaylists.toList();
     playlists.removeRange(0, 4);
     sortPlayLists(playlists, sortType, isAscending);
     playlists.insertAll(0, initPlst);
-    libraryPlaylists.value = playlists;
+    libraryPlaylists.value = _ordered(playlists);
+  }
+
+  /// The sort picked last (null: stored order), so an unpinned playlist
+  /// goes back to its place.
+  (SortType, bool)? _sort;
+
+  static final _riffOwn = {for (final p in initPlst) p.playlistId};
+
+  /// Riff's own four, then the pinned playlists, then the rest.
+  List<Playlist> _ordered(List<Playlist> playlists) =>
+      orderLibraryPlaylists(playlists, LibraryPins.ids, _riffOwn);
+
+  /// Pins or unpins [playlist] and moves it there. False when it can't be
+  /// pinned: [LibraryPins.max] are pinned already.
+  Future<bool> togglePin(Playlist playlist) async {
+    final searching = tempListContainer.isNotEmpty;
+    final all = searching ? tempListContainer : libraryPlaylists;
+    final ok = await LibraryPins.toggle(playlist.playlistId,
+        library: {for (final p in all) p.playlistId});
+    if (!ok) return false;
+    final sort = _sort;
+    if (searching) {
+      // The results, and the full list for when the search closes.
+      libraryPlaylists.value = _ordered(libraryPlaylists.toList());
+      tempListContainer = _ordered(tempListContainer);
+    } else if (sort != null) {
+      onSort(sort.$1, sort.$2);
+    } else {
+      refreshLib();
+    }
+    return true;
   }
 
   void onSearchStart(String? tag) {
@@ -569,7 +606,7 @@ class LibraryPlaylistsController extends GetxController
         .where((playlist) => libraryMatches(
             value, [playlist.title, playlist.description]))
         .toList();
-    libraryPlaylists.value = songlist;
+    libraryPlaylists.value = _ordered(songlist);
   }
 
   void onSearchClose(String? tag) {

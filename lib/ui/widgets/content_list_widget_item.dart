@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '/models/album.dart';
+import '/ui/screens/Library/library_controller.dart';
+import '/ui/screens/Library/library_pins.dart';
 import '../navigator.dart';
 import '../player/player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
@@ -171,6 +173,25 @@ class ContentListItem extends StatelessWidget {
     if (!queued) _snackOperationFailed();
   }
 
+  /// Library playlists, all but Riff's own four, can be pinned to the top.
+  bool get _canPin =>
+      isLibraryItem &&
+      !_isAlbum &&
+      !isSystemLibraryPlaylistId(_collectionId) &&
+      Get.isRegistered<LibraryPlaylistsController>();
+
+  Future<void> _togglePin(UndoSnackbarTarget? target) async {
+    final pinning = !LibraryPins.isPinned(_collectionId);
+    final ok = await Get.find<LibraryPlaylistsController>().togglePin(content);
+    showUndoSnackbar(
+        target,
+        !ok
+            ? 'pinPlaylistLimit'.trParams({'count': '${LibraryPins.max}'})
+            : pinning
+                ? 'playlistPinned'.tr
+                : 'playlistUnpinned'.tr);
+  }
+
   void _showPlaySheet(BuildContext context) {
     HapticFeedback.mediumImpact();
     showModalBottomSheet<void>(
@@ -226,12 +247,54 @@ class ContentListItem extends StatelessWidget {
                     _openContent();
                   },
                 ),
+                if (_canPin) _pinTile(ctx, undoSnackbarTarget(context)),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  Widget _pinTile(BuildContext sheet, UndoSnackbarTarget? target) {
+    final pinned = LibraryPins.isPinned(_collectionId);
+    return ListTile(
+      leading: Icon(pinned ? Icons.push_pin_rounded : Icons.push_pin_outlined),
+      title: Text(pinned ? 'unpinPlaylist'.tr : 'pinPlaylist'.tr),
+      onTap: () {
+        Navigator.of(sheet).pop();
+        _togglePin(target);
+      },
+    );
+  }
+
+  /// The subtitle, after a pin in the accent when the playlist is pinned.
+  Widget _subtitleLine(BuildContext context, Color? muted) {
+    final line = Text(
+      _subtitle(_isAlbum),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: muted,
+          ),
+    );
+    if (!_canPin) return line;
+    return Obx(() {
+      LibraryPins.rev.value;
+      if (!LibraryPins.isPinned(_collectionId)) return line;
+      return Row(
+        children: [
+          Icon(
+            Icons.push_pin_rounded,
+            size: RiffComponentSizes.pinMark,
+            color: Theme.of(context).colorScheme.secondary,
+            semanticLabel: 'pinned'.tr,
+          ),
+          const SizedBox(width: RiffSpacing.xxs),
+          Flexible(child: line),
+        ],
+      );
+    });
   }
 
   Widget _art(BuildContext context) {
@@ -343,14 +406,7 @@ class ContentListItem extends StatelessWidget {
               style: Theme.of(context).textTheme.labelMedium,
             ),
             const SizedBox(height: 2),
-            Text(
-              _subtitle(_isAlbum),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: muted,
-                  ),
-            ),
+            _subtitleLine(context, muted),
           ],
         ),
       ),

@@ -115,6 +115,12 @@ Library:
 * Songs has a "Downloaded only" switch next to the cloud one: the list,
   the count and Play / Shuffle then cover only songs saved to the
   device, not ones that are just cached from listening
+* Pin up to 4 playlists to the top of Library › Playlists, like
+  Spotify: long-press a playlist › Pin to top (Unpin to undo). Pinned
+  playlists sit right under Recently played, Favorites, Cached/Offline
+  and Downloads, whatever the sort or search, with a small pin before
+  their song count; they also come first when adding a song to a
+  playlist
 
 Playlists:
 * Deleting one of your playlists now asks first ("Delete playlist?"),
