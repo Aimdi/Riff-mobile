@@ -44,6 +44,8 @@ Sleep timer:
 * Music and audiobooks now fade out over the last 10 seconds before the
   timer stops them, like podcasts already did, instead of cutting off
   mid-note (not in video mode or a playlist Mix, which fade their own way)
+* Custom: any length from 5 minutes to 4 hours on a slider, like Pocket
+  Casts and AntennaPod; it opens at the length you picked last time
 
 Lock screen and notification:
 * A heart next to previous / play / next likes or unlikes the playing

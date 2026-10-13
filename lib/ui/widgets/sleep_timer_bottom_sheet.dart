@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hive/hive.dart';
 
 import '/ui/player/play_queue_order.dart';
 import '/ui/player/player_controller.dart';
@@ -146,6 +147,18 @@ class SleepTimerBottomSheet extends StatelessWidget {
                   ],
                 ),
               ),
+              // A length of your own, as in Pocket Casts and AntennaPod.
+              RiffSheetTile(
+                icon: Icons.more_time_rounded,
+                title: 'customSleepTimer'.tr,
+                onTap: () async {
+                  final minutes = await showCustomSleepTimerDialog(context);
+                  if (minutes == null || !context.mounted) return;
+                  final ok = playerController.startSleepTimer(minutes);
+                  _done(context,
+                      ok ? 'sleepTimeSetAlert'.tr : 'operationFailed'.tr);
+                },
+              ),
               RiffSheetTile(
                 icon: Icons.music_off_outlined,
                 title: endLabel,
@@ -180,6 +193,95 @@ class SleepTimerBottomSheet extends StatelessWidget {
           ],
         );
       }),
+    );
+  }
+}
+
+/// "1 h 30 min".
+String formatSleepMinutes(int minutes) {
+  final h = minutes ~/ 60;
+  final m = minutes % 60;
+  if (h == 0) return '$m ${'minShort'.tr}';
+  if (m == 0) return '$h ${'hourShort'.tr}';
+  return '$h ${'hourShort'.tr} $m ${'minShort'.tr}';
+}
+
+/// AppPrefs key of the last custom sleep timer length, in minutes.
+const customSleepMinutesKey = 'sleepTimerCustomMinutes';
+
+/// Asks for a sleep timer length of your own: minutes, or null.
+Future<int?> showCustomSleepTimerDialog(BuildContext context) =>
+    showDialog<int>(
+      context: context,
+      builder: (_) => const CustomSleepTimerDialog(),
+    );
+
+/// A slider from 5 minutes to 4 hours in 5-minute steps, starting at the
+/// length picked last time.
+class CustomSleepTimerDialog extends StatefulWidget {
+  const CustomSleepTimerDialog({super.key});
+
+  static const int minMinutes = 5;
+  static const int maxMinutes = 240;
+  static const int step = 5;
+  static const int fallback = 20;
+
+  @override
+  State<CustomSleepTimerDialog> createState() => _CustomSleepTimerDialogState();
+}
+
+class _CustomSleepTimerDialogState extends State<CustomSleepTimerDialog> {
+  static Box? get _prefs =>
+      Hive.isBoxOpen('AppPrefs') ? Hive.box('AppPrefs') : null;
+
+  late int _minutes = () {
+    final saved = _prefs?.get(customSleepMinutesKey);
+    return saved is int
+        ? saved.clamp(CustomSleepTimerDialog.minMinutes,
+            CustomSleepTimerDialog.maxMinutes)
+        : CustomSleepTimerDialog.fallback;
+  }();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    const min = CustomSleepTimerDialog.minMinutes;
+    const max = CustomSleepTimerDialog.maxMinutes;
+    return AlertDialog(
+      title: Text('sleepTimer'.tr),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            formatSleepMinutes(_minutes),
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          const SizedBox(height: RiffSpacing.sm),
+          Slider(
+            value: _minutes.toDouble(),
+            min: min.toDouble(),
+            max: max.toDouble(),
+            divisions: (max - min) ~/ CustomSleepTimerDialog.step,
+            label: formatSleepMinutes(_minutes),
+            onChanged: (v) => setState(() => _minutes = v.round()),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text('cancel'.tr),
+        ),
+        FilledButton(
+          onPressed: () {
+            _prefs?.put(customSleepMinutesKey, _minutes);
+            Navigator.of(context).pop(_minutes);
+          },
+          child: Text('startSleepTimer'.tr),
+        ),
+      ],
     );
   }
 }
