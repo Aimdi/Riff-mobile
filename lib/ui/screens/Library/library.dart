@@ -84,7 +84,10 @@ class SongsLibraryWidget extends StatelessWidget {
               screenController: libSongsController,
               itemCountTitle: "$count",
               itemIcon: Icons.music_note,
-              requiredSortTypes: buildSortTypeSet(true, true),
+              requiredSortTypes: {
+                ...buildSortTypeSet(true, true),
+                ...songOrderSortTypes,
+              },
               isSearchFeatureRequired: !cloudMode,
               isSongDeletetioFeatureRequired: !cloudMode,
               isDownloadedFilterRequired: !cloudMode,

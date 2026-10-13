@@ -121,6 +121,9 @@ Library:
 * Songs has a "Downloaded only" switch next to the cloud one: the list,
   the count and Play / Shuffle then cover only songs saved to the
   device, not ones that are just cached from listening
+* Library Songs and the songs of a playlist sort by Artist or by Album
+  too, like Spotify and Apple Music: each artist's (or album's) songs
+  together, then by album (or artist) and title, songs without one last
 * Pin up to 4 playlists to the top of Library › Playlists, like
   Spotify: long-press a playlist › Pin to top (Unpin to undo). Pinned
   playlists sit right under Recently played, Favorites, Cached/Offline

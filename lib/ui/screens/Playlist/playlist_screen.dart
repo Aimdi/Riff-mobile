@@ -276,8 +276,10 @@ class PlaylistScreen extends StatelessWidget {
                                             itemCountTitle:
                                                 "${playlistController.songList.length}",
                                             itemIcon: Icons.music_note,
-                                            requiredSortTypes:
-                                                buildSortTypeSet(false, true),
+                                            requiredSortTypes: {
+                                              ...buildSortTypeSet(false, true),
+                                              ...songOrderSortTypes,
+                                            },
                                             onSort: playlistController.onSort,
                                             onSearch:
                                                 playlistController.onSearch,

@@ -42,6 +42,13 @@ void sortSongsNVideos(
     case SortType.Duration:
       compareFunction = (a, b) =>
           (a.duration ?? Duration.zero).compareTo(b.duration ?? Duration.zero);
+    // Grouped, then by album / artist and title within the group.
+    case SortType.Artist:
+      compareFunction = (a, b) => _compareSongsBy(
+          a, b, [(s) => s.artist, _songAlbumName, (s) => s.title]);
+    case SortType.Album:
+      compareFunction = (a, b) => _compareSongsBy(
+          a, b, [_songAlbumName, (s) => s.artist, (s) => s.title]);
     case SortType.Name:
     default:
       compareFunction =
@@ -56,6 +63,27 @@ void sortSongsNVideos(
     songlist.clear();
     songlist.addAll(reversed);
   }
+}
+
+/// A song's album name: the album map YouTube gives, else the plain field.
+String? _songAlbumName(dynamic song) {
+  final album = song.extras?['album'];
+  if (album is Map && album['name'] != null) return '${album['name']}';
+  return song.album;
+}
+
+/// [a] before [b] by the first of [keys] that tells them apart, ignoring
+/// case; songs without a value go after those with one.
+int _compareSongsBy(
+    dynamic a, dynamic b, List<String? Function(dynamic)> keys) {
+  for (final key in keys) {
+    final x = (key(a) ?? '').trim().toLowerCase();
+    final y = (key(b) ?? '').trim().toLowerCase();
+    if (x.isEmpty != y.isEmpty) return x.isEmpty ? 1 : -1;
+    final c = x.compareTo(y);
+    if (c != 0) return c;
+  }
+  return 0;
 }
 
 void sortAlbumNSingles(

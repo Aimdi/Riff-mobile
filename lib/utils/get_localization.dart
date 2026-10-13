@@ -5619,6 +5619,8 @@ Map<String, Map<String, String>> get keys => {
     "sortBy": "Sort by",
     "sortName": "Name",
     "sortDate": "Date added",
+    "sortArtist": "Artist",
+    "sortAlbum": "Album",
     "sortAscending": "Ascending",
     "sortDescending": "Descending",
     "songCountOne": "1 song",

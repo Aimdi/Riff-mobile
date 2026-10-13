@@ -17,7 +17,13 @@ enum SortType {
   Date,
   Duration,
   RecentlyPlayed,
+  Artist,
+  Album,
 }
+
+/// Song lists also sort by artist and by album, as in Spotify and Apple
+/// Music.
+const songOrderSortTypes = {SortType.Artist, SortType.Album};
 
 Set<SortType> buildSortTypeSet(
     [bool dateRequired = false,
@@ -302,6 +308,8 @@ class SortWidget extends StatelessWidget {
         SortType.Date => "sortDate".tr,
         SortType.Duration => "duration".tr,
         SortType.RecentlyPlayed => "recentlyPlayed".tr,
+        SortType.Artist => "sortArtist".tr,
+        SortType.Album => "sortAlbum".tr,
       };
 
   /// "Name ↑" chip: one menu for the sort key and the direction instead of
@@ -330,6 +338,10 @@ class SortWidget extends StatelessWidget {
             controller.onSortByDuration(onSort);
           case SortType.RecentlyPlayed:
             break;
+          case SortType.Artist:
+            controller.onSortByArtist(onSort);
+          case SortType.Album:
+            controller.onSortByAlbum(onSort);
         }
       },
       itemBuilder: (context) => [
@@ -483,6 +495,16 @@ class SortWidgetController extends GetxController {
 
   void onSortByDate(Function onSort) {
     sortType.value = SortType.Date;
+    onSort(sortType.value, isAscending.value);
+  }
+
+  void onSortByArtist(Function onSort) {
+    sortType.value = SortType.Artist;
+    onSort(sortType.value, isAscending.value);
+  }
+
+  void onSortByAlbum(Function onSort) {
+    sortType.value = SortType.Album;
     onSort(sortType.value, isAscending.value);
   }
 
