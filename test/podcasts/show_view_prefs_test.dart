@@ -40,6 +40,17 @@ void main() {
     expect(showEpisodeOrder(0, oldestFirst: true), isEmpty);
   });
 
+  test('search finds episodes by title or notes, any case', () {
+    const episode = MediaItem(
+        id: 'podcast_x',
+        title: 'The Big Interview',
+        extras: {'description': '<p>With <b>Ada Lovelace</b></p>'});
+    expect(podcastEpisodeMatches(episode, 'big inter'), isTrue);
+    expect(podcastEpisodeMatches(episode, 'lovelace'), isTrue);
+    expect(podcastEpisodeMatches(episode, ' '), isTrue);
+    expect(podcastEpisodeMatches(episode, 'babbage'), isFalse);
+  });
+
   group('kept per show', () {
     setUp(() async {
       for (final name in _boxes) {
@@ -147,6 +158,25 @@ void main() {
       expect(find.text('Episode 2'), findsOneWidget);
       expect(find.text('SHOWEPISODES · 3'), findsOneWidget);
       expect(PodcastShowViewPrefs.hidePlayed('feed'), isFalse);
+    });
+    testWidgets('search the episodes, then close the search', (tester) async {
+      await pumpShow(tester);
+      await tester.tap(find.byTooltip('searchEpisodes'));
+      await tester.pump();
+      await tester.enterText(find.byType(TextField), 'episode 2');
+      await tester.pump();
+      expect(find.text('Episode 2'), findsOneWidget);
+      expect(find.text('Episode 1'), findsNothing);
+      expect(find.text('SHOWEPISODES · 1'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'nothing like it');
+      await tester.pump();
+      expect(find.text('noEpisodesMatch'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('close'));
+      await tester.pump();
+      expect(find.byType(TextField), findsNothing);
+      expect(find.text('SHOWEPISODES · 3'), findsOneWidget);
     });
   });
 }

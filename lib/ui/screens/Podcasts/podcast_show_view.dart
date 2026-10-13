@@ -13,6 +13,8 @@ import 'podcast_playback_controls.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/podcast_show_view_prefs.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/screens/Audiobooks/audiobook_widgets.dart'
+    show AudiobookSearchField;
 import '/ui/widgets/podcast_follow_button.dart';
 import '/ui/widgets/now_playing_bars.dart';
 import '../Home/home_layout.dart';
@@ -32,6 +34,17 @@ String podcastPlainText(String html) => html
     .replaceAll('&#39;', "'")
     .replaceAll(RegExp(r'\s+'), ' ')
     .trim();
+
+/// Whether [episode] has [query] in its title or notes (any case), for
+/// searching a show's episodes.
+bool podcastEpisodeMatches(MediaItem episode, String query) {
+  final q = query.trim().toLowerCase();
+  if (q.isEmpty) return true;
+  return episode.title.toLowerCase().contains(q) ||
+      podcastPlainText('${episode.extras?['description'] ?? ''}')
+          .toLowerCase()
+          .contains(q);
+}
 
 /// A podcast's page, shared by RSS (Apple) shows and YouTube Music / YouTube
 /// podcasts: big cover, title and host, Play latest / Resume and
@@ -100,6 +113,19 @@ class _PodcastShowViewState extends State<PodcastShowView> {
     if (show != null) PodcastShowViewPrefs.setHidePlayed(show, _hidePlayed);
   }
 
+  /// Searching the episodes (Pocket Casts, AntennaPod): the field under the
+  /// header filters them as you type.
+  bool _searching = false;
+  late final _search = TextEditingController()
+    ..addListener(() {
+      if (mounted) setState(() {});
+    });
+
+  void _toggleSearch() {
+    setState(() => _searching = !_searching);
+    if (!_searching) _search.clear();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -112,6 +138,7 @@ class _PodcastShowViewState extends State<PodcastShowView> {
   @override
   void dispose() {
     _scroll.dispose();
+    _search.dispose();
     super.dispose();
   }
 
@@ -145,10 +172,13 @@ class _PodcastShowViewState extends State<PodcastShowView> {
   Widget _page(BuildContext context) {
     final theme = Theme.of(context);
     final eps = widget.episodes;
+    final query = _searching ? _search.text.trim() : '';
     final order = showEpisodeOrder(eps.length,
         oldestFirst: _oldestFirst,
-        hidden: _hidePlayed
-            ? (i) => PodcastProgressService.isPlayed(eps[i].id)
+        hidden: _hidePlayed || query.isNotEmpty
+            ? (i) =>
+                (_hidePlayed && PodcastProgressService.isPlayed(eps[i].id)) ||
+                !podcastEpisodeMatches(eps[i], query)
             : null);
     return Scaffold(
       body: Stack(
@@ -169,6 +199,23 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                       : Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            IconButton(
+                              tooltip: 'searchEpisodes'.tr,
+                              isSelected: _searching,
+                              onPressed: _toggleSearch,
+                              style: IconButton.styleFrom(
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: RiffSpacing.sm,
+                                    vertical: RiffSpacing.xs),
+                              ),
+                              icon: const Icon(Icons.search_rounded,
+                                  size: RiffComponentSizes.trailingIcon),
+                              selectedIcon: Icon(Icons.search_rounded,
+                                  size: RiffComponentSizes.trailingIcon,
+                                  color: theme.colorScheme.primary),
+                            ),
                             // Played episodes out of the way (on: accent).
                             IconButton(
                               tooltip: (_hidePlayed
@@ -212,6 +259,16 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                         ),
                 ),
               ),
+              if (_searching)
+                SliverToBoxAdapter(
+                  child: AudiobookSearchField(
+                    controller: _search,
+                    hint: 'searchEpisodes'.tr,
+                    autofocus: true,
+                    onSubmitted: (_) {},
+                    onClear: _toggleSearch,
+                  ),
+                ),
               if (widget.loading)
                 const SliverToBoxAdapter(
                   child: Padding(
@@ -233,7 +290,9 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                       child: Text(
                           eps.isEmpty
                               ? 'noEpisodes'.tr
-                              : 'allEpisodesPlayed'.tr,
+                              : query.isNotEmpty
+                                  ? 'noEpisodesMatch'.tr
+                                  : 'allEpisodesPlayed'.tr,
                           style: Theme.of(context)
                               .textTheme
                               .bodyLarge

@@ -141,6 +141,10 @@ Podcasts:
   hear in order stays oldest first. The eye button next to it hides
   played episodes (the count follows), and episodes you finish while the
   page is open drop out of the list; tap it again to show them
+* Search a show's episodes, like Pocket Casts and AntennaPod: the search
+  button in a show's Episodes header opens a field that narrows the list
+  to episodes with those words in the title or notes as you type (the
+  count follows); its ✕ closes it
 * Previous and next chapter buttons either side of the chapter in the
   podcast and audiobook player, like Pocket Casts and Audible: next goes
   to the next chapter; previous starts the chapter playing again, or in
