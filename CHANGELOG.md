@@ -204,6 +204,11 @@ Fade between songs:
   the queue, songs shorter than three fades and playlist Mixes (which
   have their own transitions) play as they are. Off by default
 
+App icon shortcuts (Android 7.1+):
+* Long-press Riff's icon for Search, Favorites and Downloads, as with
+  Spotify and YouTube Music, or drag one to the home screen. They're in
+  the app's language and follow it when you change it
+
 Keyboard (Linux PCs, and tablets with a keyboard):
 * Spotify's desktop shortcuts work on every screen: Space play / pause,
   Ctrl + → / ← next / previous, Shift + → / ← forward / back 10 seconds,

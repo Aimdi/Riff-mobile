@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../models/playling_from.dart';
+import '../models/playlist.dart';
+import '/services/app_shortcuts.dart';
+import '/ui/screens/Search/components/search_pill.dart';
 import '/ui/widgets/songinfo_bottom_sheet.dart';
 import '/utils/helper.dart';
 import '../ui/widgets/loader.dart';
@@ -20,6 +23,8 @@ class AppLinksController extends GetxController with ProcessLink {
   @override
   void onInit() {
     initDeepLinks();
+    // After the first frame: the labels need the app's translations.
+    WidgetsBinding.instance.addPostFrameCallback((_) => AppShortcuts.publish());
     super.onInit();
   }
 
@@ -59,6 +64,10 @@ class AppLinksController extends GetxController with ProcessLink {
 
 mixin ProcessLink {
   Future<void> filterLinks(Uri uri) async {
+    // A long-press shortcut on the app icon.
+    final shortcut = AppShortcut.fromUri(uri);
+    if (shortcut != null) return openAppShortcut(shortcut);
+
     final playerController = Get.find<PlayerController>();
     if (playerController.playerPanelController.isPanelOpen) {
       playerController.playerPanelController.close();
@@ -110,6 +119,43 @@ mixin ProcessLink {
           size: SanckBarSize.MEDIUM));
     }
   }
+
+  /// The page an app icon shortcut names. A shortcut can also start the
+  /// app, so this waits (a few seconds at most) for its pages to be up.
+  Future<void> openAppShortcut(AppShortcut shortcut) async {
+    final pages = Get.nestedKey(ScreenNavigationSetup.id);
+    for (var i = 0; i < 50 && pages?.currentState == null; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    if (pages?.currentState == null) return;
+    try {
+      final panel = Get.find<PlayerController>().playerPanelController;
+      if (panel.isPanelOpen) panel.close();
+    } catch (_) {
+      // The player isn't laid out yet: nothing to close.
+    }
+    switch (shortcut) {
+      case AppShortcut.search:
+        SearchLauncherField.openSearch();
+      case AppShortcut.liked:
+        _openLibraryPlaylist('LIBFAV', 'favorites'.tr);
+      case AppShortcut.downloads:
+        _openLibraryPlaylist('SongDownloads', 'downloads'.tr);
+    }
+  }
+
+  void _openLibraryPlaylist(String id, String title) => Get.toNamed(
+        ScreenNavigationSetup.playlistScreen,
+        id: ScreenNavigationSetup.id,
+        arguments: [
+          Playlist(
+              title: title,
+              playlistId: id,
+              thumbnailUrl: Playlist.thumbPlaceholderUrl,
+              isCloudPlaylist: false),
+          id,
+        ],
+      );
 
   Future<void> openPlaylistOrAlbum(String browseId) async {
     if (browseId.contains("OLAK5uy")) {

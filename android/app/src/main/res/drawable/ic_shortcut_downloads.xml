@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- App icon shortcut (Material "file_download") for Android 7.1: the launcher icon's colours
+     in a circle. 8.0+ use drawable-anydpi-v26. See MainActivity.setShortcuts. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:fillColor="@color/ic_launcher_background"
+        android:pathData="M24,2A22,22 0,1 1,24 46A22,22 0,1 1,24 2z" />
+    <group
+        android:translateX="12"
+        android:translateY="12">
+        <path
+            android:fillColor="#1DB954"
+            android:pathData="M19,9h-4V3H9v6H5l7,7 7,-7zM5,18v2h14v-2H5z" />
+    </group>
+</vector>

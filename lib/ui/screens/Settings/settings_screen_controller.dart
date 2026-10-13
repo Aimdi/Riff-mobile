@@ -13,6 +13,7 @@ import '../../../services/song_cache_service.dart';
 import '../../../utils/app_version.dart';
 import '../../../utils/update_check_flag_file.dart';
 import '/services/wizestream_service.dart';
+import '/services/app_shortcuts.dart';
 import '/services/piped_service.dart';
 import '../Library/library_controller.dart';
 import '../../widgets/snackbar.dart';
@@ -286,6 +287,8 @@ class SettingsScreenController extends GetxController {
 
   void setAppLanguage(String? val) {
     Get.updateLocale(Locale(val!));
+    // The app icon's shortcuts, in the new language.
+    AppShortcuts.publish();
     Get.find<MusicServices>().hlCode = val;
     Get.find<HomeScreenController>().loadContentFromNetwork(silent: true);
     currentAppLanguageCode.value = val;

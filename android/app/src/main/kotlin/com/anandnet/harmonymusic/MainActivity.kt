@@ -5,6 +5,9 @@ import android.app.ApplicationExitInfo
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.ShortcutInfo
+import android.content.pm.ShortcutManager
+import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
 import com.ryanheise.audioservice.AudioServiceActivity
@@ -81,6 +84,14 @@ class MainActivity : AudioServiceActivity() {
                 // Why the previous run ended (crash, native crash, ANR …),
                 // so a crash on a user's phone can be reported without adb.
                 "lastExitInfo" -> result.success(lastExitInfo())
+                // The app icon's long-press shortcuts, labelled in the
+                // app's own language.
+                "setShortcuts" -> result.success(
+                    setShortcuts(
+                        call.argument<List<Map<String, String>>>("shortcuts")
+                            ?: emptyList()
+                    )
+                )
                 else -> result.notImplemented()
             }
         }
@@ -93,6 +104,41 @@ class MainActivity : AudioServiceActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             "riff/newpipe"
         ).setMethodCallHandler(NewPipeChannel)
+    }
+
+    /**
+     * Long-press shortcuts on the app icon (Android 7.1+): [items] are
+     * {id, label, uri}; each opens [MainActivity] with its uri, which
+     * app_links hands to Dart like a shared link. Ids without an icon are
+     * left out. False when they couldn't be set.
+     */
+    private fun setShortcuts(items: List<Map<String, String>>): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) return false
+        val manager = getSystemService(ShortcutManager::class.java) ?: return false
+        val shortcuts = items.mapNotNull { item ->
+            val id = item["id"] ?: return@mapNotNull null
+            val label = item["label"]
+            val uri = item["uri"]
+            val icon = SHORTCUT_ICONS[id]
+            if (label.isNullOrEmpty() || uri.isNullOrEmpty() || icon == null) {
+                return@mapNotNull null
+            }
+            ShortcutInfo.Builder(this, id)
+                .setShortLabel(label)
+                .setIcon(Icon.createWithResource(this, icon))
+                .setIntent(
+                    Intent(Intent.ACTION_VIEW, Uri.parse(uri), this, MainActivity::class.java)
+                )
+                .build()
+        }
+        return try {
+            manager.setDynamicShortcuts(shortcuts)
+        } catch (_: IllegalStateException) {
+            // Rate limited: only happens while the app is in the background.
+            false
+        } catch (_: IllegalArgumentException) {
+            false
+        }
     }
 
     private fun lastExitInfo(): Map<String, Any?>? =
@@ -202,6 +248,13 @@ class MainActivity : AudioServiceActivity() {
 
 private const val CRASH_FILE = "last_crash.txt"
 private var crashHandlerInstalled = false
+
+/** App icon shortcut ids (lib/services/app_shortcuts.dart) and their icons. */
+private val SHORTCUT_ICONS = mapOf(
+    "search" to R.drawable.ic_shortcut_search,
+    "liked" to R.drawable.ic_shortcut_liked,
+    "downloads" to R.drawable.ic_shortcut_downloads,
+)
 
 /**
  * Writes the stack trace of an uncaught Java/Kotlin exception (any thread:
