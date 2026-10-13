@@ -440,6 +440,7 @@
     "songBannedMsg": "Won't be suggested again:",
     "listenBrainz": "ListenBrainz scrobbling",
     "listenBrainzDes": "Submit your listens with a ListenBrainz user token; leave empty to disable",
+    "explicit": "Explicit",
     "privateSession": "Private session",
     "privateSessionDes": "For 6 hours, what you play isn't added to Recently played, your stats, your mixes or ListenBrainz",
     "privateSessionUntil": "On until @time: what you play isn't added to Recently played, your stats, your mixes or ListenBrainz",

@@ -7,6 +7,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:get/get.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
+import '../../models/media_item_extras.dart';
 import '../../models/playlist.dart';
 import '../../services/track_analysis_service.dart';
 import '../player/player_controller.dart';
@@ -14,6 +15,7 @@ import '../screens/Settings/settings_screen_controller.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/theme/riff_spacing.dart';
 import 'add_to_playlist.dart';
+import 'explicit_badge.dart';
 import 'image_widget.dart';
 import 'snackbar.dart';
 import 'song_favourite.dart';
@@ -221,13 +223,22 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                                   }),
                                 ),
                                 const SizedBox(height: RiffSpacing.xxs),
-                                Text(
-                                  "${song.artist}",
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: muted,
-                                  ),
+                                Row(
+                                  children: [
+                                    if (song.isExplicit) ...[
+                                      const ExplicitBadge(),
+                                      const SizedBox(width: RiffSpacing.xs),
+                                    ],
+                                    Expanded(
+                                      child: Text(
+                                        "${song.artist}",
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(color: muted),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),

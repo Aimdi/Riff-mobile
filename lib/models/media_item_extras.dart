@@ -25,6 +25,9 @@ extension MediaItemExtras on MediaItem {
     return fallback;
   }
 
+  /// Marked explicit by YouTube Music (the "E" badge).
+  bool get isExplicit => extrasBool('isExplicit');
+
   /// Stream / file URL stored by [MediaItemBuilder] and cache writes.
   String? get extrasUrl => extrasString('url');
 

@@ -234,6 +234,12 @@ class RiffComponentSizes {
   /// The pin before a pinned Library playlist's subtitle, inside its line.
   static const double pinMark = 12;
 
+  /// The "E" before an explicit song's artist: its square, corners and the
+  /// room around the letter.
+  static const double explicitBadge = 14;
+  static const double explicitBadgeRadius = 2;
+  static const double explicitBadgeInset = 2;
+
   /// Audiobook headers, keeping the current sizes: the Audiobookshelf
   /// book's 2:3 cover (also the "Similar titles" cards), the square store
   /// cover, and the chapter-number circle on Audiobookshelf chapter rows.
