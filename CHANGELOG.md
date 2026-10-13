@@ -72,6 +72,9 @@ Lock screen and notification:
   app. Music only (podcasts keep skip back / forward)
 
 Now playing:
+* Tap the time at the end of the seek bar to see the time left
+  ("−2:31") instead of the length, as in Apple Music and Pocket Casts;
+  tap again for the length. Remembered, in every player
 * The playing song's row (lists, Up Next, a show's episodes, a book's
   chapters) shows three little bars that bounce while it plays and stop
   while it's paused, as in Spotify, Apple Music and YouTube Music,

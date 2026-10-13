@@ -4951,6 +4951,8 @@ Map<String, Map<String, String>> get keys => {
     "lyricsTimingAsIs": "As timed",
     "lyricsTimingLater": "@s s later",
     "lyricsTimingEarlier": "@s s earlier",
+    "showTimeLeft": "show the time left",
+    "showLength": "show the length",
     "settingsSearch": "Search settings",
     "dataSaver": "Data saver",
     "dataSaverDes": "Use low streaming quality to reduce data usage",

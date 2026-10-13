@@ -17,6 +17,7 @@ import '/services/podcast_transcripts.dart';
 import '/ui/player/components/podcast_transcript_sheet.dart';
 import '/ui/utils/theme_controller.dart';
 import '/services/podcast_service.dart' show PodcastChapter;
+import '/services/seek_time_label.dart';
 import '../../screens/Settings/settings_screen_controller.dart';
 import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/sleep_timer_bottom_sheet.dart';
@@ -717,6 +718,18 @@ String _fmtDuration(Duration d, {bool allowZero = true}) {
   return '$m:$ss';
 }
 
+/// The time at the seek bar's right end: the length, or the time left
+/// from [position] ("−2:31") when [timeLeft]. An unknown length shows an
+/// em dash either way.
+String seekBarEndLabel(Duration position, Duration total,
+    {required bool timeLeft}) {
+  if (!timeLeft || total <= Duration.zero) {
+    return _fmtDuration(total, allowZero: false);
+  }
+  final left = total - position;
+  return '−${_fmtDuration(left.isNegative ? Duration.zero : left)}';
+}
+
 /// Straight seek bar (Spotify). Podcast chapters split the line into
 /// sections; music / chapter-less episodes stay one rounded track.
 class PlayerSeekScrubber extends StatefulWidget {
@@ -836,7 +849,10 @@ class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
       final timeStyle = theme.textTheme.labelSmall!
           .copyWith(color: theme.colorScheme.onSurfaceVariant);
       final currentLabel = _fmtDuration(_dragPosition ?? status.current);
-      final totalLabel = _fmtDuration(status.total, allowZero: false);
+      final timeLeft = SeekTimeLabel.showsTimeLeft.value;
+      final totalLabel = seekBarEndLabel(
+          _dragPosition ?? status.current, status.total,
+          timeLeft: timeLeft);
       final played = theme.colorScheme.secondary;
       final rest = theme.colorScheme.outlineVariant;
 
@@ -880,7 +896,21 @@ class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(currentLabel, style: timeStyle),
-                Text(totalLabel, style: timeStyle),
+                // A tap swaps the length for the time left, and back.
+                Semantics(
+                  container: true,
+                  button: true,
+                  label: totalLabel,
+                  onTap: SeekTimeLabel.toggle,
+                  onTapHint: (timeLeft ? 'showLength' : 'showTimeLeft').tr,
+                  child: ExcludeSemantics(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: SeekTimeLabel.toggle,
+                      child: Text(totalLabel, style: timeStyle),
+                    ),
+                  ),
+                ),
               ],
             ),
           ],
