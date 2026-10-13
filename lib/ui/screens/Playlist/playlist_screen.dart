@@ -19,6 +19,7 @@ import '/ui/theme/riff_spacing.dart';
 import '/ui/widgets/playlist_album_scroll_behaviour.dart';
 import '../../navigator.dart';
 import '../../player/player_controller.dart';
+import '../../widgets/confirm_dialog.dart';
 import '../../widgets/create_playlist_dialog.dart';
 import '../../widgets/generated_cover.dart';
 import '../../widgets/collection_header.dart';
@@ -644,7 +645,16 @@ Widget _actions(
           );
         }),
         CollectionMenuItem(Icons.delete_outline_rounded, "removePlaylist".tr,
-            () {
+            () async {
+          // Deleting erases the playlist's songs from disk: ask first.
+          final confirmed = await confirmDestructive(
+            context,
+            title: "deletePlaylistTitle".tr,
+            message: "deletePlaylistMessage"
+                .trParams({'name': c.playlist.value.title}),
+            confirmLabel: "delete".tr,
+          );
+          if (!confirmed) return;
           c.addNremoveFromLibrary(c.playlist.value, add: false).then((ok) {
             Get.nestedKey(ScreenNavigationSetup.id)!.currentState!.pop();
             snack(ok ? "playlistRemovedAlert" : "operationFailed");

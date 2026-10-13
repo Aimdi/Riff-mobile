@@ -96,7 +96,8 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
             if (playlist != null && !playlist!.isCloudPlaylist)
               SlidableAction(
                 onPressed: (context) {
-                  removeSongFromPlaylist(song, playlist!);
+                  removeFromPlaylistWithUndo(song, playlist!,
+                      context: context);
                 },
                 backgroundColor: slideBg,
                 foregroundColor: slideFg,

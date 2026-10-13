@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '/services/wizestream_service.dart';
 
+import '../../models/media_Item_builder.dart';
 import '../../models/media_item_extras.dart';
 import '../../services/ban_service.dart';
 import '../../services/discovery/discovery_service.dart';
@@ -303,13 +304,9 @@ class SongInfoBottomSheet extends StatelessWidget {
                 title: playlist!.title == "Library Songs"
                     ? "removeFromLib".tr
                     : "removeFromPlaylist".tr,
-                onTap: () async {
+                onTap: () {
                   Navigator.of(context).pop();
-                  final ok = await songInfoController.removeSongFromPlaylist(
-                      song, playlist!);
-                  snack(ok
-                      ? "${"songRemovedAlert".tr} ${playlist!.title}"
-                      : "operationFailed".tr);
+                  removeFromPlaylistWithUndo(song, playlist!);
                 },
               ),
             if (calledFromQueue)
@@ -584,7 +581,10 @@ class SongInfoController extends GetxController
 }
 
 mixin RemoveSongFromPlaylistMixin {
-  Future<bool> removeSongFromPlaylist(MediaItem item, Playlist playlist) async {
+  /// [onRemovedAt] gets the song's position when it came out of a local
+  /// playlist, so [restoreSongToPlaylist] can put it back (Undo).
+  Future<bool> removeSongFromPlaylist(MediaItem item, Playlist playlist,
+      {void Function(int index)? onRemovedAt}) async {
     final box = await Hive.openBox(playlist.playlistId);
     //Library songs case
     if (playlist.playlistId == "SongsCache") {
@@ -603,7 +603,10 @@ mixin RemoveSongFromPlaylistMixin {
       final index = box.values
           .toList()
           .indexWhere((ele) => ele is Map && ele['videoId'] == item.id);
-      if (index >= 0) await box.deleteAt(index);
+      if (index >= 0) {
+        await box.deleteAt(index);
+        onRemovedAt?.call(index);
+      }
     }
 
     // this try catch block is to handle the case when song is removed from libsongs sections
@@ -641,7 +644,57 @@ mixin RemoveSongFromPlaylistMixin {
     // it here, or the player and other screens using it fail mid-write.
     return true;
   }
+
+  /// Undo for [removeSongFromPlaylist] on a local playlist: puts [item]
+  /// back at [index] (clamped), in storage and on the open screen.
+  Future<void> restoreSongToPlaylist(
+      MediaItem item, Playlist playlist, int index) async {
+    final box = await Hive.openBox(playlist.playlistId);
+    final values = box.values.toList();
+    if (values.any((v) => v is Map && v['videoId'] == item.id)) return;
+    final at = index.clamp(0, values.length);
+    values.insert(at, MediaItemBuilder.toJson(item));
+    // Positions are the order: rewrite them 0..n-1 in one batch.
+    await box.clear();
+    await box.putAll({for (var i = 0; i < values.length; i++) i: values[i]});
+    try {
+      final screen = Get.find<PlaylistScreenController>(
+          tag: Key(playlist.playlistId).hashCode.toString());
+      final shown = screen.songList.length;
+      screen.addNRemoveItemsinList(item,
+          action: 'add', index: at.clamp(0, shown));
+    } catch (_) {
+      // The playlist isn't open; storage is enough.
+    }
+  }
 }
+
+/// Removes [song] from [playlist] and says so; for local playlists the
+/// snackbar has Undo, which puts the song back where it was.
+Future<void> removeFromPlaylistWithUndo(MediaItem song, Playlist playlist,
+    {BuildContext? context}) async {
+  final remover = _PlaylistSongRemover();
+  final ctx = (context != null && context.mounted) ? context : Get.context;
+  int? removedAt;
+  final ok = await remover.removeSongFromPlaylist(song, playlist,
+      onRemovedAt: (i) => removedAt = i);
+  if (ctx == null || !ctx.mounted) return;
+  final at = removedAt;
+  ScaffoldMessenger.of(ctx)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(snackbar(
+      ctx,
+      ok
+          ? "removedFromPlaylist".trParams({'name': playlist.title})
+          : "operationFailed".tr,
+      actionLabel: ok && at != null ? "undo".tr : null,
+      onAction: ok && at != null
+          ? () => remover.restoreSongToPlaylist(song, playlist, at)
+          : null,
+    ));
+}
+
+class _PlaylistSongRemover with RemoveSongFromPlaylistMixin {}
 
 /// The song's album (browse id + name), when it has one.
 ({String id, String name})? _albumOf(MediaItem song) {

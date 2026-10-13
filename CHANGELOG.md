@@ -37,6 +37,14 @@ Lock screen and notification:
   media controls and in Android Auto, and follows likes you make in the
   app. Music only (podcasts keep skip back / forward)
 
+Playlists:
+* Deleting one of your playlists now asks first ("Delete playlist?"),
+  like Spotify and YouTube Music; before, one tap erased it and its
+  songs straight away
+* Removing a song from one of your playlists (swipe or the song menu)
+  shows "Removed from <playlist>" with Undo, which puts the song back
+  where it was; the swipe used to remove it without a word
+
 Up Next:
 * Removing a song (swipe it away, the song menu, or ✕ on desktop) and
   Clear queue now show "Undo" for a few seconds; undo puts the song back
