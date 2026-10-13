@@ -30,6 +30,7 @@ import '../radio_continuation.dart';
 import '../player_media_nav.dart';
 import 'lyric_line_preview.dart';
 import 'playback_error_actions.dart';
+import 'show_notes_text.dart';
 import 'standard_player.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_theme.dart';
@@ -390,10 +391,24 @@ void openShownotesSheet(
             const SizedBox(height: RiffSpacing.xs),
             Text(song?.artist ?? '', style: Theme.of(ctx).textTheme.titleSmall),
             const Divider(height: RiffSpacing.xxl),
-            Text(
-              notes.isEmpty ? "noShownotes".tr : notes,
-              style: Theme.of(ctx).textTheme.bodyLarge,
-            ),
+            if (notes.isEmpty)
+              Text("noShownotes".tr, style: Theme.of(ctx).textTheme.bodyLarge)
+            else
+              // A timestamp plays from there; a link opens.
+              ShowNotesText(
+                notes: notes,
+                length: playerController.progressBarStatus.value.total >
+                        Duration.zero
+                    ? playerController.progressBarStatus.value.total
+                    : song?.duration,
+                style: Theme.of(ctx).textTheme.bodyLarge,
+                onTime: (seconds) {
+                  Navigator.of(ctx).pop();
+                  playerController.seek(Duration(seconds: seconds));
+                },
+                onLink: (url) => launchUrl(Uri.parse(url),
+                    mode: LaunchMode.externalApplication),
+              ),
           ],
         ),
       ),
