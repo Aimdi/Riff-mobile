@@ -39,11 +39,17 @@ class SongDownloadButton extends StatelessWidget {
           ? Icon(
               Icons.download_done,
               color: Theme.of(context).textTheme.titleMedium!.color,
+              semanticLabel: 'downloaded'.tr,
             )
           : downloader.songQueue.contains(song) &&
                   downloader.isJobRunning.isTrue &&
                   downloader.currentSong == song
-              ? Obx(() => Stack(
+              ? Obx(() => Semantics(
+                  label: 'downloadingProgress'.trParams({
+                    'percent': '${downloader.songDownloadingProgress.value}'
+                  }),
+                  excludeSemantics: true,
+                  child: Stack(
                     alignment: Alignment.center,
                     children: [
                       Align(
@@ -66,10 +72,11 @@ class SongDownloadButton extends StatelessWidget {
                         value: (downloader.songDownloadingProgress.value) / 100,
                       )
                     ],
-                  ))
+                  )))
               : downloader.songQueue.contains(song)
                   ? const LoadingIndicator()
                   : IconButton(
+                      tooltip: 'download'.tr,
                       icon: Icon(
                         Icons.download,
                         color: Theme.of(context).textTheme.titleMedium!.color,

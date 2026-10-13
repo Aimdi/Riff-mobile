@@ -490,6 +490,7 @@ class _MiniPlayerTransport extends StatelessWidget {
         if (isWideScreen)
           IconButton(
               iconSize: RiffComponentSizes.trailingIcon,
+              tooltip: 'shuffle'.tr,
               onPressed: playerController.toggleShuffleMode,
               icon: Obx(() => Icon(
                     Ionicons.shuffle,
@@ -501,12 +502,18 @@ class _MiniPlayerTransport extends StatelessWidget {
               final canPrev = canSkipPrevious(
                 hasQueue: playerController.currentQueue.isNotEmpty,
               );
-              return InkWell(
-                onTap: canPrev ? playerController.prev : null,
-                child: Icon(
-                  Icons.skip_previous_rounded,
-                  color: scheme.onSurface,
-                  size: skipSize,
+              return Semantics(
+                container: true,
+                button: true,
+                enabled: canPrev,
+                label: 'previous'.tr,
+                child: InkWell(
+                  onTap: canPrev ? playerController.prev : null,
+                  child: Icon(
+                    Icons.skip_previous_rounded,
+                    color: scheme.onSurface,
+                    size: skipSize,
+                  ),
                 ),
               );
             })),
@@ -534,14 +541,20 @@ class _MiniPlayerTransport extends StatelessWidget {
                 queueLoopOn: playerController.isQueueLoopModeEnabled.isTrue,
                 radioOn: playerController.isRadioModeOn,
               );
-              return InkWell(
-                onTap: canNext ? playerController.next : null,
-                child: Icon(
-                  Icons.skip_next_rounded,
-                  color: !canNext
-                      ? Theme.of(context).disabledColor
-                      : scheme.onSurface,
-                  size: skipSize,
+              return Semantics(
+                container: true,
+                button: true,
+                enabled: canNext,
+                label: 'next'.tr,
+                child: InkWell(
+                  onTap: canNext ? playerController.next : null,
+                  child: Icon(
+                    Icons.skip_next_rounded,
+                    color: !canNext
+                        ? Theme.of(context).disabledColor
+                        : scheme.onSurface,
+                    size: skipSize,
+                  ),
                 ),
               );
             })),
@@ -568,6 +581,7 @@ class _MiniPlayerTransport extends StatelessWidget {
             children: [
               IconButton(
                   iconSize: RiffComponentSizes.trailingIcon,
+                  tooltip: 'repeatOne'.tr,
                   onPressed: playerController.toggleLoopMode,
                   icon: Obx(() => Icon(
                         Icons.all_inclusive,
@@ -575,6 +589,7 @@ class _MiniPlayerTransport extends StatelessWidget {
                       ))),
               IconButton(
                   iconSize: RiffComponentSizes.trailingIcon,
+                  tooltip: 'lyrics'.tr,
                   onPressed: () {
                     playerController.showLyrics();
                     showDialog(
@@ -622,7 +637,9 @@ class _MiniPlayerWideExtras extends StatelessWidget {
                 children: [
                   SizedBox(
                       width: 20,
-                      child: InkWell(
+                      child: Tooltip(
+                       message: volume == 0 ? 'unmute'.tr : 'mute'.tr,
+                       child: InkWell(
                         onTap: playerController.mute,
                         child: Icon(
                           volume == 0
@@ -632,7 +649,7 @@ class _MiniPlayerWideExtras extends StatelessWidget {
                                   : Icons.volume_up,
                           size: RiffComponentSizes.trailingIcon,
                         ),
-                      )),
+                      ))),
                   Expanded(
                     child: SliderTheme(
                       data: SliderTheme.of(context).copyWith(
@@ -660,6 +677,7 @@ class _MiniPlayerWideExtras extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 IconButton(
+                  tooltip: 'queue'.tr,
                   onPressed: () {
                     playerController.homeScaffoldkey.currentState
                         ?.openEndDrawer();
@@ -701,6 +719,7 @@ class _MiniPlayerWideExtras extends StatelessWidget {
                 ),
                 if (size.width > 965)
                   IconButton(
+                    tooltip: 'songInfo'.tr,
                     onPressed: () {
                       final currentSong = playerController.currentSong.value;
                       if (currentSong != null) {

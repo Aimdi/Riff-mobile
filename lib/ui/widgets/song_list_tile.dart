@@ -258,6 +258,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                             minHeight: RiffComponentSizes.rowIconHit,
                           ),
                           splashRadius: RiffComponentSizes.rowIconHit / 2,
+                          tooltip: 'moreOptions'.tr,
                           onPressed: () => _openSheet(playerController),
                           icon: Icon(
                             Icons.more_vert,

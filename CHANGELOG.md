@@ -19,6 +19,13 @@ Mini player (phones):
   the previous song (the ⏮ button still restarts the song first when
   you're more than 3 seconds in)
 
+Screen readers (TalkBack):
+* Play / pause, the mini player's previous / next, every song row's ⋮
+  and the download button now say what they do ("Pause", "Next",
+  "More options", "Download", "Downloading 45%") instead of just
+  "button"; on desktop the mini player's shuffle, repeat, lyrics, queue,
+  mute and song info buttons show what they are on hover
+
 Sleep timer:
 * Music and audiobooks now fade out over the last 10 seconds before the
   timer stops them, like podcasts already did, instead of cutting off
