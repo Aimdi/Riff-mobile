@@ -2,6 +2,8 @@ import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
+import '/models/media_item_extras.dart';
+
 /// How much the podcast voice boost lifts quiet speech, as a gain on the
 /// native loudness enhancer that already sits on the player's session.
 enum PodcastVoiceBoost {
@@ -176,6 +178,11 @@ String? podcastShowKey(MediaItem item) {
   return podcastShowKeyForFeed(extras['feedUrl'] as String?) ??
       podcastShowKeyForYoutube(extras['podcastPlaylistId'] as String?);
 }
+
+/// Whether smart resume steps back after a pause in [item]: podcast
+/// episodes and audiobooks (as Audible does), not music.
+bool smartResumeApplies(MediaItem item) =>
+    item.isPodcastEpisode || item.isAudiobook;
 
 /// Smart resume: how far to rewind when playback resumes after a pause of
 /// [paused], so the listener catches the thread again.

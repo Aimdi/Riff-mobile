@@ -105,7 +105,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   int? _podcastLoudnessMb;
 
   /// When the current podcast episode was paused, for smart resume.
-  DateTime? _podcastPausedAt;
+  DateTime? _longFormPausedAt;
 
   /// Bumped to cancel a running sleep-timer fade.
   int _sleepFadeToken = 0;
@@ -362,19 +362,19 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     return true;
   }
 
-  /// Smart resume: remember when a podcast episode stopped playing (any
-  /// cause: pause button, notification, headset, audio focus); forget it
-  /// once playback runs again.
+  /// Smart resume: remember when a podcast episode or audiobook stopped
+  /// playing (any cause: pause button, notification, headset, audio
+  /// focus); forget it once playback runs again.
   void _listenForPodcastPauses() {
     _player.playingStream.listen((playing) {
       if (playing) {
-        _podcastPausedAt = null;
+        _longFormPausedAt = null;
         return;
       }
       final item = mediaItem.value;
-      if (item == null || !item.isPodcastEpisode || isSongLoading) return;
+      if (item == null || !smartResumeApplies(item) || isSongLoading) return;
       if (_player.processingState == ProcessingState.completed) return;
-      _podcastPausedAt ??= DateTime.now();
+      _longFormPausedAt ??= DateTime.now();
     });
   }
 
@@ -1078,13 +1078,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     }
   }
 
-  /// Podcasts only: after a pause, step back a little (longer pause,
-  /// longer step) so the sentence that was cut off plays again.
+  /// Podcasts and audiobooks: after a pause, step back a little (longer
+  /// pause, longer step) so the sentence that was cut off plays again.
   Future<void> _maybeSmartResume() async {
-    final pausedAt = _podcastPausedAt;
-    _podcastPausedAt = null;
+    final pausedAt = _longFormPausedAt;
+    _longFormPausedAt = null;
     final item = mediaItem.value;
-    if (pausedAt == null || item == null || !item.isPodcastEpisode) return;
+    if (pausedAt == null || item == null || !smartResumeApplies(item)) return;
     if (!PodcastPlaybackPrefs.smartResume) return;
     final rewind = smartResumeRewind(DateTime.now().difference(pausedAt));
     if (rewind == Duration.zero) return;
@@ -1327,7 +1327,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
 
         mediaItem.add(currentSong);
-        _podcastPausedAt = null;
+        _longFormPausedAt = null;
         // Podcast episodes play with their show's profile (this is also the
         // queue auto-advance path); anything else gets music's settings.
         await _applyPlaybackProfile(currentSong);

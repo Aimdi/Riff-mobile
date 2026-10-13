@@ -644,7 +644,7 @@
     "longer": "Longer",
     "podcastResume": "Resuming",
     "smartResume": "Smart resume",
-    "smartResumeDes": "After a pause, go back a few seconds so you don't lose the thread. The longer the pause, the further back",
+    "smartResumeDes": "After a pause, go back a few seconds so you don't lose the thread, in episodes and audiobooks. The longer the pause, the further back",
     "endOfThisChapter": "End of this chapter",
     "podcastSleepFadeNote": "Episodes fade out over the last 10 seconds before they stop",
     "undo": "Undo",

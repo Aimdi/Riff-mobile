@@ -82,6 +82,10 @@ Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip
   back 10 s / forward 30 s in a book, like podcasts and Audible, instead
   of previous / next; next stays in the expanded notification
+* Smart resume works in audiobooks too, as in Audible: after a pause the
+  book steps back a few seconds (the longer the pause, the further), so
+  you pick up the sentence. It follows the Smart resume switch in
+  Podcast settings
 * Books keep their own speed: the speed pill in the book player (and in
   its ⋮) no longer changes how fast music plays, and the music speed in
   Settings no longer changes a book or podcast that's playing. Books

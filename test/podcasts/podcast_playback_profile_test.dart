@@ -132,6 +132,22 @@ void main() {
   });
 
   group('smart resume', () {
+    test('steps back in podcasts and audiobooks, not music', () {
+      expect(smartResumeApplies(const MediaItem(id: 'podcast_1', title: 'Ep')),
+          isTrue);
+      expect(
+          smartResumeApplies(const MediaItem(
+              id: 'dQw4w9WgXcQ', title: 'Ep', extras: {'isPodcast': true})),
+          isTrue);
+      expect(smartResumeApplies(const MediaItem(id: 'abs_1', title: 'Book')),
+          isTrue);
+      expect(smartResumeApplies(const MediaItem(id: 'lv_1', title: 'Book')),
+          isTrue);
+      expect(
+          smartResumeApplies(const MediaItem(id: 'dQw4w9WgXcQ', title: 'Song')),
+          isFalse);
+    });
+
     test('rewind steps by pause length', () {
       expect(smartResumeRewind(const Duration(seconds: 4)), Duration.zero);
       expect(smartResumeRewind(const Duration(seconds: 5)),
