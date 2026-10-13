@@ -1,6 +1,8 @@
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import '/services/podcast_playback_profile.dart';
 import '/ui/theme/riff_spacing.dart';
@@ -9,6 +11,7 @@ import 'podcast_library_ui.dart';
 import 'podcast_playback_controls.dart';
 
 import '/services/podcast_progress_service.dart';
+import '/services/podcast_show_view_prefs.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/podcast_follow_button.dart';
 import '/ui/widgets/now_playing_bars.dart';
@@ -80,7 +83,22 @@ class _PodcastShowViewState extends State<PodcastShowView> {
   final _scroll = ScrollController();
   bool _showTitle = false;
   bool _aboutOpen = false;
-  bool _oldestFirst = false;
+
+  /// Kept per show (by [PodcastShowView.playbackKey]), as Pocket Casts does.
+  late bool _oldestFirst = PodcastShowViewPrefs.oldestFirst(widget.playbackKey);
+  late bool _hidePlayed = PodcastShowViewPrefs.hidePlayed(widget.playbackKey);
+
+  void _toggleOrder() {
+    setState(() => _oldestFirst = !_oldestFirst);
+    final show = widget.playbackKey;
+    if (show != null) PodcastShowViewPrefs.setOldestFirst(show, _oldestFirst);
+  }
+
+  void _toggleHidePlayed() {
+    setState(() => _hidePlayed = !_hidePlayed);
+    final show = widget.playbackKey;
+    if (show != null) PodcastShowViewPrefs.setHidePlayed(show, _hidePlayed);
+  }
 
   @override
   void initState() {
@@ -109,12 +127,29 @@ class _PodcastShowViewState extends State<PodcastShowView> {
     return null;
   }
 
+  /// Episodes marked played (or resumed) change the list while it's open.
+  late final ValueListenable<Box>? _played = Hive.isBoxOpen('PodcastPlayed')
+      ? Hive.box('PodcastPlayed').listenable()
+      : null;
+
   @override
   Widget build(BuildContext context) {
+    final played = _played;
+    if (played == null) return _page(context);
+    return ValueListenableBuilder<Box>(
+      valueListenable: played,
+      builder: (context, _, __) => _page(context),
+    );
+  }
+
+  Widget _page(BuildContext context) {
     final theme = Theme.of(context);
     final eps = widget.episodes;
-    final order = List<int>.generate(eps.length, (i) => i);
-    if (_oldestFirst) order.setAll(0, order.reversed.toList());
+    final order = showEpisodeOrder(eps.length,
+        oldestFirst: _oldestFirst,
+        hidden: _hidePlayed
+            ? (i) => PodcastProgressService.isPlayed(eps[i].id)
+            : null);
     return Scaffold(
       body: Stack(
         children: [
@@ -128,24 +163,52 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                 child: HomeSectionHeader(
                   widget.loading
                       ? 'showEpisodes'.tr
-                      : '${'showEpisodes'.tr} · ${eps.length}',
+                      : '${'showEpisodes'.tr} · ${order.length}',
                   trailing: eps.length < 2
                       ? null
-                      : TextButton.icon(
-                          onPressed: () =>
-                              setState(() => _oldestFirst = !_oldestFirst),
-                          style: TextButton.styleFrom(
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: RiffSpacing.md,
-                                vertical: RiffSpacing.xs),
-                          ),
-                          icon: const Icon(Icons.swap_vert_rounded,
-                              size: RiffComponentSizes.trailingIcon),
-                          label: Text(
-                            _oldestFirst ? 'oldestFirst'.tr : 'newestFirst'.tr,
-                          ),
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Played episodes out of the way (on: accent).
+                            IconButton(
+                              tooltip: (_hidePlayed
+                                      ? 'showPlayedEpisodes'
+                                      : 'hidePlayedEpisodes')
+                                  .tr,
+                              isSelected: _hidePlayed,
+                              onPressed: _toggleHidePlayed,
+                              // As compact as the sort button beside it.
+                              style: IconButton.styleFrom(
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: RiffSpacing.sm,
+                                    vertical: RiffSpacing.xs),
+                              ),
+                              icon: const Icon(Icons.visibility_rounded,
+                                  size: RiffComponentSizes.trailingIcon),
+                              selectedIcon: Icon(Icons.visibility_off_rounded,
+                                  size: RiffComponentSizes.trailingIcon,
+                                  color: theme.colorScheme.primary),
+                            ),
+                            TextButton.icon(
+                              onPressed: _toggleOrder,
+                              style: TextButton.styleFrom(
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: RiffSpacing.md,
+                                    vertical: RiffSpacing.xs),
+                              ),
+                              icon: const Icon(Icons.swap_vert_rounded,
+                                  size: RiffComponentSizes.trailingIcon),
+                              label: Text(
+                                _oldestFirst
+                                    ? 'oldestFirst'.tr
+                                    : 'newestFirst'.tr,
+                              ),
+                            ),
+                          ],
                         ),
                 ),
               ),
@@ -162,12 +225,15 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                     ),
                   ),
                 )
-              else if (eps.isEmpty)
+              else if (order.isEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.all(RiffSpacing.x3l),
                     child: Center(
-                      child: Text('noEpisodes'.tr,
+                      child: Text(
+                          eps.isEmpty
+                              ? 'noEpisodes'.tr
+                              : 'allEpisodesPlayed'.tr,
                           style: Theme.of(context)
                               .textTheme
                               .bodyLarge
@@ -187,10 +253,10 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                         onLongPress: widget.onEpisodeLongPress == null
                             ? null
                             : () => widget.onEpisodeLongPress!(eps[index]),
-                        divider: i < eps.length - 1,
+                        divider: i < order.length - 1,
                       );
                     },
-                    childCount: eps.length,
+                    childCount: order.length,
                   ),
                 ),
               if (widget.footer != null)

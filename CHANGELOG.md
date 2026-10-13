@@ -131,6 +131,11 @@ Podcasts:
   following the episode as it goes, and chapters that link to a web page
   (show notes, a guest's site) get a button that opens it, as in Pocket
   Casts
+* A show's page remembers its episode order (Newest first / Oldest
+  first) for that show, like Pocket Casts and AntennaPod, so a series you
+  hear in order stays oldest first. The eye button next to it hides
+  played episodes (the count follows), and episodes you finish while the
+  page is open drop out of the list; tap it again to show them
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip
