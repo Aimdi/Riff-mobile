@@ -20,6 +20,7 @@ import 'backgroud_image.dart';
 import 'player_control.dart';
 import '/services/audiobook_playback.dart';
 import '/services/podcast_playback_profile.dart';
+import '/services/podcast_service.dart' show chapterArtAt;
 import '/services/podcast_transcripts.dart';
 import '/ui/widgets/riff_sheet.dart';
 import 'podcast_player_tint.dart';
@@ -152,34 +153,62 @@ class _Art extends StatelessWidget {
         return Center(child: AlbumArtNLyrics(playerArtImageSize: w));
       }
       final side = maxW < box.maxHeight ? maxW : box.maxHeight;
-      final url = Thumbnail(song?.artUri?.toString() ?? '').extraHigh;
+      final cacheWidth =
+          (side * MediaQuery.devicePixelRatioOf(context)).round();
       return Center(
         child: SizedBox(
           width: side,
           height: side,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(RiffRadii.sm),
-            child: url.isEmpty
-                ? _fallback(context)
-                : CachedNetworkImage(
-                    imageUrl: url,
-                    fit: BoxFit.cover,
-                    memCacheWidth:
-                        (side * MediaQuery.devicePixelRatioOf(context)).round(),
-                    placeholder: (_, __) =>
-                        ColoredBox(color: homeTileColor(context)),
-                    errorWidget: (_, __, ___) => CachedNetworkImage(
-                      imageUrl: song?.artUri?.toString() ?? '',
-                      placeholder: (_, __) =>
-                          ColoredBox(color: homeTileColor(context)),
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => _fallback(context),
+            child: song?.isPodcastEpisode == true
+                // A chapter with its own art shows it while it plays.
+                ? _ChapterArt(
+                    builder: (chapterArt) => AnimatedSwitcher(
+                      duration: RiffDurations.sheet,
+                      // Both images fill the square while they cross.
+                      layoutBuilder: (current, previous) => Stack(
+                        fit: StackFit.expand,
+                        children: [...previous, if (current != null) current],
+                      ),
+                      child: chapterArt == null
+                          ? KeyedSubtree(
+                              key: const ValueKey<String?>(null),
+                              child: _episodeArt(context, cacheWidth))
+                          : CachedNetworkImage(
+                              key: ValueKey<String?>(chapterArt),
+                              imageUrl: chapterArt,
+                              fit: BoxFit.cover,
+                              memCacheWidth: cacheWidth,
+                              placeholder: (_, __) =>
+                                  _episodeArt(context, cacheWidth),
+                              errorWidget: (_, __, ___) =>
+                                  _episodeArt(context, cacheWidth),
+                            ),
                     ),
-                  ),
+                  )
+                : _episodeArt(context, cacheWidth),
           ),
         ),
       );
     });
+  }
+
+  Widget _episodeArt(BuildContext context, int cacheWidth) {
+    final url = Thumbnail(song?.artUri?.toString() ?? '').extraHigh;
+    if (url.isEmpty) return _fallback(context);
+    return CachedNetworkImage(
+      imageUrl: url,
+      fit: BoxFit.cover,
+      memCacheWidth: cacheWidth,
+      placeholder: (_, __) => ColoredBox(color: homeTileColor(context)),
+      errorWidget: (_, __, ___) => CachedNetworkImage(
+        imageUrl: song?.artUri?.toString() ?? '',
+        placeholder: (_, __) => ColoredBox(color: homeTileColor(context)),
+        fit: BoxFit.cover,
+        errorWidget: (_, __, ___) => _fallback(context),
+      ),
+    );
   }
 
   Widget _fallback(BuildContext context) => ColoredBox(
@@ -191,6 +220,51 @@ class _Art extends StatelessWidget {
           size: RiffComponentSizes.longFormFallbackIcon,
           color: homeMutedColor(context),
         ),
+      );
+}
+
+/// The art of the podcast chapter playing ([chapterArtAt]) for [builder];
+/// rebuilds when it changes, not on every position tick.
+class _ChapterArt extends StatefulWidget {
+  const _ChapterArt({required this.builder});
+
+  final Widget Function(String? chapterArt) builder;
+
+  @override
+  State<_ChapterArt> createState() => _ChapterArtState();
+}
+
+class _ChapterArtState extends State<_ChapterArt> {
+  final _pc = Get.find<PlayerController>();
+  final _workers = <Worker>[];
+  late final ValueNotifier<String?> _art;
+
+  String? _current() => chapterArtAt(_pc.chapters,
+      _pc.progressBarStatus.value.current.inMilliseconds / 1000.0);
+
+  @override
+  void initState() {
+    super.initState();
+    _art = ValueNotifier(_current());
+    void follow(_) => _art.value = _current();
+    _workers
+      ..add(ever(_pc.progressBarStatus, follow))
+      ..add(ever(_pc.chapters, follow));
+  }
+
+  @override
+  void dispose() {
+    for (final worker in _workers) {
+      worker.dispose();
+    }
+    _art.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<String?>(
+        valueListenable: _art,
+        builder: (context, art, _) => widget.builder(art),
       );
 }
 

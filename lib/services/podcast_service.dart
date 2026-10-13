@@ -111,20 +111,7 @@ class PodcastService {
     if (cached != null) return cached;
     try {
       final res = await _dio.get(url);
-      final list = _asMap(res.data)?['chapters'];
-      if (list is! List) return [];
-      final out = <PodcastChapter>[];
-      for (final c in list) {
-        if (c is! Map) continue;
-        final st = c['startTime'];
-        if (st is! num) continue;
-        out.add(PodcastChapter(
-          startSec: st.toDouble(),
-          endSec: c['endTime'] is num ? (c['endTime'] as num).toDouble() : null,
-          title: '${c['title'] ?? ''}',
-        ));
-      }
-      out.sort((a, b) => a.startSec.compareTo(b.startSec));
+      final out = parsePodcastChapters(_asMap(res.data));
       _chaptersCache[url] = out;
       return out;
     } catch (e) {
@@ -1005,11 +992,55 @@ class PodcastTranscriptCue {
 }
 
 /// One Podcasting 2.0 chapter.
+/// The chapters in a Podcasting 2.0 chapters file, by start time.
+List<PodcastChapter> parsePodcastChapters(Map? json) {
+  final list = json?['chapters'];
+  if (list is! List) return [];
+  final out = <PodcastChapter>[];
+  for (final c in list) {
+    if (c is! Map) continue;
+    final st = c['startTime'];
+    if (st is! num) continue;
+    final img = '${c['img'] ?? ''}'.trim();
+    final imgUri = Uri.tryParse(img);
+    final webImage = imgUri != null &&
+        (imgUri.isScheme('https') || imgUri.isScheme('http')) &&
+        imgUri.host.isNotEmpty;
+    out.add(PodcastChapter(
+      startSec: st.toDouble(),
+      endSec: c['endTime'] is num ? (c['endTime'] as num).toDouble() : null,
+      title: '${c['title'] ?? ''}',
+      imageUrl: webImage ? img : null,
+    ));
+  }
+  out.sort((a, b) => a.startSec.compareTo(b.startSec));
+  return out;
+}
+
+/// The art of the chapter playing at [sec] (Pocket Casts and AntennaPod
+/// show it on the cover); null where that chapter has none, so the
+/// episode's own art shows.
+String? chapterArtAt(List<PodcastChapter> chapters, double sec) {
+  String? art;
+  for (final c in chapters) {
+    if (c.startSec > sec) break;
+    art = c.imageUrl;
+  }
+  return art;
+}
+
 class PodcastChapter {
-  PodcastChapter({required this.startSec, required this.title, this.endSec});
+  PodcastChapter(
+      {required this.startSec,
+      required this.title,
+      this.endSec,
+      this.imageUrl});
   final double startSec;
   final double? endSec;
   final String title;
+
+  /// The chapter's own art (its "img"), if it has one.
+  final String? imageUrl;
 
   /// Whether this chapter looks like an ad / sponsor read (by title).
   bool get isAd {

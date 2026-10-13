@@ -115,6 +115,10 @@ Podcasts:
   "Download removed" with Undo; the file is only deleted once Undo is
   gone (or on the next start), so a slip doesn't mean downloading a big
   episode again
+* Chapter art, like Pocket Casts and AntennaPod: in episodes whose
+  chapters come with their own pictures, the cover shows the playing
+  chapter's picture, crossfading as chapters change, and the episode's
+  own art in chapters without one
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip
