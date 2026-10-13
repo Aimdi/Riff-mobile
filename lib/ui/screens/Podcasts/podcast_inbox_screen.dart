@@ -292,6 +292,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
           if (e['chaptersUrl'] != null) 'chaptersUrl': e['chaptersUrl'],
           if (e['transcriptUrl'] != null) 'transcriptUrl': e['transcriptUrl'],
           if (e['transcriptUrl'] != null) 'transcriptType': e['transcriptType'],
+          if (e['link'] != null) 'link': e['link'],
         },
       );
 

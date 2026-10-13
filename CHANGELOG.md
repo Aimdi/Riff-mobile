@@ -153,6 +153,11 @@ Podcasts:
   Tap one to carry on where you were, long-press for Up Next, swipe one
   away to take it out, or Clear history; both with Undo. Episodes played
   in a private session aren't kept
+* Share an episode from the podcast player's ⋮, like Pocket Casts and
+  Spotify: Share episode, or Share from 12:34 to share the moment
+  playing. The link is the YouTube video for a YouTube episode (starting
+  at that moment), else the episode's page from its feed, else its audio
+  file (which a browser starts at that moment)
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip

@@ -709,6 +709,8 @@ class PodcastService {
         }
       }
       final pubRaw = item.getElement('pubDate')?.innerText.trim();
+      // The episode's own web page, for sharing it.
+      final link = item.getElement('link')?.innerText.trim();
       episodes.add({
         'id': 'podcast_${guid.hashCode}',
         'title': title,
@@ -726,6 +728,7 @@ class PodcastService {
           'chaptersUrl': chaptersUrl,
         if (transcriptUrl != null) 'transcriptUrl': transcriptUrl,
         if (transcriptUrl != null) 'transcriptType': transcriptType ?? '',
+        if (link != null && link.isNotEmpty) 'link': link,
       });
     }
     return episodes;
