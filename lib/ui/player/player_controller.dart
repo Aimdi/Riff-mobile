@@ -2122,9 +2122,10 @@ class PlayerController extends GetxController
     final box = HiveBoxes.favSync();
     if (box != null) {
       isCurrentSongFav.value = box.containsKey(song.id);
-      return;
+    } else {
+      isCurrentSongFav.value = (await HiveBoxes.fav()).containsKey(song.id);
     }
-    isCurrentSongFav.value = (await HiveBoxes.fav()).containsKey(song.id);
+    _reportLikeToMediaSession(song.id, isCurrentSongFav.value);
   }
 
   Future<void> toggleFavourite() async {
@@ -2142,6 +2143,7 @@ class PlayerController extends GetxController
     if (isCurrent) {
       isCurrentSongFav.value = nextAdding;
       _favPersistSongId = song.id;
+      _reportLikeToMediaSession(song.id, nextAdding);
     }
     unawaited(_persistFavourite(song, nextAdding).whenComplete(() {
       if (_favPersistSongId == song.id) _favPersistSongId = null;
@@ -2157,6 +2159,13 @@ class PlayerController extends GetxController
             .isTrue) {
       Get.find<Downloader>().download(song);
     }
+  }
+
+  /// Keeps the heart on the notification / lock screen in step with the
+  /// app (the save itself happens in the background).
+  void _reportLikeToMediaSession(String songId, bool liked) {
+    if (!_audioReady) return;
+    _audioHandler.customAction('setLiked', {'id': songId, 'liked': liked});
   }
 
   Future<void> _persistFavourite(MediaItem currMediaItem, bool adding) async {

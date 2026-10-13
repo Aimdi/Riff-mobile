@@ -19,6 +19,12 @@ Mini player (phones):
   the previous song (the ⏮ button still restarts the song first when
   you're more than 3 seconds in)
 
+Lock screen and notification:
+* A heart next to previous / play / next likes or unlikes the playing
+  song, like Spotify and YouTube Music; it also shows in Android 13+'s
+  media controls and in Android Auto, and follows likes you make in the
+  app. Music only (podcasts keep skip back / forward)
+
 Up Next:
 * Removing a song (swipe it away, the song menu, or ✕ on desktop) and
   Clear queue now show "Undo" for a few seconds; undo puts the song back

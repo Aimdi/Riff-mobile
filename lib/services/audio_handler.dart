@@ -29,6 +29,7 @@ import '/services/podcast_service.dart';
 import '/ui/widgets/podcast_play.dart' show podcastEpisodeToMediaItem;
 import '/services/podcast_playback_profile.dart';
 import '/models/media_item_extras.dart';
+import '/services/now_playing_controls.dart';
 import '/services/queue_undo.dart';
 import '/services/shuffle_order.dart';
 import '/services/stream_service.dart';
@@ -46,6 +47,7 @@ import '/services/play_runtime_error.dart';
 import '/ui/player/video_handoff.dart';
 import '../utils/helper.dart';
 import '/models/media_Item_builder.dart';
+import '/utils/hive_boxes.dart';
 import '/utils/songs_url_cache.dart';
 import '../ui/screens/Settings/settings_screen_controller.dart';
 import '../ui/screens/Library/library_controller.dart';
@@ -507,26 +509,34 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     });
   }
 
+  /// The app's last word on whether the playing song is liked (see
+  /// [nowPlayingLiked]); set through the 'setLiked' custom action.
+  String? _likedReportId;
+  bool _likedReport = false;
+
   /// Media session state from the player's real state (notification,
   /// Android Auto, lock screen and the app's UI all read it).
   void _publishPlaybackState() {
       final playing = _player.playing;
-      final podcast = mediaItem.value?.isPodcastEpisode ?? false;
+      final item = mediaItem.value;
+      final podcast = item?.isPodcastEpisode ?? false;
       playbackState.add(playbackState.value.copyWith(
         // Podcast episodes: skip back / forward by the show's lengths
-        // (rewind / fastForward). Music keeps previous / next.
-        controls: podcast
-            ? [
-                MediaControl.rewind,
-                if (playing) MediaControl.pause else MediaControl.play,
-                MediaControl.fastForward,
-                MediaControl.skipToNext,
-              ]
-            : [
-                MediaControl.skipToPrevious,
-                if (playing) MediaControl.pause else MediaControl.play,
-                MediaControl.skipToNext,
-              ],
+        // (rewind / fastForward). Music keeps previous / next, plus the
+        // like heart.
+        controls: nowPlayingControls(
+          podcast: podcast,
+          playing: playing,
+          canLike: item != null && !podcast && !item.isAudiobook,
+          liked: nowPlayingLiked(
+            currentId: item?.id,
+            reportedId: _likedReportId,
+            reportedLiked: _likedReport,
+            stored: HiveBoxes.favContains,
+          ),
+          likeLabel: 'addToFavorites'.tr,
+          unlikeLabel: 'removeFromFavorites'.tr,
+        ),
         systemActions: const {
           MediaAction.seek,
         },
@@ -1546,6 +1556,20 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
       case 'toggleQueueLoopMode':
         queueLoopModeEnabled = extras!['enable'];
+        break;
+
+      case likeActionName:
+        // The heart on the notification / lock screen / Android Auto.
+        if (Get.isRegistered<PlayerController>()) {
+          await Get.find<PlayerController>().toggleFavourite();
+        }
+        break;
+
+      case 'setLiked':
+        // The app checked or toggled the playing song's like.
+        _likedReportId = extras!['id'] as String?;
+        _likedReport = extras['liked'] == true;
+        _publishPlaybackState();
         break;
 
       case 'removeQueueItemUndoable':
