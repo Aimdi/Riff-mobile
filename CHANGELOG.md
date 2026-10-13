@@ -37,6 +37,11 @@ Lock screen and notification:
   media controls and in Android Auto, and follows likes you make in the
   app. Music only (podcasts keep skip back / forward)
 
+Song rows:
+* Swipe a song all the way to the left to add it to the queue straight
+  away, like Spotify; the row slides back with a tick. A shorter swipe
+  still shows the Add to queue / Play next buttons
+
 Library:
 * Search finds songs by artist and album too, not just the title, and
   every word counts ("daft lucky" finds Get Lucky by Daft Punk); accents

@@ -16,6 +16,7 @@ import 'add_to_playlist.dart';
 import 'image_widget.dart';
 import 'snackbar.dart';
 import 'song_favourite.dart';
+import 'song_row_swipe.dart';
 import 'songinfo_bottom_sheet.dart';
 
 class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
@@ -81,6 +82,9 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
           }
         },
         child: Slidable(
+          // DismissiblePane (the full swipe) needs a keyed Slidable; it is
+          // this Listener's only child, so the song id is unique enough.
+          key: ValueKey('song_row_${song.id}'),
           enabled:
               Get.find<SettingsScreenController>().slidableActionEnabled.isTrue,
           startActionPane: ActionPane(motion: const DrawerMotion(), children: [
@@ -105,37 +109,27 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                 //label: 'delete',
               ),
           ]),
-          endActionPane: ActionPane(motion: const DrawerMotion(), children: [
-            SlidableAction(
-              onPressed: (context) async {
-                final ok = await playerController.enqueueSong(song);
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                    context, ok ? "songEnqueueAlert".tr : "operationFailed".tr,
-                    size: SanckBarSize.MEDIUM));
-              },
-              backgroundColor: slideBg,
-              foregroundColor: slideFg,
-              icon: Icons.merge,
-              //label: 'Enqueue',
-            ),
-            SlidableAction(
-              onPressed: (context) async {
-                final ok = await playerController.playNext(song);
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                    context,
-                    ok
-                        ? "${"playnextMsg".tr} ${(song).title}"
-                        : "operationFailed".tr,
-                    size: SanckBarSize.BIG));
-              },
-              backgroundColor: slideBg,
-              foregroundColor: slideFg,
-              icon: Icons.next_plan_outlined,
-              //label: 'Play Next',
-            ),
-          ]),
+          endActionPane: songRowQueuePane(
+            background: slideBg,
+            foreground: slideFg,
+            onEnqueue: () async {
+              final ok = await playerController.enqueueSong(song);
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                  context, ok ? "songEnqueueAlert".tr : "operationFailed".tr,
+                  size: SanckBarSize.MEDIUM));
+            },
+            onPlayNext: () async {
+              final ok = await playerController.playNext(song);
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                  context,
+                  ok
+                      ? "${"playnextMsg".tr} ${(song).title}"
+                      : "operationFailed".tr,
+                  size: SanckBarSize.BIG));
+            },
+          ),
           // Art / Marquee stay outside Obx so current-song ticks only rebuild
           // the highlight chrome + equalizer, not image decode / marquee state.
           child: Stack(
