@@ -78,6 +78,10 @@ Song rows:
   Music and YouTube Music: in playlists, albums, search results and
   Similar songs (TalkBack reads it as "Explicit"). Songs saved before
   this get it the next time they're loaded from YouTube Music
+* Downloaded songs show a small download mark before the artist, like
+  Spotify's green arrow, in every song list, so you can see what plays
+  offline. It appears as soon as a download finishes and goes when you
+  delete it (TalkBack reads it as "Downloaded")
 * Swipe a song all the way to the left to add it to the queue straight
   away, like Spotify; the row slides back with a tick. A shorter swipe
   still shows the Add to queue / Play next buttons

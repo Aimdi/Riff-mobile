@@ -15,6 +15,7 @@ import '../screens/Settings/settings_screen_controller.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/theme/riff_spacing.dart';
 import 'add_to_playlist.dart';
+import 'downloaded_mark.dart';
 import 'explicit_badge.dart';
 import 'image_widget.dart';
 import 'snackbar.dart';
@@ -225,6 +226,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                                 const SizedBox(height: RiffSpacing.xxs),
                                 Row(
                                   children: [
+                                    DownloadedMark(songId: song.id),
                                     if (song.isExplicit) ...[
                                       const ExplicitBadge(),
                                       const SizedBox(width: RiffSpacing.xs),
