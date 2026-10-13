@@ -1,6 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:harmonymusic/ui/screens/Home/home_feed_builder.dart';
 import 'package:harmonymusic/ui/screens/Playlist/playlist_recommendations.dart';
 import 'package:harmonymusic/ui/theme/riff_theme.dart';
 
@@ -79,7 +80,7 @@ void main() {
       // Loading.
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
       await tester.pump();
-      expect(find.text('recommendedSongs'), findsOneWidget);
+      expect(find.text(homeSentenceCase('recommendedSongs')), findsOneWidget);
       expect(find.text('Song r1'), findsOneWidget);
       expect(find.text('Song r2'), findsOneWidget);
       expect(find.text('Song p1'), findsNothing);
@@ -130,7 +131,7 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(find.text('recommendedSongs'), findsNothing);
+      expect(find.text(homeSentenceCase('recommendedSongs')), findsNothing);
       expect(find.byType(CircularProgressIndicator), findsNothing);
     });
   });
