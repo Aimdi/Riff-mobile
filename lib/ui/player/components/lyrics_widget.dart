@@ -3,6 +3,7 @@ import 'package:flutter_lyric/lyrics_reader.dart';
 import 'package:get/get.dart';
 
 import '/services/lyrics_romanization.dart';
+import '/services/lyrics_text_size.dart';
 import '../../widgets/loader.dart';
 import '../player_controller.dart';
 import 'lyric_seek_line.dart';
@@ -19,6 +20,20 @@ class LyricsWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Lyrics text size, on top of the phone's font size: Text below picks
+    // it up, and RiffLyricUI sizes the synced reader's lines with it.
+    return Obx(() {
+      final media = MediaQuery.of(context);
+      return MediaQuery(
+        data: media.copyWith(
+            textScaler: ScaledTextScaler(
+                media.textScaler, LyricsTextSize.selected.value.factor)),
+        child: Builder(builder: _lyrics),
+      );
+    });
+  }
+
+  Widget _lyrics(BuildContext context) {
     final playerController = Get.find<PlayerController>();
     // Outer Obx: loading / mode / lyric payload only — NOT progress ticks.
     return Obx(
@@ -153,9 +168,10 @@ class _SeekableLyricsReaderState extends LyricReaderState {
 /// Synced (line-level) lyrics in the Lights-out type: the current line
 /// `titleLarge` in the text colour, the others `titleLarge` in the secondary
 /// colour at 60%, second lines (romanization) `bodyMedium` in the secondary
-/// colour, dimmed off the current line. Keeps the controller's layout
-/// (gaps, bias, alignment, highlight sweep); the sweep is playback progress,
-/// so it is drawn in the accent.
+/// colour, dimmed off the current line; all at the phone's font size times
+/// Lyrics text size. Keeps the controller's layout (gaps, bias, alignment,
+/// highlight sweep); the sweep is playback progress, so it is drawn in the
+/// accent.
 class RiffLyricUI extends UINetease {
   RiffLyricUI._(
     UINetease base, {
@@ -180,15 +196,19 @@ class RiffLyricUI extends UINetease {
   factory RiffLyricUI.of(BuildContext context, UINetease base) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final text = theme.textTheme;
+    // The reader paints its lines without a text scaler: they take the
+    // phone's font size and Lyrics text size from here.
+    final scaler = MediaQuery.textScalerOf(context);
+    final main = scaledTextStyle(theme.textTheme.titleLarge!, scaler);
+    final ext = scaledTextStyle(theme.textTheme.bodyMedium!, scaler);
     final dim =
         scheme.onSurfaceVariant.withOpacity(RiffPalette.lyricsDimOpacity);
     return RiffLyricUI._(
       base,
-      playing: text.titleLarge!.copyWith(color: scheme.onSurface),
-      other: text.titleLarge!.copyWith(color: dim),
-      playingExt: text.bodyMedium!.copyWith(color: scheme.onSurfaceVariant),
-      otherExt: text.bodyMedium!.copyWith(color: dim),
+      playing: main.copyWith(color: scheme.onSurface),
+      other: main.copyWith(color: dim),
+      playingExt: ext.copyWith(color: scheme.onSurfaceVariant),
+      otherExt: ext.copyWith(color: dim),
       sweep: scheme.secondary,
     );
   }

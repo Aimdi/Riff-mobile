@@ -17,6 +17,7 @@ import '/services/wizestream_service.dart';
 import '/services/crash_report.dart';
 import '/services/better_lyrics_service.dart';
 import '/services/lyrics_romanization.dart';
+import '/services/lyrics_text_size.dart';
 import '/services/private_session.dart';
 import '/services/song_fade.dart';
 import '/services/discovery/discovery_service.dart';
@@ -371,6 +372,29 @@ class SettingsScreen extends StatelessWidget {
                         ),
                       );
                     }),
+                  ),
+                  ListTile(
+                    contentPadding: settingsTilePadding,
+                    title: Text('lyricsTextSize'.tr),
+                    subtitle: Text('lyricsTextSizeDes'.tr,
+                        style: settingsSubtitleStyle(context)),
+                    trailing: Obx(
+                      () => DropdownButton<LyricsTextSize>(
+                        dropdownColor:
+                            Theme.of(context).colorScheme.surfaceContainerLow,
+                        underline: const SizedBox.shrink(),
+                        value: LyricsTextSize.selected.value,
+                        items: LyricsTextSize.values
+                            .map((size) => DropdownMenuItem(
+                                  value: size,
+                                  child: Text(size.labelKey.tr),
+                                ))
+                            .toList(),
+                        onChanged: (size) {
+                          if (size != null) LyricsTextSize.set(size);
+                        },
+                      ),
+                    ),
                   ),
                   SettingsSearchable(
                     title: 'dataSaver'.tr,
