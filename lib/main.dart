@@ -34,6 +34,7 @@ import '/services/smart_queue_service.dart';
 import '/services/track_analysis_service.dart';
 import '/ui/home.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/widgets/player_shortcuts.dart';
 import 'ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/utils/theme_controller.dart';
 import 'ui/screens/Home/home_screen_controller.dart';
@@ -198,7 +199,8 @@ class MyApp extends StatelessWidget {
                             canvasColor: Colors.black,
                             scaffoldBackgroundColor: Colors.black,
                           ),
-                      child: child!),
+                      // Playback keys work on every screen.
+                      child: PlayerShortcuts(child: child!)),
                 ),
               ),
               GestureDetector(

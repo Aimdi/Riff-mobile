@@ -152,6 +152,13 @@ Home's Speed dial:
 * Pages shrink and fade a little as they slide, the current page's dot
   stretches into a pill, and each page change gives a light tick
 
+Keyboard (Linux PCs, and tablets with a keyboard):
+* Spotify's desktop shortcuts work on every screen: Space play / pause,
+  Ctrl + → / ← next / previous, Shift + → / ← forward / back 10 seconds,
+  Ctrl + ↑ / ↓ volume, Ctrl + S shuffle, Ctrl + R repeat, Ctrl + F
+  search, and Ctrl + / lists them all. Not while you type in a text
+  field, which keeps its keys
+
 # 1.7.152
 
 * Riff now runs on Linux PCs. Every release ships a Linux build next to
