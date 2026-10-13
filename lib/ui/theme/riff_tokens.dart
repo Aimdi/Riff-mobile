@@ -37,6 +37,9 @@ class RiffPalette {
   /// Pulse ring behind the listen button.
   static const double recognizeRingOpacity = 0.2;
 
+  /// Error colour behind a row swiped away to remove it.
+  static const double swipeRemoveOpacity = 0.18;
+
   /// Podcast folder tile without a photo: the colour's tint behind the
   /// folder icon, and its hairline edge.
   static const double folderTint = 0.22;

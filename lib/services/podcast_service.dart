@@ -803,6 +803,10 @@ class PodcastService {
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ];
 
+  /// [d] as episode dates show it: "19 Jul 2026".
+  static String formatDay(DateTime d) =>
+      "${d.day} ${_monthAbbr[d.month - 1]} ${d.year}";
+
   /// RSS pubDate → "19 Jul 2026" (drops weekday and time for a compact row).
   /// Shows the calendar date as the feed wrote it, not the UTC-shifted one,
   /// so a late-evening US release keeps its publisher's date. Falls back to

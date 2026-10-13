@@ -142,6 +142,12 @@ Podcasts:
   its first 3 seconds goes to the one before. For episodes and books with
   chapters inside them; a book's separate tracks keep the player's own
   previous / next
+* Listening history, like AntennaPod's and Pocket Casts': Podcasts ›
+  History lists the episodes you've played, newest first, under Today,
+  Yesterday and the date, with where each stands (played, time left).
+  Tap one to carry on where you were, long-press for Up Next, swipe one
+  away to take it out, or Clear history; both with Undo. Episodes played
+  in a private session aren't kept
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip

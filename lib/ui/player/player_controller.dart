@@ -42,6 +42,7 @@ import '/services/music_service.dart';
 import '/services/sponsorblock_service.dart';
 import '/services/podcast_service.dart';
 import '/services/podcast_progress_service.dart';
+import '/services/podcast_history.dart';
 import '/services/audiobookshelf_service.dart';
 import '/ui/player/riff_wave.dart';
 import '/ui/player/play_log_gate.dart';
@@ -1194,6 +1195,7 @@ class PlayerController extends GetxController
           if (!private) {
             await _addToRP(mediaItem);
             StatsService.recordPlay(mediaItem);
+            unawaited(PodcastHistory.add(mediaItem));
           }
           if (Get.isRegistered<SettingsScreenController>()) {
             unawaited(Get.find<SettingsScreenController>()
