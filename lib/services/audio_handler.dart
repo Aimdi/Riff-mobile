@@ -751,13 +751,20 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
       if (_mixTransitionInProgress) return;
 
-      final remainingMs = durationMs - posMs;
+      // A show that skips its outro ends the episode where it begins.
+      final outroCut = _podcastOutroCutMs(durationMs);
+
+      final remainingMs = (outroCut ?? durationMs) - posMs;
       if (remainingMs > 0 && remainingMs < 45000) {
         final id = mediaItem.value?.id;
         if (id != null && _prefetchArmedForId != id) {
           _prefetchArmedForId = id;
           prefetchNextInQueue();
         }
+      }
+
+      if (outroCut != null && await _maybeEndAtOutro(posMs, outroCut)) {
+        return;
       }
 
       if (posMs >= (durationMs - playerDurationOffset)) {
@@ -767,6 +774,41 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
       }
     });
+  }
+
+  /// Where the playing episode ends when its show skips the outro, or null.
+  int? _podcastOutroCutMs(int durationMs) {
+    final item = mediaItem.value;
+    if (item == null || !item.isPodcastEpisode) return null;
+    return podcastOutroCutMs(
+        totalMs: durationMs, trim: PodcastPlaybackPrefs.trimForItem(item));
+  }
+
+  /// The episode an outro skip already ended, so ticks past the cut (paused
+  /// there when continuous playback is off) don't end it again.
+  String? _outroEndedForId;
+
+  /// Ends the playing episode at its show's outro ([cutMs]) as if it had
+  /// played out: marked played, then the usual end of an episode (the next
+  /// one, or a pause when continuous playback is off). Only while playing,
+  /// so scrubbing into the outro while paused doesn't skip.
+  Future<bool> _maybeEndAtOutro(int posMs, int cutMs) async {
+    final id = mediaItem.value?.id;
+    if (id == null) return false;
+    if (posMs < cutMs) {
+      // Played or sought back before the cut: it can end there again.
+      if (_outroEndedForId == id) _outroEndedForId = null;
+      return false;
+    }
+    if (!_player.playing || isSongLoading || _outroEndedForId == id) {
+      return false;
+    }
+    _outroEndedForId = id;
+    await _triggerNext();
+    // Only now: marking it played takes it out of the podcast Up Next,
+    // which _triggerNext reads to know what follows it.
+    PodcastProgressService.markPlayed(id);
+    return true;
   }
 
   bool _isMixPlaybackActive() {

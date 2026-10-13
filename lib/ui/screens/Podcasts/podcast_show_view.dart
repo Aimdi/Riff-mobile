@@ -238,7 +238,8 @@ class _PodcastShowViewState extends State<PodcastShowView> {
             Obx(() {
               PodcastPlaybackPrefs.rev.value;
               final custom =
-                  PodcastPlaybackPrefs.hasShowOverride(widget.playbackKey);
+                  PodcastPlaybackPrefs.hasShowOverride(widget.playbackKey) ||
+                      PodcastPlaybackPrefs.showTrim(widget.playbackKey).isOn;
               return IconButton(
                 tooltip: 'playbackSettings'.tr,
                 icon: Icon(Icons.tune_rounded,

@@ -42,6 +42,20 @@ Song rows:
   away, like Spotify; the row slides back with a tick. A shorter swipe
   still shows the Add to queue / Play next buttons
 
+Podcasts:
+* Each show can skip its intro and outro, like Pocket Casts and
+  AntennaPod: on the show's page, the sliders button (Playback
+  settings) › Skip intro / Skip outro (off up to 5 minutes, in 5 s steps
+  to a minute, then 15 s).
+  Episodes then start after the intro, unless you're resuming further
+  in (bookmarks still open where they point), and end where the outro
+  begins: marked played and on to the next episode, as if they'd played
+  out, also from the lock screen and Android Auto. Episodes too short to
+  leave a minute play whole. The setting is the show's own and stays
+  when it goes back to the global playback defaults
+* "Sleep at end of episode" (and of the last chapter) stops where a
+  skipped outro begins
+
 Library:
 * Search finds songs by artist and album too, not just the title, and
   every word counts ("daft lucky" finds Get Lucky by Daft Punk); accents

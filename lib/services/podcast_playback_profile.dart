@@ -213,6 +213,96 @@ Duration wallClockRemaining(Duration remainingContent, double speed) {
   return Duration(milliseconds: (remainingContent.inMilliseconds / s).round());
 }
 
+/// A show's skip intro / skip outro, like Pocket Casts' "Skip first / Skip
+/// last" and AntennaPod's auto skip: the seconds jumped over when an
+/// episode starts, and the seconds before its end where it counts as
+/// finished. Per show only (intros differ, so there is no global default),
+/// and apart from the show's playback overrides: "Use global defaults"
+/// leaves it alone.
+class PodcastShowTrim {
+  const PodcastShowTrim({this.introSec = 0, this.outroSec = 0});
+
+  final int introSec;
+  final int outroSec;
+
+  /// What the steppers move through: 5 s steps up to a minute, then 15 s
+  /// steps up to five minutes.
+  static const choices = [
+    0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60,
+    75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240, 255, 270, 285,
+    300,
+  ];
+  static const maxSec = 300;
+
+  bool get isOn => introSec > 0 || outroSec > 0;
+
+  /// The allowed length closest to [value]; off for anything unreadable.
+  static int snap(Object? value) {
+    if (value is! num || value.isNaN) return 0;
+    var best = choices.first;
+    for (final c in choices) {
+      if ((c - value).abs() < (best - value).abs()) best = c;
+    }
+    return best;
+  }
+
+  /// One stepper tap from [sec], up or down, staying in range.
+  static int step(int sec, {required bool up}) {
+    final i = choices.indexOf(snap(sec));
+    return choices[(up ? i + 1 : i - 1).clamp(0, choices.length - 1)];
+  }
+
+  factory PodcastShowTrim.fromMap(Object? raw) {
+    if (raw is! Map) return const PodcastShowTrim();
+    return PodcastShowTrim(
+        introSec: snap(raw['intro']), outroSec: snap(raw['outro']));
+  }
+
+  Map<String, Object> toMap() => {'intro': introSec, 'outro': outroSec};
+
+  PodcastShowTrim copyWith({int? introSec, int? outroSec}) => PodcastShowTrim(
+        introSec: introSec ?? this.introSec,
+        outroSec: outroSec ?? this.outroSec,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is PodcastShowTrim &&
+      other.introSec == introSec &&
+      other.outroSec == outroSec;
+
+  @override
+  int get hashCode => Object.hash(introSec, outroSec);
+
+  @override
+  String toString() => 'PodcastShowTrim(${toMap()})';
+}
+
+/// Whether an episode of [totalMs] is long enough for [trim]: at least a
+/// minute must be left between intro and outro, so trailers and short
+/// bonus clips play whole. An unknown length (0) counts as long enough.
+bool podcastTrimFits(int totalMs, PodcastShowTrim trim) =>
+    totalMs <= 0 ||
+    totalMs - (trim.introSec + trim.outroSec) * 1000 >= 60000;
+
+/// Where an episode starts, in ms: its saved position [savedMs], or the
+/// end of the intro its show skips while that position is still inside it.
+int podcastStartMs(
+    {required int savedMs, required PodcastShowTrim trim, int totalMs = 0}) {
+  final introMs = trim.introSec * 1000;
+  if (savedMs >= introMs || !podcastTrimFits(totalMs, trim)) return savedMs;
+  return introMs;
+}
+
+/// Where an episode of [totalMs] ends when its show skips the outro, in
+/// ms; null when there is no outro to skip or the length is unknown.
+int? podcastOutroCutMs({required int totalMs, required PodcastShowTrim trim}) {
+  if (trim.outroSec <= 0 || totalMs <= 0 || !podcastTrimFits(totalMs, trim)) {
+    return null;
+  }
+  return totalMs - trim.outroSec * 1000;
+}
+
 /// Persisted podcast playback settings: global defaults in AppPrefs, one
 /// map per show in the `PodcastShowPrefs` box. Every read tolerates a box
 /// that isn't open yet (tests, first frames) by falling back.
@@ -298,6 +388,28 @@ class PodcastPlaybackPrefs {
     } else {
       await setGlobalDefaults(profile);
     }
+  }
+
+  /// Where a show's [PodcastShowTrim] lives in [showBox]: beside its
+  /// playback overrides, not inside them (show keys are feed URLs or
+  /// `yt:` ids, so the prefix can't collide).
+  static String trimKey(String showKey) => 'trim:$showKey';
+
+  static PodcastShowTrim showTrim(String? key) => key == null
+      ? const PodcastShowTrim()
+      : PodcastShowTrim.fromMap(_shows?.get(trimKey(key)));
+
+  static PodcastShowTrim trimForItem(MediaItem item) =>
+      showTrim(podcastShowKey(item));
+
+  static Future<void> setShowTrim(String key, PodcastShowTrim trim) async {
+    final box = _shows ?? await Hive.openBox(showBox);
+    if (trim.isOn) {
+      await box.put(trimKey(key), trim.toMap());
+    } else {
+      await box.delete(trimKey(key));
+    }
+    rev.value++;
   }
 }
 

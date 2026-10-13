@@ -453,15 +453,20 @@ class PlayerController extends GetxController
   void onPlaybackPosition(Duration position) {
     final oldState = progressBarStatus.value;
     if (isSleepEndOfSongActive.isTrue) {
-      timerDurationLeft.value = oldState.total.inSeconds - position.inSeconds;
-      if (_maybeStartSleepFade(oldState.total - position)) {
+      final end = _playingItemEnd(oldState.total);
+      timerDurationLeft.value = end.inSeconds - position.inSeconds;
+      if (_maybeStartSleepFade(end - position)) {
         // The fade pauses when it is done.
       } else if (timerDurationLeft.value <= 1) {
         pause(source: PlaybackCommandSource.sleepTimer);
         cancelSleepTimer();
       }
     } else if (isSleepEndOfChapterActive.isTrue) {
-      final end = _sleepChapterEnd ?? oldState.total;
+      // The chapter's end, but never past where the episode ends (its
+      // skipped outro) once its length is known.
+      final episodeEnd = _playingItemEnd(oldState.total);
+      var end = _sleepChapterEnd ?? episodeEnd;
+      if (episodeEnd > Duration.zero && end > episodeEnd) end = episodeEnd;
       final remaining = end - position;
       timerDurationLeft.value = remaining.inSeconds.clamp(0, 1 << 30);
       if (_maybeStartSleepFade(remaining)) {
@@ -492,6 +497,17 @@ class PlayerController extends GetxController
       val.buffered = oldState.buffered;
       val.total = oldState.total;
     });
+  }
+
+  /// Where the playing item ends: its length, or where the outro its show
+  /// skips begins (the handler ends the episode there).
+  Duration _playingItemEnd(Duration total) {
+    final song = currentSong.value;
+    if (song == null || !song.isPodcastEpisode) return total;
+    final cut = podcastOutroCutMs(
+        totalMs: total.inMilliseconds,
+        trim: PodcastPlaybackPrefs.trimForItem(song));
+    return cut == null ? total : Duration(milliseconds: cut);
   }
 
   void _handlePodcastProgress(Duration position) {
@@ -1124,8 +1140,12 @@ class PlayerController extends GetxController
           _explicitStartId = null;
         } else if (PodcastProgressService.isPodcastItem(mediaItem)) {
           _pendingResumeId = mediaItem.id;
-          _pendingResumeMs =
-              PodcastProgressService.positionMs(mediaItem.id) ?? 0;
+          // The saved position, or past the intro its show skips.
+          _pendingResumeMs = podcastStartMs(
+            savedMs: PodcastProgressService.positionMs(mediaItem.id) ?? 0,
+            trim: PodcastPlaybackPrefs.trimForItem(mediaItem),
+            totalMs: mediaItem.duration?.inMilliseconds ?? 0,
+          );
         } else if (_isAbsItem(mediaItem)) {
           // Keep armResume() from detail screen if it targets this item.
           if (_pendingResumeId != mediaItem.id) {
