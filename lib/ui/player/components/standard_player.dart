@@ -460,15 +460,17 @@ class _HeroArtRegion extends StatelessWidget {
       // Lyrics dim the cover with the page colour, so their text reads in
       // the page's text colours.
       final page = veil ?? Theme.of(context).colorScheme.surface;
+      void onTap() {
+        if (showVideo) {
+          playerController.playPause();
+        } else {
+          playerController.showLyrics();
+        }
+      }
+
       return GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () {
-          if (showVideo) {
-            playerController.playPause();
-          } else {
-            playerController.showLyrics();
-          }
-        },
+        onTap: onTap,
         onLongPress: () {
           HapticFeedback.mediumImpact();
           openNowPlayingSheet(playerController);
@@ -506,7 +508,8 @@ class _HeroArtRegion extends StatelessWidget {
                     children: [
                       LyricsWidget(
                           padding: EdgeInsets.symmetric(
-                              vertical: box.maxHeight / 4)),
+                              vertical: box.maxHeight / 4),
+                          onTap: onTap),
                       IgnorePointer(
                         child: DecoratedBox(
                           decoration: BoxDecoration(

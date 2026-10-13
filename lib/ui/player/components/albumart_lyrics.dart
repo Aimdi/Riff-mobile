@@ -182,7 +182,8 @@ class AlbumArtNLyrics extends StatelessWidget {
                             children: [
                               LyricsWidget(
                                   padding: EdgeInsets.symmetric(
-                                      horizontal: 0, vertical: height / 3.5)),
+                                      horizontal: 0, vertical: height / 3.5),
+                                  onTap: playerController.showLyrics),
                               IgnorePointer(
                                 child: Container(
                                   decoration: BoxDecoration(

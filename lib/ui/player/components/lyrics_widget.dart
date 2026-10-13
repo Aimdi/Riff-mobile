@@ -4,12 +4,17 @@ import 'package:get/get.dart';
 
 import '../../widgets/loader.dart';
 import '../player_controller.dart';
+import 'lyric_seek_line.dart';
 import 'word_synced_lyrics.dart';
 import '/ui/theme/riff_tokens.dart';
 
 class LyricsWidget extends StatelessWidget {
   final EdgeInsetsGeometry padding;
-  const LyricsWidget({super.key, required this.padding});
+
+  /// A tap on synced lyrics, which take touches themselves (drag to browse
+  /// them): the host's own tap action, e.g. closing the lyrics.
+  final VoidCallback? onTap;
+  const LyricsWidget({super.key, required this.padding, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -54,18 +59,27 @@ class LyricsWidget extends StatelessWidget {
         return Obx(() {
           final pos =
               playerController.progressBarStatus.value.current.inMilliseconds;
-          return IgnorePointer(
-            child: LyricsReader(
-              padding: const EdgeInsets.only(left: 5, right: 5),
-              lyricUi: lyricUi,
-              position: pos,
-              model: model,
-              emptyBuilder: () => Center(
-                child: Text(
-                  "syncedLyricsNotAvailable".tr,
-                  style: theme.textTheme.titleMedium!
-                      .copyWith(color: theme.colorScheme.onSurface),
-                ),
+          // Drag to look through the lyrics; the line in the middle gets
+          // its time and ▶ to play from there (Spotify and Apple Music
+          // jump to a tapped line; a tap here keeps closing the lyrics).
+          return _SeekableLyricsReader(
+            padding: const EdgeInsets.only(left: 5, right: 5),
+            lyricUi: lyricUi,
+            position: pos,
+            model: model,
+            onTap: onTap,
+            selectLineBuilder: (progress, confirm) => LyricSeekLine(
+              positionMs: progress,
+              onSeek: () {
+                confirm();
+                playerController.seek(Duration(milliseconds: progress));
+              },
+            ),
+            emptyBuilder: () => Center(
+              child: Text(
+                "syncedLyricsNotAvailable".tr,
+                style: theme.textTheme.titleMedium!
+                    .copyWith(color: theme.colorScheme.onSurface),
               ),
             ),
           );
@@ -73,6 +87,36 @@ class LyricsWidget extends StatelessWidget {
       },
     );
   }
+}
+
+/// [LyricsReader] that keeps following the song after a touch it lost:
+/// it marks every touch as a drag on tap-down and clears that on tap-up,
+/// so a touch the host takes as a long-press (song menu) left the lyrics
+/// stuck where they were.
+class _SeekableLyricsReader extends LyricsReader {
+  _SeekableLyricsReader({
+    super.position,
+    super.model,
+    super.padding,
+    super.lyricUi,
+    super.onTap,
+    super.selectLineBuilder,
+    super.emptyBuilder,
+  });
+
+  @override
+  State<StatefulWidget> createState() => _SeekableLyricsReaderState();
+}
+
+class _SeekableLyricsReaderState extends LyricReaderState {
+  void _touchEnded(PointerEvent _) => isDrag = false;
+
+  @override
+  Widget buildTouchReader(child) => Listener(
+        onPointerUp: _touchEnded,
+        onPointerCancel: _touchEnded,
+        child: super.buildTouchReader(child),
+      );
 }
 
 /// Synced (line-level) lyrics in the Lights-out type: the current line

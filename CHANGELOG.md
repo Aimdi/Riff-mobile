@@ -11,6 +11,13 @@ The music player takes its look from the cover, like BitChord:
   mini player, while the screen behind shows through; opening it grows
   the cover back out
 
+Lyrics:
+* Synced lyrics can be scrolled through now (they used to sit still
+  under your finger). While you look around, the line in the middle
+  shows its time and ▶; tap ▶ to play the song from that line, as you
+  can in Spotify, Apple Music and YouTube Music. A few seconds after you
+  let go they go back to following the song. A tap still closes them
+
 Mini player (phones):
 * Drag it sideways and the song follows your finger while the next (or
   previous) song slides in beside it; let go past a third of the way,

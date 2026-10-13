@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -5,6 +7,7 @@ import '/services/better_lyrics_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import 'lyric_seek_line.dart';
 
 /// Word-level synced lyrics from Better Lyrics TTML.
 class WordSyncedLyricsWidget extends StatefulWidget {
@@ -36,6 +39,15 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
   final _scroll = ScrollController();
   final _player = Get.find<PlayerController>();
 
+  /// While the user scrolls the lyrics (and [_browseLinger] after): the
+  /// list stops following the song and the line in the middle gets
+  /// [LyricSeekLine] to play from it.
+  final _browsing = ValueNotifier<bool>(false);
+  final _centerLine = ValueNotifier<int>(0);
+  final _listKey = GlobalKey();
+  Timer? _browseEnd;
+  static const _browseLinger = Duration(seconds: 3);
+
   /// Active line, derived from the 10 Hz progress tick but only notifying
   /// when the line actually changes — rows rebuild per line, not per tick.
   /// Only the active word-timed row follows the tick (word highlighting).
@@ -59,10 +71,54 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
 
   @override
   void dispose() {
+    _browseEnd?.cancel();
     _progressWorker?.dispose();
     _activeLine.dispose();
+    _browsing.dispose();
+    _centerLine.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  bool _onScroll(ScrollNotification n) {
+    if (n is ScrollStartNotification && n.dragDetails != null) {
+      _browseEnd?.cancel();
+      _browsing.value = true;
+    }
+    if (!_browsing.value) return false;
+    _centerLine.value = _lineAtCenter() ?? _centerLine.value;
+    if (n is ScrollEndNotification) {
+      _browseEnd?.cancel();
+      _browseEnd = Timer(_browseLinger, _stopBrowsing);
+    }
+    return false;
+  }
+
+  void _stopBrowsing() {
+    _browseEnd?.cancel();
+    if (!mounted) return;
+    _browsing.value = false;
+    _scheduleScroll();
+  }
+
+  /// The built row nearest the middle of the list.
+  int? _lineAtCenter() {
+    final list = _listKey.currentContext?.findRenderObject();
+    if (list is! RenderBox || !list.hasSize) return null;
+    final middle = list.size.height / 2;
+    int? best;
+    var bestDistance = double.infinity;
+    _rowKeys.forEach((i, key) {
+      final row = key.currentContext?.findRenderObject();
+      if (row is! RenderBox || !row.attached || !row.hasSize) return;
+      final top = row.localToGlobal(Offset.zero, ancestor: list).dy;
+      final distance = (top + row.size.height / 2 - middle).abs();
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = i;
+      }
+    });
+    return best;
   }
 
   void _scheduleScroll() {
@@ -74,7 +130,7 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
   /// Keeps the active line ~2 rows below the top, like before, but without a
   /// fixed item extent (which clipped wrapped / enlarged active lines).
   void _scrollToActive({required bool estimateIfUnbuilt}) {
-    if (!_scroll.hasClients || _lines.isEmpty) return;
+    if (!_scroll.hasClients || _lines.isEmpty || _browsing.value) return;
     final position = _scroll.position;
     final viewport = position.viewportDimension;
     final alignment = viewport <= 0 ? 0.0 : (104 / viewport).clamp(0.0, 0.5);
@@ -115,6 +171,36 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
     }
     final accent = Theme.of(context).colorScheme.secondary;
 
+    return Stack(
+      children: [
+        NotificationListener<ScrollNotification>(
+          onNotification: _onScroll,
+          child: KeyedSubtree(key: _listKey, child: _list(accent)),
+        ),
+        // Only ▶ takes touches: drags anywhere else still scroll.
+        Center(
+          child: ValueListenableBuilder<bool>(
+            valueListenable: _browsing,
+            builder: (context, browsing, _) => !browsing
+                ? const SizedBox.shrink()
+                : ValueListenableBuilder<int>(
+                    valueListenable: _centerLine,
+                    builder: (context, i, _) => LyricSeekLine(
+                      positionMs: (_lines[i].beginSec * 1000).round(),
+                      onSeek: () {
+                        _player.seek(Duration(
+                            milliseconds: (_lines[i].beginSec * 1000).round()));
+                        _stopBrowsing();
+                      },
+                    ),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _list(Color accent) {
     return ListView.builder(
       physics: const BouncingScrollPhysics(),
       padding: widget.padding
