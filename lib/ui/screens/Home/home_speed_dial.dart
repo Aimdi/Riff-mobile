@@ -288,16 +288,17 @@ class _PinArt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (pin.type == 'playlist') {
+      // The same cover the playlist shows everywhere else: a photo of its
+      // own, its art, or the generated cover.
+      return ImageWidget(
+        playlist: Playlist(
+            title: pin.title, playlistId: pin.id, thumbnailUrl: pin.art),
+        size: size,
+        borderRadius: 0,
+      );
+    }
     if (pin.art.isEmpty) {
-      if (pin.type == 'playlist') {
-        // The same generated cover the playlist shows everywhere else.
-        return ImageWidget(
-          playlist:
-              Playlist(title: pin.title, playlistId: pin.id, thumbnailUrl: ''),
-          size: size,
-          borderRadius: 0,
-        );
-      }
       return LetterArt(
           title: pin.title, size: size, circle: pin.type == 'artist');
     }

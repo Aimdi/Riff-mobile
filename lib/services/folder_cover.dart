@@ -51,12 +51,14 @@ class FolderCoverStore {
   static Future<String> Function() baseDir =
       () async => (await getApplicationSupportDirectory()).path;
 
-  /// Processes [original] off the UI thread and saves it for [folderId].
-  /// Returns the new file's path, or null when it isn't a usable image.
-  static Future<String?> save(String folderId, Uint8List original) async {
+  /// Processes [original] off the UI thread and saves it for [folderId]
+  /// (in [subdir]: playlist photos are made the same way). Returns the new
+  /// file's path, or null when it isn't a usable image.
+  static Future<String?> save(String folderId, Uint8List original,
+      {String subdir = 'folder_covers'}) async {
     final jpg = await Isolate.run(() => processFolderCover(original));
     if (jpg == null) return null;
-    final dir = Directory('${await baseDir()}/folder_covers');
+    final dir = Directory('${await baseDir()}/$subdir');
     await dir.create(recursive: true);
     // A new name per save, so image caches never show the old photo.
     final path =

@@ -14,6 +14,7 @@ import 'podcast_play.dart' show isPodcastCollection;
 import '/models/artist.dart';
 import '/models/thumbnail.dart';
 import '/services/cover_resolver.dart';
+import '/services/playlist_covers.dart';
 import '../../models/album.dart';
 import '../../models/playlist.dart';
 
@@ -105,6 +106,42 @@ class ImageWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final pl = playlist;
+    if (song == null && pl != null) {
+      // A photo of its own, when one was given, wins over any other art.
+      return Obx(() {
+        PlaylistCovers.rev.value;
+        final photo = PlaylistCovers.pathFor(pl.playlistId);
+        return photo == null ? _art(context) : _photo(context, photo);
+      });
+    }
+    return _art(context);
+  }
+
+  /// A playlist's own photo; the cover it would have had when the file is
+  /// gone.
+  Widget _photo(BuildContext context, String path) {
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    return Container(
+      height: size,
+      width: size,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(_radius),
+      ),
+      child: Image.file(
+        File(path),
+        height: size,
+        width: size,
+        cacheWidth: (size * dpr).round().clamp(64, 1600),
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (context, __, ___) => _art(context),
+      ),
+    );
+  }
+
+  Widget _art(BuildContext context) {
     // The shared "no playlist art" image counts as no art.
     final raw = _rawUrl == Playlist.thumbPlaceholderUrl ? '' : _rawUrl;
     final imageUrl = _scaled(raw);

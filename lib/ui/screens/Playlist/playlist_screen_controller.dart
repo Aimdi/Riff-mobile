@@ -20,6 +20,7 @@ import '../../../models/playlist.dart';
 import '../../../utils/hive_boxes.dart';
 import '../../../services/music_service.dart';
 import '../../../services/piped_service.dart';
+import '../../../services/playlist_covers.dart';
 import '../../../services/playlist_mix_service.dart';
 import '../../../services/track_analysis_service.dart';
 import '../Library/library_controller.dart';
@@ -418,6 +419,7 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
         } else {
           await box.delete(id);
           await LibraryPins.forget(id);
+          await PlaylistCovers.remove(id);
           final songsBox = await Hive.openBox(id);
           await songsBox.deleteFromDisk();
         }

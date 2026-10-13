@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '/models/playling_from.dart';
 import '/models/thumbnail.dart';
+import '/services/playlist_covers.dart';
 import '/services/podcast_service.dart';
 import '/services/playlist_mix_service.dart';
 import '../Podcasts/podcast_queue_screen.dart';
@@ -35,6 +38,7 @@ import '../../widgets/snackbar.dart';
 import '../../widgets/song_list_tile.dart';
 import '../../widgets/sort_widget.dart';
 import '../Library/library_controller.dart';
+import 'playlist_photo.dart';
 import 'playlist_screen_controller.dart';
 
 /// YouTube channel id (`UC…`) — compiled once, not per list row.
@@ -91,6 +95,8 @@ class PlaylistScreen extends StatelessWidget {
                             : -.25 * playlistController.scrollOffset.value,
                         right: landscape ? 0 : null,
                         child: Obx(() {
+                          // A new photo shows straight away.
+                          PlaylistCovers.rev.value;
                           final opacityValue = 1 -
                               playlistController.scrollOffset.value /
                                   (size.width - 100);
@@ -104,10 +110,11 @@ class PlaylistScreen extends StatelessWidget {
                             leftShadowOffset: -size.height,
                             bottomShadowOffset:
                                 landscape ? size.height : size.width + 80,
-                            // No art of its own (or it fails to load): the
-                            // generated cover, without the title (the header
-                            // under it shows that).
-                            child: !playlistController.playlist.value.hasArt
+                            // A photo of its own, else, with no art (or when
+                            // it fails to load), the generated cover without
+                            // the title (the header under it shows that).
+                            child: !playlistController.playlist.value.hasArt ||
+                                    _ownPhoto(playlistController.playlist.value)
                                 ? _heroCover(playlistController.playlist.value,
                                     landscape ? size.height : size.width)
                                 : CachedNetworkImage(
@@ -214,8 +221,13 @@ class PlaylistScreen extends StatelessWidget {
                                       playlistController.playlist.value)) {
                                     return const SizedBox(height: 8);
                                   }
-                                  return _actions(context, playlistController,
-                                      playerController);
+                                  // Rebuilt with the photo, so ⋮ offers
+                                  // to set or change it.
+                                  return Obx(() {
+                                    PlaylistCovers.rev.value;
+                                    return _actions(context, playlistController,
+                                        playerController);
+                                  });
                                 } else if (index == 2) {
                                   return SizedBox(
                                       height: playlistController
@@ -460,9 +472,22 @@ class _PodcastShow extends StatelessWidget {
   }
 }
 
-/// Header backdrop for a playlist without a cover of its own.
-Widget _heroCover(Playlist pl, double side) =>
-    GeneratedCover.playlist(pl, size: side, showTitle: false);
+bool _ownPhoto(Playlist pl) => PlaylistCovers.pathFor(pl.playlistId) != null;
+
+/// Header backdrop for a playlist without a cover of its own: the photo it
+/// was given, else (or when that file is gone) its generated cover.
+Widget _heroCover(Playlist pl, double side) {
+  final generated = GeneratedCover.playlist(pl, size: side, showTitle: false);
+  final photo = PlaylistCovers.pathFor(pl.playlistId);
+  if (photo == null) return generated;
+  return Image.file(
+    File(photo),
+    width: side,
+    height: side,
+    fit: BoxFit.cover,
+    errorBuilder: (_, __, ___) => generated,
+  );
+}
 
 bool _isPodcastPage(Playlist pl) =>
     pl.kind == 'podcast' ||
@@ -644,6 +669,15 @@ Widget _actions(
                 renamePlaylist: true, playlist: c.playlist.value),
           );
         }),
+        CollectionMenuItem(
+            Icons.add_photo_alternate_outlined,
+            (_ownPhoto(pl) ? "changePlaylistPhoto" : "setPlaylistPhoto").tr,
+            () => pickPlaylistPhoto(context, pl.playlistId)),
+        if (_ownPhoto(pl))
+          CollectionMenuItem(
+              Icons.hide_image_outlined,
+              "removePlaylistPhoto".tr,
+              () => PlaylistCovers.remove(pl.playlistId)),
         CollectionMenuItem(Icons.delete_outline_rounded, "removePlaylist".tr,
             () async {
           // Deleting erases the playlist's songs from disk: ask first.

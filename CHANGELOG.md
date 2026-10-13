@@ -129,6 +129,10 @@ Playlists:
 * Removing a song from one of your playlists (swipe or the song menu)
   shows "Removed from <playlist>" with Undo, which puts the song back
   where it was; the swipe used to remove it without a word
+* Give one of your playlists a photo of your own, like Spotify's Change
+  image: open it › ⋮ › Set photo (later Change photo or Remove photo).
+  It's cropped square and shows wherever the playlist's cover does: the
+  Library, Home and Speed dial, and the playlist's page
 
 Up Next:
 * Removing a song (swipe it away, the song menu, or ✕ on desktop) and
