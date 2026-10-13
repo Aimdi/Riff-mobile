@@ -1,5 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
@@ -195,122 +196,133 @@ class _QueueSongRow extends StatelessWidget {
                 removeFromQueueWithUndo(song, context: context);
               },
               // What the swipe does, on the side it uncovers.
-              background: const _QueueRemoveBackground(
-                  alignment: Alignment.centerLeft),
+              background:
+                  const _QueueRemoveBackground(alignment: Alignment.centerLeft),
               secondaryBackground: const _QueueRemoveBackground(
                   alignment: Alignment.centerRight),
-              child: Stack(
-                // Expand so the row still fills the fixed queue extent.
-                fit: StackFit.expand,
-                children: [
-                  Material(
-                    // Now playing: flat accentMuted tint (§5.2).
-                    color: isCurrent
-                        ? RiffColors.of(context).accentMuted
-                        : Theme.of(homeScaffoldContext)
-                            .bottomSheetTheme
-                            .backgroundColor,
-                    child: InkWell(
-                      onTap: () => playerController.seekByIndex(index),
-                      onLongPress: () {
-                        HapticFeedback.mediumImpact();
-                        openMenu();
-                      },
-                      child: Padding(
-                        // 16h like every row; the drag handle brings its own
-                        // trailing room. Vertical padding comes from the fixed
-                        // 64dp queue extent (48 art centred).
-                        padding: const EdgeInsets.only(
-                            left: RiffSpacing.lg, right: RiffSpacing.xs),
-                        child: Row(
-                          children: [
-                            if (GetPlatform.isDesktop)
-                              IconButton(
-                                  tooltip: 'removeFromQueue'.tr,
-                                  onPressed: () {
-                                    if (isCurrent) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(snackbar(context,
-                                              "songRemovedfromQueueCurrSong".tr,
-                                              size: SanckBarSize.BIG));
-                                    } else {
-                                      removeFromQueueWithUndo(song,
-                                          context: context);
-                                    }
-                                  },
-                                  icon: const Icon(Icons.close)),
-                            ImageWidget(
-                              size: RiffComponentSizes.rowArt,
-                              song: song,
-                              borderRadius: RiffRadii.xs,
-                            ),
-                            const SizedBox(width: RiffSpacing.md),
-                            Expanded(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Marquee(
-                                    delay: const Duration(milliseconds: 300),
-                                    duration: const Duration(seconds: 5),
-                                    id: "queue${song.title.hashCode}",
-                                    child: Text(
-                                      song.title,
-                                      maxLines: 1,
-                                      style: text.titleMedium?.copyWith(
-                                        color: isCurrent ? accent : fg,
+              // The swipe, for screen readers (TalkBack's row actions).
+              child: Semantics(
+                customSemanticsActions: {
+                  if (!isCurrent)
+                    CustomSemanticsAction(label: 'removeFromQueue'.tr): () =>
+                        removeFromQueueWithUndo(song, context: context),
+                },
+                child: Stack(
+                  // Expand so the row still fills the fixed queue extent.
+                  fit: StackFit.expand,
+                  children: [
+                    Material(
+                      // Now playing: flat accentMuted tint (§5.2).
+                      color: isCurrent
+                          ? RiffColors.of(context).accentMuted
+                          : Theme.of(homeScaffoldContext)
+                              .bottomSheetTheme
+                              .backgroundColor,
+                      child: InkWell(
+                        onTap: () => playerController.seekByIndex(index),
+                        onLongPress: () {
+                          HapticFeedback.mediumImpact();
+                          openMenu();
+                        },
+                        child: Padding(
+                          // 16h like every row; the drag handle brings its own
+                          // trailing room. Vertical padding comes from the fixed
+                          // 64dp queue extent (48 art centred).
+                          padding: const EdgeInsets.only(
+                              left: RiffSpacing.lg, right: RiffSpacing.xs),
+                          child: Row(
+                            children: [
+                              if (GetPlatform.isDesktop)
+                                IconButton(
+                                    tooltip: 'removeFromQueue'.tr,
+                                    onPressed: () {
+                                      if (isCurrent) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(snackbar(
+                                                context,
+                                                "songRemovedfromQueueCurrSong"
+                                                    .tr,
+                                                size: SanckBarSize.BIG));
+                                      } else {
+                                        removeFromQueueWithUndo(song,
+                                            context: context);
+                                      }
+                                    },
+                                    icon: const Icon(Icons.close)),
+                              ImageWidget(
+                                size: RiffComponentSizes.rowArt,
+                                song: song,
+                                borderRadius: RiffRadii.xs,
+                              ),
+                              const SizedBox(width: RiffSpacing.md),
+                              Expanded(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Marquee(
+                                      delay: const Duration(milliseconds: 300),
+                                      duration: const Duration(seconds: 5),
+                                      id: "queue${song.title.hashCode}",
+                                      child: Text(
+                                        song.title,
+                                        maxLines: 1,
+                                        style: text.titleMedium?.copyWith(
+                                          color: isCurrent ? accent : fg,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(height: RiffSpacing.xxs),
-                                  Text(
-                                    song.artist ?? '',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: text.bodyMedium?.copyWith(
-                                      color: muted,
+                                    const SizedBox(height: RiffSpacing.xxs),
+                                    Text(
+                                      song.artist ?? '',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: text.bodyMedium?.copyWith(
+                                        color: muted,
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: RiffSpacing.sm),
-                            if (isCurrent)
-                              Icon(Icons.equalizer_rounded,
-                                  color: accent,
-                                  size: RiffComponentSizes.trailingIcon)
-                            else
-                              Text(
-                                '${song.extras?['length'] ?? ''}',
-                                style: text.bodyMedium?.copyWith(color: muted),
-                              ),
-                            if (!GetPlatform.isDesktop)
-                              ReorderableDragStartListener(
-                                index: index,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: RiffSpacing.md,
-                                      vertical: RiffSpacing.lg),
-                                  child: Icon(Icons.drag_handle_rounded,
-                                      color: muted,
-                                      size: RiffComponentSizes.trailingIcon),
+                                  ],
                                 ),
-                              )
-                            else
-                              const SizedBox(width: RiffSpacing.lg),
-                          ],
+                              ),
+                              const SizedBox(width: RiffSpacing.sm),
+                              if (isCurrent)
+                                Icon(Icons.equalizer_rounded,
+                                    color: accent,
+                                    size: RiffComponentSizes.trailingIcon)
+                              else
+                                Text(
+                                  '${song.extras?['length'] ?? ''}',
+                                  style:
+                                      text.bodyMedium?.copyWith(color: muted),
+                                ),
+                              if (!GetPlatform.isDesktop)
+                                ReorderableDragStartListener(
+                                  index: index,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: RiffSpacing.md,
+                                        vertical: RiffSpacing.lg),
+                                    child: Icon(Icons.drag_handle_rounded,
+                                        color: muted,
+                                        size: RiffComponentSizes.trailingIcon),
+                                  ),
+                                )
+                              else
+                                const SizedBox(width: RiffSpacing.lg),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  // Inset hairline from the text column, inside the row's
-                  // bottom edge (desktop rows lead with a remove button, so
-                  // theirs runs full width).
-                  RiffRowHairline(
-                      inset: GetPlatform.isDesktop
-                          ? 0
-                          : RiffRowHairline.textInset),
-                ],
+                    // Inset hairline from the text column, inside the row's
+                    // bottom edge (desktop rows lead with a remove button, so
+                    // theirs runs full width).
+                    RiffRowHairline(
+                        inset: GetPlatform.isDesktop
+                            ? 0
+                            : RiffRowHairline.textInset),
+                  ],
+                ),
               ),
             ),
           ),

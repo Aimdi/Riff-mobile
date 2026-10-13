@@ -32,6 +32,10 @@ Screen readers (TalkBack):
   "More options", "Download", "Downloading 45%") instead of just
   "button"; on desktop the mini player's shuffle, repeat, lyrics, queue,
   mute and song info buttons show what they are on hover
+* What a swipe does on a song row (add to queue, play next, add to
+  playlist, remove) and on an Up Next row (remove) is in TalkBack's
+  actions for that row, as in Spotify; with TalkBack on, a swipe moves
+  between items, so those were out of reach
 
 Sleep timer:
 * Music and audiobooks now fade out over the last 10 seconds before the
@@ -66,6 +70,9 @@ Podcasts:
   "Unsubscribed from <show>" with Undo, which brings the subscription
   back as it was and puts the show back in its folders; unsubscribing
   from the show's page now also takes it out of your folders
+* Removing an episode from the podcast Up Next with its ✕ button gives
+  the same Undo as swiping it away, and both look like the app's other
+  snackbars
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip

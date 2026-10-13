@@ -341,20 +341,7 @@ class PodcastQueueScreen extends StatelessWidget {
         child: Icon(Icons.playlist_remove_rounded,
             color: Theme.of(context).colorScheme.error),
       ),
-      onDismissed: (_) {
-        final index = controller.queue.indexWhere((q) => q.id == e.id);
-        controller.removeById(e.id);
-        ScaffoldMessenger.maybeOf(context)
-          ?..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(
-            behavior: SnackBarBehavior.floating,
-            content: Text("removedFromQueue".tr),
-            action: SnackBarAction(
-              label: "undo".tr,
-              onPressed: () => controller.insertAt(index, e),
-            ),
-          ));
-      },
+      onDismissed: (_) => _removeWithUndo(context, controller, e),
       child: PodcastEpisodeTile(
         artUrl: art,
         title: e.title,
@@ -391,10 +378,21 @@ class PodcastQueueScreen extends StatelessWidget {
           icon: Icon(Icons.remove_circle_outline_rounded,
               size: RiffComponentSizes.trailingIcon,
               color: Theme.of(context).colorScheme.onSurfaceVariant),
-          onPressed: () => controller.removeAt(i),
+          onPressed: () => _removeWithUndo(context, controller, e),
         ),
       ),
     );
+  }
+
+  /// Takes [e] out of the queue with Undo (swipe or ✕ alike).
+  void _removeWithUndo(
+      BuildContext context, PodcastQueueController controller, MediaItem e) {
+    final target = undoSnackbarTarget(context);
+    final index = controller.queue.indexWhere((q) => q.id == e.id);
+    if (index < 0) return;
+    controller.removeById(e.id);
+    showUndoSnackbar(target, "removedFromQueue".tr,
+        onUndo: () => controller.insertAt(index, e));
   }
 
   List<MediaItem> items(PodcastQueueController c) => c.queue.toList();

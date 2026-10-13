@@ -1,6 +1,7 @@
 import 'package:audio_service/audio_service.dart' show MediaItem;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:get/get.dart';
@@ -74,6 +75,27 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
     final nowPlayingTint = RiffColors.of(context).accentMuted;
     final slideBg = scheme.secondary;
     final slideFg = scheme.onSecondary;
+    final canRemove = playlist != null && !playlist!.isCloudPlaylist;
+
+    Future<void> enqueue() async {
+      final ok = await playerController.enqueueSong(song);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(snackbar(
+          context, ok ? "songEnqueueAlert".tr : "operationFailed".tr,
+          size: SanckBarSize.MEDIUM));
+    }
+
+    Future<void> playNext() async {
+      final ok = await playerController.playNext(song);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(snackbar(context,
+          ok ? "${"playnextMsg".tr} ${(song).title}" : "operationFailed".tr,
+          size: SanckBarSize.BIG));
+    }
+
+    void addToPlaylist() => showAddToPlaylistSheet(context, [song]);
+    void remove() =>
+        removeFromPlaylistWithUndo(song, playlist!, context: context);
 
     return Listener(
         onPointerDown: (PointerDownEvent event) {
@@ -89,20 +111,15 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
               Get.find<SettingsScreenController>().slidableActionEnabled.isTrue,
           startActionPane: ActionPane(motion: const DrawerMotion(), children: [
             SlidableAction(
-              onPressed: (context) {
-                showAddToPlaylistSheet(context, [song]);
-              },
+              onPressed: (_) => addToPlaylist(),
               backgroundColor: slideBg,
               foregroundColor: slideFg,
               icon: Icons.playlist_add,
               //label: 'Add to playlist',
             ),
-            if (playlist != null && !playlist!.isCloudPlaylist)
+            if (canRemove)
               SlidableAction(
-                onPressed: (context) {
-                  removeFromPlaylistWithUndo(song, playlist!,
-                      context: context);
-                },
+                onPressed: (_) => remove(),
                 backgroundColor: slideBg,
                 foregroundColor: slideFg,
                 icon: Icons.delete,
@@ -112,164 +129,165 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
           endActionPane: songRowQueuePane(
             background: slideBg,
             foreground: slideFg,
-            onEnqueue: () async {
-              final ok = await playerController.enqueueSong(song);
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                  context, ok ? "songEnqueueAlert".tr : "operationFailed".tr,
-                  size: SanckBarSize.MEDIUM));
-            },
-            onPlayNext: () async {
-              final ok = await playerController.playNext(song);
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                  context,
-                  ok
-                      ? "${"playnextMsg".tr} ${(song).title}"
-                      : "operationFailed".tr,
-                  size: SanckBarSize.BIG));
-            },
+            onEnqueue: enqueue,
+            onPlayNext: playNext,
           ),
-          // Art / Marquee stay outside Obx so current-song ticks only rebuild
-          // the highlight chrome + equalizer, not image decode / marquee state.
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: Obx(() {
-                  final isCurrent =
-                      playerController.currentSong.value?.id == song.id;
-                  // Flat accentMuted tint for the now-playing row (§5.2).
-                  return IgnorePointer(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: isCurrent ? nowPlayingTint : null,
+          // The swipe actions, for screen readers: TalkBack lists them
+          // under the row's actions (a swipe there moves focus instead).
+          child: Semantics(
+            customSemanticsActions: {
+              CustomSemanticsAction(label: 'addToQueue'.tr): enqueue,
+              CustomSemanticsAction(label: 'playNext'.tr): playNext,
+              CustomSemanticsAction(label: 'addToPlaylist'.tr): addToPlaylist,
+              if (canRemove)
+                CustomSemanticsAction(
+                    label: playlist!.title == "Library Songs"
+                        ? 'removeFromLib'.tr
+                        : 'removeFromPlaylist'.tr): remove,
+            },
+            // Art / Marquee stay outside Obx so current-song ticks only
+            // rebuild the highlight chrome + equalizer, not image decode /
+            // marquee state.
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: Obx(() {
+                    final isCurrent =
+                        playerController.currentSong.value?.id == song.id;
+                    // Flat accentMuted tint for the now-playing row (§5.2).
+                    return IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: isCurrent ? nowPlayingTint : null,
+                        ),
                       ),
-                    ),
-                  );
-                }),
-              ),
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: onTap,
-                  onLongPress: () {
-                    HapticFeedback.mediumImpact();
-                    _openSheet(playerController);
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: RiffSpacing.lg, vertical: RiffSpacing.md),
-                    child: Row(
-                      children: [
-                        thumbReplacementWithIndex
-                            ? SizedBox(
-                                width: RiffComponentSizes.rowArt,
-                                height: RiffComponentSizes.rowArt,
-                                child: Center(
-                                  child: Text(
-                                    "$index.",
-                                    style: theme.textTheme.titleMedium,
+                    );
+                  }),
+                ),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onTap,
+                    onLongPress: () {
+                      HapticFeedback.mediumImpact();
+                      _openSheet(playerController);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: RiffSpacing.lg, vertical: RiffSpacing.md),
+                      child: Row(
+                        children: [
+                          thumbReplacementWithIndex
+                              ? SizedBox(
+                                  width: RiffComponentSizes.rowArt,
+                                  height: RiffComponentSizes.rowArt,
+                                  child: Center(
+                                    child: Text(
+                                      "$index.",
+                                      style: theme.textTheme.titleMedium,
+                                    ),
+                                  ),
+                                )
+                              : ImageWidget(
+                                  size: RiffComponentSizes.rowArt,
+                                  song: song,
+                                  borderRadius: RiffRadii.xs,
+                                ),
+                          const SizedBox(width: RiffSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Marquee(
+                                  delay: const Duration(milliseconds: 300),
+                                  duration: const Duration(seconds: 5),
+                                  id: song.title.hashCode.toString(),
+                                  child: Obx(() {
+                                    final isCurrent = playerController
+                                            .currentSong.value?.id ==
+                                        song.id;
+                                    return Text(
+                                      song.title.length > 50
+                                          ? song.title.substring(0, 50)
+                                          : song.title,
+                                      maxLines: 1,
+                                      style:
+                                          theme.textTheme.titleMedium?.copyWith(
+                                        color: isCurrent ? accent : null,
+                                      ),
+                                    );
+                                  }),
+                                ),
+                                const SizedBox(height: RiffSpacing.xxs),
+                                Text(
+                                  "${song.artist}",
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: muted,
                                   ),
                                 ),
-                              )
-                            : ImageWidget(
-                                size: RiffComponentSizes.rowArt,
-                                song: song,
-                                borderRadius: RiffRadii.xs,
-                              ),
-                        const SizedBox(width: RiffSpacing.md),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Marquee(
-                                delay: const Duration(milliseconds: 300),
-                                duration: const Duration(seconds: 5),
-                                id: song.title.hashCode.toString(),
-                                child: Obx(() {
-                                  final isCurrent =
-                                      playerController.currentSong.value?.id ==
-                                          song.id;
-                                  return Text(
-                                    song.title.length > 50
-                                        ? song.title.substring(0, 50)
-                                        : song.title,
-                                    maxLines: 1,
-                                    style:
-                                        theme.textTheme.titleMedium?.copyWith(
-                                      color: isCurrent ? accent : null,
-                                    ),
-                                  );
-                                }),
-                              ),
-                              const SizedBox(height: RiffSpacing.xxs),
-                              Text(
-                                "${song.artist}",
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: muted,
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: RiffSpacing.sm),
-                        if (showMixMeta) ...[
-                          _MixMetaColumn(analysis: mixAnalysis),
-                          const SizedBox(width: RiffSpacing.xs),
-                        ],
-                        Obx(() {
-                          final isCurrent =
-                              playerController.currentSong.value?.id == song.id;
-                          return Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              if (isCurrent)
-                                Icon(Icons.equalizer,
-                                    color: accent,
-                                    size: RiffComponentSizes.trailingIcon),
-                              Text(
-                                song.extras?['length'] ?? "",
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: muted,
+                          const SizedBox(width: RiffSpacing.sm),
+                          if (showMixMeta) ...[
+                            _MixMetaColumn(analysis: mixAnalysis),
+                            const SizedBox(width: RiffSpacing.xs),
+                          ],
+                          Obx(() {
+                            final isCurrent =
+                                playerController.currentSong.value?.id ==
+                                    song.id;
+                            return Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (isCurrent)
+                                  Icon(Icons.equalizer,
+                                      color: accent,
+                                      size: RiffComponentSizes.trailingIcon),
+                                Text(
+                                  song.extras?['length'] ?? "",
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: muted,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          );
-                        }),
-                        SongRowHeartButton(
-                          song: song,
-                          iconSize: RiffComponentSizes.trailingIcon,
-                          color: muted,
-                        ),
-                        IconButton(
-                          iconSize: RiffComponentSizes.trailingIcon,
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: RiffComponentSizes.rowIconHit,
-                            minHeight: RiffComponentSizes.rowIconHit,
-                          ),
-                          splashRadius: RiffComponentSizes.rowIconHit / 2,
-                          tooltip: 'moreOptions'.tr,
-                          onPressed: () => _openSheet(playerController),
-                          icon: Icon(
-                            Icons.more_vert,
+                              ],
+                            );
+                          }),
+                          SongRowHeartButton(
+                            song: song,
+                            iconSize: RiffComponentSizes.trailingIcon,
                             color: muted,
                           ),
-                        ),
-                      ],
+                          IconButton(
+                            iconSize: RiffComponentSizes.trailingIcon,
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: RiffComponentSizes.rowIconHit,
+                              minHeight: RiffComponentSizes.rowIconHit,
+                            ),
+                            splashRadius: RiffComponentSizes.rowIconHit / 2,
+                            tooltip: 'moreOptions'.tr,
+                            onPressed: () => _openSheet(playerController),
+                            icon: Icon(
+                              Icons.more_vert,
+                              color: muted,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-              // Hairline inside the row's bottom edge; the inset one starts
-              // at the text column (art and index slot are the same width).
-              RiffRowHairline(
-                  inset: fullWidthHairline ? 0 : RiffRowHairline.textInset),
-            ],
+                // Hairline inside the row's bottom edge; the inset one starts
+                // at the text column (art and index slot are the same width).
+                RiffRowHairline(
+                    inset: fullWidthHairline ? 0 : RiffRowHairline.textInset),
+              ],
+            ),
           ),
         ));
   }
