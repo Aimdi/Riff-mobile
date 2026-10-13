@@ -400,7 +400,7 @@ class _PlaylistNAlbumLibraryWidgetState
                     isSearchFeatureRequired: true,
                     itemCountTitle:
                         "${libralbumCntrller.libraryAlbums.length} ${"items".tr}",
-                    requiredSortTypes: buildSortTypeSet(true),
+                    requiredSortTypes: buildSortTypeSet(true, false, true),
                     onSort: (type, ascending) {
                       libralbumCntrller.onSort(type, ascending);
                     },
@@ -415,7 +415,7 @@ class _PlaylistNAlbumLibraryWidgetState
                     isSearchFeatureRequired: true,
                     itemCountTitle:
                         "${librplstCntrller.libraryPlaylists.length} ${"items".tr}",
-                    requiredSortTypes: buildSortTypeSet(),
+                    requiredSortTypes: buildSortTypeSet(false, false, true),
                     onSort: (type, ascending) {
                       librplstCntrller.onSort(type, ascending);
                     },

@@ -124,6 +124,10 @@ Library:
 * Library Songs and the songs of a playlist sort by Artist or by Album
   too, like Spotify and Apple Music: each artist's (or album's) songs
   together, then by album (or artist) and title, songs without one last
+* Library › Playlists and Albums sort by Recently played, like Spotify's
+  Recents: the ones you last played from come first, the never played
+  after them by name (Riff remembers from now on when you play from a
+  playlist or album)
 * Pin up to 4 playlists to the top of Library › Playlists, like
   Spotify: long-press a playlist › Pin to top (Unpin to undo). Pinned
   playlists sit right under Recently played, Favorites, Cached/Offline

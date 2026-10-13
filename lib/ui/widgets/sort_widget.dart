@@ -337,7 +337,7 @@ class SortWidget extends StatelessWidget {
           case SortType.Duration:
             controller.onSortByDuration(onSort);
           case SortType.RecentlyPlayed:
-            break;
+            controller.onSortByRecentlyPlayed(onSort);
           case SortType.Artist:
             controller.onSortByArtist(onSort);
           case SortType.Album:
@@ -495,6 +495,11 @@ class SortWidgetController extends GetxController {
 
   void onSortByDate(Function onSort) {
     sortType.value = SortType.Date;
+    onSort(sortType.value, isAscending.value);
+  }
+
+  void onSortByRecentlyPlayed(Function onSort) {
+    sortType.value = SortType.RecentlyPlayed;
     onSort(sortType.value, isAscending.value);
   }
 

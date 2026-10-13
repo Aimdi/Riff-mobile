@@ -26,6 +26,7 @@ import '/services/listenbrainz_service.dart';
 import '/services/audiobook_progress_service.dart';
 import '/services/scrobble_rules.dart';
 import '/services/stats_service.dart';
+import '/services/collection_recents.dart';
 import '/services/synced_lyrics_service.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -1460,6 +1461,12 @@ class PlayerController extends GetxController
     /// update playing from value
     playinfrom.value =
         playfrom ?? PlaylingFrom(type: PlaylingFromType.SELECTION);
+    // For the Library's "Recently played" sort.
+    if (playfrom != null &&
+        (playfrom.type == PlaylingFromType.PLAYLIST ||
+            playfrom.type == PlaylingFromType.ALBUM)) {
+      unawaited(CollectionRecents.markPlayed(playfrom.id));
+    }
 
     //for changing home content based on last interation
     Future.delayed(const Duration(seconds: 3), () {

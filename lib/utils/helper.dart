@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '/services/collection_recents.dart';
 import '/services/diag_log.dart';
 import '/ui/widgets/sort_widget.dart';
 import 'app_version.dart';
@@ -102,6 +103,10 @@ void sortAlbumNSingles(
         return a.year!.compareTo(b.year!);
       };
       break;
+    case SortType.RecentlyPlayed:
+      compareFunction = byLastPlayed<dynamic>(CollectionRecents.snapshot(),
+          (a) => '${a.browseId}', (a) => '${a.title}');
+      break;
     case SortType.Name:
     default:
       compareFunction =
@@ -128,20 +133,9 @@ void sortPlayLists(
 
   switch (sortType) {
     case SortType.RecentlyPlayed:
-      compareFunction = (a, b) {
-        DateTime? alp = a.lastPlayed;
-        DateTime? blp = b.lastPlayed;
-        if (alp == null && blp == null) {
-          return titleSort(a, b);
-        }
-        if (alp == null) {
-          return 1;
-        }
-        if (blp == null) {
-          return -1;
-        }
-        return blp.compareTo(alp);
-      };
+      // When each was last played from (Playlist has no such field).
+      compareFunction = byLastPlayed<dynamic>(CollectionRecents.snapshot(),
+          (p) => '${p.playlistId}', (p) => '${p.title}');
       break;
     case SortType.Name:
     default:
