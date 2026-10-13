@@ -11,6 +11,7 @@ import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '../../utils/helper.dart';
 import '../widgets/add_to_playlist.dart';
+import '../widgets/queue_undo.dart';
 import '../widgets/snackbar.dart';
 import '/ui/player/play_queue_order.dart';
 import '/ui/player/player_controller.dart';
@@ -162,7 +163,7 @@ class Player extends StatelessWidget {
                         _QueueBarButton(
                           tooltip: "clearQueue".tr,
                           icon: Icons.playlist_remove_rounded,
-                          onTap: playerController.clearQueue,
+                          onTap: () => clearQueueWithUndo(context: context),
                         ),
                       ],
                     ),

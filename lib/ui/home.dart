@@ -11,6 +11,7 @@ import '../ui/player/player.dart';
 import 'player/components/mini_player.dart';
 import 'player/player_controller.dart';
 import 'widgets/sliding_up_panel.dart';
+import 'widgets/queue_undo.dart';
 import 'widgets/snackbar.dart';
 import 'widgets/up_next_queue.dart';
 
@@ -158,7 +159,8 @@ class Home extends StatelessWidget {
                                             icon: const Icon(Icons.shuffle)),
                                         IconButton(
                                             onPressed: () {
-                                              playerController.clearQueue();
+                                              clearQueueWithUndo(
+                                                  context: context);
                                             },
                                             icon: const Icon(
                                                 Icons.playlist_remove)),

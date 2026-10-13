@@ -5651,6 +5651,7 @@ Map<String, Map<String, String>> get keys => {
     "soulseekDownload": "Download",
     "soulseekNotLoggedIn": "Sign in to Soulseek first",
     "removedFromQueue": "Removed from queue",
+    "queueCleared": "Queue cleared",
     "enqueueSongs": "Add songs to queue",
     "enqueueAlbumSongs": "Add album to queue",
     "downloadPlaylist": "Download playlist",

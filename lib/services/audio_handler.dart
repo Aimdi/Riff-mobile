@@ -29,6 +29,7 @@ import '/services/podcast_service.dart';
 import '/ui/widgets/podcast_play.dart' show podcastEpisodeToMediaItem;
 import '/services/podcast_playback_profile.dart';
 import '/models/media_item_extras.dart';
+import '/services/queue_undo.dart';
 import '/services/shuffle_order.dart';
 import '/services/stream_service.dart';
 import '/ui/screens/Podcasts/podcast_queue_controller.dart';
@@ -1545,6 +1546,58 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
       case 'toggleQueueLoopMode':
         queueLoopModeEnabled = extras!['enable'];
+        break;
+
+      case 'removeQueueItemUndoable':
+        // Removes like removeQueueItem, and says where the song was so
+        // Undo can put it back in the same place.
+        final item = extras!['mediaItem'] as MediaItem;
+        final at = queue.value.indexWhere((e) => e.id == item.id);
+        if (at < 0) return null;
+        final shuffleAt =
+            shuffleModeEnabled ? shuffledQueue.indexOf(item.id) : -1;
+        await removeQueueItem(queue.value[at]);
+        return {'index': at, 'shuffleIndex': shuffleAt};
+
+      case 'restoreQueueItem':
+        final item = extras!['mediaItem'] as MediaItem;
+        final currentQueue = queue.value;
+        // Already back (e.g. re-added from a menu meanwhile).
+        if (currentQueue.any((e) => e.id == item.id)) break;
+        final cur = currentIndex is int ? currentIndex as int : 0;
+        final at = restoreQueuePositions(
+          queueLength: currentQueue.length,
+          currentIndex: cur,
+          index: extras['index'] as int? ?? currentQueue.length,
+          shuffleLength: shuffledQueue.length,
+          currentShuffleIndex: currentShuffleIndex,
+          shuffleIndex: extras['shuffleIndex'] as int? ?? -1,
+        );
+        final currentSong = mediaItem.value;
+        currentQueue.insert(at.index, item);
+        currentIndex = at.currentIndex;
+        if (shuffleModeEnabled) {
+          shuffledQueue.insert(at.shuffleIndex, item.id);
+          currentShuffleIndex = at.currentShuffleIndex;
+        }
+        queue.add(currentQueue);
+        mediaItem.add(currentSong);
+        break;
+
+      case 'restoreQueue':
+        // Undo "Clear queue": only while the same song is still playing.
+        final snapshot = (extras!['queue'] as List).cast<MediaItem>();
+        final currentSong = mediaItem.value;
+        final at = snapshot.indexWhere((e) => e.id == currentSong?.id);
+        if (currentSong == null || at < 0) break;
+        final restored =
+            mergeRestoredQueue<MediaItem>(snapshot, queue.value, (e) => e.id);
+        final currentQueue = queue.value
+          ..replaceRange(0, queue.value.length, restored);
+        currentIndex = at;
+        queue.add(currentQueue);
+        if (shuffleModeEnabled) _shuffleCmd(at);
+        mediaItem.add(currentSong);
         break;
 
       case 'clearQueue':

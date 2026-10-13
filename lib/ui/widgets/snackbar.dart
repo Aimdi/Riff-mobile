@@ -24,26 +24,41 @@ void snackOperationFailed([BuildContext? context]) {
   );
 }
 
+/// How long a snackbar with an action (Undo) stays, so there is time to
+/// reach it (Material's minimum for actions).
+const Duration snackbarActionDuration = Duration(seconds: 4);
+
 /// The app's snackbar (§5.12): floating, 16dp side margins, radius 8,
 /// accent fill, 15/600 text in the on-accent colour. It sits above the
 /// mini player, or near the top when [top] is set. [size] is kept for
-/// existing callers; the width now follows the 16dp margins.
+/// existing callers; the width now follows the 16dp margins. With
+/// [actionLabel] and [onAction] it gets a button (e.g. Undo), the text
+/// moves to the start and it stays [snackbarActionDuration] by default.
 SnackBar snackbar(BuildContext context, String text,
     {SanckBarSize size = SanckBarSize.MEDIUM,
-    Duration duration = const Duration(seconds: 1),
-    bool top = false}) {
+    Duration? duration,
+    bool top = false,
+    String? actionLabel,
+    VoidCallback? onAction}) {
   final theme = Theme.of(context);
   final onAccent = theme.colorScheme.onSecondary;
+  final hasAction = actionLabel != null && onAction != null;
+  final label = Text(
+    text,
+    style: (theme.snackBarTheme.contentTextStyle ??
+            theme.textTheme.labelMedium)
+        ?.copyWith(color: onAccent),
+  );
   return SnackBar(
     backgroundColor: theme.colorScheme.secondary,
-    content: Center(
-      child: Text(
-        text,
-        style: (theme.snackBarTheme.contentTextStyle ??
-                theme.textTheme.labelMedium)
-            ?.copyWith(color: onAccent),
-      ),
-    ),
+    content: hasAction ? label : Center(child: label),
+    action: hasAction
+        ? SnackBarAction(
+            label: actionLabel,
+            textColor: onAccent,
+            onPressed: onAction,
+          )
+        : null,
     margin: EdgeInsets.only(
         bottom: top
             ? MediaQuery.of(context).size.height * 0.8
@@ -51,7 +66,8 @@ SnackBar snackbar(BuildContext context, String text,
         left: RiffSpacing.lg,
         right: RiffSpacing.lg),
     behavior: SnackBarBehavior.floating,
-    duration: duration,
+    duration: duration ??
+        (hasAction ? snackbarActionDuration : const Duration(seconds: 1)),
     elevation: 0,
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(RiffRadii.sm))),

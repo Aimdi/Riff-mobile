@@ -8,6 +8,7 @@ import 'package:harmonymusic/ui/theme/riff_tokens.dart';
 import 'package:widget_marquee/widget_marquee.dart';
 
 import 'image_widget.dart';
+import 'queue_undo.dart';
 import 'snackbar.dart';
 import 'song_list_tile.dart' show RiffRowHairline;
 import 'songinfo_bottom_sheet.dart';
@@ -185,11 +186,19 @@ class _QueueSongRow extends StatelessWidget {
             opacity: isPlayed ? _playedOpacity : kAlwaysCompleteAnimation,
             child: Dismissible(
               key: ValueKey('dismiss_${song.id}'),
-              direction: DismissDirection.horizontal,
+              // The playing song can't be removed, so it doesn't swipe.
+              direction: isCurrent
+                  ? DismissDirection.none
+                  : DismissDirection.horizontal,
               confirmDismiss: (direction) async => !isCurrent,
               onDismissed: (direction) {
-                playerController.removeFromQueue(song);
+                removeFromQueueWithUndo(song, context: context);
               },
+              // What the swipe does, on the side it uncovers.
+              background: const _QueueRemoveBackground(
+                  alignment: Alignment.centerLeft),
+              secondaryBackground: const _QueueRemoveBackground(
+                  alignment: Alignment.centerRight),
               child: Stack(
                 // Expand so the row still fills the fixed queue extent.
                 fit: StackFit.expand,
@@ -225,7 +234,8 @@ class _QueueSongRow extends StatelessWidget {
                                               "songRemovedfromQueueCurrSong".tr,
                                               size: SanckBarSize.BIG));
                                     } else {
-                                      playerController.removeFromQueue(song);
+                                      removeFromQueueWithUndo(song,
+                                          context: context);
                                     }
                                   },
                                   icon: const Icon(Icons.close)),
@@ -306,6 +316,29 @@ class _QueueSongRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Uncovered by swiping a queued song away: a remove glyph on the danger
+/// tint, on the side the row is leaving from.
+class _QueueRemoveBackground extends StatelessWidget {
+  const _QueueRemoveBackground({required this.alignment});
+  final Alignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    final danger = Theme.of(context).colorScheme.error;
+    return ColoredBox(
+      color: danger.withOpacity(RiffPalette.accentMutedOpacity),
+      child: Align(
+        alignment: alignment,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.xl),
+          child: Icon(Icons.remove_circle_outline_rounded,
+              color: danger, size: RiffComponentSizes.headerIcon),
+        ),
+      ),
     );
   }
 }

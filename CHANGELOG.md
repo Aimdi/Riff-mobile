@@ -19,6 +19,13 @@ Mini player (phones):
   the previous song (the ⏮ button still restarts the song first when
   you're more than 3 seconds in)
 
+Up Next:
+* Removing a song (swipe it away, the song menu, or ✕ on desktop) and
+  Clear queue now show "Undo" for a few seconds; undo puts the song back
+  exactly where it was, or brings the whole queue back
+* Swiping a song away shows what it does: a remove icon on a red tint.
+  The playing song doesn't swipe (it can't be removed)
+
 Home's Speed dial:
 * Swiping now goes round: a swipe right on the first page slides to the
   last one (and on from the last back to the first), instead of nothing

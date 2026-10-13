@@ -1821,6 +1821,39 @@ class PlayerController extends GetxController
     _audioHandler.customAction("clearQueue");
   }
 
+  /// Removes [song] from the queue and returns how to put it back in the
+  /// same place (null when nothing was removed).
+  Future<VoidCallback?> removeFromQueueUndoable(MediaItem song) async {
+    if (!canMutateQueue(_audioReady)) return null;
+    final where = await _audioHandler.customAction(
+        'removeQueueItemUndoable', {'mediaItem': song});
+    if (where is! Map) return null;
+    return () {
+      if (!_audioReady) return;
+      _audioHandler.customAction('restoreQueueItem', {
+        'mediaItem': song,
+        'index': where['index'],
+        'shuffleIndex': where['shuffleIndex'],
+      });
+    };
+  }
+
+  /// Clears the queue down to the playing song and returns how to bring
+  /// the rest back (null when there was nothing else to clear). Undo only
+  /// applies while the same song is still playing.
+  Future<VoidCallback?> clearQueueUndoable() async {
+    if (!_audioReady) return null;
+    final before = currentQueue.toList();
+    final playing = currentSong.value;
+    await _audioHandler.customAction("clearQueue");
+    if (playing == null || before.length <= 1) return null;
+    return () {
+      if (!_audioReady || currentSong.value?.id != playing.id) return;
+      _audioHandler.customAction(
+          'restoreQueue', {'queue': before, 'currentId': playing.id});
+    };
+  }
+
   void shuffleQueue() {
     if (!_audioReady) return;
     _audioHandler.customAction("shuffleQueue");

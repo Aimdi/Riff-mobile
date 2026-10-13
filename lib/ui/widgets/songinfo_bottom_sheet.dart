@@ -22,6 +22,7 @@ import '/ui/player/player_controller.dart';
 import '../screens/Library/library_controller.dart';
 import '/ui/widgets/add_to_playlist.dart';
 import '/ui/widgets/favorite_heart_button.dart';
+import '/ui/widgets/queue_undo.dart';
 import '/ui/widgets/snackbar.dart';
 import '/ui/utils/sheet_insets.dart';
 import '/utils/content_filters.dart';
@@ -321,9 +322,7 @@ class SongInfoBottomSheet extends StatelessWidget {
                     snack("songRemovedfromQueueCurrSong".tr,
                         size: SanckBarSize.BIG);
                   } else {
-                    final ok = playerController.removeFromQueue(song);
-                    snack(
-                        ok ? "songRemovedfromQueue".tr : "operationFailed".tr);
+                    removeFromQueueWithUndo(song);
                   }
                 },
               ),
