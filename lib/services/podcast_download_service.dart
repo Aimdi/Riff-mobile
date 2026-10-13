@@ -7,6 +7,19 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '/services/pending_file_deletes.dart';
+
+/// A download taken out with Undo on offer ([PodcastDownloadService.takeOut]):
+/// its stored entry and its file.
+typedef PodcastDownloadRemoval = ({String id, Object entry, String? path});
+
+/// The pending-delete key of an episode's file ([markPendingFiles]).
+String podcastDownloadPendingKey(String id) => 'podcast:$id';
+
+/// The episode id in a pending-delete key, or null for another owner's.
+String? podcastDownloadIdFromPendingKey(String key) =>
+    key.startsWith('podcast:') ? key.substring('podcast:'.length) : null;
+
 /// Downloads podcast episodes (direct enclosure URLs) to local storage so they
 /// can be played offline. Records live in the `PodcastDownloads` Hive box,
 /// keyed by episode id. Values are either a legacy absolute path [String] or a
@@ -139,6 +152,49 @@ class PodcastDownloadService {
       return true;
     } catch (_) {
       return false;
+    }
+  }
+
+  /// Takes the download of [id] out (its entry, so it no longer counts as
+  /// downloaded) but keeps its file until [commitRemoval], so [restore]
+  /// can bring it back (Undo). Null when it isn't downloaded.
+  static Future<PodcastDownloadRemoval?> takeOut(String id) async {
+    if (!Hive.isBoxOpen('PodcastDownloads')) return null;
+    final Object? entry = _box.get(id);
+    if (entry == null) return null;
+    final path = _pathFrom(entry);
+    if (path != null && Hive.isBoxOpen('AppPrefs')) {
+      await markPendingFiles(
+          Hive.box('AppPrefs'), podcastDownloadPendingKey(id), [path]);
+    }
+    await _box.delete(id);
+    _downloadedIds.remove(id);
+    return (id: id, entry: entry, path: path);
+  }
+
+  /// Undo for [takeOut].
+  static Future<void> restore(PodcastDownloadRemoval removal) async {
+    if (Hive.isBoxOpen('AppPrefs')) {
+      await clearPendingFiles(
+          Hive.box('AppPrefs'), podcastDownloadPendingKey(removal.id));
+    }
+    if (!Hive.isBoxOpen('PodcastDownloads') || _box.containsKey(removal.id)) {
+      return;
+    }
+    await _box.put(removal.id, removal.entry);
+    if (removal.path != null) _downloadedIds.add(removal.id);
+  }
+
+  /// Undo is no longer offered: the file goes, unless the episode was
+  /// downloaded again meanwhile.
+  static Future<void> commitRemoval(PodcastDownloadRemoval removal) async {
+    final back =
+        Hive.isBoxOpen('PodcastDownloads') && _box.containsKey(removal.id);
+    final path = removal.path;
+    if (!back && path != null) await deleteFiles([path]);
+    if (Hive.isBoxOpen('AppPrefs')) {
+      await clearPendingFiles(
+          Hive.box('AppPrefs'), podcastDownloadPendingKey(removal.id));
     }
   }
 

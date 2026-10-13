@@ -4,6 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/services/pending_file_deletes.dart';
 import 'package:harmonymusic/ui/screens/Library/library_controller.dart';
 import 'package:harmonymusic/ui/screens/Library/library_removal.dart';
 import 'package:harmonymusic/ui/screens/Settings/settings_screen_controller.dart';
@@ -77,7 +78,7 @@ void main() {
       ..writeAsStringSync('x');
     bool exists(String path) => File('${tmp.path}/$path').existsSync();
     Map pending() =>
-        (Hive.box('AppPrefs').get(pendingLibraryFilesKey) as Map?) ?? {};
+        (Hive.box('AppPrefs').get(pendingFileDeletesKey) as Map?) ?? {};
 
     setUp(() async {
       tmp = await Directory.systemTemp.createTemp('riff_lib_removal_');
@@ -165,10 +166,10 @@ void main() {
       final left = file('cachedSongs/gone.mp3');
       final kept = file('cachedSongs/back.mp3');
       final prefs = Hive.box('AppPrefs');
-      await markPendingLibraryFiles(prefs, 'gone', [left.path]);
-      await markPendingLibraryFiles(prefs, 'back', [kept.path]);
+      await markPendingFiles(prefs, 'gone', [left.path]);
+      await markPendingFiles(prefs, 'back', [kept.path]);
 
-      await purgePendingLibraryFiles(prefs, inLibrary: (id) => id == 'back');
+      await purgePendingFiles(prefs, keep: (id) => id == 'back');
       expect(left.existsSync(), isFalse);
       expect(kept.existsSync(), isTrue);
       expect(pending(), isEmpty);

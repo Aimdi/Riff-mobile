@@ -73,6 +73,10 @@ Podcasts:
 * Removing an episode from the podcast Up Next with its ✕ button gives
   the same Undo as swiping it away, and both look like the app's other
   snackbars
+* Removing an episode's download (Downloads, or the episode's menu) says
+  "Download removed" with Undo; the file is only deleted once Undo is
+  gone (or on the next start), so a slip doesn't mean downloading a big
+  episode again
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip

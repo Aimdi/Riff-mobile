@@ -5,7 +5,9 @@ import 'package:get/get.dart';
 import '/models/media_Item_builder.dart';
 import '/services/song_cache_service.dart';
 import '/ui/screens/Library/library_controller.dart';
-import '/ui/screens/Library/library_removal.dart';
+import '/services/pending_file_deletes.dart';
+import '/services/podcast_download_service.dart'
+    show podcastDownloadIdFromPendingKey;
 import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 import 'helper.dart';
@@ -18,14 +20,20 @@ void startHouseKeeping() {
   unawaited(_purgeRemovedSongFiles());
 }
 
-/// Songs removed from the library while the app closed before Undo
-/// timed out: their files go now.
+/// Songs and podcast downloads removed while the app closed before Undo
+/// timed out: their files go now, unless they're back.
 Future<void> _purgeRemovedSongFiles() async {
   try {
-    await purgePendingLibraryFiles(HiveBoxes.prefs(),
-        inLibrary: (id) =>
-            Hive.box(HiveBoxes.songDownloads).containsKey(id) ||
-            Hive.box(HiveBoxes.songsCache).containsKey(id));
+    await purgePendingFiles(HiveBoxes.prefs(), keep: (key) {
+      final episode = podcastDownloadIdFromPendingKey(key);
+      if (episode != null) {
+        // Can't tell without the box: keep the file.
+        return !Hive.isBoxOpen('PodcastDownloads') ||
+            Hive.box('PodcastDownloads').containsKey(episode);
+      }
+      return Hive.box(HiveBoxes.songDownloads).containsKey(key) ||
+          Hive.box(HiveBoxes.songsCache).containsKey(key);
+    });
   } catch (e) {
     printERROR('Error in _purgeRemovedSongFiles: $e');
   }

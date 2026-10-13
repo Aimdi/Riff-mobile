@@ -11,6 +11,7 @@ import 'dart:convert';
 import '../../../utils/hive_boxes.dart';
 import 'library_search.dart';
 import 'library_removal.dart';
+import '/services/pending_file_deletes.dart';
 import '../../../utils/house_keeping.dart';
 import '../../widgets/add_to_playlist.dart';
 import '/ui/widgets/sort_widget.dart';
@@ -164,7 +165,7 @@ class LibrarySongsController extends GetxController {
         supportDir: supportDir,
       ),
     );
-    await markPendingLibraryFiles(
+    await markPendingFiles(
         Hive.box("AppPrefs"), song.id, removal.files);
     if (download != null) await downloads.delete(song.id);
     if (cached != null) await cache.delete(song.id);
@@ -174,7 +175,7 @@ class LibrarySongsController extends GetxController {
   /// Undo for [takeOutOfLibrary]: the entries and the list place come back.
   Future<void> undoRemoval(LibrarySongRemoval removal) async {
     final song = removal.song;
-    await clearPendingLibraryFiles(Hive.box("AppPrefs"), song.id);
+    await clearPendingFiles(Hive.box("AppPrefs"), song.id);
     if (removal.download != null) {
       await Hive.box("SongDownloads").put(song.id, removal.download);
     }
@@ -197,8 +198,8 @@ class LibrarySongsController extends GetxController {
     final id = removal.song.id;
     final back = Hive.box("SongDownloads").containsKey(id) ||
         Hive.box("SongsCache").containsKey(id);
-    if (!back) await deleteLibraryFiles(removal.files);
-    await clearPendingLibraryFiles(Hive.box("AppPrefs"), id);
+    if (!back) await deleteFiles(removal.files);
+    await clearPendingFiles(Hive.box("AppPrefs"), id);
   }
 
   /// remove song from library list and from storage only, not from database

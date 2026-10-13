@@ -18,6 +18,7 @@ import '/ui/player/player_controller.dart';
 import '/ui/utils/sheet_insets.dart';
 import '/ui/widgets/podcast_play.dart';
 import '/ui/widgets/snackbar.dart';
+import 'podcast_download_undo.dart';
 import 'podcast_queue_controller.dart';
 import 'podcasts_screen.dart';
 
@@ -141,9 +142,8 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode,
                       onTap: () async {
                         Navigator.of(ctx).pop();
                         if (downloaded) {
-                          await PodcastDownloadService.delete(episode.id);
-                          snack("downloadRemoved".tr);
-                          onChanged?.call();
+                          await removePodcastDownloadWithUndo(episode.id,
+                              context: context, onChanged: onChanged);
                           return;
                         }
                         HapticFeedback.lightImpact();

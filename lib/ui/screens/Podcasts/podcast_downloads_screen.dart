@@ -12,6 +12,7 @@ import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/snackbar.dart';
 import 'podcast_empty_state.dart';
 import 'podcast_queue_screen.dart' show showAddToQueueSheet;
+import 'podcast_download_undo.dart';
 
 /// AntennaPod-style Downloads hub: list offline episodes and remove them.
 class PodcastDownloadsScreen extends StatefulWidget {
@@ -101,10 +102,10 @@ class _PodcastDownloadsScreenState extends State<PodcastDownloadsScreen> {
                   icon: Icon(Icons.delete_outline,
                       size: RiffComponentSizes.trailingIcon,
                       color: theme.colorScheme.onSurfaceVariant),
-                  onPressed: () async {
-                    await PodcastDownloadService.delete(item.id);
-                    _reload();
-                  },
+                  onPressed: () => removePodcastDownloadWithUndo(item.id,
+                      context: context, onChanged: () {
+                    if (mounted) _reload();
+                  }),
                 ),
               );
             },

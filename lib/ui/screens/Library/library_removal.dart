@@ -3,15 +3,7 @@
 /// go at once, its files only once Undo is no longer offered.
 library;
 
-import 'dart:io';
-
 import 'package:audio_service/audio_service.dart';
-import 'package:hive/hive.dart';
-
-/// Files of removed songs whose Undo is still on offer, by song id, in
-/// AppPrefs: what a closed app left behind is deleted on the next start
-/// ([purgePendingLibraryFiles]).
-const pendingLibraryFilesKey = 'pendingLibraryFileDeletes';
 
 /// What Undo needs to put a removed song back.
 class LibrarySongRemoval {
@@ -63,47 +55,3 @@ List<String> libraryFilesOf({
 /// Inserts [item] at [index], or at the end when the list got shorter.
 void insertClamped<T>(List<T> list, int index, T item) =>
     list.insert(index.clamp(0, list.length), item);
-
-Map<String, dynamic> _pending(Box prefs) {
-  final raw = prefs.get(pendingLibraryFilesKey);
-  return raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
-}
-
-Future<void> markPendingLibraryFiles(
-    Box prefs, String id, List<String> files) async {
-  final next = _pending(prefs)..[id] = files;
-  await prefs.put(pendingLibraryFilesKey, next);
-}
-
-Future<void> clearPendingLibraryFiles(Box prefs, String id) async {
-  final next = _pending(prefs);
-  if (next.remove(id) == null) return;
-  next.isEmpty
-      ? await prefs.delete(pendingLibraryFilesKey)
-      : await prefs.put(pendingLibraryFilesKey, next);
-}
-
-/// Deletes [files] that exist; one that can't be deleted is skipped.
-Future<void> deleteLibraryFiles(Iterable<String> files) async {
-  for (final path in files) {
-    try {
-      final f = File(path);
-      if (await f.exists()) await f.delete();
-    } catch (_) {
-      // Gone already, or not ours to delete: nothing to undo either way.
-    }
-  }
-}
-
-/// Start-up: deletes the files of removals an app closed before it could,
-/// unless the song is back in the library ([inLibrary]).
-Future<void> purgePendingLibraryFiles(Box prefs,
-    {required bool Function(String id) inLibrary}) async {
-  final pending = _pending(prefs);
-  if (pending.isEmpty) return;
-  for (final MapEntry(:key, :value) in pending.entries) {
-    if (inLibrary(key) || value is! List) continue;
-    await deleteLibraryFiles(value.map((f) => '$f'));
-  }
-  await prefs.delete(pendingLibraryFilesKey);
-}
