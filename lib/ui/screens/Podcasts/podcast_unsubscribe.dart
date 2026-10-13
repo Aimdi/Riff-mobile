@@ -10,23 +10,21 @@ import 'podcast_folder_controller.dart';
 /// included, and puts the show back in its folders at the same places.
 Future<void> unsubscribeWithUndo(String feed, String title,
     {BuildContext? context}) async {
-  final ctx = (context != null && context.mounted) ? context : Get.context;
+  // Before any await: a long-pressed tile is gone once the grid updates.
+  final target = undoSnackbarTarget(context);
   final folderId = podcastFolderIdForFeed(feed);
   final folders = Get.isRegistered<PodcastFolderController>()
       ? Get.find<PodcastFolderController>()
       : null;
   final places = folders?.removeEverywhere(folderId) ?? const <String, int>{};
   final stored = await PodcastService.unsubscribe(feed);
-  if (stored == null || ctx == null || !ctx.mounted) return;
-  ScaffoldMessenger.of(ctx)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(snackbar(
-      ctx,
-      'unsubscribedFrom'.trParams({'name': title}),
-      actionLabel: 'undo'.tr,
-      onAction: () async {
-        await PodcastService.restoreSubscription(stored);
-        folders?.putBack(folderId, places);
-      },
-    ));
+  if (stored == null) return;
+  showUndoSnackbar(
+    target,
+    'unsubscribedFrom'.trParams({'name': title}),
+    onUndo: () async {
+      await PodcastService.restoreSubscription(stored);
+      folders?.putBack(folderId, places);
+    },
+  );
 }

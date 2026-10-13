@@ -674,29 +674,26 @@ mixin RemoveSongFromPlaylistMixin {
 /// was.
 Future<void> removeFromPlaylistWithUndo(MediaItem song, Playlist playlist,
     {BuildContext? context}) async {
-  final ctx = (context != null && context.mounted) ? context : Get.context;
+  // Before any await: a swiped row is gone once the list updates.
+  final target = undoSnackbarTarget(context);
   if (playlist.playlistId == "SongDownloads" ||
       playlist.playlistId == "SongsCache") {
-    return _removeFromLibraryWithUndo(song, playlist, ctx);
+    return _removeFromLibraryWithUndo(song, playlist, target);
   }
   final remover = _PlaylistSongRemover();
   int? removedAt;
   final ok = await remover.removeSongFromPlaylist(song, playlist,
       onRemovedAt: (i) => removedAt = i);
-  if (ctx == null || !ctx.mounted) return;
   final at = removedAt;
-  ScaffoldMessenger.of(ctx)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(snackbar(
-      ctx,
-      ok
-          ? "removedFromPlaylist".trParams({'name': playlist.title})
-          : "operationFailed".tr,
-      actionLabel: ok && at != null ? "undo".tr : null,
-      onAction: ok && at != null
-          ? () => remover.restoreSongToPlaylist(song, playlist, at)
-          : null,
-    ));
+  showUndoSnackbar(
+    target,
+    ok
+        ? "removedFromPlaylist".trParams({'name': playlist.title})
+        : "operationFailed".tr,
+    onUndo: ok && at != null
+        ? () => remover.restoreSongToPlaylist(song, playlist, at)
+        : null,
+  );
 }
 
 class _PlaylistSongRemover with RemoveSongFromPlaylistMixin {}
@@ -705,7 +702,7 @@ class _PlaylistSongRemover with RemoveSongFromPlaylistMixin {}
 /// Downloads / Cached screen) at once, its download or cached copy is
 /// deleted only when the snackbar goes without Undo.
 Future<void> _removeFromLibraryWithUndo(
-    MediaItem song, Playlist playlist, BuildContext? ctx) async {
+    MediaItem song, Playlist playlist, UndoSnackbarTarget? target) async {
   final library = Get.find<LibrarySongsController>();
   final tag = Key(playlist.playlistId).hashCode.toString();
   final screen = Get.isRegistered<PlaylistScreenController>(tag: tag)
@@ -715,16 +712,10 @@ Future<void> _removeFromLibraryWithUndo(
   if (screenIndex >= 0) screen!.addNRemoveItemsinList(song, action: 'remove');
   final removal = await library.takeOutOfLibrary(song);
   if (removal == null) return;
-  if (ctx == null || !ctx.mounted) {
-    await library.commitRemoval(removal);
-    return;
-  }
-  final messenger = ScaffoldMessenger.of(ctx)..hideCurrentSnackBar();
-  final shown = messenger.showSnackBar(snackbar(
-    ctx,
+  final shown = showUndoSnackbar(
+    target,
     "removedFromLibrary".tr,
-    actionLabel: "undo".tr,
-    onAction: () async {
+    onUndo: () async {
       await library.undoRemoval(removal);
       if (screen != null &&
           !screen.isClosed &&
@@ -734,7 +725,12 @@ Future<void> _removeFromLibraryWithUndo(
             action: 'add', index: screenIndex.clamp(0, screen.songList.length));
       }
     },
-  ));
+  );
+  if (shown == null) {
+    // Nowhere to offer Undo.
+    await library.commitRemoval(removal);
+    return;
+  }
   // Closed any other way (timed out, swiped, replaced): no Undo now.
   shown.closed.then((reason) {
     if (reason != SnackBarClosedReason.action) library.commitRemoval(removal);

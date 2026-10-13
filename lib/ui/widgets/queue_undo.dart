@@ -9,20 +9,22 @@ import 'snackbar.dart';
 /// YouTube Music. [context] picks the messenger (defaults to the app's).
 Future<void> removeFromQueueWithUndo(MediaItem song,
     {BuildContext? context}) async {
-  final ctx = _snackContext(context);
+  // Before the await: a swiped-away row is gone once the queue updates.
+  final target = undoSnackbarTarget(_snackContext(context));
   final undo = await Get.find<PlayerController>().removeFromQueueUndoable(song);
-  if (ctx == null || !ctx.mounted) return;
-  _showUndo(
-      ctx, undo == null ? 'operationFailed'.tr : 'removedFromQueue'.tr, undo);
+  // A newer edit replaces the last one's snackbar, as in other players.
+  showUndoSnackbar(
+      target, undo == null ? 'operationFailed'.tr : 'removedFromQueue'.tr,
+      onUndo: undo);
 }
 
 /// Clears Up Next down to the playing song, with an Undo snackbar.
 Future<void> clearQueueWithUndo({BuildContext? context}) async {
-  final ctx = _snackContext(context);
+  final target = undoSnackbarTarget(_snackContext(context));
   final undo = await Get.find<PlayerController>().clearQueueUndoable();
   // Nothing was queued after the playing song: nothing to say or undo.
-  if (undo == null || ctx == null || !ctx.mounted) return;
-  _showUndo(ctx, 'queueCleared'.tr, undo);
+  if (undo == null) return;
+  showUndoSnackbar(target, 'queueCleared'.tr, onUndo: undo);
 }
 
 BuildContext? _snackContext(BuildContext? context) =>
@@ -30,11 +32,3 @@ BuildContext? _snackContext(BuildContext? context) =>
         ? context
         : Get.find<PlayerController>().homeScaffoldkey.currentContext ??
             Get.context;
-
-void _showUndo(BuildContext ctx, String text, VoidCallback? undo) {
-  // A newer edit replaces the last one's snackbar, as in other players.
-  ScaffoldMessenger.of(ctx)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(snackbar(ctx, text,
-        actionLabel: undo == null ? null : 'undo'.tr, onAction: undo));
-}
