@@ -17,7 +17,9 @@ void main() {
     expect(PrivateSession.isActive, isFalse);
     expect(PrivateSession.endsAt, isNull);
 
-    final before = DateTime.now();
+    // The end is kept to the millisecond.
+    final before = DateTime.fromMillisecondsSinceEpoch(
+        DateTime.now().millisecondsSinceEpoch);
     await PrivateSession.start();
     expect(PrivateSession.isActive, isTrue);
     expect(PrivateSession.active.value, isTrue);
