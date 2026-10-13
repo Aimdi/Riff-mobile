@@ -306,7 +306,13 @@ class PodcastQueueScreen extends StatelessWidget {
                     tooltip: "clear".tr,
                     icon: const Icon(Icons.delete_sweep_outlined,
                         size: RiffComponentSizes.headerIcon),
-                    onPressed: controller.clear,
+                    // With Undo, as the music queue's Clear.
+                    onPressed: () {
+                      final target = undoSnackbarTarget(context);
+                      final undo = controller.clearUndoable();
+                      if (undo == null) return;
+                      showUndoSnackbar(target, 'queueCleared'.tr, onUndo: undo);
+                    },
                   ),
                 ],
               ),

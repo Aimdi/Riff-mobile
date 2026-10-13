@@ -80,6 +80,20 @@ class PodcastQueueController extends GetxController {
     _persist();
   }
 
+  /// Empties the queue; the returned callback puts it back as it was
+  /// (Undo), keeping after it anything queued since. Null when it was
+  /// already empty.
+  void Function()? clearUndoable() {
+    if (queue.isEmpty) return null;
+    final before = queue.toList();
+    clear();
+    return () {
+      final kept = {for (final e in before) e.id};
+      queue.assignAll([...before, ...queue.where((e) => !kept.contains(e.id))]);
+      _persist();
+    };
+  }
+
   // --- serialization (MediaItem <-> Hive map) ---
 
   Map<String, dynamic> _toMap(MediaItem m) => {
@@ -98,6 +112,8 @@ class PodcastQueueController extends GetxController {
         'chaptersUrl': m.extras?['chaptersUrl'],
         'transcriptUrl': m.extras?['transcriptUrl'],
         'transcriptType': m.extras?['transcriptType'],
+        // The episode's page, for sharing it.
+        'link': m.extras?['link'],
       };
 
   MediaItem _fromMap(Map<String, dynamic> m) => MediaItem(
@@ -121,6 +137,7 @@ class PodcastQueueController extends GetxController {
           if (m['transcriptUrl'] != null) 'transcriptUrl': m['transcriptUrl'],
           if (m['transcriptType'] != null)
             'transcriptType': m['transcriptType'],
+          if (m['link'] != null) 'link': m['link'],
         },
       );
 }

@@ -124,6 +124,9 @@ Podcasts:
 * Removing an episode from the podcast Up Next with its ✕ button gives
   the same Undo as swiping it away, and both look like the app's other
   snackbars
+* Clearing the podcast Up Next says "Queue cleared" with Undo, as the
+  music queue does, which brings it back in its order (episodes added
+  since stay, after it); it used to empty at once with no way back
 * Removing an episode's download (Downloads, or the episode's menu) says
   "Download removed" with Undo; the file is only deleted once Undo is
   gone (or on the next start), so a slip doesn't mean downloading a big
