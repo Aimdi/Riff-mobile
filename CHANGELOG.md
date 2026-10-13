@@ -55,6 +55,10 @@ Podcasts:
   when it goes back to the global playback defaults
 * "Sleep at end of episode" (and of the last chapter) stops where a
   skipped outro begins
+* Unsubscribing from a show (its page, or long-press › Unsubscribe) says
+  "Unsubscribed from <show>" with Undo, which brings the subscription
+  back as it was and puts the show back in its folders; unsubscribing
+  from the show's page now also takes it out of your folders
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip

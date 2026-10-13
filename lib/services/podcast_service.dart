@@ -570,8 +570,20 @@ class PodcastService {
     subsRev.value++;
   }
 
-  static Future<void> unsubscribe(String feedUrl) async {
+  /// Unfollows [feedUrl]; returns what was stored, for
+  /// [restoreSubscription] (Undo).
+  static Future<Map<String, dynamic>?> unsubscribe(String feedUrl) async {
+    final stored = _subs.get(feedUrl);
     await _subs.delete(feedUrl);
+    subsRev.value++;
+    return stored is Map ? Map<String, dynamic>.from(stored) : null;
+  }
+
+  /// Undo for [unsubscribe]: the subscription as it was, date included.
+  static Future<void> restoreSubscription(Map<String, dynamic> stored) async {
+    final feed = stored['feedUrl'];
+    if (feed is! String || feed.isEmpty) return;
+    await _subs.put(feed, stored);
     subsRev.value++;
   }
 

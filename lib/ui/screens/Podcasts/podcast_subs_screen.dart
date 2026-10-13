@@ -19,6 +19,7 @@ import 'podcast_folder_cover.dart';
 import 'podcast_folder_controller.dart';
 import 'podcast_folder_screen.dart';
 import 'podcast_layout.dart';
+import 'podcast_unsubscribe.dart';
 import 'podcasts_library_controller.dart';
 
 /// Long-press a podcast show anywhere it's listed to file it into folders.
@@ -49,11 +50,10 @@ void showRssPodcastSheet(BuildContext context, Map<String, dynamic> rss) {
           textColor: Theme.of(ctx).colorScheme.error,
           leading: const Icon(Icons.remove_circle_outline),
           title: Text('unsubscribe'.tr),
-          onTap: () async {
-            Get.find<PodcastFolderController>()
-                .removeEverywhere(podcastFolderIdForFeed(feed));
-            await PodcastService.unsubscribe(feed);
-            if (ctx.mounted) Navigator.of(ctx).pop();
+          onTap: () {
+            Navigator.of(ctx).pop();
+            unsubscribeWithUndo(feed, '${rss['title'] ?? ''}',
+                context: context);
           },
         ),
   ]);

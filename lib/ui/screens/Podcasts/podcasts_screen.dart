@@ -10,6 +10,7 @@ import '/ui/player/player_controller.dart';
 import '/ui/widgets/snackbar.dart';
 import 'podcast_queue_screen.dart';
 import 'podcast_show_view.dart';
+import 'podcast_unsubscribe.dart';
 
 /// Episode list for one podcast; tap an episode to play it.
 class PodcastEpisodesScreen extends StatefulWidget {
@@ -105,7 +106,8 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
   Future<void> _toggleSubscribe() async {
     final feed = widget.podcast['feedUrl'] ?? '';
     if (PodcastService.isSubscribed(feed)) {
-      await PodcastService.unsubscribe(feed);
+      await unsubscribeWithUndo(feed, '${widget.podcast['title'] ?? ''}',
+          context: context);
     } else {
       await PodcastService.subscribe(widget.podcast);
     }

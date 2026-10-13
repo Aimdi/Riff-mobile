@@ -161,11 +161,32 @@ class PodcastFolderController extends GetxController {
     _persist();
   }
 
-  /// Remove a podcast from every folder (e.g. when unsubscribed).
-  void removeEverywhere(String podcastId) {
-    var changed = false;
+  /// Remove a podcast from every folder (e.g. when unsubscribed). Returns
+  /// where it was (folder id → position), for [putBack].
+  Map<String, int> removeEverywhere(String podcastId) {
+    final places = <String, int>{};
     for (final f in folders) {
-      if (f.podcastIds.remove(podcastId)) changed = true;
+      final i = f.podcastIds.indexOf(podcastId);
+      if (i < 0) continue;
+      f.podcastIds.removeAt(i);
+      places[f.id] = i;
+    }
+    if (places.isNotEmpty) {
+      folders.refresh();
+      _persist();
+    }
+    return places;
+  }
+
+  /// Undo for [removeEverywhere]: back into the folders that still exist,
+  /// at the same positions.
+  void putBack(String podcastId, Map<String, int> places) {
+    var changed = false;
+    for (final MapEntry(key: folderId, value: index) in places.entries) {
+      final f = findById(folderId);
+      if (f == null || f.podcastIds.contains(podcastId)) continue;
+      f.podcastIds.insert(index.clamp(0, f.podcastIds.length), podcastId);
+      changed = true;
     }
     if (changed) {
       folders.refresh();

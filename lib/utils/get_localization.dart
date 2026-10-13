@@ -5769,6 +5769,7 @@ Map<String, Map<String, String>> get keys => {
     "similarPodcasts": "Similar podcasts",
     "subscriptions": "Subscriptions",
     "unsubscribe": "Unsubscribe",
+    "unsubscribedFrom": "Unsubscribed from @name",
     "noDownloads": "No downloads",
     "browseAll": "Browse all",
     "imported": "imported",
