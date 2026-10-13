@@ -96,6 +96,9 @@ class RiffDurations {
 
   /// One full loading-skeleton opacity pulse, 0.5 → 1.0 → 0.5 (§5.13).
   static const Duration skeletonPulse = Duration(milliseconds: 1200);
+
+  /// One loop of the now-playing bars on the playing row.
+  static const Duration nowPlayingBars = Duration(milliseconds: 1600);
   static const Curve selectCurve = Curves.easeOutCubic;
 }
 

@@ -28,6 +28,7 @@ import 'standard_player.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_theme.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/now_playing_bars.dart';
 
 /// Now-playing screen for podcasts and audiobooks: the episode or chapter
 /// is what matters, so the layout is built around position and pacing
@@ -548,7 +549,7 @@ void openQueueChaptersSheet(BuildContext context) {
               leading: SizedBox(
                 width: RiffComponentSizes.chapterNumber,
                 child: playing
-                    ? Icon(Icons.graphic_eq_rounded, color: accent)
+                    ? const Center(child: NowPlayingBars())
                     : Text('$i',
                         textAlign: TextAlign.center,
                         style: homeCardSubtitleStyle(ctx)),

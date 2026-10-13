@@ -18,6 +18,7 @@ import 'image_widget.dart';
 import 'snackbar.dart';
 import 'song_favourite.dart';
 import 'song_row_swipe.dart';
+import 'now_playing_bars.dart';
 import 'songinfo_bottom_sheet.dart';
 
 class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
@@ -244,9 +245,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 if (isCurrent)
-                                  Icon(Icons.equalizer,
-                                      color: accent,
-                                      size: RiffComponentSizes.trailingIcon),
+                                  const NowPlayingBars(),
                                 Text(
                                   song.extras?['length'] ?? "",
                                   style: theme.textTheme.bodyMedium?.copyWith(

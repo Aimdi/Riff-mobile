@@ -11,6 +11,7 @@ import 'package:widget_marquee/widget_marquee.dart';
 import 'image_widget.dart';
 import 'queue_undo.dart';
 import 'snackbar.dart';
+import 'now_playing_bars.dart';
 import 'song_list_tile.dart' show RiffRowHairline;
 import 'songinfo_bottom_sheet.dart';
 
@@ -286,9 +287,7 @@ class _QueueSongRow extends StatelessWidget {
                               ),
                               const SizedBox(width: RiffSpacing.sm),
                               if (isCurrent)
-                                Icon(Icons.equalizer_rounded,
-                                    color: accent,
-                                    size: RiffComponentSizes.trailingIcon)
+                                const NowPlayingBars()
                               else
                                 Text(
                                   '${song.extras?['length'] ?? ''}',

@@ -48,6 +48,13 @@ Lock screen and notification:
   media controls and in Android Auto, and follows likes you make in the
   app. Music only (podcasts keep skip back / forward)
 
+Now playing:
+* The playing song's row (lists, Up Next, a show's episodes, a book's
+  chapters) shows three little bars that bounce while it plays and stop
+  while it's paused, as in Spotify, Apple Music and YouTube Music,
+  instead of a still equalizer icon. Still with "Remove animations" on;
+  TalkBack reads it as "Now playing"
+
 Song rows:
 * Swipe a song all the way to the left to add it to the queue straight
   away, like Spotify; the row slides back with a tick. A shorter swipe

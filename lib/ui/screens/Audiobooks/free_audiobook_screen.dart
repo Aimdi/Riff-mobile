@@ -13,6 +13,7 @@ import 'audiobook_library_controller.dart';
 import 'audiobook_play.dart';
 import 'audiobook_widgets.dart';
 import '/ui/widgets/riff_header_bar.dart';
+import '/ui/widgets/now_playing_bars.dart';
 
 /// A free LibriVox book: cover, play / resume, about, and its chapters.
 class FreeAudiobookScreen extends StatefulWidget {
@@ -285,9 +286,9 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
                           SizedBox(
                             width: RiffSpacing.x3l,
                             child: playing
-                                ? Icon(Icons.graphic_eq_rounded,
-                                    size: RiffComponentSizes.trailingIcon,
-                                    color: accent)
+                                ? const Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: NowPlayingBars())
                                 : Text(
                                     '${i + 1}',
                                     style: Theme.of(context)

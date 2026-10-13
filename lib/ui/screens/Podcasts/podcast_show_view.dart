@@ -11,6 +11,7 @@ import 'podcast_playback_controls.dart';
 import '/services/podcast_progress_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/podcast_follow_button.dart';
+import '/ui/widgets/now_playing_bars.dart';
 import '../Home/home_layout.dart';
 import 'podcast_layout.dart';
 
@@ -494,11 +495,11 @@ class _EpisodeRow extends StatelessWidget {
                   ),
                   const SizedBox(width: RiffSpacing.sm),
                   playing
-                      ? SizedBox.square(
+                      ? const SizedBox.square(
                           dimension: kMinInteractiveDimension,
-                          child: Icon(Icons.graphic_eq_rounded,
-                              color: accent,
-                              size: RiffComponentSizes.headerIcon),
+                          child: Center(
+                              child: NowPlayingBars(
+                                  size: RiffComponentSizes.headerIcon)),
                         )
                       : PodcastPlayButton(onPressed: onTap),
                 ],
