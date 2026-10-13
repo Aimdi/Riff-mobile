@@ -20,6 +20,9 @@ class _FakePlayer extends GetxController implements PlayerController {
   final GlobalKey<ScaffoldState> homeScaffoldkey = GlobalKey<ScaffoldState>();
   @override
   final isCurrentSongFav = false.obs;
+  // The playing row's now-playing bars follow it.
+  @override
+  final buttonState = PlayButtonState.paused.obs;
 
   List<MediaItem>? playedList;
   int? playedIndex;
