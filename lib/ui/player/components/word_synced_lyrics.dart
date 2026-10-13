@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import '/services/better_lyrics_service.dart';
 import '/services/lyrics_romanization.dart';
 import '/services/lyrics_timing.dart';
+import '/services/lyrics_translation.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
@@ -43,6 +44,7 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
   late final List<String?> _romanized = [
     for (final line in _lines) LyricsRomanization.lineFor(line.text),
   ];
+  late final List<String> _texts = [for (final line in _lines) line.text];
   final _scroll = ScrollController();
   final _player = Get.find<PlayerController>();
 
@@ -194,7 +196,11 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
       children: [
         NotificationListener<ScrollNotification>(
           onNotification: _onScroll,
-          child: KeyedSubtree(key: _listKey, child: _list(accent)),
+          // Rebuilt when translations are switched on or arrive.
+          child: KeyedSubtree(
+              key: _listKey,
+              child:
+                  Obx(() => _list(accent, LyricsTranslation.linesFor(_texts)))),
         ),
         // Only ▶ takes touches: drags anywhere else still scroll.
         Center(
@@ -218,7 +224,7 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
     );
   }
 
-  Widget _list(Color accent) {
+  Widget _list(Color accent, List<String?>? translations) {
     return ListView.builder(
       physics: const BouncingScrollPhysics(),
       padding: widget.padding
@@ -254,7 +260,11 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
                   ),
                 );
               }
-              final roman = _romanized[i];
+              final roman = lyricsSecondLine(
+                  _romanized[i],
+                  translations != null && i < translations.length
+                      ? translations[i]
+                      : null);
               if (roman == null) return row;
               return Column(
                 mainAxisSize: MainAxisSize.min,

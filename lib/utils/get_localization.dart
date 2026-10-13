@@ -4943,6 +4943,8 @@ Map<String, Map<String, String>> get keys => {
     "lyricsSourceLrclib": "LRCLIB",
     "romanizeLyrics": "Romanized lyrics",
     "romanizeLyricsDes": "Korean, Cyrillic and Greek lyrics show how they sound in Latin letters under each line",
+    "translateLyrics": "Translate lyrics",
+    "translateLyricsDes": "Lines in another language show their translation into the app's language under them. Lyrics are sent to Google Translate",
     "lyricsTextSize": "Lyrics text size",
     "lyricsTextSizeDes": "How big lyrics are shown, on top of your phone's font size",
     "lyricsTextSmall": "Small",

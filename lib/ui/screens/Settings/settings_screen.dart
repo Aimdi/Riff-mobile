@@ -18,6 +18,7 @@ import '/services/crash_report.dart';
 import '/services/better_lyrics_service.dart';
 import '/services/lyrics_romanization.dart';
 import '/services/lyrics_text_size.dart';
+import '/services/lyrics_translation.dart';
 import '/services/normalization_level.dart';
 import '/services/private_session.dart';
 import '/services/song_fade.dart';
@@ -370,6 +371,22 @@ class SettingsScreen extends StatelessWidget {
                         trailing: CustSwitch(
                           value: LyricsRomanization.enabled.isTrue,
                           onChanged: LyricsRomanization.setEnabled,
+                        ),
+                      );
+                    }),
+                  ),
+                  SettingsSearchable(
+                    title: 'translateLyrics'.tr,
+                    subtitle: 'translateLyricsDes'.tr,
+                    child: Obx(() {
+                      return ListTile(
+                        contentPadding: settingsTilePadding,
+                        title: Text('translateLyrics'.tr),
+                        subtitle: Text('translateLyricsDes'.tr,
+                            style: settingsSubtitleStyle(context)),
+                        trailing: CustSwitch(
+                          value: LyricsTranslation.enabled.isTrue,
+                          onChanged: LyricsTranslation.setEnabled,
                         ),
                       );
                     }),

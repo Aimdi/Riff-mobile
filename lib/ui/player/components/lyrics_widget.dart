@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '/services/lyrics_romanization.dart';
 import '/services/lyrics_text_size.dart';
 import '/services/lyrics_timing.dart';
+import '/services/lyrics_translation.dart';
 import '../../widgets/loader.dart';
 import '../player_controller.dart';
 import 'lyric_seek_line.dart';
@@ -62,6 +63,10 @@ class LyricsWidget extends StatelessWidget {
                         .copyWith(color: theme.colorScheme.onSurface),
                     romanStyle: theme.textTheme.bodyMedium!
                         .copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    // Not for the "not available" note.
+                    translations: playerController.lyrics["plainLyrics"] == "NA"
+                        ? null
+                        : LyricsTranslation.linesFor(plain.split('\n')),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -77,9 +82,13 @@ class LyricsWidget extends StatelessWidget {
         final model = LyricsModelBuilder.create()
             .bindLyricToMain(playerController.lyrics['synced'].toString())
             .getModel();
-        // Romanization goes in each line's second line.
-        for (final line in model.lyrics) {
-          line.extText = LyricsRomanization.lineFor(line.mainText);
+        // Romanization and translation go in each line's second line.
+        final translations = LyricsTranslation.linesFor(
+            [for (final line in model.lyrics) line.mainText ?? '']);
+        for (var i = 0; i < model.lyrics.length; i++) {
+          final line = model.lyrics[i];
+          line.extText = lyricsSecondLine(
+              LyricsRomanization.lineFor(line.mainText), translations?[i]);
         }
         // Built here (not per progress tick): a new LyricUI makes the
         // reader re-layout.
@@ -123,18 +132,26 @@ class LyricsWidget extends StatelessWidget {
   }
 }
 
-/// Plain lyrics as one text, each line followed by its romanization (in
-/// [romanStyle]) when [LyricsRomanization] gives one.
+/// Plain lyrics as one text, each line followed by its romanization (when
+/// [LyricsRomanization] gives one) and its translation (from
+/// [translations], one per line), both in [romanStyle].
 TextSpan romanizedLyricsText(String lyrics,
-    {required TextStyle style, required TextStyle romanStyle}) {
+    {required TextStyle style,
+    required TextStyle romanStyle,
+    List<String?>? translations}) {
   final lines = lyrics.split('\n');
   return TextSpan(
     style: style,
     children: [
       for (var i = 0; i < lines.length; i++) ...[
         TextSpan(text: lines[i]),
-        if (LyricsRomanization.lineFor(lines[i]) case final roman?)
-          TextSpan(text: '\n$roman', style: romanStyle),
+        if (lyricsSecondLine(
+                LyricsRomanization.lineFor(lines[i]),
+                translations != null && i < translations.length
+                    ? translations[i]
+                    : null)
+            case final second?)
+          TextSpan(text: '\n$second', style: romanStyle),
         if (i < lines.length - 1) const TextSpan(text: '\n'),
       ],
     ],

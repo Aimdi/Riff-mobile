@@ -25,6 +25,11 @@ Lyrics:
   ("사랑해" → "saranghae", with the sound changes you hear in the song,
   like "감사합니다" → "gamsahamnida"). Not for the script of the app's own
   language; Settings › Romanized lyrics turns it off
+* Translated lyrics, like Apple Music, Spotify and YouTube Music: switch
+  on ⋮ › Translate lyrics (or in Settings) and lines in another language
+  show their translation into the app's language under them, with the
+  romanization when there's one; synced, word-by-word and plain lyrics.
+  Off by default; while on, lyrics are sent to Google Translate
 * Lyrics text size, like Metrolist's: Settings › Lyrics text size
   (Small, Default, Large, Largest) for synced, word-by-word and plain
   lyrics. Synced lyrics now also follow your phone's font size; they

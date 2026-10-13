@@ -22,6 +22,8 @@ import '/ui/player/components/player_control.dart' show sleepTimerBadge;
 import '/ui/player/components/lyrics_share.dart';
 import '/ui/player/components/lyrics_timing_sheet.dart';
 import '/services/lyrics_timing.dart';
+import '/services/lyrics_translation.dart';
+import 'cust_switch.dart';
 import '/ui/player/player_controller.dart';
 import '../screens/Library/library_controller.dart';
 import '/ui/widgets/add_to_playlist.dart';
@@ -547,6 +549,16 @@ class PlayerToolTiles extends StatelessWidget {
                   playerController.homeScaffoldkey.currentContext ??
                       Get.context);
             },
+          ),
+          RiffSheetTile(
+            icon: Icons.translate_rounded,
+            title: "translateLyrics".tr,
+            onTap: () =>
+                LyricsTranslation.setEnabled(LyricsTranslation.enabled.isFalse),
+            trailing: CustSwitch(
+              value: LyricsTranslation.enabled.isTrue,
+              onChanged: LyricsTranslation.setEnabled,
+            ),
           ),
           if (synced)
             RiffSheetTile(
