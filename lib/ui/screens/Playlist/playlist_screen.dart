@@ -39,6 +39,7 @@ import '../../widgets/song_list_tile.dart';
 import '../../widgets/sort_widget.dart';
 import '../Library/library_controller.dart';
 import 'playlist_photo.dart';
+import 'playlist_recommendations.dart';
 import 'playlist_screen_controller.dart';
 
 /// YouTube channel id (`UC…`) — compiled once, not per list row.
@@ -206,7 +207,18 @@ class PlaylistScreen extends StatelessWidget {
                                           .isContentFetched.isFalse ||
                                       playlistController.songList.isEmpty
                                   ? 4
-                                  : playlistController.songList.length + 3,
+                                  : playlistController.songList.length +
+                                      3 +
+                                      (_showsRecommendations(playlistController)
+                                          ? 1
+                                          : 0),
+                              // The recommendations move down a row with
+                              // each song added: keep them (and what they
+                              // showed) instead of loading new ones.
+                              findChildIndexCallback: (key) =>
+                                  key == _recommendationsKey(playlistController)
+                                      ? playlistController.songList.length + 3
+                                      : null,
                               itemBuilder: (_, index) {
                                 if (index == 0) {
                                   return FadeTransition(
@@ -308,6 +320,16 @@ class PlaylistScreen extends StatelessWidget {
                                 }
 
                                 final pl = playlistController.playlist.value;
+                                if (index ==
+                                    playlistController.songList.length + 3) {
+                                  return PlaylistRecommendations(
+                                    key:
+                                        _recommendationsKey(playlistController),
+                                    songs: playlistController.songList.toList(),
+                                    playlistTitle: pl.title,
+                                    onAdd: playlistController.appendSong,
+                                  );
+                                }
                                 final isPodcastList = pl.kind == 'podcast' ||
                                     pl.kind == 'yt_channel' ||
                                     pl.playlistId.startsWith('MPSP') ||
@@ -473,6 +495,20 @@ class _PodcastShow extends StatelessWidget {
 }
 
 bool _ownPhoto(Playlist pl) => PlaylistCovers.pathFor(pl.playlistId) != null;
+
+Key _recommendationsKey(PlaylistScreenController c) =>
+    ValueKey('recommendations:${c.playlist.value.playlistId}');
+
+/// Songs to add show under your own playlists, unless you're searching or
+/// arranging or picking songs in it.
+bool _showsRecommendations(PlaylistScreenController c) {
+  final pl = c.playlist.value;
+  return !pl.isCloudPlaylist &&
+      c.isDefaultPlaylist.isFalse &&
+      !_isPodcastPage(pl) &&
+      c.isSearchingOn.isFalse &&
+      c.additionalOperationMode.value == OperationMode.none;
+}
 
 /// Header backdrop for a playlist without a cover of its own: the photo it
 /// was given, else (or when that file is gone) its generated cover.

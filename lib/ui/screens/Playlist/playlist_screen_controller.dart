@@ -450,6 +450,18 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     _updatePlaylistThumbSongBased();
   }
 
+  /// Adds [song] at the end of this (local) playlist, as the add-to-playlist
+  /// sheet does. False when it's in the playlist already.
+  Future<bool> appendSong(MediaItem song) async {
+    final all = tempListContainer.isNotEmpty ? tempListContainer : songList;
+    if (all.any((s) => s.id == song.id)) return false;
+    final box = await Hive.openBox(playlist.value.playlistId);
+    await box.add(MediaItemBuilder.toJson(song));
+    addNRemoveItemsinList(song, action: 'add');
+    _updatePlaylistThumbSongBased();
+    return true;
+  }
+
   @override
   Future<void> deleteMultipleSongs(List<MediaItem> songs) async {
     final id = playlist.value.playlistId;

@@ -133,6 +133,10 @@ Playlists:
   image: open it › ⋮ › Set photo (later Change photo or Remove photo).
   It's cropped square and shows wherever the playlist's cover does: the
   Library, Home and Speed dial, and the playlist's page
+* Recommended songs under your own playlists, like Spotify: ten songs
+  like the ones in it, from your latest additions and others across the
+  playlist. Tap + to add one, tap a song to play it, ↻ for others. Not
+  shown offline, or while you search, arrange or select songs in it
 
 Up Next:
 * Removing a song (swipe it away, the song menu, or ✕ on desktop) and
