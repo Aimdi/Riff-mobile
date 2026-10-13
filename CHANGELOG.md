@@ -162,14 +162,15 @@ Podcasts:
   in a private session aren't kept
 * Share an episode from the podcast player's ⋮, like Pocket Casts and
   Spotify: Share episode, or Share from 12:34 to share the moment
-  playing. The link is the YouTube video for a YouTube episode (starting
+  playing; Share episode is in an episode's long-press menu too. The link is the YouTube video for a YouTube episode (starting
   at that moment), else the episode's page from its feed, else its audio
   file (which a browser starts at that moment)
 * Timestamps in show notes play the episode from there, as in Pocket
   Casts, Spotify and YouTube: tap "12:34" (or "1:02:03") in the notes,
   and web addresses in them open in the browser; both in the accent.
   Times past the episode's end stay plain text (a clock time, not a
-  moment of the episode)
+  moment of the episode). In an episode's long-press menu › Shownotes,
+  a timestamp plays that episode from there
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip

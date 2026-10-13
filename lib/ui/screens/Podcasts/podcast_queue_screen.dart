@@ -3,6 +3,8 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '/models/thumbnail.dart';
 import '/ui/theme/riff_spacing.dart';
@@ -10,10 +12,12 @@ import '/ui/theme/riff_tokens.dart';
 import '/services/podcast_download_service.dart';
 import '/services/podcast_library.dart';
 import '/services/podcast_progress_service.dart';
+import '/services/podcast_share.dart';
 import '/services/wizestream_service.dart';
 import '../Home/home_layout.dart';
 import 'podcast_empty_state.dart';
 import 'podcast_layout.dart';
+import '/ui/player/components/show_notes_text.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/utils/sheet_insets.dart';
 import '/ui/widgets/podcast_play.dart';
@@ -212,15 +216,39 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode,
                                           Theme.of(sctx).textTheme.titleSmall),
                                 ],
                                 const Divider(height: RiffSpacing.xxl),
-                                Text(
-                                  notes.isEmpty ? "noShownotes".tr : notes,
-                                  style: Theme.of(sctx).textTheme.bodyLarge,
-                                ),
+                                if (notes.isEmpty)
+                                  Text("noShownotes".tr,
+                                      style: Theme.of(sctx).textTheme.bodyLarge)
+                                else
+                                  // A timestamp plays the episode from
+                                  // there; a link opens.
+                                  ShowNotesText(
+                                    notes: notes,
+                                    length: episode.duration,
+                                    style: Theme.of(sctx).textTheme.bodyLarge,
+                                    onTime: (seconds) {
+                                      Navigator.of(sctx).pop();
+                                      Get.find<PlayerController>()
+                                          .playPodcastAt(episode,
+                                              Duration(seconds: seconds));
+                                    },
+                                    onLink: (url) => launchUrl(Uri.parse(url),
+                                        mode: LaunchMode.externalApplication),
+                                  ),
                               ],
                             ),
                           ),
                         ),
                       );
+                    },
+                  ),
+                  // As from the player's ⋮ (Pocket Casts' episode menu).
+                  ListTile(
+                    leading: const Icon(Icons.ios_share_rounded),
+                    title: Text("shareEpisode".tr),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      Share.share(podcastEpisodeShareText(episode));
                     },
                   ),
                   if (feedUrl.isNotEmpty)
