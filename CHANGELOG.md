@@ -122,6 +122,10 @@ Podcasts:
   chapters come with their own pictures, the cover shows the playing
   chapter's picture, crossfading as chapters change, and the episode's
   own art in chapters without one
+* The chapter list marks the chapter playing with the now-playing bars,
+  following the episode as it goes, and chapters that link to a web page
+  (show notes, a guest's site) get a button that opens it, as in Pocket
+  Casts
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip

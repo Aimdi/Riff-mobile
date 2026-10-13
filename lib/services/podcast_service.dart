@@ -1001,20 +1001,36 @@ List<PodcastChapter> parsePodcastChapters(Map? json) {
     if (c is! Map) continue;
     final st = c['startTime'];
     if (st is! num) continue;
-    final img = '${c['img'] ?? ''}'.trim();
-    final imgUri = Uri.tryParse(img);
-    final webImage = imgUri != null &&
-        (imgUri.isScheme('https') || imgUri.isScheme('http')) &&
-        imgUri.host.isNotEmpty;
     out.add(PodcastChapter(
       startSec: st.toDouble(),
       endSec: c['endTime'] is num ? (c['endTime'] as num).toDouble() : null,
       title: '${c['title'] ?? ''}',
-      imageUrl: webImage ? img : null,
+      imageUrl: _webAddress(c['img']),
+      linkUrl: _webAddress(c['url']),
     ));
   }
   out.sort((a, b) => a.startSec.compareTo(b.startSec));
   return out;
+}
+
+/// [raw] trimmed, when it's a web (http or https) address; else null.
+String? _webAddress(Object? raw) {
+  final text = '${raw ?? ''}'.trim();
+  final uri = Uri.tryParse(text);
+  final web = uri != null &&
+      (uri.isScheme('https') || uri.isScheme('http')) &&
+      uri.host.isNotEmpty;
+  return web ? text : null;
+}
+
+/// Index of the chapter playing at [sec] (-1 before the first).
+int chapterIndexAt(List<PodcastChapter> chapters, double sec) {
+  var index = -1;
+  for (var i = 0; i < chapters.length; i++) {
+    if (chapters[i].startSec > sec) break;
+    index = i;
+  }
+  return index;
 }
 
 /// The art of the chapter playing at [sec] (Pocket Casts and AntennaPod
@@ -1034,13 +1050,17 @@ class PodcastChapter {
       {required this.startSec,
       required this.title,
       this.endSec,
-      this.imageUrl});
+      this.imageUrl,
+      this.linkUrl});
   final double startSec;
   final double? endSec;
   final String title;
 
   /// The chapter's own art (its "img"), if it has one.
   final String? imageUrl;
+
+  /// A web page the chapter points to (its "url"), if any.
+  final String? linkUrl;
 
   /// Whether this chapter looks like an ad / sponsor read (by title).
   bool get isAd {

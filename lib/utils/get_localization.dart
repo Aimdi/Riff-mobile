@@ -4953,6 +4953,7 @@ Map<String, Map<String, String>> get keys => {
     "lyricsTimingEarlier": "@s s earlier",
     "showTimeLeft": "show the time left",
     "showLength": "show the length",
+    "openChapterLink": "Open the chapter's link",
     "settingsSearch": "Search settings",
     "dataSaver": "Data saver",
     "dataSaverDes": "Use low streaming quality to reduce data usage",

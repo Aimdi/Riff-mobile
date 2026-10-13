@@ -16,8 +16,11 @@ import '/services/audiobook_playback.dart';
 import '/services/podcast_transcripts.dart';
 import '/ui/player/components/podcast_transcript_sheet.dart';
 import '/ui/utils/theme_controller.dart';
-import '/services/podcast_service.dart' show PodcastChapter;
+import 'package:url_launcher/url_launcher.dart';
+
+import '/services/podcast_service.dart' show PodcastChapter, chapterIndexAt;
 import '/services/seek_time_label.dart';
+import '/ui/widgets/now_playing_bars.dart';
 import '../../screens/Settings/settings_screen_controller.dart';
 import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/sleep_timer_bottom_sheet.dart';
@@ -238,7 +241,6 @@ class PlayerControlWidget extends StatelessWidget {
 
 void openChaptersSheet(
     PlayerController playerController, BuildContext context) {
-  final chapters = playerController.chapters;
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -247,58 +249,119 @@ void openChaptersSheet(
       expand: false,
       initialChildSize: 0.55,
       maxChildSize: 0.9,
-      builder: (ctx, scrollCtrl) {
-        String fmt(double sec) {
-          final d = Duration(milliseconds: (sec * 1000).round());
-          final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-          final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-          final h = d.inHours;
-          return h > 0 ? '$h:$m:$s' : '$m:$s';
-        }
-
-        return ListView.builder(
-          controller: scrollCtrl,
-          padding: const EdgeInsets.only(
-              left: RiffSpacing.sm,
-              right: RiffSpacing.sm,
-              bottom: RiffSpacing.xxl),
-          itemCount: chapters.length + 1,
-          itemBuilder: (ctx, i) {
-            if (i == 0) {
-              return Padding(
-                padding: const EdgeInsets.only(
-                    left: RiffSpacing.md,
-                    top: RiffSpacing.xs,
-                    right: RiffSpacing.md,
-                    bottom: RiffSpacing.md),
-                child: Text('chapters'.tr,
-                    style: Theme.of(ctx).textTheme.titleLarge),
-              );
-            }
-            final c = chapters[i - 1];
-            return ListTile(
-              leading: Icon(
-                c.isAd ? Icons.campaign_outlined : Icons.play_arrow_rounded,
-                size: RiffComponentSizes.headerIcon,
-                color: c.isAd
-                    ? Theme.of(ctx).colorScheme.error
-                    : Theme.of(ctx).colorScheme.onSurface,
-              ),
-              title:
-                  Text(c.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-              subtitle: Text(fmt(c.startSec)),
-              onTap: () {
-                Navigator.pop(ctx);
-                playerController.seek(
-                  Duration(milliseconds: (c.startSec * 1000).round()),
-                );
-              },
-            );
-          },
-        );
-      },
+      builder: (ctx, scrollCtrl) => ChapterList(
+          playerController: playerController, scrollController: scrollCtrl),
     ),
   );
+}
+
+/// An episode's chapters: tap one to play from it. The one playing shows
+/// the now-playing bars (Pocket Casts marks it too), following the
+/// episode; chapters that link to a web page get a button to open it.
+class ChapterList extends StatefulWidget {
+  const ChapterList(
+      {super.key, required this.playerController, this.scrollController});
+
+  final PlayerController playerController;
+  final ScrollController? scrollController;
+
+  @override
+  State<ChapterList> createState() => _ChapterListState();
+}
+
+class _ChapterListState extends State<ChapterList> {
+  late final ValueNotifier<int> _playing;
+  Worker? _follow;
+
+  int _playingNow() {
+    final pc = widget.playerController;
+    return chapterIndexAt(pc.chapters,
+        pc.progressBarStatus.value.current.inMilliseconds / 1000.0);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _playing = ValueNotifier(_playingNow());
+    // Rows rebuild when the chapter changes, not on every tick.
+    _follow = ever(widget.playerController.progressBarStatus,
+        (_) => _playing.value = _playingNow());
+  }
+
+  @override
+  void dispose() {
+    _follow?.dispose();
+    _playing.dispose();
+    super.dispose();
+  }
+
+  static String _fmt(double sec) {
+    final d = Duration(milliseconds: (sec * 1000).round());
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    final h = d.inHours;
+    return h > 0 ? '$h:$m:$s' : '$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final chapters = widget.playerController.chapters;
+    final scheme = Theme.of(context).colorScheme;
+    return ListView.builder(
+      controller: widget.scrollController,
+      padding: const EdgeInsets.only(
+          left: RiffSpacing.sm, right: RiffSpacing.sm, bottom: RiffSpacing.xxl),
+      itemCount: chapters.length + 1,
+      itemBuilder: (ctx, i) {
+        if (i == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(
+                left: RiffSpacing.md,
+                top: RiffSpacing.xs,
+                right: RiffSpacing.md,
+                bottom: RiffSpacing.md),
+            child:
+                Text('chapters'.tr, style: Theme.of(ctx).textTheme.titleLarge),
+          );
+        }
+        final c = chapters[i - 1];
+        final link = c.linkUrl;
+        return ValueListenableBuilder<int>(
+          valueListenable: _playing,
+          builder: (ctx, playing, _) => ListTile(
+            leading: SizedBox.square(
+              dimension: RiffComponentSizes.headerIcon,
+              child: playing == i - 1
+                  ? const NowPlayingBars(size: RiffComponentSizes.headerIcon)
+                  : Icon(
+                      c.isAd
+                          ? Icons.campaign_outlined
+                          : Icons.play_arrow_rounded,
+                      size: RiffComponentSizes.headerIcon,
+                      color: c.isAd ? scheme.error : scheme.onSurface,
+                    ),
+            ),
+            title: Text(c.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+            subtitle: Text(_fmt(c.startSec)),
+            trailing: link == null
+                ? null
+                : IconButton(
+                    tooltip: 'openChapterLink'.tr,
+                    icon: const Icon(Icons.open_in_new_rounded),
+                    onPressed: () => launchUrl(Uri.parse(link),
+                        mode: LaunchMode.externalApplication),
+                  ),
+            onTap: () {
+              Navigator.pop(ctx);
+              widget.playerController.seek(
+                Duration(milliseconds: (c.startSec * 1000).round()),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
 }
 
 void openShownotesSheet(

@@ -33,6 +33,25 @@ void main() {
     expect(chapterArtAt(const [], 10), isNull);
   });
 
+  test('links: web pages only', () {
+    final linked = parsePodcastChapters({
+      'chapters': [
+        {'startTime': 0, 'title': 'A', 'url': 'https://example.com/a'},
+        {'startTime': 10, 'title': 'B', 'url': 'javascript:alert(1)'},
+        {'startTime': 20, 'title': 'C'},
+      ],
+    });
+    expect(linked.map((c) => c.linkUrl), ['https://example.com/a', null, null]);
+  });
+
+  test('which chapter is playing', () {
+    expect(chapterIndexAt(chapters, -1), -1);
+    expect(chapterIndexAt(chapters, 0), 0);
+    expect(chapterIndexAt(chapters, 61), 1);
+    expect(chapterIndexAt(chapters, 9999), 3);
+    expect(chapterIndexAt(const [], 10), -1);
+  });
+
   test('nothing to read', () {
     expect(parsePodcastChapters(null), isEmpty);
     expect(parsePodcastChapters({'chapters': 'x'}), isEmpty);
