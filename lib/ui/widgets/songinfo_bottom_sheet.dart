@@ -20,6 +20,8 @@ import '/services/piped_service.dart';
 import '/ui/widgets/sleep_timer_bottom_sheet.dart';
 import '/ui/player/components/player_control.dart' show sleepTimerBadge;
 import '/ui/player/components/lyrics_share.dart';
+import '/ui/player/components/lyrics_timing_sheet.dart';
+import '/services/lyrics_timing.dart';
 import '/ui/player/player_controller.dart';
 import '../screens/Library/library_controller.dart';
 import '/ui/widgets/add_to_playlist.dart';
@@ -516,6 +518,12 @@ class PlayerToolTiles extends StatelessWidget {
       final lyricsOn = playerController.showLyricsflag.isTrue;
       final sleepOn = playerController.isSleepTimerActive.isTrue;
       final left = sleepTimerBadge(playerController.timerDurationLeft.value);
+      // Only synced lyrics have a timing to move.
+      final lyrics = playerController.lyrics;
+      final synced = '${lyrics['synced'] ?? ''}'.isNotEmpty ||
+          '${lyrics['ttml'] ?? ''}'.isNotEmpty;
+      final delay =
+          LyricsTiming.delayMs(playerController.currentSong.value?.id);
       return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -540,6 +548,18 @@ class PlayerToolTiles extends StatelessWidget {
                       Get.context);
             },
           ),
+          if (synced)
+            RiffSheetTile(
+              icon: Icons.av_timer_rounded,
+              title: "lyricsTiming".tr,
+              subtitle: delay == 0 ? null : lyricsTimingLabel(delay),
+              onTap: () {
+                Navigator.of(context).pop();
+                showLyricsTimingSheet(
+                    playerController.homeScaffoldkey.currentContext ??
+                        Get.context);
+              },
+            ),
           RiffSheetTile(
             icon: sleepOn ? Icons.bedtime : Icons.bedtime_outlined,
             title: "sleepTimer".tr,

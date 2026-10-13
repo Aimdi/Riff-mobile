@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '/services/lyrics_romanization.dart';
 import '/services/lyrics_text_size.dart';
+import '/services/lyrics_timing.dart';
 import '../../widgets/loader.dart';
 import '../player_controller.dart';
 import 'lyric_seek_line.dart';
@@ -85,8 +86,12 @@ class LyricsWidget extends StatelessWidget {
         final lyricUi = RiffLyricUI.of(context, playerController.lyricUi);
         // Nested Obx: only the playhead position updates ~10Hz.
         return Obx(() {
-          final pos =
-              playerController.progressBarStatus.value.current.inMilliseconds;
+          // Lyrics timing: this song's lyrics may show later or earlier.
+          final delay =
+              LyricsTiming.delayMs(playerController.currentSong.value?.id);
+          final pos = lyricsPositionMs(
+              playerController.progressBarStatus.value.current.inMilliseconds,
+              delay);
           // Drag to look through the lyrics; the line in the middle gets
           // its time and ▶ to play from there (Spotify and Apple Music
           // jump to a tapped line; a tap here keeps closing the lyrics).
@@ -97,10 +102,11 @@ class LyricsWidget extends StatelessWidget {
             model: model,
             onTap: onTap,
             selectLineBuilder: (progress, confirm) => LyricSeekLine(
-              positionMs: progress,
+              positionMs: songPositionForLyricMs(progress, delay),
               onSeek: () {
                 confirm();
-                playerController.seek(Duration(milliseconds: progress));
+                playerController.seek(Duration(
+                    milliseconds: songPositionForLyricMs(progress, delay)));
               },
             ),
             emptyBuilder: () => Center(

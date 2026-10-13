@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/services/lyrics_timing.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '../lrc_lines.dart';
@@ -38,8 +39,15 @@ class LyricLinePreview extends StatelessWidget {
         if (playerController.usesLongFormTransport || lines.isEmpty) {
           return const SizedBox(width: double.infinity);
         }
+        // Moved by this song's lyrics timing, as the lyrics are.
         final i = lrcLineAt(
-            lines, playerController.progressBarStatus.value.current);
+            lines,
+            Duration(
+                milliseconds: lyricsPositionMs(
+                    playerController
+                        .progressBarStatus.value.current.inMilliseconds,
+                    LyricsTiming.delayMs(
+                        playerController.currentSong.value?.id))));
         // Before the first line: a note, like an instrumental intro.
         final text = i < 0 ? '♪' : lines[i].text;
         final fg = theme.colorScheme.onSurface;

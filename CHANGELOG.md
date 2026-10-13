@@ -29,6 +29,11 @@ Lyrics:
   (Small, Default, Large, Largest) for synced, word-by-word and plain
   lyrics. Synced lyrics now also follow your phone's font size; they
   used to stay the same size whatever it was set to
+* Lyrics timing, like Musixmatch's sync: when a song's synced lyrics
+  run ahead of the singing or behind it (some from LRCLIB do), ⋮ ›
+  Lyrics timing moves them later or earlier, half a second a tap, for
+  that song only; it's remembered for next time. The line under the
+  title and "play from this line" follow it too
 
 Mini player (phones):
 * Drag it sideways and the song follows your finger while the next (or

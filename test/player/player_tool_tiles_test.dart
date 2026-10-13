@@ -1,11 +1,21 @@
+import 'dart:typed_data';
+
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/services/lyrics_timing.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:harmonymusic/ui/theme/riff_theme.dart';
 import 'package:harmonymusic/ui/widgets/songinfo_bottom_sheet.dart';
+import 'package:hive/hive.dart';
 
 class _FakePlayer extends GetxController implements PlayerController {
+  @override
+  final currentSong = Rxn<MediaItem>(const MediaItem(id: 'a', title: 'A'));
+  @override
+  RxMap<String, dynamic> lyrics =
+      <String, dynamic>{'synced': '', 'plainLyrics': ''}.obs;
   @override
   final showLyricsflag = false.obs;
   @override
@@ -86,5 +96,35 @@ void main() {
     await tester.pump();
     expect(find.text('25m left'), findsOneWidget);
     expect(find.byIcon(Icons.bedtime), findsOneWidget);
+  });
+
+  group('lyrics timing', () {
+    setUp(() async {
+      await Hive.openBox('AppPrefs', bytes: Uint8List(0));
+    });
+    tearDown(() async {
+      await Hive.box('AppPrefs').close();
+    });
+
+    testWidgets('only for songs with synced lyrics, with the shift set',
+        (tester) async {
+      await pumpApp(tester);
+      await _open(tester);
+      expect(find.text('lyricsTiming'), findsNothing);
+
+      player.lyrics['synced'] = '[00:01.00]One';
+      await tester.pump();
+      expect(find.text('lyricsTiming'), findsOneWidget);
+      // As timed: no subtitle.
+      expect(find.text('lyricsTimingLater'), findsNothing);
+
+      await tester.runAsync(() => LyricsTiming.nudge('a', 1));
+      await tester.pump();
+      expect(find.text('lyricsTimingLater'), findsOneWidget);
+
+      await tester.tap(find.text('lyricsTiming'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PlayerToolTiles), findsNothing);
+    });
   });
 }

@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 
 import '/services/better_lyrics_service.dart';
 import '/services/lyrics_romanization.dart';
+import '/services/lyrics_timing.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
@@ -60,17 +61,28 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
   final _activeLine = ValueNotifier<int>(0);
   final _rowKeys = <int, GlobalKey>{};
   Worker? _progressWorker;
+  Worker? _timingWorker;
 
+  /// This song's lyrics timing (how much later they show), in ms.
+  int get _delayMs => LyricsTiming.delayMs(_player.currentSong.value?.id);
+
+  /// Where the lyrics are: the song's position, moved by their timing.
   double get _posSec =>
-      _player.progressBarStatus.value.current.inMilliseconds / 1000.0;
+      lyricsPositionMs(
+          _player.progressBarStatus.value.current.inMilliseconds, _delayMs) /
+      1000.0;
+
+  /// Where the song plays from for line [i].
+  int _lineSongMs(int i) =>
+      songPositionForLyricMs((_lines[i].beginSec * 1000).round(), _delayMs);
 
   @override
   void initState() {
     super.initState();
     _activeLine.value = wordSyncedActiveLine(_lines, _posSec);
-    _progressWorker = ever(_player.progressBarStatus, (_) {
-      _activeLine.value = wordSyncedActiveLine(_lines, _posSec);
-    });
+    void follow(_) => _activeLine.value = wordSyncedActiveLine(_lines, _posSec);
+    _progressWorker = ever(_player.progressBarStatus, follow);
+    _timingWorker = ever(LyricsTiming.rev, follow);
     _activeLine.addListener(_scheduleScroll);
     _scheduleScroll();
   }
@@ -79,6 +91,7 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
   void dispose() {
     _browseEnd?.cancel();
     _progressWorker?.dispose();
+    _timingWorker?.dispose();
     _activeLine.dispose();
     _browsing.dispose();
     _centerLine.dispose();
@@ -192,10 +205,9 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
                 : ValueListenableBuilder<int>(
                     valueListenable: _centerLine,
                     builder: (context, i, _) => LyricSeekLine(
-                      positionMs: (_lines[i].beginSec * 1000).round(),
+                      positionMs: _lineSongMs(i),
                       onSeek: () {
-                        _player.seek(Duration(
-                            milliseconds: (_lines[i].beginSec * 1000).round()));
+                        _player.seek(Duration(milliseconds: _lineSongMs(i)));
                         _stopBrowsing();
                       },
                     ),
