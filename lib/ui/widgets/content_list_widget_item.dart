@@ -15,6 +15,8 @@ import 'collection_play.dart';
 import 'image_widget.dart';
 import 'podcast_play.dart';
 import 'snackbar.dart';
+import 'song_list_tile.dart' show RiffRowHairline;
+import '../screens/Home/home_layout.dart' show HomeLayout;
 
 class ContentListItem extends StatelessWidget {
   const ContentListItem(
@@ -22,7 +24,12 @@ class ContentListItem extends StatelessWidget {
       required this.content,
       this.isLibraryItem = false,
       this.showSimilarOnOpen = false,
-      this.size = defaultSize});
+      this.size = defaultSize,
+      this.asRow = false});
+
+  /// A row of a list (Library's list view): the cover at [size], then the
+  /// title and subtitle, opening and long-pressing as the card does.
+  final bool asRow;
 
   /// Cover width of a shelf card; grids pass a size that fills a column.
   static const double defaultSize = 112;
@@ -297,7 +304,7 @@ class ContentListItem extends StatelessWidget {
     });
   }
 
-  Widget _art(BuildContext context) {
+  Widget _cover(BuildContext context) {
     final Widget child;
     if (_isAlbum) {
       child = ImageWidget(
@@ -337,12 +344,16 @@ class ContentListItem extends StatelessWidget {
             size: size * 0.32,
           )));
     }
+    return child;
+  }
+
+  Widget _art(BuildContext context) {
     return SizedBox(
       width: size,
       height: size,
       child: Stack(
         children: [
-          child,
+          _cover(context),
           Positioned(
             right: _playInset,
             bottom: _playInset,
@@ -374,22 +385,66 @@ class ContentListItem extends StatelessWidget {
     );
   }
 
+  /// What a tap does: open the album / playlist / show page (the play
+  /// button on a card's cover still plays).
+  VoidCallback get _onTap => shouldPlayCollectionOnTap() &&
+          (_isAlbum ||
+              !isPodcastCollection(kind: _collectionKind, id: _collectionId))
+      ? _playFromOverlay
+      : _openContent;
+
+  /// [asRow]: the cover, then the title and subtitle, with the hairline
+  /// list rows have (§5.2).
+  Widget _row(BuildContext context, Color? muted) {
+    return Stack(
+      children: [
+        InkWell(
+          onTap: _onTap,
+          onLongPress: () => _showPlaySheet(context),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: HomeLayout.gutter, vertical: RiffSpacing.sm),
+            child: Row(
+              children: [
+                SizedBox.square(dimension: size, child: _cover(context)),
+                const SizedBox(width: RiffSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: RiffSpacing.xxs),
+                      _subtitleLine(context, muted),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const RiffRowHairline(),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final muted = Theme.of(context).brightness == Brightness.dark
         ? RiffSurfaces.textMuted
         : Theme.of(context).textTheme.titleSmall?.color?.withOpacity(0.6);
+    if (asRow) return _row(context, muted);
     return InkWell(
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
       // Open the album / playlist / show page; the play button on the
       // cover still plays.
-      onTap: shouldPlayCollectionOnTap() &&
-              (_isAlbum ||
-                  !isPodcastCollection(
-                      kind: _collectionKind, id: _collectionId))
-          ? _playFromOverlay
-          : _openContent,
+      onTap: _onTap,
       onLongPress: () => _showPlaySheet(context),
       child: SizedBox(
         width: size,

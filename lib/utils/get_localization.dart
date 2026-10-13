@@ -4642,6 +4642,8 @@ Map<String, Map<String, String>> get keys => {
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "showAsList": "Show as list",
+    "showAsGrid": "Show as grid",
     "shareEpisode": "Share episode",
     "shareFromTime": "Share from @time",
     "bookBookmarks": "Bookmarks in this book",

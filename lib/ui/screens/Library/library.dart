@@ -11,6 +11,7 @@ import '/services/cloud_music_service.dart';
 import '/services/discovery/discovery_tag.dart';
 import '/services/discovery/discovery_types.dart';
 import '/services/spotify_auth_service.dart';
+import '/services/library_view_mode.dart';
 import '/ui/screens/Plugins/spotify_pages.dart';
 import '../../navigator.dart';
 import '../../player/play_queue_order.dart';
@@ -368,6 +369,26 @@ class _PlaylistNAlbumLibraryWidgetState
     super.dispose();
   }
 
+  /// The list view: one row per album or playlist.
+  Widget _list(
+      LibraryAlbumsController albums, LibraryPlaylistsController playlists) {
+    final items =
+        isAlbumContent ? albums.libraryAlbums : playlists.libraryPlaylists;
+    return ListView.builder(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.only(
+          top: RiffSpacing.xs, bottom: RiffSpacing.listEnd),
+      controller: _gridScroll,
+      itemCount: items.length,
+      itemBuilder: (context, index) => ContentListItem(
+        content: items[index],
+        isLibraryItem: true,
+        size: RiffComponentSizes.rowArt,
+        asRow: true,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final libralbumCntrller = Get.find<LibraryAlbumsController>();
@@ -389,6 +410,16 @@ class _PlaylistNAlbumLibraryWidgetState
                 PipedSyncWidget(
                   padding: EdgeInsets.only(right: size.width * .02),
                 ),
+              // Grid or list, as Spotify's Your Library switches.
+              Obx(() {
+                final list = LibraryViewMode.list.isTrue;
+                return IconButton(
+                  tooltip: (list ? 'showAsGrid' : 'showAsList').tr,
+                  icon: Icon(
+                      list ? Icons.grid_view_rounded : Icons.view_list_rounded),
+                  onPressed: () => LibraryViewMode.setList(!list),
+                );
+              }),
             ],
           ),
           Obx(
@@ -431,37 +462,40 @@ class _PlaylistNAlbumLibraryWidgetState
               () => (isAlbumContent
                       ? libralbumCntrller.libraryAlbums.isNotEmpty
                       : librplstCntrller.libraryPlaylists.isNotEmpty)
-                  ? LayoutBuilder(builder: (context, constraints) {
-                      final grid = libraryGridMetrics(constraints.maxWidth);
-                      return GridView.builder(
-                          physics: const BouncingScrollPhysics(),
-                          padding: const EdgeInsets.only(
-                              left: HomeLayout.gutter,
-                              top: RiffSpacing.sm,
-                              right: HomeLayout.gutter,
-                              bottom: RiffSpacing.listEnd),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: grid.columns,
-                            crossAxisSpacing: HomeLayout.cardGap,
-                            mainAxisSpacing: 14,
-                            mainAxisExtent:
-                                ContentListItem.heightFor(context, grid.cover),
-                          ),
-                          controller: _gridScroll,
-                          itemCount: isAlbumContent
-                              ? libralbumCntrller.libraryAlbums.length
-                              : librplstCntrller.libraryPlaylists.length,
-                          itemBuilder: (BuildContext context, int index) {
-                            return ContentListItem(
-                              content: isAlbumContent
-                                  ? libralbumCntrller.libraryAlbums[index]
-                                  : librplstCntrller.libraryPlaylists[index],
-                              isLibraryItem: true,
-                              size: grid.cover,
-                            );
-                          });
-                    })
+                  ? LibraryViewMode.list.isTrue
+                      ? _list(libralbumCntrller, librplstCntrller)
+                      : LayoutBuilder(builder: (context, constraints) {
+                          final grid = libraryGridMetrics(constraints.maxWidth);
+                          return GridView.builder(
+                              physics: const BouncingScrollPhysics(),
+                              padding: const EdgeInsets.only(
+                                  left: HomeLayout.gutter,
+                                  top: RiffSpacing.sm,
+                                  right: HomeLayout.gutter,
+                                  bottom: RiffSpacing.listEnd),
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: grid.columns,
+                                crossAxisSpacing: HomeLayout.cardGap,
+                                mainAxisSpacing: 14,
+                                mainAxisExtent: ContentListItem.heightFor(
+                                    context, grid.cover),
+                              ),
+                              controller: _gridScroll,
+                              itemCount: isAlbumContent
+                                  ? libralbumCntrller.libraryAlbums.length
+                                  : librplstCntrller.libraryPlaylists.length,
+                              itemBuilder: (BuildContext context, int index) {
+                                return ContentListItem(
+                                  content: isAlbumContent
+                                      ? libralbumCntrller.libraryAlbums[index]
+                                      : librplstCntrller
+                                          .libraryPlaylists[index],
+                                  isLibraryItem: true,
+                                  size: grid.cover,
+                                );
+                              });
+                        })
                   : EmptyPlayHint(
                       message: isAlbumContent
                           ? "noLibAlbums".tr

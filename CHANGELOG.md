@@ -204,6 +204,10 @@ Library:
   and Downloads, whatever the sort or search, with a small pin before
   their song count; they also come first when adding a song to a
   playlist
+* Library › Playlists and Albums as a list, like Spotify's Your Library:
+  the button next to the title switches between the grid of covers and
+  rows (small cover, name, songs or artist); tap, long-press and pins
+  work the same. The choice is kept, for both tabs
 
 Playlists:
 * Deleting one of your playlists now asks first ("Delete playlist?"),
