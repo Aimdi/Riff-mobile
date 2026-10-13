@@ -27,6 +27,7 @@ import '/services/audiobook_progress_service.dart';
 import '/services/scrobble_rules.dart';
 import '/services/stats_service.dart';
 import '/services/collection_recents.dart';
+import '/services/private_session.dart';
 import '/services/synced_lyrics_service.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -439,6 +440,9 @@ class PlayerController extends GetxController
 
   final _progressUiThrottle = ProgressUiThrottle();
   final _playLogGate = PlayLogGate();
+
+  /// Whether the song playing started in a private session (not scrobbled).
+  bool _playIsPrivate = false;
 
   void _listenForChangesInPosition() {
     _subscriptions.add(AudioService.position.listen((position) {
@@ -1108,6 +1112,7 @@ class PlayerController extends GetxController
         final songChanged = outgoing?.id != mediaItem.id;
         if (songChanged &&
             outgoing != null &&
+            !_playIsPrivate &&
             shouldScrobble(
                 item: outgoing,
                 listened: Duration(milliseconds: posMs),
@@ -1181,10 +1186,15 @@ class PlayerController extends GetxController
         }
         await _checkFav();
         if (isNewPlay) {
+          // A private session records nothing of what plays in it.
+          final private = PrivateSession.isActive;
+          _playIsPrivate = private;
           // Use this callback's item: currentSong may already be the next
           // song after the awaits.
-          await _addToRP(mediaItem);
-          StatsService.recordPlay(mediaItem);
+          if (!private) {
+            await _addToRP(mediaItem);
+            StatsService.recordPlay(mediaItem);
+          }
           if (Get.isRegistered<SettingsScreenController>()) {
             unawaited(Get.find<SettingsScreenController>()
                 .maybePromptBatteryOptimization());
@@ -1192,11 +1202,13 @@ class PlayerController extends GetxController
           if (Get.isRegistered<DiscoveryService>()) {
             // Taste bookkeeping doesn't gate playback, so don't hold up
             // radio continuation behind it; chain the calls so quick skips
-            // are still recorded in order.
+            // are still recorded in order. A private play isn't started
+            // (the song before it still ends as usual).
             final discovery = Get.find<DiscoveryService>();
+            final logged = private ? null : mediaItem;
             _discoveryChain = _discoveryChain
-                .then((_) =>
-                    discovery.onMediaChanged(mediaItem, positionMs: posMs))
+                .then(
+                    (_) => discovery.onMediaChanged(logged, positionMs: posMs))
                 .catchError((Object e) {
               printERROR('Discovery onMediaChanged failed: $e');
             });
@@ -1461,8 +1473,9 @@ class PlayerController extends GetxController
     /// update playing from value
     playinfrom.value =
         playfrom ?? PlaylingFrom(type: PlaylingFromType.SELECTION);
-    // For the Library's "Recently played" sort.
+    // For the Library's "Recently played" sort (not in a private session).
     if (playfrom != null &&
+        !PrivateSession.isActive &&
         (playfrom.type == PlaylingFromType.PLAYLIST ||
             playfrom.type == PlaylingFromType.ALBUM)) {
       unawaited(CollectionRecents.markPlayed(playfrom.id));

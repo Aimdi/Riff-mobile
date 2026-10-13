@@ -170,6 +170,14 @@ Home's Speed dial:
 * Pages shrink and fade a little as they slide, the current page's dot
   stretches into a pill, and each page change gives a light tick
 
+Private session:
+* Like Spotify's Private session (YouTube Music's Pause history):
+  Settings › Private session, and for 6 hours (or until you switch it
+  off) what you play isn't added to Recently played, your stats and
+  Rewind, the taste your mixes learn from, the Library's Recently played
+  order or ListenBrainz. The setting shows when it ends; it also ends
+  on time if the app was closed
+
 Keyboard (Linux PCs, and tablets with a keyboard):
 * Spotify's desktop shortcuts work on every screen: Space play / pause,
   Ctrl + → / ← next / previous, Shift + → / ← forward / back 10 seconds,

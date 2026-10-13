@@ -17,6 +17,7 @@ import '/services/wizestream_service.dart';
 import '/services/crash_report.dart';
 import '/services/better_lyrics_service.dart';
 import '/services/lyrics_romanization.dart';
+import '/services/private_session.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/listenbrainz_service.dart';
 import '/services/music_service.dart';
@@ -852,6 +853,33 @@ class SettingsScreen extends StatelessWidget {
                                 }),
                           )
                         : const SizedBox.shrink()),
+                    SettingsSearchable(
+                      title: 'privateSession'.tr,
+                      subtitle: 'privateSessionDes'.tr,
+                      child: Obx(() {
+                        final end = PrivateSession.active.isTrue
+                            ? PrivateSession.endsAt
+                            : null;
+                        return ListTile(
+                          contentPadding: settingsTilePadding,
+                          title: Text('privateSession'.tr),
+                          subtitle: Text(
+                              end == null
+                                  ? 'privateSessionDes'.tr
+                                  : 'privateSessionUntil'.trParams({
+                                      'time': TimeOfDay.fromDateTime(end)
+                                          .format(context)
+                                    }),
+                              style: settingsSubtitleStyle(context)),
+                          trailing: CustSwitch(
+                            value: end != null,
+                            onChanged: (on) => on
+                                ? PrivateSession.start()
+                                : PrivateSession.stop(),
+                          ),
+                        );
+                      }),
+                    ),
                     ListTile(
                       contentPadding: settingsTilePadding,
                       title: Text("listenBrainz".tr),
