@@ -61,6 +61,9 @@ class SortWidget extends StatelessWidget {
     this.isCloudFeatureRequired = false,
     this.isCloudModeActive,
     this.onCloudToggle,
+    this.isDownloadedFilterRequired = false,
+    this.isDownloadedOnly,
+    this.onDownloadedToggle,
     required this.onSort,
   });
 
@@ -91,6 +94,11 @@ class SortWidget extends StatelessWidget {
   /// When non-null, drives the selected state of the cloud icon (use with Obx).
   final bool? isCloudModeActive;
   final VoidCallback? onCloudToggle;
+
+  /// Library Songs: show only downloaded songs.
+  final bool isDownloadedFilterRequired;
+  final bool? isDownloadedOnly;
+  final VoidCallback? onDownloadedToggle;
 
   void _showImportDialog(BuildContext context) {
     showDialog(
@@ -199,6 +207,16 @@ class SortWidget extends StatelessWidget {
                 ),
               ),
               _sortMenu(context, controller),
+              if (isDownloadedFilterRequired)
+                _iconButton(
+                  context,
+                  selected: isDownloadedOnly == true,
+                  icon: isDownloadedOnly == true
+                      ? Icons.download_done_rounded
+                      : Icons.download_for_offline_outlined,
+                  tooltip: "downloadedOnly".tr,
+                  onPressed: () => onDownloadedToggle?.call(),
+                ),
               if (isCloudFeatureRequired)
                 _iconButton(
                   context,

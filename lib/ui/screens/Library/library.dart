@@ -54,7 +54,7 @@ class SongsLibraryWidget extends StatelessWidget {
             final cloudMode = libSongsController.showCloudSongs.value;
             final canPlay = shouldShowLibrarySongsPlayBar(
               cloudMode: cloudMode,
-              songCount: libSongsController.librarySongsList.length,
+              songCount: libSongsController.visibleSongs.length,
             );
             return LibraryHeader(
               title: cloudMode ? "cloud".tr : "libSongs".tr,
@@ -75,9 +75,10 @@ class SongsLibraryWidget extends StatelessWidget {
           Obx(() {
             final cloudMode = libSongsController.showCloudSongs.value;
             final cloud = Get.find<CloudMusicService>();
+            final downloadedOnly = libSongsController.downloadedOnly.value;
             final count = cloudMode
                 ? (cloud.isConnected.value ? cloud.songs.length : 0)
-                : libSongsController.librarySongsList.length;
+                : libSongsController.visibleSongs.length;
             return SortWidget(
               tag: "LibSongSort",
               screenController: libSongsController,
@@ -86,6 +87,9 @@ class SongsLibraryWidget extends StatelessWidget {
               requiredSortTypes: buildSortTypeSet(true, true),
               isSearchFeatureRequired: !cloudMode,
               isSongDeletetioFeatureRequired: !cloudMode,
+              isDownloadedFilterRequired: !cloudMode,
+              isDownloadedOnly: downloadedOnly,
+              onDownloadedToggle: libSongsController.toggleDownloadedOnly,
               isCloudFeatureRequired: true,
               isCloudModeActive: cloudMode,
               onCloudToggle: () => libSongsController.toggleCloudSongs(),
@@ -112,7 +116,13 @@ class SongsLibraryWidget extends StatelessWidget {
                 return const _CloudSongsPane();
               }
               return GetX<LibrarySongsController>(builder: (controller) {
-                return controller.librarySongsList.isNotEmpty
+                final songs = controller.visibleSongs;
+                if (controller.downloadedOnly.isTrue &&
+                    songs.isEmpty &&
+                    controller.librarySongsList.isNotEmpty) {
+                  return EmptyPlayHint(message: "noDownloadedSongs".tr);
+                }
+                return songs.isNotEmpty
                     ? (controller.additionalOperationMode.value ==
                             OperationMode.none
                         // ListWidget returns an Expanded, so it needs a Flex
@@ -123,7 +133,7 @@ class SongsLibraryWidget extends StatelessWidget {
                             child: Column(
                               children: [
                                 ListWidget(
-                                  controller.librarySongsList,
+                                  songs,
                                   "library Songs",
                                   true,
                                   isPlaylistOrAlbum: true,
@@ -156,7 +166,7 @@ Future<void> _playLibrarySongs({required bool shuffle}) async {
       !Get.isRegistered<PlayerController>()) {
     return;
   }
-  final songs = Get.find<LibrarySongsController>().librarySongsList;
+  final songs = Get.find<LibrarySongsController>().visibleSongs;
   if (songs.isEmpty) return;
   final queue = playQueueFrom(songs, shuffle: shuffle);
   final ok = await Get.find<PlayerController>().playPlayListSong(

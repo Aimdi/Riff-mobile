@@ -9,6 +9,7 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
 
 import '../../../utils/hive_boxes.dart';
+import 'library_search.dart';
 import '../../../utils/house_keeping.dart';
 import '../../widgets/add_to_playlist.dart';
 import '/ui/widgets/sort_widget.dart';
@@ -105,10 +106,23 @@ class LibrarySongsController extends GetxController {
 
   void onSearch(String value, String? tag) {
     final songlist = tempListContainer
-        .where((element) =>
-            element.title.toLowerCase().contains(value.toLowerCase()))
+        .where((song) => libraryMatches(value, songSearchFields(song)))
         .toList();
     librarySongsList.value = songlist;
+  }
+
+  /// Songs tab filter: only songs downloaded to the device (the list also
+  /// holds songs that are just cached from listening).
+  final downloadedOnly = false.obs;
+
+  void toggleDownloadedOnly() => downloadedOnly.toggle();
+
+  /// What the Songs tab shows and plays: the list after search and sort,
+  /// narrowed to downloads when [downloadedOnly] is on.
+  List<MediaItem> get visibleSongs {
+    if (downloadedOnly.isFalse) return librarySongsList;
+    final downloads = Hive.box("SongDownloads");
+    return librarySongsList.where((s) => downloads.containsKey(s.id)).toList();
   }
 
   void onSearchClose(String? tag) {
@@ -480,8 +494,8 @@ class LibraryPlaylistsController extends GetxController
 
   void onSearch(String value, String? tag) {
     final songlist = tempListContainer
-        .where((element) =>
-            element.title.toLowerCase().contains(value.toLowerCase()))
+        .where((playlist) => libraryMatches(
+            value, [playlist.title, playlist.description]))
         .toList();
     libraryPlaylists.value = songlist;
   }
@@ -685,8 +699,10 @@ class LibraryAlbumsController extends GetxController {
 
   void onSearch(String value, String? tag) {
     final songlist = tempListContainer
-        .where((element) =>
-            element.title.toLowerCase().contains(value.toLowerCase()))
+        .where((album) => libraryMatches(value, [
+              album.title,
+              for (final a in album.artists ?? const []) a['name']?.toString(),
+            ]))
         .toList();
     libraryAlbums.value = songlist;
   }
@@ -730,8 +746,7 @@ class LibraryArtistsController extends GetxController {
 
   void onSearch(String value, String? tag) {
     final songlist = tempListContainer
-        .where((element) =>
-            element.name.toLowerCase().contains(value.toLowerCase()))
+        .where((artist) => libraryMatches(value, [artist.name]))
         .toList();
     libraryArtists.value = songlist;
   }

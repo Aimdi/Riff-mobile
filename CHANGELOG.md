@@ -37,6 +37,15 @@ Lock screen and notification:
   media controls and in Android Auto, and follows likes you make in the
   app. Music only (podcasts keep skip back / forward)
 
+Library:
+* Search finds songs by artist and album too, not just the title, and
+  every word counts ("daft lucky" finds Get Lucky by Daft Punk); accents
+  don't matter ("beyonce" finds Beyoncé). Albums match their artist,
+  playlists their description
+* Songs has a "Downloaded only" switch next to the cloud one: the list,
+  the count and Play / Shuffle then cover only songs saved to the
+  device, not ones that are just cached from listening
+
 Playlists:
 * Deleting one of your playlists now asks first ("Delete playlist?"),
   like Spotify and YouTube Music; before, one tap erased it and its

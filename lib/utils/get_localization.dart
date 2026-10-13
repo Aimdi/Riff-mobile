@@ -5657,6 +5657,8 @@ Map<String, Map<String, String>> get keys => {
     "pause": "Pause",
     "mute": "Mute",
     "unmute": "Unmute",
+    "downloadedOnly": "Downloaded only",
+    "noDownloadedSongs": "No downloaded songs yet",
     "delete": "Delete",
     "deletePlaylistTitle": "Delete playlist?",
     "deletePlaylistMessage": "\u201c@name\u201d and its songs will be removed from your library. This can't be undone.",
