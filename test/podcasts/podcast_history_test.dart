@@ -76,7 +76,8 @@ void main() {
     });
 
     test('remove and clear, with Undo', () async {
-      await PodcastHistory.add(_episode(1), now: now);
+      await PodcastHistory.add(_episode(1),
+          now: now.subtract(const Duration(minutes: 40)));
       await PodcastHistory.add(_episode(2), now: now);
       final oldest = PodcastHistory.all.last;
       await PodcastHistory.remove(oldest.id);

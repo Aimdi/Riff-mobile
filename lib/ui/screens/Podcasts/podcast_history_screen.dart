@@ -43,10 +43,9 @@ class PodcastHistoryScreen extends StatelessWidget {
                 trailing: d == 0 ? _clearButton(context, entries) : null,
               ),
             ),
-            SliverList.separated(
+            // The rows draw their own hairlines (§5.2).
+            SliverList.builder(
               itemCount: days[d].$2.length,
-              // Full-width hairline between rows (§5.2).
-              separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (_, i) => PodcastHistoryRow(entry: days[d].$2[i]),
             ),
           ],
