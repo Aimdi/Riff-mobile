@@ -18,6 +18,7 @@ import '/services/crash_report.dart';
 import '/services/better_lyrics_service.dart';
 import '/services/lyrics_romanization.dart';
 import '/services/lyrics_text_size.dart';
+import '/services/normalization_level.dart';
 import '/services/private_session.dart';
 import '/services/song_fade.dart';
 import '/services/discovery/discovery_service.dart';
@@ -532,6 +533,32 @@ class SettingsScreen extends StatelessWidget {
                               onChanged: settingsController
                                   .toggleLoudnessNormalization),
                         )),
+                  // How loud normalized songs are (Spotify's volume level).
+                  if (GetPlatform.isAndroid)
+                    Obx(() => settingsController
+                            .loudnessNormalizationEnabled.isFalse
+                        ? const SizedBox.shrink()
+                        : ListTile(
+                            contentPadding: settingsTilePadding,
+                            title: Text('normalizationLevel'.tr),
+                            subtitle: Text('normalizationLevelDes'.tr,
+                                style: settingsSubtitleStyle(context)),
+                            trailing: DropdownButton<NormalizationLevel>(
+                              dropdownColor: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerLow,
+                              underline: const SizedBox.shrink(),
+                              value: NormalizationLevel.selected.value,
+                              items: NormalizationLevel.values
+                                  .map((level) => DropdownMenuItem(
+                                        value: level,
+                                        child: Text(level.labelKey.tr),
+                                      ))
+                                  .toList(),
+                              onChanged:
+                                  settingsController.setNormalizationLevel,
+                            ),
+                          )),
                   if (!isDesktop)
                     ListTile(
                         contentPadding:

@@ -214,6 +214,10 @@ Fade between songs:
   back. Music only: podcasts, audiobooks, repeat-one, the last song of
   the queue, songs shorter than three fades and playlist Mixes (which
   have their own transitions) play as they are. Off by default
+* Loudness normalization has a volume level, like Spotify's: Settings ›
+  Volume level (under Loudness normalization, Android): Quiet, Normal (as
+  before) or Loud, which keeps more of each song's volume. Changing it
+  applies to the song playing straight away
 
 App icon shortcuts (Android 7.1+):
 * Long-press Riff's icon for Search, Favorites and Downloads, as with

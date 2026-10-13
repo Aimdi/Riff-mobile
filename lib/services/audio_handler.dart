@@ -32,6 +32,7 @@ import '/services/podcast_playback_profile.dart';
 import '/models/media_item_extras.dart';
 import '/services/now_playing_controls.dart';
 import '/services/queue_undo.dart';
+import '/services/normalization_level.dart';
 import '/services/shuffle_order.dart';
 import '/services/song_fade.dart';
 import '/services/stream_service.dart';
@@ -1814,15 +1815,12 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       _player.setVolume(1.0);
       return;
     }
-    double loudnessDifference = -5 - currentLoudnessDb;
-
-    // Converted loudness difference to a volume multiplier
-    // We use a factor to convert dB difference to a linear scale
-    // 10^(difference / 20) converts dB difference to a linear volume factor
-    final volumeAdjustment = pow(10.0, loudnessDifference / 20.0);
+    // Brought to the volume level chosen in Settings (Normal: −5 dB).
+    final volumeAdjustment = normalizedVolume(
+        currentLoudnessDb, NormalizationLevel.selected.value.targetDb);
     printINFO(
         "loudness:$currentLoudnessDb Normalized volume: $volumeAdjustment");
-    _baseVolume = volumeAdjustment.toDouble().clamp(0, 1.0);
+    _baseVolume = volumeAdjustment;
     _player.setVolume(_baseVolume);
   }
 

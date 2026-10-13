@@ -14,6 +14,7 @@ import '../../../utils/app_version.dart';
 import '../../../utils/update_check_flag_file.dart';
 import '/services/wizestream_service.dart';
 import '/services/app_shortcuts.dart';
+import '/services/normalization_level.dart';
 import '/services/piped_service.dart';
 import '../Library/library_controller.dart';
 import '../../widgets/snackbar.dart';
@@ -572,6 +573,15 @@ class SettingsScreenController extends GetxController {
     Get.find<PlayerController>().toggleLoudnessNormalization(val);
     setBox.put("loudnessNormalizationEnabled", val);
     loudnessNormalizationEnabled.value = val;
+  }
+
+  /// Normalization's volume level; the song playing takes it at once.
+  Future<void> setNormalizationLevel(NormalizationLevel? level) async {
+    if (level == null) return;
+    await NormalizationLevel.set(level);
+    if (loudnessNormalizationEnabled.isTrue) {
+      Get.find<PlayerController>().toggleLoudnessNormalization(true);
+    }
   }
 
   void toggleRestorePlaybackSession(bool val) {
