@@ -167,6 +167,14 @@ void main() {
       expect(sleepFadeFactor(Duration.zero, Duration.zero), 0.0);
     });
 
+    test('everything fades except video mode and a playlist Mix', () {
+      // Music, podcasts and audiobooks all fade now (it used to be podcasts
+      // only, so music stopped dead).
+      expect(sleepFadeApplies(videoMode: false, mixActive: false), isTrue);
+      expect(sleepFadeApplies(videoMode: true, mixActive: false), isFalse);
+      expect(sleepFadeApplies(videoMode: false, mixActive: true), isFalse);
+    });
+
     test('wall-clock time accounts for playback speed', () {
       expect(wallClockRemaining(const Duration(seconds: 20), 2.0),
           const Duration(seconds: 10));

@@ -19,6 +19,11 @@ Mini player (phones):
   the previous song (the ⏮ button still restarts the song first when
   you're more than 3 seconds in)
 
+Sleep timer:
+* Music and audiobooks now fade out over the last 10 seconds before the
+  timer stops them, like podcasts already did, instead of cutting off
+  mid-note (not in video mode or a playlist Mix, which fade their own way)
+
 Lock screen and notification:
 * A heart next to previous / play / next likes or unlikes the playing
   song, like Spotify and YouTube Music; it also shows in Android 13+'s

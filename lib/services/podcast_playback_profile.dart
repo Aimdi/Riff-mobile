@@ -200,6 +200,13 @@ double sleepFadeFactor(Duration elapsed, Duration length) {
   return (1 - t).clamp(0.0, 1.0);
 }
 
+/// Whether the sleep timer fades out rather than stopping dead: music,
+/// podcasts and audiobooks alike (as in Spotify and Apple Music), except
+/// in video mode (its own engine plays) and during a playlist Mix (its
+/// crossfades already own the volume at the end of each song).
+bool sleepFadeApplies({required bool videoMode, required bool mixActive}) =>
+    !videoMode && !mixActive;
+
 /// Wall-clock time left until [remainingContent] has played at [speed].
 Duration wallClockRemaining(Duration remainingContent, double speed) {
   final s = speed <= 0 ? 1.0 : speed;

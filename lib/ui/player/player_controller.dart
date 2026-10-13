@@ -47,6 +47,7 @@ import '/ui/player/progress_ui_throttle.dart';
 import '/ui/player/radio_continuation.dart';
 import 'upcoming_queue.dart';
 import 'video_mode_controller.dart';
+import '/services/playlist_mix_service.dart';
 import '/services/podcast_playback_profile.dart';
 import '/services/podcast_library.dart';
 import '/services/audio_handler.dart' show MyAudioHandler, MediaLibrary;
@@ -2338,12 +2339,18 @@ class PlayerController extends GetxController
     isSleepEndOfChapterActive.value = true;
   }
 
-  /// Podcasts (audio only): once less than [sleepFadeLength] of wall-clock
-  /// time is left, fade out and let the handler pause. True while a fade
-  /// owns the stop.
+  /// See [sleepFadeApplies].
+  bool get _sleepFades => sleepFadeApplies(
+        videoMode: _videoModeActive,
+        mixActive: Get.isRegistered<PlaylistMixService>() &&
+            Get.find<PlaylistMixService>().mixPlaybackActive.isTrue,
+      );
+
+  /// Once less than [sleepFadeLength] of wall-clock time is left, fade out
+  /// and let the handler pause. True while a fade owns the stop.
   bool _maybeStartSleepFade(Duration remainingContent) {
     if (_sleepFadeStarted) return true;
-    if (!isCurrentSongPodcast || _videoModeActive) return false;
+    if (!_sleepFades) return false;
     final speed = _audioHandler.playbackState.value.speed;
     // Stop a second before the end so the episode can't roll on to the
     // next one while fading.
@@ -2374,14 +2381,13 @@ class PlayerController extends GetxController
         final left = timerDuration - timer.tick;
         if (left > 0 &&
             !_sleepFadeStarted &&
-            isCurrentSongPodcast &&
-            !_videoModeActive &&
+            _sleepFades &&
             left <= sleepFadeLength.inSeconds) {
           _startSleepFade(Duration(seconds: left));
         }
         if (timer.tick == timerDuration) {
           sleepTimer?.cancel();
-          // A podcast fade pauses by itself.
+          // A fade pauses by itself.
           if (!_sleepFadeStarted) {
             pause(source: PlaybackCommandSource.sleepTimer);
           }

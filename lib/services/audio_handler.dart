@@ -1512,7 +1512,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         break;
 
       case 'sleepFadePause':
-        // Podcast sleep timer: fade out, pause, put the volume back.
+        // Sleep timer: fade out, pause, put the volume back.
         final ms = (extras?['ms'] as num?)?.toInt() ?? 10000;
         final length = Duration(milliseconds: ms.clamp(0, 60000));
         final token = ++_sleepFadeToken;
