@@ -98,12 +98,15 @@ class AudiobookBookmarkStore {
     final bookId = AudiobookProgressService.bookIdOf(track);
     if (b == null || bookId == null) return null;
     final at = (now ?? DateTime.now()).millisecondsSinceEpoch;
+    final positionMs = math.max(0, position.inMilliseconds);
     final bm = AudiobookBookmark(
-      id: '${track.id}_$at',
+      // With the position: two saved in the same millisecond (quick taps)
+      // are two bookmarks unless they're the same moment.
+      id: '${track.id}_${positionMs}_$at',
       bookId: bookId,
       trackId: track.id,
       trackIndex: math.max(0, trackIndex),
-      positionMs: math.max(0, position.inMilliseconds),
+      positionMs: positionMs,
       createdAt: at,
       trackTitle: track.title,
     );
