@@ -18,6 +18,7 @@ import '/services/crash_report.dart';
 import '/services/better_lyrics_service.dart';
 import '/services/lyrics_romanization.dart';
 import '/services/private_session.dart';
+import '/services/song_fade.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/listenbrainz_service.dart';
 import '/services/music_service.dart';
@@ -606,6 +607,30 @@ class SettingsScreen extends StatelessWidget {
                                   settingsController.skipSilenceEnabled.value,
                               onChanged: settingsController.toggleSkipSilence),
                         )),
+                  ListTile(
+                    contentPadding: settingsTilePadding,
+                    title: Text('songFade'.tr),
+                    subtitle: Text('songFadeDes'.tr,
+                        style: settingsSubtitleStyle(context)),
+                    trailing: Obx(
+                      () => DropdownButton<int>(
+                        dropdownColor:
+                            Theme.of(context).colorScheme.surfaceContainerLow,
+                        underline: const SizedBox.shrink(),
+                        value: SongFade.selected.value,
+                        items: SongFade.choices
+                            .map((seconds) => DropdownMenuItem(
+                                  value: seconds,
+                                  child: Text(
+                                      seconds == 0 ? 'off'.tr : '${seconds}s'),
+                                ))
+                            .toList(),
+                        onChanged: (seconds) {
+                          if (seconds != null) SongFade.set(seconds);
+                        },
+                      ),
+                    ),
+                  ),
                   ListTile(
                       contentPadding: settingsTilePadding,
                       title: Text("sponsorBlock".tr),

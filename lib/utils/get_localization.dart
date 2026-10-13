@@ -4809,6 +4809,8 @@ Map<String, Map<String, String>> get keys => {
     "cacheSongsDes": "Caching songs while playing for future/offline playback, it will take additional space on your device",
     "skipSilence": "Skip silence",
     "skipSilenceDes": "Silence will be skipped in music playback",
+    "songFade": "Fade between songs",
+    "songFadeDes": "The end of a song fades out and the next one fades in, like crossfade. Not for podcasts or audiobooks",
     "sponsorBlock": "SponsorBlock",
     "sponsorBlockDes": "Auto-skip sponsors, intros, outros and non-music sections using community timestamps",
     "spotifyImport": "Import from Spotify",

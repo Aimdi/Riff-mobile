@@ -33,6 +33,7 @@ import '/models/media_item_extras.dart';
 import '/services/now_playing_controls.dart';
 import '/services/queue_undo.dart';
 import '/services/shuffle_order.dart';
+import '/services/song_fade.dart';
 import '/services/stream_service.dart';
 import '/ui/screens/Podcasts/podcast_queue_controller.dart';
 import '/models/hm_streaming_data.dart';
@@ -132,6 +133,14 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   int _watchdogTicks = 0;
   bool _mixTransitionInProgress = false;
   bool _startMutedForMix = false;
+
+  /// Fade between songs: while it has the volume lowered, the level it
+  /// plays at otherwise.
+  double? _songFadeBase;
+
+  /// The song fading in after the one before faded out, and over how long.
+  String? _songFadeInId;
+  int _songFadeInMs = 0;
   /// Song id we already near-end-prefetched, so the 45s listener fires once.
   String? _prefetchArmedForId;
   /// Song id we already EOF-advanced, so position ticks cannot double-skip.
@@ -765,6 +774,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
       if (_mixTransitionInProgress) return;
 
+      _songFadeTick(posMs, durationMs - playerDurationOffset);
+
       // A show that skips its outro ends the episode where it begins.
       final outroCut = _podcastOutroCutMs(durationMs);
 
@@ -863,6 +874,84 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       await Future<void>.delayed(stepDur);
     }
     await _player.setVolume(target.clamp(0.0, 1.0));
+  }
+
+  // ── Fade between songs ────────────────────────────────────────────────
+
+  /// The last seconds of a song fade out, the first ones of the song after
+  /// it fade in. The volume follows the position ([posMs] of a song that
+  /// ends at [endMs]), so a seek, pause, stall or speed change just moves
+  /// along the fade and can't leave the volume low.
+  void _songFadeTick(int posMs, int endMs) {
+    // A loading song's ticks are the last one's, and the sleep timer's
+    // fade has the volume meanwhile.
+    if (isSongLoading || _sleepFadeRestoreVolume != null) return;
+    final item = mediaItem.value;
+    var inMs = 0;
+    if (item != null && item.id == _songFadeInId) {
+      if (posMs < _songFadeInMs) {
+        inMs = _songFadeInMs;
+      } else {
+        _songFadeInId = null;
+      }
+    }
+    var outMs = item == null ? 0 : _songFadeLength(item, endMs);
+    // Not near the end yet; or repeat-one, a Mix (it has its own
+    // transitions) or the last song of the queue, which play out as they
+    // are.
+    if (outMs > 0 &&
+        (endMs - posMs >= outMs ||
+            loopModeEnabled ||
+            _isMixPlaybackActive() ||
+            !_hasNextSong())) {
+      outMs = 0;
+    }
+    final factor =
+        songFadeFactor(posMs: posMs, lengthMs: endMs, inMs: inMs, outMs: outMs);
+    if (factor == null) {
+      _endSongFade();
+      return;
+    }
+    final level = (_songFadeBase ??= _player.volume) * factor;
+    if ((_player.volume - level).abs() > 0.001) {
+      unawaited(_player.setVolume(level.clamp(0.0, 1.0)));
+    }
+  }
+
+  /// How long [item], [lengthMs] long, fades for: music only, podcasts and
+  /// audiobooks play as they are.
+  static int _songFadeLength(MediaItem item, int lengthMs) {
+    if (item.isPodcastEpisode || item.isAudiobook) return 0;
+    return songFadeMs(seconds: SongFade.seconds, lengthMs: lengthMs);
+  }
+
+  bool _hasNextSong() =>
+      currentIndex is int && _getNextSongIndex() != currentIndex;
+
+  /// Puts the volume back if the fade between songs lowered it.
+  void _endSongFade() {
+    _songFadeInId = null;
+    final base = _songFadeBase;
+    if (base == null) return;
+    _songFadeBase = null;
+    unawaited(_player.setVolume(base));
+  }
+
+  /// [song] follows one that faded out: it starts silent and fades in up
+  /// to [level], or plays at it straight away (a podcast, a short song).
+  Future<void> _startSongFadeIn(MediaItem song, double level) async {
+    final length = _player.duration ?? song.duration;
+    final ms = _songFadeLength(song, length?.inMilliseconds ?? 0);
+    if (ms <= 0) {
+      _songFadeBase = null;
+      _songFadeInId = null;
+      await _player.setVolume(level);
+      return;
+    }
+    _songFadeBase = level;
+    _songFadeInId = song.id;
+    _songFadeInMs = ms;
+    await _player.setVolume(0);
   }
 
   Future<void> _triggerNext() async {
@@ -1310,6 +1399,10 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           ));
           return false;
         }
+        // Fade between songs: the song after one that faded out fades in;
+        // anything else played meanwhile puts the volume back first.
+        final fadeIn = _songFadeBase != null && _eofAdvanceInProgress;
+        if (!fadeIn) _endSongFade();
         currentIndex = songIndex;
         if (shuffleModeEnabled) _syncShufflePos();
         final requestId = ++_playRequestId;
@@ -1395,15 +1488,21 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
 
         isSongLoading = false;
-        if (loudnessNormalizationEnabled && GetPlatform.isAndroid) {
+        // The fade between songs keeps the level it lowered the volume from.
+        final level = _songFadeBase ?? _player.volume;
+        final normalize = loudnessNormalizationEnabled && GetPlatform.isAndroid;
+        if (normalize) {
           _normalizeVolume(streamInfo.audio!.loudnessDb);
         } else {
-          _baseVolume = _player.volume.clamp(0.0, 1.0);
+          _baseVolume = level.clamp(0.0, 1.0);
           if (_baseVolume <= 0) _baseVolume = 1.0;
         }
         if (_startMutedForMix) {
           await _player.setVolume(0);
           _startMutedForMix = false;
+        }
+        if (fadeIn) {
+          await _startSongFadeIn(currentSong, normalize ? _baseVolume : level);
         }
 
         final resumeMs = (extras['position'] as num?)?.toInt() ?? 0;
@@ -1595,6 +1694,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
       case 'setVolume':
         _baseVolume = (extras!['value'] / 100).clamp(0.0, 1.0);
+        // A fade between songs carries on from the new level.
+        if (_songFadeBase != null) _songFadeBase = _baseVolume;
         _player.setVolume(_baseVolume);
         break;
 

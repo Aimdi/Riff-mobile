@@ -182,6 +182,15 @@ Private session:
   order or ListenBrainz. The setting shows when it ends; it also ends
   on time if the app was closed
 
+Fade between songs:
+* Like Spotify's and Apple Music's Crossfade: Settings › Fade between
+  songs (off, 3, 5, 8 or 12 seconds) fades the end of a song out and the
+  next one in, instead of a hard cut. The fade follows the song, so
+  seeking back, pausing or skipping during it puts the volume straight
+  back. Music only: podcasts, audiobooks, repeat-one, the last song of
+  the queue, songs shorter than three fades and playlist Mixes (which
+  have their own transitions) play as they are. Off by default
+
 Keyboard (Linux PCs, and tablets with a keyboard):
 * Spotify's desktop shortcuts work on every screen: Space play / pause,
   Ctrl + → / ← next / previous, Shift + → / ← forward / back 10 seconds,
