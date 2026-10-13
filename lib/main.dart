@@ -28,6 +28,7 @@ import '/services/diag_log.dart';
 import '/services/client_config_service.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/music_service.dart';
+import '/services/now_playing_widget.dart';
 import '/services/playback_rules_service.dart';
 import '/services/playlist_mix_service.dart';
 import '/services/smart_queue_service.dart';
@@ -119,6 +120,11 @@ Future<void> _initAudioAndWarm(Future<void> deferredBoxes) async {
       Get.put<AudioHandler>(handler, permanent: true);
     }
   });
+  // The home screen widget follows the player.
+  if (GetPlatform.isAndroid) {
+    await _warmUp('Home screen widget',
+        () async => NowPlayingWidget.start(Get.find<AudioHandler>()));
+  }
   await deferredBoxes;
   // Each step on its own: one shared try used to let a failing step (e.g.
   // discovery on a damaged box) skip playback rules, the smart queue,

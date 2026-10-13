@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home screen widget (NowPlayingWidget.kt), on the app's spacing and
+     radius scale (RiffSpacing, RiffRadii). -->
+<resources>
+    <dimen name="widget_radius">16dp</dimen>
+    <dimen name="widget_padding">8dp</dimen>
+    <dimen name="widget_padding_end">4dp</dimen>
+    <dimen name="widget_art">48dp</dimen>
+    <dimen name="widget_gap">12dp</dimen>
+    <dimen name="widget_button">40dp</dimen>
+    <dimen name="widget_button_gap">4dp</dimen>
+    <dimen name="widget_title_text">14sp</dimen>
+    <dimen name="widget_artist_text">12sp</dimen>
+</resources>

@@ -104,6 +104,14 @@ class MainActivity : AudioServiceActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             "riff/newpipe"
         ).setMethodCallHandler(NewPipeChannel)
+        // The home screen widget's channel: like riff/newpipe it stays after
+        // this activity goes, so the widget follows the music in the
+        // background.
+        NowPlayingWidget.appContext = applicationContext
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "riff/widget"
+        ).setMethodCallHandler(NowPlayingWidget.channel)
     }
 
     /**

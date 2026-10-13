@@ -234,6 +234,15 @@ App icon shortcuts (Android 7.1+):
   Spotify and YouTube Music, or drag one to the home screen. They're in
   the app's language and follow it when you change it
 
+Home screen widget (Android):
+* A Riff widget for the home screen, like Spotify's, YouTube Music's and
+  AntennaPod's: the song or episode playing with its cover, title and
+  artist, and previous, play / pause (in your accent colour) and next.
+  It follows the music in the background too, and its buttons do what
+  the notification's do. Tap the cover or the title to open Riff; while
+  Riff isn't running, the buttons open it. Black like the app, 4 × 1 and
+  resizable in width
+
 Keyboard (Linux PCs, and tablets with a keyboard):
 * Spotify's desktop shortcuts work on every screen: Space play / pause,
   Ctrl + → / ← next / previous, Shift + → / ← forward / back 10 seconds,
