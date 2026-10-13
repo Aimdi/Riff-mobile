@@ -166,6 +166,11 @@ Audiobooks:
   its ⋮) no longer changes how fast music plays, and the music speed in
   Settings no longer changes a book or podcast that's playing. Books
   start at the speed they played at before
+* Bookmarks in audiobooks, like Audible's: the book player's ⋮ ›
+  Bookmark this moment saves where you are ("Bookmarked at 12:34"), and
+  Bookmarks in this book lists them in reading order, each with its time
+  and chapter. Tap one to play from there, even in another chapter;
+  remove one with Undo
 
 Library:
 * Removing a song (swipe it, or "Remove" in its menu) now says "Removed

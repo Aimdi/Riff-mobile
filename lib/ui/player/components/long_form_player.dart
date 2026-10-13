@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/screens/Audiobooks/audiobook_bookmarks_ui.dart';
 import '/ui/screens/Podcasts/podcast_segment_ui.dart';
 
 import '/ui/screens/Podcasts/podcast_playback_controls.dart';
@@ -508,6 +509,8 @@ void openLongFormMenu(BuildContext context) {
         children: [
           RiffSheetHandle(),
           LongFormToolTiles(),
+          // Books: bookmarks (Audible).
+          AudiobookBookmarkTiles(),
           SizedBox(height: RiffSpacing.sm),
         ],
       ),

@@ -589,6 +589,21 @@ class PlayerController extends GetxController
     );
   }
 
+  /// Play the queue's track at [index] from [position] (an audiobook
+  /// bookmark), or seek there if it's the track playing.
+  void playQueueItemAt(int index, Duration position) {
+    if (index < 0 || index >= currentQueue.length) return;
+    final item = currentQueue[index];
+    if (currentSong.value?.id == item.id) {
+      seek(position);
+      if (buttonState.value == PlayButtonState.paused) play();
+      return;
+    }
+    _explicitStartId = item.id;
+    _explicitStartMs = position.inMilliseconds;
+    seekByIndex(index);
+  }
+
   /// Arm a one-shot seek after playback starts (ABS resume / explicit offset).
   void armResume(String id, int offsetMs) {
     _pendingResumeId = id;
