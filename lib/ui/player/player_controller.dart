@@ -43,6 +43,7 @@ import '/services/sponsorblock_service.dart';
 import '/services/podcast_service.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/podcast_history.dart';
+import '/services/sleep_shake.dart';
 import '/services/audiobookshelf_service.dart';
 import '/ui/player/riff_wave.dart';
 import '/ui/player/play_log_gate.dart';
@@ -261,9 +262,22 @@ class PlayerController extends GetxController
       // Full player open: fetch lyrics for the line under the title.
       ever(currentSong, (_) => _scheduleLyricsPrefetch()),
       ever(isPlayerPanelOpen, (_) => _scheduleLyricsPrefetch()),
+      // Shake to restart a timed sleep timer (Android).
+      everAll([
+        isSleepTimerActive,
+        isSleepEndOfSongActive,
+        isSleepEndOfChapterActive,
+        SleepShake.enabled,
+      ], (_) => _followShakes()),
     ]);
     super.onInit();
   }
+
+  void _followShakes() => SleepShake.follow(
+      wanted: isSleepTimerActive.isTrue &&
+          isSleepEndOfSongActive.isFalse &&
+          isSleepEndOfChapterActive.isFalse,
+      onShake: restartSleepTimer);
 
   Timer? _lyricsPrefetchTimer;
 
@@ -2427,9 +2441,13 @@ class PlayerController extends GetxController
     });
   }
 
+  /// The length the running timer was started with, for [restartSleepTimer].
+  int _sleepTimerLength = 0;
+
   bool startSleepTimer(int minutes) {
     if (!canArmSleepTimer(minutes)) return false;
     timerDuration = minutes * 60;
+    _sleepTimerLength = timerDuration;
     isSleepTimerActive.value = true;
     if ((sleepTimer != null && !sleepTimer!.isActive) || sleepTimer == null) {
       sleepTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -2459,6 +2477,16 @@ class PlayerController extends GetxController
 
   void addFiveMinutes() {
     timerDuration += 300;
+    _cancelSleepFade();
+  }
+
+  /// Back to the length the timer was started with (a shake, see
+  /// [SleepShake]), fading in again if it had begun to fade out.
+  void restartSleepTimer() {
+    final timer = sleepTimer;
+    if (timer == null || !timer.isActive || _sleepTimerLength <= 0) return;
+    timerDuration = timer.tick + _sleepTimerLength;
+    timerDurationLeft.value = _sleepTimerLength;
     _cancelSleepFade();
   }
 
@@ -2616,6 +2644,7 @@ class PlayerController extends GetxController
     gesturePlayerStateAnimationController?.dispose();
     gesturePlayerStateAnimationController = null;
     sleepTimer?.cancel();
+    SleepShake.stop();
     _lyricsPrefetchTimer?.cancel();
     if (GetPlatform.isWindows) {
       Get.delete<WindowsAudioService>();

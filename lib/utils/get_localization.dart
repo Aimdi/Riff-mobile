@@ -4642,6 +4642,8 @@ Map<String, Map<String, String>> get keys => {
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "shakeToRestart": "Shake to restart",
+    "shakeToRestartDes": "Shake the phone to set the timer back to its full length",
     "listeningHistory": "History",
     "noListeningHistory": "Episodes you play show up here",
     "clearHistory": "Clear history",

@@ -12,6 +12,7 @@ import android.net.Uri
 import android.os.Build
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.lang.ref.WeakReference
 
@@ -112,6 +113,13 @@ class MainActivity : AudioServiceActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             "riff/widget"
         ).setMethodCallHandler(NowPlayingWidget.channel)
+        // Shakes for "Shake to restart" the sleep timer: also stays, as the
+        // timer runs on with the screen off.
+        ShakeChannel.appContext = applicationContext
+        EventChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "riff/shake"
+        ).setStreamHandler(ShakeChannel)
     }
 
     /**

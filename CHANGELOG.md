@@ -69,6 +69,11 @@ Sleep timer:
   mid-note (not in video mode or a playlist Mix, which fade their own way)
 * Custom: any length from 5 minutes to 4 hours on a slider, like Pocket
   Casts and AntennaPod; it opens at the length you picked last time
+* Shake to restart (Android), like Pocket Casts and AntennaPod: while a
+  timed sleep timer runs, shake the phone to set it back to its full
+  length, even with the screen off; it buzzes so you know, and a fade
+  that had begun stops. On by default; the switch is in the sleep timer
+  while it runs
 
 Lock screen and notification:
 * A heart next to previous / play / next likes or unlikes the playing

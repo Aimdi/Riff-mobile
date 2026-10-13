@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
+import '/services/sleep_shake.dart';
 import '/ui/player/play_queue_order.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/theme/riff_spacing.dart';
+import 'cust_switch.dart';
 import 'riff_sheet.dart';
 import 'snackbar.dart';
 
@@ -117,6 +119,22 @@ class SleepTimerBottomSheet extends StatelessWidget {
                   ],
                 ),
               ),
+              // A timed timer: shake to start it over (Pocket Casts,
+              // AntennaPod).
+              if (!endOfSong && GetPlatform.isAndroid) ...[
+                const SizedBox(height: RiffSpacing.sm),
+                RiffSheetTile(
+                  icon: Icons.vibration_rounded,
+                  title: 'shakeToRestart'.tr,
+                  subtitle: 'shakeToRestartDes'.tr,
+                  onTap: () =>
+                      SleepShake.setEnabled(SleepShake.enabled.isFalse),
+                  trailing: CustSwitch(
+                    value: SleepShake.enabled.isTrue,
+                    onChanged: SleepShake.setEnabled,
+                  ),
+                ),
+              ],
             ] else ...[
               Padding(
                 padding: const EdgeInsets.only(
