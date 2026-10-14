@@ -227,6 +227,12 @@ Podcasts:
   cover plays the first episode you haven't heard, "First episode" or
   "Next episode", instead of the latest (an episode you're in the middle
   of still resumes)
+* A show that moved to another host keeps coming, as in Apple Podcasts,
+  Pocket Casts and AntennaPod: when its old feed says where the new one is
+  (itunes:new-feed-url), Riff reads the new one, so new episodes keep
+  reaching your Inbox and the show's page (the old feed's episodes if the
+  new one can't be read). Following a show by an old address keeps the
+  new one
 * A show's page remembers its episode order (Newest first / Oldest
   first) for that show, like Pocket Casts and AntennaPod, so a series you
   hear in order stays oldest first. The eye button next to it hides

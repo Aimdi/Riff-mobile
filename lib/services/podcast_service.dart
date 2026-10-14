@@ -617,11 +617,19 @@ class PodcastService {
   /// The show at a feed address ({title, author, artwork, feedUrl}), for
   /// following a show by its feed ([podcastFeedUrlFrom]); null when it
   /// can't be read or isn't a podcast feed.
-  static Future<Map<String, dynamic>?> feedInfo(String feedUrl) async {
+  static Future<Map<String, dynamic>?> feedInfo(String feedUrl,
+      {bool followMove = true}) async {
     try {
       final res = await _dio.get(feedUrl,
           options: Options(responseType: ResponseType.plain));
       final body = res.data as String;
+      // A show that moved is followed at its new feed, so that's the one
+      // kept.
+      final moved = followMove ? feedMovedTo(body) : null;
+      if (moved != null && moved != feedUrl) {
+        final there = await feedInfo(moved, followMove: false);
+        if (there != null) return there;
+      }
       final info = await Isolate.run(() => parsePodcastFeedInfo(body));
       return info == null ? null : {...info, 'feedUrl': feedUrl};
     } catch (e) {
@@ -639,26 +647,51 @@ class PodcastService {
   /// and a DOM walk plus HTML strip on the UI isolate janks scrolling. With
   /// [maxItems] only the first (feed-order, normally newest) episodes are
   /// built.
+  ///
+  /// A show that moved hosts (its old feed's itunes:new-feed-url) is read at
+  /// its new feed, as Apple Podcasts and AntennaPod follow it, so it keeps
+  /// its new episodes; at the old one still if the new can't be read.
   static Future<List<Map<String, dynamic>>> episodes(
       String feedUrl, String podcastTitle, String fallbackArt,
       {int? maxItems}) async {
     try {
-      final res = await _dio.get(feedUrl,
-          options: Options(responseType: ResponseType.plain));
-      return await _parseFeedInBackground(
-          res.data as String, podcastTitle, fallbackArt, maxItems);
+      final old =
+          await _fetchFeed(feedUrl, podcastTitle, fallbackArt, maxItems);
+      final moved = old.movedTo;
+      if (moved == null || moved == feedUrl) return old.episodes;
+      try {
+        final now =
+            await _fetchFeed(moved, podcastTitle, fallbackArt, maxItems);
+        if (now.episodes.isNotEmpty) return now.episodes;
+      } catch (e) {
+        printERROR("Moved feed failed ($moved): $e");
+      }
+      return old.episodes;
     } catch (e) {
       printERROR("Feed parse failed ($feedUrl): $e");
       return [];
     }
   }
 
+  static Future<({List<Map<String, dynamic>> episodes, String? movedTo})>
+      _fetchFeed(String url, String podcastTitle, String fallbackArt,
+          int? maxItems) async {
+    final res =
+        await _dio.get(url, options: Options(responseType: ResponseType.plain));
+    return _parseFeedInBackground(
+        res.data as String, podcastTitle, fallbackArt, maxItems);
+  }
+
   /// Kept apart from [episodes] so the isolate closure captures only these
   /// sendable arguments.
-  static Future<List<Map<String, dynamic>>> _parseFeedInBackground(String body,
-          String podcastTitle, String fallbackArt, int? maxItems) =>
-      Isolate.run(() => parsePodcastFeed(body, podcastTitle, fallbackArt,
-          maxItems: maxItems));
+  static Future<({List<Map<String, dynamic>> episodes, String? movedTo})>
+      _parseFeedInBackground(String body, String podcastTitle,
+              String fallbackArt, int? maxItems) =>
+          Isolate.run(() => (
+                episodes: parsePodcastFeed(body, podcastTitle, fallbackArt,
+                    maxItems: maxItems),
+                movedTo: feedMovedTo(body),
+              ));
 
   /// Pure RSS body → episode maps. See [parsePodcastFeed].
   static List<Map<String, dynamic>> _parseFeed(
@@ -1191,6 +1224,20 @@ class PodcastService {
     String two(int n) => n.toString().padLeft(2, '0');
     return h > 0 ? "$h:${two(m)}:${two(s)}" : "$m:${two(s)}";
   }
+}
+
+final _newFeedUrlRe = RegExp(
+    r'<itunes:new-feed-url>\s*(?:<!\[CDATA\[)?\s*([^<\s\]]+)',
+    caseSensitive: false);
+final _webAddressRe = RegExp(r'^https?://\S+$');
+
+/// Where a show that moved hosts says its feed is now (the old feed's
+/// itunes:new-feed-url); null when it hasn't moved.
+String? feedMovedTo(String body) {
+  final m = _newFeedUrlRe.firstMatch(body);
+  if (m == null) return null;
+  final url = PodcastService.decodeHtmlEntities(m.group(1)!.trim());
+  return _webAddressRe.hasMatch(url) ? url : null;
 }
 
 /// A feed episode's season, number and type, and whether its show is
