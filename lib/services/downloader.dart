@@ -21,6 +21,7 @@ import '../ui/screens/Library/library_controller.dart';
 import 'discovery/discovery_service.dart';
 import 'music_service.dart';
 import 'synced_lyrics_service.dart';
+import 'download_notice.dart';
 import 'download_quality.dart';
 import 'wifi_only_downloads.dart';
 
@@ -117,8 +118,17 @@ class Downloader extends GetxService {
     }
   }
 
+  /// Songs this job has been through, for the downloads' notification.
+  int _doneThisJob = 0;
+
+  /// The notification: [text] (the song downloading, or why it waits) and
+  /// how many of the job's songs are done.
+  void _notice(String text) => DownloadNotice.update(DownloadNotice.songs,
+      done: _doneThisJob, total: _doneThisJob + songQueue.length, text: text);
+
   Future<void> triggerDownloadingJob() async {
     isJobRunning.value = true;
+    _doneThisJob = 0;
     try {
       // Loop (was recursion) until both queues drain.
       do {
@@ -129,6 +139,7 @@ class Downloader extends GetxService {
     } finally {
       // Always release the job flag, or later downloads only ever queue.
       isJobRunning.value = false;
+      DownloadNotice.end(DownloadNotice.songs);
       currentSong = null;
       currentPlaylistId.value = "";
       playlistDownloadingProgress.value = 0;
@@ -183,6 +194,8 @@ class Downloader extends GetxService {
   void _onWaitForWifi() {
     waitingForWifi.value = true;
     _showSnack('downloadsWaitForWifi'.tr);
+    // Riff stays up meanwhile, so the downloads start once there's Wi-Fi.
+    _notice('waitingForWifi'.tr);
   }
 
   Future<void> downloadSongList(List<MediaItem> jobSongList,
@@ -214,6 +227,7 @@ class Downloader extends GetxService {
         }
         currentSong = song;
         songDownloadingProgress.value = 0;
+        _notice(song.title);
         try {
           await writeFileStream(song);
         } catch (e) {
@@ -223,6 +237,7 @@ class Downloader extends GetxService {
         }
       }
       songQueue.remove(song);
+      _doneThisJob++;
       //for playlist downloading counter update
       if (isPlaylist) {
         playlistDownloadingProgress.value = jobSongList.indexOf(song) + 1;

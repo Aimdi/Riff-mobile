@@ -8,6 +8,7 @@ import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '/services/pending_file_deletes.dart';
+import '/services/download_notice.dart';
 
 /// A download taken out with Undo on offer ([PodcastDownloadService.takeOut]):
 /// its stored entry and its file.
@@ -116,14 +117,43 @@ class PodcastDownloadService {
     if (running != null) return running;
     final job = _download(episode, onProgress: onProgress);
     _inFlight[episode.id] = job;
-    return job.whenComplete(() => _inFlight.remove(episode.id));
+    return job.whenComplete(() {
+      _inFlight.remove(episode.id);
+      _noticeFinish(episode.id);
+    });
   }
+
+  /// In the downloads' notification: the episodes downloading, and how
+  /// many have finished since it came up.
+  static final _noticed = <String>{};
+  static int _noticedDone = 0;
+  static String _noticeText = '';
+
+  static void _noticeStart(MediaItem episode) {
+    _noticed.add(episode.id);
+    _noticeText = episode.title;
+    _noticeShow();
+  }
+
+  static void _noticeFinish(String id) {
+    if (!_noticed.remove(id)) return;
+    _noticedDone++;
+    if (_noticed.isNotEmpty) return _noticeShow();
+    _noticedDone = 0;
+    DownloadNotice.end(DownloadNotice.episodes);
+  }
+
+  static void _noticeShow() => DownloadNotice.update(DownloadNotice.episodes,
+      done: _noticedDone,
+      total: _noticedDone + _noticed.length,
+      text: _noticeText);
 
   static Future<bool> _download(MediaItem episode,
       {void Function(double)? onProgress}) async {
     final url = episode.extras?['url'] as String?;
     if (url == null || url.isEmpty) return false;
     if (isDownloaded(episode.id) && localPath(episode.id) != null) return true;
+    _noticeStart(episode);
     try {
       final dir = await _dir();
       final safe = episode.id.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');

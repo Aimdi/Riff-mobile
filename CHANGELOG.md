@@ -469,6 +469,14 @@ Downloads:
   stopping after two that wouldn't load. Tap a dimmed one and Riff says
   you're offline. Podcasts, books and your own server's songs play as
   before
+* Downloads keep going after you leave Riff, as with YouTube Music,
+  Spotify and AntennaPod: while songs or episodes download, a
+  notification shows how far they've got ("Downloading 3 of 25" and the
+  song), and Android keeps Riff running until they're done. It used to
+  stop them a little while after you switched apps, unless music was
+  playing. Waiting for Wi-Fi, it says so and starts by itself once
+  there's Wi-Fi. On Android 13 and later, Riff asks once, at your first
+  download, to show the notification
 
 Search:
 * Search by voice, as with YouTube Music, Spotify and Apple Music: tap

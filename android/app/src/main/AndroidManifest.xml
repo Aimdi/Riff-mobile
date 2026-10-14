@@ -87,6 +87,13 @@
         </intent-filter>
         </service>
 
+        <!-- Keeps Riff running while songs or episodes download, with their
+             progress in a notification (DownloadChannel.kt). -->
+        <service
+            android:name=".DownloadService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
+
         <receiver 
             android:name="com.ryanheise.audioservice.MediaButtonReceiver"
             android:exported="true" 
@@ -132,6 +139,9 @@
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+    <!-- Downloads in the background (DownloadService), and their notification. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Whether the connection is metered, for downloads that wait for Wi-Fi. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>

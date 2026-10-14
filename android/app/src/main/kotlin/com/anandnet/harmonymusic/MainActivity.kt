@@ -199,6 +199,13 @@ class MainActivity : AudioServiceActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             "riff/network/online"
         ).setStreamHandler(ConnectionChannel)
+        // The downloads' notification, keeping Riff running while they go:
+        // also stays, as they go on in the background.
+        DownloadChannel.appContext = applicationContext
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "riff/downloads"
+        ).setMethodCallHandler(DownloadChannel)
     }
 
     /**
