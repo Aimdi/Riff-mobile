@@ -684,6 +684,10 @@ Search:
   signed in to Spotify); a Spotify album or playlist opens Import from
   Spotify with its link, to make it a Riff playlist. spotify.link short
   links and spotify: links work too; when nothing matches it says so
+* Apple Music links open in Riff too: an Apple Music (or iTunes) song
+  plays its YouTube Music match, and an album or an artist opens the
+  same album or artist on YouTube Music, found from what Apple's public
+  directory says of it
 
 Language:
 * System default, as in Spotify, YouTube Music and AntennaPod: Settings ›

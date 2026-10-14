@@ -9,6 +9,7 @@ import '../models/playlist.dart';
 import '/services/app_shortcuts.dart';
 import '/services/new_episode_alerts.dart';
 import '/services/podcast_feed_url.dart';
+import '/services/apple_music_links.dart';
 import '/services/podcast_links.dart';
 import '/services/spotify_links.dart';
 import '/ui/widgets/spotify_import_dialog.dart';
@@ -147,6 +148,9 @@ mixin ProcessLink {
               : null);
       if (spotify != null) return openSpotifyLink(spotify);
       if (isSpotifyShortLink(link)) return _notALink();
+      // An Apple Music song, album or artist.
+      final apple = appleMusicLinkFrom(link);
+      if (apple != null) return openAppleMusicLink(apple);
       // A podcast's link (a subscribe link, Apple Podcasts', Overcast's),
       // or any other web address, which may be a feed's.
       final feed = podcastFeedUrlFrom(link);
@@ -178,6 +182,33 @@ mixin ProcessLink {
     final ok = await Get.find<PlayerController>().playPlayListSong([song], 0,
         playfrom: PlaylingFrom(type: PlaylingFromType.SELECTION));
     if (!ok) snackOperationFailed();
+  }
+
+  /// An Apple Music song plays its YouTube Music match; an album or an
+  /// artist opens YouTube Music's.
+  Future<void> openAppleMusicLink(AppleMusicLink link) async {
+    final match = await _whileSpinning(appleMusicOnYouTubeMusic(link));
+    final song = match?.song;
+    final album = match?.album;
+    final artist = match?.artist;
+    if (song != null) {
+      final ok = await Get.find<PlayerController>().playPlayListSong([song], 0,
+          playfrom: PlaylingFrom(type: PlaylingFromType.SELECTION));
+      if (!ok) snackOperationFailed();
+    } else if (album != null) {
+      if (await _pagesWithPlayerClosed() == null) return;
+      Get.toNamed(ScreenNavigationSetup.albumScreen,
+          id: ScreenNavigationSetup.id, arguments: (album, album.browseId));
+    } else if (artist != null) {
+      if (await _pagesWithPlayerClosed() == null) return;
+      await openArtist(artist.browseId);
+    } else {
+      final ctx = Get.context;
+      if (ctx == null || !ctx.mounted) return;
+      ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
+          ctx, 'notFoundOnYouTubeMusic'.tr,
+          size: SanckBarSize.MEDIUM));
+    }
   }
 
   void _notALink() {

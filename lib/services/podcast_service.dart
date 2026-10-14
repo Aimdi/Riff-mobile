@@ -90,6 +90,21 @@ class PodcastService {
     };
   }
 
+  /// What Apple's directory says of [id] (a song, an album or an artist
+  /// in Apple Music's links): its first result, or null.
+  static Future<Map<String, dynamic>?> directoryLookup(String id) async {
+    try {
+      final res =
+          await _dio.get('$directoryBase/lookup', queryParameters: {'id': id});
+      final results = _asMap(res.data)?['results'] as List?;
+      final first = results?.whereType<Map>().firstOrNull;
+      return first == null ? null : Map<String, dynamic>.from(first);
+    } catch (e) {
+      printERROR("Apple lookup failed ($id): $e");
+      return null;
+    }
+  }
+
   /// The show with [id] in Apple's directory (an Apple Podcasts or
   /// Overcast link's), as [search] gives shows; null when there's none
   /// with a feed, or it can't be reached.

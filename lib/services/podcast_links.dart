@@ -80,8 +80,12 @@ PodcastLink? podcastLinkFrom(String link) {
           ? uri.queryParameters['url']
           : null;
       return url == null ? null : _feed(url);
-    // …/podcast/the-show/id1200361736 (?i=… names an episode of it)
+    // …/podcast/the-show/id1200361736 (?i=… names an episode of it); on
+    // iTunes, only a podcast's (its albums and songs are music)
     case 'podcasts.apple.com' || 'itunes.apple.com':
+      if (host == 'itunes.apple.com' && !uri.path.contains('/podcast/')) {
+        return null;
+      }
       final id = RegExp(r'/id(\d+)').firstMatch(uri.path)?.group(1);
       return id == null ? null : PodcastLink.apple(id);
     // overcast.fm/itunes1200361736/the-show
