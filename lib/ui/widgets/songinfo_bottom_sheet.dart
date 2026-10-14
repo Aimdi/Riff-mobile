@@ -40,6 +40,7 @@ import 'image_widget.dart';
 import 'riff_sheet.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import 'song_credits_dialog.dart';
 import 'song_info_dialog.dart';
 
 /// Player / mini-player long-press — same sheet as the full player.
@@ -302,6 +303,15 @@ class SongInfoBottomSheet extends StatelessWidget {
                 },
               ),
             ...artistWidgetList(song, context),
+            // Spotify's View credits (YouTube Music's View song credits).
+            RiffSheetTile(
+              icon: Icons.groups_outlined,
+              title: "credits".tr,
+              onTap: () => showDialog(
+                context: context,
+                builder: (context) => SongCreditsDialog(song: song),
+              ),
+            ),
             const RiffSheetDivider(),
             if (inEditablePlaylist)
               RiffSheetTile(

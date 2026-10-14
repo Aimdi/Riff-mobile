@@ -116,6 +116,12 @@ Song rows:
 * Swipe a song all the way to the left to add it to the queue straight
   away, like Spotify; the row slides back with a tick. A shorter swipe
   still shows the Add to queue / Play next buttons
+* Song credits, like Spotify's View credits and YouTube Music's View
+  song credits: a song's ⋮ › Credits shows who performs it, the roles
+  its label lists (producer, composer, lyricist, engineers…), when it
+  came out, its source (the ℗ line) and who provided it to YouTube.
+  They're read from the notes YouTube keeps with each track; songs
+  without them (music videos, uploads) say there are none
 
 Podcasts:
 * Each show can skip its intro and outro, like Pocket Casts and
