@@ -677,6 +677,13 @@ Playlists:
   here"). A CSV with a YouTube link column is read the same way. The
   Export window scrolls when a larger font size makes it taller than the
   screen
+* Exported playlists no longer carry your music server's login: the
+  JSON and CSV exports kept the links of songs from your own (Subsonic)
+  server as Riff signs them, with your user name and a token, or, with
+  the older sign-in, your password barely disguised, readable by anyone
+  you sent the file to. They're written without it now; importing the
+  playlist on a phone connected to that server signs them again, and a
+  song that comes without its server's login is signed when it plays
 
 Albums:
 * More by the artist, like Spotify, Apple Music and YouTube Music: under

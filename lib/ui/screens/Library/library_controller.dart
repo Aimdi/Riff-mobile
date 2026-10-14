@@ -20,6 +20,7 @@ import '/ui/theme/riff_spacing.dart';
 import '../Settings/settings_screen_controller.dart';
 import '/services/piped_service.dart';
 import '/services/cloud_music_service.dart';
+import '/services/server_login.dart';
 import '/services/device_music.dart';
 import '../../../utils/helper.dart';
 import '/models/album.dart';
@@ -683,6 +684,15 @@ class LibraryPlaylistsController extends GetxController
     super.onClose();
   }
 
+  /// An exported playlist ([jsonData]) with its links to your music server
+  /// signed with the login Riff has (exports leave it out).
+  dynamic _withServerLogin(dynamic jsonData) {
+    if (!Get.isRegistered<CloudMusicService>()) return jsonData;
+    final cloud = Get.find<CloudMusicService>();
+    return withServerLogins(jsonData,
+        server: cloud.host.value, login: cloud.linkLogin);
+  }
+
   Future<void> importPlaylistFromJson(BuildContext context) async {
     try {
       importProgress.value = 0.1;
@@ -718,7 +728,7 @@ class LibraryPlaylistsController extends GetxController
       final jsonString = await file.readAsString();
       importProgress.value = 0.3;
 
-      final jsonData = jsonDecode(jsonString);
+      final jsonData = _withServerLogin(jsonDecode(jsonString));
       importProgress.value = 0.4;
 
       // Validate JSON structure

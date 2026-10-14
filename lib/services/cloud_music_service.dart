@@ -259,6 +259,12 @@ class CloudMusicService extends GetxService {
     return List.generate(12, (_) => chars[rnd.nextInt(chars.length)]).join();
   }
 
+  /// The login links to this server are signed with ([_authParams]), as
+  /// links an imported playlist brings without one are; none while not
+  /// connected.
+  Map<String, String> get linkLogin =>
+      isConnected.isTrue && _password.isNotEmpty ? _authParams() : const {};
+
   /// Auth query params sent with every request (Subsonic scheme, as in
   /// Resonus): `u` + salted md5 token, or `p=enc:<hex>` for legacy servers.
   Map<String, String> _authParams() {

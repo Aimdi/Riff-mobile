@@ -26,6 +26,7 @@ import '/services/youtube_stream_headers.dart';
 import '/services/playlist_mix_service.dart';
 import '/services/audiobookshelf_service.dart';
 import '/services/cloud_music_service.dart';
+import '/services/server_login.dart';
 import '/services/music_service.dart' show MusicServices;
 import '/services/podcast_inbox_counts.dart';
 import '/services/podcast_progress_service.dart';
@@ -2275,7 +2276,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           }
         }
       }
-      if (generateNewUrl &&
+      // Signed afresh on a retry, and when the song came without its
+      // server's login (an imported playlist).
+      if ((generateNewUrl || !hasServerLogin(url ?? '')) &&
           songId.startsWith('cloud_') &&
           Get.isRegistered<CloudMusicService>()) {
         try {

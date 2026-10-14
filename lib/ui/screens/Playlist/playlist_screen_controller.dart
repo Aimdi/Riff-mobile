@@ -23,6 +23,7 @@ import '../../../utils/hive_boxes.dart';
 import '../../../services/music_service.dart';
 import '../../../services/piped_service.dart';
 import '../../../services/m3u_playlist_import.dart';
+import '../../../services/server_login.dart';
 import '../../../services/playlist_covers.dart';
 import '../../../services/playlist_mix_service.dart';
 import '../../../services/track_analysis_service.dart';
@@ -570,17 +571,18 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     super.onClose();
   }
 
-  /// The playlist and its songs as JSON, which Riff's import reads back.
+  /// The playlist and its songs as JSON, which Riff's import reads back;
+  /// links to your own music server go without its login.
   Future<void> exportPlaylistToJson(BuildContext context) => _exportText(
       context,
       'json',
-      () => jsonEncode({
+      () => jsonEncode(withoutServerLogins({
             "playlistInfo": playlist.value.toJson(),
             "songs":
                 songList.map((song) => MediaItemBuilder.toJson(song)).toList(),
             "exportDate": DateTime.now().toIso8601String(),
             "appVersion": Get.find<SettingsScreenController>().currentVersion,
-          }));
+          })));
 
   /// The songs as CSV rows: their titles, artists, lengths and YouTube ids
   /// (which Riff's import takes as the very tracks).
@@ -703,7 +705,8 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
           ? _formatDuration(song.duration!)
           : '';
       
-      final thumbnailUrl = _escapeCsvField(song.artUri.toString());
+      final thumbnailUrl =
+          _escapeCsvField(withoutServerLogin(song.artUri.toString()));
       
       // Extract album information
       final albumData = song.extras?['album'] as Map?;
