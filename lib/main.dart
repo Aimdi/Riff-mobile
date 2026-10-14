@@ -172,6 +172,9 @@ Future<void> _initAudioAndWarm(Future<void> deferredBoxes) async {
   // Spotify like changes left over from last time.
   SpotifyLikeSync.flushSoon(delay: const Duration(seconds: 20));
   YtLikeSync.flushSoon(delay: const Duration(seconds: 20));
+  // Likes made in YouTube Music since come into Favorites (once a day).
+  Future.delayed(
+      const Duration(seconds: 30), () => YtLikeSync.importLikesDaily());
 }
 
 /// Runs one background start-up step; a failure is logged, never thrown.
