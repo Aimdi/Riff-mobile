@@ -7,6 +7,8 @@ import 'package:get/get.dart';
 import '../models/playling_from.dart';
 import '../models/playlist.dart';
 import '/services/app_shortcuts.dart';
+import '/services/new_episode_alerts.dart';
+import '/ui/screens/Home/home_screen_controller.dart';
 import '/ui/screens/Search/components/search_pill.dart';
 import '/ui/widgets/songinfo_bottom_sheet.dart';
 import '/utils/helper.dart';
@@ -70,6 +72,8 @@ mixin ProcessLink {
     // "Play … on Riff" from the Assistant.
     final voice = voiceSearchQuery(uri);
     if (voice != null) return playVoiceSearch(voice);
+    // A new-episode notification.
+    if (NewEpisodeAlerts.opensInbox(uri)) return openPodcastsInbox();
 
     final playerController = Get.find<PlayerController>();
     if (playerController.playerPanelController.isPanelOpen) {
@@ -137,17 +141,7 @@ mixin ProcessLink {
   /// The page an app icon shortcut names. A shortcut can also start the
   /// app, so this waits (a few seconds at most) for its pages to be up.
   Future<void> openAppShortcut(AppShortcut shortcut) async {
-    final pages = Get.nestedKey(ScreenNavigationSetup.id);
-    for (var i = 0; i < 50 && pages?.currentState == null; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    }
-    if (pages?.currentState == null) return;
-    try {
-      final panel = Get.find<PlayerController>().playerPanelController;
-      if (panel.isPanelOpen) panel.close();
-    } catch (_) {
-      // The player isn't laid out yet: nothing to close.
-    }
+    if (await _pagesWithPlayerClosed() == null) return;
     switch (shortcut) {
       case AppShortcut.search:
         SearchLauncherField.openSearch();
@@ -156,6 +150,35 @@ mixin ProcessLink {
       case AppShortcut.downloads:
         _openLibraryPlaylist('SongDownloads', 'downloads'.tr);
     }
+  }
+
+  /// The Podcasts tab, on its Inbox unless another section is open there,
+  /// over whatever page was open.
+  Future<void> openPodcastsInbox() async {
+    final pages = await _pagesWithPlayerClosed();
+    if (pages == null) return;
+    pages.popUntil((route) => route.isFirst);
+    if (Get.isRegistered<HomeScreenController>()) {
+      Get.find<HomeScreenController>().onSideBarTabSelected(RailTab.podcasts);
+    }
+  }
+
+  /// The app's pages once they're up (null if they don't come up), with
+  /// the full player closed.
+  Future<NavigatorState?> _pagesWithPlayerClosed() async {
+    final pages = Get.nestedKey(ScreenNavigationSetup.id);
+    for (var i = 0; i < 50 && pages?.currentState == null; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    final state = pages?.currentState;
+    if (state == null) return null;
+    try {
+      final panel = Get.find<PlayerController>().playerPanelController;
+      if (panel.isPanelOpen) panel.close();
+    } catch (_) {
+      // The player isn't laid out yet: nothing to close.
+    }
+    return state;
   }
 
   void _openLibraryPlaylist(String id, String title) => Get.toNamed(

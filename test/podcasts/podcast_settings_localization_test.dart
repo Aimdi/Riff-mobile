@@ -27,6 +27,7 @@ void main() {
     for (final f in const [
       'lib/ui/screens/Podcasts/podcast_playback_controls.dart',
       'lib/ui/screens/Podcasts/podcast_settings_screen.dart',
+      'lib/services/new_episode_alerts.dart',
       'lib/ui/widgets/sleep_timer_bottom_sheet.dart',
       'lib/ui/screens/Podcasts/podcast_segment_ui.dart',
       'lib/ui/player/player_controller.dart',

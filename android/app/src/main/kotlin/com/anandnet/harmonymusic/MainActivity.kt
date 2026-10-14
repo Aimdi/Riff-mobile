@@ -213,6 +213,14 @@ class MainActivity : AudioServiceActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             "riff/downloads"
         ).setMethodCallHandler(DownloadChannel)
+        // New-episode notifications for the shows followed: also stays, as
+        // the shows followed can change with the app in the background
+        // (sync).
+        EpisodeAlerts.appContext = applicationContext
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "riff/episode_alerts"
+        ).setMethodCallHandler(EpisodeAlerts)
     }
 
     /**

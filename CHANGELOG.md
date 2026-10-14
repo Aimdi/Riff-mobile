@@ -240,6 +240,16 @@ Podcasts:
   Read more shows it as the show wrote it, paragraphs and links that
   open, with where to support the show last (Podcasting 2.0 funding
   links, as AntennaPod shows them)
+* New-episode notifications, like Pocket Casts, AntennaPod and Apple
+  Podcasts: Podcast settings › New episodes › Notify me about new
+  episodes (Android; off until you switch it on, when it asks for
+  permission to notify). Every few hours, with Riff closed too, the
+  phone looks at the newest episodes of each show you follow and lets
+  you know about ones it hadn't seen there before: one notification per
+  show, with its cover and the episode's title (or how many, with their
+  titles). Tap it for the Podcasts Inbox. A feed unchanged since the
+  last look isn't read again, and only its first few episodes are, so
+  it takes little data. For shows from feeds
 * A show's page remembers its episode order (Newest first / Oldest
   first) for that show, like Pocket Casts and AntennaPod, so a series you
   hear in order stays oldest first. The eye button next to it hides

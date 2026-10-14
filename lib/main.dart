@@ -28,6 +28,7 @@ import '/services/diag_log.dart';
 import '/services/client_config_service.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/music_service.dart';
+import '/services/new_episode_alerts.dart';
 import '/services/now_playing_widget.dart';
 import '/services/offline_playback.dart';
 import '/services/playback_rules_service.dart';
@@ -159,6 +160,8 @@ Future<void> _initAudioAndWarm(Future<void> deferredBoxes) async {
       }
     }
   });
+  // New-episode notifications (when switched on): the shows followed.
+  await _warmUp('New episode alerts', NewEpisodeAlerts.start);
   // WebDAV sync (when switched on), after the first screen settles.
   Future<void>.delayed(
       const Duration(seconds: 10), WebDavSyncService.maybeAutoSync);

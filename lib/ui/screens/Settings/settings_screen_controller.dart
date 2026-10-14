@@ -15,6 +15,7 @@ import '../../../utils/app_version.dart';
 import '../../../utils/update_check_flag_file.dart';
 import '/services/wizestream_service.dart';
 import '/services/app_shortcuts.dart';
+import '/services/new_episode_alerts.dart';
 import '/services/now_playing_widget.dart';
 import '/services/normalization_level.dart';
 import '/services/piped_service.dart';
@@ -312,10 +313,11 @@ class SettingsScreenController extends GetxController {
 
   void _showLanguage(String code) {
     Get.updateLocale(Locale(code));
-    // The app icon's shortcuts and the home screen widget's buttons, in
-    // the new language.
+    // The app icon's shortcuts, the home screen widget's buttons and the
+    // new-episode notifications, in the new language.
     AppShortcuts.publish();
     NowPlayingWidget.refresh();
+    NewEpisodeAlerts.sync();
     // A change of the phone's can come before these are up.
     if (Get.isRegistered<MusicServices>()) {
       Get.find<MusicServices>().hlCode = code;
