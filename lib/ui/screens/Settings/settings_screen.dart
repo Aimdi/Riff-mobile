@@ -22,6 +22,7 @@ import '/services/lyrics_translation.dart';
 import '/services/normalization_level.dart';
 import '/services/private_session.dart';
 import '/services/song_fade.dart';
+import '/services/music_autoplay.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/listenbrainz_service.dart';
 import '/services/music_service.dart';
@@ -704,6 +705,16 @@ class SettingsScreen extends StatelessWidget {
                       ),
                     ),
                   ),
+                  ListTile(
+                      contentPadding: settingsTilePadding,
+                      title: Text('musicAutoplay'.tr),
+                      subtitle: Text('musicAutoplayDes'.tr,
+                          style: settingsSubtitleStyle(context)),
+                      trailing: Obx(
+                        () => CustSwitch(
+                            value: MusicAutoplay.enabled.value,
+                            onChanged: MusicAutoplay.set),
+                      )),
                   ListTile(
                       contentPadding: settingsTilePadding,
                       title: Text("sponsorBlock".tr),

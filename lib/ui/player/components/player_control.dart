@@ -832,7 +832,7 @@ Widget _nextButton(PlayerController playerController, BuildContext context) {
               playerController.currentSong.value?.id,
       shuffleOn: playerController.isShuffleModeEnabled.isTrue,
       queueLoopOn: playerController.isQueueLoopModeEnabled.isTrue,
-      radioOn: playerController.isRadioModeOn,
+      radioOn: playerController.playsOnPastEnd,
     );
     return IconButton(
         tooltip: 'next'.tr,

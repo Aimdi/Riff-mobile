@@ -362,6 +362,14 @@ Fade between songs:
   before) or Loud, which keeps more of each song's volume. Changing it
   applies to the song playing straight away
 
+Autoplay:
+* Like Spotify's, YouTube Music's and Apple Music's: when an album,
+  playlist or the songs you picked run out, songs like the last one play
+  on, as its radio does, instead of stopping. Turn it on with ∞ in the
+  queue (next to Loop) or Settings › Autoplay similar songs; next works
+  on the last song then too. Not for podcasts or audiobooks; offline the
+  queue ends as before. Off by default
+
 Streaming quality:
 * Auto, as in Metrolist (YouTube Music and Spotify set Wi-Fi and mobile
   data apart too): Settings › Streaming quality › Auto plays songs in

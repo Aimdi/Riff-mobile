@@ -213,7 +213,7 @@ class _MiniPlayerSwipeTrack extends StatelessWidget {
         index: index,
         shuffleOn: playerController.isShuffleModeEnabled.isTrue,
         queueLoopOn: playerController.isQueueLoopModeEnabled.isTrue,
-        radioOn: playerController.isRadioModeOn,
+        radioOn: playerController.playsOnPastEnd,
       );
       return TrackSwipe(
         currentKey: song?.id,
@@ -539,7 +539,7 @@ class _MiniPlayerTransport extends StatelessWidget {
                         playerController.currentSong.value?.id,
                 shuffleOn: playerController.isShuffleModeEnabled.isTrue,
                 queueLoopOn: playerController.isQueueLoopModeEnabled.isTrue,
-                radioOn: playerController.isRadioModeOn,
+                radioOn: playerController.playsOnPastEnd,
               );
               return Semantics(
                 container: true,

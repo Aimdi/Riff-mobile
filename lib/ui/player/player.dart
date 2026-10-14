@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 
+import '/services/music_autoplay.dart';
 import '/ui/player/components/gesture_player.dart';
 import '/ui/player/components/long_form_player.dart';
 import '/ui/player/components/queue_panel.dart';
@@ -126,6 +127,25 @@ class Player extends StatelessWidget {
                               active: playerController
                                   .isQueueLoopModeEnabled.isTrue,
                               onTap: playerController.toggleQueueLoopMode,
+                            )),
+                        // Autoplay (Apple Music's ∞): similar songs
+                        // once the queue runs out.
+                        Obx(() => _QueueBarButton(
+                              tooltip: 'autoplayShort'.tr,
+                              icon: Icons.all_inclusive_rounded,
+                              active: MusicAutoplay.enabled.isTrue,
+                              onTap: () {
+                                final on = MusicAutoplay.enabled.isFalse;
+                                MusicAutoplay.set(on);
+                                ScaffoldMessenger.of(context)
+                                  ..hideCurrentSnackBar()
+                                  ..showSnackBar(snackbar(
+                                      context,
+                                      on
+                                          ? 'musicAutoplayOn'.tr
+                                          : 'musicAutoplayOff'.tr,
+                                      size: SanckBarSize.BIG));
+                              },
                             )),
                         _QueueBarButton(
                           tooltip: "shuffleQueue".tr,

@@ -1352,6 +1352,11 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     if (radioShouldExtendInsteadOfPause(radioOn: radioOn, hasNext: false)) {
       return Get.find<PlayerController>().extendRadioThenPlayNext();
     }
+    // Autoplay (when on): songs like the last one play on.
+    if (Get.isRegistered<PlayerController>() &&
+        await Get.find<PlayerController>().autoplayAfterQueue()) {
+      return true;
+    }
     _player.seek(Duration.zero);
     _player.pause();
     return false;

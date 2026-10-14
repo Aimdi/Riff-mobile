@@ -39,6 +39,7 @@ import '../screens/Home/home_screen_controller.dart';
 import '../widgets/sliding_up_panel.dart';
 import '/models/durationstate.dart';
 import '/services/music_service.dart';
+import '/services/music_autoplay.dart';
 import '/services/sponsorblock_service.dart';
 import '/services/podcast_service.dart';
 import '/services/podcast_progress_service.dart';
@@ -1907,7 +1908,8 @@ class PlayerController extends GetxController
   bool _extendingRadio = false;
 
   /// Last track ended while radio/Wave is on — fetch the next batch and play.
-  Future<bool> extendRadioThenPlayNext() async {
+  /// [quiet]: nothing to play on isn't reported (Autoplay's first batch).
+  Future<bool> extendRadioThenPlayNext({bool quiet = false}) async {
     if (_extendingRadio || !isRadioModeOn) return false;
     _extendingRadio = true;
     try {
@@ -1915,18 +1917,47 @@ class PlayerController extends GetxController
         return next();
       }
       if (radioInitiatorItem == null) {
-        notifyPlayError('radioContinuationFailed');
+        if (!quiet) notifyPlayError('radioContinuationFailed');
         return false;
       }
       await _fetchRadioContinuation();
       if (currentQueue.length > currentSongIndex.value + 1) {
         return next();
       }
-      notifyPlayError('radioContinuationFailed');
+      if (!quiet) notifyPlayError('radioContinuationFailed');
       return false;
     } finally {
       _extendingRadio = false;
     }
+  }
+
+  /// Whether next goes on past the last song: radio is on, or Autoplay
+  /// starts it from the song playing. Reads [MusicAutoplay.enabled], so an
+  /// Obx using it follows the switch.
+  bool get playsOnPastEnd =>
+      isRadioModeOn || MusicAutoplay.after(currentSong.value);
+
+  /// The queue ran out: with Autoplay on, radio from its last song plays on
+  /// (Spotify, YouTube Music, Apple Music) and goes on as radio does. False
+  /// when it's off or nothing came (offline): the queue ends as before.
+  Future<bool> autoplayAfterQueue() async {
+    final last = currentSong.value;
+    if (isRadioModeOn || !MusicAutoplay.after(last)) return false;
+    radioInitiatorItem = last;
+    radioContinuationParam = null;
+    isRadioModeOn = true;
+    if (await extendRadioThenPlayNext(quiet: true)) {
+      playinfrom.value = PlaylingFrom(
+          type: PlaylingFromType.SELECTION, name: 'autoplayShort'.tr);
+      // The songs it adds aren't a playlist Mix's: no Mix transitions.
+      if (Get.isRegistered<PlaylistMixService>()) {
+        Get.find<PlaylistMixService>().deactivatePlayback();
+      }
+      return true;
+    }
+    isRadioModeOn = false;
+    radioInitiatorItem = null;
+    return false;
   }
 
   void _playerPanelCheck({bool restoreSession = false}) {
