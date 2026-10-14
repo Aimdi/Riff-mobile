@@ -23,6 +23,7 @@ import 'constant.dart';
 import 'continuations.dart';
 import 'nav_parser.dart';
 import 'network_policy.dart';
+import 'yt_library_parser.dart';
 
 enum AudioQuality {
   Low,
@@ -198,6 +199,36 @@ class MusicServices extends getx.GetxService {
       printERROR('Rating $videoId ($endpoint) failed: $e');
       return false;
     }
+  }
+
+  /// The playlists in the connected account's YouTube Music library (its
+  /// Library › Playlists, as ytmusicapi's get_library_playlists reads
+  /// them): yours and the ones you saved, page after page, at most
+  /// [limit]. Empty without an account; throws when YouTube can't be
+  /// reached.
+  Future<List<Playlist>> getLibraryPlaylists({int limit = 2000}) async {
+    if (!YtAuthService.isConnected) return const [];
+    final data = _ctx();
+    data['browseId'] = 'FEmusic_liked_playlists';
+    final first = await _sendRequest('browse', data);
+    // Signed out or refused: not an empty library.
+    if ((first.statusCode ?? 0) ~/ 100 != 2 || first.data is! Map) {
+      throw NetworkError();
+    }
+    var page = libraryGridFirstPage(Map<String, dynamic>.from(first.data));
+    final playlists = parseLibraryPlaylists(page.items);
+    final seen = <String>{};
+    while (
+        page.next != null && playlists.length < limit && seen.add(page.next!)) {
+      final token = page.next;
+      final next = await _sendRequest('browse', data,
+          additionalParams: '&ctoken=$token&continuation=$token');
+      if ((next.statusCode ?? 0) ~/ 100 != 2 || next.data is! Map) break;
+      page = libraryGridNextPage(Map<String, dynamic>.from(next.data));
+      if (page.items.isEmpty) break;
+      playlists.addAll(parseLibraryPlaylists(page.items));
+    }
+    return playlists.take(limit).toList();
   }
 
   /// The page YouTube resolves a web address to ([url], e.g. a channel's
