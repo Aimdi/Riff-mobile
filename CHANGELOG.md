@@ -285,6 +285,9 @@ Playlists:
   YouTube: Favorites and your playlists that already have it (all of
   the songs, when you add several) get a check, so you can see it before
   you add it twice
+* A downloaded playlist stays downloaded, as in Spotify: when every song
+  in one of your playlists is downloaded, songs you add to it later
+  (from Add to playlist or its Recommended songs) download too
 
 Up Next:
 * Removing a song (swipe it away, the song menu, or ✕ on desktop) and

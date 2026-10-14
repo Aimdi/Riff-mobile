@@ -5,11 +5,61 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/models/playlist.dart';
+import 'package:harmonymusic/services/downloader.dart';
 import 'package:harmonymusic/ui/widgets/add_to_playlist.dart';
 import 'package:hive/hive.dart';
 
+class _FakeDownloader extends GetxService implements Downloader {
+  List<MediaItem>? got;
+
+  @override
+  Future<void> download(MediaItem? song, {List<MediaItem>? songList}) async =>
+      got = songList;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
   tearDown(Get.reset);
+
+  test('a downloaded playlist stays whole when songs join it', () {
+    final downloaded = {'a', 'b', 'x'};
+    bool isDownloaded(String id) => downloaded.contains(id);
+    const c = MediaItem(id: 'c', title: 'C');
+    const x = MediaItem(id: 'x', title: 'X');
+    final before = [
+      {'videoId': 'a'},
+      {'videoId': 'b'},
+    ];
+    expect(
+        songsToKeepDownloaded(before, const [c, x], isDownloaded: isDownloaded)
+            .map((s) => s.id),
+        ['c']);
+    // A song in it isn't downloaded: it isn't a downloaded playlist.
+    expect(
+        songsToKeepDownloaded([
+          ...before,
+          {'videoId': 'd'}
+        ], const [
+          c
+        ], isDownloaded: isDownloaded),
+        isEmpty);
+    // A new, empty playlist: nothing to keep.
+    expect(
+        songsToKeepDownloaded(const [], const [c], isDownloaded: isDownloaded),
+        isEmpty);
+  });
+
+  test('the songs go to the downloader', () {
+    final downloader =
+        Get.put<Downloader>(_FakeDownloader()) as _FakeDownloader;
+    keepPlaylistDownloaded(const [MediaItem(id: 'c', title: 'C')]);
+    expect(downloader.got?.map((s) => s.id), ['c']);
+    downloader.got = null;
+    keepPlaylistDownloaded(const []);
+    expect(downloader.got, isNull);
+  });
 
   test('playlist add copy matches the outcome', () {
     expect(

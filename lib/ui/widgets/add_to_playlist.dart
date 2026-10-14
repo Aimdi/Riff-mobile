@@ -105,6 +105,35 @@ bool playlistHasAll(Iterable<dynamic> entries, Set<String> ids) {
   return have.containsAll(ids);
 }
 
+/// Of [added], the songs to download now that they're in a playlist whose
+/// songs were [before] (its box's entries): when every song already in it
+/// was downloaded, a downloaded playlist stays whole, as Spotify keeps
+/// one, so the new ones not downloaded yet; else none.
+List<MediaItem> songsToKeepDownloaded(
+    Iterable<dynamic> before, Iterable<MediaItem> added,
+    {required bool Function(String id) isDownloaded}) {
+  final ids = [
+    for (final e in before)
+      if (e is Map) '${e['videoId']}',
+  ];
+  if (ids.isEmpty || !ids.every(isDownloaded)) return const [];
+  return [
+    for (final s in added)
+      if (!isDownloaded(s.id)) s
+  ];
+}
+
+/// Downloads [songs] for [songsToKeepDownloaded].
+void keepPlaylistDownloaded(List<MediaItem> songs) {
+  if (songs.isEmpty || !Get.isRegistered<Downloader>()) return;
+  unawaited(Get.find<Downloader>().download(null, songList: songs));
+}
+
+/// Whether [id] is downloaded (in the SongDownloads box).
+bool isSongDownloaded(String id) =>
+    Hive.isBoxOpen('SongDownloads') &&
+    Hive.box('SongDownloads').containsKey(id);
+
 int countNewPlaylistSongs({
   required Iterable<String> existingIds,
   required Iterable<String> incomingIds,
@@ -478,6 +507,7 @@ class AddToPlaylistController extends GetxController {
     additionInProgress.value = true;
     if (playlistType.value == "local") {
       final plstBox = await Hive.openBox(playlistId);
+      final before = plstBox.values.toList();
       final playlistSongIds =
           plstBox.values.map((item) => '${item['videoId']}').toList();
       final incoming = songs.map((e) => e.id);
@@ -485,11 +515,15 @@ class AddToPlaylistController extends GetxController {
         existingIds: playlistSongIds,
         incomingIds: incoming,
       );
+      final added = <MediaItem>[];
       for (MediaItem element in songs) {
         if (!playlistSongIds.contains(element.id)) {
           await plstBox.add(MediaItemBuilder.toJson(element));
+          added.add(element);
         }
       }
+      keepPlaylistDownloaded(
+          songsToKeepDownloaded(before, added, isDownloaded: isSongDownloaded));
       // Shared box (Hive hands every caller the same instance): never close
       // it here, or the player and other screens using it fail mid-write.
       additionInProgress.value = false;

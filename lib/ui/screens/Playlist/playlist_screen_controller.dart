@@ -7,6 +7,8 @@ import 'package:get/get.dart';
 import 'package:harmonymusic/models/thumbnail.dart';
 import 'package:harmonymusic/services/permission_service.dart';
 import 'package:harmonymusic/ui/screens/Settings/settings_screen_controller.dart';
+import 'package:harmonymusic/ui/widgets/add_to_playlist.dart'
+    show isSongDownloaded, keepPlaylistDownloaded, songsToKeepDownloaded;
 import 'package:harmonymusic/ui/widgets/snackbar.dart';
 import 'package:harmonymusic/utils/helper.dart';
 import 'package:hive/hive.dart';
@@ -458,9 +460,13 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     final all = tempListContainer.isNotEmpty ? tempListContainer : songList;
     if (all.any((s) => s.id == song.id)) return false;
     final box = await Hive.openBox(playlist.value.playlistId);
+    final before = box.values.toList();
     await box.add(MediaItemBuilder.toJson(song));
     addNRemoveItemsinList(song, action: 'add');
     _updatePlaylistThumbSongBased();
+    // A downloaded playlist stays whole.
+    keepPlaylistDownloaded(
+        songsToKeepDownloaded(before, [song], isDownloaded: isSongDownloaded));
     return true;
   }
 
