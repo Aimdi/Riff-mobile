@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lyric/lyrics_reader.dart';
+import 'package:flutter_lyric/lyrics_reader_model.dart';
 import 'package:get/get.dart';
 
 import '/services/lyrics_romanization.dart';
@@ -11,6 +12,7 @@ import '../lrc_lines.dart';
 import '../player_controller.dart';
 import 'lyric_seek_line.dart';
 import 'word_synced_lyrics.dart';
+import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 
 class LyricsWidget extends StatelessWidget {
@@ -94,6 +96,13 @@ class LyricsWidget extends StatelessWidget {
           line.extText = lyricsSecondLine(
               LyricsRomanization.lineFor(line.mainText), translations?[i]);
         }
+        // TalkBack can't read the lyrics the reader draws: with it on they're
+        // text, a line at a time, as Spotify's are.
+        if (MediaQuery.accessibleNavigationOf(context) &&
+            model.lyrics.isNotEmpty) {
+          return ReadableSyncedLyrics(
+              lines: model.lyrics, padding: padding, onTap: onTap);
+        }
         // Built here (not per progress tick): a new LyricUI makes the
         // reader re-layout.
         final lyricUi = RiffLyricUI.of(context, playerController.lyricUi);
@@ -131,6 +140,65 @@ class LyricsWidget extends StatelessWidget {
             ),
           );
         });
+      },
+    );
+  }
+}
+
+/// Synced lyrics as text, for TalkBack and other screen readers (the
+/// reader paints them, so they can't read it): each line with its
+/// romanization or translation under it; a double-tap plays the song from
+/// that line, as a tap on a line does in Spotify and Apple Music.
+class ReadableSyncedLyrics extends StatelessWidget {
+  const ReadableSyncedLyrics(
+      {super.key, required this.lines, required this.padding, this.onTap});
+
+  final List<LyricsLineModel> lines;
+  final EdgeInsetsGeometry padding;
+
+  /// What a tap on the lyrics' background does (closes them).
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final playerController = Get.find<PlayerController>();
+    final theme = Theme.of(context);
+    final mainStyle = theme.textTheme.titleMedium
+        ?.copyWith(color: theme.colorScheme.onSurface);
+    final extStyle = theme.textTheme.bodyMedium
+        ?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    return ListView.builder(
+      padding: padding,
+      itemCount: lines.length,
+      itemBuilder: (context, i) {
+        final line = lines[i];
+        final start = line.startTime;
+        return InkWell(
+          onTap: start == null
+              ? onTap
+              : () {
+                  final delay = LyricsTiming.delayMs(
+                      playerController.currentSong.value?.id);
+                  playerController.seek(Duration(
+                      milliseconds: songPositionForLyricMs(start, delay)));
+                },
+          child: Semantics(
+            onTapHint: start == null ? null : 'playFromHere'.tr,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: RiffSpacing.lg, vertical: RiffSpacing.xs),
+              child: Column(
+                children: [
+                  Text(line.mainText ?? '',
+                      style: mainStyle, textAlign: TextAlign.center),
+                  if (line.hasExt)
+                    Text(line.extText!,
+                        style: extStyle, textAlign: TextAlign.center),
+                ],
+              ),
+            ),
+          ),
+        );
       },
     );
   }

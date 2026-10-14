@@ -80,6 +80,10 @@ Screen readers (TalkBack):
   play or pause) reads as "Cover art" with Play / Pause, Next and
   Previous in TalkBack's actions, and double-tap and hold still opens
   the song's options
+* Synced lyrics can be read with TalkBack, as Spotify's can: with it on,
+  they show as text, a line at a time (with its romanization or
+  translation), and double-tapping a line plays the song from there. The
+  drawn lyrics said nothing to a screen reader
 * The player's seek bar is a slider for TalkBack, as in Spotify, YouTube
   Music and Apple Music: it reads where the song or episode is ("Playback
   position, 1:23 of 3:45"), and swiping up or down moves it 10 seconds.
