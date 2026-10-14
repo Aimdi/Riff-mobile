@@ -11,6 +11,34 @@ import 'music_service.dart';
 import 'spotify_match_store.dart';
 import 'spotify_match.dart';
 
+/// A track as Spotify's embed page describes it (its name or title, its
+/// artists or the line under it, its length), or null when [entity] isn't
+/// one.
+SpotifyTrackRef? spotifyEmbedTrack(Object? entity, {required String id}) {
+  if (entity is! Map) return null;
+  final title = '${entity['name'] ?? entity['title'] ?? ''}'.trim();
+  if (title.isEmpty) return null;
+  final list = entity['artists'];
+  var artists = list is List
+      ? list
+          .map((a) => a is Map ? '${a['name'] ?? ''}'.trim() : '')
+          .where((a) => a.isNotEmpty)
+          .join(', ')
+      : '';
+  if (artists.isEmpty) artists = '${entity['subtitle'] ?? ''}'.trim();
+  final length = entity['duration'];
+  final ms = length is num
+      ? length.toInt()
+      : (length is Map && length['totalMilliseconds'] is num
+          ? (length['totalMilliseconds'] as num).toInt()
+          : null);
+  return SpotifyTrackRef(
+      id: id,
+      title: title,
+      artists: artists,
+      durationMs: ms != null && ms > 0 ? ms : null);
+}
+
 /// One track as listed on a public Spotify playlist / album page.
 class SpotifyTrackRef {
   const SpotifyTrackRef({
@@ -178,6 +206,16 @@ class SpotifyImportService extends GetxService {
       tracks: tracks,
       coverUrl: coverUrl,
     );
+  }
+
+  /// A public track's title, artists and length from its embed page (no
+  /// sign-in), for a shared track link; null when the page has none.
+  Future<SpotifyTrackRef?> fetchPublicTrack(String id) async {
+    final res = await _dio.get('https://open.spotify.com/embed/track/$id');
+    final data = _extractNextData(res.data.toString());
+    return spotifyEmbedTrack(
+        data?['props']?['pageProps']?['state']?['data']?['entity'],
+        id: id);
   }
 
   Map<String, dynamic>? _extractNextData(String html) {

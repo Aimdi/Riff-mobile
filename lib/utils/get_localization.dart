@@ -4642,6 +4642,7 @@ Map<String, Map<String, String>> get keys => {
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "spotifyTrackNotFound": "Couldn't find this song on YouTube Music",
     "addToOtherPlaylist": "Add to other playlist",
     "songsAddedToPlaylistAlert": "Songs added to playlist!",
     "songsAlreadyInPlaylist": "These songs are in it already!",

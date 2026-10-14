@@ -674,6 +674,12 @@ Search:
   covers on the search page before you type, above the words you
   searched for. Tap one to play it or open it again; ✕ forgets it, and
   Clear forgets them all with the words
+* Spotify links open in Riff: share a Spotify song to Riff (or paste its
+  link into the search) and its YouTube Music match plays, found as
+  Import from Spotify finds songs (exactly by its ISRC when you're
+  signed in to Spotify); a Spotify album or playlist opens Import from
+  Spotify with its link, to make it a Riff playlist. spotify.link short
+  links and spotify: links work too; when nothing matches it says so
 
 Language:
 * System default, as in Spotify, YouTube Music and AntennaPod: Settings ›

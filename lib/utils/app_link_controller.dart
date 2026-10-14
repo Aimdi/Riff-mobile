@@ -10,6 +10,8 @@ import '/services/app_shortcuts.dart';
 import '/services/new_episode_alerts.dart';
 import '/services/podcast_feed_url.dart';
 import '/services/podcast_links.dart';
+import '/services/spotify_links.dart';
+import '/ui/widgets/spotify_import_dialog.dart';
 import '/ui/screens/Podcasts/podcast_cover_tile.dart' show openRssPodcast;
 import '/ui/screens/Home/home_screen_controller.dart';
 import '/ui/screens/Search/components/search_pill.dart';
@@ -137,14 +139,45 @@ mixin ProcessLink {
         await playSong(first);
       }
     } else {
+      final link = written ?? uri.toString();
+      // A Spotify link (its short one followed to the long one).
+      final spotify = spotifyLinkFrom(link) ??
+          (isSpotifyShortLink(link)
+              ? await _whileSpinning(followSpotifyShortLink(link))
+              : null);
+      if (spotify != null) return openSpotifyLink(spotify);
+      if (isSpotifyShortLink(link)) return _notALink();
       // A podcast's link (a subscribe link, Apple Podcasts', Overcast's),
       // or any other web address, which may be a feed's.
-      final link = written ?? uri.toString();
       final feed = podcastFeedUrlFrom(link);
       final podcast = podcastLinkFrom(link) ??
           (feed == null ? null : PodcastLink.feed(feed));
       if (podcast == null || !await openPodcastLink(podcast)) _notALink();
     }
+  }
+
+  /// A Spotify track plays its YouTube Music match; an album or a
+  /// playlist opens Import from Spotify with its link.
+  Future<void> openSpotifyLink(SpotifyLink link) async {
+    if (link.kind != SpotifyLinkKind.track) {
+      final ctx = Get.context;
+      if (ctx == null || !ctx.mounted) return;
+      await showDialog<void>(
+          context: ctx,
+          builder: (_) => SpotifyImportDialog(initialUrl: link.url));
+      return;
+    }
+    final song = await _whileSpinning(spotifyTrackOnYouTubeMusic(link.id));
+    if (song == null) {
+      final ctx = Get.context;
+      if (ctx == null || !ctx.mounted) return;
+      ScaffoldMessenger.of(ctx).showSnackBar(
+          snackbar(ctx, 'spotifyTrackNotFound'.tr, size: SanckBarSize.MEDIUM));
+      return;
+    }
+    final ok = await Get.find<PlayerController>().playPlayListSong([song], 0,
+        playfrom: PlaylingFrom(type: PlaylingFromType.SELECTION));
+    if (!ok) snackOperationFailed();
   }
 
   void _notALink() {

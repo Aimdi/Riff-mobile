@@ -39,9 +39,10 @@ const podcastSubscribeSchemes = {
 };
 
 /// A link in shared text (apps share a title, then the link), or the text
-/// itself when it's one link: http(s), riff:// and the subscribe schemes.
+/// itself when it's one link: http(s), riff://, spotify: and the subscribe
+/// schemes.
 final _linkInText = RegExp(
-    r'\b(?:https?|riff|feed|pcast|itpc|podcast|antennapod-subscribe):\S+',
+    r'\b(?:https?|riff|spotify|feed|pcast|itpc|podcast|antennapod-subscribe):\S+',
     caseSensitive: false);
 
 /// The link in [text] (shared to Riff or pasted into its search), as it
