@@ -5,8 +5,12 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
+import 'package:harmonymusic/models/playling_from.dart';
+import 'package:harmonymusic/models/playlist.dart';
 import 'package:harmonymusic/services/audio_handler.dart' show MediaLibrary;
 import 'package:harmonymusic/services/music_service.dart';
+import 'package:harmonymusic/services/taste_exclusions.dart';
+import 'package:harmonymusic/ui/player/library_list_source.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
 
 class _FakeMusic extends GetxService implements MusicServices {
@@ -58,6 +62,26 @@ void main() {
     final fav = await Hive.openBox('LIBFAV');
     await fav.put('a', _track('a'));
     await fav.put('b', _track('b'));
+    // Your sleep playlist, and an album saved in the Library.
+    await (await Hive.openBox('LibraryPlaylists')).put(
+        'LIB1',
+        Playlist(
+                title: 'Sleep',
+                playlistId: 'LIB1',
+                thumbnailUrl: Playlist.thumbPlaceholderUrl,
+                isCloudPlaylist: false)
+            .toJson());
+    await (await Hive.openBox('LIB1')).addAll([_track('s1'), _track('s2')]);
+    await (await Hive.openBox('LibraryAlbums')).put('MPREb_1', {
+      'title': 'An Album',
+      'browseId': 'MPREb_1',
+      'thumbnails': const [],
+    });
+    await (await Hive.openBox('MPREb_1'))
+        .addAll([_track('al1'), _track('al2')]);
+    // Recently played keeps the oldest first.
+    await (await Hive.openBox('LIBRP'))
+        .addAll([_track('old'), _track('mid'), _track('new')]);
   });
 
   tearDown(() async {
@@ -90,15 +114,67 @@ void main() {
       expect(handler.playByIndex, {'index': 1});
       expect(await Hive.boxExists(MediaLibrary.freshFindsRootId), isFalse);
 
-      // Library lists still play from their own box.
+      // Not made into a playlist yet: nowhere to say it comes from.
+      expect(player.playinfrom.value.type, PlaylingFromType.SELECTION);
+
+      // Library lists still play from their own box, and say so.
       await player.playViaAndroidAuto('b', 'LIBFAV');
       expect(handler.queuedIds, ['a', 'b']);
       expect(handler.playByIndex, {'index': 1});
+      var from = player.playinfrom.value;
+      expect(from.type, PlaylingFromType.PLAYLIST);
+      expect(from.id, 'LIBFAV');
+      expect((from.item as Playlist).isCloudPlaylist, isFalse);
+
+      // Your playlist: named, and left out of your taste as on the phone.
+      await TasteExclusions.setExcluded('LIB1', true);
+      await player.playViaAndroidAuto('s2', 'LIB1');
+      expect(handler.queuedIds, ['s1', 's2']);
+      from = player.playinfrom.value;
+      expect(from.nameString, 'Sleep');
+      expect(TasteExclusions.excludesPlay(from), isTrue);
+
+      // An album saved in the Library.
+      await player.playViaAndroidAuto('al1', 'MPREb_1');
+      from = player.playinfrom.value;
+      expect(from.type, PlaylingFromType.ALBUM);
+      expect(from.nameString, 'An Album');
+
+      // Recently played plays in the car's order, the newest first: on
+      // from the one tapped to the older ones under it.
+      await player.playViaAndroidAuto('mid', 'LIBRP');
+      expect(handler.queuedIds, ['new', 'mid', 'old']);
+      expect(handler.playByIndex, {'index': 1});
+
+      // A mix made into a playlist: its name.
+      await (await Hive.openBox('LibraryPlaylists')).put(
+          'RIFF_m1',
+          Playlist(
+                  title: 'Daily Mix 1',
+                  playlistId: 'RIFF_m1',
+                  thumbnailUrl: Playlist.thumbPlaceholderUrl,
+                  isCloudPlaylist: false)
+              .toJson());
+      await player.playViaAndroidAuto('t1', 'riff_mix_m1');
+      expect(player.playinfrom.value.nameString, 'Daily Mix 1');
+      expect(player.playinfrom.value.id, 'RIFF_m1');
 
       // Let playPlayListSong's delayed Home refresh check run while the
       // prefs box is still open.
       await Future<void>.delayed(const Duration(milliseconds: 3200));
     });
+  });
+
+  test("the Library's own lists open as they are, not by id", () async {
+    final fav = libraryOwnList('LIBFAV');
+    expect(fav?.isCloudPlaylist, isFalse);
+    for (final id in ['LIBRP', 'SongDownloads', 'SongsCache']) {
+      expect(libraryOwnList(id)?.playlistId, id);
+    }
+    // A playlist of yours opens by its id.
+    expect(libraryOwnList('LIB1'), isNull);
+    expect((await libraryListSource('LIB1'))?.nameString, 'Sleep');
+    expect(await libraryListSource('PLnotsaved'), isNull);
   });
 
   test('only car-built lists skip the box lookup', () {

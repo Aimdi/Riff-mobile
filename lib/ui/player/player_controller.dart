@@ -72,6 +72,7 @@ import '/services/audiobook_playback.dart';
 import '/services/podcast_playback_profile.dart';
 import '/services/podcast_library.dart';
 import '/services/audio_handler.dart' show MyAudioHandler, MediaLibrary;
+import 'library_list_source.dart';
 import '/services/spotify_like_sync.dart';
 import '/services/yt_like_sync.dart';
 import '/services/playback_hardening.dart';
@@ -2102,24 +2103,28 @@ class PlayerController extends GetxController
           await MediaLibrary().getByRootId(libraryId);
       if (list.isEmpty) return;
       final i = list.indexWhere((e) => e.id == songId);
+      // A mix is a playlist in your Library too (RIFF_<id>), once made.
+      final mix = libraryId.startsWith('riff_mix_')
+          ? await libraryListSource(
+              'RIFF_${libraryId.substring('riff_mix_'.length)}')
+          : null;
       await playPlayListSong(list, i < 0 ? 0 : i,
-          source: DiscoverySource.androidAuto);
+          playfrom: mix, source: DiscoverySource.androidAuto);
       return;
     }
     final box = await Hive.openBox(libraryId);
-    List<MediaItem> songList = [];
-    final songJson = box.values.toList();
-    int songIndex = 0;
-    for (int i = 0; i < box.length; i++) {
-      final song = MediaItemBuilder.fromJson(songJson[i]);
-      if (song.id == songId) {
-        songIndex = i;
-      }
-      songList.add(song);
-    }
+    var songList = [
+      for (final json in box.values.toList()) MediaItemBuilder.fromJson(json)
+    ];
+    // Recently played as the car lists it: the newest first.
+    if (libraryId == HiveBoxes.libRp) songList = songList.reversed.toList();
+    final songIndex = songList.indexWhere((song) => song.id == songId);
+    // Where it comes from, as when it's played on the phone: the player
+    // says so, and a playlist left out of your taste profile stays out.
     await playPlayListSong(
       songList,
-      songIndex,
+      songIndex < 0 ? 0 : songIndex,
+      playfrom: await libraryListSource(libraryId),
       source: DiscoverySource.androidAuto,
     );
     // Shared box (Hive hands every caller the same instance): never close

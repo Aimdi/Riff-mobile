@@ -198,6 +198,17 @@ Android Auto:
   all or one, as the player's own buttons (and the app follows). They're
   on the music notification too (Android 13 and later shows the heart and
   shuffle); podcasts and audiobooks keep their skip buttons
+* What you play in the car from your Library (Favorites, Recently played,
+  Downloads, your playlists, saved albums and the mixes Riff makes) says
+  where it comes from on the phone, as Spotify's car screen does: the
+  player's "Playing from" names it and opens it (it said Random
+  selection), and a playlist left out of your taste profile stays out of
+  your stats and recommendations in the car too. Recently played plays
+  in the order the car lists it, newest first, on from the song you
+  pick (it went the other way). The Library's Play on Favorites and
+  Recently played says where it comes from too, and after a restart
+  "Playing from" opens those lists again rather than looking for them
+  online
 
 Now playing:
 * Tap the time at the end of the seek bar to see the time left

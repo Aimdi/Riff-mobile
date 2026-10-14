@@ -17,6 +17,7 @@ import '/services/playlist_folders.dart';
 import '/ui/screens/Plugins/spotify_pages.dart';
 import '../../navigator.dart';
 import '../../player/play_queue_order.dart';
+import '../../player/library_list_source.dart';
 import '../../player/player_controller.dart';
 import '../../utils/riff_tokens.dart';
 import '../../utils/theme_controller.dart';
@@ -820,17 +821,28 @@ class _LibraryPinnedRow extends StatelessWidget {
       _open(id, title);
       return;
     }
+    // Where it comes from, as its own page plays it: the player says so.
+    final from = PlaylingFrom(
+        type: PlaylingFromType.PLAYLIST,
+        name: title,
+        id: id,
+        item: libraryOwnList(id) ??
+            Playlist(
+                title: title,
+                playlistId: id,
+                thumbnailUrl: Playlist.thumbPlaceholderUrl,
+                isCloudPlaylist: false));
     if (shuffle) {
       tracks.shuffle();
     } else if (id == 'LIBRP') {
       final ok = await Get.find<PlayerController>().playPlayListSong(
           tracks.reversed.toList(), 0,
-          source: sourceFromPlaylistId(id));
+          playfrom: from, source: sourceFromPlaylistId(id));
       if (!ok) _snackPlayFailed();
       return;
     }
-    final ok = await Get.find<PlayerController>()
-        .playPlayListSong(tracks, 0, source: sourceFromPlaylistId(id));
+    final ok = await Get.find<PlayerController>().playPlayListSong(tracks, 0,
+        playfrom: from, source: sourceFromPlaylistId(id));
     if (!ok) _snackPlayFailed();
   }
 

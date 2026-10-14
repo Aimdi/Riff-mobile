@@ -5,6 +5,7 @@ import '/models/playling_from.dart';
 import '/models/playlist.dart';
 import '../navigator.dart';
 import 'components/artist_chooser_sheet.dart';
+import 'library_list_source.dart';
 import 'player_controller.dart';
 import 'player_media_ids.dart';
 
@@ -36,7 +37,12 @@ bool openPlayingFrom(PlayerController playerController) {
       final item = from.item;
       Get.toNamed(ScreenNavigationSetup.playlistScreen,
           id: ScreenNavigationSetup.id,
-          arguments: [item is Playlist ? item : null, from.id]);
+          // The Library's own lists can't open by id alone (as after a
+          // restart, which keeps only the id).
+          arguments: [
+            item is Playlist ? item : libraryOwnList(from.id),
+            from.id
+          ]);
     case PlaylingFromType.ARTIST:
       Get.toNamed(ScreenNavigationSetup.artistScreen,
           id: ScreenNavigationSetup.id,
