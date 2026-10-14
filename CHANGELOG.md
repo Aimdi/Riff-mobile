@@ -461,6 +461,12 @@ Library:
   added is when the file came onto the phone), and they can go in
   playlists and the queue like any song. Riff asks once for permission
   to read them; refused, it says so with an Allow button
+* Folders for your playlists, like Spotify's: long-press a playlist in
+  Library › Playlists › Move to folder › New folder (or one you have).
+  Folders sit after Riff's own playlists and the pinned ones, and their
+  playlists show inside them (a search still finds them). Tap a folder
+  to open it; long-press it (or ⋮ inside) to rename or delete it, which
+  puts its playlists back among the rest (Undo brings it back)
 
 Playlists:
 * Deleting one of your playlists now asks first ("Delete playlist?"),

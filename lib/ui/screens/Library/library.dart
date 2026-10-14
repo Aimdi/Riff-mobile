@@ -13,6 +13,7 @@ import '/services/discovery/discovery_tag.dart';
 import '/services/discovery/discovery_types.dart';
 import '/services/spotify_auth_service.dart';
 import '/services/library_view_mode.dart';
+import '/services/playlist_folders.dart';
 import '/ui/screens/Plugins/spotify_pages.dart';
 import '../../navigator.dart';
 import '../../player/play_queue_order.dart';
@@ -39,6 +40,8 @@ import '/ui/theme/riff_tokens.dart';
 import '../Home/home_layout.dart';
 import '../Podcasts/podcast_empty_state.dart';
 import 'library_controller.dart';
+import 'library_pins.dart';
+import 'playlist_folder_ui.dart';
 import '/ui/theme/riff_text_metrics.dart';
 import '/ui/widgets/riff_header_bar.dart';
 
@@ -456,23 +459,48 @@ class _PlaylistNAlbumLibraryWidgetState
     super.dispose();
   }
 
-  /// The list view: one row per album or playlist.
+  /// What the tab lists: the albums, or the playlists with their folders
+  /// (playlists in a folder show in it, not here).
+  List<Object> _items(
+      LibraryAlbumsController albums, LibraryPlaylistsController playlists) {
+    if (isAlbumContent) return albums.libraryAlbums;
+    PlaylistFolders.rev.value;
+    return libraryPlaylistItems(
+        playlists.libraryPlaylists, PlaylistFolders.folders,
+        leading: (id) =>
+            isSystemLibraryPlaylistId(id) || LibraryPins.isPinned(id),
+        searching: playlists.tempListContainer.isNotEmpty);
+  }
+
+  /// One of [_items]: a folder's tile, or the album or playlist.
+  Widget _item(Object item, LibraryPlaylistsController playlists,
+          {required double size, bool asRow = false}) =>
+      item is PlaylistFolder
+          ? PlaylistFolderTile(
+              folder: item,
+              count: folderPlaylists(item, playlists.libraryPlaylists).length,
+              size: size,
+              asRow: asRow,
+            )
+          : ContentListItem(
+              content: item,
+              isLibraryItem: true,
+              size: size,
+              asRow: asRow,
+            );
+
+  /// The list view: one row per album, playlist or folder.
   Widget _list(
       LibraryAlbumsController albums, LibraryPlaylistsController playlists) {
-    final items =
-        isAlbumContent ? albums.libraryAlbums : playlists.libraryPlaylists;
+    final items = _items(albums, playlists);
     return ListView.builder(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.only(
           top: RiffSpacing.xs, bottom: RiffSpacing.listEnd),
       controller: _gridScroll,
       itemCount: items.length,
-      itemBuilder: (context, index) => ContentListItem(
-        content: items[index],
-        isLibraryItem: true,
-        size: RiffComponentSizes.rowArt,
-        asRow: true,
-      ),
+      itemBuilder: (context, index) => _item(items[index], playlists,
+          size: RiffComponentSizes.rowArt, asRow: true),
     );
   }
 
@@ -544,15 +572,19 @@ class _PlaylistNAlbumLibraryWidgetState
                   ),
           ),
           Expanded(
-            child: RiffScrollUnder(
-                child: Obx(
-              () => (isAlbumContent
+            child: RiffScrollUnder(child: Obx(() {
+              // Folders change what the playlists are listed with (read
+              // here: the grid's builder runs outside this Obx).
+              PlaylistFolders.rev.value;
+              return (isAlbumContent
                       ? libralbumCntrller.libraryAlbums.isNotEmpty
                       : librplstCntrller.libraryPlaylists.isNotEmpty)
                   ? LibraryViewMode.list.isTrue
                       ? _list(libralbumCntrller, librplstCntrller)
                       : LayoutBuilder(builder: (context, constraints) {
                           final grid = libraryGridMetrics(constraints.maxWidth);
+                          final items =
+                              _items(libralbumCntrller, librplstCntrller);
                           return GridView.builder(
                               physics: const BouncingScrollPhysics(),
                               padding: const EdgeInsets.only(
@@ -569,25 +601,16 @@ class _PlaylistNAlbumLibraryWidgetState
                                     context, grid.cover),
                               ),
                               controller: _gridScroll,
-                              itemCount: isAlbumContent
-                                  ? libralbumCntrller.libraryAlbums.length
-                                  : librplstCntrller.libraryPlaylists.length,
-                              itemBuilder: (BuildContext context, int index) {
-                                return ContentListItem(
-                                  content: isAlbumContent
-                                      ? libralbumCntrller.libraryAlbums[index]
-                                      : librplstCntrller
-                                          .libraryPlaylists[index],
-                                  isLibraryItem: true,
-                                  size: grid.cover,
-                                );
-                              });
+                              itemCount: items.length,
+                              itemBuilder: (BuildContext context, int index) =>
+                                  _item(items[index], librplstCntrller,
+                                      size: grid.cover));
                         })
                   : EmptyPlayHint(
                       message: isAlbumContent
                           ? "noLibAlbums".tr
-                          : "noLibPlaylist".tr),
-            )),
+                          : "noLibPlaylist".tr);
+            })),
           )
         ],
       ),

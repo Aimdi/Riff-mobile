@@ -27,6 +27,7 @@ import '../../../services/playlist_mix_service.dart';
 import '../../../services/track_analysis_service.dart';
 import '../Library/library_controller.dart';
 import '../Library/library_pins.dart';
+import '/services/playlist_folders.dart';
 import '../Podcasts/podcasts_library_controller.dart';
 
 ///PlaylistScreenController handles playlist screen
@@ -411,7 +412,10 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
         //remove piped playlist from lib
         final res =
             await Get.find<PipedServices>().deletePlaylist(content.playlistId);
-        if (res.code == 1) await LibraryPins.forget(content.playlistId);
+        if (res.code == 1) {
+          await LibraryPins.forget(content.playlistId);
+          await PlaylistFolders.forget(content.playlistId);
+        }
         Get.find<LibraryPlaylistsController>().syncPipedPlaylist();
         return (res.code == 1);
       } else {
@@ -423,6 +427,7 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
         } else {
           await box.delete(id);
           await LibraryPins.forget(id);
+          await PlaylistFolders.forget(id);
           await PlaylistCovers.remove(id);
           final songsBox = await Hive.openBox(id);
           await songsBox.deleteFromDisk();

@@ -15,6 +15,7 @@ import 'collection_play.dart';
 import 'image_widget.dart';
 import 'podcast_play.dart';
 import '/services/search_recents.dart';
+import '../screens/Library/playlist_folder_ui.dart' show showMoveToFolderSheet;
 import 'snackbar.dart';
 import 'song_list_tile.dart' show RiffRowHairline;
 import '../screens/Home/home_layout.dart' show HomeLayout;
@@ -256,6 +257,16 @@ class ContentListItem extends StatelessWidget {
                   },
                 ),
                 if (_canPin) _pinTile(ctx, undoSnackbarTarget(context)),
+                // Spotify's folders for Your Library.
+                if (_canPin)
+                  ListTile(
+                    leading: const Icon(Icons.drive_file_move_outlined),
+                    title: Text('moveToFolder'.tr),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      showMoveToFolderSheet(context, content);
+                    },
+                  ),
               ],
             ),
           ),
