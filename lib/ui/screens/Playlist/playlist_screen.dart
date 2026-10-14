@@ -4,6 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hive/hive.dart';
 
 import '/services/podcast_playback_profile.dart';
 import '/models/playlist.dart';
@@ -15,6 +16,7 @@ import '/services/playlist_covers.dart';
 import '/services/podcast_service.dart';
 import '/services/playlist_mix_service.dart';
 import '/services/smart_shuffle.dart';
+import '/services/recently_played_days.dart';
 import '../Podcasts/podcast_queue_screen.dart';
 import '../Podcasts/podcasts_screen.dart';
 import '../Podcasts/podcast_show_view.dart';
@@ -370,11 +372,22 @@ class PlaylistScreen extends StatelessWidget {
                                       ? playlistController
                                           .transitionForGap(songIndex)
                                       : null;
+                                  // Recently played by day, as Spotify's
+                                  // and YouTube Music's histories.
+                                  final day = pl.playlistId == 'LIBRP'
+                                      ? _recentlyPlayedDay(
+                                          playlistController, songIndex)
+                                      : null;
                                   return Padding(
                                     padding: const EdgeInsets.only(
                                         left: 4, right: 4),
                                     child: Column(
                                       children: [
+                                        if (day != null)
+                                          HomeSectionHeader(day,
+                                              top: songIndex == 0
+                                                  ? RiffSpacing.sm
+                                                  : HomeLayout.sectionTop),
                                         SongListTile(
                                           onTap: playThis,
                                           song: song,
@@ -498,6 +511,16 @@ class _PodcastShow extends StatelessWidget {
 }
 
 bool _ownPhoto(Playlist pl) => PlaylistCovers.pathFor(pl.playlistId) != null;
+
+/// Recently played's day heading over its [index]th song, where a day
+/// begins (and the list is in the order played).
+String? _recentlyPlayedDay(PlaylistScreenController c, int index) {
+  if (!Hive.isBoxOpen('LIBRP')) return null;
+  final times = recentlyPlayedTimes(Hive.box('LIBRP').values);
+  final days = recentlyPlayedHeadings(
+      [for (final song in c.songList) times[song.id]], DateTime.now());
+  return index < days.length ? days[index] : null;
+}
 
 Key _recommendationsKey(PlaylistScreenController c) =>
     ValueKey('recommendations:${c.playlist.value.playlistId}');

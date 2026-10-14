@@ -40,6 +40,7 @@
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "earlier": "Earlier",
     "downloadOnWifiOnly": "Download on Wi-Fi only",
     "downloadOnWifiOnlyDes": "On mobile data, song downloads wait for Wi-Fi and start by themselves once you're on it",
     "downloadsWaitForWifi": "Downloads will start once you're on Wi-Fi",

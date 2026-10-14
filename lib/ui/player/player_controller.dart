@@ -41,6 +41,7 @@ import '/models/durationstate.dart';
 import '/services/music_service.dart';
 import '/services/music_autoplay.dart';
 import '/services/explicit_content.dart';
+import '/services/recently_played_days.dart';
 import '/services/riff_equalizer.dart';
 import '/services/sponsorblock_service.dart';
 import '/services/podcast_service.dart';
@@ -2420,7 +2421,8 @@ class PlayerController extends GetxController
           box.deleteAt(i);
         }
       }
-      box.add(MediaItemBuilder.toJson(mediaItem));
+      // With when, for its day in the list.
+      box.add(recentlyPlayedEntry(mediaItem, DateTime.now()));
       try {
         final playlistController = Get.find<PlaylistScreenController>(
             tag: const Key("LIBRP").hashCode.toString());

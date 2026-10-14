@@ -316,6 +316,10 @@ Library:
   the button next to the title switches between the grid of covers and
   rows (small cover, name, songs or artist); tap, long-press and pins
   work the same. The choice is kept, for both tabs
+* Recently played shows when, like Spotify's listening history and
+  YouTube Music's History: its songs come under Today, Yesterday and the
+  dates you played them. Songs from before this version sit under
+  Earlier; sorted another way, the list is as before
 
 Playlists:
 * Deleting one of your playlists now asks first ("Delete playlist?"),
