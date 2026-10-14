@@ -7,6 +7,7 @@ import '/services/lyrics_text_size.dart';
 import '/services/lyrics_timing.dart';
 import '/services/lyrics_translation.dart';
 import '../../widgets/loader.dart';
+import '../lrc_lines.dart';
 import '../player_controller.dart';
 import 'lyric_seek_line.dart';
 import 'word_synced_lyrics.dart';
@@ -82,7 +83,8 @@ class LyricsWidget extends StatelessWidget {
               key: ValueKey(romanized), ttml: ttml, padding: padding);
         }
         final model = LyricsModelBuilder.create()
-            .bindLyricToMain(playerController.lyrics['synced'].toString())
+            .bindLyricToMain(
+                lyricsReaderLrc(playerController.lyrics['synced'].toString()))
             .getModel();
         // Romanization and translation go in each line's second line.
         final translations = LyricsTranslation.linesFor(

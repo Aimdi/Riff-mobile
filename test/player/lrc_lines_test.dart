@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_lyric/lyrics_reader.dart';
 import 'package:harmonymusic/ui/player/lrc_lines.dart';
 
 void main() {
@@ -40,6 +41,35 @@ void main() {
     test('drops word-timing stamps from the text', () {
       expect(parseLrc('[00:01.00] <00:01.00>Hello <00:01.50>world').single.text,
           'Hello world');
+    });
+  });
+
+  group('lyricsReaderLrc', () {
+    test('every stamp as [mm:ss.mmm]: hundredths and tenths in milliseconds',
+        () {
+      expect(
+          lyricsReaderLrc('[00:05.50] a\n[00:07] b\n[00:08.123] c\n[1:02.5] d'),
+          '[00:05.500] a\n[00:07.000] b\n[00:08.123] c\n[01:02.500] d');
+    });
+
+    test('a line with two stamps comes twice, in time order', () {
+      expect(lyricsReaderLrc('[00:10.00][01:20.00] Chorus\n[00:30.00] Verse'),
+          '[00:10.000] Chorus\n[00:30.000] Verse\n[01:20.000] Chorus');
+    });
+
+    test('a gap in the singing stays; tags and word stamps go', () {
+      expect(
+          lyricsReaderLrc(
+              '[ar:Someone]\n[00:01.00]<00:01.00>Hel<00:01.50>lo\n[00:04.00]'),
+          '[00:01.000]Hello\n[00:04.000]');
+    });
+
+    test("the reader's lines start when the LRC says (it read .50 as 50 ms)",
+        () {
+      final model = LyricsModelBuilder.create()
+          .bindLyricToMain(lyricsReaderLrc('[00:05.50] a\n[00:07.05] b'))
+          .getModel();
+      expect(model.lyrics.map((l) => l.startTime), [5500, 7050]);
     });
   });
 

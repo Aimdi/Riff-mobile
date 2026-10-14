@@ -48,6 +48,11 @@ Lyrics:
   them up on LRCLIB by its title and artist, or any words you type, and
   lists what it finds, synced ones first and the nearest in length
   among them. Tap one and it's the song's lyrics from then on
+* Synced lyrics keep time with the singing: lines lit up as much as a
+  second early (".50" in their times was read as 50 thousandths, not
+  half a second), and a line sung twice showed its second time as text.
+  The line under the title, which had them right, and the full lyrics
+  now agree
 * Lyrics that can't be fetched because you're offline say so ("You're
   offline. The lyrics will come once you're back online") instead of
   "Lyrics not available", and are looked up again as soon as the
