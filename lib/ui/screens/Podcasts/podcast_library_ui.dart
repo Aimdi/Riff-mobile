@@ -12,6 +12,7 @@ import '/services/opml.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/services/podcast_library.dart';
 import '/services/podcast_playback_profile.dart';
+import '/services/podcast_queue_downloads.dart';
 import '/services/podcast_service.dart';
 import '../../widgets/riff_sheet.dart';
 import '../../widgets/snackbar.dart';
@@ -97,6 +98,27 @@ class PodcastLibraryEditor extends StatelessWidget {
                 ),
             ],
           ),
+          // The whole library's: what's queued downloads (Pocket Casts'
+          // auto download of Up Next).
+          if (key == null) ...[
+            const SizedBox(height: RiffSpacing.xxl),
+            Text('queueDownload'.tr, style: titleStyle),
+            const SizedBox(height: RiffSpacing.xxs),
+            Text('queueDownloadDes'.tr, style: homeCardSubtitleStyle(context)),
+            const SizedBox(height: RiffSpacing.md),
+            Wrap(
+              spacing: RiffSpacing.sm,
+              runSpacing: RiffSpacing.sm,
+              children: [
+                for (final m in NewEpisodesDownload.values)
+                  RiffChoiceChip(
+                    label: 'newEpisodesDownload_${m.name}'.tr,
+                    selected: PodcastQueueDownloads.mode == m,
+                    onTap: () => PodcastQueueDownloads.setMode(m),
+                  ),
+              ],
+            ),
+          ],
           // The show's own only: new episodes into the podcast queue.
           if (key != null) ...[
             const SizedBox(height: RiffSpacing.xxl),

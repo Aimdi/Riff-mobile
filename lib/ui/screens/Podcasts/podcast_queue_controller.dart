@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import '/services/podcast_queue_downloads.dart';
 import '/ui/player/long_form_queue.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
@@ -17,6 +20,8 @@ class PodcastQueueController extends GetxController {
   void onInit() {
     super.onInit();
     _load();
+    // Queued while on mobile data, or before downloads were switched on.
+    unawaited(PodcastQueueDownloads.run());
   }
 
   void _load() {
@@ -43,6 +48,7 @@ class PodcastQueueController extends GetxController {
     if (isQueued(item.id)) return;
     queue.add(item);
     _persist();
+    unawaited(PodcastQueueDownloads.run());
   }
 
   /// Put [item] back at [index] (Undo), or at the end if that's past it.
@@ -50,6 +56,7 @@ class PodcastQueueController extends GetxController {
     if (isQueued(item.id)) return;
     queue.insert(index.clamp(0, queue.length), item);
     _persist();
+    unawaited(PodcastQueueDownloads.run());
   }
 
   /// Callers fire this for episodes that usually aren't queued (every one

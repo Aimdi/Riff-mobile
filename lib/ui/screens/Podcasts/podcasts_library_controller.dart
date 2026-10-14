@@ -11,6 +11,7 @@ import '/services/music_service.dart';
 import '/services/podcast_feed_url.dart';
 import '/services/podcast_inbox_counts.dart';
 import '/services/podcast_library.dart';
+import '/services/podcast_queue_downloads.dart';
 import '/services/podcast_service.dart';
 import '/services/youtube_podcast_service.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
@@ -94,6 +95,8 @@ class LibraryPodcastsController extends GetxController {
     PodcastInboxCounts.setInbox(episodes);
     PodcastLibrary.queueNewEpisodes(episodes);
     unawaited(PodcastLibrary.downloadNewEpisodes(episodes));
+    // Back on Wi-Fi since: what's queued and still to download.
+    unawaited(PodcastQueueDownloads.run());
   }
 
   @override

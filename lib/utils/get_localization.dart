@@ -4642,6 +4642,8 @@ Map<String, Map<String, String>> get keys => {
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "queueDownload": "Download queued episodes",
+    "queueDownloadDes": "Episodes you add to the podcast queue download one after another, ready to play offline. On Wi-Fi waits for a connection that isn't mobile data. For shows from feeds.",
     "skipChapters": "Skip chapters",
     "chapterSkipped": "Skipped",
     "segCat_chapter": "Chapter",

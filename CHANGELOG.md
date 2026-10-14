@@ -222,6 +222,12 @@ Podcasts:
   skips); an unticked last chapter ends the episode there. Unticked
   chapters read as skipped in the list (tap one to hear it anyway), show
   with the episode's segments, and sync with the segments you mark
+* Download queued episodes, like Pocket Casts' auto download of Up
+  Next: Podcast settings › Download queued episodes (Off, On Wi-Fi,
+  Always). Episodes you add to the podcast queue then download one after
+  another, ready to play offline; On Wi-Fi waits while you're on mobile
+  data and catches up when the app next starts or the Inbox refreshes
+  on Wi-Fi. For shows from feeds
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip
