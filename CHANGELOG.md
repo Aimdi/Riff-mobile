@@ -238,6 +238,13 @@ Podcasts:
   Times past the episode's end stay plain text (a clock time, not a
   moment of the episode). In an episode's long-press menu › Shownotes,
   a timestamp plays that episode from there
+* Show notes read as the show wrote them, as in Pocket Casts, AntennaPod
+  and Apple Podcasts: paragraphs and line breaks stay apart (they used
+  to run together, "One paragraph.Next one"), list items get lines of
+  their own, and a link keeps its words, in the accent, opening where it
+  goes (it used to lose where it went). When a feed gives full notes
+  besides a short summary (content:encoded), those show. Episodes'
+  previews and episode search read links as their words
 * Followed shows count their new episodes, like AntennaPod and Pocket
   Casts: in Podcasts › Subscriptions, a show's cover shows how many of
   its episodes are waiting in the Inbox (a folder's, those of its

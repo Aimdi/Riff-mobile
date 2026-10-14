@@ -39,6 +39,15 @@ class ShowNotesPart {
 final _time = RegExp(r'(?<![\d:.])(?:(\d{1,2}):)?(\d{1,2}):(\d{2})(?![\d:])');
 final _link = RegExp(r'''https?://[^\s<>"')\]]+''');
 
+/// A link the feed gave words to, as PodcastService.showNotesText keeps it:
+/// "[words](https://…)".
+final _namedLink = RegExp(r'\[([^\[\]\n]+)\]\((https?://[^\s()]+)\)');
+
+/// [notes] with each "[words](address)" link down to its words, for
+/// previews and search.
+String showNotesWithoutAddresses(String notes) =>
+    notes.replaceAllMapped(_namedLink, (m) => m.group(1)!);
+
 /// Seconds for a timestamp's parts, or null when it isn't a valid one.
 int? _seconds(String? h, String m, String s) {
   final hours = h == null ? 0 : int.parse(h);
@@ -54,7 +63,14 @@ List<ShowNotesPart> showNotesParts(String notes, {Duration? length}) {
   final maxSec =
       length == null || length <= Duration.zero ? null : length.inSeconds;
   final found = <(int, int, ShowNotesPart)>[];
+  bool taken(int start, int end) =>
+      found.any((f) => start < f.$2 && end > f.$1);
+  // Links with words show the words.
+  for (final m in _namedLink.allMatches(notes)) {
+    found.add((m.start, m.end, ShowNotesPart.link(m.group(1)!, m.group(2)!)));
+  }
   for (final m in _link.allMatches(notes)) {
+    if (taken(m.start, m.end)) continue;
     // A sentence's full stop or comma isn't part of the address.
     var url = m.group(0)!;
     while (url.isNotEmpty && '.,;:!?'.contains(url[url.length - 1])) {
@@ -63,7 +79,7 @@ List<ShowNotesPart> showNotesParts(String notes, {Duration? length}) {
     found.add((m.start, m.start + url.length, ShowNotesPart.link(url, url)));
   }
   for (final m in _time.allMatches(notes)) {
-    if (found.any((f) => m.start < f.$2 && m.end > f.$1)) continue;
+    if (taken(m.start, m.end)) continue;
     final sec = _seconds(m.group(1), m.group(2)!, m.group(3)!);
     if (sec == null || (maxSec != null && sec > maxSec)) continue;
     found.add((m.start, m.end, ShowNotesPart.time(m.group(0)!, sec)));

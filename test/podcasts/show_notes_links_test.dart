@@ -39,6 +39,19 @@ void main() {
     expect(showNotesParts('61:30'), const [ShowNotesPart.time('61:30', 3690)]);
   });
 
+  test('a link with words shows the words', () {
+    expect(showNotesParts('See [our site](https://ex.com/a) at 12:34'), const [
+      ShowNotesPart.text('See '),
+      ShowNotesPart.link('our site', 'https://ex.com/a'),
+      ShowNotesPart.text(' at '),
+      ShowNotesPart.time('12:34', 754),
+    ]);
+    expect(
+        showNotesWithoutAddresses('See [our site](https://ex.com/a), '
+            '[1] and https://b.example'),
+        'See our site, [1] and https://b.example');
+  });
+
   test('a link in brackets stops at the bracket', () {
     expect(showNotesParts('(https://a.example/b?c=1)'), const [
       ShowNotesPart.text('('),

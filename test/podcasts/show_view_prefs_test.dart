@@ -51,6 +51,17 @@ void main() {
     expect(podcastEpisodeMatches(episode, 'babbage'), isFalse);
   });
 
+  test('previews and search read a link as its words', () {
+    expect(podcastPlainText('Our [sponsor](https://ex.com/s)\n\nBye'),
+        'Our sponsor Bye');
+    const episode = MediaItem(
+        id: 'podcast_y',
+        title: 'Ep',
+        extras: {'description': 'Thanks to [Acme](https://acme.example)'});
+    expect(podcastEpisodeMatches(episode, 'acme'), isTrue);
+    expect(podcastEpisodeMatches(episode, 'example'), isFalse);
+  });
+
   group('kept per show', () {
     setUp(() async {
       for (final name in _boxes) {

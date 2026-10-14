@@ -731,8 +731,7 @@ class PodcastService {
       episodes.add({
         'id': 'podcast_${guid.hashCode}',
         'title': title,
-        'description':
-            stripHtml(item.getElement('description')?.innerText ?? ""),
+        'description': showNotesText(_episodeNotesHtml(item)),
         'url': url,
         'artwork': Thumbnail(epArtRaw).extraHigh,
         'date': formatPubDate(pubRaw),
@@ -817,6 +816,183 @@ class PodcastService {
   /// HTML transcripts render as text instead of raw "&amp;#8217;" codes.
   static String stripHtml(String s) =>
       decodeHtmlEntities(s.replaceAll(RegExp(r'<[^>]*>'), '')).trim();
+
+  /// Feed show notes (HTML, or plain text) as text that reads as the feed's
+  /// page does, as Pocket Casts, AntennaPod and Apple Podcasts show them:
+  /// paragraphs and line breaks kept, list items on lines of their own
+  /// ("• ", or "1. " in a numbered list), and a link's words kept with
+  /// where it goes as "[words](https://…)", which ShowNotesText shows as a
+  /// link (show_notes_links.dart). [stripHtml] ran paragraphs together
+  /// ("OneTwo") and lost where links went.
+  static String showNotesText(String notes) {
+    if (notes.trim().isEmpty) return '';
+    // Notes with no blocks or breaks of their own are plain text: their
+    // line breaks are the breaks, as AntennaPod reads them.
+    final html = _notesBlockRe.hasMatch(notes)
+        ? notes
+        : notes.replaceAll(_notesNewlineRe, '<br>');
+    final out = StringBuffer();
+    StringBuffer? words; // the open link's
+    String? href;
+    final lists = <int?>[]; // per open list, its next number (null: bullets)
+    var breaks = 0; // line breaks [out] ends with
+    var started = false;
+    var bulleted = false; // the line has only its bullet so far
+    var hidden = 0; // inside <script> / <style>
+
+    void emit(String t) {
+      final w = words;
+      if (w != null) {
+        w.write(t);
+      } else if (t.trim().isEmpty) {
+        // Space between words; none at a line's start.
+        if (started && breaks == 0 && !bulleted) out.write(' ');
+      } else {
+        out.write(breaks > 0 || !started || bulleted ? t.trimLeft() : t);
+        started = true;
+        breaks = 0;
+        bulleted = false;
+      }
+    }
+
+    void lineBreaks(int atLeast, {bool add = false}) {
+      if (words != null) {
+        words!.write(' ');
+        return;
+      }
+      if (!started || bulleted) return;
+      final n = add ? 1 : atLeast - breaks;
+      for (var i = 0; i < n; i++) {
+        out.write('\n');
+      }
+      if (n > 0) breaks += n;
+    }
+
+    void closeLink() {
+      final w = words;
+      if (w == null) return;
+      words = null;
+      final raw = w.toString();
+      final label = raw.replaceAll(_notesSpaceRe, ' ').trim();
+      if (label.isNotEmpty) {
+        if (raw.startsWith(' ')) emit(' ');
+        emit(_notesLink(label, href));
+        if (raw.endsWith(' ')) emit(' ');
+      }
+      href = null;
+    }
+
+    var at = 0;
+    for (final m in _notesTagRe.allMatches(html)) {
+      if (hidden == 0) {
+        emit(decodeHtmlEntities(
+            html.substring(at, m.start).replaceAll(_notesSpaceRe, ' ')));
+      }
+      at = m.end;
+      final name = m.group(2)?.toLowerCase();
+      if (name == null) continue; // a comment
+      final closing = m.group(1) == '/';
+      if (name == 'script' || name == 'style') {
+        hidden = closing ? (hidden > 0 ? hidden - 1 : 0) : hidden + 1;
+        continue;
+      }
+      if (hidden > 0) continue;
+      switch (name) {
+        case 'br':
+          lineBreaks(1, add: true);
+        case 'a':
+          closeLink();
+          if (!closing) {
+            final h = _notesHrefRe.firstMatch(m.group(3) ?? '');
+            final raw = h?.group(1) ?? h?.group(2) ?? h?.group(3);
+            href = raw == null ? null : decodeHtmlEntities(raw.trim());
+            words = StringBuffer();
+          }
+        case 'ul' || 'ol':
+          // A list stands apart; one inside a list item doesn't.
+          if (closing && lists.isNotEmpty) lists.removeLast();
+          lineBreaks(lists.isEmpty ? 2 : 1);
+          if (!closing) lists.add(name == 'ol' ? 1 : null);
+        case 'li':
+          lineBreaks(1);
+          if (!closing && words == null) {
+            final n = lists.isEmpty ? null : lists.last;
+            if (n != null) lists[lists.length - 1] = n + 1;
+            out.write(n == null ? '• ' : '$n. ');
+            started = true;
+            breaks = 0;
+            bulleted = true;
+          }
+        case 'td' || 'th':
+          if (closing) emit(' ');
+        default:
+          if (_notesParagraphTags.contains(name)) {
+            // Within a list item, a paragraph is only a line.
+            lineBreaks(lists.isEmpty ? 2 : 1);
+          } else if (_notesLineTags.contains(name)) {
+            lineBreaks(1);
+          }
+      }
+    }
+    if (hidden == 0) {
+      emit(decodeHtmlEntities(
+          html.substring(at).replaceAll(_notesSpaceRe, ' ')));
+    }
+    closeLink();
+    return out
+        .toString()
+        .split('\n')
+        .map((line) => line.trimRight())
+        .join('\n')
+        .replaceAll(_notesBlankLinesRe, '\n\n')
+        .trim();
+  }
+
+  /// A link's words as [showNotesText] keeps them: "[words](address)" for a
+  /// web address; a timestamp or an address written out stays as it is
+  /// (ShowNotesText plays the one and opens the other).
+  static String _notesLink(String label, String? url) {
+    if (url == null || !_notesWebRe.hasMatch(url)) return label;
+    if (label.startsWith('http://') || label.startsWith('https://')) {
+      return label;
+    }
+    if (_notesTimeRe.hasMatch(label)) return label;
+    final words = label.replaceAll('[', '(').replaceAll(']', ')');
+    final to = url.replaceAll('(', '%28').replaceAll(')', '%29');
+    return '[$words]($to)';
+  }
+
+  static final _notesSpaceRe = RegExp(r'\s+');
+  static final _notesNewlineRe = RegExp(r'\r\n?|\n');
+  static final _notesBlankLinesRe = RegExp(r'\n{3,}');
+  static final _notesWebRe = RegExp(r'^https?://\S+$');
+  static final _notesTimeRe =
+      RegExp(r'^[(\[]?(?:\d{1,2}:)?\d{1,2}:\d{2}[)\]]?$');
+  static final _notesBlockRe = RegExp(
+      r'<(?:p|br|div|li|ul|ol|h[1-6]|blockquote|table)\b',
+      caseSensitive: false);
+  static final _notesTagRe = RegExp(
+      r'''<!--[\s\S]*?-->|<(/?)([a-zA-Z][a-zA-Z0-9]*)((?:"[^"]*"|'[^']*'|[^'">])*)>''');
+  static final _notesHrefRe = RegExp(
+      r'''\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))''',
+      caseSensitive: false);
+  static const _notesParagraphTags = {
+    'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'table', 'pre', //
+    'hr', 'figure',
+  };
+  static const _notesLineTags = {
+    'div', 'tr', 'section', 'article', 'header', 'footer', 'dt', 'dd', //
+  };
+
+  /// The fuller of an item's show notes: content:encoded usually carries
+  /// them all (links, timestamps), description often only a summary.
+  static String _episodeNotesHtml(XmlElement item) {
+    String read(String name) => item.getElement(name)?.innerText.trim() ?? '';
+    final encoded = read('content:encoded');
+    final description = read('description');
+    final notes = encoded.length > description.length ? encoded : description;
+    return notes.isNotEmpty ? notes : read('itunes:summary');
+  }
 
   static const _monthAbbr = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //

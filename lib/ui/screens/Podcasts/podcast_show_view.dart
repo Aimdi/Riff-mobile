@@ -12,6 +12,7 @@ import 'podcast_playback_controls.dart';
 
 import '/services/podcast_progress_service.dart';
 import '/services/podcast_show_view_prefs.dart';
+import '/services/show_notes_links.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/screens/Audiobooks/audiobook_widgets.dart'
     show AudiobookSearchField;
@@ -24,8 +25,9 @@ import 'podcast_layout.dart';
 String podcastEpisodeCount(int n) =>
     n == 1 ? 'episodeCountOne'.tr : 'episodeCount'.trParams({'count': '$n'});
 
-/// Plain text from feed HTML (show notes), for two-line previews.
-String podcastPlainText(String html) => html
+/// Plain text from feed HTML (show notes), for two-line previews: links
+/// down to their words.
+String podcastPlainText(String html) => showNotesWithoutAddresses(html)
     .replaceAll(RegExp(r'<br\s*/?>|</p>', caseSensitive: false), ' ')
     .replaceAll(RegExp(r'<[^>]*>'), '')
     .replaceAll('&amp;', '&')
