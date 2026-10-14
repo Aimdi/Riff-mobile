@@ -652,49 +652,71 @@ class PodcastService {
   /// its new feed, as Apple Podcasts and AntennaPod follow it, so it keeps
   /// its new episodes; at the old one still if the new can't be read.
   static Future<List<Map<String, dynamic>>> episodes(
+          String feedUrl, String podcastTitle, String fallbackArt,
+          {int? maxItems}) async =>
+      (await feed(feedUrl, podcastTitle, fallbackArt, maxItems: maxItems))
+          .episodes;
+
+  /// A show's feed, as [episodes] reads it: its episodes, and what it says
+  /// about itself (for the show's page).
+  static Future<PodcastFeed> feed(
       String feedUrl, String podcastTitle, String fallbackArt,
       {int? maxItems}) async {
     try {
       final old =
           await _fetchFeed(feedUrl, podcastTitle, fallbackArt, maxItems);
       final moved = old.movedTo;
-      if (moved == null || moved == feedUrl) return old.episodes;
+      if (moved == null || moved == feedUrl) return old.feed;
       try {
         final now =
             await _fetchFeed(moved, podcastTitle, fallbackArt, maxItems);
-        if (now.episodes.isNotEmpty) return now.episodes;
+        if (now.feed.episodes.isNotEmpty) return now.feed;
       } catch (e) {
         printERROR("Moved feed failed ($moved): $e");
       }
-      return old.episodes;
+      return old.feed;
     } catch (e) {
       printERROR("Feed parse failed ($feedUrl): $e");
-      return [];
+      return (episodes: <Map<String, dynamic>>[], about: '');
     }
   }
 
-  static Future<({List<Map<String, dynamic>> episodes, String? movedTo})>
-      _fetchFeed(String url, String podcastTitle, String fallbackArt,
-          int? maxItems) async {
+  static Future<({PodcastFeed feed, String? movedTo})> _fetchFeed(String url,
+      String podcastTitle, String fallbackArt, int? maxItems) async {
     final res =
         await _dio.get(url, options: Options(responseType: ResponseType.plain));
     return _parseFeedInBackground(
         res.data as String, podcastTitle, fallbackArt, maxItems);
   }
 
-  /// Kept apart from [episodes] so the isolate closure captures only these
+  /// Kept apart from [feed] so the isolate closure captures only these
   /// sendable arguments.
-  static Future<({List<Map<String, dynamic>> episodes, String? movedTo})>
-      _parseFeedInBackground(String body, String podcastTitle,
-              String fallbackArt, int? maxItems) =>
-          Isolate.run(() => (
-                episodes: parsePodcastFeed(body, podcastTitle, fallbackArt,
-                    maxItems: maxItems),
-                movedTo: feedMovedTo(body),
-              ));
+  static Future<({PodcastFeed feed, String? movedTo})> _parseFeedInBackground(
+          String body,
+          String podcastTitle,
+          String fallbackArt,
+          int? maxItems) =>
+      Isolate.run(() => (
+            feed: parsePodcastShow(body, podcastTitle, fallbackArt,
+                maxItems: maxItems),
+            movedTo: feedMovedTo(body),
+          ));
 
-  /// Pure RSS body → episode maps. See [parsePodcastFeed].
-  static List<Map<String, dynamic>> _parseFeed(
+  /// What a show's feed says about it (the channel's description or
+  /// itunes:summary, the fuller one), as show notes read.
+  static String _channelAbout(XmlDocument doc) {
+    final channel = doc.findAllElements('channel').firstOrNull;
+    String read(String name) =>
+        channel?.getElement(name)?.innerText.trim() ?? '';
+    final description = read('description');
+    final summary = read('itunes:summary');
+    return showNotesText(
+        summary.length > description.length ? summary : description);
+  }
+
+  /// Pure RSS body → the show's episodes and description. See
+  /// [parsePodcastShow].
+  static PodcastFeed _parseFeed(
       String body, String podcastTitle, String fallbackArt, int? maxItems) {
     final doc = XmlDocument.parse(body);
     final channelArtRaw = doc
@@ -814,7 +836,7 @@ class PodcastService {
         if (serial) 'serial': true,
       });
     }
-    return episodes;
+    return (episodes: episodes, about: _channelAbout(doc));
   }
 
   /// itunes:duration in whole seconds ("1:02:03", "3045", "3045.04"); 0
@@ -1247,9 +1269,20 @@ Map<String, Object> episodeNumbering(Map<dynamic, dynamic> episode) => {
         if (episode[key] != null) key: episode[key] as Object,
     };
 
+/// A show's feed: its episodes (maps holding only primitives) and its
+/// description, as show notes read.
+typedef PodcastFeed = ({List<Map<String, dynamic>> episodes, String about});
+
 /// Pure RSS body → episode maps holding only primitives, so it can run on a
 /// background isolate (no GetX translations, no Hive). Throws on bad XML.
 List<Map<String, dynamic>> parsePodcastFeed(
+        String body, String podcastTitle, String fallbackArt,
+        {int? maxItems}) =>
+    parsePodcastShow(body, podcastTitle, fallbackArt, maxItems: maxItems)
+        .episodes;
+
+/// [parsePodcastFeed]'s episodes and the show's description.
+PodcastFeed parsePodcastShow(
         String body, String podcastTitle, String fallbackArt,
         {int? maxItems}) =>
     PodcastService._parseFeed(body, podcastTitle, fallbackArt, maxItems);

@@ -3,11 +3,14 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/services/podcast_service.dart';
 
-String _feed(String title, List<String> episodes, {String? movedTo}) => '''
+String _feed(String title, List<String> episodes,
+        {String? movedTo, String about = ''}) =>
+    '''
 <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
 <channel>
   <title>$title</title>
+  <description>$about</description>
   ${movedTo == null ? '' : '<itunes:new-feed-url>$movedTo</itunes:new-feed-url>'}
   ${episodes.map((e) => '<item><title>$e</title><guid>$e</guid>'
         '<enclosure url="https://example.com/$e.mp3"/></item>').join()}
@@ -59,6 +62,15 @@ void main() {
       expect(eps.map((e) => e['title']), ['Ep 2', 'Ep 1']);
       // Same guid, same episode: its progress and played state stay.
       expect(eps[1]['id'], 'podcast_${'Ep 1'.hashCode}');
+    });
+
+    test("the show's page gets what its feed says about it", () async {
+      served['/old'] =
+          _feed('Show', ['Ep 1'], movedTo: '$base/new', about: 'Old words');
+      served['/new'] = _feed('Show', ['Ep 2'], about: 'A show about shows');
+      final feed = await PodcastService.feed('$base/old', 'Show', '');
+      expect(feed.about, 'A show about shows');
+      expect(feed.episodes.single['title'], 'Ep 2');
     });
 
     test("at its old feed still when the new one can't be read", () async {

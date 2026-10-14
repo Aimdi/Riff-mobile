@@ -233,6 +233,10 @@ Podcasts:
   reaching your Inbox and the show's page (the old feed's episodes if the
   new one can't be read). Following a show by an old address keeps the
   new one
+* A show's page says what the show is about, as Apple Podcasts, Pocket
+  Casts and AntennaPod do: shows found in Discover or followed by their
+  feed had no About, as Apple's directory gives no description; it now
+  comes from the show's feed (its fuller description), under the cover
 * A show's page remembers its episode order (Newest first / Oldest
   first) for that show, like Pocket Casts and AntennaPod, so a series you
   hear in order stays oldest first. The eye button next to it hides

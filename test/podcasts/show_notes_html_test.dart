@@ -51,6 +51,25 @@ void main() {
     expect(notes('   '), '');
   });
 
+  test("a show's own description, the fuller of the two, as notes read", () {
+    const feed = '''<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+<channel>
+  <title>Show</title>
+  <description>Short.</description>
+  <itunes:summary><![CDATA[<p>A show about shows.</p><p>Every week.</p>]]></itunes:summary>
+  <item>
+    <title>Ep 1</title>
+    <description>Not the show's.</description>
+    <enclosure url="https://example.com/1.mp3"/>
+  </item>
+</channel>
+</rss>''';
+    final show = parsePodcastShow(feed, 'Show', '');
+    expect(show.about, 'A show about shows.\n\nEvery week.');
+    expect(show.episodes.single['description'], "Not the show's.");
+  });
+
   test('scripts, styles and comments are left out', () {
     expect(
         notes('<style>p{color:red}</style><p>Kept</p><!-- not this -->'
