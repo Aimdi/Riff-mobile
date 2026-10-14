@@ -8,12 +8,14 @@ import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '/services/new_episode_alerts.dart';
 import '/services/opml.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/services/podcast_library.dart';
 import '/services/podcast_playback_profile.dart';
 import '/services/podcast_queue_downloads.dart';
 import '/services/podcast_service.dart';
+import '../../widgets/cust_switch.dart';
 import '../../widgets/riff_sheet.dart';
 import '../../widgets/snackbar.dart';
 import '../Home/home_layout.dart';
@@ -162,7 +164,55 @@ class PodcastLibraryEditor extends StatelessWidget {
               ],
             ),
           ],
+          // A followed feed show's new-episode notifications, while
+          // they're on (Podcast settings).
+          if (key != null &&
+              podcastShowKeyIsFeed(key) &&
+              NewEpisodeAlerts.available)
+            ShowAlertsSetting(feed: key),
         ],
+      );
+    });
+  }
+}
+
+/// Whether a followed show's new episodes notify, in its Episodes and
+/// downloads sheet; there only while new-episode notifications are on.
+class ShowAlertsSetting extends StatelessWidget {
+  const ShowAlertsSetting({super.key, required this.feed});
+
+  final String feed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      if (!NewEpisodeAlerts.enabled.value) return const SizedBox.shrink();
+      NewEpisodeAlerts.mutedRev.value;
+      PodcastService.subsRev.value;
+      if (!PodcastService.isSubscribed(feed)) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(top: RiffSpacing.xxl),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('newEpisodeAlerts'.tr,
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: RiffSpacing.xxs),
+                  Text('newEpisodeAlertsShowDes'.tr,
+                      style: homeCardSubtitleStyle(context)),
+                ],
+              ),
+            ),
+            const SizedBox(width: RiffSpacing.md),
+            CustSwitch(
+              value: NewEpisodeAlerts.notifiesFor(feed),
+              onChanged: (on) => NewEpisodeAlerts.setNotifiesFor(feed, on),
+            ),
+          ],
+        ),
       );
     });
   }

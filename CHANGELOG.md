@@ -249,7 +249,9 @@ Podcasts:
   show, with its cover and the episode's title (or how many, with their
   titles). Tap it for the Podcasts Inbox. A feed unchanged since the
   last look isn't read again, and only its first few episodes are, so
-  it takes little data. For shows from feeds
+  it takes little data. For shows from feeds. A show can be left out,
+  as Pocket Casts, Apple Podcasts and AntennaPod let you: its page's ⋮ ›
+  Episodes and downloads › Notify me about new episodes
 * Search finds shows from the podcast directory again, as in Apple
   Podcasts, Pocket Casts and AntennaPod: the Podcasts tab's search only
   asked YouTube, so a show you follow by its feed (with its chapters,

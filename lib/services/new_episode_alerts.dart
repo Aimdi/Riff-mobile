@@ -33,6 +33,31 @@ class NewEpisodeAlerts {
 
   static final enabled = false.obs;
 
+  /// AppPrefs: the followed shows (feed addresses) whose new episodes
+  /// don't notify, as Pocket Casts, Apple Podcasts and AntennaPod let a
+  /// show be left out.
+  static const mutedKey = 'podcastAlertsMuted';
+
+  /// Bumps when a show is left out or let back in.
+  static final mutedRev = 0.obs;
+
+  static Set<String> get muted {
+    final raw = _prefs?.get(mutedKey);
+    return raw is List ? raw.whereType<String>().toSet() : <String>{};
+  }
+
+  /// Whether the show at [feed] notifies (while they're on at all).
+  static bool notifiesFor(String feed) => !muted.contains(feed);
+
+  /// Lets the show at [feed] notify again, or leaves it out.
+  static Future<void> setNotifiesFor(String feed, bool on) async {
+    final shows = muted;
+    if (!(on ? shows.remove(feed) : shows.add(feed))) return;
+    await _prefs?.put(mutedKey, shows.toList());
+    mutedRev.value++;
+    await sync();
+  }
+
   static bool get available => defaultTargetPlatform == TargetPlatform.android;
 
   static Worker? _follows;
@@ -70,7 +95,7 @@ class NewEpisodeAlerts {
     try {
       await channel.invokeMethod<bool>('set', {
         'on': enabled.value,
-        'shows': alertShows(PodcastService.subscriptions),
+        'shows': alertShows(PodcastService.subscriptions, muted: muted),
         'channel': 'newEpisodes'.tr,
         'count': 'newEpisodesCount'.tr,
       });
@@ -96,16 +121,19 @@ class NewEpisodeAlerts {
     _follows?.dispose();
     _follows = null;
     enabled.value = false;
+    mutedRev.value = 0;
   }
 }
 
 /// The followed shows Android looks at, as {feed, title, art}: those with
-/// a web feed.
+/// a web feed, but the [muted].
 List<Map<String, String>> alertShows(
-        Iterable<Map<String, dynamic>> subscriptions) =>
+        Iterable<Map<String, dynamic>> subscriptions,
+        {Set<String> muted = const {}}) =>
     [
       for (final s in subscriptions)
-        if (_isWebAddress('${s['feedUrl'] ?? ''}'))
+        if (_isWebAddress('${s['feedUrl'] ?? ''}') &&
+            !muted.contains(s['feedUrl']))
           {
             'feed': '${s['feedUrl']}',
             'title': '${s['title'] ?? ''}',

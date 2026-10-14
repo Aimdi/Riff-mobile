@@ -4642,6 +4642,7 @@ Map<String, Map<String, String>> get keys => {
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "newEpisodeAlertsShowDes": "A notification when this show puts out an episode",
     "podcastFeeds": "Podcast feeds",
     "podcastFeedsDes": "Followed from the shows' own feeds, with chapters, downloads and new-episode notifications",
     "newEpisodes": "New episodes",

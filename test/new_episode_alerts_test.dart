@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:harmonymusic/services/app_shortcuts.dart';
 import 'package:harmonymusic/services/new_episode_alerts.dart';
 import 'package:harmonymusic/services/podcast_service.dart';
+import 'package:harmonymusic/ui/screens/Podcasts/podcast_library_ui.dart';
 import 'package:harmonymusic/ui/screens/Podcasts/podcast_settings_screen.dart';
 import 'package:harmonymusic/ui/theme/riff_theme.dart';
 import 'package:harmonymusic/utils/get_localization.dart';
@@ -68,6 +69,41 @@ void main() {
           },
           {'feed': 'http://old.example/rss', 'title': '', 'art': ''},
         ]);
+  });
+
+  test('a show left out is not looked at', () {
+    final subs = [
+      {'feedUrl': 'https://feeds.example/a', 'title': 'A'},
+      {'feedUrl': 'https://feeds.example/b', 'title': 'B'},
+    ];
+    expect(
+        alertShows(subs, muted: {'https://feeds.example/a'})
+            .map((s) => s['feed']),
+        ['https://feeds.example/b']);
+  });
+
+  test('leaving a show out (and letting it back in) tells Android', () async {
+    await follow('https://feeds.example/a', 'Show A');
+    await follow('https://feeds.example/b', 'Show B');
+    await NewEpisodeAlerts.setEnabled(true);
+    List<Object?> feeds() =>
+        (sent.last['shows'] as List).map((s) => (s as Map)['feed']).toList();
+    expect(feeds(), ['https://feeds.example/a', 'https://feeds.example/b']);
+
+    await NewEpisodeAlerts.setNotifiesFor('https://feeds.example/a', false);
+    expect(NewEpisodeAlerts.notifiesFor('https://feeds.example/a'), isFalse);
+    expect(feeds(), ['https://feeds.example/b']);
+    expect(Hive.box('AppPrefs').get(NewEpisodeAlerts.mutedKey),
+        ['https://feeds.example/a']);
+
+    // Already left out: nothing to tell.
+    final told = sent.length;
+    await NewEpisodeAlerts.setNotifiesFor('https://feeds.example/a', false);
+    expect(sent, hasLength(told));
+
+    await NewEpisodeAlerts.setNotifiesFor('https://feeds.example/a', true);
+    expect(NewEpisodeAlerts.notifiesFor('https://feeds.example/a'), isTrue);
+    expect(feeds(), ['https://feeds.example/a', 'https://feeds.example/b']);
   });
 
   test('a notification opens the Inbox, and no other link does', () {
@@ -200,6 +236,50 @@ void main() {
               'hear about new episodes.'),
           findsOneWidget);
       expect(find.text('Settings'), findsOneWidget);
+    });
+  });
+
+  group("a show's own switch, in its Episodes and downloads sheet", () {
+    const feed = 'https://feeds.example/show';
+
+    Future<void> pumpSheet(WidgetTester tester) =>
+        tester.pumpWidget(MaterialApp(
+          theme: RiffTheme.dark(const Color(0xFF1DB954)),
+          home: const Scaffold(body: ShowAlertsSetting(feed: feed)),
+        ));
+
+    bool switchedOn(WidgetTester tester) =>
+        tester.widget<Switch>(find.byType(Switch)).value;
+
+    testWidgets('only while notifications are on, for a show followed',
+        (tester) async {
+      await tester.runAsync(() => follow(feed, 'The Show'));
+      await pumpSheet(tester);
+      expect(find.byType(Switch), findsNothing);
+
+      NewEpisodeAlerts.enabled.value = true;
+      await tester.pump();
+      expect(find.text('Notify me about new episodes'), findsOneWidget);
+      expect(find.text('A notification when this show puts out an episode'),
+          findsOneWidget);
+      expect(switchedOn(tester), isTrue);
+
+      await tester.runAsync(() => PodcastService.unsubscribe(feed));
+      await tester.pump();
+      expect(find.byType(Switch), findsNothing);
+    });
+
+    testWidgets('off: the show is left out, and Android told', (tester) async {
+      await tester.runAsync(() => follow(feed, 'The Show'));
+      NewEpisodeAlerts.enabled.value = true;
+      await pumpSheet(tester);
+      await tester.tap(find.byType(Switch));
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump();
+      expect(switchedOn(tester), isFalse);
+      expect(NewEpisodeAlerts.notifiesFor(feed), isFalse);
+      expect(sent.last['shows'], isEmpty);
     });
   });
 }
