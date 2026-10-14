@@ -262,6 +262,10 @@ Playlists:
   like the ones in it, from your latest additions and others across the
   playlist. Tap + to add one, tap a song to play it, ↻ for others. Not
   shown offline, or while you search, arrange or select songs in it
+* Add to playlist shows where the song already is, like Spotify and
+  YouTube: Favorites and your playlists that already have it (all of
+  the songs, when you add several) get a check, so you can see it before
+  you add it twice
 
 Up Next:
 * Removing a song (swipe it away, the song menu, or ✕ on desktop) and

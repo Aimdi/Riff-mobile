@@ -1,9 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/models/playlist.dart';
 import 'package:harmonymusic/ui/widgets/add_to_playlist.dart';
+import 'package:hive/hive.dart';
 
 void main() {
   tearDown(Get.reset);
@@ -38,6 +41,18 @@ void main() {
       ),
       0,
     );
+  });
+
+  test('a playlist has the songs only when it has every one of them', () {
+    final entries = [
+      {'videoId': 'a', 'title': 'A'},
+      {'videoId': 'b', 'title': 'B'},
+      'junk',
+    ];
+    expect(playlistHasAll(entries, {'a'}), isTrue);
+    expect(playlistHasAll(entries, {'a', 'b'}), isTrue);
+    expect(playlistHasAll(entries, {'a', 'c'}), isFalse);
+    expect(playlistHasAll(entries, const {}), isFalse);
   });
 
   test('system library ids include Liked Songs and recents', () {
@@ -129,5 +144,46 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(AddToPlaylistSheet), findsOneWidget);
     expect(find.text('addToPlaylist'), findsOneWidget);
+  });
+
+  testWidgets('a check on Favorites and the playlists that have the song',
+      (tester) async {
+    await tester.runAsync(() async {
+      await Hive.openBox('LIBFAV', bytes: Uint8List(0));
+      await Hive.box('LIBFAV').put('song-1', {'videoId': 'song-1'});
+      await Hive.openBox('LIB1', bytes: Uint8List(0));
+      await Hive.box('LIB1').add({'videoId': 'song-1', 'title': 'Track'});
+      await Hive.openBox('LIB2', bytes: Uint8List(0));
+      await Hive.box('LIB2').add({'videoId': 'other', 'title': 'Other'});
+    });
+    addTearDown(() => tester.runAsync(Hive.close));
+    Playlist mine(String id, String title) => Playlist(
+          title: title,
+          playlistId: id,
+          thumbnailUrl: Playlist.thumbPlaceholderUrl,
+          isCloudPlaylist: false,
+        );
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Scaffold(
+          body: AddToPlaylistSheet(
+            songItems: const [MediaItem(id: 'song-1', title: 'Track')],
+            playlistsOverride: [
+              mine('LIB1', 'Has it'),
+              mine('LIB2', 'Not yet')
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    Finder checkIn(String title) => find.descendant(
+        of: find.widgetWithText(ListTile, title),
+        matching: find.byIcon(Icons.check_circle_rounded));
+    expect(checkIn('favorites'), findsOneWidget);
+    expect(checkIn('Has it'), findsOneWidget);
+    expect(checkIn('Not yet'), findsNothing);
+    expect(checkIn('CreateNewPlaylist'), findsNothing);
   });
 }

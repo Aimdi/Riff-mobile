@@ -94,6 +94,17 @@ String playlistAddMessageKey(PlaylistAddOutcome outcome) {
   }
 }
 
+/// Whether a playlist's stored songs ([entries], as its box keeps them)
+/// include every one of [ids].
+bool playlistHasAll(Iterable<dynamic> entries, Set<String> ids) {
+  if (ids.isEmpty) return false;
+  final have = {
+    for (final e in entries)
+      if (e is Map) '${e['videoId']}',
+  };
+  return have.containsAll(ids);
+}
+
 int countNewPlaylistSongs({
   required Iterable<String> existingIds,
   required Iterable<String> incomingIds,
@@ -154,6 +165,38 @@ class AddToPlaylistSheet extends StatefulWidget {
 
 class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
   bool _busy = false;
+
+  /// Your playlists that already have every song being added, and whether
+  /// your Favorites do: marked with a check, as Spotify and YouTube show
+  /// where a song is saved.
+  Set<String> _savedIn = const {};
+  bool _inFavorites = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final ids = {for (final s in widget.songItems) s.id};
+    _inFavorites = Hive.isBoxOpen('LIBFAV') &&
+        ids.every((id) => Hive.box('LIBFAV').containsKey(id));
+    WidgetsBinding.instance.addPostFrameCallback((_) => _findSavedIn(ids));
+  }
+
+  /// Looks through your own playlists (not YouTube or Piped ones) after
+  /// the sheet is up; the checks show once that's done.
+  Future<void> _findSavedIn(Set<String> ids) async {
+    final found = <String>{};
+    for (final p
+        in userPlaylistsForAddSheet(fromLibrary: widget.playlistsOverride)) {
+      if (p.isCloudPlaylist || p.isPipedPlaylist) continue;
+      try {
+        final box = Hive.isBoxOpen(p.playlistId)
+            ? Hive.box(p.playlistId)
+            : await Hive.openBox(p.playlistId);
+        if (playlistHasAll(box.values, ids)) found.add(p.playlistId);
+      } catch (_) {}
+    }
+    if (mounted && found.isNotEmpty) setState(() => _savedIn = found);
+  }
 
   AddToPlaylistController _controller() {
     if (Get.isRegistered<AddToPlaylistController>()) {
@@ -246,6 +289,7 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
               color: theme.colorScheme.onSurface,
             ),
             title: 'favorites'.tr,
+            saved: _inFavorites,
             onTap: _addToLiked,
           ),
           _SheetRow(
@@ -320,6 +364,7 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
             color: Theme.of(context).colorScheme.onSurface,
           ),
           title: playlist.title,
+          saved: _savedIn.contains(playlist.playlistId),
           onTap: () => _addToPlaylist(playlist),
         );
       },
@@ -334,11 +379,15 @@ class _SheetRow extends StatelessWidget {
     required this.leading,
     required this.title,
     required this.onTap,
+    this.saved = false,
   });
 
   final Widget leading;
   final String title;
   final VoidCallback onTap;
+
+  /// Already holds the songs: a check in the accent (toggled on, §2.5).
+  final bool saved;
 
   @override
   Widget build(BuildContext context) {
@@ -353,6 +402,12 @@ class _SheetRow extends StatelessWidget {
         style: theme.textTheme.bodyLarge
             ?.copyWith(color: theme.colorScheme.onSurface),
       ),
+      trailing: saved
+          ? Icon(Icons.check_circle_rounded,
+              size: RiffComponentSizes.trailingIcon,
+              color: theme.colorScheme.primary,
+              semanticLabel: 'alreadyInPlaylist'.tr)
+          : null,
       onTap: onTap,
     );
   }
