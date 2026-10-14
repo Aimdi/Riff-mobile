@@ -452,6 +452,12 @@ Downloads:
   Download › Download quality, High (as before) or Low, which takes about
   a third of the space (Opus about 50 kb/s, AAC 48 kb/s). Songs downloaded
   before keep theirs
+* Offline, as with Spotify and YouTube Music: with no connection at all
+  (Android), songs that aren't downloaded or in the song cache are dimmed
+  and skipped, so a playlist goes on with its downloaded songs instead of
+  stopping after two that wouldn't load. Tap a dimmed one and Riff says
+  you're offline. Podcasts, books and your own server's songs play as
+  before
 
 Search:
 * Search by voice, as with YouTube Music, Spotify and Apple Music: tap

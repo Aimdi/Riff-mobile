@@ -41,6 +41,7 @@ import '/models/durationstate.dart';
 import '/services/music_service.dart';
 import '/services/music_autoplay.dart';
 import '/services/explicit_content.dart';
+import '/services/offline_playback.dart';
 import '/services/recently_played_days.dart';
 import '/services/riff_equalizer.dart';
 import '/services/sponsorblock_service.dart';
@@ -1915,10 +1916,11 @@ class PlayerController extends GetxController
   bool _extendingRadio = false;
 
   /// A song after the one playing that may play (an explicit one doesn't
-  /// while explicit content is off).
-  bool get _songAfterCurrent => currentQueue
-      .skip(currentSongIndex.value + 1)
-      .any((song) => !ExplicitContent.blocks(song));
+  /// while explicit content is off, nor offline one that needs a
+  /// connection).
+  bool get _songAfterCurrent =>
+      currentQueue.skip(currentSongIndex.value + 1).any((song) =>
+          !ExplicitContent.blocks(song) && !OfflinePlayback.blocks(song));
 
   /// Last track ended while radio/Wave is on — fetch the next batch and play.
   /// [quiet]: nothing to play on isn't reported (Autoplay's first batch).
@@ -2676,6 +2678,14 @@ class PlayerController extends GetxController
     if (context == null || !context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
         snackbar(context, "explicitOffMsg".tr, size: SanckBarSize.MEDIUM));
+  }
+
+  /// A song that needs a connection didn't play: there's none.
+  void notifyOffline() {
+    final context = Get.context;
+    if (context == null || !context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+        snackbar(context, "offlineSongMsg".tr, size: SanckBarSize.MEDIUM));
   }
 
   /// Explicit content was turned off: an explicit song playing stops there

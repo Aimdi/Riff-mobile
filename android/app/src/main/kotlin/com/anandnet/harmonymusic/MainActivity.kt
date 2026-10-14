@@ -192,6 +192,13 @@ class MainActivity : AudioServiceActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             "riff/network"
         ).setMethodCallHandler(NetworkChannel)
+        // Online or not, for passing over songs that need a connection
+        // while there's none: also stays, as play goes on in the background.
+        ConnectionChannel.appContext = applicationContext
+        EventChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "riff/network/online"
+        ).setStreamHandler(ConnectionChannel)
     }
 
     /**

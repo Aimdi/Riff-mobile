@@ -29,6 +29,7 @@ import '/services/client_config_service.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/music_service.dart';
 import '/services/now_playing_widget.dart';
+import '/services/offline_playback.dart';
 import '/services/playback_rules_service.dart';
 import '/services/playlist_mix_service.dart';
 import '/services/smart_queue_service.dart';
@@ -82,6 +83,8 @@ Future<void> main() async {
   // Load cached remote client config synchronously; refresh in background.
   unawaited(ClientConfigService.init());
   startApplicationServices();
+  // Offline, songs that need a connection are passed over (Android).
+  OfflinePlayback.watch();
   WidgetsBinding.instance.addObserver(LifecycleHandler());
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   TerminateRestart.instance.initialize();

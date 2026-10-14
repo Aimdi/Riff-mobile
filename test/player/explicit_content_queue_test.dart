@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:harmonymusic/services/explicit_content.dart';
 import 'package:harmonymusic/services/music_autoplay.dart';
 import 'package:harmonymusic/services/music_service.dart';
+import 'package:harmonymusic/services/offline_playback.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:hive/hive.dart';
 
@@ -98,6 +99,27 @@ void main() {
     expect(
         player.currentQueue.map((m) => m.id), ['a1', 'a2', 'a3', 'r1', 'r2']);
     // The player skips the explicit one on its way to r1.
+    expect(handler.actions, ['skipToNext']);
+  });
+
+  test(
+      'offline: a last song that needs a connection is no song to play, nor '
+      'are the ones Autoplay finds; downloaded, it plays next', () async {
+    await Hive.openBox('SongDownloads', bytes: Uint8List(0));
+    await Hive.openBox('SongsCache', bytes: Uint8List(0));
+    OfflinePlayback.offline.value = true;
+    addTearDown(() => OfflinePlayback.offline.value = false);
+    player.currentQueue.assignAll([_song('a1'), _song('a2'), _song('a3')]);
+    await MusicAutoplay.set(true);
+    music.tracks = [_song('r1')];
+    expect(await player.autoplayAfterQueue(), isFalse);
+    expect(music.asked, ['a2']);
+    expect(handler.actions, isEmpty);
+
+    await Hive.box('SongDownloads').put('a3', {'videoId': 'a3'});
+    music.asked.clear();
+    expect(await player.autoplayAfterQueue(), isTrue);
+    expect(music.asked, isEmpty);
     expect(handler.actions, ['skipToNext']);
   });
 

@@ -10,6 +10,7 @@ import 'package:widget_marquee/widget_marquee.dart';
 import '../../models/media_item_extras.dart';
 import '../../models/playlist.dart';
 import '../../services/explicit_content.dart';
+import '../../services/offline_playback.dart';
 import '../../services/track_analysis_service.dart';
 import '../player/player_controller.dart';
 import '../screens/Settings/settings_screen_controller.dart';
@@ -24,6 +25,7 @@ import 'song_favourite.dart';
 import 'song_row_swipe.dart';
 import 'now_playing_bars.dart';
 import 'songinfo_bottom_sheet.dart';
+import 'unplayable_dim.dart';
 
 class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
   const SongListTile(
@@ -70,14 +72,20 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
     ).whenComplete(() => Get.delete<SongInfoController>());
   }
 
-  /// [onTap], or for an explicit song while explicit content is off, why it
-  /// won't play.
+  /// [onTap], or for a song that won't play now, why: explicit while
+  /// explicit content is off, or needing a connection while there's none.
   VoidCallback? _onTap(PlayerController playerController) {
     final tap = onTap;
-    if (tap == null || !song.isExplicit) return tap;
-    return () => ExplicitContent.blocks(song)
-        ? playerController.notifyExplicitOff()
-        : tap();
+    if (tap == null) return null;
+    return () {
+      if (ExplicitContent.blocks(song)) {
+        playerController.notifyExplicitOff();
+      } else if (OfflinePlayback.blocks(song)) {
+        playerController.notifyOffline();
+      } else {
+        tap();
+      }
+    };
   }
 
   @override
@@ -179,10 +187,10 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                     );
                   }),
                 ),
-                // Explicit content off: dimmed, as Spotify greys out what
-                // won't play.
-                ExplicitDim(
-                  explicit: song.isExplicit,
+                // Dimmed while it won't play (explicit content off, or
+                // offline), as Spotify greys out what can't.
+                UnplayableDim(
+                  song: song,
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(

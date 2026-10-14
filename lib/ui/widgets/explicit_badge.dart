@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '/services/explicit_content.dart';
 import '/ui/theme/riff_tokens.dart';
 
 /// The "E" Spotify, Apple Music and YouTube Music put before an explicit
@@ -36,25 +35,5 @@ class ExplicitBadge extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-/// An explicit song's row ([explicit]): dimmed while explicit content is
-/// off, as Spotify greys out what won't play.
-class ExplicitDim extends StatelessWidget {
-  const ExplicitDim({super.key, required this.explicit, required this.child});
-
-  final bool explicit;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    if (!explicit) return child;
-    return Obx(() => Opacity(
-          opacity: ExplicitContent.allowed.value
-              ? 1
-              : RiffPalette.unavailableOpacity,
-          child: child,
-        ));
   }
 }

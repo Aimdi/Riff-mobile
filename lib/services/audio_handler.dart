@@ -20,6 +20,7 @@ import '../models/playlist.dart';
 import '/services/equalizer.dart';
 import '/services/riff_equalizer.dart';
 import '/services/explicit_content.dart';
+import '/services/offline_playback.dart';
 import '/services/podcast_starred.dart';
 import '/services/youtube_stream_headers.dart';
 import '/services/playlist_mix_service.dart';
@@ -1396,15 +1397,21 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     return !playByIndexHardFailed(result);
   }
 
-  /// Explicit content is off and the song at [index] is explicit: plays the
-  /// next song in play order that may play ([backward]: the one before), as
-  /// Next (Previous) would. Past the end, radio and Autoplay go on as after
-  /// the last song; when nothing plays the queue ends there, and the player
+  /// Whether [song] may not play now: explicit while explicit content is
+  /// off, or needing a connection while there's none.
+  static bool _passedOver(MediaItem song) =>
+      ExplicitContent.blocks(song) || OfflinePlayback.blocks(song);
+
+  /// The song at [index] may not play ([_passedOver]): plays the next song
+  /// in play order that may ([backward]: the one before), as Next
+  /// (Previous) would. Past the end, radio and Autoplay go on as after the
+  /// last song; when nothing plays the queue ends there, and the player
   /// says why. [restore] (the session coming back at launch) loads the song
   /// found, paused, without a word.
-  Future<dynamic> _playPastExplicit(int index,
+  Future<dynamic> _playPastUnplayable(int index,
       {bool backward = false, bool restore = false}) async {
     final q = queue.value;
+    final passed = q[index];
     final before = currentIndex;
     final found = playableFrom(index, q.length,
         step: (at) {
@@ -1414,10 +1421,10 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
               ? _getPrevSongIndex()
               : _getNextSongIndex(advance: true);
         },
-        mayPlay: (i) => !ExplicitContent.blocks(q[i]));
+        mayPlay: (i) => !_passedOver(q[i]));
     if (found.index case final next?) {
       // Songs running on by themselves skip them without a word.
-      if (!restore && !_eofAdvanceInProgress) _notifyExplicitOff();
+      if (!restore && !_eofAdvanceInProgress) _notifyPassedOver(passed);
       return customAction("playByIndex",
           {'index': next, if (restore) 'restoreSession': true});
     }
@@ -1441,13 +1448,18 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       _player.seek(Duration.zero);
       _player.pause();
     }
-    _notifyExplicitOff();
+    _notifyPassedOver(passed);
     return null;
   }
 
-  void _notifyExplicitOff() {
-    if (Get.isRegistered<PlayerController>()) {
-      Get.find<PlayerController>().notifyExplicitOff();
+  /// Says why [song] didn't play.
+  void _notifyPassedOver(MediaItem song) {
+    if (!Get.isRegistered<PlayerController>()) return;
+    final player = Get.find<PlayerController>();
+    if (OfflinePlayback.blocks(song)) {
+      player.notifyOffline();
+    } else {
+      player.notifyExplicitOff();
     }
   }
 
@@ -1516,9 +1528,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           return false;
         }
         // Explicit content off: an explicit song doesn't play, the next
-        // one that may does.
-        if (ExplicitContent.blocks(queue.value[songIndex])) {
-          return _playPastExplicit(songIndex,
+        // one that may does; offline, nor does one that needs a connection.
+        if (_passedOver(queue.value[songIndex])) {
+          return _playPastUnplayable(songIndex,
               backward: extras['backward'] == true,
               restore: extras['restoreSession'] == true);
         }
