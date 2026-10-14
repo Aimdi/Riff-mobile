@@ -697,6 +697,12 @@ Playlists:
   VLC open whole. Sharing a song that's on the phone or from your own
   server now sends its title and artist (its link went nowhere), and a
   podcast episode goes as episodes are shared
+* Remove from playlist in the player, as Spotify's Now Playing has
+  "Remove from this playlist": while one of your own playlists plays,
+  the player's ⋮ (and a song's menu in Up Next) has Remove from
+  playlist, with the playlist's name under it, for a song that's in it.
+  The song plays on; Undo puts it back where it was. Not for Favorites
+  (the heart is there), the mixes Riff makes or YouTube Music playlists
 
 Albums:
 * More by the artist, like Spotify, Apple Music and YouTube Music: under

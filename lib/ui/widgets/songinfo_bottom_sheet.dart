@@ -36,6 +36,7 @@ import '/ui/widgets/snackbar.dart';
 import '/ui/utils/sheet_insets.dart';
 import '/utils/content_filters.dart';
 import '../../models/playlist.dart';
+import '../../models/playling_from.dart';
 import '../navigator.dart';
 import 'discovery/similar_songs_sheet.dart';
 import 'song_download_btn.dart';
@@ -328,6 +329,23 @@ class SongInfoBottomSheet extends StatelessWidget {
                   removeFromPlaylistWithUndo(song, playlist!);
                 },
               ),
+            // The player's and Up Next's: the playlist playing, when it's
+            // one of yours with this song (Spotify's Remove from this
+            // playlist).
+            if (playlist == null && (calledFromPlayer || calledFromQueue))
+              Obx(() {
+                final playing = songInfoController.playingPlaylist.value;
+                if (playing == null) return const SizedBox.shrink();
+                return RiffSheetTile(
+                  icon: Icons.remove_circle_outline_rounded,
+                  title: "removeFromPlaylist".tr,
+                  subtitle: playing.title,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    removeFromPlaylistWithUndo(song, playing);
+                  },
+                );
+              }),
             if (calledFromQueue)
               RiffSheetTile(
                 icon: Icons.remove_circle_outline_rounded,
@@ -635,9 +653,23 @@ class SongInfoController extends GetxController
   final bool calledFromPlayer;
   List artistList = [].obs;
   final isDownloaded = false.obs;
+
+  /// The playlist playing, when it's one of yours with this song in it
+  /// ([yourPlaylistPlaying]): the player's and Up Next's ⋮ can take the
+  /// song out of it.
+  final playingPlaylist = Rxn<Playlist>();
   SongInfoController(this.song, this.calledFromPlayer) {
     _setInitStatus(song);
+    _findPlayingPlaylist();
   }
+
+  Future<void> _findPlayingPlaylist() async {
+    if (!Get.isRegistered<PlayerController>()) return;
+    final found = await yourPlaylistPlaying(
+        Get.find<PlayerController>().playinfrom.value, song);
+    if (!isClosed) playingPlaylist.value = found;
+  }
+
   _setInitStatus(MediaItem song) async {
     isDownloaded.value =
         HiveBoxes.songDownloadsSync()?.containsKey(song.id) ?? false;
@@ -779,6 +811,43 @@ Future<void> removeFromPlaylistWithUndo(MediaItem song, Playlist playlist,
 }
 
 class _PlaylistSongRemover with RemoveSongFromPlaylistMixin {}
+
+/// Whether you can take songs out of [playlist] from the player: it's one
+/// you made or imported in Riff, not a Library list (Favorites has the
+/// heart), a mix Riff makes, or one on YouTube Music or Piped.
+bool isYourPlaylist(Playlist playlist) =>
+    !playlist.isCloudPlaylist &&
+    !playlist.isPipedPlaylist &&
+    !playlist.playlistId.startsWith('RIFF_') &&
+    !const {
+      HiveBoxes.libRp,
+      HiveBoxes.libFav,
+      HiveBoxes.songsCache,
+      HiveBoxes.songDownloads,
+    }.contains(playlist.playlistId);
+
+/// The playlist playing ([from]), as the Library has it now (renamed, or
+/// gone), when it's one of yours with [song] in it: the player's and Up
+/// Next's ⋮ offer to take the song out of it, as Spotify's Now Playing
+/// does (Remove from this playlist).
+Future<Playlist?> yourPlaylistPlaying(PlaylingFrom from, MediaItem song) async {
+  if (from.type != PlaylingFromType.PLAYLIST || from.id.isEmpty) return null;
+  try {
+    final saved = (await HiveBoxes.open('LibraryPlaylists')).get(from.id);
+    if (saved is! Map) return null;
+    final playlist = Playlist.fromJson(saved);
+    if (playlist.playlistId != from.id || !isYourPlaylist(playlist)) {
+      return null;
+    }
+    final songs = await HiveBoxes.open(from.id);
+    return songs.values.any((s) => s is Map && s['videoId'] == song.id)
+        ? playlist
+        : null;
+  } catch (_) {
+    // Storage that won't open: nothing to offer.
+    return null;
+  }
+}
 
 /// The library's version: the song leaves the Songs list (and an open
 /// Downloads / Cached screen) at once, its download or cached copy is
