@@ -721,7 +721,9 @@ Up Next:
   or a playlist's too). The ones you haven't heard yet now play right
   after the song you started, in their order, then the rest of what you
   started. What radio, Autoplay or a mix added isn't kept, and a podcast
-  episode or a book starts on its own
+  episode or a book starts on its own. In Up Next, the songs you queued
+  that are still to come have a queue icon before the artist ("Queued by
+  you" with TalkBack), as Smart shuffle's picks have ✦
 
 Home's Speed dial:
 * Swiping now goes round: a swipe right on the first page slides to the

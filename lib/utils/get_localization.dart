@@ -4634,6 +4634,7 @@ Map<String, Map<String, String>> get keys => {
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "queuedByYou": "Queued by you",
     "exportPlaylistM3u": "Export playlist as M3U",
     "exportPlaylistM3uSubtitle": "For other players and apps (VLC, foobar2000, Metrolist); imports here too",
     "statsRange4Weeks": "Last 4 weeks",

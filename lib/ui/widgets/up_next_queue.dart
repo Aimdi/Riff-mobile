@@ -4,6 +4,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/services/smart_shuffle.dart';
+import 'package:harmonymusic/ui/player/play_queue_order.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:harmonymusic/ui/theme/riff_spacing.dart';
 import 'package:harmonymusic/ui/theme/riff_tokens.dart';
@@ -283,6 +284,20 @@ class _QueueSongRow extends StatelessWidget {
                                             label: 'smartShufflePick'.tr,
                                             child: Icon(
                                                 Icons.auto_awesome_rounded,
+                                                size: RiffSizes.chipGlyph,
+                                                color: muted),
+                                          ),
+                                          const SizedBox(width: RiffSpacing.xs),
+                                        ],
+                                        // One you queued, still to come:
+                                        // kept when something else starts.
+                                        if (!isCurrent &&
+                                            !isPlayed &&
+                                            isQueuedByYou(song)) ...[
+                                          Semantics(
+                                            label: 'queuedByYou'.tr,
+                                            child: Icon(
+                                                Icons.queue_music_rounded,
                                                 size: RiffSizes.chipGlyph,
                                                 color: muted),
                                           ),

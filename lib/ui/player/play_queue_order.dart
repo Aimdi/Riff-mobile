@@ -36,8 +36,11 @@ List<MediaItem> playNextBatchOrder(Iterable<MediaItem> songs) =>
 /// else plays next in that.
 const kQueuedByYou = 'queuedByYou';
 
+/// Whether you queued [song] yourself ([kQueuedByYou]).
+bool isQueuedByYou(MediaItem song) => song.extras?[kQueuedByYou] == true;
+
 /// [song] marked as one you queued.
-MediaItem queuedByYou(MediaItem song) => song.extras?[kQueuedByYou] == true
+MediaItem queuedByYou(MediaItem song) => isQueuedByYou(song)
     ? song
     : song.copyWith(extras: {...?song.extras, kQueuedByYou: true});
 
@@ -49,7 +52,7 @@ List<MediaItem> stillQueuedByYou(List<MediaItem> queue, int currentIndex,
         {Set<String> heard = const {}}) =>
     [
       for (var i = currentIndex + 1; i < queue.length; i++)
-        if (queue[i].extras?[kQueuedByYou] == true &&
+        if (isQueuedByYou(queue[i]) &&
             !heard.contains(queue[i].id) &&
             !queue[i].isPodcastEpisode &&
             !queue[i].isAudiobook)

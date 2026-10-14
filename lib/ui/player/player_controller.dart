@@ -1464,9 +1464,7 @@ class PlayerController extends GetxController
           ListenBrainzService.submitListen(outgoing);
         }
         currentSong.value = mediaItem;
-        if (mediaItem.extras?[kQueuedByYou] == true) {
-          _heardQueued.add(mediaItem.id);
-        }
+        if (isQueuedByYou(mediaItem)) _heardQueued.add(mediaItem.id);
         if (songChanged) {
           // Reset per-song UI now, before the awaits below, so lyrics the
           // user opens for the new song aren't wiped when they finish.
