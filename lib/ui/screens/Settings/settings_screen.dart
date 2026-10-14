@@ -1775,62 +1775,76 @@ class DiscoverContentSelectorDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final settingsController = Get.find<SettingsScreenController>();
     return CommonDialog(
+      // As tall as before, Cancel at the bottom; taller with larger text
+      // (it spilled out of its fixed height), scrolling when the screen is
+      // shorter.
       child: _dialogBody(context, Container(
-        height: RiffComponentSizes.choiceDialog,
         padding: const EdgeInsets.only(
             top: RiffSpacing.xxl,
             left: RiffSpacing.xs,
             right: RiffSpacing.xxl,
             bottom: RiffSpacing.sm),
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.only(
-                left: RiffSpacing.xl, bottom: RiffSpacing.xs),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "setDiscoverContent".tr,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+                minHeight: RiffComponentSizes.choiceDialog -
+                    RiffSpacing.xxl -
+                    RiffSpacing.sm),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(mainAxisSize: MainAxisSize.min, children: [
+                  Padding(
+                    padding: const EdgeInsets.only(
+                        left: RiffSpacing.xl, bottom: RiffSpacing.xs),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        "setDiscoverContent".tr,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    height: RiffComponentSizes.choiceDialogList,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          radioWidget(
+                              label: "quickpicks".tr,
+                              controller: settingsController,
+                              value: "QP"),
+                          radioWidget(
+                              label: "topmusicvideos".tr,
+                              controller: settingsController,
+                              value: "TMV"),
+                          radioWidget(
+                              label: "trending".tr,
+                              controller: settingsController,
+                              value: "TR"),
+                          radioWidget(
+                              label: "basedOnLast".tr,
+                              controller: settingsController,
+                              value: "BOLI"),
+                        ],
+                      ),
+                    ),
+                  ),
+                ]),
+                Align(
+                    alignment: Alignment.centerRight,
+                    child: InkWell(
+                      child: Padding(
+                        padding: const EdgeInsets.all(RiffSpacing.sm),
+                        child: Text("cancel".tr,
+                            style: _dialogActionStyle(context)),
+                      ),
+                      onTap: () => Navigator.of(context).pop(),
+                    )),
+              ],
             ),
           ),
-          SizedBox(
-            height: RiffComponentSizes.choiceDialogList,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  radioWidget(
-                      label: "quickpicks".tr,
-                      controller: settingsController,
-                      value: "QP"),
-                  radioWidget(
-                      label: "topmusicvideos".tr,
-                      controller: settingsController,
-                      value: "TMV"),
-                  radioWidget(
-                      label: "trending".tr,
-                      controller: settingsController,
-                      value: "TR"),
-                  radioWidget(
-                      label: "basedOnLast".tr,
-                      controller: settingsController,
-                      value: "BOLI"),
-                ],
-              ),
-            ),
-          ),
-          const Expanded(child: SizedBox()),
-          Align(
-              alignment: Alignment.centerRight,
-              child: InkWell(
-                child: Padding(
-                  padding: const EdgeInsets.all(RiffSpacing.sm),
-                  child: Text("cancel".tr,
-                      style: _dialogActionStyle(context)),
-                ),
-                onTap: () => Navigator.of(context).pop(),
-              ))
-        ]),
+        ),
       )),
     );
   }
@@ -1982,95 +1996,114 @@ class _DiscoverySettingsDialogState extends State<DiscoverySettingsDialog> {
   @override
   Widget build(BuildContext context) {
     return CommonDialog(
+      // As tall as before, the buttons at the bottom; taller with larger
+      // text (it spilled out of its fixed height), scrolling when the
+      // screen is shorter.
       child: _dialogBody(context, Container(
-        height: RiffComponentSizes.discoveryDialog,
         padding: const EdgeInsets.only(
             top: RiffSpacing.xl,
             bottom: RiffSpacing.sm,
             left: RiffSpacing.xl,
             right: RiffSpacing.xl),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("discoverySettings".tr,
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: RiffSpacing.md),
-            Text(
-                "${"exploration".tr}: ${exploration < 0.33 ? "familiar".tr : exploration > 0.66 ? "adventurous".tr : "balanced".tr}"),
-            Slider(
-              value: exploration,
-              onChanged: (v) => setState(() => exploration = v),
-              min: 0,
-              max: 1,
-              divisions: 10,
-            ),
-            Row(
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+                minHeight: RiffComponentSizes.discoveryDialog -
+                    RiffSpacing.xl -
+                    RiffSpacing.sm),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("mixCount".tr),
-                DropdownButton<int>(
-                  value: mixCount,
-                  items: [3, 4, 5]
-                      .map((e) => DropdownMenuItem(value: e, child: Text("$e")))
-                      .toList(),
-                  onChanged: (v) {
-                    if (v != null) setState(() => mixCount = v);
-                  },
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text("discoverySettings".tr,
+                        style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: RiffSpacing.md),
+                    Text(
+                        "${"exploration".tr}: ${exploration < 0.33 ? "familiar".tr : exploration > 0.66 ? "adventurous".tr : "balanced".tr}"),
+                    Slider(
+                      value: exploration,
+                      onChanged: (v) => setState(() => exploration = v),
+                      min: 0,
+                      max: 1,
+                      divisions: 10,
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(child: Text("mixCount".tr)),
+                        DropdownButton<int>(
+                          value: mixCount,
+                          items: [3, 4, 5]
+                              .map((e) =>
+                                  DropdownMenuItem(value: e, child: Text("$e")))
+                              .toList(),
+                          onChanged: (v) {
+                            if (v != null) setState(() => mixCount = v);
+                          },
+                        ),
+                      ],
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text("wifiOnlyGeneration".tr),
+                      value: wifiOnly,
+                      onChanged: (v) => setState(() => wifiOnly = v),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text("unheardOnly".tr),
+                      value: unheardOnly,
+                      onChanged: (v) => setState(() => unheardOnly = v),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text("listenBrainzRecs".tr),
+                      value: lbRecs,
+                      onChanged: (v) => setState(() => lbRecs = v),
+                    ),
+                  ],
+                ),
+                // Side by side, one over the other when they don't fit.
+                OverflowBar(
+                  alignment: MainAxisAlignment.spaceBetween,
+                  overflowAlignment: OverflowBarAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () async {
+                        if (Get.isRegistered<DiscoveryService>()) {
+                          await Get.find<DiscoveryService>().resetTasteModel();
+                        }
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                              context, "tasteModelReset".tr,
+                              size: SanckBarSize.MEDIUM));
+                        }
+                      },
+                      child: Text("resetTasteModel".tr),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        if (Get.isRegistered<DiscoveryService>()) {
+                          final d = Get.find<DiscoveryService>();
+                          d.exploration = exploration;
+                          d.wifiOnlyGeneration = wifiOnly;
+                          d.mixCount = mixCount;
+                          d.unheardOnlyDefault = unheardOnly;
+                          d.listenBrainzRecs = lbRecs;
+                        }
+                        Navigator.of(context).pop();
+                      },
+                      child: Text("confirm".tr),
+                    ),
+                  ],
                 ),
               ],
             ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text("wifiOnlyGeneration".tr),
-              value: wifiOnly,
-              onChanged: (v) => setState(() => wifiOnly = v),
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text("unheardOnly".tr),
-              value: unheardOnly,
-              onChanged: (v) => setState(() => unheardOnly = v),
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text("listenBrainzRecs".tr),
-              value: lbRecs,
-              onChanged: (v) => setState(() => lbRecs = v),
-            ),
-            const Spacer(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: () async {
-                    if (Get.isRegistered<DiscoveryService>()) {
-                      await Get.find<DiscoveryService>().resetTasteModel();
-                    }
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                          context, "tasteModelReset".tr,
-                          size: SanckBarSize.MEDIUM));
-                    }
-                  },
-                  child: Text("resetTasteModel".tr),
-                ),
-                TextButton(
-                  onPressed: () {
-                    if (Get.isRegistered<DiscoveryService>()) {
-                      final d = Get.find<DiscoveryService>();
-                      d.exploration = exploration;
-                      d.wifiOnlyGeneration = wifiOnly;
-                      d.mixCount = mixCount;
-                      d.unheardOnlyDefault = unheardOnly;
-                      d.listenBrainzRecs = lbRecs;
-                    }
-                    Navigator.of(context).pop();
-                  },
-                  child: Text("confirm".tr),
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       )),
     );

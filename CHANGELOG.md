@@ -101,6 +101,12 @@ Screen readers (TalkBack):
 * The Theme dialog fits its content: on phones the accent colours and
   Cancel spilled out of its bottom, more so with larger text; it now
   scrolls when the screen is too short. "Accent" there is translated
+* With a larger font size (Android's Font size, from "Large"), the
+  Discovery settings and Discover content dialogs fit too: their
+  switches and buttons spilled out of them, and Reset taste model ran
+  off the side. They grow with the text and scroll when the screen is
+  too short; Reset taste model and Confirm go one over the other when
+  they don't fit side by side. At the default size they look as before
 
 Remove animations (Android's accessibility setting):
 * Riff now keeps still with it on, as Apple Music does under Reduce
