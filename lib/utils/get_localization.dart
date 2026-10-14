@@ -4642,6 +4642,8 @@ Map<String, Map<String, String>> get keys => {
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "editPlaylistDetails": "Edit details",
+    "playlistDescriptionHint": "Description (optional)",
     "moveToFolder": "Move to folder",
     "removeFromFolder": "Take out of the folder",
     "renameFolder": "Rename folder",

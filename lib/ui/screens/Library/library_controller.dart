@@ -512,9 +512,12 @@ class LibraryPlaylistsController extends GetxController
     return res.code == 1;
   }
 
-  Future<bool> renamePlaylist(Playlist playlist) async {
-    String title = textInputController.text;
-    if (title.trim().isNotEmpty) {
+  /// Renames [playlist] to the name typed, as typed (it used to come out
+  /// in lower case after the first letter); a library playlist also takes
+  /// [description] (empty: none), as Spotify's Edit details.
+  Future<bool> renamePlaylist(Playlist playlist, {String? description}) async {
+    final title = textInputController.text.trim();
+    if (title.isNotEmpty) {
       if (playlist.isPipedPlaylist) {
         final res = await Get.find<PipedServices>()
             .renamePlaylist(playlist.playlistId, title);
@@ -522,9 +525,9 @@ class LibraryPlaylistsController extends GetxController
         playlist.newTitle = title;
       } else {
         final box = await HiveBoxes.open("LibraryPlaylists");
-        title = "${title[0].toUpperCase()}${title.substring(1).toLowerCase()}";
         playlist.newTitle = title;
-        await box.put(playlist.playlistId, playlist.toJson());
+        await box.put(playlist.playlistId,
+            playlist.copyWith(description: description?.trim()).toJson());
       }
       refreshLib();
       return true;

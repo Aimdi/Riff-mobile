@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '/services/piped_service.dart';
 import '../screens/Library/library_controller.dart';
+import '../screens/Playlist/playlist_screen_controller.dart';
 import '/ui/player/play_queue_order.dart';
 import '/ui/widgets/snackbar.dart';
 import '../../models/playlist.dart';
@@ -39,6 +40,14 @@ class _CreateNRenamePlaylistPopupState
   List<MediaItem>? get songItems => widget.songItems;
   Playlist? get playlist => widget.playlist;
 
+  /// Editing a library playlist's details (Spotify's Edit details): its
+  /// name and its description. A Piped playlist only renames.
+  bool get _details =>
+      renamePlaylist && playlist != null && !playlist!.isPipedPlaylist;
+
+  late final _description =
+      TextEditingController(text: playlist?.ownDescription ?? '');
+
   @override
   void initState() {
     super.initState();
@@ -46,8 +55,24 @@ class _CreateNRenamePlaylistPopupState
     // rebuild (a theme change, e.g. the album-colour theme on each new
     // track) and wiped the name being typed.
     librPlstCntrller.changeCreationMode("local");
-    librPlstCntrller.textInputController.text =
-        renamePlaylist ? "" : defaultNewPlaylistName(songItems: songItems);
+    // Renaming starts from the name it has, to change rather than retype.
+    librPlstCntrller.textInputController.text = renamePlaylist
+        ? (playlist?.title ?? "")
+        : defaultNewPlaylistName(songItems: songItems);
+  }
+
+  @override
+  void dispose() {
+    _description.dispose();
+    super.dispose();
+  }
+
+  /// The open playlist page shows the new name and words at once.
+  void _showOnItsPage(Playlist renamed) {
+    final tag = Key(renamed.playlistId).hashCode.toString();
+    if (Get.isRegistered<PlaylistScreenController>(tag: tag)) {
+      Get.find<PlaylistScreenController>(tag: tag).playlist.value = renamed;
+    }
   }
 
   Future<void> _submit(
@@ -59,9 +84,12 @@ class _CreateNRenamePlaylistPopupState
       return;
     }
     if (renamePlaylist) {
-      final value = await librPlstCntrller.renamePlaylist(playlist!);
+      final description = _details ? _description.text.trim() : null;
+      final value = await librPlstCntrller.renamePlaylist(playlist!,
+          description: description);
       if (!context.mounted) return;
       if (value) {
+        _showOnItsPage(playlist!.copyWith(description: description));
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(snackbar(
             context, "playlistRenameAlert".tr,
@@ -106,9 +134,11 @@ class _CreateNRenamePlaylistPopupState
               children: [
                 Expanded(
                   child: Text(
-                    renamePlaylist
-                        ? "renamePlaylist".tr
-                        : "CreateNewPlaylist".tr,
+                    _details
+                        ? "editPlaylistDetails".tr
+                        : renamePlaylist
+                            ? "renamePlaylist".tr
+                            : "CreateNewPlaylist".tr,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleLarge?.copyWith(color: fg),
@@ -161,6 +191,20 @@ class _CreateNRenamePlaylistPopupState
                     horizontal: RiffSpacing.lg, vertical: RiffSpacing.md),
               ),
             ),
+            if (_details) ...[
+              const SizedBox(height: RiffSpacing.md),
+              ModifiedTextField(
+                textCapitalization: TextCapitalization.sentences,
+                controller: _description,
+                minLines: 1,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: "playlistDescriptionHint".tr,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: RiffSpacing.lg, vertical: RiffSpacing.md),
+                ),
+              ),
+            ],
             const SizedBox(height: RiffSpacing.lg),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -175,9 +219,11 @@ class _CreateNRenamePlaylistPopupState
                   child: Text(
                     isCreateNadd
                         ? "createnAdd".tr
-                        : renamePlaylist
-                            ? "rename".tr
-                            : "create".tr,
+                        : _details
+                            ? "save".tr
+                            : renamePlaylist
+                                ? "rename".tr
+                                : "create".tr,
                   ),
                 ),
               ],

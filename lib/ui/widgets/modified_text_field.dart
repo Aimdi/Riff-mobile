@@ -14,6 +14,8 @@ class ModifiedTextField extends StatelessWidget {
   final void Function(String)? onSubmitted;
   final void Function(String)? onChanged;
   final TextStyle? style;
+  final int? minLines;
+  final int? maxLines;
 
   const ModifiedTextField(
       {super.key,
@@ -28,7 +30,9 @@ class ModifiedTextField extends StatelessWidget {
       this.textInputAction,
       this.onSubmitted,
       this.onChanged,
-      this.style});
+      this.style,
+      this.minLines,
+      this.maxLines = 1});
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +53,8 @@ class ModifiedTextField extends StatelessWidget {
             onChanged: onChanged,
             textInputAction: textInputAction,
             onSubmitted: onSubmitted,
+            minLines: minLines,
+            maxLines: maxLines,
             textCapitalization: textCapitalization));
   }
 }

@@ -469,6 +469,12 @@ Library:
   puts its playlists back among the rest (Undo brings it back)
 
 Playlists:
+* Edit details, as in Spotify: a playlist's ⋮ › Edit details starts from
+  the name it has (Rename started empty) and keeps it as you type it (it
+  used to lowercase everything after the first letter: "My EDM Mix"
+  became "My edm mix"), and gives your playlists a description of their
+  own, shown under the name. Without one they read "Playlist", no longer
+  "Library Playlist"
 * Deleting one of your playlists now asks first ("Delete playlist?"),
   like Spotify and YouTube Music; before, one tap erased it and its
   songs straight away

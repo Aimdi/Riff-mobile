@@ -565,7 +565,9 @@ Widget _header(
     BuildContext context, PlaylistScreenController c, PlayerController player) {
   final pl = c.playlist.value;
   final isPodcast = _isPodcastPage(pl);
-  final description = (pl.description ?? '').trim();
+  // A library playlist's default ("Library Playlist") reads "Playlist".
+  final description =
+      isPodcast ? (pl.description ?? '').trim() : pl.ownDescription;
   return CollectionHeader(
     cover: ImageWidget(size: 96, playlist: pl),
     title: pl.title,
@@ -778,7 +780,7 @@ Widget _actions(
         // Spotify's "Add to this playlist": search and add, staying here.
         CollectionMenuItem(Icons.add_rounded, "addSongs".tr,
             () => showAddSongsSheet(context, c)),
-        CollectionMenuItem(Icons.edit_outlined, "renamePlaylist".tr, () {
+        CollectionMenuItem(Icons.edit_outlined, "editPlaylistDetails".tr, () {
           showDialog(
             context: context,
             builder: (context) => CreateNRenamePlaylistPopup(
