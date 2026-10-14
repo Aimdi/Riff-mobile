@@ -51,6 +51,11 @@ class SyncedLyricsService {
       ? Hive.box("lyrics")
       : await Hive.openBox("lyrics");
 
+  /// Keeps [entry] as [songId]'s lyrics in place of what the lookup found
+  /// (Search lyrics' pick); the lookup then gives it back as its own.
+  static Future<void> keep(String songId, Map<String, dynamic> entry) async =>
+      (await _lyricsBox()).put(songId, entry);
+
   /// Where a song's plain lyrics are kept, next to synced ones by song id.
   @visibleForTesting
   static String plainKey(String songId) => 'plain:$songId';

@@ -21,6 +21,7 @@ import '/ui/widgets/sleep_timer_bottom_sheet.dart';
 import '/ui/player/components/player_control.dart' show sleepTimerBadge;
 import '/ui/player/components/lyrics_share.dart';
 import '/ui/player/components/lyrics_timing_sheet.dart';
+import '/ui/player/components/lyrics_search_sheet.dart';
 import '/services/lyrics_timing.dart';
 import '/services/lyrics_translation.dart';
 import 'cust_switch.dart';
@@ -582,6 +583,17 @@ class PlayerToolTiles extends StatelessWidget {
                         Get.context);
               },
             ),
+          // Wrong lyrics, or none: find them (Metrolist's lyrics search).
+          RiffSheetTile(
+            icon: Icons.manage_search_rounded,
+            title: "searchLyrics".tr,
+            onTap: () {
+              Navigator.of(context).pop();
+              showLyricsSearchSheet(
+                  playerController.homeScaffoldkey.currentContext ??
+                      Get.context);
+            },
+          ),
           RiffSheetTile(
             icon: sleepOn ? Icons.bedtime : Icons.bedtime_outlined,
             title: "sleepTimer".tr,

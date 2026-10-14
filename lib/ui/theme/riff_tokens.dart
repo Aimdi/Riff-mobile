@@ -327,6 +327,11 @@ class RiffComponentSizes {
   static const double sheetIcon = 22;
   static const double sheetQuickIcon = 24;
 
+  /// A sheet with a list (Search lyrics): the share of the screen it opens
+  /// to, and the most it takes when dragged up (as the chapters sheet).
+  static const double listSheetStart = 0.6;
+  static const double listSheetMax = 0.92;
+
   /// Widest a bottom sheet gets on tablets (the song sheet's width).
   static const double sheetMaxWidth = 500;
 

@@ -43,6 +43,11 @@ Lyrics:
   song now fetches its lyrics too, and YouTube Music's own lyrics (for
   songs without synced ones) are kept once seen, so both show without a
   connection; they used to need one each time
+* Search lyrics, like Metrolist and InnerTune: when a song's lyrics are
+  wrong (another version, a cover) or missing, ⋮ › Search lyrics looks
+  them up on LRCLIB by its title and artist, or any words you type, and
+  lists what it finds, synced ones first and the nearest in length
+  among them. Tap one and it's the song's lyrics from then on
 
 Mini player (phones):
 * Drag it sideways and the song follows your finger while the next (or

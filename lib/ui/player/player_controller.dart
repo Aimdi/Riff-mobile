@@ -2500,6 +2500,14 @@ class PlayerController extends GetxController
     isLyricsLoading.value = false;
   }
 
+  /// Search lyrics' pick for [song]: shown now when it's playing.
+  void useLyrics(MediaItem song, Map<String, dynamic> picked) {
+    if (currentSong.value?.id != song.id) return;
+    lyrics.value = Map<String, dynamic>.from(picked);
+    isLyricsLoading.value = false;
+    if (showLyricsflag.isFalse) showLyricsflag.value = true;
+  }
+
   void changeLyricsMode(int? val) {
     if (val == null) return;
     _prefs.put("lyricsMode", val);
