@@ -325,6 +325,9 @@ Library:
   YouTube Music's History: its songs come under Today, Yesterday and the
   dates you played them. Songs from before this version sit under
   Earlier; sorted another way, the list is as before
+* Recently played keeps your last 100 songs (it was 30), so its days go
+  back further, and its ⋮ › Clear history empties it, like YouTube
+  Music's; Undo puts it back
 
 Playlists:
 * Deleting one of your playlists now asks first ("Delete playlist?"),

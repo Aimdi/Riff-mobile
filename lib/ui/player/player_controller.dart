@@ -2415,7 +2415,7 @@ class PlayerController extends GetxController
     if (recentItem != mediaItem) {
       final box = await HiveBoxes.open(HiveBoxes.libRp);
       String? removedSongId;
-      if (box.keys.length >= 30) {
+      if (box.keys.length >= recentlyPlayedMax) {
         removedSongId = box.getAt(0)['videoId'];
         box.deleteAt(0);
       }

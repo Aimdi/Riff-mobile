@@ -5,12 +5,48 @@ library;
 
 import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
+import 'package:hive/hive.dart';
 
 import '/models/media_Item_builder.dart';
 import 'podcast_history.dart' show podcastHistoryDay;
 
+/// The Recently played box, oldest first.
+const recentlyPlayedBox = 'LIBRP';
+
 /// Beside the song in each Recently played entry: when it was played (ms).
 const recentlyPlayedAtKey = 'playedAt';
+
+/// The songs Recently played keeps (was 30): enough for its days to read
+/// as a history, as YouTube Music's does.
+const recentlyPlayedMax = 100;
+
+/// Empties Recently played (YouTube Music's Clear history); what it held,
+/// oldest first, for [restoreRecentlyPlayed].
+Future<List<dynamic>> clearRecentlyPlayed() async {
+  final box = await Hive.openBox(recentlyPlayedBox);
+  final held = box.values.toList();
+  await box.clear();
+  return held;
+}
+
+/// Puts [held] back (Undo), before what played since, at most
+/// [recentlyPlayedMax] (the newest).
+Future<void> restoreRecentlyPlayed(List<dynamic> held) async {
+  final box = await Hive.openBox(recentlyPlayedBox);
+  final since = box.values.toList();
+  final sinceIds = {
+    for (final e in since)
+      if (e is Map) '${e['videoId']}'
+  };
+  final all = [
+    for (final e in held)
+      if (e is! Map || !sinceIds.contains('${e['videoId']}')) e,
+    ...since,
+  ];
+  await box.clear();
+  await box.addAll(all.skip(
+      all.length > recentlyPlayedMax ? all.length - recentlyPlayedMax : 0));
+}
 
 /// What Recently played keeps for [song] played at [now].
 Map<String, dynamic> recentlyPlayedEntry(MediaItem song, DateTime now) =>

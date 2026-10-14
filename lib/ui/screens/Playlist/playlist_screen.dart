@@ -731,6 +731,18 @@ Widget _actions(
               : pl.playlistId;
           Share.share("https://youtube.com/playlist?list=$id");
         }),
+      // YouTube Music's Clear history, with Undo as the podcast history's.
+      if (pl.playlistId == 'LIBRP')
+        CollectionMenuItem(Icons.delete_sweep_outlined, "clearHistory".tr,
+            () async {
+          final target = undoSnackbarTarget(context);
+          final held = await clearRecentlyPlayed();
+          c.songList.clear();
+          showUndoSnackbar(target, 'historyCleared'.tr, onUndo: () async {
+            await restoreRecentlyPlayed(held);
+            c.fetchSongsfromDatabase('LIBRP');
+          });
+        }),
       CollectionMenuItem(Icons.file_upload_outlined, "exportPlaylist".tr, () {
         showDialog(
           context: context,
