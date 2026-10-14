@@ -8,9 +8,9 @@ import 'components/custom_expansion_tile.dart';
 import 'settings_screen_controller.dart';
 
 /// Settings' "Your YouTube Music library", under the YouTube account while
-/// one is connected: a tap brings your YouTube Music playlists and the
-/// artists you subscribe to into Riff's Library, as Metrolist brings them
-/// in, and says what came.
+/// one is connected: a tap brings your YouTube Music playlists, albums and
+/// the artists you subscribe to into Riff's Library, as Metrolist brings
+/// them in, and says what came.
 class YtLibraryImportTile extends StatelessWidget {
   const YtLibraryImportTile({super.key});
 
@@ -40,6 +40,9 @@ class YtLibraryImportTile extends StatelessWidget {
         Get.isRegistered<LibraryPlaylistsController>()) {
       Get.find<LibraryPlaylistsController>().refreshLib();
     }
+    if ((came.albums ?? 0) > 0 && Get.isRegistered<LibraryAlbumsController>()) {
+      Get.find<LibraryAlbumsController>().refreshLib();
+    }
     if ((came.artists ?? 0) > 0 &&
         Get.isRegistered<LibraryArtistsController>()) {
       Get.find<LibraryArtistsController>().refreshLib();
@@ -49,13 +52,14 @@ class YtLibraryImportTile extends StatelessWidget {
 }
 
 /// What the snackbar says came in: "Added from YouTube Music: 3
-/// playlists, 1 artist", that it's all there already, or that YouTube
-/// couldn't be reached (nothing read).
+/// playlists, 2 albums, 1 artist", that it's all there already, or that
+/// YouTube couldn't be reached (nothing read).
 String ytLibraryImportedText(YtLibraryImported came) {
   final playlists = came.playlists ?? 0;
+  final albums = came.albums ?? 0;
   final artists = came.artists ?? 0;
-  if (playlists + artists == 0) {
-    return came.playlists == null || came.artists == null
+  if (playlists + albums + artists == 0) {
+    return came.playlists == null || came.albums == null || came.artists == null
         ? 'ytLibraryImportFailed'.tr
         : 'ytLibraryUpToDate'.tr;
   }
@@ -65,6 +69,7 @@ String ytLibraryImportedText(YtLibraryImported came) {
     'what': [
       if (playlists > 0)
         count(playlists, 'ytPlaylistCountOne', 'ytPlaylistCount'),
+      if (albums > 0) count(albums, 'ytAlbumCountOne', 'ytAlbumCount'),
       if (artists > 0) count(artists, 'ytArtistCountOne', 'ytArtistCount'),
     ].join(', '),
   });

@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart' hide Response;
+import 'package:harmonymusic/models/album.dart';
 import 'package:harmonymusic/models/artist.dart';
 import 'package:harmonymusic/models/playlist.dart';
 import 'package:harmonymusic/services/discovery/discovery_repository.dart';
@@ -85,6 +86,45 @@ Map<String, dynamic> _row(String name, String browseId) => {
         ],
         'navigationEndpoint': {
           'browseEndpoint': {'browseId': browseId}
+        },
+      }
+    };
+
+/// An album's card in Library › Albums: "Album • artist • year".
+Map<String, dynamic> _albumCard(String title, String browseId) => {
+      'musicTwoRowItemRenderer': {
+        'thumbnailRenderer': {
+          'musicThumbnailRenderer': {
+            'thumbnail': {
+              'thumbnails': [
+                {'url': 'https://i.example/$browseId.jpg', 'width': 226}
+              ]
+            }
+          }
+        },
+        'title': {
+          'runs': [
+            {
+              'text': title,
+              'navigationEndpoint': {
+                'browseEndpoint': {'browseId': browseId}
+              }
+            }
+          ]
+        },
+        'subtitle': {
+          'runs': [
+            {'text': 'Album'},
+            {'text': ' • '},
+            {
+              'text': 'The Band',
+              'navigationEndpoint': {
+                'browseEndpoint': {'browseId': 'UCtheband'}
+              }
+            },
+            {'text': ' • '},
+            {'text': '2020'},
+          ]
         },
       }
     };
@@ -180,6 +220,17 @@ final _appendedPage = _json({
   ]
 });
 
+/// Library › Albums: two albums and a card that isn't one.
+final _albumsPage = _libraryPage({
+  'gridRenderer': {
+    'items': [
+      _albumCard('First Light', 'MPREfirstlight'),
+      _card('A playlist', 'VLPLnotalbum'),
+      _albumCard('Second Wind', 'MPREsecondwind'),
+    ],
+  }
+});
+
 /// The subscriptions shelf: two artists and a row that isn't one.
 final _artistsPage = _libraryPage({
   'musicShelfRenderer': {
@@ -206,6 +257,14 @@ final _artistsPage2 = _json({
 
 Playlist _playlist(String title, String id) =>
     Playlist(title: title, playlistId: id, thumbnailUrl: '', description: '');
+
+Album _album(String title, String id) => Album(
+    title: title,
+    browseId: id,
+    artists: [
+      {'name': 'The Band', 'id': 'UCtheband'}
+    ],
+    thumbnailUrl: 'https://i.example/$id.jpg');
 
 Artist _artist(String name, String id) =>
     Artist(name: name, browseId: id, thumbnailUrl: 'https://i.example/$id.jpg');
@@ -275,6 +334,23 @@ void main() {
       expect(libraryNextPage(_json({})).items, isEmpty);
     });
 
+    test('the albums you saved: artist and year after their type', () {
+      final page = libraryFirstPage(_albumsPage);
+      expect(page.next, isNull);
+      final albums = parseLibraryAlbums(page.items);
+      // Not the playlist's card.
+      expect(
+          albums.map((a) => a.browseId), ['MPREfirstlight', 'MPREsecondwind']);
+      final first = albums.first;
+      expect(first.title, 'First Light');
+      expect(first.artists, [
+        {'name': 'The Band', 'id': 'UCtheband'}
+      ]);
+      expect(first.year, '2020');
+      expect(first.description, 'Album • The Band • 2020');
+      expect(first.thumbnailUrl, contains('MPREfirstlight'));
+    });
+
     test('the artists you subscribe to, page after page', () {
       final page = libraryFirstPage(_artistsPage);
       expect(page.next, 'ART2');
@@ -310,6 +386,7 @@ void main() {
                 : switch ((browseId, token)) {
                     ('FEmusic_liked_playlists', 'TOKEN2') => _playlistsPage2,
                     ('FEmusic_liked_playlists', _) => _playlistsPage(),
+                    ('FEmusic_liked_albums', _) => _albumsPage,
                     (_, 'ART2') => _artistsPage2,
                     _ => _artistsPage,
                   }));
@@ -322,6 +399,9 @@ void main() {
       expect(asked.last.uri.queryParameters['continuation'], 'TOKEN2');
       expect(await music.getLibraryPlaylists(limit: 2), hasLength(2));
 
+      expect((await music.getLibraryAlbums()).map((a) => a.title),
+          ['First Light', 'Second Wind']);
+
       asked.clear();
       final artists = await music.getLibrarySubscriptions();
       expect(artists.map((a) => a.name),
@@ -333,16 +413,19 @@ void main() {
       status = 401;
       await expectLater(music.getLibraryPlaylists(), throwsA(anything));
       await expectLater(music.getLibrarySubscriptions(), throwsA(anything));
+      await expectLater(music.getLibraryAlbums(), throwsA(anything));
       SecureCredentials.resetForTest();
     });
   });
 
   group('into the Library', () {
     late List<Playlist> playlists;
+    late List<Album> albums;
     late List<Artist> artists;
 
     setUp(() async {
       await Hive.openBox(YtLibraryImport.playlistsBox, bytes: Uint8List(0));
+      await Hive.openBox(YtLibraryImport.albumsBox, bytes: Uint8List(0));
       await Hive.openBox(YtLibraryImport.artistsBox, bytes: Uint8List(0));
       playlists = [
         _playlist('Liked Music', 'VLLM'),
@@ -351,12 +434,17 @@ void main() {
         _playlist('Gym', 'VLPLgym'),
         _playlist('Episodes for Later', 'VLSE'),
       ];
+      albums = [
+        _album('First Light', 'MPREfirstlight'),
+        _album('Second Wind', 'MPREsecondwind'),
+      ];
       artists = [
         _artist('The Band', 'UCtheband'),
         _artist('Solo Singer', 'UCsolosinger'),
       ];
       YtLibraryImport.connected = () => true;
       YtLibraryImport.fetchPlaylists = () async => playlists;
+      YtLibraryImport.fetchAlbums = () async => albums;
       YtLibraryImport.fetchArtists = () async => artists;
     });
     tearDown(() async {
@@ -377,9 +465,17 @@ void main() {
       await playlistsBox.put('VLPLgym', _playlist('Gym', 'VLPLgym').toJson());
       await artistsBox.put(
           'UCsolosinger', _artist('Solo Singer', 'UCsolosinger').toJson());
+      final albumsBox = Hive.box(YtLibraryImport.albumsBox);
+      await albumsBox.put(
+          'MPREsecondwind', _album('Second Wind', 'MPREsecondwind').toJson());
 
       final came = await YtLibraryImport.importLibrary();
-      expect(came, (playlists: 1, artists: 1));
+      expect(came, (playlists: 1, albums: 1, artists: 1));
+      expect(albumsBox.keys,
+          unorderedEquals(['MPREfirstlight', 'MPREsecondwind']));
+      final light = Album.fromJson(albumsBox.get('MPREfirstlight'));
+      expect(light.title, 'First Light');
+      expect(light.artists?.single['name'], 'The Band');
       expect(playlistsBox.keys,
           unorderedEquals(['PLsavedmix', 'VLPLgym', 'VLPLroadtrip']));
       final road = Playlist.fromJson(playlistsBox.get('VLPLroadtrip'));
@@ -391,7 +487,8 @@ void main() {
       expect(discovery.repo.followed, ['UCtheband The Band']);
       expect(discovery.liked, ['The Band true']);
 
-      expect(await YtLibraryImport.importLibrary(), (playlists: 0, artists: 0));
+      expect(await YtLibraryImport.importLibrary(),
+          (playlists: 0, albums: 0, artists: 0));
       expect(discovery.repo.followed, hasLength(1));
       expect(YtLibraryImport.importing.value, isFalse);
     });
@@ -399,8 +496,8 @@ void main() {
     test('one part out of reach: the other still comes; no account: nothing',
         () async {
       YtLibraryImport.fetchPlaylists = () => throw Exception('offline');
-      expect(
-          await YtLibraryImport.importLibrary(), (playlists: null, artists: 2));
+      expect(await YtLibraryImport.importLibrary(),
+          (playlists: null, albums: 2, artists: 2));
       expect(YtLibraryImport.importing.value, isFalse);
       YtLibraryImport.connected = () => false;
       expect(await YtLibraryImport.importLibrary(), isNull);
@@ -409,15 +506,17 @@ void main() {
     test('what the snackbar says', () {
       Get.addTranslations(Languages().keys);
       Get.locale = const Locale('en');
-      expect(ytLibraryImportedText((playlists: 3, artists: 1)),
-          'Added from YouTube Music: 3 playlists, 1 artist');
-      expect(ytLibraryImportedText((playlists: 1, artists: 0)),
+      expect(ytLibraryImportedText((playlists: 3, albums: 2, artists: 1)),
+          'Added from YouTube Music: 3 playlists, 2 albums, 1 artist');
+      expect(ytLibraryImportedText((playlists: 1, albums: 0, artists: 0)),
           'Added from YouTube Music: 1 playlist');
-      expect(ytLibraryImportedText((playlists: null, artists: 5)),
-          'Added from YouTube Music: 5 artists');
-      expect(ytLibraryImportedText((playlists: 0, artists: 0)),
-          'Your Library already has your YouTube Music playlists and artists');
-      expect(ytLibraryImportedText((playlists: 0, artists: null)),
+      expect(ytLibraryImportedText((playlists: null, albums: 1, artists: 5)),
+          'Added from YouTube Music: 1 album, 5 artists');
+      expect(
+          ytLibraryImportedText((playlists: 0, albums: 0, artists: 0)),
+          'Your Library already has your YouTube Music playlists, albums '
+          'and artists');
+      expect(ytLibraryImportedText((playlists: 0, albums: 0, artists: null)),
           "YouTube Music couldn't be reached. Try again later");
       Get.clearTranslations();
     });
@@ -441,6 +540,7 @@ void main() {
       await tester.pump();
       await tester.pump();
       expect(Hive.box(YtLibraryImport.playlistsBox).length, 3);
+      expect(Hive.box(YtLibraryImport.albumsBox).length, 2);
       expect(Hive.box(YtLibraryImport.artistsBox).length, 2);
       // `.tr` gives the key in tests.
       expect(find.text('ytLibraryImported'), findsOneWidget);

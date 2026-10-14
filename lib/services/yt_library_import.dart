@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
+import '../models/album.dart';
 import '../models/artist.dart';
 import '../models/playlist.dart';
 import '../utils/helper.dart';
@@ -10,21 +11,22 @@ import 'music_service.dart';
 import 'utils.dart';
 import 'yt_auth_service.dart';
 
-/// What came in from YouTube Music: how many playlists and artists were
-/// added, each null when it couldn't be read.
-typedef YtLibraryImported = ({int? playlists, int? artists});
+/// What came in from YouTube Music: how many playlists, albums and
+/// artists were added, each null when it couldn't be read.
+typedef YtLibraryImported = ({int? playlists, int? albums, int? artists});
 
 /// Your YouTube Music library in Riff's, as Metrolist brings it in: with
 /// your YouTube account connected, the playlists in your YouTube Music
 /// library (yours and the ones you saved) are added to Library ›
-/// Playlists, and the artists you subscribe to are followed in Library ›
-/// Artists (so their new releases reach Release Radar), those not there
-/// yet. Liked music comes in as your Favorites (YtLikeSync) and Episodes
+/// Playlists, its albums to Library › Albums, and the artists you
+/// subscribe to are followed in Library › Artists (so their new releases
+/// reach Release Radar), those not there yet. Liked music comes in as your Favorites (YtLikeSync) and Episodes
 /// for later isn't music, so neither comes as a playlist.
 class YtLibraryImport {
   YtLibraryImport._();
 
   static const playlistsBox = 'LibraryPlaylists';
+  static const albumsBox = 'LibraryAlbums';
   static const artistsBox = 'LibraryArtists';
 
   /// Liked music and Episodes for later.
@@ -38,6 +40,11 @@ class YtLibraryImport {
   static Future<List<Playlist>> Function() fetchPlaylists =
       () => Get.find<MusicServices>().getLibraryPlaylists();
 
+  /// The albums saved in your YouTube Music library; tests replace it.
+  @visibleForTesting
+  static Future<List<Album>> Function() fetchAlbums =
+      () => Get.find<MusicServices>().getLibraryAlbums();
+
   /// The artists you subscribe to in YouTube Music; tests replace it.
   @visibleForTesting
   static Future<List<Artist>> Function() fetchArtists =
@@ -47,7 +54,8 @@ class YtLibraryImport {
   @visibleForTesting
   static bool Function() connected = () => YtAuthService.isConnected;
 
-  /// Brings in the playlists and artists Riff's Library doesn't have yet;
+  /// Brings in the playlists, albums and artists Riff's Library doesn't
+  /// have yet;
   /// null without an account (or while they're already coming).
   static Future<YtLibraryImported?> importLibrary() async {
     if (!connected() || importing.value) return null;
@@ -55,6 +63,7 @@ class YtLibraryImport {
     try {
       return (
         playlists: await _guard('playlists', _importPlaylists),
+        albums: await _guard('albums', _importAlbums),
         artists: await _guard('artists', _importArtists),
       );
     } finally {
@@ -81,6 +90,20 @@ class YtLibraryImport {
         if (validatePlaylistId(playlist.playlistId) case final id
             when id.isNotEmpty && !_notPlaylists.contains(id) && !saved(id))
           playlist.playlistId: playlist.toJson(),
+    };
+    if (fresh.isNotEmpty) await box.putAll(fresh);
+    return fresh.length;
+  }
+
+  /// Saved as saving one in Riff does (its songs are read when it's
+  /// opened).
+  static Future<int> _importAlbums() async {
+    final albums = await fetchAlbums();
+    final box = await HiveBoxes.open(albumsBox);
+    final fresh = <String, dynamic>{
+      for (final album in albums)
+        if (album.browseId.isNotEmpty && !box.containsKey(album.browseId))
+          album.browseId: album.toJson(),
     };
     if (fresh.isNotEmpty) await box.putAll(fresh);
     return fresh.length;

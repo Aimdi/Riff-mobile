@@ -1,17 +1,18 @@
+import '../models/album.dart';
 import '../models/artist.dart';
 import '../models/playlist.dart';
 import 'continuations.dart';
 import 'nav_parser.dart';
 
-/// A page of a YouTube Music library list (Library › Playlists, its
-/// artist subscriptions): the list's items and the token of the page
-/// after it (null on the last).
+/// A page of a YouTube Music library list (Library › Playlists and
+/// Albums, its artist subscriptions): the list's items and the token of
+/// the page after it (null on the last).
 typedef LibraryPage = ({List<dynamic> items, String? next});
 
 /// The first page of a library's list, as ytmusicapi's
-/// get_library_contents finds it: a grid (playlists) or a shelf (artists),
-/// in an itemSectionRenderer of the section list or straight in it. Empty
-/// when the library is.
+/// get_library_contents finds it: a grid (playlists, albums) or a shelf
+/// (artists), in an itemSectionRenderer of the section list or straight
+/// in it. Empty when the library is.
 LibraryPage libraryFirstPage(Map<String, dynamic> response) {
   final sections = nav(response, [
     'contents',
@@ -74,6 +75,37 @@ List<Playlist> parseLibraryPlaylists(List<dynamic> items) {
     }
   }
   return playlists;
+}
+
+/// The albums among a library grid's [items] (ytmusicapi's parse_albums):
+/// the cards that open an album (MPRE…), with their artists and year from
+/// the subtitle after its type ("Album • Artist • 2020").
+List<Album> parseLibraryAlbums(List<dynamic> items) {
+  final albums = <Album>[];
+  for (final item in items) {
+    final data = nav(item, ['musicTwoRowItemRenderer']);
+    final id = nav(data, ['title', 'runs', 0, ...navigation_browse_id]);
+    if (data is! Map<String, dynamic> ||
+        id is! String ||
+        !id.startsWith('MPRE')) {
+      continue;
+    }
+    try {
+      final runs = nav(data, ['subtitle', 'runs']);
+      final subtitle = runs is List ? runs : const [];
+      albums.add(Album.fromJson({
+        'title': nav(data, title_text),
+        'browseId': id,
+        'thumbnails': nav(data, thumbnail_renderer),
+        'audioPlaylistId': nav(data, audio_watch_playlist_id),
+        'description': subtitle.map((run) => run['text']).join(''),
+        if (subtitle.length > 2) ...parseSongRuns(subtitle.sublist(2)),
+      }));
+    } catch (_) {
+      // A card of another shape: left out.
+    }
+  }
+  return albums;
 }
 
 /// The artists among a library shelf's [items] (ytmusicapi's

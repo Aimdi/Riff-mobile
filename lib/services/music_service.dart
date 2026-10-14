@@ -211,6 +211,15 @@ class MusicServices extends getx.GetxService {
         'FEmusic_liked_playlists', parseLibraryPlaylists, limit);
   }
 
+  /// The albums saved in the connected account's YouTube Music library
+  /// (its Library › Albums, ytmusicapi's get_library_albums), at most
+  /// [limit]. Empty without an account; throws when YouTube can't be
+  /// reached.
+  Future<List<Album>> getLibraryAlbums({int limit = 2000}) async {
+    if (!YtAuthService.isConnected) return const [];
+    return _libraryItems('FEmusic_liked_albums', parseLibraryAlbums, limit);
+  }
+
   /// The artists the connected account subscribes to in YouTube Music
   /// (ytmusicapi's get_library_subscriptions), at most [limit]. Empty
   /// without an account; throws when YouTube can't be reached.
