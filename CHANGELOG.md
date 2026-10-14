@@ -131,6 +131,13 @@ Lock screen and notification:
   AntennaPod and Pocket Casts: previous used to start the episode over
   from 0:00, and next to end it for the next one. Music still goes to
   the next or previous song
+* Headphone buttons, as Pocket Casts' Headphone controls: Podcast
+  settings set what next and previous on your headphones or in your car
+  do in an episode: skip forward and back (as before), go to the next or
+  previous chapter (a skip in an episode without chapters), add a
+  bookmark where you are ("Bookmarked at 12:34" when Riff is open), or
+  go on to the next or previous episode. A one-button headset's two and
+  three presses follow them. Audiobooks and music keep theirs
 * In a podcast episode with chapters, the lock screen, the notification,
   Android 13+'s media controls, Android Auto and the home screen widget
   show the chapter playing, as Overcast and Apple Podcasts do: its title

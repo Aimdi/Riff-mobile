@@ -8,31 +8,82 @@ import 'dart:async';
 
 import 'package:audio_service/audio_service.dart' show MediaButton;
 
-enum MediaButtonAction { playPause, next, previous, skipForward, skipBack }
+import 'headphone_controls.dart';
+
+enum MediaButtonAction {
+  playPause,
+  next,
+  previous,
+  skipForward,
+  skipBack,
+  nextChapter,
+  previousChapter,
+  bookmark,
+}
+
+/// What going on ([forward]) or back does in a podcast episode or an
+/// audiobook ([longForm]): skip, unless a podcast episode's ([podcast])
+/// headphone buttons do otherwise ([HeadphoneControls]: [nextAction],
+/// [previousAction]); music goes to the next or previous song.
+MediaButtonAction _onOrBack(bool forward,
+    {required bool longForm,
+    required bool podcast,
+    required HeadphoneAction nextAction,
+    required HeadphoneAction previousAction}) {
+  if (!longForm) {
+    return forward ? MediaButtonAction.next : MediaButtonAction.previous;
+  }
+  if (podcast) {
+    switch (forward ? nextAction : previousAction) {
+      case HeadphoneAction.chapter:
+        return forward
+            ? MediaButtonAction.nextChapter
+            : MediaButtonAction.previousChapter;
+      case HeadphoneAction.bookmark:
+        return MediaButtonAction.bookmark;
+      case HeadphoneAction.episode:
+        return forward ? MediaButtonAction.next : MediaButtonAction.previous;
+      case HeadphoneAction.skip:
+        break;
+    }
+  }
+  return forward ? MediaButtonAction.skipForward : MediaButtonAction.skipBack;
+}
 
 /// What the button does, pressed [presses] times: music goes to the next
 /// or previous song; podcast episodes and audiobooks ([longForm]) skip
-/// forward or back, as their notification's buttons do.
-MediaButtonAction mediaButtonAction(int presses, {required bool longForm}) =>
-    switch (presses) {
-      <= 1 => MediaButtonAction.playPause,
-      2 => longForm ? MediaButtonAction.skipForward : MediaButtonAction.next,
-      _ => longForm ? MediaButtonAction.skipBack : MediaButtonAction.previous,
-    };
+/// forward or back, as their notification's buttons do, or what an
+/// episode's headphone buttons are set to.
+MediaButtonAction mediaButtonAction(int presses,
+        {required bool longForm,
+        bool podcast = false,
+        HeadphoneAction nextAction = HeadphoneAction.skip,
+        HeadphoneAction previousAction = HeadphoneAction.skip}) =>
+    presses <= 1
+        ? MediaButtonAction.playPause
+        : _onOrBack(presses == 2,
+            longForm: longForm,
+            podcast: podcast,
+            nextAction: nextAction,
+            previousAction: previousAction);
 
 /// What a headphone's (or a car stereo's) own [button] does: music goes to
 /// the next or previous song; podcast episodes and audiobooks ([longForm])
 /// skip forward or back, as AntennaPod and Pocket Casts do, rather than
-/// end the episode, or start it over.
+/// end the episode, or start it over, or what an episode's headphone
+/// buttons are set to.
 MediaButtonAction mediaButtonPressed(MediaButton button,
-        {required bool longForm}) =>
-    switch (button) {
-      MediaButton.media => MediaButtonAction.playPause,
-      MediaButton.next =>
-        longForm ? MediaButtonAction.skipForward : MediaButtonAction.next,
-      MediaButton.previous =>
-        longForm ? MediaButtonAction.skipBack : MediaButtonAction.previous,
-    };
+        {required bool longForm,
+        bool podcast = false,
+        HeadphoneAction nextAction = HeadphoneAction.skip,
+        HeadphoneAction previousAction = HeadphoneAction.skip}) =>
+    button == MediaButton.media
+        ? MediaButtonAction.playPause
+        : _onOrBack(button == MediaButton.next,
+            longForm: longForm,
+            podcast: podcast,
+            nextAction: nextAction,
+            previousAction: previousAction);
 
 /// Counts the button's presses: one within [window] of the last counts
 /// with it. [onPresses] gets the count once they stop, or straight away at

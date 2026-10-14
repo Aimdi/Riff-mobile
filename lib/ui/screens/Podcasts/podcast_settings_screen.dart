@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '/ui/theme/riff_spacing.dart';
+import '/services/headphone_controls.dart';
 import '/services/new_episode_alerts.dart';
 import '/services/podcast_playback_profile.dart';
 import '/ui/widgets/snackbar.dart';
@@ -117,12 +118,80 @@ class PodcastSettingsScreen extends StatelessWidget {
                       ),
                     ],
                   ),
+                  const Divider(height: _groupGap),
+                  const HeadphoneButtonsSetting(),
                 ],
               );
             }),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Headphone buttons, as Pocket Casts' Headphone controls: what a
+/// headphone's (or a car's) next and previous do in an episode.
+class HeadphoneButtonsSetting extends StatelessWidget {
+  const HeadphoneButtonsSetting({super.key});
+
+  /// [action] as next ([next]) or previous does it.
+  static String label(HeadphoneAction action, {required bool next}) =>
+      switch (action) {
+        HeadphoneAction.skip => (next ? 'skipForward' : 'skipBack').tr,
+        HeadphoneAction.chapter =>
+          (next ? 'nextChapter' : 'previousChapter').tr,
+        HeadphoneAction.bookmark => 'addBookmark'.tr,
+        HeadphoneAction.episode =>
+          (next ? 'nextEpisode' : 'previousEpisode').tr,
+      };
+
+  Widget _button(BuildContext context, {required bool next}) {
+    final theme = Theme.of(context);
+    return MergeSemantics(
+      child: Row(
+        children: [
+          Expanded(
+            child: Text((next ? 'next' : 'previous').tr,
+                style: theme.textTheme.bodyLarge),
+          ),
+          DropdownButton<HeadphoneAction>(
+            dropdownColor: theme.colorScheme.surfaceContainerLow,
+            underline: const SizedBox.shrink(),
+            value: next ? HeadphoneControls.next : HeadphoneControls.previous,
+            items: [
+              for (final action in HeadphoneAction.values)
+                DropdownMenuItem(
+                    value: action, child: Text(label(action, next: next))),
+            ],
+            onChanged: (action) {
+              if (action != null) HeadphoneControls.set(action, next: next);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('headphoneButtons'.tr, style: homeSectionTitleStyle(context)),
+        const SizedBox(height: RiffSpacing.xxs),
+        Text('headphoneButtonsDes'.tr, style: homeCardSubtitleStyle(context)),
+        const SizedBox(height: RiffSpacing.xs),
+        Obx(() {
+          HeadphoneControls.rev.value;
+          return Column(
+            children: [
+              _button(context, next: true),
+              _button(context, next: false),
+            ],
+          );
+        }),
+      ],
     );
   }
 }

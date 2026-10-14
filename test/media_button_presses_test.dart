@@ -1,5 +1,6 @@
 import 'package:audio_service/audio_service.dart' show MediaButton;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:harmonymusic/services/headphone_controls.dart';
 import 'package:harmonymusic/services/media_button_presses.dart';
 
 void main() {
@@ -38,6 +39,71 @@ void main() {
           MediaButtonAction.skipBack);
       expect(mediaButtonPressed(MediaButton.media, longForm: true),
           MediaButtonAction.playPause);
+    });
+  });
+
+  group("an episode's headphone buttons, as set", () {
+    MediaButtonAction pressed(MediaButton button, HeadphoneAction action,
+            {bool podcast = true, bool longForm = true}) =>
+        mediaButtonPressed(button,
+            longForm: longForm,
+            podcast: podcast,
+            nextAction: action,
+            previousAction: action);
+
+    test('chapters, a bookmark, or the next or previous episode', () {
+      expect(pressed(MediaButton.next, HeadphoneAction.chapter),
+          MediaButtonAction.nextChapter);
+      expect(pressed(MediaButton.previous, HeadphoneAction.chapter),
+          MediaButtonAction.previousChapter);
+      expect(pressed(MediaButton.next, HeadphoneAction.bookmark),
+          MediaButtonAction.bookmark);
+      expect(pressed(MediaButton.previous, HeadphoneAction.episode),
+          MediaButtonAction.previous);
+      expect(pressed(MediaButton.next, HeadphoneAction.skip),
+          MediaButtonAction.skipForward);
+    });
+
+    test('next and previous each their own', () {
+      expect(
+          mediaButtonPressed(MediaButton.previous,
+              longForm: true,
+              podcast: true,
+              nextAction: HeadphoneAction.bookmark,
+              previousAction: HeadphoneAction.skip),
+          MediaButtonAction.skipBack);
+    });
+
+    test("a one-button headset's presses do the same", () {
+      expect(
+          mediaButtonAction(2,
+              longForm: true,
+              podcast: true,
+              nextAction: HeadphoneAction.chapter,
+              previousAction: HeadphoneAction.bookmark),
+          MediaButtonAction.nextChapter);
+      expect(
+          mediaButtonAction(3,
+              longForm: true,
+              podcast: true,
+              nextAction: HeadphoneAction.chapter,
+              previousAction: HeadphoneAction.bookmark),
+          MediaButtonAction.bookmark);
+      expect(
+          mediaButtonAction(1,
+              longForm: true,
+              podcast: true,
+              nextAction: HeadphoneAction.chapter),
+          MediaButtonAction.playPause);
+    });
+
+    test('books and music keep theirs', () {
+      expect(pressed(MediaButton.next, HeadphoneAction.chapter, podcast: false),
+          MediaButtonAction.skipForward);
+      expect(
+          pressed(MediaButton.next, HeadphoneAction.chapter,
+              podcast: false, longForm: false),
+          MediaButtonAction.next);
     });
   });
 

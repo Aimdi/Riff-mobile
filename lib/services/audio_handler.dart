@@ -32,6 +32,7 @@ import '/services/podcast_progress_service.dart';
 import '/services/android_auto_paging.dart';
 import '/services/playback_hardening.dart';
 import '/services/media_button_presses.dart';
+import '/services/headphone_controls.dart';
 import '/services/podcast_service.dart';
 import '/services/chapter_now_playing.dart';
 import '/ui/widgets/podcast_play.dart' show podcastEpisodeToMediaItem;
@@ -252,14 +253,22 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       _buttonPresses.press();
       return;
     }
-    await _asMediaButton(() =>
-        _buttonAction(mediaButtonPressed(button, longForm: _playingLongForm)));
+    final item = mediaItem.value;
+    await _asMediaButton(() => _buttonAction(mediaButtonPressed(button,
+        longForm: _playingLongForm,
+        podcast: item?.isPodcastEpisode ?? false,
+        nextAction: HeadphoneControls.next,
+        previousAction: HeadphoneControls.previous)));
   }
 
   late final _buttonPresses = MediaButtonPresses(_onButtonPresses);
 
   void _onButtonPresses(int presses) {
-    final action = mediaButtonAction(presses, longForm: _playingLongForm);
+    final action = mediaButtonAction(presses,
+        longForm: _playingLongForm,
+        podcast: mediaItem.value?.isPodcastEpisode ?? false,
+        nextAction: HeadphoneControls.next,
+        previousAction: HeadphoneControls.previous);
     // From a timer, not audio_service's call: its errors are ours to catch.
     unawaited(_asMediaButton(() => _buttonAction(action))
         .catchError((Object e) => printERROR('Media button: $e')));
@@ -277,7 +286,26 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         MediaButtonAction.previous => skipToPrevious(),
         MediaButtonAction.skipForward => fastForward(),
         MediaButtonAction.skipBack => rewind(),
+        MediaButtonAction.nextChapter => _skipChapter(forward: true),
+        MediaButtonAction.previousChapter => _skipChapter(forward: false),
+        MediaButtonAction.bookmark => _bookmarkHere(),
       };
+
+  /// Headphone buttons' chapters: the episode's next (or previous)
+  /// chapter; a skip when it has none to go to.
+  Future<void> _skipChapter({required bool forward}) async {
+    final player = Get.isRegistered<PlayerController>()
+        ? Get.find<PlayerController>()
+        : null;
+    if (player != null && player.skipChapter(forward: forward)) return;
+    await (forward ? fastForward() : rewind());
+  }
+
+  /// Headphone buttons' bookmark: the episode playing, where it is.
+  Future<void> _bookmarkHere() async {
+    if (!Get.isRegistered<PlayerController>()) return;
+    await Get.find<PlayerController>().bookmarkHere();
+  }
 
   Future<void> _asMediaButton(Future<void> Function() run) async {
     _mediaButtonDepth++;

@@ -56,6 +56,9 @@ import '/services/sleep_shake.dart';
 import '/services/auto_sleep_timer.dart';
 import '/services/long_track_resume.dart';
 import '/services/chapter_now_playing.dart';
+import '/services/podcast_bookmarks.dart';
+import '/ui/screens/Podcasts/podcast_bookmarks_ui.dart'
+    show showBookmarkSavedSnack;
 import '/services/audiobookshelf_service.dart';
 import '/ui/player/riff_wave.dart';
 import '/ui/player/play_log_gate.dart';
@@ -611,6 +614,37 @@ class PlayerController extends GetxController
       'artist': want.artist,
       'artUri': want.artUri?.toString(),
     }));
+  }
+
+  /// Headphone buttons' chapters ([HeadphoneControls]): to the next
+  /// chapter's start, or back as the previous chapter button goes; false
+  /// when the episode playing has none to go to.
+  bool skipChapter({required bool forward}) {
+    final song = currentSong.value;
+    if (song == null || !song.isPodcastEpisode || chapters.isEmpty) {
+      return false;
+    }
+    final to = chapterSkipTarget(
+        chapters, progressBarStatus.value.current.inMilliseconds / 1000,
+        forward: forward);
+    if (to == null) return false;
+    seek(Duration(milliseconds: (to * 1000).round()));
+    return true;
+  }
+
+  /// Headphone buttons' bookmark ([HeadphoneControls]): the episode
+  /// playing, where it is, said as the player's Bookmark this moment says
+  /// it (when Riff is open).
+  Future<PodcastBookmark?> bookmarkHere() async {
+    final song = currentSong.value;
+    if (song == null || !song.isPodcastEpisode) return null;
+    final bookmark =
+        await PodcastBookmarkStore.add(song, progressBarStatus.value.current);
+    final context = Get.context;
+    if (bookmark != null && context != null && context.mounted) {
+      showBookmarkSavedSnack(context, bookmark);
+    }
+    return bookmark;
   }
 
   /// Seeks to the pending resume once [song] has just started; whether it
