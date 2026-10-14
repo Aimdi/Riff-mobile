@@ -125,6 +125,12 @@ Lock screen and notification:
   times skips back, as their notification's buttons do (AntennaPod and
   Pocket Casts' default). Once still plays or pauses, after a moment's
   wait for a second press
+* In a podcast episode with chapters, the lock screen, the notification,
+  Android 13+'s media controls, Android Auto and the home screen widget
+  show the chapter playing, as Overcast and Apple Podcasts do: its title
+  in place of the show's name, and its own picture, when it has one, in
+  place of the episode's art (online). Changes as the chapters do,
+  seeking included; the app's own player is unchanged
 
 Android Auto:
 * Ask for music, as with Spotify and YouTube Music: say "Play <song or

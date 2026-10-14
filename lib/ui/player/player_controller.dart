@@ -55,6 +55,7 @@ import '/services/podcast_history.dart';
 import '/services/sleep_shake.dart';
 import '/services/auto_sleep_timer.dart';
 import '/services/long_track_resume.dart';
+import '/services/chapter_now_playing.dart';
 import '/services/audiobookshelf_service.dart';
 import '/ui/player/riff_wave.dart';
 import '/ui/player/play_log_gate.dart';
@@ -204,6 +205,11 @@ class PlayerController extends GetxController
   /// Podcasting 2.0 chapters for the current podcast episode (ad auto-skip).
   final chapters = <PodcastChapter>[].obs;
   String? _chaptersForSongId;
+
+  /// The podcast episode playing as it was announced, before a chapter
+  /// showed on it outside the app ([_showChapterOutside]).
+  MediaItem? _chapterBase;
+
   // True while playback is inside an ad chapter (drives the "Skip ad" chip).
   final inAdChapter = false.obs;
 
@@ -531,6 +537,7 @@ class PlayerController extends GetxController
     _maybeSkipSponsorBlock(position);
     _handlePodcastSegments(position);
     _handlePodcastProgress(position);
+    _showChapterOutside(position);
     _handleAbsProgress(position);
     _handleSongStart(position);
     _handleLongTrackProgress(position);
@@ -577,6 +584,33 @@ class PlayerController extends GetxController
       _lastProgressSaveMs = nowMs;
       PodcastProgressService.save(song, position, total, nowMs: nowMs);
     }
+  }
+
+  /// The lock screen, notification, Android Auto and the home screen
+  /// widget show the podcast chapter playing ([chapterNowPlaying]); again
+  /// when the handler announces the episode afresh (a queue edit, its
+  /// length found). Its art only online: it is fetched. Not over a
+  /// playback error (announcing the episode would clear it).
+  void _showChapterOutside(Duration position) {
+    final episode = currentSong.value;
+    if (episode == null ||
+        !episode.isPodcastEpisode ||
+        playbackError.value != null ||
+        !_audioReady) {
+      return;
+    }
+    final shown = _audioHandler.mediaItem.value;
+    if (shown == null || shown.id != episode.id) return;
+    if (_chapterBase?.id != episode.id) _chapterBase = episode;
+    final want = chapterNowPlaying(
+        _chapterBase!, chapters, position.inMilliseconds / 1000.0,
+        art: !OfflinePlayback.offline.value);
+    if (want.artist == shown.artist && want.artUri == shown.artUri) return;
+    unawaited(_audioHandler.customAction('showChapter', {
+      'id': episode.id,
+      'artist': want.artist,
+      'artUri': want.artUri?.toString(),
+    }));
   }
 
   /// Seeks to the pending resume once [song] has just started; whether it

@@ -33,6 +33,7 @@ import '/services/android_auto_paging.dart';
 import '/services/playback_hardening.dart';
 import '/services/media_button_presses.dart';
 import '/services/podcast_service.dart';
+import '/services/chapter_now_playing.dart';
 import '/ui/widgets/podcast_play.dart' show podcastEpisodeToMediaItem;
 import '/services/audiobook_playback.dart';
 import '/services/podcast_playback_profile.dart';
@@ -1564,6 +1565,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
       case 'finishEpisode':
         await _finishEpisode();
+        break;
+
+      // The podcast chapter playing, on the lock screen, the notification,
+      // Android Auto and the home screen widget (chapterNowPlaying).
+      case 'showChapter':
+        final shown = chapterShown(mediaItem.value, extras);
+        if (shown != null) mediaItem.add(shown);
         break;
 
       case 'playByIndex':
