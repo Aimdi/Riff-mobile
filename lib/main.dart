@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:terminate_restart/terminate_restart.dart';
 
 import '/ui/player/video_mode_controller.dart';
+import '/ui/theme/riff_text_metrics.dart';
 import '/ui/screens/Search/search_screen_controller.dart';
 import '/utils/get_localization.dart';
 import '/services/downloader.dart';
@@ -205,8 +206,8 @@ class MyApp extends StatelessWidget {
         fallbackLocale: const Locale("en"),
         builder: (context, child) {
           final mQuery = MediaQuery.of(context);
-          final scale =
-              mQuery.textScaler.clamp(minScaleFactor: 1.0, maxScaleFactor: 1.1);
+          // The phone's font size, up to Android's Largest (1.3x).
+          final scale = riffTextScaler(mQuery.textScaler);
           return Stack(
             children: [
               GetX<ThemeController>(

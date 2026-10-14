@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -7,6 +9,7 @@ import 'package:harmonymusic/services/smart_shuffle.dart';
 import 'package:harmonymusic/ui/player/play_queue_order.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:harmonymusic/ui/theme/riff_spacing.dart';
+import 'package:harmonymusic/ui/theme/riff_text_metrics.dart';
 import 'package:harmonymusic/ui/theme/riff_tokens.dart';
 
 import 'image_widget.dart';
@@ -19,6 +22,28 @@ import 'riff_marquee.dart';
 
 const double _kQueueRowExtent = 64;
 const double _kSectionLabelExtent = 34;
+
+/// Room around the label's line, above the row it names.
+const double _kSectionLabelInsets = RiffSpacing.md + RiffSpacing.xs;
+
+/// A row's height: [_kQueueRowExtent] as designed, or as tall as its two
+/// lines need once a larger font size makes them taller.
+double _queueRowExtent(BuildContext context) {
+  final text = Theme.of(context).textTheme;
+  return math.max(
+      _kQueueRowExtent,
+      riffLineHeight(context, text.titleMedium) +
+          RiffSpacing.xxs +
+          riffLineHeight(context, text.bodyMedium) +
+          2 * RiffSpacing.sm);
+}
+
+/// The Now playing / Next up label's height: [_kSectionLabelExtent] as
+/// designed, or as tall as its line needs at a larger font size.
+double _sectionLabelExtent(BuildContext context) =>
+    riffLineBox(context, Theme.of(context).textTheme.labelSmall,
+        _kSectionLabelExtent - _kSectionLabelInsets) +
+    _kSectionLabelInsets;
 
 String _queueTr(String key, String fallback) {
   final translated = key.tr;
@@ -43,6 +68,8 @@ class UpNextQueue extends StatelessWidget {
   Widget build(BuildContext context) {
     final playerController = Get.find<PlayerController>();
     final accent = Theme.of(context).colorScheme.secondary;
+    final rowExtent = _queueRowExtent(context);
+    final labelExtent = _sectionLabelExtent(context);
     return Container(
       color: Theme.of(context).bottomSheetTheme.backgroundColor,
       child: Obx(() {
@@ -70,12 +97,12 @@ class UpNextQueue extends StatelessWidget {
           // Extra height only on the Now playing / Next up section rows.
           itemExtentBuilder: (index, _) {
             if (index == currentIndex) {
-              return _kQueueRowExtent + _kSectionLabelExtent;
+              return rowExtent + labelExtent;
             }
             if (index == currentIndex + 1) {
-              return _kQueueRowExtent + _kSectionLabelExtent;
+              return rowExtent + labelExtent;
             }
-            return _kQueueRowExtent;
+            return rowExtent;
           },
           padding: EdgeInsets.only(
               top: isQueueInSlidePanel ? topPadding : 0,
@@ -165,7 +192,7 @@ class _QueueSongRow extends StatelessWidget {
       children: [
         if (sectionLabel != null)
           Container(
-            height: _kSectionLabelExtent,
+            height: _sectionLabelExtent(context),
             color:
                 Theme.of(homeScaffoldContext).bottomSheetTheme.backgroundColor,
             child: Padding(

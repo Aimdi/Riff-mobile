@@ -101,6 +101,13 @@ Screen readers (TalkBack):
 * The Theme dialog fits its content: on phones the accent colours and
   Cancel spilled out of its bottom, more so with larger text; it now
   scrolls when the screen is too short. "Accent" there is translated
+* Riff follows Android's Font size up to Largest (1.3x), as YouTube
+  Music, Pocket Casts and AntennaPod follow it: it stopped at 1.1x, so
+  Large and Largest made hardly any difference. The mini player's title
+  and artist lines, and Up Next's rows and Now playing / Next up labels,
+  grow with the text instead of cutting it off (the mini player's title
+  lost the bottom of its letters past 1.1x). At the default size Riff
+  looks as before
 * With a larger font size (Android's Font size, from "Large"), the
   Discovery settings and Discover content dialogs fit too: their
   switches and buttons spilled out of them, and Reset taste model ran

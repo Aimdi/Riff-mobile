@@ -21,6 +21,7 @@ import 'animated_play_button.dart';
 import 'playback_error_actions.dart';
 import 'track_swipe.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_text_metrics.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/riff_marquee.dart';
 
@@ -262,7 +263,8 @@ class _MiniTrackPeek extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(
-                height: RiffComponentSizes.miniLine,
+                height: riffLineBox(context, theme.textTheme.titleMedium,
+                    RiffComponentSizes.miniLine),
                 child: Text(
                   song.title,
                   maxLines: 1,
@@ -273,7 +275,8 @@ class _MiniTrackPeek extends StatelessWidget {
                 ),
               ),
               SizedBox(
-                height: RiffComponentSizes.miniLine,
+                height: riffLineBox(context, theme.textTheme.bodyMedium,
+                    RiffComponentSizes.miniLine),
                 child: Text(
                   song.artist ?? '',
                   maxLines: 1,
@@ -332,7 +335,8 @@ class _MiniPlayerSongInfo extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(
-                height: RiffComponentSizes.miniLine,
+                height: riffLineBox(context, theme.textTheme.titleMedium,
+                    RiffComponentSizes.miniLine),
                 child: AnimatedSwitcher(
                   duration: RiffDurations.select,
                   switchInCurve: Curves.easeOutCubic,
@@ -352,7 +356,8 @@ class _MiniPlayerSongInfo extends StatelessWidget {
                 ),
               ),
               SizedBox(
-                height: RiffComponentSizes.miniLine,
+                height: riffLineBox(context, theme.textTheme.bodyMedium,
+                    RiffComponentSizes.miniLine),
                 child: err != null && err.isNotEmpty
                     ? Row(
                         children: [
