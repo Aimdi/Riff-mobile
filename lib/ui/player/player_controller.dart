@@ -11,6 +11,7 @@ import '../../models/media_item_extras.dart';
 import '../../utils/hive_boxes.dart';
 import 'abs_session.dart';
 import 'long_form_queue.dart';
+import '/services/id3_chapters.dart';
 import 'play_queue_order.dart';
 import 'video_handoff.dart';
 import '../../services/play_by_index_skip.dart';
@@ -773,8 +774,10 @@ class PlayerController extends GetxController
     chapters.clear();
     inAdChapter.value = false;
     final url = episodeChaptersUrl(item);
-    if (url == null || url.isEmpty) return;
-    final chs = await PodcastService.chapters(url);
+    final chs = url != null && url.isNotEmpty
+        ? await PodcastService.chapters(url)
+        // None in the feed: the episode's MP3 may carry its own (ID3).
+        : await Id3Chapters.forEpisode(item);
     if (_chaptersForSongId == item.id) chapters.assignAll(chs);
   }
 

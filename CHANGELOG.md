@@ -211,6 +211,12 @@ Podcasts:
   Skip chapters and the ad skip work for those episodes too. Episode
   lengths written with a fraction of a second ("3045.04") show; they used
   to read as no length
+* Chapters inside the episode's MP3 (ID3 chapters, as Auphonic,
+  Hindenburg, Forecast and Ferrite write them) count too, as in Overcast,
+  Pocket Casts, Apple Podcasts and AntennaPod: when the feed gives none,
+  Riff reads them from the start of the episode (its download, offline),
+  with their titles and links. Only the tag at the start is read (at most
+  4 MB), not the episode
 * A show's page remembers its episode order (Newest first / Oldest
   first) for that show, like Pocket Casts and AntennaPod, so a series you
   hear in order stays oldest first. The eye button next to it hides
