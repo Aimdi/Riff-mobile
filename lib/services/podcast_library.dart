@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
 import '/utils/helper.dart';
+import '/ui/player/player_controller.dart';
 import '/ui/screens/Podcasts/podcast_queue_controller.dart';
 import 'podcast_bookmarks.dart';
 import 'podcast_download_service.dart';
@@ -58,6 +59,30 @@ bool downloadDueForDeletion(AutoDeletePolicy policy, int? playedAtMs,
     case AutoDeletePolicy.after24h:
       return nowMs - playedAtMs >= const Duration(hours: 24).inMilliseconds;
   }
+}
+
+// ── New episodes into the queue ───────────────────────────────────────
+
+/// Where a show's new episodes go in the podcast queue, like Pocket Casts'
+/// "Add to Up Next": not at all, at the top or at the end.
+enum NewEpisodesQueue { off, top, end }
+
+NewEpisodesQueue parseNewEpisodesQueue(dynamic raw) => NewEpisodesQueue.values
+    .firstWhere((m) => m.name == raw, orElse: () => NewEpisodesQueue.off);
+
+/// Of a show's [episodes] as the Inbox lists them, the ones new to the
+/// queue, oldest first: not [seen] before, and out after [sinceMs] (when it
+/// was switched on). With [seen] null, the first look since, episodes
+/// without a date are only noted: there's no telling whether they're new.
+List<MediaItem> newEpisodesForQueue(List<MediaItem> episodes,
+    {required Set<String>? seen, required int sinceMs}) {
+  final out = <MediaItem>[];
+  for (final e in PodcastLibrary.sortNewestFirst(episodes).reversed) {
+    if (seen != null && seen.contains(e.id)) continue;
+    final pub = e.extras?['pubDateMs'];
+    if (pub is int && pub > 0 ? pub > sinceMs : seen != null) out.add(e);
+  }
+  return out;
 }
 
 // ── Library filter chips ──────────────────────────────────────────────
@@ -219,6 +244,95 @@ class PodcastLibrary {
     await _putShow(show, 'autoDelete', p?.name);
     rev.value++;
     sweepDownloads();
+  }
+
+  // New episodes into the queue (per show only).
+  static const _queueMode = 'queueNew';
+  static const _queueSince = 'queueSince';
+  static const _queueSeen = 'queueSeen';
+
+  /// Most episode ids a show remembers as looked at (the Inbox keeps a
+  /// show's latest dozen or so).
+  static const queueSeenLimit = 100;
+
+  static NewEpisodesQueue newEpisodesQueueFor(String? show) =>
+      parseNewEpisodesQueue(_show(show)[_queueMode]);
+
+  /// Switching it on counts episodes from now; switching between top and
+  /// end keeps what's been looked at.
+  static Future<void> setShowNewEpisodesQueue(
+      String show, NewEpisodesQueue mode,
+      {DateTime? now}) async {
+    final b = _box(showBox);
+    if (b == null) return;
+    final next = Map<String, dynamic>.from(_show(show));
+    if (mode == NewEpisodesQueue.off) {
+      next
+        ..remove(_queueMode)
+        ..remove(_queueSince)
+        ..remove(_queueSeen);
+    } else {
+      if (newEpisodesQueueFor(show) == NewEpisodesQueue.off) {
+        next[_queueSince] = (now ?? DateTime.now()).millisecondsSinceEpoch;
+        next.remove(_queueSeen);
+      }
+      next[_queueMode] = mode.name;
+    }
+    next.isEmpty ? await b.delete(show) : await b.put(show, next);
+    rev.value++;
+  }
+
+  /// Puts the new episodes of shows that ask for it in the podcast queue
+  /// ([newEpisodesForQueue]; unplayed, not archived), at the top (after the
+  /// episode playing, when that's the first) or the end. Run on each Inbox
+  /// refresh with every followed show's recent episodes.
+  static void queueNewEpisodes(List<MediaItem> merged) {
+    final b = _box(showBox);
+    if (b == null || !Get.isRegistered<PodcastQueueController>()) return;
+    final byShow = <String, List<MediaItem>>{};
+    for (final e in merged) {
+      final key = podcastShowKey(e);
+      if (key != null && newEpisodesQueueFor(key) != NewEpisodesQueue.off) {
+        (byShow[key] ??= []).add(e);
+      }
+    }
+    final top = <MediaItem>[];
+    final end = <MediaItem>[];
+    for (final MapEntry(key: show, value: eps) in byShow.entries) {
+      final cfg = Map<String, dynamic>.from(_show(show));
+      final seenRaw = cfg[_queueSeen];
+      final seen = seenRaw is List ? {for (final id in seenRaw) '$id'} : null;
+      final since = cfg[_queueSince];
+      final fresh = [
+        for (final e in newEpisodesForQueue(eps,
+            seen: seen, sinceMs: since is int ? since : 0))
+          if (!PodcastProgressService.isPlayed(e.id) && !isArchived(e.id)) e
+      ];
+      (newEpisodesQueueFor(show) == NewEpisodesQueue.top ? top : end)
+          .addAll(fresh);
+      cfg[_queueSeen] = {
+        for (final e in eps) e.id,
+        ...?seen,
+      }.take(queueSeenLimit).toList();
+      b.put(show, cfg);
+    }
+    if (top.isEmpty && end.isEmpty) return;
+    final queue = Get.find<PodcastQueueController>();
+    for (final e in end) {
+      queue.add(e);
+    }
+    var at = _afterPlaying(queue);
+    for (final e in top) {
+      if (queue.isQueued(e.id)) continue;
+      queue.insertAt(at++, e);
+    }
+  }
+
+  /// The top of the queue: after its first episode when that one's playing.
+  static int _afterPlaying(PodcastQueueController queue) {
+    if (queue.queue.isEmpty || !Get.isRegistered<PlayerController>()) return 0;
+    final playing = Get.find<PlayerController>().currentSong.value?.id;
+    return queue.queue.first.id == playing ? 1 : 0;
   }
 
   // Archive.

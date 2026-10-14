@@ -96,6 +96,27 @@ class PodcastLibraryEditor extends StatelessWidget {
                 ),
             ],
           ),
+          // The show's own only: new episodes into the podcast queue.
+          if (key != null) ...[
+            const SizedBox(height: RiffSpacing.xxl),
+            Text('newEpisodesToQueue'.tr, style: titleStyle),
+            const SizedBox(height: RiffSpacing.xxs),
+            Text('newEpisodesToQueueDes'.tr,
+                style: homeCardSubtitleStyle(context)),
+            const SizedBox(height: RiffSpacing.md),
+            Wrap(
+              spacing: RiffSpacing.sm,
+              runSpacing: RiffSpacing.sm,
+              children: [
+                for (final m in NewEpisodesQueue.values)
+                  RiffChoiceChip(
+                    label: 'newEpisodesQueue_${m.name}'.tr,
+                    selected: PodcastLibrary.newEpisodesQueueFor(key) == m,
+                    onTap: () => PodcastLibrary.setShowNewEpisodesQueue(key, m),
+                  ),
+              ],
+            ),
+          ],
         ],
       );
     });

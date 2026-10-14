@@ -176,6 +176,13 @@ Podcasts:
   Casts: in Podcasts › Subscriptions, a show's cover shows how many of
   its episodes are waiting in the Inbox (a folder's, those of its
   shows), and the number goes down as you play them or mark them played
+* Add a show's new episodes to the queue, like Pocket Casts' "Add to Up
+  Next": on the show's page, ⋮ › Episodes and downloads › Add new
+  episodes to the queue (Off, At the top, At the end). From then on, the
+  show's new episodes join the podcast queue when the Inbox finds them,
+  oldest first; at the top they go after the episode playing. Episodes
+  you've played, ones Keep latest set aside and ones you take out of the
+  queue aren't added again
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip
