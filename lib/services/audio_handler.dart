@@ -19,6 +19,7 @@ import '/models/album.dart';
 import '../models/playlist.dart';
 import '/services/equalizer.dart';
 import '/services/riff_equalizer.dart';
+import '/services/explicit_content.dart';
 import '/services/podcast_starred.dart';
 import '/services/youtube_stream_headers.dart';
 import '/services/playlist_mix_service.dart';
@@ -1192,7 +1193,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     if (currentSongUrl == null ||
         (GetPlatform.isDesktop &&
             (_player.duration == null ||
-                _player.duration?.inMilliseconds == 0))) {
+                _player.duration?.inMilliseconds == 0)) ||
+        // Loaded before explicit content was turned off: not played.
+        ExplicitContent.blocks(mediaItem.value)) {
       await customAction("playByIndex", {'index': currentIndex});
       return;
     }
@@ -1388,8 +1391,64 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     if (!skipNextDidAdvance(fromIndex: from, toIndex: index)) {
       return true;
     }
-    final result = await customAction("playByIndex", {'index': index});
+    final result =
+        await customAction("playByIndex", {'index': index, 'backward': true});
     return !playByIndexHardFailed(result);
+  }
+
+  /// Explicit content is off and the song at [index] is explicit: plays the
+  /// next song in play order that may play ([backward]: the one before), as
+  /// Next (Previous) would. Past the end, radio and Autoplay go on as after
+  /// the last song; when nothing plays the queue ends there, and the player
+  /// says why. [restore] (the session coming back at launch) loads the song
+  /// found, paused, without a word.
+  Future<dynamic> _playPastExplicit(int index,
+      {bool backward = false, bool restore = false}) async {
+    final q = queue.value;
+    final before = currentIndex;
+    final found = playableFrom(index, q.length,
+        step: (at) {
+          // Both follow the shuffle order from the current index.
+          currentIndex = at;
+          return backward
+              ? _getPrevSongIndex()
+              : _getNextSongIndex(advance: true);
+        },
+        mayPlay: (i) => !ExplicitContent.blocks(q[i]));
+    if (found.index case final next?) {
+      // Songs running on by themselves skip them without a word.
+      if (!restore && !_eofAdvanceInProgress) _notifyExplicitOff();
+      return customAction("playByIndex",
+          {'index': next, if (restore) 'restoreSession': true});
+    }
+    // Back on the song that was playing, when it's still the one loaded.
+    final stillLoaded = before is int &&
+        isValidQueueIndex(before, q.length) &&
+        q[before].id == mediaItem.value?.id;
+    currentIndex = stillLoaded ? before : index;
+    if (shuffleModeEnabled) _syncShufflePos();
+    if (restore) return null;
+    if (found.atEnd &&
+        !backward &&
+        stillLoaded &&
+        Get.isRegistered<PlayerController>()) {
+      final player = Get.find<PlayerController>();
+      if (player.isRadioModeOn) return player.extendRadioThenPlayNext();
+      if (await player.autoplayAfterQueue()) return true;
+    }
+    // The queue ends here (going back, the song playing goes on).
+    if (!backward) {
+      _player.seek(Duration.zero);
+      _player.pause();
+    }
+    _notifyExplicitOff();
+    return null;
+  }
+
+  void _notifyExplicitOff() {
+    if (Get.isRegistered<PlayerController>()) {
+      Get.find<PlayerController>().notifyExplicitOff();
+    }
   }
 
   @override
@@ -1455,6 +1514,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
             processingState: AudioProcessingState.idle,
           ));
           return false;
+        }
+        // Explicit content off: an explicit song doesn't play, the next
+        // one that may does.
+        if (ExplicitContent.blocks(queue.value[songIndex])) {
+          return _playPastExplicit(songIndex,
+              backward: extras['backward'] == true,
+              restore: extras['restoreSession'] == true);
         }
         // Fade between songs: the song after one that faded out fades in;
         // anything else played meanwhile puts the volume back first.

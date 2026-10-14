@@ -14,6 +14,7 @@ import '/models/media_Item_builder.dart';
 import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/ban_service.dart';
+import '/services/explicit_content.dart';
 import '/services/utils.dart';
 import '/services/yt_auth_service.dart';
 import '../utils/helper.dart';
@@ -391,8 +392,11 @@ class MusicServices extends getx.GetxService {
 
     return {
       // "Never Play This": banned songs never enter radio / up-next,
-      // but an explicitly requested seed song is kept.
-      'tracks': BanService.filterTracks(tracks, keepVideoId: videoId),
+      // but an explicitly requested seed song is kept. Nor do explicit
+      // songs while they're off (the seed stays all the same).
+      'tracks': ExplicitContent.filter(
+          BanService.filterTracks(tracks, keepVideoId: videoId),
+          keepId: videoId),
       'playlistId': playlist,
       'lyrics': lyricsBrowseId,
       'related': relatedBrowseId,

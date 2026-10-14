@@ -22,6 +22,7 @@ import '/services/normalization_level.dart';
 import '/services/private_session.dart';
 import '/services/song_fade.dart';
 import '/services/music_autoplay.dart';
+import '/services/explicit_content.dart';
 import '/ui/widgets/equalizer_sheet.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/listenbrainz_service.dart';
@@ -714,6 +715,23 @@ class SettingsScreen extends StatelessWidget {
                         () => CustSwitch(
                             value: MusicAutoplay.enabled.value,
                             onChanged: MusicAutoplay.set),
+                      )),
+                  ListTile(
+                      contentPadding: settingsTilePadding,
+                      title: Text('allowExplicit'.tr),
+                      subtitle: Text('allowExplicitDes'.tr,
+                          style: settingsSubtitleStyle(context)),
+                      trailing: Obx(
+                        () => CustSwitch(
+                            value: ExplicitContent.allowed.value,
+                            onChanged: (allow) async {
+                              await ExplicitContent.set(allow);
+                              // An explicit song playing stops there.
+                              if (!allow) {
+                                await Get.find<PlayerController>()
+                                    .skipIfExplicit();
+                              }
+                            }),
                       )),
                   ListTile(
                       contentPadding: settingsTilePadding,

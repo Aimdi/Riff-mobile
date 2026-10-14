@@ -6,6 +6,7 @@ import 'package:hive/hive.dart';
 
 import '../../models/thumbnail.dart';
 import '../ban_service.dart';
+import '../explicit_content.dart';
 import '../music_service.dart';
 import '../stats_service.dart';
 import 'candidate_sources.dart';
@@ -306,9 +307,12 @@ class DiscoveryService extends GetxService {
 
   // ─── Convenience ──────────────────────────────────────────────────────
 
+  /// Without explicit songs while explicit content is off (Smart shuffle,
+  /// Recommended songs, More like this).
   Future<List<MediaItem>> similarSongs(MediaItem seed,
-          {int limit = 25, bool unheardOnly = false}) =>
-      engine.similarSongs(seed, limit: limit, unheardOnly: unheardOnly);
+          {int limit = 25, bool unheardOnly = false}) async =>
+      ExplicitContent.filter(await engine.similarSongs(seed,
+          limit: limit, unheardOnly: unheardOnly));
 
   Future<List<MediaItem>> smartRadioBatch(
     MediaItem seed, {
@@ -321,11 +325,14 @@ class DiscoveryService extends GetxService {
       sessionHistory: sessionHistory,
       limit: limit,
     );
-    // "Never Play This" (songs, artists, albums) for radio and Riff Wave;
-    // the seed the user picked always stays.
+    // "Never Play This" (songs, artists, albums) for radio and Riff Wave,
+    // and explicit songs while they're off; the seed the user picked always
+    // stays.
     return [
       for (final m in batch)
-        if (m.id == seed.id || !BanService.isMediaItemBlocked(m)) m
+        if (m.id == seed.id ||
+            (!BanService.isMediaItemBlocked(m) && !ExplicitContent.blocks(m)))
+          m
     ];
   }
 

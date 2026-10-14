@@ -40,6 +40,7 @@ import '../widgets/sliding_up_panel.dart';
 import '/models/durationstate.dart';
 import '/services/music_service.dart';
 import '/services/music_autoplay.dart';
+import '/services/explicit_content.dart';
 import '/services/riff_equalizer.dart';
 import '/services/sponsorblock_service.dart';
 import '/services/podcast_service.dart';
@@ -1908,13 +1909,19 @@ class PlayerController extends GetxController
 
   bool _extendingRadio = false;
 
+  /// A song after the one playing that may play (an explicit one doesn't
+  /// while explicit content is off).
+  bool get _songAfterCurrent => currentQueue
+      .skip(currentSongIndex.value + 1)
+      .any((song) => !ExplicitContent.blocks(song));
+
   /// Last track ended while radio/Wave is on — fetch the next batch and play.
   /// [quiet]: nothing to play on isn't reported (Autoplay's first batch).
   Future<bool> extendRadioThenPlayNext({bool quiet = false}) async {
     if (_extendingRadio || !isRadioModeOn) return false;
     _extendingRadio = true;
     try {
-      if (currentQueue.length > currentSongIndex.value + 1) {
+      if (_songAfterCurrent) {
         return next();
       }
       if (radioInitiatorItem == null) {
@@ -1922,7 +1929,7 @@ class PlayerController extends GetxController
         return false;
       }
       await _fetchRadioContinuation();
-      if (currentQueue.length > currentSongIndex.value + 1) {
+      if (_songAfterCurrent) {
         return next();
       }
       if (!quiet) notifyPlayError('radioContinuationFailed');
@@ -2647,6 +2654,23 @@ class PlayerController extends GetxController
 
   void clearPlaybackError() {
     if (playbackError.value != null) playbackError.value = null;
+  }
+
+  /// An explicit song didn't play: explicit content is off (Settings).
+  void notifyExplicitOff() {
+    final context = Get.context;
+    if (context == null || !context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+        snackbar(context, "explicitOffMsg".tr, size: SanckBarSize.MEDIUM));
+  }
+
+  /// Explicit content was turned off: an explicit song playing stops there
+  /// and the next one that may play starts (paused, the next Play skips it).
+  Future<void> skipIfExplicit() async {
+    if (ExplicitContent.blocks(currentSong.value) &&
+        buttonState.value == PlayButtonState.playing) {
+      await next();
+    }
   }
 
   /// Skip a dead stream and try the next queue item.

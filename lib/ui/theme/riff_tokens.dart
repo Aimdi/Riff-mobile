@@ -70,6 +70,10 @@ class RiffPalette {
   /// Lyrics lines other than the current one (secondary text at 60%).
   static const double lyricsDimOpacity = 0.6;
 
+  /// A row that won't play (an explicit song while explicit content is
+  /// off): Material's disabled strength.
+  static const double unavailableOpacity = 0.38;
+
   /// Riff Wave card cover: the accent tint shown when there is no cover
   /// yet, and the scrim under the waveform (keep the current values).
   static const double waveArtTint = 0.22;

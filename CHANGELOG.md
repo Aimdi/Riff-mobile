@@ -393,6 +393,16 @@ Autoplay:
   on the last song then too. Not for podcasts or audiobooks; offline the
   queue ends as before. Off by default
 
+Explicit content:
+* Allow explicit content, like Spotify's (Apple Music's clean-only
+  setting, YouTube Music's Restricted mode): turn off Settings › Allow
+  explicit content and songs marked E don't play. Their rows are dimmed
+  and a tap on one says why; the player skips them, whatever starts it
+  (Next, the queue running on, Android Auto), and radio, Autoplay, Smart
+  shuffle and Recommended songs leave them out. One playing when you
+  turn it off stops for the next. On by default, so nothing changes until
+  you turn it off
+
 Equalizer:
 * Riff's own, like Spotify's, for phones without one (Pixels among
   them, where Settings › Equalizer used to land on the sound settings):
