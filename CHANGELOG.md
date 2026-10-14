@@ -39,6 +39,10 @@ Lyrics:
   Lyrics timing moves them later or earlier, half a second a tap, for
   that song only; it's remembered for next time. The line under the
   title and "play from this line" follow it too
+* Lyrics offline, like Spotify's for downloaded songs: downloading a
+  song now fetches its lyrics too, and YouTube Music's own lyrics (for
+  songs without synced ones) are kept once seen, so both show without a
+  connection; they used to need one each time
 
 Mini player (phones):
 * Drag it sideways and the song follows your finger while the next (or

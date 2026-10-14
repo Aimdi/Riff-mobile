@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/services/better_lyrics_service.dart';
 import 'package:harmonymusic/services/synced_lyrics_service.dart';
+import 'package:hive/hive.dart';
 
 void main() {
   group('LRCLIB answer', () {
@@ -25,6 +28,40 @@ void main() {
       expect(SyncedLyricsService.lrclibHit({'syncedLyrics': null}), isNull);
       expect(SyncedLyricsService.lrclibHit({'syncedLyrics': ''}), isNull);
       expect(SyncedLyricsService.lrclibHit([1, 2]), isNull);
+    });
+  });
+
+  group('plain lyrics, kept for offline', () {
+    setUp(() async {
+      await Hive.openBox('lyrics', bytes: Uint8List(0));
+    });
+    tearDown(() async {
+      await Hive.close();
+    });
+
+    test('fetched ones are kept, and shown when fetching fails', () async {
+      expect(await SyncedLyricsService.plainLyrics('s1', () async => 'La la'),
+          'La la');
+      expect(
+          Hive.box('lyrics').get(SyncedLyricsService.plainKey('s1')), 'La la');
+      // Offline: what was kept.
+      expect(
+          await SyncedLyricsService.plainLyrics(
+              's1', () async => throw Exception('offline')),
+          'La la');
+      // Apart from the synced lyrics kept by the song's id.
+      expect(Hive.box('lyrics').containsKey('s1'), isFalse);
+    });
+
+    test('a song without lyrics keeps nothing', () async {
+      expect(await SyncedLyricsService.plainLyrics('s2', () async => null),
+          isNull);
+      expect(Hive.box('lyrics').containsKey(SyncedLyricsService.plainKey('s2')),
+          isFalse);
+      expect(
+          await SyncedLyricsService.plainLyrics(
+              's2', () async => throw Exception('offline')),
+          isNull);
     });
   });
 

@@ -2446,15 +2446,10 @@ class PlayerController extends GetxController
         result = lyricsR;
       } else {
         if (!stillCurrent()) return;
-        final related = await _musicServices.getWatchPlaylist(
-            videoId: song.id, onlyRelated: true);
-        final relatedLyricsId = related['lyrics'];
-        if (relatedLyricsId != null) {
-          final lyrics_ = await _musicServices.getLyrics(relatedLyricsId);
-          result = {"synced": "", "plainLyrics": lyrics_};
-        } else {
-          result = {"synced": "", "plainLyrics": "NA"};
-        }
+        // Kept once fetched, so they show offline too.
+        final plain = await SyncedLyricsService.plainLyrics(
+            song.id, () => SyncedLyricsService.youTubeLyrics(song.id));
+        result = {"synced": "", "plainLyrics": plain ?? "NA"};
       }
     } catch (e) {
       result = {"synced": "", "plainLyrics": "NA"};

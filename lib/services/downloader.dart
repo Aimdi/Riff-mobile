@@ -20,6 +20,7 @@ import '/models/media_Item_builder.dart';
 import '../ui/screens/Library/library_controller.dart';
 import 'discovery/discovery_service.dart';
 import 'music_service.dart';
+import 'synced_lyrics_service.dart';
 
 class Downloader extends GetxService {
   // receiveTimeout is the max gap between chunks, so a stalled download
@@ -272,6 +273,8 @@ class Downloader extends GetxService {
         Hive.box("SongDownloads").put(song.id, songJson);
         Get.find<LibrarySongsController>().librarySongsList.add(song);
         printINFO("Downloaded successfully");
+        // Its lyrics too, to show offline (as Spotify's downloads do).
+        unawaited(SyncedLyricsService.keepForOffline(song));
 
         final trackDetails = (song.extras?['trackDetails'])?.split("/");
         final int? trackNumber = int.tryParse(trackDetails?[0] ?? "");
