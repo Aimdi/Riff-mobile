@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/models/playlist.dart';
 import 'package:harmonymusic/services/music_service.dart';
+import 'package:harmonymusic/services/podcast_service.dart';
 import 'package:harmonymusic/services/youtube_podcast_service.dart';
 import 'package:harmonymusic/ui/screens/Podcasts/podcasts_library_controller.dart';
 
@@ -31,6 +33,8 @@ class _FakeMusic extends GetxService implements MusicServices {
         ],
       });
 
+  void fail(String query) => pending[query]!.completeError(Exception('down'));
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -48,22 +52,54 @@ Future<(HttpServer, List<String>)> _brokenYoutube() async {
   return (server, hits);
 }
 
+/// Apple's podcast directory: [shows] results for any search, titled
+/// after its term ("Show 1 for daily"), plus one without a feed.
+Future<(HttpServer, List<Uri>)> _directory({int shows = 3}) async {
+  final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+  final asked = <Uri>[];
+  server.listen((req) async {
+    asked.add(req.uri);
+    final term = req.uri.queryParameters['term'];
+    req.response.write(jsonEncode({
+      'results': [
+        {'collectionName': 'No feed for $term', 'artistName': 'Apple'},
+        for (var i = 1; i <= shows; i++)
+          {
+            'collectionName': 'Show $i for $term',
+            'artistName': 'Host $i',
+            'artworkUrl600': 'https://art.example/$i.jpg',
+            'feedUrl': 'https://feeds.example/$i',
+          },
+      ],
+    }));
+    await req.response.close();
+  });
+  return (server, asked);
+}
+
 Future<void> _settle() => Future<void>.delayed(Duration.zero);
 
 void main() {
   final defaultYoutube = YoutubePodcastService.baseUrl;
+  final defaultDirectory = PodcastService.directoryBase;
   late HttpServer server;
   late List<String> hits;
+  late HttpServer directory;
+  late List<Uri> asked;
 
   setUp(() async {
     Get.reset();
     (server, hits) = await _brokenYoutube();
     YoutubePodcastService.baseUrl = 'http://127.0.0.1:${server.port}';
+    (directory, asked) = await _directory();
+    PodcastService.directoryBase = 'http://127.0.0.1:${directory.port}';
   });
 
   tearDown(() async {
     YoutubePodcastService.baseUrl = defaultYoutube;
+    PodcastService.directoryBase = defaultDirectory;
     await server.close(force: true);
+    await directory.close(force: true);
     Get.reset();
   });
 
@@ -87,6 +123,7 @@ void main() {
       music.answer('new query', 'New');
       await newer;
       expect(c.searchResults.map((p) => p.title), ['New']);
+      expect(c.directoryResults.first['title'], 'Show 1 for new query');
       expect(c.isSearching.isFalse, isTrue);
       expect(c.searchQuery.value, 'new query');
     });
@@ -100,8 +137,61 @@ void main() {
       music.answer('some show', 'Late');
       await running;
       expect(c.searchResults, isEmpty);
+      expect(c.directoryResults, isEmpty);
       expect(c.hasSearched.isFalse, isTrue);
       expect(c.isSearching.isFalse, isTrue);
+    });
+
+    test("the directory's shows come with YouTube's: those with a feed",
+        () async {
+      final music = Get.put<MusicServices>(_FakeMusic()) as _FakeMusic;
+      final c = LibraryPodcastsController();
+
+      final search = c.searchPodcasts('daily');
+      music.answer('daily', 'From YouTube');
+      await search;
+      expect(c.searchResults.map((p) => p.title), ['From YouTube']);
+      expect(c.directoryResults, [
+        for (var i = 1; i <= 3; i++)
+          {
+            'title': 'Show $i for daily',
+            'author': 'Host $i',
+            'artwork': 'https://art.example/$i.jpg',
+            'feedUrl': 'https://feeds.example/$i',
+          },
+      ]);
+      final query = asked.single.queryParameters;
+      expect(query['media'], 'podcast');
+      expect(query['term'], 'daily');
+      expect(query['country'], isNotEmpty);
+    });
+
+    test('the first ten of them, even when YouTube fails', () async {
+      await directory.close(force: true);
+      (directory, asked) = await _directory(shows: 25);
+      PodcastService.directoryBase = 'http://127.0.0.1:${directory.port}';
+      final music = Get.put<MusicServices>(_FakeMusic()) as _FakeMusic;
+      final c = LibraryPodcastsController();
+
+      final search = c.searchPodcasts('news');
+      music.fail('news');
+      await search;
+      expect(c.searchResults, isEmpty);
+      expect(c.directoryResults.map((s) => s['title']),
+          [for (var i = 1; i <= 10; i++) 'Show $i for news']);
+      expect(c.isSearching.isFalse, isTrue);
+    });
+
+    test('none when the directory is out of reach', () async {
+      await directory.close(force: true);
+      final music = Get.put<MusicServices>(_FakeMusic()) as _FakeMusic;
+      final c = LibraryPodcastsController();
+
+      final search = c.searchPodcasts('daily');
+      music.answer('daily', 'From YouTube');
+      await search;
+      expect(c.searchResults.map((p) => p.title), ['From YouTube']);
+      expect(c.directoryResults, isEmpty);
     });
   });
 

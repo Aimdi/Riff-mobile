@@ -421,9 +421,13 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
             final items = controller.searchResults;
             final channels = controller.channelSearchResults;
             final feed = controller.feedSearchResult.value;
+            final directory = controller.directoryResults;
             final query = controller.searchQuery.value.trim();
             if (controller.hasSearched.isTrue && query.isNotEmpty) {
-              if (items.isEmpty && channels.isEmpty && feed == null) {
+              if (items.isEmpty &&
+                  channels.isEmpty &&
+                  feed == null &&
+                  directory.isEmpty) {
                 return Center(
                   child: Text(
                     'noResults'.tr,
@@ -440,6 +444,44 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                       sliver: SliverToBoxAdapter(
                           child: PodcastFeedResultRow(show: feed)),
                     ),
+                  // Shows in the podcast directory, followed by their own
+                  // feeds; the same rows as a pasted feed's.
+                  if (directory.isNotEmpty) ...[
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                            left: HomeLayout.gutter,
+                            top: RiffSpacing.md,
+                            right: HomeLayout.gutter,
+                            bottom: RiffSpacing.xxs),
+                        child: Text(
+                          'podcastFeeds'.tr,
+                          style: homeSectionTitleStyle(context),
+                        ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                            left: HomeLayout.gutter,
+                            right: HomeLayout.gutter,
+                            bottom: RiffSpacing.xs),
+                        child: Text(
+                          'podcastFeedsDes'.tr,
+                          style: homeCardSubtitleStyle(context),
+                        ),
+                      ),
+                    ),
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => PodcastFeedResultRow(
+                          key: ValueKey(directory[index]['feedUrl']),
+                          show: directory[index],
+                        ),
+                        childCount: directory.length,
+                      ),
+                    ),
+                  ],
                   if (channels.isNotEmpty) ...[
                     SliverToBoxAdapter(
                       child: Padding(

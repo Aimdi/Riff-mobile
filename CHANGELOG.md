@@ -250,6 +250,13 @@ Podcasts:
   titles). Tap it for the Podcasts Inbox. A feed unchanged since the
   last look isn't read again, and only its first few episodes are, so
   it takes little data. For shows from feeds
+* Search finds shows from the podcast directory again, as in Apple
+  Podcasts, Pocket Casts and AntennaPod: the Podcasts tab's search only
+  asked YouTube, so a show you follow by its feed (with its chapters,
+  downloads and new-episode notifications) could only be found by
+  pasting its address. Podcast feeds now lists the first ten shows
+  Apple's directory has for your search, from your country's store,
+  above YouTube's; tap one for its page, or follow it from the row
 * A show's page remembers its episode order (Newest first / Oldest
   first) for that show, like Pocket Casts and AntennaPod, so a series you
   hear in order stays oldest first. The eye button next to it hides

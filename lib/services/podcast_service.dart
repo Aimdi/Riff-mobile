@@ -50,15 +50,20 @@ class PodcastService {
 
   // --- Discovery (Apple / iTunes Search API) ---
 
-  /// Returns [{title, author, artwork, feedUrl}].
+  /// Where [search] asks; tests point it at a local server.
+  @visibleForTesting
+  static String directoryBase = 'https://itunes.apple.com';
+
+  /// Shows in Apple's directory for [term], in the phone's store, as
+  /// [{title, author, artwork, feedUrl}]; [] when it can't be reached.
   static Future<List<Map<String, dynamic>>> search(String term) async {
     try {
-      final res = await _dio.get('https://itunes.apple.com/search',
-          queryParameters: {
-            'media': 'podcast',
-            'term': term,
-            'limit': 40,
-          });
+      final res = await _dio.get('$directoryBase/search', queryParameters: {
+        'media': 'podcast',
+        'term': term,
+        'limit': 40,
+        'country': _storefront(),
+      });
       final results = _asMap(res.data)?['results'] as List?;
       if (results == null) return [];
       return results
