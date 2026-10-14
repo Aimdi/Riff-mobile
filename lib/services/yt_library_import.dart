@@ -1,0 +1,115 @@
+import 'package:flutter/foundation.dart';
+import 'package:get/get.dart';
+
+import '../models/artist.dart';
+import '../models/playlist.dart';
+import '../utils/helper.dart';
+import '../utils/hive_boxes.dart';
+import 'discovery/discovery_service.dart';
+import 'music_service.dart';
+import 'utils.dart';
+import 'yt_auth_service.dart';
+
+/// What came in from YouTube Music: how many playlists and artists were
+/// added, each null when it couldn't be read.
+typedef YtLibraryImported = ({int? playlists, int? artists});
+
+/// Your YouTube Music library in Riff's, as Metrolist brings it in: with
+/// your YouTube account connected, the playlists in your YouTube Music
+/// library (yours and the ones you saved) are added to Library ›
+/// Playlists, and the artists you subscribe to are followed in Library ›
+/// Artists (so their new releases reach Release Radar), those not there
+/// yet. Liked music comes in as your Favorites (YtLikeSync) and Episodes
+/// for later isn't music, so neither comes as a playlist.
+class YtLibraryImport {
+  YtLibraryImport._();
+
+  static const playlistsBox = 'LibraryPlaylists';
+  static const artistsBox = 'LibraryArtists';
+
+  /// Liked music and Episodes for later.
+  static const _notPlaylists = {'LM', 'SE'};
+
+  /// Whether the library is coming in now.
+  static final importing = false.obs;
+
+  /// Your YouTube Music library's playlists; tests replace it.
+  @visibleForTesting
+  static Future<List<Playlist>> Function() fetchPlaylists =
+      () => Get.find<MusicServices>().getLibraryPlaylists();
+
+  /// The artists you subscribe to in YouTube Music; tests replace it.
+  @visibleForTesting
+  static Future<List<Artist>> Function() fetchArtists =
+      () => Get.find<MusicServices>().getLibrarySubscriptions();
+
+  /// Whether a YouTube account is connected; tests replace it.
+  @visibleForTesting
+  static bool Function() connected = () => YtAuthService.isConnected;
+
+  /// Brings in the playlists and artists Riff's Library doesn't have yet;
+  /// null without an account (or while they're already coming).
+  static Future<YtLibraryImported?> importLibrary() async {
+    if (!connected() || importing.value) return null;
+    importing.value = true;
+    try {
+      return (
+        playlists: await _guard('playlists', _importPlaylists),
+        artists: await _guard('artists', _importArtists),
+      );
+    } finally {
+      importing.value = false;
+    }
+  }
+
+  static Future<int?> _guard(String what, Future<int> Function() run) async {
+    try {
+      return await run();
+    } catch (e) {
+      printERROR('YouTube Music $what not read: $e');
+      return null;
+    }
+  }
+
+  /// Saved under either form of their id (VL… or not) counts as there.
+  static Future<int> _importPlaylists() async {
+    final playlists = await fetchPlaylists();
+    final box = await HiveBoxes.open(playlistsBox);
+    bool saved(String id) => box.containsKey(id) || box.containsKey('VL$id');
+    final fresh = <String, dynamic>{
+      for (final playlist in playlists)
+        if (validatePlaylistId(playlist.playlistId) case final id
+            when id.isNotEmpty && !_notPlaylists.contains(id) && !saved(id))
+          playlist.playlistId: playlist.toJson(),
+    };
+    if (fresh.isNotEmpty) await box.putAll(fresh);
+    return fresh.length;
+  }
+
+  /// Followed as following one in Riff does: in Library › Artists, for
+  /// Release Radar, and as a liking of the artist.
+  static Future<int> _importArtists() async {
+    final artists = await fetchArtists();
+    final box = await HiveBoxes.open(artistsBox);
+    final fresh = <String, Artist>{
+      for (final artist in artists)
+        if (artist.browseId.isNotEmpty && !box.containsKey(artist.browseId))
+          artist.browseId: artist,
+    };
+    if (fresh.isEmpty) return 0;
+    await box.putAll({
+      for (final e in fresh.entries) e.key: e.value.toJson(),
+    });
+    final discovery = Get.isRegistered<DiscoveryService>()
+        ? Get.find<DiscoveryService>()
+        : null;
+    if (discovery != null) {
+      for (final artist in fresh.values) {
+        await discovery.repo.followArtist(artist.browseId,
+            name: artist.name, thumbnailUrl: artist.thumbnailUrl);
+        await discovery.onFollow(artist.name, follow: true);
+      }
+    }
+    return fresh.length;
+  }
+}

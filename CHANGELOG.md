@@ -523,13 +523,17 @@ Library:
   a song you unlike in Riff is unliked there too. Changes made offline go
   once YouTube can be reached. The likes that come in aren't downloaded,
   sent back or sent on to Spotify
-* Your YouTube Music playlists in your Library, as Metrolist brings them
-  in: with your YouTube account connected, Settings has "Your YouTube
-  Music playlists" under it. A tap adds the playlists in your YouTube
-  Music library (yours and the ones you saved) to Library › Playlists,
-  those not there yet, and says how many came; they open as any YouTube
-  playlist saved in Riff does. Liked music comes in as your Favorites
-  (above) and Episodes for later stays out
+* Your YouTube Music library in yours, as Metrolist brings it in: with
+  your YouTube account connected, Settings has "Your YouTube Music
+  library" under it. A tap adds the playlists in your YouTube Music
+  library (yours and the ones you saved) to Library › Playlists and
+  follows the artists you subscribe to in Library › Artists, those not
+  there yet, and says what came ("Added from YouTube Music: 3
+  playlists, 1 artist"). The playlists open as any YouTube playlist
+  saved in Riff does; the artists' new releases reach Release Radar and
+  they count as artists you like, as when you follow one in Riff. Liked
+  music comes in as your Favorites (above) and Episodes for later stays
+  out
 * Removing a song (swipe it, or "Remove" in its menu) now says "Removed
   from your library" with Undo, like YouTube Music; its download or
   cached copy is only deleted once Undo is gone (or on the next start if

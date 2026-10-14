@@ -36,7 +36,7 @@ import '/ui/player/video_mode_controller.dart';
 import '/services/yt_auth_service.dart';
 import '/services/yt_like_sync.dart';
 import 'yt_like_sync_tile.dart';
-import 'yt_playlists_import_tile.dart';
+import 'yt_library_import_tile.dart';
 import 'yt_login_screen.dart';
 import '../Home/home_screen_controller.dart';
 import '../../navigator.dart';
@@ -956,8 +956,8 @@ class SettingsScreen extends StatelessWidget {
                     }),
                     // Metrolist's like sync with the connected account.
                     const YtLikeSyncTile(),
-                    // And its playlists into the Library.
-                    const YtPlaylistsImportTile(),
+                    // And its playlists and artists into the Library.
+                    const YtLibraryImportTile(),
                     ListTile(
                       contentPadding:
                           settingsTilePadding,
