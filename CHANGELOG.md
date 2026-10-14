@@ -156,6 +156,12 @@ Now playing:
   YouTube Music's devices button does: move what's playing to Bluetooth
   headphones or a speaker, or back to the phone, without leaving Riff
   (Android 11 and later; Bluetooth settings before)
+* Long tracks pick up where you left off, as YouTube does with long
+  videos: a mix, a DJ set or a full-album video of 20 minutes or more
+  keeps its place, and the next time it plays it goes on from there
+  ("Picked up at 23:45", with Start over). Played to its last couple
+  of minutes, or started over, it plays from the start next time. The
+  last 50 are kept, and nothing is kept in a private session
 
 Song rows:
 * Explicit songs show an "E" before the artist, as in Spotify, Apple
@@ -433,6 +439,9 @@ Audiobooks:
   offers Add note, and in Bookmarks in this book each bookmark has a
   note button (add or edit; an empty note takes it off), its note shown
   under its chapter. Podcast bookmarks' notes use the same editor
+* Free (LibriVox) books continue where you stopped: they opened the
+  right chapter but played it from its start, as the player dropped the
+  place it was given for chapters not from an Audiobookshelf server
 
 Library:
 * Removing a song (swipe it, or "Remove" in its menu) now says "Removed

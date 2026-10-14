@@ -4642,6 +4642,8 @@ Map<String, Map<String, String>> get keys => {
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "longTrackResumed": "Picked up at @time",
+    "startOver": "Start over",
     "pauseSearchHistory": "Pause search history",
     "pauseSearchHistoryDes": "What you search for, and what you open from search, isn't kept in Recent searches",
     "notFoundOnYouTubeMusic": "Couldn't find it on YouTube Music",

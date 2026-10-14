@@ -54,6 +54,7 @@ import '/services/podcast_progress_service.dart';
 import '/services/podcast_history.dart';
 import '/services/sleep_shake.dart';
 import '/services/auto_sleep_timer.dart';
+import '/services/long_track_resume.dart';
 import '/services/audiobookshelf_service.dart';
 import '/ui/player/riff_wave.dart';
 import '/ui/player/play_log_gate.dart';
@@ -254,6 +255,12 @@ class PlayerController extends GetxController
   double _absTimeListenedSec = 0;
   String? _pendingResumeId;
   int _pendingResumeMs = 0;
+
+  /// The long track whose kept place is being resumed (said once it is).
+  String? _longTrackResumeId;
+
+  /// When the playing long track's place was last kept ([LongTrackResume]).
+  int _lastLongTrackSaveMs = 0;
 
   /// Audio handler / keyboard subscriptions and workers, released in
   /// [onClose] (two workers watch app-wide observables and would otherwise
@@ -526,6 +533,7 @@ class PlayerController extends GetxController
     _handlePodcastProgress(position);
     _handleAbsProgress(position);
     _handleSongStart(position);
+    _handleLongTrackProgress(position);
 
     // Progress widgets (mini player, lyrics, seek bar) only need ~10 Hz.
     if (!_progressUiThrottle.shouldUpdate(
@@ -571,7 +579,9 @@ class PlayerController extends GetxController
     }
   }
 
-  void _maybeApplyPendingResume(
+  /// Seeks to the pending resume once [song] has just started; whether it
+  /// did.
+  bool _maybeApplyPendingResume(
       MediaItem song, Duration position, Duration total) {
     if (_pendingResumeId == song.id &&
         _pendingResumeMs > 1500 &&
@@ -581,14 +591,17 @@ class PlayerController extends GetxController
       if (total <= Duration.zero ||
           target < total - const Duration(seconds: 10)) {
         seek(target);
+        return true;
       }
     }
+    return false;
   }
 
   bool _isAbsItem(MediaItem? s) => s != null && s.isAudiobookshelf;
 
-  /// A song started at a moment ([playFromLink]): there once it plays
-  /// (podcasts and audiobooks resume through their own progress).
+  /// A song started at a moment ([playFromLink]) or a long track's kept
+  /// place: there once it plays (podcasts and audiobooks resume through
+  /// their own progress).
   void _handleSongStart(Duration position) {
     final song = currentSong.value;
     if (song == null ||
@@ -598,7 +611,75 @@ class PlayerController extends GetxController
         song.isFreeAudiobook) {
       return;
     }
-    _maybeApplyPendingResume(song, position, progressBarStatus.value.total);
+    final place = Duration(milliseconds: _pendingResumeMs);
+    if (!_maybeApplyPendingResume(
+        song, position, progressBarStatus.value.total)) {
+      return;
+    }
+    // Its place is kept again once it has played a moment from there.
+    _lastLongTrackSaveMs = DateTime.now().millisecondsSinceEpoch;
+    if (_longTrackResumeId == song.id) {
+      _longTrackResumeId = null;
+      _sayLongTrackResumed(song.id, place);
+    }
+  }
+
+  /// A song (not a podcast episode or an audiobook) [total] long that
+  /// keeps its place ([LongTrackResume]).
+  bool _isLongTrack(MediaItem song, Duration total) =>
+      !song.isPodcastEpisode &&
+      !song.isAudiobook &&
+      LongTrackResume.keepsPlace(total);
+
+  /// A long track's place, kept every 5 s as it plays.
+  void _handleLongTrackProgress(Duration position) {
+    final song = currentSong.value;
+    final total = progressBarStatus.value.total;
+    if (song == null || !_isLongTrack(song, total)) return;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (nowMs - _lastLongTrackSaveMs < 5000) return;
+    if (_pendingResumeId == song.id) {
+      // Its place is yet to be resumed; playing on from elsewhere (a
+      // restored session), it won't be.
+      if (position < const Duration(seconds: 4)) return;
+      _pendingResumeId = null;
+    }
+    _lastLongTrackSaveMs = nowMs;
+    _keepLongTrackPlace(song, position, total, nowMs);
+  }
+
+  /// Keeps [song]'s place, [position] into it, when it's a long track;
+  /// not in a private session, nor while its kept place is yet to be
+  /// resumed.
+  void _keepLongTrackPlace(
+      MediaItem? song, Duration position, Duration total, int nowMs) {
+    if (song == null ||
+        !_isLongTrack(song, total) ||
+        _pendingResumeId == song.id ||
+        PrivateSession.isActive) {
+      return;
+    }
+    unawaited(LongTrackResume.save(song.id, position, total, nowMs: nowMs));
+  }
+
+  /// Says the long track [id] picked up at [place], with Start over.
+  void _sayLongTrackResumed(String id, Duration place) {
+    final target = undoSnackbarTarget(null);
+    if (target == null || !target.messenger.mounted) return;
+    target.messenger.hideCurrentSnackBar();
+    target.messenger.showSnackBar(themedSnackbar(target.theme,
+        'longTrackResumed'.trParams({'time': longTrackPlaceLabel(place)}),
+        actionLabel: 'startOver'.tr, onAction: () => startLongTrackOver(id)));
+  }
+
+  /// The long track [id], resumed, starts over: back to its start while
+  /// it's the one playing, its kept place forgotten.
+  void startLongTrackOver(String id) {
+    if (currentSong.value?.id == id) {
+      _lastLongTrackSaveMs = DateTime.now().millisecondsSinceEpoch;
+      seek(Duration.zero);
+    }
+    unawaited(LongTrackResume.forget(id));
   }
 
   /// Plays [songs] from the first, from [start] into it (a shared link's
@@ -697,6 +778,45 @@ class PlayerController extends GetxController
       printERROR('finishEpisode failed: $e');
     }
     PodcastLibrary.rev.value++;
+  }
+
+  /// Arms where [item], just started, plays from once it plays: a
+  /// bookmark's or a link's moment ([playPodcastAt], [playFromLink]), a
+  /// podcast episode's saved place (or past the intro its show skips), an
+  /// audiobook's ([armResume]), a long track's kept place.
+  @visibleForTesting
+  void armStart(MediaItem item) {
+    _longTrackResumeId = null;
+    // A new song's place is kept once it has played a moment.
+    _lastLongTrackSaveMs = DateTime.now().millisecondsSinceEpoch;
+    if (_explicitStartId == item.id) {
+      // Opened from a bookmark: start there, not at the saved position.
+      _pendingResumeId = item.id;
+      _pendingResumeMs = _explicitStartMs;
+      _explicitStartId = null;
+    } else if (PodcastProgressService.isPodcastItem(item)) {
+      _pendingResumeId = item.id;
+      // The saved position, or past the intro its show skips.
+      _pendingResumeMs = podcastStartMs(
+        savedMs: PodcastProgressService.positionMs(item.id) ?? 0,
+        trim: PodcastPlaybackPrefs.trimForItem(item),
+        totalMs: item.duration?.inMilliseconds ?? 0,
+      );
+    } else if (item.isAudiobook) {
+      // Keep armResume() from the book's page if it targets this chapter
+      // (a server's or a free one).
+      if (_pendingResumeId != item.id) {
+        _pendingResumeId = null;
+        _pendingResumeMs = 0;
+      }
+    } else {
+      // A long track plays on from the place it kept.
+      final place = LongTrackResume.placeOf(item.id, item.duration);
+      final resumes = place > Duration.zero;
+      _pendingResumeId = resumes ? item.id : null;
+      _pendingResumeMs = place.inMilliseconds;
+      if (resumes) _longTrackResumeId = item.id;
+    }
   }
 
   /// Arm a one-shot seek after playback starts (ABS resume / explicit offset).
@@ -1243,6 +1363,11 @@ class PlayerController extends GetxController
         // The handler re-emits the playing item after queue edits, shuffle
         // and stream retries; only a different id is a song change.
         final songChanged = outgoing?.id != mediaItem.id;
+        // The long track left keeps its place there.
+        if (songChanged) {
+          _keepLongTrackPlace(outgoing, Duration(milliseconds: posMs),
+              outgoingProgress.total, DateTime.now().millisecondsSinceEpoch);
+        }
         if (songChanged &&
             outgoing != null &&
             !_playIsPrivate &&
@@ -1270,31 +1395,8 @@ class PlayerController extends GetxController
           showContinueListening.value = false;
         }
         clearPlaybackError();
-        // Arm auto-resume for the incoming podcast episode (either backend).
-        if (!songChanged) {
-          // Same item re-emitted: keep the resume state as it is.
-        } else if (_explicitStartId == mediaItem.id) {
-          // Opened from a bookmark: start there, not at the saved position.
-          _pendingResumeId = mediaItem.id;
-          _pendingResumeMs = _explicitStartMs;
-          _explicitStartId = null;
-        } else if (PodcastProgressService.isPodcastItem(mediaItem)) {
-          _pendingResumeId = mediaItem.id;
-          // The saved position, or past the intro its show skips.
-          _pendingResumeMs = podcastStartMs(
-            savedMs: PodcastProgressService.positionMs(mediaItem.id) ?? 0,
-            trim: PodcastPlaybackPrefs.trimForItem(mediaItem),
-            totalMs: mediaItem.duration?.inMilliseconds ?? 0,
-          );
-        } else if (_isAbsItem(mediaItem)) {
-          // Keep armResume() from detail screen if it targets this item.
-          if (_pendingResumeId != mediaItem.id) {
-            _pendingResumeId = null;
-            _pendingResumeMs = 0;
-          }
-        } else {
-          _pendingResumeId = null;
-        }
+        // Where the new item plays from; the same one re-emitted keeps it.
+        if (songChanged) armStart(mediaItem);
         currentSongIndex.value = currentQueue
             .indexWhere((element) => element.id == currentSong.value!.id);
         // The handler re-emits the *currently playing* item on non-play events
