@@ -21,6 +21,7 @@ import '../ui/screens/Library/library_controller.dart';
 import 'discovery/discovery_service.dart';
 import 'music_service.dart';
 import 'synced_lyrics_service.dart';
+import 'wifi_only_downloads.dart';
 
 class Downloader extends GetxService {
   // receiveTimeout is the max gap between chunks, so a stalled download
@@ -37,6 +38,9 @@ class Downloader extends GetxService {
   final songDownloadingProgress = 0.obs;
   final playlistDownloadingProgress = 0.obs;
   final isJobRunning = false.obs;
+
+  /// Download on Wi-Fi only, on mobile data: the next song waits for Wi-Fi.
+  final waitingForWifi = false.obs;
 
   RxList<MediaItem> songQueue = <MediaItem>[].obs;
 
@@ -175,6 +179,11 @@ class Downloader extends GetxService {
         top: !GetPlatform.isDesktop));
   }
 
+  void _onWaitForWifi() {
+    waitingForWifi.value = true;
+    _showSnack('downloadsWaitForWifi'.tr);
+  }
+
   Future<void> downloadSongList(List<MediaItem> jobSongList,
       {bool isPlaylist = false}) async {
     for (MediaItem song in jobSongList) {
@@ -186,6 +195,22 @@ class Downloader extends GetxService {
       }
 
       if (!Hive.box("SongDownloads").containsKey(song.id)) {
+        // Download on Wi-Fi only: on mobile data, it waits for Wi-Fi.
+        final go = await WifiOnlyDownloads.waitForWifi(
+            wanted: () => isPlaylist
+                ? playlistQueue.containsKey(currentPlaylistId.value)
+                : songQueue.contains(song),
+            onWait: _onWaitForWifi);
+        waitingForWifi.value = false;
+        if (!go) {
+          // Called off meanwhile (its playlist's download cancelled).
+          if (isPlaylist) {
+            currentPlaylistId.value = "";
+            playlistDownloadingProgress.value = 0;
+            return;
+          }
+          continue;
+        }
         currentSong = song;
         songDownloadingProgress.value = 0;
         try {

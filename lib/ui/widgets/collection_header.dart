@@ -258,7 +258,9 @@ class CollectionDownloadButton extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return GetX<Downloader>(builder: (d) {
       final queued = d.playlistQueue.containsKey(id);
-      final active = queued && d.currentPlaylistId.toString() == id;
+      // Download on Wi-Fi only, on mobile data: still queued, for Wi-Fi.
+      final waiting = queued && d.waitingForWifi.value;
+      final active = queued && d.currentPlaylistId.toString() == id && !waiting;
       Widget icon;
       if (isDownloaded) {
         icon = Icon(Icons.download_done_rounded,
@@ -284,7 +286,7 @@ class CollectionDownloadButton extends StatelessWidget {
             size: RiffComponentSizes.headerIcon, color: scheme.onSurface);
       }
       return IconButton(
-        tooltip: tooltip,
+        tooltip: waiting ? 'waitingForWifi'.tr : tooltip,
         onPressed: isDownloaded ? null : () => d.downloadPlaylist(id, songs()),
         icon: icon,
       );

@@ -419,6 +419,13 @@ Streaming quality:
   each song starts on (high on desktop). Data saver still means low
   everywhere; video mode's audio and the song info follow the same rule
 
+Downloads:
+* Download on Wi-Fi only, as with Spotify, YouTube Music and Apple Music:
+  turn it on in Settings › Download and, on mobile data, song downloads
+  (songs, albums and playlists) wait for Wi-Fi, then start by themselves.
+  A playlist waiting shows its hourglass, "Waiting for Wi-Fi"; you can
+  still cancel it. Off by default; phones only
+
 Stats:
 * Play your top songs, like Spotify's: in Stats, tap a song in Top songs
   to play it with the rest of the list after it, or Play to start from

@@ -23,6 +23,7 @@ import '/services/private_session.dart';
 import '/services/song_fade.dart';
 import '/services/music_autoplay.dart';
 import '/services/explicit_content.dart';
+import '/services/wifi_only_downloads.dart';
 import '/ui/widgets/equalizer_sheet.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/listenbrainz_service.dart';
@@ -1210,6 +1211,19 @@ class SettingsScreen extends StatelessWidget {
                               .toggleAutoDownloadFavoriteSong),
                     ),
                   ),
+                  // Phones only: on a computer it's never mobile data.
+                  if (!isDesktop)
+                    ListTile(
+                      contentPadding: settingsTilePadding,
+                      title: Text("downloadOnWifiOnly".tr),
+                      subtitle: Text("downloadOnWifiOnlyDes".tr,
+                          style: settingsSubtitleStyle(context)),
+                      trailing: Obx(
+                        () => CustSwitch(
+                            value: WifiOnlyDownloads.enabled.value,
+                            onChanged: WifiOnlyDownloads.set),
+                      ),
+                    ),
                   ListTile(
                     contentPadding: settingsTilePadding,
                     title: Text("downloadingFormat".tr),
