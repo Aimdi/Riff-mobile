@@ -779,6 +779,7 @@ class _AbsLoginFormState extends State<_AbsLoginForm> {
             context,
             'password'.tr,
             suffix: IconButton(
+              tooltip: (_obscure ? 'showPassword' : 'hidePassword').tr,
               icon: Icon(_obscure
                   ? Icons.visibility_rounded
                   : Icons.visibility_off_rounded),

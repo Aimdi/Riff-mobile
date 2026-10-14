@@ -268,6 +268,7 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
       labelText: label,
       isDense: true,
       suffixIcon: IconButton(
+        tooltip: (obscure ? 'showPassword' : 'hidePassword').tr,
         icon: Icon(obscure ? Icons.visibility : Icons.visibility_off),
         onPressed: onToggleObscure,
       ),
@@ -852,6 +853,7 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
             Row(
               children: [
                 IconButton(
+                  tooltip: 'back'.tr,
                   icon: const Icon(Icons.arrow_back_ios_new),
                   onPressed: () => Get.back(id: ScreenNavigationSetup.id),
                 ),
@@ -908,6 +910,7 @@ class _TorrentSearchScreenState extends State<TorrentSearchScreen> {
                 hintText: 'torrentSearchHint'.tr,
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: IconButton(
+                  tooltip: 'search'.tr,
                   icon: const Icon(Icons.arrow_forward),
                   onPressed: _loading ? null : () => _search(),
                 ),

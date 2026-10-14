@@ -156,12 +156,14 @@ class Home extends StatelessWidget {
                                               }
                                               playerController.shuffleQueue();
                                             },
+                                            tooltip: "shuffleQueue".tr,
                                             icon: const Icon(Icons.shuffle)),
                                         IconButton(
                                             onPressed: () {
                                               clearQueueWithUndo(
                                                   context: context);
                                             },
+                                            tooltip: "clearQueue".tr,
                                             icon: const Icon(
                                                 Icons.playlist_remove)),
                                       ],

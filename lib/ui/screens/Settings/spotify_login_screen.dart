@@ -90,6 +90,7 @@ class _SpotifyLoginScreenState extends State<SpotifyLoginScreen> {
       appBar: RiffAppBar(AppBar(
         title: Text('spotifySignIn'.tr),
         leading: IconButton(
+          tooltip: 'close'.tr,
           icon: const Icon(Icons.close),
           onPressed: () => Get.back(result: false),
         ),

@@ -215,6 +215,7 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                   subtitle: dur.isEmpty ? null : Text(dur),
                   trailing: IconButton(
                     color: scheme.onSurfaceVariant,
+                    tooltip: 'play'.tr,
                     icon: const Icon(Icons.play_arrow,
                         size: RiffComponentSizes.trailingIcon),
                     onPressed: () => _play(index: i),

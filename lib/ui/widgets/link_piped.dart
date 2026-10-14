@@ -65,6 +65,11 @@ class LinkPiped extends StatelessWidget {
                           suffixIcon: IconButton(
                             color:
                                 Theme.of(context).colorScheme.onSurfaceVariant,
+                            tooltip:
+                                (pipedLinkedController.passwordVisible.value
+                                        ? 'hidePassword'
+                                        : 'showPassword')
+                                    .tr,
                             icon: pipedLinkedController.passwordVisible.value
                                 ? const Icon(Icons.visibility_off)
                                 : const Icon(Icons.visibility),

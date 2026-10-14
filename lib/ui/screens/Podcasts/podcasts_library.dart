@@ -401,6 +401,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                       controller.searchQuery.isNotEmpty;
                   if (!active) return const SizedBox.shrink();
                   return IconButton(
+                    tooltip: 'clear'.tr,
                     icon: Icon(Icons.close,
                         size: RiffComponentSizes.trailingIcon,
                         color: hintColor),

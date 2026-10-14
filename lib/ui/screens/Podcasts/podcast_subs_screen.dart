@@ -207,7 +207,7 @@ void showNewPodcastFolderDialog(BuildContext context,
               const SizedBox(height: RiffSpacing.md),
               Text("folderColor".tr, style: Theme.of(ctx).textTheme.titleSmall),
               const SizedBox(height: RiffSpacing.sm),
-              _FolderColorPicker(
+              PodcastFolderColorPicker(
                 selected: colorIndex,
                 onChanged: (i) => setLocal(() => colorIndex = i),
               ),
@@ -237,8 +237,10 @@ void showNewPodcastFolderDialog(BuildContext context,
   );
 }
 
-class _FolderColorPicker extends StatelessWidget {
-  const _FolderColorPicker({required this.selected, required this.onChanged});
+/// A folder's colour: TalkBack says each one's name, and which is picked.
+class PodcastFolderColorPicker extends StatelessWidget {
+  const PodcastFolderColorPicker(
+      {super.key, required this.selected, required this.onChanged});
   final int selected;
   final ValueChanged<int> onChanged;
 
@@ -249,25 +251,31 @@ class _FolderColorPicker extends StatelessWidget {
       runSpacing: RiffSpacing.sm,
       children: [
         for (var i = 0; i < PodcastFolderColors.swatches.length; i++)
-          GestureDetector(
-            onTap: () => onChanged(i),
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: PodcastFolderColors.swatches[i],
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: selected == i
-                      ? Theme.of(context).colorScheme.onSurface
-                      : Colors.transparent,
-                  width: 2.5,
+          Semantics(
+            container: true,
+            button: true,
+            selected: selected == i,
+            label: PodcastFolderColors.names[i].tr,
+            child: GestureDetector(
+              onTap: () => onChanged(i),
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: PodcastFolderColors.swatches[i],
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: selected == i
+                        ? Theme.of(context).colorScheme.onSurface
+                        : Colors.transparent,
+                    width: 2.5,
+                  ),
                 ),
+                child: selected == i
+                    ? Icon(Icons.check,
+                        size: 16, color: RiffColors.of(context).onImage)
+                    : null,
               ),
-              child: selected == i
-                  ? Icon(Icons.check,
-                      size: 16, color: RiffColors.of(context).onImage)
-                  : null,
             ),
           ),
       ],
@@ -436,7 +444,7 @@ class PodcastSubsScreen extends StatelessWidget {
                 Text("folderColor".tr,
                     style: Theme.of(ctx).textTheme.titleSmall),
                 const SizedBox(height: RiffSpacing.sm),
-                _FolderColorPicker(
+                PodcastFolderColorPicker(
                   selected: current.colorIndex,
                   onChanged: (i) => fc.setColor(current.id, i),
                 ),

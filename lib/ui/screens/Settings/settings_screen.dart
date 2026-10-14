@@ -1637,14 +1637,19 @@ class ThemeSelectorDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final settingsController = Get.find<SettingsScreenController>();
     return CommonDialog(
+      // As tall as its content (the accents and Cancel spilled out of a
+      // fixed height on phones, more so with larger text), scrolling when
+      // the screen is shorter.
       child: _dialogBody(context, Container(
-        height: RiffComponentSizes.choiceDialog,
+        constraints:
+            const BoxConstraints(minHeight: RiffComponentSizes.choiceDialog),
         padding: const EdgeInsets.only(
             top: RiffSpacing.xxl,
             left: RiffSpacing.xs,
             right: RiffSpacing.xxl,
             bottom: RiffSpacing.sm),
-        child: Column(children: [
+        child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
           Padding(
             padding: const EdgeInsets.only(
                 left: RiffSpacing.xl, bottom: RiffSpacing.xs),
@@ -1680,7 +1685,7 @@ class ThemeSelectorDialog extends StatelessWidget {
                 bottom: RiffSpacing.xs),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text("Accent",
+              child: Text("accent".tr,
                   style: Theme.of(context).textTheme.titleMedium),
             ),
           ),
@@ -1695,26 +1700,35 @@ class ThemeSelectorDialog extends StatelessWidget {
                     .map((entry) => Padding(
                           padding:
                               const EdgeInsets.only(right: RiffSpacing.md),
-                          child: InkWell(
-                            customBorder: const CircleBorder(),
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              themeController.changeAccentColor(entry.value);
-                            },
-                            child: Container(
-                              width: RiffComponentSizes.accentSwatch,
-                              height: RiffComponentSizes.accentSwatch,
-                              decoration: BoxDecoration(
-                                color: entry.value,
-                                shape: BoxShape.circle,
+                          // TalkBack says each accent's name, and which
+                          // is picked.
+                          child: Semantics(
+                            container: true,
+                            button: true,
+                            selected: current.value == entry.value.value,
+                            label: 'color${entry.key}'.tr,
+                            child: InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                themeController
+                                    .changeAccentColor(entry.value);
+                              },
+                              child: Container(
+                                width: RiffComponentSizes.accentSwatch,
+                                height: RiffComponentSizes.accentSwatch,
+                                decoration: BoxDecoration(
+                                  color: entry.value,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: current.value == entry.value.value
+                                    ? Icon(Icons.check,
+                                        size: RiffComponentSizes.inlineIcon,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onPrimary)
+                                    : null,
                               ),
-                              child: current.value == entry.value.value
-                                  ? Icon(Icons.check,
-                                      size: RiffComponentSizes.inlineIcon,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onPrimary)
-                                  : null,
                             ),
                           ),
                         ))
@@ -1732,7 +1746,7 @@ class ThemeSelectorDialog extends StatelessWidget {
                 ),
                 onTap: () => Navigator.of(context).pop(),
               ))
-        ]),
+        ])),
       )),
     );
   }

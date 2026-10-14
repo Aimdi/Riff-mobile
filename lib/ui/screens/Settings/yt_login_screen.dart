@@ -70,6 +70,7 @@ class _YtLoginScreenState extends State<YtLoginScreen> {
       appBar: RiffAppBar(AppBar(
         title: Text("connectYtAccount".tr),
         leading: IconButton(
+          tooltip: 'close'.tr,
           icon: const Icon(Icons.close),
           onPressed: () => Get.back(result: false),
         ),

@@ -88,6 +88,19 @@ Screen readers (TalkBack):
   Music and Apple Music: it reads where the song or episode is ("Playback
   position, 1:23 of 3:45"), and swiping up or down moves it 10 seconds.
   It said nothing before, so it couldn't be used without sight
+* The last icon buttons that said only "button" now say what they do,
+  and show it on a long press: Shuffle Queue and Clear queue by the
+  queue on a tablet or desktop, Show / Hide password in password fields,
+  Search by the arrow in Soulseek, SoulSync and torrent search, Close on
+  the sign-in pages, Clear in podcast and cloud search, Play on a book's
+  chapters, Play / Pause in Spotify Connect and Sync Piped playlists
+* A show's play button in Subscriptions can be reached on its own and
+  reads "Play"; it was folded into the show's tile, so it couldn't be
+  pressed with TalkBack. The accent colours (Settings › Theme) and a
+  podcast folder's colours say their names and which one is picked
+* The Theme dialog fits its content: on phones the accent colours and
+  Cancel spilled out of its bottom, more so with larger text; it now
+  scrolls when the screen is too short. "Accent" there is translated
 
 Remove animations (Android's accessibility setting):
 * Riff now keeps still with it on, as Apple Music does under Reduce

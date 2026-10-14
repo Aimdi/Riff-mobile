@@ -225,6 +225,7 @@ class _SpotifyConnectPanelState extends State<SpotifyConnectPanel> {
                             icon: Icon(s!.isPlaying
                                 ? Icons.pause_rounded
                                 : Icons.play_arrow_rounded),
+                            tooltip: (s.isPlaying ? 'pause' : 'play').tr,
                             onPressed: () => SpotifyConnect.command((id) =>
                                 s.isPlaying
                                     ? api.pause(deviceId: id)

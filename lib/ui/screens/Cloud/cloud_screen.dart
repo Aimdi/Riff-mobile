@@ -123,6 +123,7 @@ class _CloudLoginFormState extends State<CloudLoginForm> {
             labelText: 'password'.tr,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
             suffixIcon: IconButton(
+              tooltip: (_obscure ? 'showPassword' : 'hidePassword').tr,
               icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
               onPressed: () => setState(() => _obscure = !_obscure),
             ),
@@ -267,6 +268,7 @@ class _CloudLibraryViewState extends State<_CloudLibraryView> {
               border:
                   OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               suffixIcon: IconButton(
+                tooltip: 'clear'.tr,
                 icon: const Icon(Icons.clear, size: 18),
                 onPressed: _clearSearch,
               ),

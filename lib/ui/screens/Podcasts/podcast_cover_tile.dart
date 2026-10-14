@@ -218,6 +218,7 @@ class PodcastCoverTile extends StatelessWidget {
 }
 
 /// Accent play circle on a cover (a play button, §2.5); flat, no shadow.
+/// TalkBack reaches it apart from the tile around it, as "Play".
 class _PlayFab extends StatelessWidget {
   const _PlayFab({this.onPressed});
   final VoidCallback? onPressed;
@@ -225,18 +226,23 @@ class _PlayFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: scheme.primary,
-      shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onPressed,
-        child: SizedBox(
-          width: RiffComponentSizes.coverPlay,
-          height: RiffComponentSizes.coverPlay,
-          child: Icon(Icons.play_arrow_rounded,
-              color: scheme.onPrimary, size: RiffComponentSizes.trailingIcon),
+    return Semantics(
+      container: true,
+      button: true,
+      label: 'play'.tr,
+      child: Material(
+        color: scheme.primary,
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onPressed,
+          child: SizedBox(
+            width: RiffComponentSizes.coverPlay,
+            height: RiffComponentSizes.coverPlay,
+            child: Icon(Icons.play_arrow_rounded,
+                color: scheme.onPrimary, size: RiffComponentSizes.trailingIcon),
+          ),
         ),
       ),
     );
