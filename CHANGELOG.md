@@ -93,6 +93,8 @@ Android Auto:
   the songs found; pick one and the rest follow it. On the phone, "Hey
   Google, play <song or artist> on Riff" does the same, even with Riff
   closed
+* Your starred podcast episodes are under Podcasts › Starred in the car,
+  newest starred first, as Pocket Casts lists them
 
 Now playing:
 * Tap the time at the end of the seek bar to see the time left
@@ -253,7 +255,9 @@ Podcasts:
   Starred lists them, newest starred first: tap one to play it from
   where you were, swipe it away to unstar it (with Undo). A starred
   episode's download is kept when finished downloads are deleted, as
-  AntennaPod keeps its favourites'
+  AntennaPod keeps its favourites'. With sync (WebDAV) on, starred
+  episodes reach your other devices, and unstarring one unstars it
+  there too (podcasts/starred.json, see docs/sync-format.md)
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip

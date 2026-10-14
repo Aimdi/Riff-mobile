@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/services/audio_handler.dart' show MediaLibrary;
 import 'package:harmonymusic/services/podcast_inbox_counts.dart';
+import 'package:harmonymusic/services/podcast_starred.dart';
 import 'package:harmonymusic/ui/screens/Podcasts/podcast_queue_controller.dart';
 import 'package:hive/hive.dart';
 
@@ -26,6 +27,7 @@ void main() {
       'PodcastProgress',
       'PodcastArchived',
       'PodcastSubs',
+      StarredEpisodes.box,
     ]) {
       await Hive.openBox(b, bytes: Uint8List(0));
     }
@@ -76,5 +78,21 @@ void main() {
     final items =
         await MediaLibrary().browse(MediaLibrary.podcastInboxId, null);
     expect(_ids(items), ['new', 'old']);
+  });
+
+  test('Starred: newest starred first, played from that list', () async {
+    await StarredEpisodes.star(_ep('s1'), now: DateTime(2026, 10, 1));
+    await StarredEpisodes.star(_ep('s2'), now: DateTime(2026, 10, 2));
+    final nodes = await MediaLibrary().getPodcastNodes();
+    expect(_ids(nodes), contains(MediaLibrary.podcastStarredId));
+    expect(MediaLibrary.isBuiltList(MediaLibrary.podcastStarredId), isTrue);
+
+    final items =
+        await MediaLibrary().browse(MediaLibrary.podcastStarredId, null);
+    expect(_ids(items), ['s2', 's1']);
+    expect(items.every((m) => m.playable == true), isTrue);
+    expect(MediaLibrary.listIdFor('s1'), MediaLibrary.podcastStarredId);
+    expect(_ids(MediaLibrary.autoPodcastLists[MediaLibrary.podcastStarredId]!),
+        ['s2', 's1']);
   });
 }

@@ -19,6 +19,7 @@ import '/models/album.dart';
 import '../models/playlist.dart';
 import '/services/equalizer.dart';
 import '/services/riff_equalizer.dart';
+import '/services/podcast_starred.dart';
 import '/services/youtube_stream_headers.dart';
 import '/services/playlist_mix_service.dart';
 import '/services/audiobookshelf_service.dart';
@@ -2318,6 +2319,9 @@ class MediaLibrary {
   static const podcastQueueId = 'aa_pod_queue';
   static const podcastInboxId = 'aa_pod_inbox';
 
+  /// Starred episodes, as Pocket Casts lists Starred in the car.
+  static const podcastStarredId = 'aa_pod_starred';
+
   /// What the car's search, or a voice request, found.
   static const searchResultsId = 'aa_search';
 
@@ -2430,6 +2434,7 @@ class MediaLibrary {
           id: podcastProgressId,
           title: "continueListening".tr,
           playable: false),
+      MediaItem(id: podcastStarredId, title: "starred".tr, playable: false),
     ];
     try {
       for (final s in PodcastService.subscriptions) {
@@ -2461,6 +2466,11 @@ class MediaLibrary {
         // The Inbox as the app lists it, newest first, from its last
         // refresh (the car doesn't fetch every feed).
         items = PodcastInboxCounts.waiting().take(100).toList();
+      } else if (id == podcastStarredId) {
+        items = [
+          for (final s in StarredEpisodes.all)
+            if (s.item case final m?) m
+        ];
       } else if (id.startsWith(podcastFeedPrefix)) {
         final feed = id.substring(podcastFeedPrefix.length);
         final sub = PodcastService.subscriptions.firstWhere(
@@ -2489,6 +2499,7 @@ class MediaLibrary {
     if (id == podcastProgressId ||
         id == podcastQueueId ||
         id == podcastInboxId ||
+        id == podcastStarredId ||
         id.startsWith(podcastFeedPrefix)) {
       return getPodcastList(id);
     }
