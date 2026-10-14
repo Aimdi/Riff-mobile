@@ -9,6 +9,7 @@ import 'package:harmonymusic/services/music_service.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:harmonymusic/ui/theme/riff_theme.dart';
 import 'package:harmonymusic/ui/widgets/sleep_timer_bottom_sheet.dart';
+import 'package:harmonymusic/utils/get_localization.dart';
 import 'package:hive/hive.dart';
 
 class _FakeMusic extends GetxService implements MusicServices {
@@ -158,6 +159,25 @@ void main() {
       player.buttonState.value = PlayButtonState.playing;
       expect(player.isSleepTimerActive.isTrue, isFalse);
     });
+  });
+
+  testWidgets('its hours fit a phone with a larger font size', (tester) async {
+    Get.addTranslations(Languages().keys);
+    Get.locale = const Locale('en');
+    addTearDown(Get.clearTranslations);
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    tester.view.physicalSize = const Size(360, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(() => AutoSleepTimer.setEnabled(true));
+    await tester.pumpWidget(GetMaterialApp(
+      theme: RiffTheme.dark(const Color(0xFF1DB954)),
+      home: const Scaffold(body: AutoSleepTimerTile()),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Until'), findsOneWidget);
+    expect(tester.getRect(find.text('6:00 AM')).right, lessThanOrEqualTo(360));
   });
 
   testWidgets('the sheet switches it on and sets its hours', (tester) async {

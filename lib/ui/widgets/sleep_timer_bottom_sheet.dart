@@ -313,7 +313,9 @@ class _HourDropdown extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: labelStyle),
+          // Wraps rather than pushing the hour off the edge under a
+          // larger font size.
+          Flexible(child: Text(label, style: labelStyle)),
           const SizedBox(width: RiffSpacing.sm),
           DropdownButton<int>(
             dropdownColor: Theme.of(context).colorScheme.surfaceContainerLow,

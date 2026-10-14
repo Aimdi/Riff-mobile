@@ -78,6 +78,20 @@ void main() {
     expect(lib.modeResets, 1);
   });
 
+  testWidgets('with a larger font size, Cancel and Create & add stack',
+      (tester) async {
+    Get.put<LibraryPlaylistsController>(_FakeLibrary());
+    Get.put<PipedServices>(_FakePiped());
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await tester.pumpWidget(_app(Colors.green));
+    // Not side by side off the dialog's edge.
+    final cancel = tester.getRect(find.text('Cancel'));
+    final create = tester.getRect(find.text('Create & add'));
+    expect(create.top, greaterThanOrEqualTo(cancel.bottom));
+    expect(create.right, lessThanOrEqualTo(tester.view.physicalSize.width));
+  });
+
   Widget editing(Playlist playlist) => GetMaterialApp(
         translations: Languages(),
         locale: const Locale('en'),

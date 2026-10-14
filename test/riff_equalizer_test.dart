@@ -7,6 +7,7 @@ import 'package:harmonymusic/services/riff_equalizer.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:harmonymusic/ui/theme/riff_theme.dart';
 import 'package:harmonymusic/ui/widgets/equalizer_sheet.dart';
+import 'package:harmonymusic/utils/get_localization.dart';
 import 'package:hive/hive.dart';
 
 /// Most phones: five bands, ±15 dB.
@@ -141,6 +142,20 @@ void main() {
       await open(tester);
       expect(tester.widget<Slider>(find.byType(Slider).first).value,
           kept.first.toDouble());
+    });
+
+    testWidgets('with a larger font size, both buttons stay on the sheet',
+        (tester) async {
+      Get.addTranslations(Languages().keys);
+      Get.locale = const Locale('en');
+      addTearDown(Get.clearTranslations);
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await open(tester);
+      expect(find.text('Restore default settings'), findsOneWidget);
+      await tester.tap(find.text("Phone's equalizer"));
+      await tester.pumpAndSettle();
+      expect(player.openedPhones, 1);
     });
 
     testWidgets("a phone without one: say so, and offer the phone's",

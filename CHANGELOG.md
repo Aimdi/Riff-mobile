@@ -107,6 +107,12 @@ Screen readers (TalkBack):
   off the side. They grow with the text and scroll when the screen is
   too short; Reset taste model and Confirm go one over the other when
   they don't fit side by side. At the default size they look as before
+* The other places a larger font size made spill fit now as well: the
+  New playlist dialog's and the Equalizer's buttons go one over the
+  other when they don't fit side by side, the automatic sleep timer's
+  From and Until wrap beside their hours, and album and playlist rows
+  (search results, artist pages) grow taller with the text instead of
+  cutting their lines off. At the default size they look as before
 
 Remove animations (Android's accessibility setting):
 * Riff now keeps still with it on, as Apple Music does under Reduce

@@ -206,14 +206,16 @@ class _CreateNRenamePlaylistPopupState
               ),
             ],
             const SizedBox(height: RiffSpacing.lg),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            // Side by side, or stacked under a larger font size.
+            OverflowBar(
+              alignment: MainAxisAlignment.end,
+              spacing: RiffSpacing.sm,
+              overflowAlignment: OverflowBarAlignment.end,
               children: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   child: Text("cancel".tr),
                 ),
-                const SizedBox(width: RiffSpacing.sm),
                 FilledButton(
                   onPressed: () => _submit(context, librPlstCntrller),
                   child: Text(

@@ -202,8 +202,10 @@ class _EqualizerSheetState extends State<EqualizerSheet> {
               Padding(
                 padding: const EdgeInsets.symmetric(
                     horizontal: RiffSpacing.sm, vertical: RiffSpacing.xs),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                // Stacked when a larger font size leaves no room.
+                child: OverflowBar(
+                  alignment: MainAxisAlignment.spaceBetween,
+                  overflowAlignment: OverflowBarAlignment.end,
                   children: [
                     TextButton(
                       onPressed: () async {

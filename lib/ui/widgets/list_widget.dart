@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,11 +18,22 @@ import 'collection_play.dart';
 import 'empty_play_hint.dart';
 import 'image_widget.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_text_metrics.dart';
 import '/ui/theme/riff_tokens.dart';
 import '../screens/Home/home_layout.dart';
 import 'snackbar.dart';
 import 'song_list_tile.dart';
 import 'songinfo_bottom_sheet.dart';
+
+/// An album / playlist row's height: 96 dp, grown with the system text
+/// size so its two-line title and meta line stay inside it.
+double wideRowExtentOf(BuildContext context) => math.max(
+    RiffComponentSizes.wideRowExtent,
+    riffLineHeight(context, homeCardTitleStyle(context)) * 2 +
+        RiffSpacing.xxs +
+        riffLineHeight(context, homeCardSubtitleStyle(context)) +
+        RiffComponentSizes.wideRowExtent -
+        RiffComponentSizes.wideRowArt);
 
 /// Search overview rows and Songs/Videos/Episodes lists play as a queue.
 /// Playlist/album/artist complete lists keep their own play-from path.
@@ -107,9 +120,9 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
                   maxItems: _overviewPreviewCount),
             );
     } else if (title.contains("playlists") || title == "Podcasts") {
-      return listViewPlaylists(items, sc: scrollController);
+      return listViewPlaylists(context, items, sc: scrollController);
     } else if (title == "Albums" || title == "Singles") {
-      return listViewAlbums(items, sc: scrollController);
+      return listViewAlbums(context, items, sc: scrollController);
     } else if (title.contains('Artists')) {
       return isCompleteList
           ? Expanded(child: listViewArtists(items, sc: scrollController))
@@ -194,7 +207,8 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
     );
   }
 
-  Widget listViewPlaylists(List<dynamic> playlists, {ScrollController? sc}) {
+  Widget listViewPlaylists(BuildContext context, List<dynamic> playlists,
+      {ScrollController? sc}) {
     return Expanded(
       child: ListView.builder(
           padding: const EdgeInsets.only(
@@ -203,7 +217,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           ),
           controller: sc,
           itemCount: playlists.length,
-          itemExtent: RiffComponentSizes.wideRowExtent,
+          itemExtent: wideRowExtentOf(context),
           physics: const BouncingScrollPhysics(),
           itemBuilder: (context, index) => wideListTile(context,
               playlist: playlists[index],
@@ -213,7 +227,8 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
     );
   }
 
-  Widget listViewAlbums(List<dynamic> albums, {ScrollController? sc}) {
+  Widget listViewAlbums(BuildContext context, List<dynamic> albums,
+      {ScrollController? sc}) {
     return Expanded(
       child: ListView.builder(
           padding: const EdgeInsets.only(
@@ -222,7 +237,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           ),
           controller: sc,
           itemCount: albums.length,
-          itemExtent: RiffComponentSizes.wideRowExtent,
+          itemExtent: wideRowExtentOf(context),
           physics: const BouncingScrollPhysics(),
           itemBuilder: (context, index) {
             String artistName = "";
@@ -558,12 +573,12 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
         );
       },
       child: SizedBox(
-        height: RiffComponentSizes.wideRowExtent,
+        height: wideRowExtentOf(context),
         child: Stack(
           children: [
             Padding(
               // Gutter like every row; the vertical inset keeps the 76dp
-              // cover exactly inside the 96dp row.
+              // cover exactly inside the 96dp row (taller with larger text).
               padding: const EdgeInsets.symmetric(
                   horizontal: RiffSpacing.lg,
                   vertical: (RiffComponentSizes.wideRowExtent -
