@@ -335,6 +335,13 @@ Fade between songs:
   before) or Loud, which keeps more of each song's volume. Changing it
   applies to the song playing straight away
 
+Streaming quality:
+* Auto, as in Metrolist (YouTube Music and Spotify set Wi-Fi and mobile
+  data apart too): Settings › Streaming quality › Auto plays songs in
+  high quality on Wi-Fi and low on mobile data, going by the connection
+  each song starts on (high on desktop). Data saver still means low
+  everywhere; video mode's audio and the song info follow the same rule
+
 Stats:
 * Play your top songs, like Spotify's: in Stats, tap a song in Top songs
   to play it with the rest of the list after it, or Play to start from

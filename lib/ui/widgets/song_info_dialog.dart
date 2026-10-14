@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
+import '/services/network_kind.dart';
+import '/services/stream_service.dart' show streamingQualityIndex;
 import '/ui/theme/riff_spacing.dart';
 import '/ui/widgets/common_dialog_widget.dart';
 
@@ -65,6 +67,15 @@ class SongInfoDialog extends StatelessWidget {
     );
   }
 
+  /// The quality the music pipeline plays at: Data saver and Auto too.
+  int _playedQualityIndex() {
+    final prefs = Hive.box('AppPrefs');
+    return streamingQualityIndex(
+        dataSaver: prefs.get('dataSaver'),
+        streamingQuality: prefs.get('streamingQuality'),
+        metered: NetworkKind.lastMetered);
+  }
+
   Map<dynamic, dynamic> _getStreamInfo(String id) {
     Map<dynamic, dynamic> tempstreamInfo;
     final nullVal = {
@@ -82,7 +93,7 @@ class SongInfoDialog extends StatelessWidget {
       final dbStreamData = Hive.box("SongsUrlCache").get(id);
       tempstreamInfo = dbStreamData != null &&
               dbStreamData.runtimeType.toString().contains("Map")
-          ? dbStreamData[Hive.box('AppPrefs').get('streamingQuality') == 0
+          ? dbStreamData[_playedQualityIndex() == 0
               ? 'lowQualityAudio'
               : "highQualityAudio"]
           : nullVal;

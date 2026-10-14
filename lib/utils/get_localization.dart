@@ -4877,7 +4877,7 @@ Map<String, Map<String, String>> get keys => {
     "normalizationNormal": "Normal",
     "normalizationLoud": "Loud",
     "streamingQuality": "Streaming quality",
-    "streamingQualityDes": "Quality of music stream",
+    "streamingQualityDes": "Quality of music stream. Auto: High on Wi-Fi, Low on mobile data",
     "disableTransitionAnimation": "Disable transition animation",
     "disableTransitionAnimationDes": "Enable this option to disable tab transition animation",
     "enableSlidableAction": "Enable slidable actions",

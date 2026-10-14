@@ -25,6 +25,10 @@ import 'network_policy.dart';
 enum AudioQuality {
   Low,
   High,
+
+  /// High on Wi-Fi, Low on mobile data (stream_service's
+  /// autoStreamingQuality).
+  Auto,
 }
 
 /// Parses the track count out of a playlist header run such as

@@ -270,6 +270,11 @@ class SettingsScreen extends StatelessWidget {
                             value: AudioQuality.High,
                             child: Text("high".tr),
                           ),
+                          // High on Wi-Fi, Low on mobile data (Metrolist).
+                          DropdownMenuItem(
+                            value: AudioQuality.Auto,
+                            child: Text("auto".tr),
+                          ),
                         ],
                         onChanged: settingsController.setStreamingQuality,
                       ),

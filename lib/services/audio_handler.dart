@@ -37,6 +37,7 @@ import '/services/normalization_level.dart';
 import '/services/shuffle_order.dart';
 import '/services/song_fade.dart';
 import '/services/stream_service.dart';
+import '/services/network_kind.dart';
 import '/ui/screens/Podcasts/podcast_queue_controller.dart';
 import '/models/hm_streaming_data.dart';
 import '/ui/player/player_controller.dart';
@@ -1124,11 +1125,14 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     );
   }
 
+  /// Auto goes by [NetworkKind.lastMetered]: [checkNGetUrl] asks afresh
+  /// as each song starts.
   static int _streamingQualityIndex() {
     final prefs = Hive.box('AppPrefs');
     return streamingQualityIndex(
         dataSaver: prefs.get('dataSaver'),
-        streamingQuality: prefs.get('streamingQuality'));
+        streamingQuality: prefs.get('streamingQuality'),
+        metered: NetworkKind.lastMetered);
   }
 
   static bool _hasDirectStreamUrl(String id) =>
@@ -2138,6 +2142,11 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     } else {
       //check if song stream url is cached and allocate url accordingly
       final songsUrlCacheBox = Hive.box("SongsUrlCache");
+      // Auto quality goes by the connection the song starts on.
+      if (Hive.box('AppPrefs').get('streamingQuality') ==
+          autoStreamingQuality) {
+        await NetworkKind.isMetered();
+      }
       final qualityIndex = _streamingQualityIndex();
       HMStreamingData? streamInfo;
       if (songsUrlCacheBox.containsKey(songId) && !generateNewUrl) {

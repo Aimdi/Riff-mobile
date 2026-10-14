@@ -9,14 +9,21 @@ class NetworkKind {
 
   static const channel = MethodChannel('riff/network');
 
+  /// The last answer [isMetered] gave (false until it's first asked), for
+  /// what can't wait for a fresh one.
+  static bool lastMetered = false;
+
   /// True on mobile data, and on Android when it can't tell (so nothing
   /// big goes over mobile data by mistake); false elsewhere (desktop).
   static Future<bool> isMetered() async {
-    if (defaultTargetPlatform != TargetPlatform.android) return false;
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      return lastMetered = false;
+    }
     try {
-      return await channel.invokeMethod<bool>('isMetered') ?? true;
+      return lastMetered =
+          await channel.invokeMethod<bool>('isMetered') ?? true;
     } catch (_) {
-      return true;
+      return lastMetered = true;
     }
   }
 }
