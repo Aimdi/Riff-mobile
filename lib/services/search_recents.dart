@@ -89,6 +89,21 @@ class SearchRecents {
   static Box? get _prefs =>
       Hive.isBoxOpen('AppPrefs') ? Hive.box('AppPrefs') : null;
 
+  /// AppPrefs: whether nothing searched for or opened from search is kept
+  /// (YouTube Music's and Metrolist's Pause search history).
+  static const pausedKey = 'searchHistoryPaused';
+
+  static final paused = RxBool(_prefs?.get(pausedKey) == true);
+
+  static Future<void> setPaused(bool on) async {
+    paused.value = on;
+    await _prefs?.put(pausedKey, on);
+  }
+
+  /// Reads the switch again (tests, after AppPrefs opens).
+  @visibleForTesting
+  static void reload() => paused.value = _prefs?.get(pausedKey) == true;
+
   static List<Object?> get _raw {
     final raw = _prefs?.get(key);
     return raw is List ? raw : const [];
@@ -99,6 +114,7 @@ class SearchRecents {
 
   /// [item] opened (or played): first in the list, once.
   static Future<void> note(Object item) async {
+    if (paused.value) return;
     final recent = SearchRecent.of(item);
     final prefs = _prefs;
     if (recent == null || recent.id.isEmpty || prefs == null) return;

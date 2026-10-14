@@ -21,6 +21,7 @@ import '/services/lyrics_text_size.dart';
 import '/services/lyrics_translation.dart';
 import '/services/normalization_level.dart';
 import '/services/private_session.dart';
+import '/services/search_recents.dart';
 import '/services/song_fade.dart';
 import '/services/music_autoplay.dart';
 import '/services/explicit_content.dart';
@@ -1021,6 +1022,21 @@ class SettingsScreen extends StatelessWidget {
                           ),
                         );
                       }),
+                    ),
+                    // YouTube Music's and Metrolist's Pause search history.
+                    SettingsSearchable(
+                      title: 'pauseSearchHistory'.tr,
+                      subtitle: 'pauseSearchHistoryDes'.tr,
+                      child: Obx(() => ListTile(
+                            contentPadding: settingsTilePadding,
+                            title: Text('pauseSearchHistory'.tr),
+                            subtitle: Text('pauseSearchHistoryDes'.tr,
+                                style: settingsSubtitleStyle(context)),
+                            trailing: CustSwitch(
+                              value: SearchRecents.paused.value,
+                              onChanged: SearchRecents.setPaused,
+                            ),
+                          )),
                     ),
                     ListTile(
                       contentPadding: settingsTilePadding,

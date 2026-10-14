@@ -678,6 +678,10 @@ Search:
   covers on the search page before you type, above the words you
   searched for. Tap one to play it or open it again; ✕ forgets it, and
   Clear forgets them all with the words
+* Pause search history, as YouTube Music and Metrolist have it: with the
+  switch on (Settings, under Private session), what you search for and
+  what you open from search isn't kept in Recent searches; what was
+  kept before stays until you clear it
 * Spotify links open in Riff: share a Spotify song to Riff (or paste its
   link into the search) and its YouTube Music match plays, found as
   Import from Spotify finds songs (exactly by its ISRC when you're

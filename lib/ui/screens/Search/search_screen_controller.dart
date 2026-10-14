@@ -7,6 +7,7 @@ import 'package:hive/hive.dart';
 import '/utils/app_link_controller.dart' show ProcessLink;
 import '/utils/helper.dart' show printERROR;
 import '/services/music_service.dart';
+import '/services/search_recents.dart';
 
 class SearchScreenController extends GetxController with ProcessLink {
   final textInputController = TextEditingController();
@@ -73,6 +74,8 @@ class SearchScreenController extends GetxController with ProcessLink {
   }
 
   Future<void> addToHistryQueryList(String txt) async {
+    // Search history paused: nothing kept.
+    if (SearchRecents.paused.value) return;
     // Only a new query makes room: searching one already in the history
     // used to drop the oldest entry anyway, shrinking the list.
     if (!historyQuerylist.contains(txt)) {
