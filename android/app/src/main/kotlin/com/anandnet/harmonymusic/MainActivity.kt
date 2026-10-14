@@ -5,14 +5,18 @@ import android.app.ApplicationExitInfo
 import android.app.SearchManager
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.content.pm.ResolveInfo
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
+import android.media.MediaRouter2
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
+import android.provider.Settings
 import android.speech.RecognizerIntent
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -158,6 +162,9 @@ class MainActivity : AudioServiceActivity() {
                         result.success(null)
                     }
                 }
+                // The player's "Play on another device": the phone's own
+                // output switcher (headphones, speakers, this phone).
+                "showOutputSwitcher" -> result.success(showOutputSwitcher())
                 else -> result.notImplemented()
             }
         }
@@ -241,6 +248,62 @@ class MainActivity : AudioServiceActivity() {
         } catch (_: IllegalArgumentException) {
             false
         }
+    }
+
+    /**
+     * The phone's own output switcher for Riff's media (Bluetooth
+     * headphones, speakers, this phone), as Spotify's and YouTube Music's
+     * devices button opens one: Android 14's, SystemUI's media output
+     * dialog on 12 and 13, the Settings panel on 11 (androidx.mediarouter's
+     * SystemOutputSwitcherDialogController does the same), and Bluetooth
+     * settings before. False when none opened.
+     */
+    // queryBroadcastReceivers / queryIntentActivities (Int flags):
+    // deprecated on API 33, still fine everywhere.
+    @Suppress("DEPRECATION")
+    private fun showOutputSwitcher(): Boolean {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
+                MediaRouter2.getInstance(this).showSystemOutputSwitcher()
+            ) {
+                return true
+            }
+            // Only the system's own receiver and panel (another app could
+            // claim the actions); visible thanks to the <queries> entries
+            // in the manifest.
+            val dialog = Intent("com.android.systemui.action.LAUNCH_MEDIA_OUTPUT_DIALOG")
+                .setPackage("com.android.systemui")
+                .putExtra("package_name", packageName)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                packageManager.queryBroadcastReceivers(dialog, 0).any { isSystemApp(it) }
+            ) {
+                sendBroadcast(dialog)
+                return true
+            }
+            val panel = Intent("com.android.settings.panel.action.MEDIA_OUTPUT")
+                .putExtra("com.android.settings.panel.extra.PACKAGE_NAME", packageName)
+            val settings = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                packageManager.queryIntentActivities(panel, 0)
+                    .firstOrNull { isSystemApp(it) }?.activityInfo?.packageName
+            } else {
+                null
+            }
+            startActivity(
+                if (settings != null) panel.setPackage(settings)
+                else Intent(Settings.ACTION_BLUETOOTH_SETTINGS)
+            )
+            return true
+        } catch (_: ActivityNotFoundException) {
+            return false
+        } catch (_: SecurityException) {
+            return false
+        }
+    }
+
+    private fun isSystemApp(info: ResolveInfo): Boolean {
+        val flags = info.activityInfo?.applicationInfo?.flags ?: return false
+        return (flags and (ApplicationInfo.FLAG_SYSTEM or
+            ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0
     }
 
     private fun lastExitInfo(): Map<String, Any?>? =

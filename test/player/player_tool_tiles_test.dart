@@ -4,6 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/services/audio_output.dart';
 import 'package:harmonymusic/services/lyrics_timing.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:harmonymusic/ui/theme/riff_theme.dart';
@@ -59,7 +60,9 @@ void main() {
             body: TextButton(
               onPressed: () => showModalBottomSheet(
                 context: context,
-                builder: (_) => const PlayerToolTiles(),
+                // Scrolling, as in the song sheet.
+                builder: (_) =>
+                    const SingleChildScrollView(child: PlayerToolTiles()),
               ),
               child: const Text('open'),
             ),
@@ -126,5 +129,42 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(PlayerToolTiles), findsNothing);
     });
+  });
+
+  group('play on another device', () {
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    final asked = <String>[];
+
+    setUp(() {
+      asked.clear();
+      messenger.setMockMethodCallHandler(AudioOutput.channel, (call) async {
+        asked.add(call.method);
+        return true;
+      });
+    });
+    tearDown(
+        () => messenger.setMockMethodCallHandler(AudioOutput.channel, null));
+
+    testWidgets("opens the phone's output switcher, closing the sheet",
+        (tester) async {
+      await pumpApp(tester);
+      await _open(tester);
+      expect(find.byIcon(Icons.speaker_group_rounded), findsOneWidget);
+
+      await tester.tap(find.text('playOn'));
+      await tester.pumpAndSettle();
+      expect(asked, ['showOutputSwitcher']);
+      expect(find.byType(PlayerToolTiles), findsNothing);
+    });
+
+    testWidgets('only on Android, which has one', (tester) async {
+      await pumpApp(tester);
+      await _open(tester);
+      expect(find.text('sleepTimer'), findsOneWidget);
+      expect(find.text('playOn'), findsNothing);
+      expect(await AudioOutput.showSwitcher(), isFalse);
+      expect(asked, isEmpty);
+    }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
   });
 }

@@ -4642,6 +4642,7 @@ Map<String, Map<String, String>> get keys => {
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "playOn": "Play on another device",
     "enableShuffle": "Turn shuffle on",
     "disableShuffle": "Turn shuffle off",
     "disableRepeat": "Turn repeat off",

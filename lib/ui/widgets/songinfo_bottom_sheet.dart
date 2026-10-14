@@ -38,6 +38,7 @@ import '../navigator.dart';
 import 'discovery/similar_songs_sheet.dart';
 import 'song_download_btn.dart';
 import 'image_widget.dart';
+import 'audio_output_tile.dart';
 import 'riff_sheet.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
@@ -515,8 +516,9 @@ class SongInfoBottomSheet extends StatelessWidget {
   }
 }
 
-/// Lyrics on/off and the sleep timer (with the time left while it runs),
-/// for the full player's ⋮ sheet. Both close the sheet.
+/// Lyrics, the sleep timer (with the time left while it runs) and the
+/// output switcher, for the full player's ⋮ sheet. All but the translation
+/// switch close the sheet.
 class PlayerToolTiles extends StatelessWidget {
   const PlayerToolTiles({super.key, this.onLyrics});
 
@@ -605,6 +607,7 @@ class PlayerToolTiles extends StatelessWidget {
                       Get.context);
             },
           ),
+          const AudioOutputTile(),
         ],
       );
     });

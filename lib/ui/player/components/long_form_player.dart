@@ -27,6 +27,7 @@ import '/services/podcast_starred.dart';
 import '/services/podcast_service.dart' show chapterArtAt, chapterSkipTarget;
 import '/services/podcast_transcripts.dart';
 import '/ui/widgets/collection_header.dart' show collectionLength;
+import '/ui/widgets/audio_output_tile.dart';
 import '/ui/widgets/riff_sheet.dart';
 import '/ui/widgets/snackbar.dart';
 import 'podcast_player_tint.dart';
@@ -537,8 +538,9 @@ void openLongFormMenu(BuildContext context) {
 }
 
 /// Speed · sleep timer · shownotes / chapters · transcript · video ·
-/// autoplay · mark as played (podcasts), as rows of the ⋮ sheet. Toggles
-/// and the audiobook speed stay in the sheet; the rest close it.
+/// autoplay · mark as played and star (podcasts) · play on another device,
+/// as rows of the ⋮ sheet. Toggles and the audiobook speed stay in the
+/// sheet; the rest close it.
 class LongFormToolTiles extends StatelessWidget {
   const LongFormToolTiles({super.key});
 
@@ -642,6 +644,7 @@ class LongFormToolTiles extends StatelessWidget {
               title: starred ? 'unstarEpisode'.tr : 'starEpisode'.tr,
               onTap: () => toggleStarredEpisode(closeSheet(), song),
             ),
+          const AudioOutputTile(),
         ],
       );
     });

@@ -127,6 +127,12 @@
         <intent>
             <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
         </intent>
+        <!-- The player's "Play on another device": the phone's own output
+             switcher (SystemUI's media output dialog, the Settings panel). -->
+        <package android:name="com.android.systemui" />
+        <intent>
+            <action android:name="com.android.settings.panel.action.MEDIA_OUTPUT" />
+        </intent>
     </queries>
     <!-- Storage permissions are only requested below API 30 (see
          permission_service.dart); API 30+ uses MANAGE_EXTERNAL_STORAGE. -->

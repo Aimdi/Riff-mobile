@@ -139,6 +139,11 @@ Now playing:
   while it's paused, as in Spotify, Apple Music and YouTube Music,
   instead of a still equalizer icon. Still with "Remove animations" on;
   TalkBack reads it as "Now playing"
+* "Play on another device" in the player's ⋮ menu (music, podcasts and
+  audiobooks) opens the phone's own output switcher, as Spotify's and
+  YouTube Music's devices button does: move what's playing to Bluetooth
+  headphones or a speaker, or back to the phone, without leaving Riff
+  (Android 11 and later; Bluetooth settings before)
 
 Song rows:
 * Explicit songs show an "E" before the artist, as in Spotify, Apple

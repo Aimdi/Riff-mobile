@@ -88,6 +88,8 @@ void main() {
     expect(find.text('shownotes'), findsNothing);
     expect(find.text('autoplayEpisodes'), findsNothing);
     expect(find.text('markAsPlayed'), findsNothing);
+    // As in the music player's ⋮: the phone's output switcher.
+    expect(find.text('playOn'), findsOneWidget);
   });
 
   testWidgets('a podcast gets shownotes and an autoplay switch',
@@ -99,6 +101,7 @@ void main() {
     expect(find.text('1.25×'), findsOneWidget);
     expect(find.text('shownotes'), findsOneWidget);
     expect(find.text('chapters'), findsNothing);
+    expect(find.text('playOn'), findsOneWidget);
 
     await tester.tap(find.text('autoplayEpisodes'));
     await tester.pump();
