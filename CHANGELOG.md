@@ -754,6 +754,12 @@ Downloads:
   stopping after two that wouldn't load. Tap a dimmed one and Riff says
   you're offline. Podcasts, books and your own server's songs play as
   before
+* Offline mode, as Spotify has it: a switch in Settings › Listening
+  plays only songs that are downloaded or in the song cache, as with no
+  connection, on any network: the others are dimmed and passed over, so
+  they don't use your data. It stays on until you turn it off, and Riff
+  says Offline mode is on when you tap a song it passes over. Podcasts,
+  books and your own server's songs play as before
 * Downloads keep going after you leave Riff, as with YouTube Music,
   Spotify and AntennaPod: while songs or episodes download, a
   notification shows how far they've got ("Downloading 3 of 25" and the

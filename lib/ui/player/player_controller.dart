@@ -2958,12 +2958,14 @@ class PlayerController extends GetxController
         snackbar(context, "explicitOffMsg".tr, size: SanckBarSize.MEDIUM));
   }
 
-  /// A song that needs a connection didn't play: there's none.
+  /// A song that needs a connection didn't play: there's none, or Offline
+  /// mode is on.
   void notifyOffline() {
     final context = Get.context;
     if (context == null || !context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        snackbar(context, "offlineSongMsg".tr, size: SanckBarSize.MEDIUM));
+    ScaffoldMessenger.of(context).showSnackBar(snackbar(context,
+        (OfflinePlayback.byChoice ? "offlineModeSongMsg" : "offlineSongMsg").tr,
+        size: SanckBarSize.MEDIUM));
   }
 
   /// Explicit content was turned off: an explicit song playing stops there

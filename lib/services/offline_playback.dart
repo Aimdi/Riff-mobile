@@ -1,8 +1,9 @@
 /// Spotify's offline mode, as YouTube Music and Apple Music behave too:
-/// with no connection at all, songs that need one (YouTube songs neither
-/// downloaded nor in the song cache) are passed over as play goes on, and
-/// their rows dimmed, instead of each failing in turn until playback
-/// stops. Episodes, books and songs from your own servers go as before.
+/// with no connection at all, or with Offline mode turned on in Settings,
+/// songs that need one (YouTube songs neither downloaded nor in the song
+/// cache) are passed over as play goes on, and their rows dimmed, instead
+/// of each failing in turn until playback stops (or using your data).
+/// Episodes, books and songs from your own servers go as before.
 library;
 
 import 'dart:async';
@@ -21,23 +22,54 @@ class OfflinePlayback {
   /// Whether the phone has a connection, as it comes and goes (Android).
   static const channel = EventChannel('riff/network/online');
 
-  /// No connection at all, as the phone says; false until it has, and off
-  /// Android.
+  /// AppPrefs: whether Offline mode is on.
+  static const modeKey = 'offlineMode';
+
+  /// Offline: no connection at all, as the phone says (false until it has,
+  /// and off Android), or Offline mode on.
   static final offline = false.obs;
+
+  /// Spotify's Offline mode, turned on in Settings: as with no connection,
+  /// whatever the phone says, so songs not kept use no data.
+  static final mode = false.obs;
+
+  /// No connection at all, as the phone says.
+  static bool _noConnection = false;
+
+  static void _update() => offline.value = _noConnection || mode.value;
 
   static StreamSubscription<dynamic>? _watching;
 
-  /// Follows the connection from now on (once; Android only).
+  static Box? get _prefs =>
+      Hive.isBoxOpen('AppPrefs') ? Hive.box('AppPrefs') : null;
+
+  /// Follows the connection from now on (once; Android only), Offline mode
+  /// as it was left.
   static void watch() {
+    mode.value = _prefs?.get(modeKey) == true;
+    _update();
     if (_watching != null || defaultTargetPlatform != TargetPlatform.android) {
       return;
     }
-    _watching = channel
-        .receiveBroadcastStream()
-        .listen((online) => offline.value = online == false,
-            // Can't tell: online, so nothing is passed over by mistake.
-            onError: (_) => offline.value = false);
+    _watching = channel.receiveBroadcastStream().listen((online) {
+      _noConnection = online == false;
+      _update();
+    }, onError: (_) {
+      // Can't tell: online, so nothing is passed over by mistake.
+      _noConnection = false;
+      _update();
+    });
   }
+
+  /// Turns Offline mode on or off, kept across restarts.
+  static Future<void> setMode(bool on) async {
+    mode.value = on;
+    _update();
+    await _prefs?.put(modeKey, on);
+  }
+
+  /// Offline because Offline mode is on, not for want of a connection.
+  static bool get byChoice => mode.value && !_noConnection;
 
   /// Ids of what plays from elsewhere than YouTube: episodes, Audiobookshelf
   /// and LibriVox books, your music server, Soulseek, the phone's own music
@@ -77,6 +109,8 @@ class OfflinePlayback {
   static Future<void> resetForTest() async {
     await _watching?.cancel();
     _watching = null;
+    _noConnection = false;
+    mode.value = false;
     offline.value = false;
   }
 }

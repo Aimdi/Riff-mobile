@@ -135,6 +135,59 @@ void main() {
     expect(OfflinePlayback.offline.value, isFalse);
   });
 
+  test('Offline mode: as with no connection, kept across restarts', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    await Hive.openBox('AppPrefs', bytes: Uint8List(0));
+    expect(OfflinePlayback.blocks(_song('online')), isFalse);
+
+    await OfflinePlayback.setMode(true);
+    expect(OfflinePlayback.offline.value, isTrue);
+    expect(OfflinePlayback.byChoice, isTrue);
+    expect(OfflinePlayback.blocks(_song('online')), isTrue);
+    expect(OfflinePlayback.blocks(_song('saved')), isFalse);
+    expect(Hive.box('AppPrefs').get(OfflinePlayback.modeKey), isTrue);
+
+    // The next start: on as it was left.
+    OfflinePlayback.mode.value = false;
+    OfflinePlayback.offline.value = false;
+    OfflinePlayback.watch();
+    expect(OfflinePlayback.mode.value, isTrue);
+    expect(OfflinePlayback.offline.value, isTrue);
+
+    await OfflinePlayback.setMode(false);
+    expect(OfflinePlayback.offline.value, isFalse);
+    expect(Hive.box('AppPrefs').get(OfflinePlayback.modeKey), isFalse);
+  });
+
+  test('Offline mode and the connection together', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    late MockStreamHandlerEventSink phone;
+    messenger.setMockStreamHandler(OfflinePlayback.channel,
+        MockStreamHandler.inline(onListen: (_, events) {
+      phone = events;
+      events.success(true);
+    }));
+    OfflinePlayback.watch();
+    await pumpEventQueue();
+    expect(OfflinePlayback.offline.value, isFalse);
+
+    await OfflinePlayback.setMode(true);
+    expect(OfflinePlayback.offline.value, isTrue);
+    expect(OfflinePlayback.byChoice, isTrue);
+
+    // No connection either: it says so, not that Offline mode is on.
+    phone.success(false);
+    await pumpEventQueue();
+    expect(OfflinePlayback.byChoice, isFalse);
+
+    // Offline mode off, still no connection: offline all the same.
+    await OfflinePlayback.setMode(false);
+    expect(OfflinePlayback.offline.value, isTrue);
+    phone.success(true);
+    await pumpEventQueue();
+    expect(OfflinePlayback.offline.value, isFalse);
+  });
+
   group('song rows', () {
     late _FakePlayer player;
 

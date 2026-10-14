@@ -35,6 +35,7 @@ import '/services/video_stream_service.dart';
 import '/ui/player/video_mode_controller.dart';
 import '/services/yt_auth_service.dart';
 import '/services/yt_like_sync.dart';
+import '/services/offline_playback.dart';
 import 'yt_like_sync_tile.dart';
 import 'yt_library_import_tile.dart';
 import 'yt_login_screen.dart';
@@ -294,6 +295,18 @@ class SettingsScreen extends StatelessWidget {
                         ],
                         onChanged: settingsController.setStreamingQuality,
                       ),
+                    ),
+                  ),
+                  // Spotify's Offline mode: only songs kept play.
+                  ListTile(
+                    contentPadding: settingsTilePadding,
+                    title: Text("offlineMode".tr),
+                    subtitle: Text("offlineModeDes".tr,
+                        style: settingsSubtitleStyle(context)),
+                    trailing: Obx(
+                      () => CustSwitch(
+                          value: OfflinePlayback.mode.value,
+                          onChanged: OfflinePlayback.setMode),
                     ),
                   ),
                   ListTile(
