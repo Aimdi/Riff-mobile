@@ -454,6 +454,12 @@ Audiobooks:
 * Free (LibriVox) books continue where you stopped: they opened the
   right chapter but played it from its start, as the player dropped the
   place it was given for chapters not from an Audiobookshelf server
+* Mark as finished, as Audible and Audiobookshelf have it: long-press a
+  book in Home's Jump back in. Its place is forgotten, so it leaves Jump
+  back in (and the free books' Continue listening), with Undo. A book
+  from your Audiobookshelf server is marked finished there too once Undo
+  is gone, so it leaves Continue listening in its other apps as well. A
+  book you gave up on used to stay in Jump back in for good
 
 Library:
 * Release Radar has new releases in it, as Spotify's does: a track from

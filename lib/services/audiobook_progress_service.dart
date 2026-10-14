@@ -106,6 +106,24 @@ class AudiobookProgressService {
     if (Hive.isBoxOpen(boxName)) _box.delete(id);
   }
 
+  /// Forgets where the book [bookId] was, all its chapters (Mark as
+  /// finished); returns their records, for [restore] (Undo).
+  static Future<List<Map<String, dynamic>>> forgetBook(String bookId) async {
+    if (!Hive.isBoxOpen(boxName)) return const [];
+    final records = [
+      for (final v in _box.values)
+        if (v is Map && v['bookId'] == bookId) Map<String, dynamic>.from(v)
+    ];
+    await _box.deleteAll(records.map((r) => r['id']));
+    return records;
+  }
+
+  /// Puts back the [records] [forgetBook] took (Undo).
+  static Future<void> restore(List<Map<String, dynamic>> records) async {
+    if (!Hive.isBoxOpen(boxName)) return;
+    await _box.putAll({for (final r in records) r['id']: r});
+  }
+
   /// The most recently played stored track for [bookId], so a book reopened
   /// from the library can resume on the right chapter rather than track 1.
   static Map<String, dynamic>? lastTrackForBook(String bookId) {

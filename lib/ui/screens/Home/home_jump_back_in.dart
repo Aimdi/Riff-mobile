@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
+import '/services/audiobook_progress_service.dart';
+import '/services/audiobookshelf_service.dart';
 import '/services/discovery/discovery_types.dart';
 import '/services/podcast_progress_service.dart';
 import '/ui/player/player_controller.dart';
@@ -81,10 +83,33 @@ class JumpBackInTile extends StatelessWidget {
     }
   }
 
+  /// Mark as finished, as Audible has it: the book's place is forgotten,
+  /// so it leaves Jump back in (and Continue listening), with Undo. An
+  /// Audiobookshelf book is marked finished on its server too, once Undo is
+  /// gone.
+  Future<void> _markFinished(UndoSnackbarTarget? target) async {
+    final records = await AudiobookProgressService.forgetBook(item.id);
+    homeFeedRev.value++;
+    var undone = false;
+    final snack = showUndoSnackbar(target, 'markedAsFinished'.tr, onUndo: () {
+      undone = true;
+      AudiobookProgressService.restore(records)
+          .then((_) => homeFeedRev.value++);
+    });
+    final onServer = '${item.record?['id'] ?? ''}'.startsWith('abs_') &&
+        Get.isRegistered<AudiobookshelfService>();
+    if (!onServer) return;
+    await snack?.closed;
+    if (!undone) {
+      await Get.find<AudiobookshelfService>().markFinished(item.id);
+    }
+  }
+
   void _menu(BuildContext context) {
     final player = Get.isRegistered<PlayerController>()
         ? Get.find<PlayerController>()
         : null;
+    final target = undoSnackbarTarget(context);
     HapticFeedback.mediumImpact();
     showModalBottomSheet<void>(
       context: context,
@@ -112,6 +137,15 @@ class JumpBackInTile extends StatelessWidget {
                   Navigator.of(sheet).pop();
                   PodcastProgressService.markPlayed(item.id);
                   homeFeedRev.value++;
+                },
+              ),
+            if (item.kind == ResumeKind.book)
+              RiffSheetTile(
+                icon: Icons.done_all_rounded,
+                title: 'markAsFinished'.tr,
+                onTap: () {
+                  Navigator.of(sheet).pop();
+                  _markFinished(target);
                 },
               ),
             if (item.kind == ResumeKind.session)

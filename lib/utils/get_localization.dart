@@ -4642,6 +4642,8 @@ Map<String, Map<String, String>> get keys => {
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "markAsFinished": "Mark as finished",
+    "markedAsFinished": "Marked as finished",
     "longTrackResumed": "Picked up at @time",
     "startOver": "Start over",
     "pauseSearchHistory": "Pause search history",
