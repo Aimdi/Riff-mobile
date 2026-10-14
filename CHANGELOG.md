@@ -113,6 +113,12 @@ Lock screen and notification:
   song, like Spotify and YouTube Music; it also shows in Android 13+'s
   media controls and in Android Auto, and follows likes you make in the
   app. Music only (podcasts keep skip back / forward)
+* Headphones with one button: press it twice for the next song and three
+  times for the previous one, as with Spotify, YouTube Music and Android's
+  own players; in a podcast or an audiobook, twice skips forward and three
+  times skips back, as their notification's buttons do (AntennaPod and
+  Pocket Casts' default). Once still plays or pauses, after a moment's
+  wait for a second press
 
 Android Auto:
 * Ask for music, as with Spotify and YouTube Music: say "Play <song or

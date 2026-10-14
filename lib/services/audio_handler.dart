@@ -31,6 +31,7 @@ import '/services/podcast_inbox_counts.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/android_auto_paging.dart';
 import '/services/playback_hardening.dart';
+import '/services/media_button_presses.dart';
 import '/services/podcast_service.dart';
 import '/ui/widgets/podcast_play.dart' show podcastEpisodeToMediaItem;
 import '/services/audiobook_playback.dart';
@@ -241,12 +242,39 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   }
 
   /// Headset / Bluetooth buttons arrive here; whatever they trigger is
-  /// tagged [PlaybackCommandSource.system].
+  /// tagged [PlaybackCommandSource.system]. The play/pause button's presses
+  /// are counted first, as Android's own media sessions count them: twice
+  /// goes on, three times goes back (mediaButtonAction).
   @override
   Future<void> click([MediaButton button = MediaButton.media]) async {
+    if (button == MediaButton.media) {
+      _buttonPresses.press();
+      return;
+    }
+    await _asMediaButton(() => super.click(button));
+  }
+
+  late final _buttonPresses = MediaButtonPresses(_onButtonPresses);
+
+  void _onButtonPresses(int presses) {
+    final item = mediaItem.value;
+    final longForm =
+        item != null && (item.isPodcastEpisode || item.isAudiobook);
+    final action = mediaButtonAction(presses, longForm: longForm);
+    // From a timer, not audio_service's call: its errors are ours to catch.
+    unawaited(_asMediaButton(() => switch (action) {
+          MediaButtonAction.playPause => super.click(),
+          MediaButtonAction.next => skipToNext(),
+          MediaButtonAction.previous => skipToPrevious(),
+          MediaButtonAction.skipForward => fastForward(),
+          MediaButtonAction.skipBack => rewind(),
+        }).catchError((Object e) => printERROR('Media button: $e')));
+  }
+
+  Future<void> _asMediaButton(Future<void> Function() run) async {
     _mediaButtonDepth++;
     try {
-      await super.click(button);
+      await run();
     } finally {
       _mediaButtonDepth--;
     }
@@ -2091,6 +2119,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   @override
   Future<void> stop() async {
     _logCommand('stop', _externalSource());
+    _buttonPresses.cancel();
     await _player.stop();
     return super.stop();
   }
