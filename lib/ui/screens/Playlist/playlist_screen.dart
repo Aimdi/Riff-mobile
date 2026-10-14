@@ -16,6 +16,7 @@ import '/services/playlist_covers.dart';
 import '/services/podcast_service.dart';
 import '/services/playlist_mix_service.dart';
 import '/services/smart_shuffle.dart';
+import '/services/taste_exclusions.dart';
 import '/services/recently_played_days.dart';
 import '../Podcasts/podcast_queue_screen.dart';
 import '../Podcasts/podcasts_screen.dart';
@@ -238,9 +239,11 @@ class PlaylistScreen extends StatelessWidget {
                                     return const SizedBox(height: 8);
                                   }
                                   // Rebuilt with the photo, so ⋮ offers
-                                  // to set or change it.
+                                  // to set or change it, and with the
+                                  // taste profile's exclusions.
                                   return Obx(() {
                                     PlaylistCovers.rev.value;
+                                    TasteExclusions.rev.value;
                                     return _actions(context, playlistController,
                                         playerController);
                                   });
@@ -743,6 +746,20 @@ Widget _actions(
             c.fetchSongsfromDatabase('LIBRP');
           });
         }),
+      // Spotify's "Exclude from your Taste Profile": what plays from it
+      // isn't counted in stats or recommendations.
+      if (pl.playlistId != 'LIBRP')
+        TasteExclusions.excludes(pl.playlistId)
+            ? CollectionMenuItem(Icons.insights_rounded, 'includeInTaste'.tr,
+                () async {
+                await TasteExclusions.setExcluded(pl.playlistId, false);
+                snack('includedInTasteMsg');
+              })
+            : CollectionMenuItem(
+                Icons.not_interested_rounded, 'excludeFromTaste'.tr, () async {
+                await TasteExclusions.setExcluded(pl.playlistId, true);
+                snack('excludedFromTasteMsg');
+              }),
       CollectionMenuItem(Icons.file_upload_outlined, "exportPlaylist".tr, () {
         showDialog(
           context: context,

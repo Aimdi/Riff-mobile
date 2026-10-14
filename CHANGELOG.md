@@ -473,6 +473,12 @@ Playlists:
   playlists' ⋮ › Add songs searches YouTube Music as you type, and + adds
   a song to the end of the playlist without leaving it. Songs already in
   it have a check
+* Exclude a playlist from your taste profile, as Spotify lets you (a
+  sleep, white-noise or kids' playlist): its ⋮ › Exclude from your taste
+  profile. What plays from it then isn't counted in your stats and
+  Rewind, doesn't steer your mixes and recommendations and isn't sent to
+  ListenBrainz; it still shows in Recently played. Include in your taste
+  profile undoes it
 
 Albums:
 * More by the artist, like Spotify, Apple Music and YouTube Music: under

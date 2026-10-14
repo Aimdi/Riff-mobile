@@ -29,6 +29,7 @@ import '/services/scrobble_rules.dart';
 import '/services/stats_service.dart';
 import '/services/collection_recents.dart';
 import '/services/private_session.dart';
+import '/services/taste_exclusions.dart';
 import '/services/synced_lyrics_service.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -467,7 +468,8 @@ class PlayerController extends GetxController
   final _progressUiThrottle = ProgressUiThrottle();
   final _playLogGate = PlayLogGate();
 
-  /// Whether the song playing started in a private session (not scrobbled).
+  /// Whether the song playing started in a private session, or from a
+  /// playlist left out of your taste profile (not scrobbled).
   bool _playIsPrivate = false;
 
   void _listenForChangesInPosition() {
@@ -1271,17 +1273,22 @@ class PlayerController extends GetxController
         }
         await _checkFav();
         if (isNewPlay) {
-          // A private session records nothing of what plays in it.
+          // A private session records nothing of what plays in it; a
+          // playlist left out of your taste profile, only its history.
           final private = PrivateSession.isActive;
-          _playIsPrivate = private;
+          final untasted =
+              !private && TasteExclusions.excludesPlay(playinfrom.value);
+          _playIsPrivate = private || untasted;
           // Use this callback's item: currentSong may already be the next
           // song after the awaits.
           if (!private) {
             await _addToRP(mediaItem);
-            StatsService.recordPlay(mediaItem);
+            if (!untasted) StatsService.recordPlay(mediaItem);
             unawaited(PodcastHistory.add(mediaItem));
             // Songs only, as they're scrobbled.
-            if (!mediaItem.isPodcastEpisode && !mediaItem.isAudiobook) {
+            if (!untasted &&
+                !mediaItem.isPodcastEpisode &&
+                !mediaItem.isAudiobook) {
               unawaited(ListenBrainzService.playingNow(mediaItem));
             }
           }
@@ -1295,7 +1302,7 @@ class PlayerController extends GetxController
             // are still recorded in order. A private play isn't started
             // (the song before it still ends as usual).
             final discovery = Get.find<DiscoveryService>();
-            final logged = private ? null : mediaItem;
+            final logged = private || untasted ? null : mediaItem;
             _discoveryChain = _discoveryChain
                 .then(
                     (_) => discovery.onMediaChanged(logged, positionMs: posMs))
