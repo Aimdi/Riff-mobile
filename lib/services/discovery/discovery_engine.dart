@@ -106,6 +106,10 @@ class DiscoveryEngine {
     return _mixToMedia(mix, DiscoverySource.discover);
   }
 
+  /// Your most played songs of the last 30 days (Spotify's On Repeat).
+  Future<GeneratedMix> onRepeat({int limit = 30}) =>
+      mixGenerator.ensureOnRepeat(limit: limit);
+
   Future<List<DiscoverySection>> homeSections() async {
     if (!taste.hasEnoughSignal) return [];
 

@@ -291,6 +291,7 @@ class MixKind {
   static const String freshFinds = 'fresh_finds';
   static const String releaseRadar = 'release_radar';
   static const String rediscover = 'rediscover';
+  static const String onRepeat = 'on_repeat';
 }
 
 /// Per-track listen stats stored in `riff_track_stats`.

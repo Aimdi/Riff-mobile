@@ -7,6 +7,7 @@ import 'discovery_math.dart';
 import 'discovery_repository.dart';
 import 'discovery_types.dart';
 import 'candidate_sources.dart';
+import 'kept_songs.dart';
 import 'new_releases.dart';
 import 'taste_model.dart';
 
@@ -43,19 +44,15 @@ class MixGenerator {
         metaById[e.videoId] = e;
       }
     }
+    // As Riff keeps them (art, album, length), not a title on a blank.
+    final kept = KeptSongs();
     final enriched = <Map<String, dynamic>>[];
     for (final id in ids) {
       final e = metaById[id];
-      enriched.add({
-        'videoId': id,
-        'title': e?.title ?? id,
-        'artists': [
-          {'name': e?.artist ?? e?.artistKey ?? ''}
-        ],
-        'thumbnails': [
-          {'url': ''}
-        ],
-      });
+      final track =
+          kept.track(id, title: e?.title, artist: e?.artist ?? e?.artistKey);
+      if (track == null || BanServiceSafe.isTrackBanned(track)) continue;
+      enriched.add(track);
       if (enriched.length >= limit) break;
     }
 
@@ -70,6 +67,46 @@ class MixGenerator {
     await repo.saveMix(mix);
     await repo.logImpressions(
         enriched.map((t) => t['videoId'] as String), DiscoverySurface.rediscover);
+    return mix;
+  }
+
+  // ─── On Repeat (pure local) ───────────────────────────────────────────
+
+  /// The fewest songs On Repeat is made of; with fewer it waits for more
+  /// plays.
+  static const onRepeatMin = 5;
+
+  /// Spotify's On Repeat: the songs you've played most in the last 30 days,
+  /// from your own plays (no network), made afresh each day.
+  Future<GeneratedMix> ensureOnRepeat({int limit = 30, DateTime? now}) async {
+    final existing = repo.getMix('on_repeat');
+    if (existing != null && !_staleDaily(existing.generatedTs, now: now)) {
+      return existing;
+    }
+    final meta = <String, DiscoveryEvent>{
+      for (final e in repo.recentEvents(limit: 5000))
+        if (e.title?.isNotEmpty ?? false) e.videoId: e,
+    };
+    final kept = KeptSongs();
+    final tracks = <Map<String, dynamic>>[];
+    for (final id in repo.onRepeatIds(limit: limit * 2, now: now)) {
+      final e = meta[id];
+      final track = kept.track(id, title: e?.title, artist: e?.artist);
+      if (track == null || BanServiceSafe.isTrackBanned(track)) continue;
+      tracks.add(track);
+      if (tracks.length >= limit) break;
+    }
+    final mix = GeneratedMix(
+      id: 'on_repeat',
+      title: 'On Repeat',
+      reason: "The songs you've played most lately",
+      kind: MixKind.onRepeat,
+      tracks: tracks.length >= onRepeatMin
+          ? tracks
+          : const <Map<String, dynamic>>[],
+      generatedTs: (now ?? DateTime.now()).millisecondsSinceEpoch,
+    );
+    await repo.saveMix(mix);
     return mix;
   }
 
@@ -515,9 +552,9 @@ class MixGenerator {
 
   // ─── Staleness ────────────────────────────────────────────────────────
 
-  bool _staleDaily(int generatedTs) {
+  bool _staleDaily(int generatedTs, {DateTime? now}) {
     final gen = DateTime.fromMillisecondsSinceEpoch(generatedTs);
-    final now = DateTime.now();
+    now ??= DateTime.now();
     // Stale past 4 AM local if generated before today's 4 AM
     final today4am = DateTime(now.year, now.month, now.day, 4);
     final threshold = now.isBefore(today4am)

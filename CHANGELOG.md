@@ -493,6 +493,14 @@ Library:
   are made from, and episodes no longer turn up in Rediscover, where they
   couldn't play. What they had put in it before is taken out once.
   Stats still counts the time you spend on them
+* On Repeat, as Spotify has it: a playlist in your Library (and in
+  Android Auto's playlists) of the songs you've played most in the last
+  30 days, the most played first: songs you played through at least
+  twice, skips left out. Made afresh each day from your own plays, so
+  offline too; it shows once there are five such songs
+* Rediscover's songs have their covers, and their albums and lengths
+  when Riff keeps the song (Favorites, downloads, Recently played): they
+  used to show blank. Songs you said never to play stay out of it
 * Removing a song (swipe it, or "Remove" in its menu) now says "Removed
   from your library" with Undo, like YouTube Music; its download or
   cached copy is only deleted once Undo is gone (or on the next start if

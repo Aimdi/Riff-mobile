@@ -341,6 +341,38 @@ class DiscoveryRepository {
     return candidates.take(limit).map((e) => e.id).toList();
   }
 
+  /// The songs you've played most in the last [days], as Spotify's On
+  /// Repeat has them: played through (not skipped) at least [minPlays]
+  /// times, the most played first and the latest among equals.
+  List<String> onRepeatIds(
+      {int days = 30, int minPlays = 2, int limit = 30, DateTime? now}) {
+    final cutoff = (now ?? DateTime.now())
+        .subtract(Duration(days: days))
+        .millisecondsSinceEpoch;
+    final plays = <String, int>{};
+    final latest = <String, int>{};
+    // Kept in the order played: back from the newest to the cutoff.
+    for (var i = _events.length - 1; i >= 0; i--) {
+      final v = _events.getAt(i);
+      if (v is! Map) continue;
+      final ts = v['ts'] as int? ?? 0;
+      if (ts < cutoff) break;
+      if (v['event'] != DiscoveryEventKind.playEnded.wireName) continue;
+      final id = '${v['videoId'] ?? ''}';
+      if (id.isEmpty || isLongFormId(id)) continue;
+      plays[id] = (plays[id] ?? 0) + 1;
+      latest[id] ??= ts;
+    }
+    final ids = [
+      for (final e in plays.entries)
+        if (e.value >= minPlays) e.key,
+    ]..sort((a, b) {
+        final byPlays = plays[b]!.compareTo(plays[a]!);
+        return byPlays != 0 ? byPlays : latest[b]!.compareTo(latest[a]!);
+      });
+    return ids.take(limit).toList();
+  }
+
   // ─── Co-occurrence graph ──────────────────────────────────────────────
 
   static const int maxNeighbors = 150;
