@@ -9,6 +9,7 @@ import 'package:hive/hive.dart';
 import 'package:xml/xml.dart';
 
 import '/models/thumbnail.dart';
+import '/services/podcast_feed_url.dart';
 import '/utils/helper.dart';
 
 /// Podcast support modelled on AntennaPod: discovery via Apple's public
@@ -603,6 +604,22 @@ class PodcastService {
       changed = true;
     }
     if (changed) subsRev.value++;
+  }
+
+  /// The show at a feed address ({title, author, artwork, feedUrl}), for
+  /// following a show by its feed ([podcastFeedUrlFrom]); null when it
+  /// can't be read or isn't a podcast feed.
+  static Future<Map<String, dynamic>?> feedInfo(String feedUrl) async {
+    try {
+      final res = await _dio.get(feedUrl,
+          options: Options(responseType: ResponseType.plain));
+      final body = res.data as String;
+      final info = await Isolate.run(() => parsePodcastFeedInfo(body));
+      return info == null ? null : {...info, 'feedUrl': feedUrl};
+    } catch (e) {
+      printERROR("Feed info failed ($feedUrl): $e");
+      return null;
+    }
   }
 
   // --- Feed parsing ---

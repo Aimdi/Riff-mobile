@@ -22,6 +22,7 @@ import '/ui/widgets/snackbar.dart';
 import '/ui/navigator.dart';
 import '../Home/home_layout.dart';
 import 'podcast_category_screen.dart';
+import 'podcast_cover_tile.dart';
 import 'podcast_downloads_screen.dart';
 import 'podcast_layout.dart';
 import '/services/podcast_library.dart';
@@ -31,6 +32,7 @@ import 'podcast_inbox_screen.dart';
 import 'podcast_queue_controller.dart';
 import 'podcast_queue_screen.dart';
 import 'podcast_subs_screen.dart';
+import 'podcast_unsubscribe.dart';
 import 'podcasts_library_controller.dart';
 import 'podcasts_screen.dart';
 import '/ui/theme/riff_text_metrics.dart';
@@ -415,9 +417,10 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
             }
             final items = controller.searchResults;
             final channels = controller.channelSearchResults;
+            final feed = controller.feedSearchResult.value;
             final query = controller.searchQuery.value.trim();
             if (controller.hasSearched.isTrue && query.isNotEmpty) {
-              if (items.isEmpty && channels.isEmpty) {
+              if (items.isEmpty && channels.isEmpty && feed == null) {
                 return Center(
                   child: Text(
                     'noResults'.tr,
@@ -428,6 +431,12 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               return CustomScrollView(
                 physics: const BouncingScrollPhysics(),
                 slivers: [
+                  if (feed != null)
+                    SliverPadding(
+                      padding: const EdgeInsets.only(top: RiffSpacing.xs),
+                      sliver: SliverToBoxAdapter(
+                          child: PodcastFeedResultRow(show: feed)),
+                    ),
                   if (channels.isNotEmpty) ...[
                     SliverToBoxAdapter(
                       child: Padding(
@@ -1015,6 +1024,89 @@ class _ShowResultRow extends StatelessWidget {
           ),
         ),
         // Full-width hairline between search results (§5.2).
+        const RiffRowHairline(),
+      ],
+    );
+  }
+}
+
+/// The show at a pasted feed address, as the search results' rows: cover,
+/// title, host and follow; tapping opens the show's page.
+class PodcastFeedResultRow extends StatelessWidget {
+  const PodcastFeedResultRow({super.key, required this.show});
+
+  /// {title, author, artwork, feedUrl}.
+  final Map<String, dynamic> show;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final feed = '${show['feedUrl']}';
+    final title = '${show['title'] ?? ''}';
+    final author = '${show['author'] ?? ''}'.trim();
+    return Stack(
+      children: [
+        InkWell(
+          onTap: () => openRssPodcast(show),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: HomeLayout.gutter, vertical: RiffSpacing.sm),
+            child: Row(
+              children: [
+                PodcastArt(
+                    url: '${show['artwork'] ?? ''}',
+                    size: RiffComponentSizes.showRowArt),
+                const SizedBox(width: RiffSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      if (author.isNotEmpty) ...[
+                        const SizedBox(height: RiffSpacing.xxs),
+                        Text(
+                          author,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: RiffSpacing.sm),
+                Obx(() {
+                  PodcastService.subsRev.value;
+                  final following = PodcastService.isSubscribed(feed);
+                  // As the other results: outline + to follow, accent
+                  // check once followed.
+                  return IconButton(
+                    tooltip: following ? 'subscribed'.tr : 'subscribe'.tr,
+                    onPressed: () => following
+                        ? unsubscribeWithUndo(feed, title, context: context)
+                        : PodcastService.subscribe(show),
+                    icon: Icon(
+                      following
+                          ? Icons.check_circle_rounded
+                          : Icons.add_circle_outline_rounded,
+                      size: RiffComponentSizes.headerIcon,
+                      color: following
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        ),
         const RiffRowHairline(),
       ],
     );

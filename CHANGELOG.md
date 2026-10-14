@@ -191,6 +191,11 @@ Podcasts:
   set aside aren't downloaded, and Delete downloads after listening
   still clears them up. For shows from feeds (YouTube episodes can't be
   downloaded)
+* Follow a show by its feed address, like AntennaPod, Pocket Casts,
+  Apple Podcasts and Overcast: paste an RSS link (or a feed://, pcast://
+  or itpc:// subscribe link) into the Podcasts search and that show comes
+  up with Follow, for private feeds (Patreon, Supercast, Substack) and
+  shows the directories don't list. YouTube links still find the channel
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip

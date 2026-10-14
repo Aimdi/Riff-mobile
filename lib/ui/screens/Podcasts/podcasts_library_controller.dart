@@ -8,6 +8,7 @@ import '/models/artist.dart';
 import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/music_service.dart';
+import '/services/podcast_feed_url.dart';
 import '/services/podcast_inbox_counts.dart';
 import '/services/podcast_library.dart';
 import '/services/podcast_service.dart';
@@ -58,6 +59,10 @@ class LibraryPodcastsController extends GetxController {
 
   /// YouTube channels found while searching (subscribe-as-podcast).
   final channelSearchResults = <Playlist>[].obs;
+
+  /// The show at a feed address pasted into the search ([podcastFeedUrlFrom]),
+  /// as {title, author, artwork, feedUrl}.
+  final feedSearchResult = Rxn<Map<String, dynamic>>();
   final isSearching = false.obs;
   final hasSearched = false.obs;
 
@@ -183,6 +188,18 @@ class LibraryPodcastsController extends GetxController {
     }
     isSearching.value = true;
     hasSearched.value = true;
+    feedSearchResult.value = null;
+    // A pasted feed address: that show, nothing to search for.
+    final feedUrl = podcastFeedUrlFrom(term);
+    if (feedUrl != null) {
+      final show = await PodcastService.feedInfo(feedUrl);
+      if (gen != _searchGen) return;
+      searchResults.clear();
+      channelSearchResults.clear();
+      feedSearchResult.value = show;
+      isSearching.value = false;
+      return;
+    }
     final ms = Get.find<MusicServices>();
     final list = <Playlist>[];
     final channels = <Playlist>[];
@@ -318,6 +335,7 @@ class LibraryPodcastsController extends GetxController {
     searchQuery.value = '';
     searchResults.clear();
     channelSearchResults.clear();
+    feedSearchResult.value = null;
     hasSearched.value = false;
     isSearching.value = false;
   }
