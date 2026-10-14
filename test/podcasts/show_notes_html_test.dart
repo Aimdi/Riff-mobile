@@ -70,6 +70,24 @@ void main() {
     expect(show.episodes.single['description'], "Not the show's.");
   });
 
+  test("where to support the show comes last, as links", () {
+    const feed = '''<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+<channel>
+  <title>Show</title>
+  <description>A show about shows.</description>
+  <podcast:funding url="https://patreon.example/show">Support the show</podcast:funding>
+  <podcast:funding url="https://kofi.example/show"></podcast:funding>
+  <podcast:funding url="ftp://nope.example">Not a web page</podcast:funding>
+</channel>
+</rss>''';
+    expect(
+        parsePodcastShow(feed, 'Show', '').about,
+        'A show about shows.\n\n'
+        '[Support the show](https://patreon.example/show)\n'
+        '[kofi.example](https://kofi.example/show)');
+  });
+
   test('scripts, styles and comments are left out', () {
     expect(
         notes('<style>p{color:red}</style><p>Kept</p><!-- not this -->'

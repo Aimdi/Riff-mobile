@@ -58,8 +58,10 @@ int? _seconds(String? h, String m, String s) {
 }
 
 /// [notes] split into text, timestamps and links. Timestamps past [length]
-/// (when it's known) stay text: a clock time, not a moment of this episode.
-List<ShowNotesPart> showNotesParts(String notes, {Duration? length}) {
+/// (when it's known) stay text: a clock time, not a moment of this episode;
+/// without [times] (notes that aren't an episode's) all of them do.
+List<ShowNotesPart> showNotesParts(String notes,
+    {Duration? length, bool times = true}) {
   final maxSec =
       length == null || length <= Duration.zero ? null : length.inSeconds;
   final found = <(int, int, ShowNotesPart)>[];
@@ -78,7 +80,7 @@ List<ShowNotesPart> showNotesParts(String notes, {Duration? length}) {
     }
     found.add((m.start, m.start + url.length, ShowNotesPart.link(url, url)));
   }
-  for (final m in _time.allMatches(notes)) {
+  for (final m in times ? _time.allMatches(notes) : const <RegExpMatch>[]) {
     if (taken(m.start, m.end)) continue;
     final sec = _seconds(m.group(1), m.group(2)!, m.group(3)!);
     if (sec == null || (maxSec != null && sec > maxSec)) continue;

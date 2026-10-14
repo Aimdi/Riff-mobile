@@ -10,7 +10,7 @@ class ShowNotesText extends StatefulWidget {
   const ShowNotesText({
     super.key,
     required this.notes,
-    required this.onTime,
+    this.onTime,
     required this.onLink,
     this.length,
     this.style,
@@ -20,7 +20,9 @@ class ShowNotesText extends StatefulWidget {
 
   /// The episode's length: timestamps past it stay text.
   final Duration? length;
-  final void Function(int seconds) onTime;
+
+  /// Null for notes that aren't an episode's: timestamps stay text.
+  final void Function(int seconds)? onTime;
   final void Function(String url) onLink;
   final TextStyle? style;
 
@@ -48,13 +50,15 @@ class _ShowNotesTextState extends State<ShowNotesText> {
 
   void _parse() {
     _disposeTaps();
-    _parts = showNotesParts(widget.notes, length: widget.length);
+    _parts = showNotesParts(widget.notes,
+        length: widget.length, times: widget.onTime != null);
     for (var i = 0; i < _parts.length; i++) {
       final part = _parts[i];
       final seconds = part.seconds;
       final url = part.url;
       if (seconds != null) {
-        _taps[i] = TapGestureRecognizer()..onTap = () => widget.onTime(seconds);
+        _taps[i] = TapGestureRecognizer()
+          ..onTap = () => widget.onTime?.call(seconds);
       } else if (url != null) {
         _taps[i] = TapGestureRecognizer()..onTap = () => widget.onLink(url);
       }

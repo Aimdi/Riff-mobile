@@ -710,8 +710,27 @@ class PodcastService {
         channel?.getElement(name)?.innerText.trim() ?? '';
     final description = read('description');
     final summary = read('itunes:summary');
-    return showNotesText(
+    final about = showNotesText(
         summary.length > description.length ? summary : description);
+    // Where to support the show (Podcasting 2.0 funding, as AntennaPod
+    // shows it): links after what it says about itself.
+    final support = [
+      for (final f
+          in channel?.findElements('podcast:funding') ?? <XmlElement>[])
+        if (_notesWebRe.hasMatch(f.getAttribute('url')?.trim() ?? ''))
+          _supportLink(f),
+    ];
+    return [about, support.join('\n')]
+        .where((part) => part.isNotEmpty)
+        .join('\n\n');
+  }
+
+  /// A funding element as a show-notes link: its words, else the site's
+  /// name.
+  static String _supportLink(XmlElement funding) {
+    final url = funding.getAttribute('url')!.trim();
+    final words = funding.innerText.replaceAll(_notesSpaceRe, ' ').trim();
+    return _notesLink(words.isNotEmpty ? words : Uri.parse(url).host, url);
   }
 
   /// Pure RSS body → the show's episodes and description. See

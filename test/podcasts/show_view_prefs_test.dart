@@ -101,7 +101,7 @@ void main() {
     });
 
     Future<List<int>> pumpShow(WidgetTester tester,
-        {List<MediaItem>? episodes}) async {
+        {List<MediaItem>? episodes, String description = ''}) async {
       tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
@@ -112,7 +112,7 @@ void main() {
           title: 'Show',
           author: 'Host',
           artUrl: '',
-          description: '',
+          description: description,
           episodes: episodes ?? _episodes,
           loading: false,
           subscribed: true,
@@ -170,6 +170,29 @@ void main() {
       final played = await pumpShow(tester);
       await tester.tap(find.text('latestEpisode'));
       expect(played, [0]);
+    });
+
+    testWidgets(
+        'About opens to the show\'s own words, its links opening and its '
+        'times staying text', (tester) async {
+      await pumpShow(tester,
+          description: 'Live every week at 12:34.\n\n'
+              '[Support the show](https://patreon.example/show)');
+      expect(find.text('Live every week at 12:34. Support the show'),
+          findsOneWidget);
+
+      await tester.tap(find.text('readMore'));
+      await tester.pump();
+      final spans = <TextSpan>[];
+      for (final rich in tester.widgetList<RichText>(find.byType(RichText))) {
+        rich.text.visitChildren((span) {
+          if (span is TextSpan) spans.add(span);
+          return true;
+        });
+      }
+      final link = spans.firstWhere((s) => s.text == 'Support the show');
+      expect(link.recognizer, isNotNull);
+      expect(spans.any((s) => s.text == '12:34'), isFalse);
     });
 
     testWidgets('played episodes hidden, also when played later',

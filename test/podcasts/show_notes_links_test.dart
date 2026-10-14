@@ -39,6 +39,15 @@ void main() {
     expect(showNotesParts('61:30'), const [ShowNotesPart.time('61:30', 3690)]);
   });
 
+  test("notes that aren't an episode's: times stay text, links still open", () {
+    expect(
+        showNotesParts('Live at 12:34 on https://a.example', times: false),
+        const [
+          ShowNotesPart.text('Live at 12:34 on '),
+          ShowNotesPart.link('https://a.example', 'https://a.example'),
+        ]);
+  });
+
   test('a link with words shows the words', () {
     expect(showNotesParts('See [our site](https://ex.com/a) at 12:34'), const [
       ShowNotesPart.text('See '),

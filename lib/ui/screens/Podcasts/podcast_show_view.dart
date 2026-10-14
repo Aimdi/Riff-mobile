@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '/services/podcast_playback_profile.dart';
 import '/ui/theme/riff_spacing.dart';
@@ -13,6 +14,7 @@ import 'podcast_playback_controls.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/podcast_show_view_prefs.dart';
 import '/services/show_notes_links.dart';
+import '/ui/player/components/show_notes_text.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/screens/Audiobooks/audiobook_widgets.dart'
     show AudiobookSearchField;
@@ -520,7 +522,10 @@ class _PodcastShowViewState extends State<PodcastShowView> {
   }
 
   Widget _about(BuildContext context) {
-    final text = podcastPlainText(widget.description);
+    final style = Theme.of(context)
+        .textTheme
+        .bodyMedium
+        ?.copyWith(color: homeMutedColor(context));
     return Padding(
       padding: const EdgeInsets.only(
           left: HomeLayout.gutter,
@@ -532,16 +537,22 @@ class _PodcastShowViewState extends State<PodcastShowView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              text,
-              maxLines: _aboutOpen ? null : 3,
-              overflow:
-                  _aboutOpen ? TextOverflow.visible : TextOverflow.ellipsis,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: homeMutedColor(context)),
-            ),
+            // Open: as the show wrote it, paragraphs and links that open
+            // (its support links last); closed, three lines of it.
+            if (_aboutOpen)
+              ShowNotesText(
+                notes: widget.description.trim(),
+                style: style,
+                onLink: (url) => launchUrl(Uri.parse(url),
+                    mode: LaunchMode.externalApplication),
+              )
+            else
+              Text(
+                podcastPlainText(widget.description),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: style,
+              ),
             const SizedBox(height: RiffSpacing.xs),
             // A link: accent (§2.5).
             Text(

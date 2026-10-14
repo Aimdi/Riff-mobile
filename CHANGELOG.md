@@ -236,7 +236,10 @@ Podcasts:
 * A show's page says what the show is about, as Apple Podcasts, Pocket
   Casts and AntennaPod do: shows found in Discover or followed by their
   feed had no About, as Apple's directory gives no description; it now
-  comes from the show's feed (its fuller description), under the cover
+  comes from the show's feed (its fuller description), under the cover.
+  Read more shows it as the show wrote it, paragraphs and links that
+  open, with where to support the show last (Podcasting 2.0 funding
+  links, as AntennaPod shows them)
 * A show's page remembers its episode order (Newest first / Oldest
   first) for that show, like Pocket Casts and AntennaPod, so a series you
   hear in order stays oldest first. The eye button next to it hides
