@@ -2,6 +2,7 @@ import '../Home/home_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/services/podcast_playback_profile.dart';
 import '/services/podcast_service.dart';
 import '/ui/theme/riff_spacing.dart';
 import 'podcast_cover_tile.dart';
@@ -83,6 +84,8 @@ class PodcastFolderScreen extends StatelessWidget {
                   badge: isYoutubeChannelPodcast(podcast)
                       ? youtubeChannelBadge(context)
                       : null,
+                  count: podcastShowCountBadge(
+                      podcastShowKeyForYoutube(podcast.playlistId)),
                   onTap: () => openLibraryPodcast(podcast),
                   onPlay: () => playLibraryPodcast(podcast),
                   onLongPress: () => showPodcastFolderSheet(context, podcast),

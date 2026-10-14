@@ -6,6 +6,7 @@ import '/models/artist.dart';
 import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/music_service.dart';
+import '/services/podcast_inbox_counts.dart';
 import '/services/podcast_service.dart';
 import '/services/youtube_podcast_service.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
@@ -82,6 +83,7 @@ class LibraryPodcastsController extends GetxController {
     inboxEpisodes = episodes;
     inboxSubsKey = subsKey;
     inboxFetchedAt = DateTime.now();
+    PodcastInboxCounts.setInbox(episodes);
   }
 
   @override

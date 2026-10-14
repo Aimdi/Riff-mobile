@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
 import '/services/folder_cover.dart';
+import '/services/podcast_playback_profile.dart';
 import '/ui/theme/palettes/podcast_folders.dart';
 
 export '/ui/theme/palettes/podcast_folders.dart' show PodcastFolderColors;
@@ -14,6 +15,19 @@ String podcastFolderIdForFeed(String feedUrl) => 'rss:$feedUrl';
 /// The feed URL in a folder entry, or null for a YouTube show.
 String? feedUrlFromFolderId(String id) =>
     id.startsWith('rss:') ? id.substring(4) : null;
+
+/// The [podcastShowKey]s of a folder's shows ([PodcastFolder.podcastIds]).
+Set<String> podcastFolderShowKeys(Iterable<String> podcastIds) {
+  final keys = <String>{};
+  for (final id in podcastIds) {
+    final feed = feedUrlFromFolderId(id);
+    final key = feed != null
+        ? podcastShowKeyForFeed(feed)
+        : podcastShowKeyForYoutube(id);
+    if (key != null) keys.add(key);
+  }
+  return keys;
+}
 
 /// Move an item in a list the way ReorderableListView reports it.
 List<T> reorderList<T>(List<T> list, int oldIndex, int newIndex) {

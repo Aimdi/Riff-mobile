@@ -1,9 +1,14 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import '/models/playlist.dart';
 import '/models/thumbnail.dart';
+import '/services/podcast_inbox_counts.dart';
+import '/services/podcast_library.dart';
+import '/services/podcast_playback_profile.dart';
 import '/ui/navigator.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
@@ -63,6 +68,7 @@ class PodcastCoverTile extends StatelessWidget {
     this.onLongPress,
     this.onPlay,
     this.badge,
+    this.count,
     this.showPlay = true,
   });
 
@@ -77,6 +83,9 @@ class PodcastCoverTile extends StatelessWidget {
   final VoidCallback? onLongPress;
   final VoidCallback? onPlay;
   final Widget? badge;
+
+  /// On the cover's top right: its new episodes ([PodcastInboxCountBadge]).
+  final Widget? count;
   final bool showPlay;
 
   @override
@@ -107,6 +116,11 @@ class PodcastCoverTile extends StatelessWidget {
                         left: RiffSpacing.sm,
                         top: RiffSpacing.sm,
                         child: badge!),
+                  if (count != null)
+                    Positioned(
+                        right: RiffSpacing.sm,
+                        top: RiffSpacing.sm,
+                        child: count!),
                   if (showPlay)
                     Positioned(
                       right: RiffSpacing.sm,
@@ -243,19 +257,81 @@ String libraryPodcastSubtitle(Playlist podcast) {
   return '';
 }
 
-Widget youtubeChannelBadge(BuildContext context) {
-  final riff = RiffColors.of(context);
-  return Container(
-    padding: const EdgeInsets.symmetric(
-        horizontal: RiffSpacing.xs, vertical: RiffSpacing.xxs),
-    decoration: BoxDecoration(
-      color: riff.scrim.withOpacity(0.65),
-      borderRadius: BorderRadius.circular(RiffRadii.xs),
-    ),
-    child: Icon(Icons.ondemand_video,
-        size: RiffSizes.chipGlyph, color: riff.onImage),
-  );
+/// A small mark in a corner of a show's cover, on a scrim.
+Widget _coverMark(BuildContext context, Widget child) => Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: RiffSpacing.xs, vertical: RiffSpacing.xxs),
+      decoration: BoxDecoration(
+        color: RiffColors.of(context)
+            .scrim
+            .withOpacity(RiffPalette.coverBadgeScrim),
+        borderRadius: BorderRadius.circular(RiffRadii.xs),
+      ),
+      child: child,
+    );
+
+Widget youtubeChannelBadge(BuildContext context) => _coverMark(
+    context,
+    Icon(Icons.ondemand_video,
+        size: RiffSizes.chipGlyph, color: RiffColors.of(context).onImage));
+
+/// How many of [shows]' episodes wait in the Inbox (unplayed, not archived
+/// by Keep latest), on a show's or folder's cover as AntennaPod and Pocket
+/// Casts count them; nothing when none do. Follows Inbox refreshes and
+/// episodes played anywhere.
+class PodcastInboxCountBadge extends StatefulWidget {
+  const PodcastInboxCountBadge({super.key, required this.shows});
+
+  /// [podcastShowKey]s: one show's, or a folder's.
+  final Set<String> shows;
+
+  @override
+  State<PodcastInboxCountBadge> createState() => _PodcastInboxCountBadgeState();
 }
+
+class _PodcastInboxCountBadgeState extends State<PodcastInboxCountBadge> {
+  late final ValueListenable<Box>? _played = Hive.isBoxOpen('PodcastPlayed')
+      ? Hive.box('PodcastPlayed').listenable()
+      : null;
+
+  Widget _count() => Obx(() {
+        PodcastInboxCounts.rev.value;
+        PodcastLibrary.rev.value;
+        final n = PodcastInboxCounts.count(widget.shows);
+        if (n <= 0) return const SizedBox.shrink();
+        return Semantics(
+          label: n == 1
+              ? 'newInInboxOne'.tr
+              : 'newInInbox'.trParams({'count': '$n'}),
+          child: ExcludeSemantics(
+            child: _coverMark(
+              context,
+              Text(
+                n > 99 ? '99+' : '$n',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelSmall
+                    ?.copyWith(color: RiffColors.of(context).onImage),
+              ),
+            ),
+          ),
+        );
+      });
+
+  @override
+  Widget build(BuildContext context) {
+    final played = _played;
+    if (played == null) return _count();
+    return ValueListenableBuilder<Box>(
+      valueListenable: played,
+      builder: (context, _, __) => _count(),
+    );
+  }
+}
+
+/// [PodcastInboxCountBadge] for one show, or null when it has no key.
+Widget? podcastShowCountBadge(String? show) =>
+    show == null ? null : PodcastInboxCountBadge(shows: {show});
 
 Future<void> playLibraryPodcast(Playlist podcast) async {
   try {
@@ -325,6 +401,7 @@ PodcastCoverTile rssPodcastTile(
     title: (rss['title'] ?? '').toString(),
     subtitle: (rss['author'] ?? '').toString(),
     imageUrl: rssArtworkUrl(rss),
+    count: podcastShowCountBadge(podcastShowKeyForFeed('${rss['feedUrl']}')),
     onTap: () => open(rss),
     onPlay: () => play(rss),
     onLongPress: onLongPress,

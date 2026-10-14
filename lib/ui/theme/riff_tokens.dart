@@ -45,6 +45,10 @@ class RiffPalette {
   static const double folderTint = 0.22;
   static const double folderEdge = 0.55;
 
+  /// Under a mark on a show's cover (YouTube channel, new episodes), so it
+  /// reads on any artwork.
+  static const double coverBadgeScrim = 0.65;
+
   /// Active rail item: accent fill and outline strengths.
   static const double railActiveFillOpacity = 0.16;
   static const double railActiveBorderOpacity = 0.28;

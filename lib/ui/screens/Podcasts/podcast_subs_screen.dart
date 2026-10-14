@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 
 import '/models/playlist.dart';
 import '/services/folder_cover.dart';
+import '/services/podcast_playback_profile.dart';
 import '/services/podcast_service.dart';
 import '/services/wizestream_service.dart';
 import '/ui/theme/riff_spacing.dart';
@@ -323,6 +324,8 @@ class PodcastSubsScreen extends StatelessWidget {
                 badge: isYoutubeChannelPodcast(podcast)
                     ? youtubeChannelBadge(context)
                     : null,
+                count: podcastShowCountBadge(
+                    podcastShowKeyForYoutube(podcast.playlistId)),
                 onTap: () => openLibraryPodcast(podcast),
                 onPlay: () => playLibraryPodcast(podcast),
                 onLongPress: () => showPodcastFolderSheet(context, podcast),
@@ -397,6 +400,8 @@ class PodcastSubsScreen extends StatelessWidget {
       title: folder.name,
       subtitle: podcastShowCount(folder.podcastIds.length),
       showPlay: false,
+      count: PodcastInboxCountBadge(
+          shows: podcastFolderShowKeys(folder.podcastIds)),
       cover: PodcastFolderCover(folder: folder),
       onTap: () => Get.to(() => PodcastFolderScreen(folderId: folder.id)),
       onLongPress: () => _folderOptions(context, fc, folder),

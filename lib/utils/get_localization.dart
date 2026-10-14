@@ -4642,6 +4642,8 @@ Map<String, Map<String, String>> get keys => {
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "newInInboxOne": "1 new episode in your Inbox",
+    "newInInbox": "@count new episodes in your Inbox",
     "searchEpisodes": "Search episodes",
     "noEpisodesMatch": "No episodes match",
     "showAsList": "Show as list",

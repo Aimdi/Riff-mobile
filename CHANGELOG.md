@@ -162,15 +162,20 @@ Podcasts:
   in a private session aren't kept
 * Share an episode from the podcast player's ⋮, like Pocket Casts and
   Spotify: Share episode, or Share from 12:34 to share the moment
-  playing; Share episode is in an episode's long-press menu too. The link is the YouTube video for a YouTube episode (starting
-  at that moment), else the episode's page from its feed, else its audio
-  file (which a browser starts at that moment)
+  playing; Share episode is in an episode's long-press menu too. The
+  link is the YouTube video for a YouTube episode (starting at that
+  moment), else the episode's page from its feed, else its audio file
+  (which a browser starts at that moment)
 * Timestamps in show notes play the episode from there, as in Pocket
   Casts, Spotify and YouTube: tap "12:34" (or "1:02:03") in the notes,
   and web addresses in them open in the browser; both in the accent.
   Times past the episode's end stay plain text (a clock time, not a
   moment of the episode). In an episode's long-press menu › Shownotes,
   a timestamp plays that episode from there
+* Followed shows count their new episodes, like AntennaPod and Pocket
+  Casts: in Podcasts › Subscriptions, a show's cover shows how many of
+  its episodes are waiting in the Inbox (a folder's, those of its
+  shows), and the number goes down as you play them or mark them played
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip
