@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audio_service/audio_service.dart' show MediaItem;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -11,6 +13,7 @@ import 'package:hive/hive.dart';
 import '../../../mixins/additional_opeartion_mixin.dart';
 import '../../../models/media_Item_builder.dart';
 import '../Library/library_controller.dart';
+import 'more_by_artist.dart';
 
 ///AlbumScreenController handles album screen
 ///
@@ -19,6 +22,11 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
     with AdditionalOpeartionMixin, GetSingleTickerProviderStateMixin {
   final album =
       Album(title: "", browseId: "", thumbnailUrl: "", artists: []).obs;
+
+  /// "More by …" under the album (Spotify, Apple Music): its first credited
+  /// artist's other releases. Empty until they load, and offline.
+  final moreByArtist = <Album>[].obs;
+  String moreByArtistName = '';
 
   // Title animation
   late AnimationController _animationController;
@@ -70,6 +78,7 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
         // it here, or the player and other screens using it fail mid-write.
       }
       checkDownloadStatus();
+      unawaited(_loadMoreByArtist());
     } catch (e) {
       // Handle any errors that occur during the fetch
       printERROR("Error fetching album details: $e");
@@ -82,6 +91,22 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
       // As on the playlist page: a failed load must not leave the track
       // list shimmering forever.
       if (!isClosed) isContentFetched.value = true;
+    }
+  }
+
+  Future<void> _loadMoreByArtist() async {
+    final artist = album.value.artists
+        ?.firstWhereOrNull((a) => '${a['id'] ?? ''}'.isNotEmpty);
+    if (artist == null) return;
+    try {
+      final page = await musicServices.getArtist('${artist['id']}');
+      if (isClosed) return;
+      moreByArtistName = '${artist['name'] ?? page['name'] ?? ''}';
+      moreByArtist.value = moreByArtistAlbums(page, album.value.browseId,
+          currentTitle: album.value.title);
+    } catch (e) {
+      // Offline, or the artist page didn't load: no section.
+      printERROR('More by artist: $e');
     }
   }
 

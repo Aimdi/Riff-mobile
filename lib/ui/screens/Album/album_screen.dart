@@ -2,6 +2,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/models/album.dart';
 import 'package:harmonymusic/models/playling_from.dart';
 import 'package:harmonymusic/models/thumbnail.dart';
 import 'package:harmonymusic/ui/widgets/playlist_album_scroll_behaviour.dart';
@@ -9,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../player/player_controller.dart';
 import '../../widgets/collection_header.dart';
+import '../../widgets/content_list_widget.dart';
 import '../../widgets/header_hero_fade.dart';
 import '../../navigator.dart';
 import '../../widgets/image_widget.dart';
@@ -16,6 +18,7 @@ import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/song_list_tile.dart';
 import '../../widgets/sort_widget.dart';
+import '../../theme/riff_spacing.dart';
 import 'album_screen_controller.dart';
 
 class AlbumScreen extends StatelessWidget {
@@ -154,11 +157,13 @@ class AlbumScreen extends StatelessWidget {
                             // isContentFetched is read first (|| would skip
                             // it while the list is empty), so an album that
                             // loads empty or fails leaves the shimmer.
-                            itemCount: albumController
-                                        .isContentFetched.isFalse ||
-                                    albumController.songList.isEmpty
-                                ? 4
-                                : albumController.songList.length + 3,
+                            itemCount:
+                                albumController.isContentFetched.isFalse ||
+                                        albumController.songList.isEmpty
+                                    ? 4
+                                    : albumController.songList.length +
+                                        3 +
+                                        (_showMoreBy(albumController) ? 1 : 0),
                             itemBuilder: (_, index) {
                               if (index == 0) {
                                 return FadeTransition(
@@ -226,6 +231,23 @@ class AlbumScreen extends StatelessWidget {
                                 );
                               }
 
+                              // After the songs: More by the artist.
+                              if (index - 3 >=
+                                  albumController.songList.length) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(
+                                      top: RiffSpacing.lg),
+                                  child: ContentListWidget(
+                                    content: AlbumContent(
+                                        title: 'moreByArtist'.trParams({
+                                          'artist':
+                                              albumController.moreByArtistName
+                                        }),
+                                        albumList: albumController.moreByArtist
+                                            .toList()),
+                                  ),
+                                );
+                              }
                               return Padding(
                                 padding:
                                     const EdgeInsets.only(left: 4, right: 4),
@@ -256,6 +278,12 @@ class AlbumScreen extends StatelessWidget {
       ),
     );
   }
+
+  /// More by the artist shows once it's loaded, and not while the album's
+  /// songs are searched.
+  bool _showMoreBy(AlbumScreenController albumController) =>
+      albumController.moreByArtist.isNotEmpty &&
+      albumController.isSearchingOn.isFalse;
 
   Widget _header(BuildContext context, AlbumScreenController albumController) {
     final album = albumController.album.value;

@@ -4642,6 +4642,7 @@ Map<String, Map<String, String>> get keys => {
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "moreByArtist": "More by @artist",
     "equalizerOn": "Riff's equalizer",
     "equalizerUnavailable": "Your phone doesn't give Riff an equalizer. Try your phone's own",
     "phoneEqualizer": "Phone's equalizer",

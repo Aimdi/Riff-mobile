@@ -344,6 +344,12 @@ Playlists:
   every three. In Up Next a ✦ before the artist marks the songs it
   added; the playlist itself doesn't change. Offline it just shuffles
 
+Albums:
+* More by the artist, like Spotify, Apple Music and YouTube Music: under
+  an album's songs, a row of the artist's other albums, then their
+  singles and EPs (not the album you're on); tap one to open it. Not
+  shown while you search the album's songs, or offline
+
 Up Next:
 * Removing a song (swipe it away, the song menu, or ✕ on desktop) and
   Clear queue now show "Undo" for a few seconds; undo puts the song back
