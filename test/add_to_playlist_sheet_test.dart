@@ -77,21 +77,43 @@ void main() {
     );
   });
 
-  test('countNewPlaylistSongs only counts ids that are not already there', () {
-    expect(
-      countNewPlaylistSongs(
-        existingIds: ['a', 'b'],
-        incomingIds: ['b', 'c', 'd'],
-      ),
-      2,
-    );
-    expect(
-      countNewPlaylistSongs(
-        existingIds: ['a'],
-        incomingIds: ['a'],
-      ),
-      0,
-    );
+  test('several songs (an album, a playlist) are spoken of as such', () {
+    expect(playlistAddMessageKey(PlaylistAddOutcome.added, songs: 12),
+        'songsAddedToPlaylistAlert');
+    expect(playlistAddMessageKey(PlaylistAddOutcome.alreadyIn, songs: 12),
+        'songsAlreadyInPlaylist');
+    expect(playlistAddMessageKey(PlaylistAddOutcome.failed, songs: 12),
+        'operationFailed');
+  });
+
+  group('songs written to your playlist', () {
+    late Box box;
+    setUp(() async {
+      box = await Hive.openBox('PLmine', bytes: Uint8List(0));
+      await box.add({'videoId': 'a', 'title': 'A'});
+      await box.add({'videoId': 'b', 'title': 'B'});
+    });
+    tearDown(() => box.close());
+
+    test('only the ones it lacks, each once, in their order', () async {
+      final added = await addNewSongsToPlaylistBox(box, const [
+        MediaItem(id: 'b', title: 'B'),
+        MediaItem(id: 'c', title: 'C'),
+        MediaItem(id: 'd', title: 'D'),
+        // On the album or playlist twice: in once.
+        MediaItem(id: 'c', title: 'C'),
+      ]);
+      expect(added.map((s) => s.id), ['c', 'd']);
+      expect(
+          box.values.map((e) => (e as Map)['videoId']), ['a', 'b', 'c', 'd']);
+    });
+
+    test('all there already: nothing', () async {
+      final added = await addNewSongsToPlaylistBox(
+          box, const [MediaItem(id: 'a', title: 'A')]);
+      expect(added, isEmpty);
+      expect(box.length, 2);
+    });
   });
 
   test('a playlist has the songs only when it has every one of them', () {

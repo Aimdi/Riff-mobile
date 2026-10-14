@@ -9,6 +9,7 @@ import 'package:harmonymusic/ui/widgets/playlist_album_scroll_behaviour.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../player/player_controller.dart';
+import '../../widgets/add_to_playlist.dart' show showAddToPlaylistSheet;
 import '../../widgets/collection_header.dart';
 import '../../widgets/content_list_widget.dart';
 import '../../widgets/header_hero_fade.dart';
@@ -369,6 +370,13 @@ class AlbumScreen extends StatelessWidget {
           final ok = await playerController
               .enqueueSongList(albumController.songList.toList());
           snack(ok ? "songEnqueueAlert" : "operationFailed");
+        }),
+        // Spotify's, Apple Music's and YouTube Music's Add to playlist:
+        // the whole album at once.
+        CollectionMenuItem(Icons.playlist_add_rounded, 'addToPlaylist'.tr, () {
+          final list = albumController.songList.toList();
+          if (list.isEmpty) return snack('operationFailed');
+          showAddToPlaylistSheet(context, list);
         }),
         CollectionMenuItem(Icons.sensors, "startRadio".tr, () async {
           final list = albumController.songList.toList();

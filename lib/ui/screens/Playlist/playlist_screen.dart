@@ -26,6 +26,7 @@ import '/ui/theme/riff_spacing.dart';
 import '/ui/widgets/playlist_album_scroll_behaviour.dart';
 import '../../navigator.dart';
 import '../../player/player_controller.dart';
+import '../../widgets/add_to_playlist.dart' show showAddToPlaylistSheet;
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/create_playlist_dialog.dart';
 import '../../widgets/generated_cover.dart';
@@ -686,6 +687,13 @@ Widget _actions(
           () async {
         final ok = await player.enqueueSongList(c.songList.toList());
         snack(ok ? "songEnqueueAlert" : "operationFailed");
+      }),
+      // Spotify's Add to other playlist: all of this one's songs at once.
+      CollectionMenuItem(Icons.playlist_add_rounded,
+          (isLocal ? 'addToOtherPlaylist' : 'addToPlaylist').tr, () {
+        final list = c.songList.toList();
+        if (list.isEmpty) return snack('emptyPlaylist');
+        showAddToPlaylistSheet(context, list);
       }),
       // Spotify's Smart shuffle: songs like these mixed in.
       CollectionMenuItem(Icons.shuffle_on_rounded, 'smartShuffle'.tr, () async {

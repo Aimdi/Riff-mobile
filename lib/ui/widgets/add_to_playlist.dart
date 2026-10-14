@@ -83,12 +83,16 @@ Future<void> showAddToPlaylistSheet(
 /// What happened when songs were written to a playlist.
 enum PlaylistAddOutcome { added, alreadyIn, failed }
 
-String playlistAddMessageKey(PlaylistAddOutcome outcome) {
+/// What to say when [songs] songs were written to a playlist (several:
+/// a whole album or playlist, the queue).
+String playlistAddMessageKey(PlaylistAddOutcome outcome, {int songs = 1}) {
   switch (outcome) {
     case PlaylistAddOutcome.added:
-      return 'songAddedToPlaylistAlert';
+      return songs > 1
+          ? 'songsAddedToPlaylistAlert'
+          : 'songAddedToPlaylistAlert';
     case PlaylistAddOutcome.alreadyIn:
-      return 'songAlreadyExists';
+      return songs > 1 ? 'songsAlreadyInPlaylist' : 'songAlreadyExists';
     case PlaylistAddOutcome.failed:
       return 'operationFailed';
   }
@@ -134,12 +138,22 @@ bool isSongDownloaded(String id) =>
     Hive.isBoxOpen('SongDownloads') &&
     Hive.box('SongDownloads').containsKey(id);
 
-int countNewPlaylistSongs({
-  required Iterable<String> existingIds,
-  required Iterable<String> incomingIds,
-}) {
-  final have = existingIds.toSet();
-  return incomingIds.where((id) => !have.contains(id)).length;
+/// Writes to your playlist's [box] those of [songs] it hasn't got, each
+/// once (a song twice among them goes in once), in their order; the ones
+/// it took.
+Future<List<MediaItem>> addNewSongsToPlaylistBox(
+    Box box, List<MediaItem> songs) async {
+  final have = {
+    for (final e in box.values)
+      if (e is Map) '${e['videoId']}',
+  };
+  final added = <MediaItem>[];
+  for (final song in songs) {
+    if (!have.add(song.id)) continue;
+    await box.add(MediaItemBuilder.toJson(song));
+    added.add(song);
+  }
+  return added;
 }
 
 Future<bool> addSongsToLikedSongs(List<MediaItem> songs) async {
@@ -245,7 +259,7 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
   Future<void> _finish(PlaylistAddOutcome outcome) async {
     if (!mounted) return;
     Navigator.of(context).pop();
-    _snack(playlistAddMessageKey(outcome).tr);
+    _snack(playlistAddMessageKey(outcome, songs: widget.songItems.length).tr);
     if (outcome == PlaylistAddOutcome.added &&
         Get.isRegistered<DiscoveryService>()) {
       for (final song in widget.songItems) {
@@ -508,26 +522,13 @@ class AddToPlaylistController extends GetxController {
     if (playlistType.value == "local") {
       final plstBox = await Hive.openBox(playlistId);
       final before = plstBox.values.toList();
-      final playlistSongIds =
-          plstBox.values.map((item) => '${item['videoId']}').toList();
-      final incoming = songs.map((e) => e.id);
-      final newCount = countNewPlaylistSongs(
-        existingIds: playlistSongIds,
-        incomingIds: incoming,
-      );
-      final added = <MediaItem>[];
-      for (MediaItem element in songs) {
-        if (!playlistSongIds.contains(element.id)) {
-          await plstBox.add(MediaItemBuilder.toJson(element));
-          added.add(element);
-        }
-      }
+      final added = await addNewSongsToPlaylistBox(plstBox, songs);
       keepPlaylistDownloaded(
           songsToKeepDownloaded(before, added, isDownloaded: isSongDownloaded));
       // Shared box (Hive hands every caller the same instance): never close
       // it here, or the player and other screens using it fail mid-write.
       additionInProgress.value = false;
-      return newCount > 0
+      return added.isNotEmpty
           ? PlaylistAddOutcome.added
           : PlaylistAddOutcome.alreadyIn;
     } else {

@@ -516,12 +516,21 @@ Playlists:
   Rewind, doesn't steer your mixes and recommendations and isn't sent to
   ListenBrainz; it still shows in Recently played. Include in your taste
   profile undoes it
+* Add a whole playlist to another one, as Spotify's Add to other
+  playlist: a playlist's ⋮ › Add to other playlist (Add to playlist for
+  ones that aren't yours, Favorites included) opens Add to playlist with
+  all its songs. Songs your playlist has already aren't added again, and a
+  song that's twice among those added goes in once. Adding several songs
+  says "Songs added to playlist!" (or that they're in it already)
 
 Albums:
 * More by the artist, like Spotify, Apple Music and YouTube Music: under
   an album's songs, a row of the artist's other albums, then their
   singles and EPs (not the album you're on); tap one to open it. Not
   shown while you search the album's songs, or offline
+* Add to playlist, like Spotify, Apple Music and YouTube Music: an
+  album's ⋮ › Add to playlist adds the whole album to one of your
+  playlists or Favorites, without selecting its songs first
 
 Up Next:
 * Removing a song (swipe it away, the song menu, or ✕ on desktop) and
