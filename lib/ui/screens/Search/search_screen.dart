@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import 'components/search_item.dart';
 import 'components/search_pill.dart';
+import 'components/voice_search_button.dart';
 import '../../widgets/modified_text_field.dart';
 import '../../theme/riff_spacing.dart';
 import '../../theme/riff_tokens.dart';
@@ -132,7 +133,8 @@ class SearchScreen extends StatelessWidget {
   }
 }
 
-/// Pill search field; the clear button shows only while there is text.
+/// Pill search field; the clear button shows only while there is text,
+/// the mic (voice search) while there's none.
 class _SearchField extends StatelessWidget {
   const _SearchField({required this.controller});
   final SearchScreenController controller;
@@ -175,7 +177,8 @@ class _SearchField extends StatelessWidget {
           suffixIcon: ValueListenableBuilder<TextEditingValue>(
             valueListenable: controller.textInputController,
             builder: (context, value, _) => value.text.isEmpty
-                ? const SizedBox.shrink()
+                // What the mic heard is searched as Enter would.
+                ? VoiceSearchButton(onHeard: (q) => _submit(context, q))
                 : IconButton(
                     tooltip: 'clear'.tr,
                     onPressed: controller.reset,

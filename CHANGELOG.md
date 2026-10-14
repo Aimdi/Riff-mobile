@@ -453,6 +453,13 @@ Downloads:
   a third of the space (Opus about 50 kb/s, AAC 48 kb/s). Songs downloaded
   before keep theirs
 
+Search:
+* Search by voice, as with YouTube Music, Spotify and Apple Music: tap
+  the mic in the empty search field and say a song, an artist or an
+  album, and Riff searches what your phone heard as Enter does (the
+  top song plays, or the results open). On Android phones with speech
+  recognition (Google's, on most)
+
 Stats:
 * Play your top songs, like Spotify's: in Stats, tap a song in Top songs
   to play it with the rest of the list after it, or Play to start from

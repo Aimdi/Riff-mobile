@@ -13,6 +13,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
+import android.speech.RecognizerIntent
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -29,6 +30,21 @@ class MainActivity : AudioServiceActivity() {
 
     /** `riff/apps`: needs this activity (startActivity, packageManager). */
     private var appsChannel: MethodChannel? = null
+
+    /** In-app voice search: the open `listen` call, answered with what was said. */
+    private var speechResult: MethodChannel.Result? = null
+
+    /** The phone's speech recognition ("Speak now"), one result. */
+    private fun speechIntent(prompt: String?) =
+        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+            )
+            .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            .apply {
+                if (!prompt.isNullOrEmpty()) putExtra(RecognizerIntent.EXTRA_PROMPT, prompt)
+            }
 
     // Deprecated on API 33 but still works everywhere; visible thanks to
     // the <queries> entries in the manifest.
@@ -121,6 +137,27 @@ class MainActivity : AudioServiceActivity() {
                             ?: emptyList()
                     )
                 )
+                // In-app voice search (the search field's mic): whether the
+                // phone can listen, and what it heard (null: cancelled).
+                "canListen" -> result.success(
+                    speechIntent(null).resolveActivity(packageManager) != null
+                )
+                "listen" -> {
+                    // One at a time: one still open hears nothing.
+                    speechResult?.success(null)
+                    speechResult = null
+                    try {
+                        startActivityForResult(
+                            speechIntent(call.argument<String>("prompt")),
+                            SPEECH_REQUEST
+                        )
+                        speechResult = result
+                    } catch (_: ActivityNotFoundException) {
+                        result.success(null)
+                    } catch (_: SecurityException) {
+                        result.success(null)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }
@@ -275,6 +312,20 @@ class MainActivity : AudioServiceActivity() {
         null
     }
 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode == SPEECH_REQUEST) {
+            val heard = if (resultCode == RESULT_OK) {
+                data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+            } else {
+                null
+            }
+            speechResult?.success(heard)
+            speechResult = null
+            return
+        }
+        super.onActivityResult(requestCode, resultCode, data)
+    }
+
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         // A newer activity may already have attached to the same engine and
         // taken over the channels; don't clear its handlers.
@@ -283,6 +334,9 @@ class MainActivity : AudioServiceActivity() {
         videoPlayer = null
         micRecorder?.stop()
         micRecorder = null
+        // A listen still open when the activity goes hears nothing.
+        speechResult?.success(null)
+        speechResult = null
         if (owner) {
             appsChannel?.setMethodCallHandler(null)
             channelOwner = null
@@ -298,6 +352,9 @@ class MainActivity : AudioServiceActivity() {
 }
 
 private const val CRASH_FILE = "last_crash.txt"
+
+/** startActivityForResult code of in-app voice search. */
+private const val SPEECH_REQUEST = 7301
 private var crashHandlerInstalled = false
 
 /** App icon shortcut ids (lib/services/app_shortcuts.dart) and their icons. */
