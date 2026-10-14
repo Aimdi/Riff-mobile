@@ -112,7 +112,7 @@ class _SimilarSongsSheetState extends State<SimilarSongsSheet> {
                           ? null
                           : () async {
                               final ok = await Get.find<PlayerController>()
-                                  .enqueueSongList(songs);
+                                  .enqueueSongList(songs, byYou: true);
                               if (!context.mounted) return;
                               Navigator.pop(context);
                               ScaffoldMessenger.of(context).showSnackBar(

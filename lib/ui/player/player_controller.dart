@@ -115,6 +115,9 @@ class PlayerController extends GetxController
   final _musicServices = Get.find<MusicServices>();
   final currentQueue = <MediaItem>[].obs;
 
+  /// Songs you queued that have played ([stillQueuedByYou]).
+  final _heardQueued = <String>{};
+
   final playerPaneOpacity = (1.0).obs;
   final isPlayerpanelTopVisible = true.obs;
 
@@ -1461,6 +1464,9 @@ class PlayerController extends GetxController
           ListenBrainzService.submitListen(outgoing);
         }
         currentSong.value = mediaItem;
+        if (mediaItem.extras?[kQueuedByYou] == true) {
+          _heardQueued.add(mediaItem.id);
+        }
         if (songChanged) {
           // Reset per-song UI now, before the awaits below, so lyrics the
           // user opens for the new song aren't wiped when they finish.
@@ -1733,6 +1739,14 @@ class PlayerController extends GetxController
       }
       if (tracks.isEmpty) return false;
 
+      // Songs you queued play next in the radio, as in [playPlayListSong].
+      final keep = stillQueuedByYou(currentQueue, currentSongIndex.value,
+          heard: _heardQueued);
+      _heardQueued.clear();
+      Future<void> keepQueued() async {
+        if (keep.isNotEmpty) await playNextList(keep);
+      }
+
       // Await the queue swap before play — the old fire-and-forget
       // updateQueue raced setSourceNPlay and could drop the first track.
       await _audioHandler.updateQueue(tracks);
@@ -1752,9 +1766,11 @@ class PlayerController extends GetxController
         _playerPanelCheck();
         final result =
             await _audioHandler.customAction("playByIndex", {"index": 0});
+        await keepQueued();
         return !playByIndexHardFailed(result);
       }
       if (radioOnCurrent) {
+        await keepQueued();
         return true;
       }
 
@@ -1765,6 +1781,7 @@ class PlayerController extends GetxController
       _playerPanelCheck();
       final result =
           await _audioHandler.customAction("playByIndex", {"index": 0});
+      await keepQueued();
 
       // disable queue loop mode when radio is started
       if (radio &&
@@ -1788,6 +1805,14 @@ class PlayerController extends GetxController
       return false;
     }
     if (index < 0 || index >= mediaItems.length) return false;
+    // Songs you queued and haven't heard yet play next in what starts now,
+    // as Spotify keeps its "Next in queue" (not into episodes or a book).
+    final keep =
+        mediaItems[index].isPodcastEpisode || mediaItems[index].isAudiobook
+            ? const <MediaItem>[]
+            : stillQueuedByYou(currentQueue, currentSongIndex.value,
+                heard: _heardQueued);
+    _heardQueued.clear();
     // Podcast shows can have thousands of episodes with long notes: send a
     // window, with shortened notes, so the media session can't overflow.
     if (mediaItems[index].isPodcastEpisode) {
@@ -1829,6 +1854,7 @@ class PlayerController extends GetxController
     }
     final result =
         await _audioHandler.customAction("playByIndex", {"index": index});
+    if (keep.isNotEmpty) await playNextList(keep);
     return !playByIndexHardFailed(result);
   }
 
@@ -2017,13 +2043,16 @@ class PlayerController extends GetxController
     )) {
       return true;
     }
-    _audioHandler
-        .addQueueItem(ensureDiscoverySource(mediaItem, DiscoverySource.queue));
+    _audioHandler.addQueueItem(
+        queuedByYou(ensureDiscoverySource(mediaItem, DiscoverySource.queue)));
     return true;
   }
 
-  ///enqueueSongList method add song List to current queue
-  Future<bool> enqueueSongList(List<MediaItem> mediaItems) async {
+  ///enqueueSongList method add song List to current queue; [byYou] when you
+  /// queued them (an album's or a playlist's Add to queue), not radio or
+  /// Autoplay.
+  Future<bool> enqueueSongList(List<MediaItem> mediaItems,
+      {bool byYou = false}) async {
     if (mediaItems.isEmpty) return false;
     if (currentQueue.isEmpty) {
       final keepRadio = shouldKeepRadioWhenEnqueueing(
@@ -2048,8 +2077,9 @@ class PlayerController extends GetxController
       }
     }
     if (listToEnqueue.isEmpty) return true;
-    _audioHandler.addQueueItems(
-        ensureDiscoverySources(listToEnqueue, DiscoverySource.queue));
+    final tagged = ensureDiscoverySources(listToEnqueue, DiscoverySource.queue);
+    _audioHandler
+        .addQueueItems(byYou ? tagged.map(queuedByYou).toList() : tagged);
     return true;
   }
 
@@ -2153,7 +2183,8 @@ class PlayerController extends GetxController
         return enqueueSong(song);
       }
       _audioHandler.customAction("addPlayNextItem", {
-        "mediaItem": ensureDiscoverySource(song, DiscoverySource.queue),
+        "mediaItem":
+            queuedByYou(ensureDiscoverySource(song, DiscoverySource.queue)),
       });
     }
     return true;

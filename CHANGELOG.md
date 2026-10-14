@@ -715,6 +715,13 @@ Up Next:
   Autoplay, the mixes, Home's Quick picks and song shelves) and its artist
   comes up a little less, with Undo. Unlike Never play this, you can still
   play it yourself
+* Songs you queue stay queued, as Spotify keeps its "Next in queue":
+  playing a playlist, an album, a song from a list or a radio used to
+  throw away what you'd added with Play next or Add to queue (an album's
+  or a playlist's too). The ones you haven't heard yet now play right
+  after the song you started, in their order, then the rest of what you
+  started. What radio, Autoplay or a mix added isn't kept, and a podcast
+  episode or a book starts on its own
 
 Home's Speed dial:
 * Swiping now goes round: a swipe right on the first page slides to the

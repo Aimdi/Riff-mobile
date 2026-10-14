@@ -685,7 +685,8 @@ Widget _actions(
       }),
       CollectionMenuItem(Icons.queue_music_rounded, "enqueueSongs".tr,
           () async {
-        final ok = await player.enqueueSongList(c.songList.toList());
+        final ok =
+            await player.enqueueSongList(c.songList.toList(), byYou: true);
         snack(ok ? "songEnqueueAlert" : "operationFailed");
       }),
       // Spotify's Add to other playlist: all of this one's songs at once.

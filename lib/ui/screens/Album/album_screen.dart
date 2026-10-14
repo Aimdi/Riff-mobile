@@ -368,7 +368,7 @@ class AlbumScreen extends StatelessWidget {
         CollectionMenuItem(Icons.queue_music_rounded, "enqueueAlbumSongs".tr,
             () async {
           final ok = await playerController
-              .enqueueSongList(albumController.songList.toList());
+              .enqueueSongList(albumController.songList.toList(), byYou: true);
           snack(ok ? "songEnqueueAlert" : "operationFailed");
         }),
         // Spotify's, Apple Music's and YouTube Music's Add to playlist:

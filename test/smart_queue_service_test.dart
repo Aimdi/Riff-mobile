@@ -22,7 +22,8 @@ class _FakePlayer extends GetxController implements PlayerController {
   final enqueued = <List<MediaItem>>[];
 
   @override
-  Future<bool> enqueueSongList(List<MediaItem> mediaItems) async {
+  Future<bool> enqueueSongList(List<MediaItem> mediaItems,
+      {bool byYou = false}) async {
     enqueued.add(mediaItems);
     return true;
   }
