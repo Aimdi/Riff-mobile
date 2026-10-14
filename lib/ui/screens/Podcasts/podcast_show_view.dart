@@ -1,4 +1,6 @@
 import 'package:audio_service/audio_service.dart';
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -11,6 +13,7 @@ import '/ui/theme/riff_tokens.dart';
 import 'podcast_library_ui.dart';
 import 'podcast_playback_controls.dart';
 
+import '/services/podcast_download_service.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/podcast_show_view_prefs.dart';
 import '/services/show_notes_links.dart';
@@ -20,8 +23,10 @@ import '/ui/screens/Audiobooks/audiobook_widgets.dart'
     show AudiobookSearchField;
 import '/ui/widgets/podcast_follow_button.dart';
 import '/ui/widgets/now_playing_bars.dart';
+import '/ui/widgets/snackbar.dart';
 import '../Home/home_layout.dart';
 import 'podcast_layout.dart';
+import 'podcast_queue_controller.dart';
 
 /// "1 episode" / "12 episodes".
 String podcastEpisodeCount(int n) =>
@@ -136,6 +141,75 @@ class _PodcastShowViewState extends State<PodcastShowView> {
   void _toggleSearch() {
     setState(() => _searching = !_searching);
     if (!_searching) _search.clear();
+  }
+
+  /// Selecting episodes, as in Pocket Casts and AntennaPod: the ids picked
+  /// (null when not selecting), to queue, download or mark played at once.
+  Set<String>? _selected;
+
+  void _startSelecting() => setState(() => _selected = <String>{});
+
+  void _stopSelecting() => setState(() => _selected = null);
+
+  void _togglePicked(String id) => setState(() {
+        final picked = _selected;
+        if (picked == null) return;
+        if (!picked.remove(id)) picked.add(id);
+      });
+
+  /// All of [shown] picked, or none when they all are.
+  void _pickAll(List<MediaItem> shown) => setState(() {
+        final picked = _selected;
+        if (picked == null) return;
+        final all = shown.every((e) => picked.contains(e.id));
+        all ? picked.clear() : picked.addAll(shown.map((e) => e.id));
+      });
+
+  /// The episodes picked, in the feed's order.
+  List<MediaItem> get _picked => [
+        for (final e in widget.episodes)
+          if (_selected?.contains(e.id) ?? false) e
+      ];
+
+  void _snack(String text) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(themedSnackbar(Theme.of(context), text));
+  }
+
+  void _queuePicked() {
+    if (!Get.isRegistered<PodcastQueueController>()) return;
+    final queue = Get.find<PodcastQueueController>();
+    final adding = _picked.where((e) => !queue.isQueued(e.id)).toList();
+    adding.forEach(queue.add);
+    _stopSelecting();
+    _snack('addedNToQueue'.trParams({'count': '${adding.length}'}));
+  }
+
+  void _downloadPicked() {
+    final todo = _picked
+        .where((e) =>
+            !PodcastDownloadService.isDownloaded(e.id) &&
+            '${e.extras?['url'] ?? ''}'.isNotEmpty)
+        .toList();
+    _stopSelecting();
+    if (todo.isEmpty) return _snack('nothingToDownload'.tr);
+    _snack('downloadingEpisodes'.trParams({'count': '${todo.length}'}));
+    // One after the other, as a show's new episodes download.
+    unawaited(() async {
+      for (final episode in todo) {
+        await PodcastDownloadService.download(episode);
+      }
+    }());
+  }
+
+  void _markPickedPlayed() {
+    final picked = _picked;
+    _stopSelecting();
+    markShowListened(context, picked, onChanged: () {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -327,13 +401,18 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                   delegate: SliverChildBuilderDelegate(
                     (context, i) {
                       final index = order[i];
+                      final picked = _selected;
                       return _EpisodeRow(
                         key: ValueKey(eps[index].id),
                         episode: eps[index],
-                        onTap: () => widget.onPlay(index),
-                        onLongPress: widget.onEpisodeLongPress == null
-                            ? null
-                            : () => widget.onEpisodeLongPress!(eps[index]),
+                        selected: picked?.contains(eps[index].id),
+                        onTap: picked != null
+                            ? () => _togglePicked(eps[index].id)
+                            : () => widget.onPlay(index),
+                        onLongPress:
+                            picked != null || widget.onEpisodeLongPress == null
+                                ? null
+                                : () => widget.onEpisodeLongPress!(eps[index]),
                         divider: i < order.length - 1,
                       );
                     },
@@ -346,7 +425,58 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                   child: SizedBox(height: RiffSpacing.listEnd)),
             ],
           ),
-          _topBar(context, theme),
+          _selected == null
+              ? _topBar(context, theme)
+              : _selectionBar(context, theme, [for (final i in order) eps[i]]),
+        ],
+      ),
+    );
+  }
+
+  /// The top bar while selecting: how many are picked, and what to do
+  /// with them.
+  Widget _selectionBar(
+      BuildContext context, ThemeData theme, List<MediaItem> shown) {
+    final count = _selected?.length ?? 0;
+    Widget action(String tooltip, IconData icon, VoidCallback onPressed) =>
+        IconButton(
+          tooltip: tooltip.tr,
+          icon: Icon(icon, size: RiffComponentSizes.headerIcon),
+          onPressed: count == 0 ? null : onPressed,
+        );
+    return Container(
+      color: theme.scaffoldBackgroundColor,
+      padding: EdgeInsets.only(
+          top: MediaQuery.paddingOf(context).top + RiffSpacing.xs,
+          left: RiffSpacing.xs,
+          right: RiffSpacing.md,
+          bottom: RiffSpacing.xs),
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: 'cancel'.tr,
+            icon: const Icon(Icons.close_rounded,
+                size: RiffComponentSizes.trailingIcon),
+            onPressed: _stopSelecting,
+          ),
+          Expanded(
+            child: Text(
+              'selectedCount'.trParams({'count': '$count'}),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleMedium,
+            ),
+          ),
+          IconButton(
+            tooltip: 'selectAll'.tr,
+            icon: const Icon(Icons.select_all_rounded,
+                size: RiffComponentSizes.headerIcon),
+            onPressed: shown.isEmpty ? null : () => _pickAll(shown),
+          ),
+          action('addToQueue', Icons.playlist_add_rounded, _queuePicked),
+          action('download', Icons.download_outlined, _downloadPicked),
+          action('markAsPlayed', Icons.check_circle_outline_rounded,
+              _markPickedPlayed),
         ],
       ),
     );
@@ -411,12 +541,16 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                     markShowListened(context, widget.episodes, onChanged: () {
                       if (mounted) setState(() {});
                     });
+                  case 2:
+                    _startSelecting();
                 }
               },
               itemBuilder: (_) => [
                 PopupMenuItem(value: 0, child: Text('showLibrarySettings'.tr)),
                 if (widget.episodes.isNotEmpty)
                   PopupMenuItem(value: 1, child: Text('markAllListened'.tr)),
+                if (widget.episodes.length > 1)
+                  PopupMenuItem(value: 2, child: Text('selectEpisodes'.tr)),
               ],
             ),
         ],
@@ -579,12 +713,17 @@ class _EpisodeRow extends StatelessWidget {
     required this.onTap,
     this.onLongPress,
     this.divider = true,
+    this.selected,
   });
 
   final MediaItem episode;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
   final bool divider;
+
+  /// While episodes are being selected, whether this one is (a tap picks
+  /// it or lets it go); null otherwise.
+  final bool? selected;
 
   @override
   Widget build(BuildContext context) {
@@ -662,14 +801,28 @@ class _EpisodeRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: RiffSpacing.sm),
-                  playing
-                      ? const SizedBox.square(
-                          dimension: kMinInteractiveDimension,
-                          child: Center(
-                              child: NowPlayingBars(
-                                  size: RiffComponentSizes.headerIcon)),
-                        )
-                      : PodcastPlayButton(onPressed: onTap),
+                  if (selected != null)
+                    SizedBox.square(
+                      dimension: kMinInteractiveDimension,
+                      child: Center(
+                        child: Icon(
+                          selected!
+                              ? Icons.check_circle_rounded
+                              : Icons.radio_button_unchecked_rounded,
+                          size: RiffComponentSizes.headerIcon,
+                          color: selected! ? accent : muted,
+                        ),
+                      ),
+                    )
+                  else if (playing)
+                    const SizedBox.square(
+                      dimension: kMinInteractiveDimension,
+                      child: Center(
+                          child: NowPlayingBars(
+                              size: RiffComponentSizes.headerIcon)),
+                    )
+                  else
+                    PodcastPlayButton(onPressed: onTap),
                 ],
               ),
             ),
@@ -677,9 +830,13 @@ class _EpisodeRow extends StatelessWidget {
         );
     return Column(
       children: [
-        player == null
-            ? body(false)
-            : Obx(() => body(player.currentSong.value?.id == episode.id)),
+        // Picked or not, for screen readers, while selecting.
+        Semantics(
+          selected: selected,
+          child: player == null
+              ? body(false)
+              : Obx(() => body(player.currentSong.value?.id == episode.id)),
+        ),
         // Full-width hairline between episodes (§5.2).
         if (divider) const Divider(height: 1),
       ],

@@ -224,6 +224,10 @@ Podcasts:
   previous / next chapter and Skip chapters. Nothing is skipped by them
   on its own: ads put into an episode as it's fetched can move its audio
   away from the notes' times
+* Select episodes on a show's page, as in Pocket Casts and AntennaPod:
+  ⋮ › Select episodes, tap the ones you want (or Select all), then add
+  them to the queue, download them or mark them played (with Undo) all
+  at once
 * Episodes say what they are, as in Apple Podcasts and Pocket Casts: a
   show's page and the Inbox label trailers ("Trailer"), bonus episodes
   ("Bonus") and numbered ones ("S2 E5", "Ep. 12") as the feed numbers
