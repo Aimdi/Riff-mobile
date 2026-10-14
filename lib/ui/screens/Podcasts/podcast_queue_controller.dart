@@ -1,10 +1,59 @@
 import 'dart:async';
+import 'dart:math';
 
 import '/services/podcast_queue_downloads.dart';
+import '/services/podcast_service.dart';
 import '/ui/player/long_form_queue.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
+
+/// Orders the queue can be put in, once, as AntennaPod sorts its queue.
+enum PodcastQueueSort { newest, oldest, shortest, longest, show, shuffle }
+
+/// When [episode] came out (epoch ms): as kept, else read from its date
+/// ("5 Mar 2026"); 0 when unknown.
+int queuedEpisodeReleasedMs(MediaItem episode) {
+  final ms = episode.extras?['pubDateMs'];
+  if (ms is int && ms > 0) return ms;
+  final date = episode.extras?['date'];
+  return date is String ? PodcastService.pubDateMs(date) : 0;
+}
+
+/// [items] in [sort]'s order. Episodes it can't tell apart (the same show,
+/// the same date or length, or no date or length, which go last) keep the
+/// order they were in.
+List<MediaItem> sortedQueue(List<MediaItem> items, PodcastQueueSort sort,
+    {Random? random}) {
+  if (sort == PodcastQueueSort.shuffle) return items.toList()..shuffle(random);
+  int released(MediaItem e) => queuedEpisodeReleasedMs(e);
+  int length(MediaItem e) => e.duration?.inMilliseconds ?? 0;
+  String show(MediaItem e) => (e.artist ?? '').trim().toLowerCase();
+  // Unknown (0) after every known value, whichever way known ones go.
+  int known(int a, int b, {required bool ascending}) {
+    if (a <= 0 || b <= 0) return (a <= 0 ? 1 : 0) - (b <= 0 ? 1 : 0);
+    return ascending ? a.compareTo(b) : b.compareTo(a);
+  }
+
+  int compare(MediaItem a, MediaItem b) => switch (sort) {
+        PodcastQueueSort.newest =>
+          known(released(a), released(b), ascending: false),
+        PodcastQueueSort.oldest =>
+          known(released(a), released(b), ascending: true),
+        PodcastQueueSort.shortest =>
+          known(length(a), length(b), ascending: true),
+        PodcastQueueSort.longest =>
+          known(length(a), length(b), ascending: false),
+        PodcastQueueSort.show => show(a).compareTo(show(b)),
+        PodcastQueueSort.shuffle => 0,
+      };
+  final indexed = [for (var i = 0; i < items.length; i++) (i, items[i])];
+  indexed.sort((a, b) {
+    final c = compare(a.$2, b.$2);
+    return c != 0 ? c : a.$1.compareTo(b.$1);
+  });
+  return [for (final e in indexed) e.$2];
+}
 
 /// A manually-curated podcast play queue ("Queue" / AntennaPod's
 /// "Warteschlange"): episodes you add via long-press, played in order.
@@ -101,6 +150,25 @@ class PodcastQueueController extends GetxController {
     };
   }
 
+  /// Puts the queue in [sort]'s order; the returned callback puts it back
+  /// as it was (Undo), keeping what's been removed since out and what's
+  /// been queued since after it. Null with nothing to sort.
+  void Function()? sortUndoable(PodcastQueueSort sort, {Random? random}) {
+    if (queue.length < 2) return null;
+    final before = queue.toList();
+    queue.assignAll(sortedQueue(before, sort, random: random));
+    _persist();
+    return () {
+      final was = {for (final e in before) e.id};
+      final still = {for (final e in queue) e.id};
+      queue.assignAll([
+        ...before.where((e) => still.contains(e.id)),
+        ...queue.where((e) => !was.contains(e.id)),
+      ]);
+      _persist();
+    };
+  }
+
   // --- serialization (MediaItem <-> Hive map) ---
 
   Map<String, dynamic> _toMap(MediaItem m) => {
@@ -114,6 +182,8 @@ class PodcastQueueController extends GetxController {
         'isPodcast': m.extras?['isPodcast'] ?? true,
         'feedUrl': m.extras?['feedUrl'],
         'date': m.extras?['date'],
+        // When it came out, for sorting by date.
+        'pubDateMs': m.extras?['pubDateMs'],
         'description': episodeNotes(m),
         'length': m.extras?['length'],
         'chaptersUrl': episodeChaptersUrl(m),
@@ -138,6 +208,7 @@ class PodcastQueueController extends GetxController {
           'isPodcast': m['isPodcast'] ?? true,
           if (m['feedUrl'] != null) 'feedUrl': m['feedUrl'],
           'date': m['date'],
+          if (m['pubDateMs'] is int) 'pubDateMs': m['pubDateMs'],
           'description': m['description'],
           'length': m['length'],
           if (m['chaptersUrl'] != null) 'chaptersUrl': m['chaptersUrl'],

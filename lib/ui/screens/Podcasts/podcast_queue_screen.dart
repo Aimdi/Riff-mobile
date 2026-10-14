@@ -345,6 +345,7 @@ class PodcastQueueScreen extends StatelessWidget {
                           ?.copyWith(color: homeMutedColor(context)),
                     ),
                   ),
+                  _QueueSortButton(controller),
                   IconButton(
                     tooltip: "clear".tr,
                     icon: const Icon(Icons.delete_sweep_outlined,
@@ -445,4 +446,45 @@ class PodcastQueueScreen extends StatelessWidget {
   }
 
   List<MediaItem> items(PodcastQueueController c) => c.queue.toList();
+}
+
+/// "Newest first", "By show", … for [sort].
+String podcastQueueSortLabel(PodcastQueueSort sort) => switch (sort) {
+      PodcastQueueSort.newest => 'newestFirst'.tr,
+      PodcastQueueSort.oldest => 'oldestFirst'.tr,
+      PodcastQueueSort.shortest => 'shortestFirst'.tr,
+      PodcastQueueSort.longest => 'longestFirst'.tr,
+      PodcastQueueSort.show => 'byShow'.tr,
+      PodcastQueueSort.shuffle => 'shuffle'.tr,
+    };
+
+/// The queue header's sort menu, as AntennaPod sorts its queue: once, with
+/// Undo, as the header's Clear.
+class _QueueSortButton extends StatelessWidget {
+  const _QueueSortButton(this.controller);
+
+  final PodcastQueueController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<PodcastQueueSort>(
+      tooltip: 'sortBy'.tr,
+      position: PopupMenuPosition.under,
+      icon: const Icon(Icons.sort_rounded, size: RiffComponentSizes.headerIcon),
+      onSelected: (sort) {
+        final target = undoSnackbarTarget(context);
+        final undo = controller.sortUndoable(sort);
+        if (undo == null) return;
+        showUndoSnackbar(target, 'queueSorted'.tr, onUndo: undo);
+      },
+      itemBuilder: (_) => [
+        for (final sort in PodcastQueueSort.values)
+          PopupMenuItem<PodcastQueueSort>(
+            height: RiffComponentSizes.sheetRow,
+            value: sort,
+            child: Text(podcastQueueSortLabel(sort)),
+          ),
+      ],
+    );
+  }
 }

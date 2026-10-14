@@ -372,6 +372,11 @@ Podcasts:
   AntennaPod keeps its favourites'. With sync (WebDAV) on, starred
   episodes reach your other devices, and unstarring one unstars it
   there too (podcasts/starred.json, see docs/sync-format.md)
+* Sort the queue, as AntennaPod does: the sort button in the queue's
+  header puts it in order once (Newest first, Oldest first, Shortest
+  first, Longest first, By show, or Shuffle), with Undo. Episodes it
+  can't tell apart keep the order you gave them, and those without a
+  date or length go last
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip
