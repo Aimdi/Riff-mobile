@@ -60,17 +60,28 @@ Future<(HttpServer, List<Uri>)> _directory({int shows = 3}) async {
   server.listen((req) async {
     asked.add(req.uri);
     final term = req.uri.queryParameters['term'];
+    final episodes = req.uri.queryParameters['entity'] == 'podcastEpisode';
     req.response.write(jsonEncode({
-      'results': [
-        {'collectionName': 'No feed for $term', 'artistName': 'Apple'},
-        for (var i = 1; i <= shows; i++)
-          {
-            'collectionName': 'Show $i for $term',
-            'artistName': 'Host $i',
-            'artworkUrl600': 'https://art.example/$i.jpg',
-            'feedUrl': 'https://feeds.example/$i',
-          },
-      ],
+      'results': episodes
+          ? [
+              {
+                'trackName': 'Episode for $term',
+                'collectionName': 'Show 1 for $term',
+                'feedUrl': 'https://feeds.example/1',
+                'episodeUrl': 'https://cdn.example/1.mp3',
+                'episodeGuid': 'e1',
+              },
+            ]
+          : [
+              {'collectionName': 'No feed for $term', 'artistName': 'Apple'},
+              for (var i = 1; i <= shows; i++)
+                {
+                  'collectionName': 'Show $i for $term',
+                  'artistName': 'Host $i',
+                  'artworkUrl600': 'https://art.example/$i.jpg',
+                  'feedUrl': 'https://feeds.example/$i',
+                },
+            ],
     }));
     await req.response.close();
   });
@@ -124,6 +135,7 @@ void main() {
       await newer;
       expect(c.searchResults.map((p) => p.title), ['New']);
       expect(c.directoryResults.first['title'], 'Show 1 for new query');
+      expect(c.episodeResults.single['title'], 'Episode for new query');
       expect(c.isSearching.isFalse, isTrue);
       expect(c.searchQuery.value, 'new query');
     });
@@ -138,6 +150,7 @@ void main() {
       await running;
       expect(c.searchResults, isEmpty);
       expect(c.directoryResults, isEmpty);
+      expect(c.episodeResults, isEmpty);
       expect(c.hasSearched.isFalse, isTrue);
       expect(c.isSearching.isFalse, isTrue);
     });
@@ -160,10 +173,15 @@ void main() {
             'feedUrl': 'https://feeds.example/$i',
           },
       ]);
-      final query = asked.single.queryParameters;
+      final query = asked
+          .singleWhere((u) => !u.queryParameters.containsKey('entity'))
+          .queryParameters;
       expect(query['media'], 'podcast');
       expect(query['term'], 'daily');
       expect(query['country'], isNotEmpty);
+      // And its episodes.
+      expect(c.episodeResults.single['title'], 'Episode for daily');
+      expect(c.episodeResults.single['id'], 'podcast_${'e1'.hashCode}');
     });
 
     test('the first ten of them, even when YouTube fails', () async {
@@ -179,6 +197,7 @@ void main() {
       expect(c.searchResults, isEmpty);
       expect(c.directoryResults.map((s) => s['title']),
           [for (var i = 1; i <= 10; i++) 'Show $i for news']);
+      expect(c.episodeResults.single['title'], 'Episode for news');
       expect(c.isSearching.isFalse, isTrue);
     });
 
@@ -192,6 +211,7 @@ void main() {
       await search;
       expect(c.searchResults.map((p) => p.title), ['From YouTube']);
       expect(c.directoryResults, isEmpty);
+      expect(c.episodeResults, isEmpty);
     });
   });
 

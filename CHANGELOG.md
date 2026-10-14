@@ -257,6 +257,14 @@ Podcasts:
   pasting its address. Podcast feeds now lists the first ten shows
   Apple's directory has for your search, from your country's store,
   above YouTube's; tap one for its page, or follow it from the row
+* Search finds episodes too, as Pocket Casts, Apple Podcasts and Spotify
+  do: an interview with someone, a topic, an episode's title. Episodes,
+  under the shows, lists the directory's first ten (its show, date and
+  length, how far you've got); tap one and it plays as on its show's
+  page, from the show's own feed, with its chapters and transcript and
+  the show's episodes after it (as found, when the feed doesn't have it).
+  It's the same episode as in its show's list: where you were, played
+  or not and its download are shared
 * A show's page remembers its episode order (Newest first / Oldest
   first) for that show, like Pocket Casts and AntennaPod, so a series you
   hear in order stays oldest first. The eye button next to it hides

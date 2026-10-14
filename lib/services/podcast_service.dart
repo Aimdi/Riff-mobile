@@ -88,6 +88,35 @@ class PodcastService {
     }
   }
 
+  /// Episodes in Apple's directory for [term], in the phone's store, as
+  /// Pocket Casts, Apple Podcasts and Spotify find episodes by what they're
+  /// about: the first [limit] of them, as [directoryEpisode] keeps them.
+  /// [] when it can't be reached.
+  static Future<List<Map<String, dynamic>>> searchEpisodes(String term,
+      {int limit = 10}) async {
+    try {
+      final res = await _dio.get('$directoryBase/search', queryParameters: {
+        'media': 'podcast',
+        'entity': 'podcastEpisode',
+        'term': term,
+        // A few spare, for any without their audio or their show's feed.
+        'limit': limit + 5,
+        'country': _storefront(),
+      });
+      final results = _asMap(res.data)?['results'] as List?;
+      if (results == null) return [];
+      return results
+          .whereType<Map>()
+          .map((r) => directoryEpisode(Map<String, dynamic>.from(r)))
+          .whereType<Map<String, dynamic>>()
+          .take(limit)
+          .toList();
+    } catch (e) {
+      printERROR("Episode search failed: $e");
+      return [];
+    }
+  }
+
   // --- Similar podcasts ("popular with listeners of X") ---
 
   static final Map<String, List<Map<String, dynamic>>> _similarCache = {};
@@ -1310,6 +1339,42 @@ PodcastFeed parsePodcastShow(
         String body, String podcastTitle, String fallbackArt,
         {int? maxItems}) =>
     PodcastService._parseFeed(body, podcastTitle, fallbackArt, maxItems);
+
+/// One of Apple's episode search results ([PodcastService.searchEpisodes])
+/// as a feed's episode is kept, with the id it has in its show's feed (its
+/// guid, else its audio's address), so its progress, played state and
+/// download are the same wherever it's played from; [show] and [feedUrl]
+/// say whose it is. Null without its audio or its show's feed.
+Map<String, dynamic>? directoryEpisode(Map<String, dynamic> result) {
+  String text(String key) => '${result[key] ?? ''}'.trim();
+  final url = text('episodeUrl');
+  final feed = text('feedUrl');
+  bool web(String a) => a.startsWith('https://') || a.startsWith('http://');
+  if (!web(url) || !web(feed)) return null;
+  final guid = text('episodeGuid');
+  final released = DateTime.tryParse(text('releaseDate'));
+  final ms = result['trackTimeMillis'];
+  final art = [
+    text('artworkUrl600'),
+    text('artworkUrl160'),
+    text('artworkUrl60'),
+  ].firstWhere((a) => a.isNotEmpty, orElse: () => '');
+  final notes = text('description');
+  final title = text('trackName');
+  return {
+    'id': 'podcast_${(guid.isNotEmpty ? guid : url).hashCode}',
+    'title': title.isEmpty ? 'Episode' : title,
+    'show': text('collectionName'),
+    'feedUrl': feed,
+    'url': url,
+    'artwork': Thumbnail(art).extraHigh,
+    'description': PodcastService.showNotesText(
+        notes.isNotEmpty ? notes : text('shortDescription')),
+    'date': released == null ? '' : PodcastService.formatDay(released),
+    'pubDateMs': released?.millisecondsSinceEpoch ?? 0,
+    'durationSec': ms is num && ms > 0 ? (ms / 1000).round() : 0,
+  };
+}
 
 /// Apple storefront (lowercase country code) from a platform locale name
 /// such as `en_US`, `de-DE`, `en_US.UTF-8`, `zh_Hans_CN` or `sr_Latn_RS`.

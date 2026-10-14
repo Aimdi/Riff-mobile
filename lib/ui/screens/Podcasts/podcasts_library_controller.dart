@@ -71,6 +71,11 @@ class LibraryPodcastsController extends GetxController {
   /// them.
   final directoryResults = <Map<String, dynamic>>[].obs;
   static const directoryShown = 10;
+
+  /// Episodes in the directory for the search ([directoryEpisode]), as
+  /// Pocket Casts, Apple Podcasts and Spotify find episodes by what
+  /// they're about.
+  final episodeResults = <Map<String, dynamic>>[].obs;
   final isSearching = false.obs;
   final hasSearched = false.obs;
 
@@ -207,12 +212,14 @@ class LibraryPodcastsController extends GetxController {
       searchResults.clear();
       channelSearchResults.clear();
       directoryResults.clear();
+      episodeResults.clear();
       feedSearchResult.value = show;
       isSearching.value = false;
       return;
     }
-    // The directory's shows, asked for while YouTube is.
+    // The directory's shows and episodes, asked for while YouTube is.
     final directory = PodcastService.search(term);
+    final episodes = PodcastService.searchEpisodes(term);
     final ms = Get.find<MusicServices>();
     final list = <Playlist>[];
     final channels = <Playlist>[];
@@ -267,10 +274,12 @@ class LibraryPodcastsController extends GetxController {
       searchResults.clear();
       channelSearchResults.clear();
     } finally {
-      // Whatever YouTube answered (never throws: [] when unreachable).
+      // Whatever YouTube answered (never throw: [] when unreachable).
       final shows = await directory;
+      final found = await episodes;
       if (gen == _searchGen) {
         directoryResults.assignAll(shows.take(directoryShown));
+        episodeResults.assignAll(found);
         isSearching.value = false;
       }
     }
@@ -354,6 +363,7 @@ class LibraryPodcastsController extends GetxController {
     searchResults.clear();
     channelSearchResults.clear();
     directoryResults.clear();
+    episodeResults.clear();
     feedSearchResult.value = null;
     hasSearched.value = false;
     isSearching.value = false;

@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/discovery/discovery_types.dart';
+import '/services/podcast_progress_service.dart';
 import '/services/podcast_service.dart';
 import '/services/wizestream_service.dart';
 import '/ui/player/player_controller.dart';
@@ -422,12 +423,14 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
             final channels = controller.channelSearchResults;
             final feed = controller.feedSearchResult.value;
             final directory = controller.directoryResults;
+            final episodes = controller.episodeResults;
             final query = controller.searchQuery.value.trim();
             if (controller.hasSearched.isTrue && query.isNotEmpty) {
               if (items.isEmpty &&
                   channels.isEmpty &&
                   feed == null &&
-                  directory.isEmpty) {
+                  directory.isEmpty &&
+                  episodes.isEmpty) {
                 return Center(
                   child: Text(
                     'noResults'.tr,
@@ -479,6 +482,32 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                           show: directory[index],
                         ),
                         childCount: directory.length,
+                      ),
+                    ),
+                  ],
+                  // Episodes in the directory for the search: a tap plays
+                  // one as its show's page would.
+                  if (episodes.isNotEmpty) ...[
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                            left: HomeLayout.gutter,
+                            top: RiffSpacing.md,
+                            right: HomeLayout.gutter,
+                            bottom: RiffSpacing.xxs),
+                        child: Text(
+                          'showEpisodes'.tr,
+                          style: homeSectionTitleStyle(context),
+                        ),
+                      ),
+                    ),
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => _EpisodeResultRow(
+                          key: ValueKey(episodes[index]['id']),
+                          episode: episodes[index],
+                        ),
+                        childCount: episodes.length,
                       ),
                     ),
                   ],
@@ -1071,6 +1100,50 @@ class _ShowResultRow extends StatelessWidget {
         // Full-width hairline between search results (§5.2).
         const RiffRowHairline(),
       ],
+    );
+  }
+}
+
+/// An episode the directory found: its art, title, "show · date · length"
+/// and progress. A tap plays it ([playDirectoryEpisode]); its play pill
+/// spins while its show's feed is fetched.
+class _EpisodeResultRow extends StatefulWidget {
+  const _EpisodeResultRow({super.key, required this.episode});
+
+  /// As [directoryEpisode] keeps it.
+  final Map<String, dynamic> episode;
+
+  @override
+  State<_EpisodeResultRow> createState() => _EpisodeResultRowState();
+}
+
+class _EpisodeResultRowState extends State<_EpisodeResultRow> {
+  bool _loading = false;
+
+  Future<void> _play() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    final ok = await playDirectoryEpisode(widget.episode);
+    if (!mounted) return;
+    setState(() => _loading = false);
+    if (!ok) snackOperationFailed(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final e = widget.episode;
+    final seconds = e['durationSec'];
+    return PodcastEpisodeTile(
+      artUrl: '${e['artwork'] ?? ''}',
+      title: '${e['title'] ?? ''}',
+      meta: episodeMetaLine([
+        '${e['show'] ?? ''}',
+        '${e['date'] ?? ''}',
+        compactEpisodeLength(seconds is int ? seconds : 0),
+      ]),
+      progress: PodcastProgressService.progress('${e['id']}'),
+      onTap: _play,
+      trailing: PodcastPlayButton(onPressed: _play, loading: _loading),
     );
   }
 }

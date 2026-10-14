@@ -206,9 +206,13 @@ class PodcastEpisodeTile extends StatelessWidget {
 
 /// Outline play pill for episode rows (§5.5 secondary button look).
 class PodcastPlayButton extends StatelessWidget {
-  const PodcastPlayButton({super.key, this.onPressed});
+  const PodcastPlayButton({super.key, this.onPressed, this.loading = false});
 
   final VoidCallback? onPressed;
+
+  /// A spinner in the glyph's place (the pill's size kept) while what it
+  /// plays is being fetched.
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -221,8 +225,17 @@ class PodcastPlayButton extends StatelessWidget {
         minimumSize: const Size(0, RiffComponentSizes.buttonCompact),
         padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
       ),
-      child: const Icon(Icons.play_arrow_rounded,
-          size: RiffComponentSizes.trailingIcon),
+      child: loading
+          ? const SizedBox.square(
+              dimension: RiffComponentSizes.trailingIcon,
+              child: Padding(
+                padding: EdgeInsets.all(RiffSpacing.xxs),
+                child: CircularProgressIndicator(
+                    strokeWidth: RiffComponentSizes.spinnerStroke),
+              ),
+            )
+          : const Icon(Icons.play_arrow_rounded,
+              size: RiffComponentSizes.trailingIcon),
     );
   }
 }
