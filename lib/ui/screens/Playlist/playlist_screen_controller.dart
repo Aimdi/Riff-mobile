@@ -22,6 +22,7 @@ import '../../../models/playlist.dart';
 import '../../../utils/hive_boxes.dart';
 import '../../../services/music_service.dart';
 import '../../../services/piped_service.dart';
+import '../../../services/m3u_playlist_import.dart';
 import '../../../services/playlist_covers.dart';
 import '../../../services/playlist_mix_service.dart';
 import '../../../services/track_analysis_service.dart';
@@ -569,7 +570,34 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     super.onClose();
   }
 
-  Future<void> exportPlaylistToJson(BuildContext context) async {
+  /// The playlist and its songs as JSON, which Riff's import reads back.
+  Future<void> exportPlaylistToJson(BuildContext context) => _exportText(
+      context,
+      'json',
+      () => jsonEncode({
+            "playlistInfo": playlist.value.toJson(),
+            "songs":
+                songList.map((song) => MediaItemBuilder.toJson(song)).toList(),
+            "exportDate": DateTime.now().toIso8601String(),
+            "appVersion": Get.find<SettingsScreenController>().currentVersion,
+          }));
+
+  /// The songs as CSV rows: their titles, artists, lengths and YouTube ids
+  /// (which Riff's import takes as the very tracks).
+  Future<void> exportPlaylistToCsv(BuildContext context) =>
+      _exportText(context, 'csv', _generateCsvContent);
+
+  /// The songs as an M3U8 playlist ([playlistM3u]): other players and apps
+  /// (Metrolist, VLC, foobar2000) open it, and Riff's import brings it
+  /// back song for song.
+  Future<void> exportPlaylistToM3u(BuildContext context) => _exportText(
+      context, 'm3u8', () => playlistM3u(playlist.value.title, songList));
+
+  /// Writes what [content] makes as "<playlist name>.<extension>" (name_1,
+  /// name_2 ... when taken) in the export folder under a progress dialog,
+  /// then says where it went, or why it couldn't.
+  Future<void> _exportText(
+      BuildContext context, String extension, String Function() content) async {
     if (!await PermissionService.getExtStoragePermission()) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(snackbar(
@@ -581,54 +609,40 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
 
     try {
       exportProgress.value = 0.1;
-
-      // Show progress dialog
       if (context.mounted) {
         _showProgressDialog(context, "exportingPlaylist".tr);
       }
 
-      // Get appropriate directory based on platform
+      // The folder for each platform.
       final Directory exportDir = await _getExportDirectory();
       exportProgress.value = 0.2;
 
-      // Create playlist data map
-      final playlistData = {
-        "playlistInfo": playlist.value.toJson(),
-        "songs": songList.map((song) => MediaItemBuilder.toJson(song)).toList(),
-        "exportDate": DateTime.now().toIso8601String(),
-        "appVersion": Get.find<SettingsScreenController>().currentVersion,
-      };
+      final text = content();
       exportProgress.value = 0.5;
 
-      // Generate filename with playlist name
+      // Named for the playlist, with a number when that's taken.
       final sanitizedName =
           playlist.value.title.replaceAll(RegExp(r'[^\w\s]+'), '_');
-
-      // Find available filename with incremental suffix if needed
-      String filename = "$sanitizedName.json";
+      String filename = "$sanitizedName.$extension";
       String filePath = "${exportDir.path}/$filename";
       File file = File(filePath);
-
       int counter = 1;
       while (await file.exists()) {
-        filename = "${sanitizedName}_$counter.json";
+        filename = "${sanitizedName}_$counter.$extension";
         filePath = "${exportDir.path}/$filename";
         file = File(filePath);
         counter++;
       }
-
       exportProgress.value = 0.7;
 
-      // Write JSON to file
-      await file.writeAsString(jsonEncode(playlistData));
+      await file.writeAsString(text);
       exportProgress.value = 1.0;
 
-      // Close progress dialog if it's still open
       if (Get.isDialogOpen ?? false) {
         Get.back();
       }
 
-      // Show success message with platform-specific path info
+      // Where it went, as each platform says it.
       String locationMsg = _getLocationMessage(exportDir.path);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(snackbar(
@@ -636,102 +650,12 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
             size: SanckBarSize.MEDIUM));
       }
     } catch (e) {
-      // Close progress dialog if it's still open
       if (Get.isDialogOpen ?? false) {
         Get.back();
       }
 
-      printERROR("Error exporting playlist: $e");
-      
-      String errorMsg = "exportError".tr;
-      if (e is FileSystemException) {
-        if (e.osError?.errorCode == 13) {
-          errorMsg = "exportErrorPermission".tr;
-        } else if (e.osError?.errorCode == 28) {
-          errorMsg = "exportErrorStorage".tr;
-        }
-      } else if (e is FormatException) {
-        errorMsg = "exportErrorFormat".tr;
-      }
+      printERROR("Error exporting playlist ($extension): $e");
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            snackbar(context, errorMsg, size: SanckBarSize.MEDIUM));
-      }
-    } finally {
-      exportProgress.value = 0.0;
-    }
-  }
-
-  Future<void> exportPlaylistToCsv(BuildContext context) async {
-    if (!await PermissionService.getExtStoragePermission()) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(snackbar(
-            context, "permissionDenied".tr,
-            size: SanckBarSize.MEDIUM));
-      }
-      return;
-    }
-
-    try {
-      exportProgress.value = 0.1;
-
-      // Show progress dialog
-      if (context.mounted) {
-        _showProgressDialog(context, "exportingPlaylist".tr);
-      }
-
-      // Get appropriate directory based on platform
-      final Directory exportDir = await _getExportDirectory();
-      exportProgress.value = 0.2;
-
-      // Build CSV content
-      final csvContent = _generateCsvContent();
-      exportProgress.value = 0.5;
-
-      // Generate filename with playlist name
-      final sanitizedName =
-          playlist.value.title.replaceAll(RegExp(r'[^\w\s]+'), '_');
-
-      // Find available filename with incremental suffix if needed
-      String filename = "$sanitizedName.csv";
-      String filePath = "${exportDir.path}/$filename";
-      File file = File(filePath);
-
-      int counter = 1;
-      while (await file.exists()) {
-        filename = "${sanitizedName}_$counter.csv";
-        filePath = "${exportDir.path}/$filename";
-        file = File(filePath);
-        counter++;
-      }
-
-      exportProgress.value = 0.7;
-
-      // Write CSV to file
-      await file.writeAsString(csvContent);
-      exportProgress.value = 1.0;
-
-      // Close progress dialog if it's still open
-      if (Get.isDialogOpen ?? false) {
-        Get.back();
-      }
-
-      // Show success message with platform-specific path info
-      String locationMsg = _getLocationMessage(exportDir.path);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(snackbar(
-            context, "${"playlistExportedMsg".tr}: $locationMsg",
-            size: SanckBarSize.MEDIUM));
-      }
-    } catch (e) {
-      // Close progress dialog if it's still open
-      if (Get.isDialogOpen ?? false) {
-        Get.back();
-      }
-
-      printERROR("Error exporting playlist to CSV: $e");
-      
       String errorMsg = "exportError".tr;
       if (e is FileSystemException) {
         if (e.osError?.errorCode == 13) {

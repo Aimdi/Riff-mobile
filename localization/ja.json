@@ -269,7 +269,6 @@
     "exportPlaylistCsv": "再生リストをCSVで出力",
     "exportPlaylistJson": "再生リストをJSONで出力",
     "exportPlaylistJsonSubtitle": "この形式は取り入れできません",
-    "exportPlaylistCsvSubtitle": "ここに書き出せません",
     "exportToYouTubeMusic": "Youtube musicへエクスポート",
     "exportToYouTubeMusicSubtitle": "再生リスト (曲数50未満) を現在のキューに追加する。YtMusicで開いたら、再生リストへの追加/保存を忘れないよう",
     "linkCopied": "リンクをクリップボードにコピー",

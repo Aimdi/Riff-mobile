@@ -270,7 +270,6 @@
     "exportPlaylistCsv": "Exportar lista de reproducción como archivo CSV",
     "exportPlaylistJson": "Exportar lista de reproducción como archivo JSON",
     "exportPlaylistJsonSubtitle": "Este format puede ser importado",
-    "exportPlaylistCsvSubtitle": "No se puede importar aquí",
     "exportToYouTubeMusic": "Exportar a YouTube Music",
     "linkCopied": "Link copiado al portapapeles",
     "keepScreenOnWhilePlaying": "Mantener la pantalla encendida mientras se reproduce",

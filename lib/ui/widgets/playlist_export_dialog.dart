@@ -24,7 +24,8 @@ class PlaylistExportDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CommonDialog(
-      child: Container(
+      // Scrolls when a larger font size makes it taller than the screen.
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(RiffSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -59,7 +60,18 @@ class PlaylistExportDialog extends StatelessWidget {
               },
             ),
             const SizedBox(height: RiffSpacing.md),
-            // Button 3: Export to YouTube Music (split button)
+            // Button 3: Export to M3U
+            _ExportButton(
+              icon: Icons.queue_music_rounded,
+              title: "exportPlaylistM3u".tr,
+              subtitle: "exportPlaylistM3uSubtitle".tr,
+              onTap: () {
+                Navigator.of(context).pop();
+                controller.exportPlaylistToM3u(parentContext);
+              },
+            ),
+            const SizedBox(height: RiffSpacing.md),
+            // Button 4: Export to YouTube Music (split button)
             _SplitExportButton(
               icon: Icons.open_in_new,
               title: "exportToYouTubeMusic".tr,

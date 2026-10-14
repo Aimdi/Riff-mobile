@@ -2,13 +2,16 @@
 /// players (foobar2000, VLC, Winamp, AIMP, MusicBee, Poweramp), iTunes /
 /// Apple Music and Metrolist save. An entry's title ("Artist - Title")
 /// or, without one, its file name and folders say what to look for; a
-/// YouTube link names the very track.
+/// YouTube link names the very track. [playlistM3u] writes one.
 library;
 
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:audio_service/audio_service.dart' show MediaItem;
+
 import 'csv_playlist_import.dart';
+import 'device_music.dart' show DeviceMusic;
 import 'spotify_import_service.dart' show SpotifyTrackRef;
 import 'youtube_links.dart';
 
@@ -290,4 +293,41 @@ String _folderArtist(List<String> folders) {
     return folders[folders.length - 2];
   }
   return folders.last;
+}
+
+final _videoId = RegExp(r'^[A-Za-z0-9_-]{11}$');
+
+/// [songs] as an M3U8 playlist named [name]: each song's length and
+/// "Artist - Title" (#EXTINF) over its YouTube Music link, or over the
+/// address of a song on the phone, as players and apps that read M3U take
+/// them (and Riff's import, song for song). A song from your own server
+/// is written by its id alone: its links carry the server's login.
+String playlistM3u(String name, Iterable<MediaItem> songs) {
+  String line(String s) => s.replaceAll(RegExp(r'[\r\n]+'), ' ').trim();
+  final out = StringBuffer('#EXTM3U\n');
+  final title = line(name);
+  if (title.isNotEmpty) out.write('#PLAYLIST:$title\n');
+  for (final song in songs) {
+    final seconds = song.duration?.inSeconds ?? 0;
+    final artist = line(song.artist ?? '');
+    final what =
+        artist.isEmpty ? line(song.title) : '$artist - ${line(song.title)}';
+    out.write('#EXTINF:${seconds > 0 ? seconds : -1},$what\n');
+    out.write('${_location(song)}\n');
+  }
+  return out.toString();
+}
+
+/// Where [song] plays from, as another app can open it.
+String _location(MediaItem song) {
+  if (_videoId.hasMatch(song.id)) {
+    return 'https://music.youtube.com/watch?v=${song.id}';
+  }
+  final url = song.extras?['url'];
+  if (song.id.startsWith(DeviceMusic.idPrefix) &&
+      url is String &&
+      url.isNotEmpty) {
+    return url;
+  }
+  return song.id;
 }

@@ -666,6 +666,17 @@ Playlists:
   dropped) and folders; a YouTube link is taken as the very track. Files
   that aren't UTF-8 (older .m3u files, CSVs saved by Excel) keep their
   accents
+* Export a playlist as M3U, the playlist file other players and apps
+  (Metrolist, VLC, foobar2000) open: a playlist's ⋮ › Export playlist ›
+  Export playlist as M3U writes each song's length and "Artist - Title"
+  over its YouTube Music link (a song on the phone, its address; a song
+  from your own server, never its link with the server's login in it).
+  Riff's import brings it back song for song, and Riff's own CSV export
+  now does too: its YouTube ids are taken as the very songs and its
+  "3:45" lengths are read (that export used to say "Can't be imported
+  here"). A CSV with a YouTube link column is read the same way. The
+  Export window scrolls when a larger font size makes it taller than the
+  screen
 
 Albums:
 * More by the artist, like Spotify, Apple Music and YouTube Music: under

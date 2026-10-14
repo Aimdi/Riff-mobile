@@ -4,6 +4,7 @@
 library;
 
 import 'spotify_import_service.dart' show SpotifyTrackRef;
+import 'youtube_links.dart';
 
 /// Which tool made the file, or which kind of playlist file it is (for the
 /// summary only; a CSV is read by its header). M3U and PLS files are read
@@ -114,10 +115,25 @@ CsvPlaylist parsePlaylistCsv(String text) {
     'artist',
   ]);
   final isrc = _find(headers, ['isrc']);
-  final duration = _find(headers, ['duration (ms)', 'duration_ms', 'duration']);
+  final durationMs = _find(headers, ['duration (ms)', 'duration_ms']);
+  final duration = _find(headers, ['duration', 'length']);
+  // A YouTube id or link names the very track (Riff's own export has
+  // MediaId).
+  final videoId = _find(headers, [
+    'mediaid',
+    'media id',
+    'videoid',
+    'video id',
+    'youtube id',
+    'youtube - id',
+    'youtube video id',
+  ]);
+  final link = _find(headers,
+      ['url', 'link', 'youtube url', 'youtube link', 'youtube music url']);
   final spotifyUri = _find(headers,
       ['track uri', 'spotify - id', 'spotify id', 'spotify uri', 'uri']);
-  final playlistName = _find(headers, ['playlist name', 'playlist']);
+  final playlistName =
+      _find(headers, ['playlist name', 'playlistname', 'playlist']);
   if (title < 0) {
     throw const FormatException('No track title column');
   }
@@ -146,7 +162,9 @@ CsvPlaylist parsePlaylistCsv(String text) {
         .split(RegExp(r'\s*[;|]\s*'))
         .where((a) => a.isNotEmpty)
         .join(', ');
-    final ms = int.tryParse(cell(r, duration));
+    final ms = durationMs >= 0
+        ? int.tryParse(cell(r, durationMs))
+        : _lengthMs(cell(r, duration));
     final code = cell(r, isrc).toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
     final uri = cell(r, spotifyUri);
     name ??= cell(r, playlistName).isEmpty ? null : cell(r, playlistName);
@@ -156,10 +174,39 @@ CsvPlaylist parsePlaylistCsv(String text) {
       artists: artists,
       durationMs: ms != null && ms > 0 ? ms : null,
       isrc: isValidIsrc(code) ? code : null,
+      youtubeId: _youtubeId(cell(r, videoId), cell(r, link)),
     ));
   }
   return CsvPlaylist(
       format: format, tracks: tracks, name: name, skipped: skipped);
+}
+
+final _videoIdShape = RegExp(r'^[A-Za-z0-9_-]{11}$');
+
+/// The YouTube video a row names by its [id] or a [link] to it.
+String? _youtubeId(String id, String link) {
+  if (_videoIdShape.hasMatch(id)) return id;
+  final uri = Uri.tryParse(link);
+  if (uri == null || !uri.scheme.startsWith('http')) return null;
+  final named = youtubeLinkFrom(uri);
+  return named.kind == YoutubeLinkKind.song ? named.id : null;
+}
+
+/// A length as a Duration column gives it: "3:45" or "1:02:03" (Riff's
+/// own export), else a number, seconds when it's small (under 10000) and
+/// milliseconds otherwise.
+int? _lengthMs(String value) {
+  final v = value.trim();
+  if (v.isEmpty) return null;
+  if (v.contains(':')) {
+    final parts = v.split(':').map(int.tryParse).toList();
+    if (parts.length > 3 || parts.any((p) => p == null || p < 0)) return null;
+    final seconds = parts.fold<int>(0, (s, p) => s * 60 + p!);
+    return seconds > 0 ? seconds * 1000 : null;
+  }
+  final n = double.tryParse(v);
+  if (n == null || n <= 0) return null;
+  return (n < 10000 ? n * 1000 : n).round();
 }
 
 /// ISO 3901: 2 letters, 3 alphanumerics, 7 digits.
