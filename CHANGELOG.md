@@ -615,6 +615,12 @@ Search:
 * When a search can't reach YouTube Music, the results page says so
   ("You're offline", or that it couldn't search) with Retry, as Spotify
   and YouTube Music do; it used to say nothing matched
+* Recent searches show what you opened, as in Spotify and Apple Music:
+  the songs you played and the artists, albums, playlists and podcasts
+  you opened from search results (your last ten) are listed with their
+  covers on the search page before you type, above the words you
+  searched for. Tap one to play it or open it again; ✕ forgets it, and
+  Clear forgets them all with the words
 
 Language:
 * System default, as in Spotify, YouTube Music and AntennaPod: Settings ›

@@ -9,6 +9,7 @@ import '../../models/playling_from.dart';
 import '../../models/playlist.dart';
 import '/services/ban_service.dart';
 import '/services/discovery/discovery_types.dart';
+import '/services/search_recents.dart';
 import '../navigator.dart';
 import '../player/player_controller.dart';
 import 'collection_play.dart';
@@ -158,6 +159,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           isPlaylistOrAlbum: isPlaylistOrAlbum,
           fullWidthHairline: searchContext,
           onTap: () async {
+            noteSearchOpen(context, song);
             final bool ok;
             if (isArtistSongs) {
               ok = await playerController.playPlayListSong(
@@ -267,9 +269,12 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
             ListTile(
               // Theme gives 16h padding, titleMedium / bodyMedium (§5.2).
               horizontalTitleGap: RiffSpacing.md,
-              onTap: () => shouldPlayCollectionOnTap()
-                  ? _playArtistRow(artist)
-                  : _openArtist(artist),
+              onTap: () {
+                noteSearchOpen(context, artist);
+                shouldPlayCollectionOnTap()
+                    ? _playArtistRow(artist)
+                    : _openArtist(artist);
+              },
               onLongPress: () => _showArtistActions(context, artist),
               leading: SizedBox(
                 width: RiffComponentSizes.rowArt,
@@ -284,7 +289,10 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
                       right: 0,
                       bottom: 0,
                       child: _ArtPlayBadge(
-                        onTap: () => _playArtistRow(artist),
+                        onTap: () {
+                          noteSearchOpen(context, artist);
+                          _playArtistRow(artist);
+                        },
                       ),
                     ),
                   ],

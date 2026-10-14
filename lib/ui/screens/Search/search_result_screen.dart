@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/services/offline_playback.dart';
+import '/services/search_recents.dart';
 import '/ui/screens/Plugins/seeker_screen.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import '../../navigator.dart';
@@ -44,7 +45,11 @@ class SearchResultScreen extends StatelessWidget {
                   child: KeyedSubtree(
                     key: ValueKey<int>(
                         controller.navigationRailCurrentIndex.toInt() * 8),
-                    child: Body(searchResScrController: searchResScrController),
+                    // What's opened from here is kept among recent searches.
+                    child: SearchRecentsScope(
+                      child:
+                          Body(searchResScrController: searchResScrController),
+                    ),
                   ),
                 ),
               ),

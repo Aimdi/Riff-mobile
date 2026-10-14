@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'components/search_item.dart';
+import 'components/search_recent_row.dart';
 import 'components/search_pill.dart';
 import 'components/voice_search_button.dart';
 import '../../widgets/modified_text_field.dart';
@@ -9,6 +10,7 @@ import '../../theme/riff_spacing.dart';
 import '../../theme/riff_tokens.dart';
 import '../Home/home_layout.dart';
 import '../Podcasts/podcast_empty_state.dart';
+import '/services/search_recents.dart';
 import '/ui/navigator.dart';
 import 'search_play_top.dart';
 import 'search_screen_controller.dart';
@@ -60,6 +62,10 @@ class SearchScreen extends StatelessWidget {
                 final list = isEmpty
                     ? searchScreenController.historyQuerylist.toList()
                     : searchScreenController.suggestionList.toList();
+                // What was opened from search, before the words searched.
+                SearchRecents.rev.value;
+                final recents =
+                    isEmpty ? SearchRecents.items : const <SearchRecent>[];
                 if (searchScreenController.urlPasted.isTrue) {
                   return ListView(
                     padding:
@@ -77,7 +83,7 @@ class SearchScreen extends StatelessWidget {
                     ],
                   );
                 }
-                if (list.isEmpty) {
+                if (list.isEmpty && recents.isEmpty) {
                   return PodcastEmptyState(
                     icon: Icons.search_rounded,
                     message: 'searchDes'.tr,
@@ -95,7 +101,10 @@ class SearchScreen extends StatelessWidget {
                       top: RiffSpacing.lg,
                       trailing: isEmpty
                           ? TextButton(
-                              onPressed: searchScreenController.clearHistory,
+                              onPressed: () {
+                                searchScreenController.clearHistory();
+                                SearchRecents.clear();
+                              },
                               // §5.5 text button: accent, theme type. The
                               // 30 dp header row still sets the height.
                               style: TextButton.styleFrom(
@@ -107,6 +116,9 @@ class SearchScreen extends StatelessWidget {
                             )
                           : null,
                     ),
+                    ...recents.map((recent) => SearchRecentRow(
+                        key: ValueKey('${recent.kind.name}:${recent.id}'),
+                        recent: recent)),
                     ...list.map((item) => SearchItem(
                           queryString: item,
                           isHistoryString: isEmpty,

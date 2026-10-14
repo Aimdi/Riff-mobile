@@ -14,6 +14,7 @@ import '../utils/theme_controller.dart';
 import 'collection_play.dart';
 import 'image_widget.dart';
 import 'podcast_play.dart';
+import '/services/search_recents.dart';
 import 'snackbar.dart';
 import 'song_list_tile.dart' show RiffRowHairline;
 import '../screens/Home/home_layout.dart' show HomeLayout;
@@ -366,6 +367,7 @@ class ContentListItem extends StatelessWidget {
                 child: InkWell(
                   customBorder: const CircleBorder(),
                   onTap: () {
+                    noteSearchOpen(context, content);
                     _playFromOverlay();
                   },
                   child: Padding(
@@ -385,6 +387,13 @@ class ContentListItem extends StatelessWidget {
     );
   }
 
+  /// A tap: [_onTap], kept among recent searches when it's a search
+  /// result.
+  void _open(BuildContext context) {
+    noteSearchOpen(context, content);
+    _onTap();
+  }
+
   /// What a tap does: open the album / playlist / show page (the play
   /// button on a card's cover still plays).
   VoidCallback get _onTap => shouldPlayCollectionOnTap() &&
@@ -399,7 +408,7 @@ class ContentListItem extends StatelessWidget {
     return Stack(
       children: [
         InkWell(
-          onTap: _onTap,
+          onTap: () => _open(context),
           onLongPress: () => _showPlaySheet(context),
           child: Padding(
             padding: const EdgeInsets.symmetric(
@@ -444,7 +453,7 @@ class ContentListItem extends StatelessWidget {
       highlightColor: Colors.transparent,
       // Open the album / playlist / show page; the play button on the
       // cover still plays.
-      onTap: _onTap,
+      onTap: () => _open(context),
       onLongPress: () => _showPlaySheet(context),
       child: SizedBox(
         width: size,
