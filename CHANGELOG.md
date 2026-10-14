@@ -695,6 +695,12 @@ Search:
   for it. Links Riff can't open now say so instead of doing nothing.
   A link shared from a moment (YouTube's Share at 1:23: ?t=83,
   ?t=1m23s, ?start=83) plays from that moment, as on YouTube
+* Links from other music apps open in Riff: a song or album shared
+  from Tidal, Deezer, Amazon Music, SoundCloud, Pandora, Napster,
+  Audiomack, Anghami, Boomplay or Yandex Music, or a song.link /
+  album.link page, plays or opens its YouTube Music page, found by
+  Odesli (song.link). Spotify's and Apple Music's songs and albums ask
+  it first too, for the exact match, before Riff's own search
 
 Language:
 * System default, as in Spotify, YouTube Music and AntennaPod: Settings ›

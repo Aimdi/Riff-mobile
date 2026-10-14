@@ -10,6 +10,7 @@ import '/services/app_shortcuts.dart';
 import '/services/new_episode_alerts.dart';
 import '/services/podcast_feed_url.dart';
 import '/services/apple_music_links.dart';
+import '/services/odesli_links.dart';
 import '/services/podcast_links.dart';
 import '/services/spotify_links.dart';
 import '/services/youtube_links.dart';
@@ -136,11 +137,26 @@ mixin ProcessLink {
           (isSpotifyShortLink(link)
               ? await _whileSpinning(followSpotifyShortLink(link))
               : null);
-      if (spotify != null) return openSpotifyLink(spotify);
-      if (isSpotifyShortLink(link)) return _notALink();
-      // An Apple Music song, album or artist.
+      if (spotify == null && isSpotifyShortLink(link)) return _notALink();
       final apple = appleMusicLinkFrom(link);
+      // Another music app's song or album (Tidal, Deezer, Amazon Music,
+      // SoundCloud, …), and Spotify's and Apple Music's first: its YouTube
+      // Music page, as Odesli (song.link) knows it.
+      if (isMusicServiceLink(link) ||
+          (spotify != null && spotify.kind != SpotifyLinkKind.playlist) ||
+          (apple != null && apple.kind != AppleMusicLinkKind.artist)) {
+        final yt =
+            await _whileSpinning(youtubeLinkViaOdesli(spotify?.url ?? link));
+        final ytUri = yt == null ? null : Uri.tryParse(yt);
+        if (ytUri != null &&
+            youtubeLinkFrom(ytUri).kind != YoutubeLinkKind.invalid) {
+          return filterLinks(ytUri, written: yt);
+        }
+      }
+      // Else Riff's own match.
+      if (spotify != null) return openSpotifyLink(spotify);
       if (apple != null) return openAppleMusicLink(apple);
+      if (isMusicServiceLink(link)) return _notFound();
       // A podcast's link (a subscribe link, Apple Podcasts', Overcast's),
       // or any other web address, which may be a feed's.
       final feed = podcastFeedUrlFrom(link);
@@ -193,12 +209,16 @@ mixin ProcessLink {
       if (await _pagesWithPlayerClosed() == null) return;
       await openArtist(artist.browseId);
     } else {
-      final ctx = Get.context;
-      if (ctx == null || !ctx.mounted) return;
-      ScaffoldMessenger.of(ctx).showSnackBar(snackbar(
-          ctx, 'notFoundOnYouTubeMusic'.tr,
-          size: SanckBarSize.MEDIUM));
+      _notFound();
     }
+  }
+
+  /// Nothing on YouTube Music for a link to another service's music.
+  void _notFound() {
+    final ctx = Get.context;
+    if (ctx == null || !ctx.mounted) return;
+    ScaffoldMessenger.of(ctx).showSnackBar(
+        snackbar(ctx, 'notFoundOnYouTubeMusic'.tr, size: SanckBarSize.MEDIUM));
   }
 
   /// A channel's @handle (or /c/, /user/ name): its artist page, as
