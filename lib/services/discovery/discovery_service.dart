@@ -4,6 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
+import '../../models/media_item_extras.dart';
 import '../../models/thumbnail.dart';
 import '../ban_service.dart';
 import '../explicit_content.dart';
@@ -42,6 +43,13 @@ class DiscoveryService extends GetxService {
     await repo.open();
     await repo.pruneEvents();
     await repo.pruneAuxiliary();
+    // Podcasts and audiobooks played before they were kept out of your
+    // taste: taken out of it, once.
+    try {
+      await repo.forgetLongForm(
+          songStats:
+              Hive.isBoxOpen('SongStats') ? Hive.box('SongStats') : null);
+    } catch (_) {}
 
     BanServiceSafe.setBanHook(BanService.isBanned);
     BanServiceSafe.setTrackBanHook(BanService.isTrackBlocked);
@@ -139,6 +147,13 @@ class DiscoveryService extends GetxService {
 
   // ─── Playback signal hooks ────────────────────────────────────────────
 
+  /// Whether [item] counts towards your music taste: podcast episodes and
+  /// audiobook chapters don't, as Spotify keeps podcasts out of its music
+  /// mixes (a show isn't an artist to make a Daily Mix of). Stats still
+  /// counts them.
+  static bool tasted(MediaItem item) =>
+      !item.isPodcastEpisode && !item.isAudiobook;
+
   /// Call when the current media item changes (play started).
   Future<void> onMediaChanged(MediaItem? next, {int positionMs = 0}) async {
     // Close out previous
@@ -149,16 +164,19 @@ class DiscoveryService extends GetxService {
       if (listened <= 0 && _songStartedAtMs > 0) {
         listened = DateTime.now().millisecondsSinceEpoch - _songStartedAtMs;
       }
-      await taste.logPlayEnded(
-        videoId: _prevMedia!.id,
-        artist: _prevMedia!.artist,
-        title: _prevMedia!.title,
-        source: _prevSource,
-        listenedMs: listened,
-        // Never fabricate a denominator: an unresolved/unknown duration must
-        // stay 0 so TasteModel scores it as unknown instead of a 100% listen.
-        totalMs: totalMs,
-      );
+      if (tasted(_prevMedia!)) {
+        await taste.logPlayEnded(
+          videoId: _prevMedia!.id,
+          artist: _prevMedia!.artist,
+          title: _prevMedia!.title,
+          source: _prevSource,
+          listenedMs: listened,
+          // Never fabricate a denominator: an unresolved/unknown duration
+          // must stay 0 so TasteModel scores it as unknown instead of a
+          // 100% listen.
+          totalMs: totalMs,
+        );
+      }
       await StatsService.recordListenEnd(
         _prevMedia!,
         listenedMs: listened,
@@ -172,12 +190,14 @@ class DiscoveryService extends GetxService {
     _songStartedAtMs = DateTime.now().millisecondsSinceEpoch;
     if (next != null) {
       _prevSource = sourceFromMediaItem(next);
-      await taste.logPlayStarted(
-        videoId: next.id,
-        artist: next.artist,
-        title: next.title,
-        source: _prevSource,
-      );
+      if (tasted(next)) {
+        await taste.logPlayStarted(
+          videoId: next.id,
+          artist: next.artist,
+          title: next.title,
+          source: _prevSource,
+        );
+      }
     }
   }
 
@@ -185,20 +205,28 @@ class DiscoveryService extends GetxService {
     _prevPositionMs = positionMs;
   }
 
-  Future<void> onFavorite(MediaItem song, {required bool add}) =>
-      taste.logFavorite(song.id, song.artist, song.title, add: add);
+  Future<void> onFavorite(MediaItem song, {required bool add}) async {
+    if (!tasted(song)) return;
+    await taste.logFavorite(song.id, song.artist, song.title, add: add);
+  }
 
-  Future<void> onPlaylistAdd(MediaItem song) =>
-      taste.logPlaylistAdd(song.id, song.artist, song.title);
+  Future<void> onPlaylistAdd(MediaItem song) async {
+    if (!tasted(song)) return;
+    await taste.logPlaylistAdd(song.id, song.artist, song.title);
+  }
 
-  Future<void> onDownload(MediaItem song) =>
-      taste.logDownload(song.id, song.artist, song.title);
+  Future<void> onDownload(MediaItem song) async {
+    if (!tasted(song)) return;
+    await taste.logDownload(song.id, song.artist, song.title);
+  }
 
   Future<void> onFollow(String artistName, {required bool follow}) =>
       taste.logFollow(artistName, follow: follow);
 
-  Future<void> onNeverPlay(MediaItem song) =>
-      taste.logNeverPlay(song.id, song.artist, song.title);
+  Future<void> onNeverPlay(MediaItem song) async {
+    if (!tasted(song)) return;
+    await taste.logNeverPlay(song.id, song.artist, song.title);
+  }
 
   // ─── Mix scheduler (resume / launch, no WorkManager) ──────────────────
 

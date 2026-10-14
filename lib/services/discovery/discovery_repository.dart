@@ -328,7 +328,9 @@ class DiscoveryRepository {
     final candidates = <({String id, double score})>[];
     for (final k in _trackStats.keys) {
       final v = _trackStats.get(k);
-      if (v is! Map) continue;
+      if (v is! Map || _isLongFormPlay(k.toString(), v['lastSource'])) {
+        continue;
+      }
       final last = v['lastPlayedTs'] as int? ?? 0;
       final life = (v['lifetimePlays'] as int? ?? 0).toDouble();
       if (last > 0 && last < cutoff && life >= minLifetimePlays) {
@@ -542,6 +544,99 @@ class DiscoveryRepository {
     await _mixes.clear();
   }
 
+  // ─── Podcasts and audiobooks ──────────────────────────────────────────
+
+  static const _longFormForgottenKey = 'longFormForgotten';
+
+  /// A play of a podcast episode or an audiobook chapter: by its id, or by
+  /// where it was played from ([source], a wire name).
+  static bool _isLongFormPlay(String id, Object? source) =>
+      isLongFormId(id) ||
+      (source is String && DiscoverySource.fromWire(source).isLongForm);
+
+  static Object? _lastSourceOf(Object? stat) =>
+      stat is Map ? stat['lastSource'] : null;
+
+  /// A Stats (`SongStats`) entry of one: Stats keeps their kind.
+  static bool _isLongFormStat(String id, Map stat) =>
+      isLongFormId(id) ||
+      stat['kind'] == 'podcast' ||
+      stat['kind'] == 'audiobook';
+
+  /// Once: takes out what podcast episodes and audiobook chapters put into
+  /// your taste before they were kept out of it. Their plays, their stats
+  /// and pairings go, as do the shows and authors only they made "artists"
+  /// you like; saved mixes drop their tracks. [songStats] (Stats' box)
+  /// tells the ones the first backfill took from it. Returns how many plays
+  /// went.
+  Future<int> forgetLongForm({Box? songStats}) async {
+    if (getPref(_longFormForgottenKey) == true) return 0;
+    final ids = <String>{};
+    final longArtists = <String>{};
+    final musicArtists = <String>{};
+    // Stats first: it knows a YouTube episode played from search results.
+    if (songStats != null) {
+      for (final k in songStats.keys) {
+        final v = songStats.get(k);
+        if (v is! Map) continue;
+        final artistKey = normalizeArtistKey(v['artist'] as String?);
+        if (_isLongFormStat(k.toString(), v)) {
+          ids.add(k.toString());
+          if (artistKey.isNotEmpty) longArtists.add(artistKey);
+        } else if (artistKey.isNotEmpty) {
+          musicArtists.add(artistKey);
+        }
+      }
+    }
+    final plays = <dynamic>[];
+    for (final k in _events.keys) {
+      final v = _events.get(k);
+      if (v is! Map) continue;
+      final id = '${v['videoId'] ?? ''}';
+      final artistKey = '${v['artistKey'] ?? ''}';
+      if (ids.contains(id) || _isLongFormPlay(id, v['source'])) {
+        plays.add(k);
+        if (id.isNotEmpty) ids.add(id);
+        if (artistKey.isNotEmpty) longArtists.add(artistKey);
+      } else if (artistKey.isNotEmpty) {
+        musicArtists.add(artistKey);
+      }
+    }
+    bool longForm(String id) => isLongFormId(id) || ids.contains(id);
+
+    await _deleteInBatches(_events, plays);
+    await _deleteInBatches(_trackStats, [
+      for (final k in _trackStats.keys)
+        if (longForm(k.toString()) ||
+            _isLongFormPlay(k.toString(), _lastSourceOf(_trackStats.get(k))))
+          k,
+    ]);
+    await _deleteInBatches(_cooc, [
+      for (final k in _cooc.keys)
+        if (k.toString().split('|').any(longForm)) k,
+    ]);
+    _adj = null;
+    await _deleteInBatches(
+        _affinity, longArtists.difference(musicArtists).toList());
+    for (final mix in allMixes()) {
+      final tracks = [
+        for (final t in mix.tracks)
+          if (!longForm('${t['videoId'] ?? ''}')) t,
+      ];
+      if (tracks.length == mix.tracks.length) continue;
+      await saveMix(GeneratedMix(
+        id: mix.id,
+        title: mix.title,
+        reason: mix.reason,
+        kind: mix.kind,
+        tracks: tracks,
+        generatedTs: mix.generatedTs,
+      ));
+    }
+    await setPref(_longFormForgottenKey, true);
+    return plays.length;
+  }
+
   // ─── Backfill from existing SongStats / history ───────────────────────
 
   /// Seed familiarity + affinity from existing `SongStats` box entries.
@@ -555,7 +650,7 @@ class DiscoveryRepository {
       final plays = v['plays'] as int? ?? 0;
       final artist = v['artist'] as String? ?? '';
       final lastPlayed = v['lastPlayed'] as int? ?? now.millisecondsSinceEpoch;
-      if (plays <= 0) continue;
+      if (plays <= 0 || _isLongFormStat(videoId, v)) continue;
 
       // Don't overwrite richer existing data
       if (!_trackStats.containsKey(videoId)) {

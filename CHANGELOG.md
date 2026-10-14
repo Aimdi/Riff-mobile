@@ -486,6 +486,13 @@ Library:
   week, round the list. An artist page's singles and EPs show again too,
   and "More by" under an album lists them: YouTube Music calls that
   shelf "Singles & EPs" now, and it was left empty
+* Podcasts and audiobooks no longer steer your music, as Spotify keeps
+  them apart: what you play of them isn't counted in your taste, so a
+  show or an author no longer becomes an "artist" your Daily Mixes,
+  Fresh finds, Home's "Because you liked" and Stats' Top rising artists
+  are made from, and episodes no longer turn up in Rediscover, where they
+  couldn't play. What they had put in it before is taken out once.
+  Stats still counts the time you spend on them
 * Removing a song (swipe it, or "Remove" in its menu) now says "Removed
   from your library" with Undo, like YouTube Music; its download or
   cached copy is only deleted once Undo is gone (or on the next start if

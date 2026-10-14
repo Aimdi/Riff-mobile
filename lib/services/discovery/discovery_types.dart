@@ -166,7 +166,17 @@ enum DiscoverySource {
         return false;
     }
   }
+
+  /// Played from podcasts or audiobooks: not music (see [isLongFormId]).
+  bool get isLongForm =>
+      this == DiscoverySource.podcast || this == DiscoverySource.audiobook;
 }
+
+/// A podcast episode's (RSS) or an audiobook chapter's id (LibriVox,
+/// Audiobookshelf). They aren't music, so they stay out of your taste, as
+/// Spotify keeps podcasts out of its music mixes.
+bool isLongFormId(String id) =>
+    id.startsWith('podcast_') || id.startsWith('lv_') || id.startsWith('abs_');
 
 /// Logged event kinds.
 enum DiscoveryEventKind {
