@@ -9,7 +9,6 @@ import '/ui/screens/Podcasts/podcast_segment_ui.dart';
 
 import '/ui/screens/Podcasts/podcast_playback_controls.dart';
 import 'package:ionicons/ionicons.dart';
-import 'package:widget_marquee/widget_marquee.dart';
 
 import '/ui/player/components/animated_play_button.dart';
 import '/services/audiobook_playback.dart';
@@ -37,6 +36,7 @@ import 'standard_player.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_theme.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/riff_marquee.dart';
 
 class PlayerControlWidget extends StatelessWidget {
   const PlayerControlWidget({super.key});
@@ -788,7 +788,7 @@ class _TitleBlock extends StatelessWidget {
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () => openCurrentAlbum(playerController),
-                  child: Marquee(
+                  child: RiffMarquee(
                     delay: const Duration(milliseconds: 1500),
                     duration: const Duration(seconds: 10),
                     id: '${song?.id}_title',
@@ -803,7 +803,7 @@ class _TitleBlock extends StatelessWidget {
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () => openCurrentArtist(playerController),
-                  child: Marquee(
+                  child: RiffMarquee(
                     delay: const Duration(milliseconds: 1500),
                     duration: const Duration(seconds: 10),
                     id: '${song?.id}_subtitle',

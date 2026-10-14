@@ -7,7 +7,6 @@ import 'package:harmonymusic/services/smart_shuffle.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:harmonymusic/ui/theme/riff_spacing.dart';
 import 'package:harmonymusic/ui/theme/riff_tokens.dart';
-import 'package:widget_marquee/widget_marquee.dart';
 
 import 'image_widget.dart';
 import 'queue_undo.dart';
@@ -15,6 +14,7 @@ import 'snackbar.dart';
 import 'now_playing_bars.dart';
 import 'song_list_tile.dart' show RiffRowHairline;
 import 'songinfo_bottom_sheet.dart';
+import 'riff_marquee.dart';
 
 const double _kQueueRowExtent = 64;
 const double _kSectionLabelExtent = 34;
@@ -262,7 +262,7 @@ class _QueueSongRow extends StatelessWidget {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Marquee(
+                                    RiffMarquee(
                                       delay: const Duration(milliseconds: 300),
                                       duration: const Duration(seconds: 5),
                                       id: "queue${song.title.hashCode}",

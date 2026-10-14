@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:ionicons/ionicons.dart';
-import 'package:widget_marquee/widget_marquee.dart';
 
 import '/ui/widgets/lyrics_dialog.dart';
 import '/ui/widgets/song_info_dialog.dart';
@@ -23,6 +22,7 @@ import 'playback_error_actions.dart';
 import 'track_swipe.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/riff_marquee.dart';
 
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
@@ -433,7 +433,7 @@ class _MiniPlayerSongInfo extends StatelessWidget {
     String songKey,
     ThemeData theme,
   ) {
-    final line = Marquee(
+    final line = RiffMarquee(
       key: ValueKey<String>('mini_artist_$songKey'),
       id: "${song}_mini",
       delay: const Duration(milliseconds: 300),

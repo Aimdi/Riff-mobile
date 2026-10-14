@@ -8,6 +8,7 @@ import '/ui/theme/riff_tokens.dart';
 ///
 /// Slow drifting gradient blobs — no network, low GPU cost. Together the
 /// blobs stay within [RiffPalette.playerTintOpacity] over the page colour.
+/// With the phone's Remove animations on (accessibility) they hold still.
 class PlayerCanvasBackdrop extends StatefulWidget {
   const PlayerCanvasBackdrop({super.key});
 
@@ -25,7 +26,17 @@ class _PlayerCanvasBackdropState extends State<PlayerCanvasBackdrop>
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 18),
-    )..repeat(reverse: true);
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _ctrl.stop();
+    } else if (!_ctrl.isAnimating) {
+      _ctrl.repeat(reverse: true);
+    }
   }
 
   @override

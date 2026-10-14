@@ -72,6 +72,13 @@ Screen readers (TalkBack):
   Previous in TalkBack's actions, and double-tap and hold still opens
   the song's options
 
+Remove animations (Android's accessibility setting):
+* Riff now keeps still with it on, as Apple Music does under Reduce
+  Motion: song titles too long for their line stay put and end in "…"
+  (song rows, Up Next, the mini player and the player) instead of
+  scrolling by, and the player canvas, the cover's glow and the
+  equalizer bars hold still. With it off, they move as before
+
 Sleep timer:
 * Music and audiobooks now fade out over the last 10 seconds before the
   timer stops them, like podcasts already did, instead of cutting off

@@ -178,7 +178,8 @@ class PlayerCoverColors {
 /// The full player's page, painted from [palette]: the fill under the
 /// cover darkening to [CoverPalette.deep] at the bottom, with the glow
 /// behind the transport. Colours cross-fade when the song changes; with
-/// [drift] (the Player canvas setting) the glow wanders slowly.
+/// [drift] (the Player canvas setting) the glow wanders slowly, unless the
+/// phone's Remove animations is on.
 class CoverBackdrop extends StatefulWidget {
   const CoverBackdrop({super.key, required this.palette, this.drift = false});
 
@@ -190,15 +191,19 @@ class CoverBackdrop extends StatefulWidget {
 }
 
 class _CoverBackdropState extends State<CoverBackdrop>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static const Duration _fade = Duration(milliseconds: 600);
   static const Duration _driftCycle = Duration(seconds: 18);
 
   AnimationController? _drift;
 
+  /// The phone's Remove animations (accessibility): the glow holds still.
+  bool _reducedMotion = false;
+
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reducedMotion = MediaQuery.disableAnimationsOf(context);
     _syncDrift();
   }
 
@@ -209,10 +214,11 @@ class _CoverBackdropState extends State<CoverBackdrop>
   }
 
   void _syncDrift() {
-    if (widget.drift && _drift == null) {
+    final drift = widget.drift && !_reducedMotion;
+    if (drift && _drift == null) {
       _drift = AnimationController(vsync: this, duration: _driftCycle)
         ..repeat(reverse: true);
-    } else if (!widget.drift && _drift != null) {
+    } else if (!drift && _drift != null) {
       _drift!.dispose();
       _drift = null;
     }

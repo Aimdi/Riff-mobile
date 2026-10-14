@@ -5,7 +5,6 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:get/get.dart';
-import 'package:widget_marquee/widget_marquee.dart';
 
 import '../../models/media_item_extras.dart';
 import '../../models/playlist.dart';
@@ -26,6 +25,7 @@ import 'song_row_swipe.dart';
 import 'now_playing_bars.dart';
 import 'songinfo_bottom_sheet.dart';
 import 'unplayable_dim.dart';
+import 'riff_marquee.dart';
 
 class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
   const SongListTile(
@@ -227,7 +227,7 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Marquee(
+                                  RiffMarquee(
                                     delay: const Duration(milliseconds: 300),
                                     duration: const Duration(seconds: 5),
                                     id: song.title.hashCode.toString(),
