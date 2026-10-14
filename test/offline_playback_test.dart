@@ -188,6 +188,83 @@ void main() {
     expect(OfflinePlayback.offline.value, isFalse);
   });
 
+  test('Stream on Wi-Fi only: on mobile data as Offline mode, kept', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    await Hive.openBox('AppPrefs', bytes: Uint8List(0));
+    late MockStreamHandlerEventSink phone;
+    messenger.setMockStreamHandler(OfflinePlayback.channel,
+        MockStreamHandler.inline(onListen: (_, events) {
+      phone = events;
+      events.success({'online': true, 'metered': true});
+    }));
+    OfflinePlayback.watch();
+    await pumpEventQueue();
+    // Off: mobile data streams as before.
+    expect(OfflinePlayback.offline.value, isFalse);
+
+    await OfflinePlayback.setWifiOnly(true);
+    expect(OfflinePlayback.offline.value, isTrue);
+    expect(OfflinePlayback.byChoice, isTrue);
+    expect(OfflinePlayback.songMessageKey, 'wifiOnlySongMsg');
+    expect(OfflinePlayback.blocks(_song('online')), isTrue);
+    expect(OfflinePlayback.blocks(_song('saved')), isFalse);
+    expect(OfflinePlayback.blocks(_song('podcast_1')), isFalse);
+    expect(Hive.box('AppPrefs').get(OfflinePlayback.wifiOnlyKey), isTrue);
+
+    // On Wi-Fi everything plays.
+    phone.success({'online': true, 'metered': false});
+    await pumpEventQueue();
+    expect(OfflinePlayback.offline.value, isFalse);
+
+    // No connection at all: that's what it says.
+    phone.success({'online': false, 'metered': false});
+    await pumpEventQueue();
+    expect(OfflinePlayback.offline.value, isTrue);
+    expect(OfflinePlayback.byChoice, isFalse);
+    expect(OfflinePlayback.songMessageKey, 'offlineSongMsg');
+
+    // Mobile data with Offline mode on too: Offline mode's message.
+    phone.success({'online': true, 'metered': true});
+    await pumpEventQueue();
+    await OfflinePlayback.setMode(true);
+    expect(OfflinePlayback.songMessageKey, 'offlineModeSongMsg');
+    await OfflinePlayback.setMode(false);
+    expect(OfflinePlayback.songMessageKey, 'wifiOnlySongMsg');
+
+    // The next start: on as it was left.
+    OfflinePlayback.wifiOnly.value = false;
+    OfflinePlayback.watch();
+    expect(OfflinePlayback.wifiOnly.value, isTrue);
+    expect(OfflinePlayback.offline.value, isTrue);
+
+    await OfflinePlayback.setWifiOnly(false);
+    expect(OfflinePlayback.offline.value, isFalse);
+    expect(Hive.box('AppPrefs').get(OfflinePlayback.wifiOnlyKey), isFalse);
+  });
+
+  test("can't tell what the connection costs: as Wi-Fi", () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    await Hive.openBox('AppPrefs', bytes: Uint8List(0));
+    late MockStreamHandlerEventSink phone;
+    messenger.setMockStreamHandler(OfflinePlayback.channel,
+        MockStreamHandler.inline(onListen: (_, events) {
+      phone = events;
+      // As the phone said before Riff asked about data.
+      events.success(true);
+    }));
+    await OfflinePlayback.setWifiOnly(true);
+    OfflinePlayback.watch();
+    await pumpEventQueue();
+    expect(OfflinePlayback.offline.value, isFalse);
+
+    phone.success({'online': true, 'metered': true});
+    await pumpEventQueue();
+    expect(OfflinePlayback.offline.value, isTrue);
+    phone.error(code: 'gone');
+    await pumpEventQueue();
+    expect(OfflinePlayback.offline.value, isFalse);
+  });
+
   group('song rows', () {
     late _FakePlayer player;
 

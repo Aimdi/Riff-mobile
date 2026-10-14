@@ -309,6 +309,19 @@ class SettingsScreen extends StatelessWidget {
                           onChanged: OfflinePlayback.setMode),
                     ),
                   ),
+                  // YouTube Music's Stream via Wi-Fi only: on mobile data,
+                  // as Offline mode.
+                  ListTile(
+                    contentPadding: settingsTilePadding,
+                    title: Text("streamOnWifiOnly".tr),
+                    subtitle: Text("streamOnWifiOnlyDes".tr,
+                        style: settingsSubtitleStyle(context)),
+                    trailing: Obx(
+                      () => CustSwitch(
+                          value: OfflinePlayback.wifiOnly.value,
+                          onChanged: OfflinePlayback.setWifiOnly),
+                    ),
+                  ),
                   ListTile(
                     contentPadding: settingsTilePadding,
                     title: Text("videoQuality".tr),

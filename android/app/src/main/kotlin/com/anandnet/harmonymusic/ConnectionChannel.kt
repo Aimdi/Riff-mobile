@@ -11,11 +11,13 @@ import android.os.Looper
 import io.flutter.plugin.common.EventChannel
 
 /**
- * "riff/network/online": whether the phone has a connection at all, sent
- * as Dart starts listening and again each time that changes (see
- * lib/services/offline_playback.dart): with none, songs that need one are
- * passed over, as Spotify's offline mode does. Like riff/network it needs
- * no activity, as play goes on with the screen off.
+ * "riff/network/online": whether the phone has a connection at all, and
+ * whether the one in use costs data (mobile data, a metered hotspot), sent
+ * as {online, metered} as Dart starts listening and again each time either
+ * changes (see lib/services/offline_playback.dart): with none, songs that
+ * need one are passed over, as Spotify's offline mode does, and on mobile
+ * data too with Stream on Wi-Fi only. Like riff/network it needs no
+ * activity, as play goes on with the screen off.
  *
  * Back online is sent at once; offline only once it has held for
  * [SETTLE_MS], so the moment between Wi-Fi going and mobile data taking
@@ -30,7 +32,7 @@ object ConnectionChannel : EventChannel.StreamHandler {
     private val main = Handler(Looper.getMainLooper())
     private var events: EventChannel.EventSink? = null
     private var callback: ConnectivityManager.NetworkCallback? = null
-    private var sent: Boolean? = null
+    private var sent: Map<String, Boolean>? = null
     private var confirming = false
 
     private val confirmOffline = Runnable {
@@ -58,7 +60,18 @@ object ConnectionChannel : EventChannel.StreamHandler {
         }
     }
 
-    private fun send(now: Boolean) {
+    /**
+     * Whether the connection in use costs data; when it can't tell, no, so
+     * nothing is passed over by mistake.
+     */
+    private fun metered(): Boolean = try {
+        manager()?.isActiveNetworkMetered ?: false
+    } catch (_: SecurityException) {
+        false
+    }
+
+    private fun send(online: Boolean) {
+        val now = mapOf("online" to online, "metered" to (online && metered()))
         if (now == sent) return
         sent = now
         events?.success(now)

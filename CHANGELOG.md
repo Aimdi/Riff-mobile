@@ -835,6 +835,13 @@ Downloads:
   they don't use your data. It stays on until you turn it off, and Riff
   says Offline mode is on when you tap a song it passes over. Podcasts,
   books and your own server's songs play as before
+* Stream on Wi-Fi only, as YouTube Music has it: a switch in Settings ›
+  Listening, under Offline mode, that makes mobile data (or a hotspot
+  that counts your data) like Offline mode: songs that are downloaded or
+  in the song cache play, the others are dimmed and passed over, and
+  everything plays again as soon as you're on Wi-Fi. Tapping one it
+  passes over says streaming is on Wi-Fi only. Off by default; podcasts,
+  books and your own server's songs stream as before (phones)
 * Downloads keep going after you leave Riff, as with YouTube Music,
   Spotify and AntennaPod: while songs or episodes download, a
   notification shows how far they've got ("Downloading 3 of 25" and the
