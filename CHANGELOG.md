@@ -348,6 +348,15 @@ Podcasts:
   or itpc:// subscribe link) into the Podcasts search and that show comes
   up with Follow, for private feeds (Patreon, Supercast, Substack) and
   shows the directories don't list. YouTube links still find the channel
+* Podcast links open in Riff, as they do in AntennaPod and Pocket Casts:
+  a podcast site's Subscribe link (feed://, pcast://, itpc://,
+  podcast://, Subscribe on Android's and AntennaPod's own), a show's link
+  on Apple Podcasts or Overcast (an episode's opens its show), an old
+  Google Podcasts link, or a feed's address, shared to Riff or opened
+  from the browser, open that show's page with Follow. Pasting one into
+  the Podcasts search finds the show too. Shared text with words around
+  its link (as podcast and video apps share) now opens the link in it,
+  YouTube's included, where it used to say it wasn't a valid link
 * Swipe episodes in the Inbox, like AntennaPod and Pocket Casts: swipe
   one right to add it to the queue, left to mark it played (it leaves
   the Inbox, with Undo, which also puts it back where it was in the

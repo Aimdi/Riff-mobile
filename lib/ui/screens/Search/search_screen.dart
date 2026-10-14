@@ -75,8 +75,8 @@ class SearchScreen extends StatelessWidget {
                         icon: Icons.link_rounded,
                         label: "urlSearchDes".tr,
                         onTap: () {
-                          searchScreenController.filterLinks(Uri.parse(
-                              searchScreenController.textInputController.text));
+                          searchScreenController.openLinkIn(
+                              searchScreenController.textInputController.text);
                           searchScreenController.reset();
                         },
                       ),
@@ -154,8 +154,8 @@ class _SearchField extends StatelessWidget {
   void _submit(BuildContext context, String val) {
     submitSearchQuery(
       val,
-      onLink: (uri) {
-        controller.filterLinks(uri);
+      onLink: (text) {
+        controller.openLinkIn(text);
         controller.reset();
       },
       onRemember: controller.addToHistryQueryList,

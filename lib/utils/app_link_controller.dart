@@ -8,6 +8,9 @@ import '../models/playling_from.dart';
 import '../models/playlist.dart';
 import '/services/app_shortcuts.dart';
 import '/services/new_episode_alerts.dart';
+import '/services/podcast_feed_url.dart';
+import '/services/podcast_links.dart';
+import '/ui/screens/Podcasts/podcast_cover_tile.dart' show openRssPodcast;
 import '/ui/screens/Home/home_screen_controller.dart';
 import '/ui/screens/Search/components/search_pill.dart';
 import '/ui/widgets/songinfo_bottom_sheet.dart';
@@ -20,7 +23,7 @@ import '../ui/widgets/snackbar.dart';
 
 class AppLinksController extends GetxController with ProcessLink {
   late AppLinks _appLinks;
-  StreamSubscription<Uri>? _linkSubscription;
+  StreamSubscription<String>? _linkSubscription;
 
   @override
   void onInit() {
@@ -36,21 +39,23 @@ class AppLinksController extends GetxController with ProcessLink {
     // Check initial link if app was in cold state (terminated). A failure
     // here (e.g. the player panel not laid out yet) used to throw past the
     // subscription below, so no shared link opened for the whole session.
+    // As written, not as a Uri: shared text has words around its link, and
+    // a Uri loses part of a pcast://https://… one.
     try {
-      final appLink = await _appLinks.getInitialAppLink();
+      final appLink = await _appLinks.getInitialAppLinkString();
       if (appLink != null) {
-        await filterLinks(appLink);
+        await openLinkIn(appLink);
       }
     } catch (e) {
       printERROR('Opening the launch link failed: $e');
     }
 
     // Handle link when app is in warm state (front or background)
-    _linkSubscription = _appLinks.uriLinkStream.listen((uri) async {
+    _linkSubscription = _appLinks.stringLinkStream.listen((text) async {
       try {
-        await filterLinks(uri);
+        await openLinkIn(text);
       } catch (e) {
-        printERROR('Opening link $uri failed: $e');
+        printERROR('Opening link $text failed: $e');
       }
     });
   }
@@ -65,7 +70,18 @@ class AppLinksController extends GetxController with ProcessLink {
 }
 
 mixin ProcessLink {
-  Future<void> filterLinks(Uri uri) async {
+  /// [text] shared to Riff or pasted into its search: the link in it
+  /// ([linkInText]) opened as [filterLinks] opens it.
+  Future<void> openLinkIn(String text) async {
+    final link = linkInText(text);
+    final uri = link == null ? null : Uri.tryParse(link);
+    if (uri == null) return _notALink();
+    await filterLinks(uri, written: link);
+  }
+
+  /// [uri] opened in Riff; [written] is the link as it was written, when
+  /// there is one (podcast links are read from it).
+  Future<void> filterLinks(Uri uri, {String? written}) async {
     // A long-press shortcut on the app icon.
     final shortcut = AppShortcut.fromUri(uri);
     if (shortcut != null) return openAppShortcut(shortcut);
@@ -121,9 +137,49 @@ mixin ProcessLink {
         await playSong(first);
       }
     } else {
-      ScaffoldMessenger.of(Get.context!).showSnackBar(snackbar(
-          Get.context!, "notaValidLink".tr,
-          size: SanckBarSize.MEDIUM));
+      // A podcast's link (a subscribe link, Apple Podcasts', Overcast's),
+      // or any other web address, which may be a feed's.
+      final link = written ?? uri.toString();
+      final feed = podcastFeedUrlFrom(link);
+      final podcast = podcastLinkFrom(link) ??
+          (feed == null ? null : PodcastLink.feed(feed));
+      if (podcast == null || !await openPodcastLink(podcast)) _notALink();
+    }
+  }
+
+  void _notALink() {
+    final ctx = Get.context;
+    if (ctx == null || !ctx.mounted) return;
+    ScaffoldMessenger.of(ctx).showSnackBar(
+        snackbar(ctx, "notaValidLink".tr, size: SanckBarSize.MEDIUM));
+  }
+
+  /// The show [link] names, on its page, as podcast apps open a podcast
+  /// link; false when there's none to be found.
+  Future<bool> openPodcastLink(PodcastLink link) async {
+    final show = await _whileSpinning(podcastShowFor(link));
+    if (show == null || await _pagesWithPlayerClosed() == null) return false;
+    openRssPodcast(show);
+    return true;
+  }
+
+  /// [work], with a spinner up until it's done: the spinner's own route,
+  /// so taking it down can never pop something else.
+  Future<T> _whileSpinning<T>(Future<T> work) async {
+    final ctx = Get.context;
+    if (ctx == null || !ctx.mounted) return work;
+    final spinner = DialogRoute<void>(
+        context: ctx,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+                child: LoadingIndicator(
+              strokeWidth: 5,
+            )));
+    Navigator.of(ctx).push(spinner);
+    try {
+      return await work;
+    } finally {
+      if (spinner.isActive) spinner.navigator?.removeRoute(spinner);
     }
   }
 
@@ -210,26 +266,15 @@ mixin ProcessLink {
   }
 
   Future<void> playSong(String songId) async {
-    final ctx = Get.context!;
-    // The spinner's own route, so closing it can never pop something else.
-    final spinner = DialogRoute<void>(
-        context: ctx,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-                child: LoadingIndicator(
-              strokeWidth: 5,
-            )));
-    Navigator.of(ctx).push(spinner);
-    List result;
-    try {
-      result = await Get.find<MusicServices>().getSongWithId(songId);
-    } catch (e) {
-      // Offline, or the video is unavailable / region-blocked.
-      printERROR('Shared link $songId failed: $e');
-      result = [false];
-    } finally {
-      if (spinner.isActive) spinner.navigator?.removeRoute(spinner);
-    }
+    final result = await _whileSpinning(() async {
+      try {
+        return await Get.find<MusicServices>().getSongWithId(songId);
+      } catch (e) {
+        // Offline, or the video is unavailable / region-blocked.
+        printERROR('Shared link $songId failed: $e');
+        return [false];
+      }
+    }());
     if (result[0] == true) {
       final ok = await Get.find<PlayerController>().playPlayListSong(
           List.from(result[1]), 0,

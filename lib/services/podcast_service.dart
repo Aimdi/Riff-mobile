@@ -68,23 +68,44 @@ class PodcastService {
       if (results == null) return [];
       return results
           .where((r) => (r['feedUrl'] ?? '').toString().isNotEmpty)
-          .map((r) {
-            // Prefer 600px, then upscale mzstatic path to 3000×3000 for sharp player art.
-            final raw = (r['artworkUrl600'] ??
-                    r['artworkUrl100'] ??
-                    r['artworkUrl60'] ??
-                    '')
-                .toString();
-            return {
-              'title': r['collectionName'] ?? r['trackName'] ?? '',
-              'author': r['artistName'] ?? '',
-              'artwork': Thumbnail(raw).extraHigh,
-              'feedUrl': r['feedUrl'],
-            };
-          }).toList();
+          .map((r) => _directoryShow(r as Map))
+          .toList();
     } catch (e) {
       printERROR("Podcast search failed: $e");
       return [];
+    }
+  }
+
+  /// A show in Apple's directory as Riff keeps one.
+  static Map<String, dynamic> _directoryShow(Map r) {
+    // Prefer 600px, then upscale mzstatic path to 3000×3000 for sharp player art.
+    final raw =
+        (r['artworkUrl600'] ?? r['artworkUrl100'] ?? r['artworkUrl60'] ?? '')
+            .toString();
+    return {
+      'title': r['collectionName'] ?? r['trackName'] ?? '',
+      'author': r['artistName'] ?? '',
+      'artwork': Thumbnail(raw).extraHigh,
+      'feedUrl': r['feedUrl'],
+    };
+  }
+
+  /// The show with [id] in Apple's directory (an Apple Podcasts or
+  /// Overcast link's), as [search] gives shows; null when there's none
+  /// with a feed, or it can't be reached.
+  static Future<Map<String, dynamic>?> directoryShow(String id) async {
+    try {
+      final res = await _dio.get('$directoryBase/lookup',
+          queryParameters: {'id': id, 'entity': 'podcast'});
+      final results = _asMap(res.data)?['results'] as List?;
+      final show = results
+          ?.whereType<Map>()
+          .where((r) => (r['feedUrl'] ?? '').toString().isNotEmpty)
+          .firstOrNull;
+      return show == null ? null : _directoryShow(show);
+    } catch (e) {
+      printERROR("Podcast lookup failed ($id): $e");
+      return null;
     }
   }
 

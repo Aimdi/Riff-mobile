@@ -60,6 +60,47 @@
                 <data android:scheme="https" android:host="youtube.com"/>  
             </intent-filter>
 
+            <!-- Podcast links, as podcast apps (AntennaPod, Pocket Casts)
+                 take them: subscribe links, a show's page on Apple Podcasts
+                 or Overcast, Subscribe on Android's and AntennaPod's pages.
+                 Dart opens the show (podcast_links.dart). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="feed" />
+                <data android:scheme="pcast" />
+                <data android:scheme="itpc" />
+                <data android:scheme="podcast" />
+                <data android:scheme="antennapod-subscribe" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="https" />
+                <data android:scheme="http" />
+                <data android:host="podcasts.apple.com" />
+                <data android:host="subscribeonandroid.com" />
+                <data android:host="www.subscribeonandroid.com" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="https" />
+                <data android:host="overcast.fm" />
+                <data android:pathPrefix="/itunes" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="https" />
+                <data android:host="antennapod.org" />
+                <data android:pathPrefix="/deeplink/subscribe" />
+            </intent-filter>
+
             <!-- "Play … on Riff" from the Assistant: MainActivity hands it
                  to Dart as a riff://voice link. -->
             <intent-filter>

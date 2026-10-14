@@ -36,7 +36,7 @@ bool shouldNotifySearchPlayFailed({required bool played}) => !played;
 /// Search-bar submit: play the top song, or open results if nothing plays.
 Future<bool> submitSearchQuery(
   String val, {
-  required void Function(Uri uri) onLink,
+  required void Function(String text) onLink,
   required void Function(String query) onOpenResults,
   required void Function(String query) onRemember,
   void Function()? onAfterSubmit,
@@ -44,7 +44,7 @@ Future<bool> submitSearchQuery(
 }) async {
   final q = val.trim();
   if (q.contains('https://')) {
-    onLink(Uri.parse(q));
+    onLink(q);
     onAfterSubmit?.call();
     return false;
   }

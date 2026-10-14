@@ -201,6 +201,23 @@ void main() {
       expect(c.isSearching.isFalse, isTrue);
     });
 
+    test("a pasted Apple Podcasts link: that show, from Apple's directory",
+        () async {
+      Get.put<MusicServices>(_FakeMusic());
+      final c = LibraryPodcastsController();
+
+      await c.searchPodcasts(
+          'https://podcasts.apple.com/us/podcast/the-show/id123?i=1000');
+      expect(c.feedSearchResult.value?['feedUrl'], 'https://feeds.example/1');
+      final lookup = asked.single;
+      expect(lookup.path, '/lookup');
+      expect(lookup.queryParameters['id'], '123');
+      // Nothing else searched for.
+      expect(c.searchResults, isEmpty);
+      expect(c.directoryResults, isEmpty);
+      expect(c.isSearching.isFalse, isTrue);
+    });
+
     test('none when the directory is out of reach', () async {
       await directory.close(force: true);
       final music = Get.put<MusicServices>(_FakeMusic()) as _FakeMusic;

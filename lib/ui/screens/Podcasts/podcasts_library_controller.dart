@@ -11,6 +11,7 @@ import '/services/music_service.dart';
 import '/services/podcast_feed_url.dart';
 import '/services/podcast_inbox_counts.dart';
 import '/services/podcast_library.dart';
+import '/services/podcast_links.dart';
 import '/services/podcast_queue_downloads.dart';
 import '/services/podcast_service.dart';
 import '/services/youtube_podcast_service.dart';
@@ -204,10 +205,13 @@ class LibraryPodcastsController extends GetxController {
     isSearching.value = true;
     hasSearched.value = true;
     feedSearchResult.value = null;
-    // A pasted feed address: that show, nothing to search for.
+    // A pasted podcast link (Apple Podcasts', Overcast's, a subscribe
+    // link) or feed address: that show, nothing to search for.
     final feedUrl = podcastFeedUrlFrom(term);
-    if (feedUrl != null) {
-      final show = await PodcastService.feedInfo(feedUrl);
+    final link = podcastLinkFrom(term) ??
+        (feedUrl == null ? null : PodcastLink.feed(feedUrl));
+    if (link != null) {
+      final show = await podcastShowFor(link);
       if (gen != _searchGen) return;
       searchResults.clear();
       channelSearchResults.clear();
