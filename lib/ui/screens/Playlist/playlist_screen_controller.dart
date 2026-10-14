@@ -13,12 +13,14 @@ import 'package:harmonymusic/ui/widgets/snackbar.dart';
 import 'package:harmonymusic/utils/helper.dart';
 import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
+import 'package:share_plus/share_plus.dart';
 
 import '../../../base_class/playlist_album_screen_con_base.dart';
 import '../../../mixins/additional_opeartion_mixin.dart';
 import '../../../models/album.dart' show Album;
 import '../../../models/media_Item_builder.dart';
 import '../../../models/playlist.dart';
+import '../../../utils/content_filters.dart';
 import '../../../utils/hive_boxes.dart';
 import '../../../services/music_service.dart';
 import '../../../services/piped_service.dart';
@@ -594,6 +596,19 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
   /// back song for song.
   Future<void> exportPlaylistToM3u(BuildContext context) => _exportText(
       context, 'm3u8', () => playlistM3u(playlist.value.title, songList));
+
+  /// Shares one of your playlists as Spotify shares one: its name with a
+  /// link anyone can open (YouTube plays its first 50 songs) and its M3U
+  /// file, which Riff, Metrolist or VLC take whole.
+  Future<void> sharePlaylist() async {
+    final name = playlist.value.title;
+    final dir = await path_provider.getTemporaryDirectory();
+    final safe = name.replaceAll(RegExp(r'[^\w\s]+'), '_').trim();
+    final file = File('${dir.path}/${safe.isEmpty ? 'Playlist' : safe}.m3u8');
+    await file.writeAsString(playlistM3u(name, songList));
+    await Share.shareXFiles([XFile(file.path, mimeType: 'audio/x-mpegurl')],
+        subject: name, text: SongLinkShare.playlistText(name, songList));
+  }
 
   /// Writes what [content] makes as "<playlist name>.<extension>" (name_1,
   /// name_2 ... when taken) in the export folder under a progress dialog,

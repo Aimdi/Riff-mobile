@@ -743,6 +743,15 @@ Widget _actions(
               ? pl.playlistId.substring(2)
               : pl.playlistId;
           Share.share("https://youtube.com/playlist?list=$id");
+        })
+      // One of your own, as Spotify shares yours: a link and its M3U file.
+      else if (pl.playlistId != 'LIBRP' && c.songList.isNotEmpty)
+        CollectionMenuItem(Icons.share_outlined, "sharePlaylist".tr, () async {
+          try {
+            await c.sharePlaylist();
+          } catch (e) {
+            snack('operationFailed');
+          }
         }),
       // YouTube Music's Clear history, with Undo as the podcast history's.
       if (pl.playlistId == 'LIBRP')

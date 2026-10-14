@@ -684,6 +684,13 @@ Playlists:
   you sent the file to. They're written without it now; importing the
   playlist on a phone connected to that server signs them again, and a
   song that comes without its server's login is signed when it plays
+* Share one of your own playlists, as Spotify shares yours: its ⋮ ›
+  Share playlist (only YouTube and Piped playlists had it) sends its name
+  with a link anyone can open, where YouTube plays its first 50 songs as
+  a playlist, and the playlist as an M3U file, which Riff, Metrolist or
+  VLC open whole. Sharing a song that's on the phone or from your own
+  server now sends its title and artist (its link went nowhere), and a
+  podcast episode goes as episodes are shared
 
 Albums:
 * More by the artist, like Spotify, Apple Music and YouTube Music: under
