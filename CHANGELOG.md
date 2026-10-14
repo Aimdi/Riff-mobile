@@ -81,6 +81,13 @@ Lock screen and notification:
   media controls and in Android Auto, and follows likes you make in the
   app. Music only (podcasts keep skip back / forward)
 
+Android Auto:
+* Ask for music, as with Spotify and YouTube Music: say "Play <song or
+  artist> on Riff" and the songs YouTube Music finds play, the best
+  match first; "Play music on Riff" carries on with what was playing, or
+  shuffles your Favorites. The search button in Riff's car screen lists
+  the songs found; pick one and the rest follow it
+
 Now playing:
 * Tap the time at the end of the seek bar to see the time left
   ("−2:31") instead of the length, as in Apple Music and Pocket Casts;

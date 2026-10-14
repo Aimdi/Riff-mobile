@@ -1415,6 +1415,9 @@ class PlayerController extends GetxController
       if (event['eventType'] == 'playFromMediaId') {
         unawaited(playViaAndroidAuto(event['songId'], event['libraryId']));
       }
+      if (event['eventType'] == 'playFromSearch') {
+        unawaited(playFromVoiceSearch('${event['query'] ?? ''}'));
+      }
     }));
   }
 
@@ -1834,6 +1837,23 @@ class PlayerController extends GetxController
     );
     // Shared box (Hive hands every caller the same instance): never close
     // it here, or the player and other screens using it fail mid-write.
+  }
+
+  /// "Play … on Riff" (Android Auto, the Assistant): what
+  /// [MediaLibrary.voiceSearchList] finds, from the top. With nothing asked
+  /// for and something in the queue, that plays on instead.
+  Future<void> playFromVoiceSearch(String query) async {
+    if (query.trim().isEmpty && currentQueue.isNotEmpty) {
+      play();
+      return;
+    }
+    final list = await MediaLibrary().voiceSearchList(query);
+    if (list.isEmpty) return;
+    await playPlayListSong(list, 0,
+        playfrom: PlaylingFrom(
+            type: PlaylingFromType.SELECTION,
+            name: query.trim().isEmpty ? 'favorites'.tr : query.trim()),
+        source: DiscoverySource.androidAuto);
   }
 
   /// Insert [songs] after the current track, preserving list order.

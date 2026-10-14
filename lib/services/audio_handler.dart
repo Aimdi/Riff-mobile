@@ -22,6 +22,7 @@ import '/services/youtube_stream_headers.dart';
 import '/services/playlist_mix_service.dart';
 import '/services/audiobookshelf_service.dart';
 import '/services/cloud_music_service.dart';
+import '/services/music_service.dart' show MusicServices;
 import '/services/podcast_inbox_counts.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/android_auto_paging.dart';
@@ -43,6 +44,7 @@ import '/models/hm_streaming_data.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/player/radio_continuation.dart';
 import '/ui/player/video_mode_controller.dart';
+import '/ui/screens/Search/search_play_top.dart' show songsFromSearchResult;
 import '../ui/screens/Home/home_screen_controller.dart';
 import '/services/background_task.dart';
 import '/services/client_config_service.dart';
@@ -72,6 +74,10 @@ Future<AudioHandler> initAudioService() async {
           linux ? 'Riff' : 'Harmony Music Notification',
       androidNotificationOngoing: true,
       androidStopForegroundOnPause: true,
+      // Android Auto shows its search button.
+      androidBrowsableRootExtras: const {
+        'android.media.browse.SEARCH_SUPPORTED': true,
+      },
     ),
   );
 }
@@ -1910,6 +1916,24 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         .shareValue();
   }
 
+  /// Android Auto's search button: the songs found for [query], played
+  /// from that list like the car's others.
+  @override
+  Future<List<MediaItem>> search(String query,
+      [Map<String, dynamic>? extras]) async {
+    _lastAutoBrowseAt = DateTime.now();
+    final found = await _mediaLibrary.searchSongs(query);
+    return _mediaLibrary._forCar(MediaLibrary.searchResultsId, found);
+  }
+
+  /// "Play … on Riff", to Android Auto or the Assistant: the player plays
+  /// what [MediaLibrary.voiceSearchList] finds.
+  @override
+  Future<void> playFromSearch(String query,
+      [Map<String, dynamic>? extras]) async {
+    customEvent.add({'eventType': 'playFromSearch', 'query': query});
+  }
+
   // only for Android Auto
   @override
   Future<void> playFromMediaId(String mediaId,
@@ -2276,6 +2300,9 @@ class MediaLibrary {
   static const podcastQueueId = 'aa_pod_queue';
   static const podcastInboxId = 'aa_pod_inbox';
 
+  /// What the car's search, or a voice request, found.
+  static const searchResultsId = 'aa_search';
+
   /// Podcast episode lists Android Auto browsed, by list id: played from
   /// there without fetching the feed again.
   static final autoPodcastLists = <String, List<MediaItem>>{};
@@ -2293,7 +2320,49 @@ class MediaLibrary {
   static bool isBuiltList(String listId) =>
       listId.startsWith('aa_pod_') ||
       listId.startsWith('riff_mix_') ||
-      listId == freshFindsRootId;
+      listId == freshFindsRootId ||
+      listId == searchResultsId;
+
+  /// Songs found for [query] (YouTube Music's song search, best match
+  /// first), kept as the car-built list [searchResultsId]. Empty when
+  /// nothing is asked for or the search fails.
+  Future<List<MediaItem>> searchSongs(String query, {int limit = 20}) async {
+    final q = query.trim();
+    if (q.isEmpty || !Get.isRegistered<MusicServices>()) return const [];
+    final List<MediaItem> songs;
+    try {
+      songs = songsFromSearchResult(await Get.find<MusicServices>()
+          .search(q, filter: 'songs', limit: limit));
+    } catch (e) {
+      printERROR('Android Auto search ($q): $e');
+      return const [];
+    }
+    final tagged = [
+      for (final m in songs)
+        m.copyWith(playable: true, extras: {
+          ...?m.extras,
+          'libraryId': searchResultsId,
+          'discoverySource': 'android_auto',
+        })
+    ];
+    if (autoPodcastLists.length > 20) autoPodcastLists.clear();
+    autoPodcastLists[searchResultsId] = tagged;
+    for (final m in tagged) {
+      _browsedFrom[m.id] = searchResultsId;
+    }
+    return tagged;
+  }
+
+  /// What "play … on Riff" plays: the songs found for [query], the best
+  /// match first; with nothing asked for ("play music on Riff"), your
+  /// Favorites, shuffled.
+  Future<List<MediaItem>> voiceSearchList(String query,
+      {Random? random}) async {
+    if (query.trim().isNotEmpty) return searchSongs(query);
+    final box = await HiveBoxes.fav();
+    return [for (final e in box.values) MediaItemBuilder.fromJson(e)]
+      ..shuffle(random);
+  }
 
   /// Android Auto `getChildren`: one page when the car asks for pages,
   /// else the whole list if it's short, or sections ("1–100", …) if not.
