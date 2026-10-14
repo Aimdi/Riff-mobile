@@ -43,6 +43,7 @@ import '../../widgets/sort_widget.dart';
 import '../Library/library_controller.dart';
 import 'playlist_photo.dart';
 import 'playlist_recommendations.dart';
+import 'add_songs_sheet.dart';
 import 'playlist_screen_controller.dart';
 
 /// YouTube channel id (`UC…`) — compiled once, not per list row.
@@ -745,6 +746,9 @@ Widget _actions(
           snack(ok ? "playlistBlacklistAlert" : "operationFailed");
         }),
       if (isLocal) ...[
+        // Spotify's "Add to this playlist": search and add, staying here.
+        CollectionMenuItem(Icons.add_rounded, "addSongs".tr,
+            () => showAddSongsSheet(context, c)),
         CollectionMenuItem(Icons.edit_outlined, "renamePlaylist".tr, () {
           showDialog(
             context: context,

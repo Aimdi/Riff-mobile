@@ -102,6 +102,10 @@ class RiffDurations {
   static const Duration sheet = Duration(milliseconds: 250);
   static const Duration page = Duration(milliseconds: 250);
 
+  /// How long typing pauses before a search runs as you type (the search
+  /// screen's suggestions wait as long).
+  static const Duration typingPause = Duration(milliseconds: 350);
+
   /// Page-header hairline fading in/out as content scrolls under it.
   static const Duration headerHairline = Duration(milliseconds: 200);
 

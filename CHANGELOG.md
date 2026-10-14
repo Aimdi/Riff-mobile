@@ -352,6 +352,10 @@ Playlists:
   shuffled, with a song like it that you haven't heard mixed in after
   every three. In Up Next a ✦ before the artist marks the songs it
   added; the playlist itself doesn't change. Offline it just shuffles
+* Add songs, like Spotify's "Add to this playlist": one of your
+  playlists' ⋮ › Add songs searches YouTube Music as you type, and + adds
+  a song to the end of the playlist without leaving it. Songs already in
+  it have a check
 
 Albums:
 * More by the artist, like Spotify, Apple Music and YouTube Music: under
