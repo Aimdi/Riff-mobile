@@ -484,6 +484,9 @@ Search:
   album, and Riff searches what your phone heard as Enter does (the
   top song plays, or the results open). On Android phones with speech
   recognition (Google's, on most)
+* When a search can't reach YouTube Music, the results page says so
+  ("You're offline", or that it couldn't search) with Retry, as Spotify
+  and YouTube Music do; it used to say nothing matched
 
 Stats:
 * Play your top songs, like Spotify's: in Stats, tap a song in Top songs

@@ -191,54 +191,66 @@ class SearchResultScreenController extends GetxController {
     onDestinationSelected(railItems.indexOf(text) + 1);
   }
 
+  /// The search itself failed (offline, YouTube Music out of reach), not
+  /// that it found nothing: the page says so and offers to try again, as
+  /// Spotify's and YouTube Music's do.
+  final searchFailed = false.obs;
+
+  /// Searches the same words again, after [searchFailed].
+  Future<void> retrySearch() => _search(queryString.value);
+
   Future<void> _getInitSearchResult() async {
-    isResultContentFetced.value = false;
     final args = Get.arguments;
-    if (args != null) {
-      queryString.value = args;
-      try {
-        resultContent.value = await musicServices.search(args);
-      } catch (e) {
-        printERROR('Search failed: $e');
-        resultContent.value = {};
-        railItems.clear();
-        _ensureSoulseekRail();
-        isResultContentFetced.value = true;
-        return;
-      }
+    if (args != null) await _search(args);
+  }
 
-      final endpoints =
-          (resultContent['searchEndpoint'] as Map?)?.cast<String, dynamic>() ??
-              {};
-      final available = <String>{};
-      for (final key in preferredRailOrder) {
-        if (resultContent.containsKey(key) || endpoints.containsKey(key)) {
-          available.add(key);
-          resultContent.putIfAbsent(key, () => []);
-        }
-      }
-      // Preserve any unexpected but useful keys from the response.
-      for (final key in resultContent.keys) {
-        if (key == 'searchEndpoint' || key == 'params') continue;
-        if (preferredRailOrder.contains(key)) continue;
-        if (isSoulseekRail(key)) continue;
-        if (resultContent[key] is List &&
-            (resultContent[key] as List).isNotEmpty) {
-          available.add(key);
-        }
-      }
-
-      railItems.value = [
-        ...preferredRailOrder.where(available.contains),
-        ...available.where((k) => !preferredRailOrder.contains(k)),
-      ];
+  Future<void> _search(String query) async {
+    isResultContentFetced.value = false;
+    searchFailed.value = false;
+    queryString.value = query;
+    try {
+      resultContent.value = await musicServices.search(query);
+    } catch (e) {
+      printERROR('Search failed: $e');
+      resultContent.value = {};
+      railItems.clear();
       _ensureSoulseekRail();
-
-      for (String item in railItems) {
-        scrollControllers.putIfAbsent(item, () => ScrollController());
-      }
+      searchFailed.value = true;
       isResultContentFetced.value = true;
+      return;
     }
+
+    final endpoints =
+        (resultContent['searchEndpoint'] as Map?)?.cast<String, dynamic>() ??
+            {};
+    final available = <String>{};
+    for (final key in preferredRailOrder) {
+      if (resultContent.containsKey(key) || endpoints.containsKey(key)) {
+        available.add(key);
+        resultContent.putIfAbsent(key, () => []);
+      }
+    }
+    // Preserve any unexpected but useful keys from the response.
+    for (final key in resultContent.keys) {
+      if (key == 'searchEndpoint' || key == 'params') continue;
+      if (preferredRailOrder.contains(key)) continue;
+      if (isSoulseekRail(key)) continue;
+      if (resultContent[key] is List &&
+          (resultContent[key] as List).isNotEmpty) {
+        available.add(key);
+      }
+    }
+
+    railItems.value = [
+      ...preferredRailOrder.where(available.contains),
+      ...available.where((k) => !preferredRailOrder.contains(k)),
+    ];
+    _ensureSoulseekRail();
+
+    for (String item in railItems) {
+      scrollControllers.putIfAbsent(item, () => ScrollController());
+    }
+    isResultContentFetced.value = true;
   }
 
   void onSort(SortType sortType, bool isAscending, String title) {

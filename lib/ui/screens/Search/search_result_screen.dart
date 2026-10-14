@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/services/offline_playback.dart';
 import '/ui/screens/Plugins/seeker_screen.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import '../../navigator.dart';
@@ -184,6 +185,17 @@ class Body extends StatelessWidget {
       return Obx(() {
         if (searchResScrController.isResultContentFetced.isFalse) {
           return const SongListShimmer(itemCount: 8, topPadding: 12);
+        }
+        // The search failed (not "no match"): why, and try again.
+        if (searchResScrController.searchFailed.isTrue) {
+          final offline = OfflinePlayback.offline.value;
+          return PodcastEmptyState(
+            icon: offline ? Icons.wifi_off_rounded : Icons.cloud_off_rounded,
+            message: (offline ? 'searchOffline' : 'searchFailed').tr,
+            actionLabel: 'retry'.tr,
+            actionIcon: Icons.refresh_rounded,
+            onAction: searchResScrController.retrySearch,
+          );
         }
         // Soulseek-only rail still means YTM returned nothing — show empty
         // state on Results rather than a blank column.
