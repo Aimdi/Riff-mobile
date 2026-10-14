@@ -237,6 +237,12 @@ Now playing:
   your stats, recommendations and ListenBrainz, as it was before you
   closed the app. Removing a song from the playlist playing works after
   a restart too
+* "Playing from" names more of what plays: a mix played from Home (its
+  Play and Shuffle) plays as the playlist it opens as, and opens it, so
+  a mix left out of your taste profile stays out when played from Home
+  too; your top songs from Stats say Top songs, and songs played from a
+  list of similar songs (the song menu's or Up Next's) say Similar
+  songs, where all of these said Random selection
 
 Song rows:
 * Explicit songs show an "E" before the artist, as in Spotify, Apple

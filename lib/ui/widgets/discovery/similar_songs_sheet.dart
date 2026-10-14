@@ -5,10 +5,16 @@ import 'package:get/get.dart';
 import '../riff_sheet.dart';
 
 import '../../../services/discovery/discovery_service.dart';
+import '../../../models/playling_from.dart';
 import '../../player/player_controller.dart';
 import '../shimmer_widgets/song_list_shimmer.dart';
 import '../snackbar.dart';
 import '../song_list_tile.dart';
+
+/// Where songs played from a list of similar songs come from, for the
+/// player's "Playing from" (it said Random selection).
+PlaylingFrom similarSongsSource() =>
+    PlaylingFrom(type: PlaylingFromType.SELECTION, name: 'similarSongs'.tr);
 
 /// Bottom sheet listing ~25 similar tracks with an "unheard only" chip.
 class SimilarSongsSheet extends StatefulWidget {
@@ -89,7 +95,8 @@ class _SimilarSongsSheetState extends State<SimilarSongsSheet> {
                                 return;
                               }
                               final ok = await Get.find<PlayerController>()
-                                  .playPlayListSong(songs, i);
+                                  .playPlayListSong(songs, i,
+                                      playfrom: similarSongsSource());
                               if (!context.mounted) return;
                               if (ok) {
                                 Navigator.pop(context);
@@ -134,7 +141,8 @@ class _SimilarSongsSheetState extends State<SimilarSongsSheet> {
                           ? null
                           : () async {
                               final ok = await Get.find<PlayerController>()
-                                  .playPlayListSong(songs, 0);
+                                  .playPlayListSong(songs, 0,
+                                      playfrom: similarSongsSource());
                               if (!context.mounted) return;
                               if (ok) {
                                 Navigator.pop(context);

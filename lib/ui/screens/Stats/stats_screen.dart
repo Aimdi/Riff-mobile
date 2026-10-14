@@ -2,6 +2,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/models/playling_from.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/discovery/discovery_types.dart';
 import '/services/stats_service.dart';
@@ -35,7 +36,11 @@ class _StatsScreenState extends State<StatsScreen> {
   void _playFrom(List<MediaItem> songs, String id) {
     final i = songs.indexWhere((m) => m.id == id);
     if (i < 0 || !Get.isRegistered<PlayerController>()) return;
-    Get.find<PlayerController>().playPlayListSong(songs, i).then((ok) {
+    Get.find<PlayerController>()
+        .playPlayListSong(songs, i,
+            playfrom: PlaylingFrom(
+                type: PlaylingFromType.SELECTION, name: 'topSongs'.tr))
+        .then((ok) {
       if (!ok) snackOperationFailed();
     });
   }

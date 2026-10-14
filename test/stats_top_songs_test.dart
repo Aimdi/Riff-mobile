@@ -15,12 +15,14 @@ import 'package:hive/hive.dart';
 class _FakePlayer extends GetxController implements PlayerController {
   List<MediaItem>? played;
   int? at;
+  PlaylingFrom? from;
 
   @override
   Future<bool> playPlayListSong(List<MediaItem> mediaItems, int index,
       {PlaylingFrom? playfrom, DiscoverySource? source}) async {
     played = mediaItems;
     at = index;
+    from = playfrom;
     return true;
   }
 
@@ -102,6 +104,9 @@ void main() {
     await tester.pump();
     expect(player.played?.map((m) => m.id), ['song1', 'song2']);
     expect(player.at, 1);
+    // "Playing from" says your top songs, as Spotify's does.
+    expect(player.from?.type, PlaylingFromType.SELECTION);
+    expect(player.from?.nameString, 'topSongs');
 
     // An episode in the list doesn't play from here.
     player.played = null;
