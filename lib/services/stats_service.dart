@@ -1,6 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:hive/hive.dart';
 
+import '../models/media_Item_builder.dart';
 import '../models/media_item_extras.dart';
 import 'discovery/discovery_math.dart';
 import 'discovery/discovery_tag.dart';
@@ -138,7 +139,8 @@ class StatsService {
     );
   }
 
-  /// Top songs by play count: [{id, title, artist, plays, skips, lastSource}].
+  /// Top songs by play count: [{id, title, artist, plays, skips,
+  /// lastSource, kind}] (kind: "podcast", "audiobook" or "" for music).
   static List<Map<String, dynamic>> topSongs([int n = 10]) {
     final list = _songs.keys.map((k) {
       final v = _asMap(_songs.get(k));
@@ -149,6 +151,7 @@ class StatsService {
         "plays": _intOf(v["plays"]),
         "skips": _intOf(v["skips"]),
         "lastSource": v["lastSource"] ?? "",
+        "kind": v["kind"] ?? "",
       };
     }).toList();
     list.sort((a, b) => (b["plays"] as int).compareTo(a["plays"] as int));
@@ -288,4 +291,55 @@ Map<String, dynamic> applyListenEnd(
     "lastSource": source.wireName,
     if (nowMs != null) "lastPlayed": nowMs,
   };
+}
+
+/// [top] ([StatsService.topSongs]) as songs to play, in that order, as
+/// Spotify plays your top songs: music only, each as Riff keeps it
+/// (Favorites, downloads, the song cache, Recently played), else with its
+/// title, artist and YouTube thumbnail.
+List<MediaItem> topSongsToPlay(List<Map<String, dynamic>> top) {
+  MediaItem? kept(String id) {
+    for (final name in const ['LIBFAV', 'SongDownloads', 'SongsCache']) {
+      if (!Hive.isBoxOpen(name)) continue;
+      final item = _storedItem(Hive.box(name).get(id));
+      if (item != null) return item;
+    }
+    return null;
+  }
+
+  final recent = <String, MediaItem>{
+    if (Hive.isBoxOpen('LIBRP'))
+      for (final raw in Hive.box('LIBRP').values)
+        if (_storedItem(raw) case final m?) m.id: m,
+  };
+  return [
+    for (final t in top)
+      if ('${t["kind"] ?? ""}'.isEmpty && _isSongId('${t["id"] ?? ""}'))
+        kept('${t["id"]}') ??
+            recent['${t["id"]}'] ??
+            MediaItem(
+              id: '${t["id"]}',
+              title: '${t["title"] ?? ""}',
+              artist: '${t["artist"] ?? ""}',
+              artUri:
+                  Uri.parse('https://i.ytimg.com/vi/${t["id"]}/hqdefault.jpg'),
+            ),
+  ];
+}
+
+/// Not an episode or a book chapter recorded before plays kept their kind.
+bool _isSongId(String id) =>
+    id.isNotEmpty &&
+    !id.startsWith('podcast_') &&
+    !id.startsWith('lv_') &&
+    !id.startsWith('abs_');
+
+MediaItem? _storedItem(dynamic raw) {
+  if (raw is! Map) return null;
+  try {
+    final m = MediaItemBuilder.fromJson(raw);
+    return m.id.isEmpty ? null : m;
+  } catch (_) {
+    return null;
+  }
 }

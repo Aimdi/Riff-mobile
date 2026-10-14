@@ -316,6 +316,12 @@ Fade between songs:
   before) or Loud, which keeps more of each song's volume. Changing it
   applies to the song playing straight away
 
+Stats:
+* Play your top songs, like Spotify's: in Stats, tap a song in Top songs
+  to play it with the rest of the list after it, or Play to start from
+  the top. Songs come as Riff keeps them (Favorites, downloads, Recently
+  played); podcast episodes in the list stay as they are
+
 App icon shortcuts (Android 7.1+):
 * Long-press Riff's icon for Search, Favorites and Downloads, as with
   Spotify and YouTube Music, or drag one to the home screen. They're in
