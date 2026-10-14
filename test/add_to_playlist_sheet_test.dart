@@ -89,6 +89,9 @@ void main() {
 
   testWidgets('sheet pins Liked Songs then New playlist then user lists',
       (tester) async {
+    // The sheet looks in your playlists for the song; this one is empty.
+    await tester.runAsync(() => Hive.openBox('LIB999', bytes: Uint8List(0)));
+    addTearDown(() => tester.runAsync(Hive.close));
     await tester.pumpWidget(
       GetMaterialApp(
         home: Scaffold(
