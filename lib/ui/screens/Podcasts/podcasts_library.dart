@@ -28,6 +28,7 @@ import 'podcast_layout.dart';
 import '/services/podcast_library.dart';
 import 'podcast_bookmarks_ui.dart';
 import 'podcast_history_screen.dart';
+import 'podcast_starred_screen.dart';
 import 'podcast_inbox_screen.dart';
 import 'podcast_queue_controller.dart';
 import 'podcast_queue_screen.dart';
@@ -165,7 +166,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                 return const PodcastBookmarksScreen(embedded: true);
               }
               if (_section == 7) return const PodcastHistoryScreen();
-              // Section 5: Downloads (the tabs offer only 1–7).
+              if (_section == 8) return const PodcastStarredScreen();
+              // Section 5: Downloads (the tabs offer only 1–8).
               return PodcastDownloadsScreen(
                 onDiscover: () {
                   _loadDiscoveryRows();
@@ -243,8 +245,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
         ));
   }
 
-  /// Inbox · Queue · Subscriptions · Discover · Downloads · Bookmarks ·
-  /// History as pill tabs.
+  /// Inbox · Queue · Subscriptions · Discover · Downloads · Starred ·
+  /// Bookmarks · History as pill tabs.
   Widget _tabs(BuildContext context) {
     final tabs = <(int, String)>[
       (1, 'podcastInbox'.tr),
@@ -252,6 +254,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
       (3, 'subscriptions'.tr),
       (4, 'discover'.tr),
       (5, 'downloads'.tr),
+      (8, 'starred'.tr),
       (6, 'bookmarks'.tr),
       (7, 'listeningHistory'.tr),
     ];

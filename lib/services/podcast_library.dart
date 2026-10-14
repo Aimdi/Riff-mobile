@@ -10,6 +10,7 @@ import 'podcast_bookmarks.dart';
 import 'podcast_download_service.dart';
 import 'podcast_playback_profile.dart';
 import 'podcast_progress_service.dart';
+import 'podcast_starred.dart';
 
 // ── Keep latest N ─────────────────────────────────────────────────────
 
@@ -496,13 +497,15 @@ class PodcastLibrary {
   }
 
   /// Delete finished downloads whose show says so. [currentId] (the episode
-  /// playing) is left alone. Returns how many were deleted.
+  /// playing) and starred episodes (AntennaPod keeps favourites') are left
+  /// alone. Returns how many were deleted.
   static Future<int> sweepDownloads({String? currentId, DateTime? now}) async {
     if (!Hive.isBoxOpen('PodcastDownloads')) return 0;
     final nowMs = (now ?? DateTime.now()).millisecondsSinceEpoch;
     var n = 0;
     try {
       for (final item in PodcastDownloadService.downloadedItems()) {
+        if (StarredEpisodes.isStarred(item.id)) continue;
         final policy = autoDeleteFor(podcastShowKey(item));
         if (downloadDueForDeletion(policy, _playedAt(item.id), nowMs,
             isCurrent: item.id == currentId)) {

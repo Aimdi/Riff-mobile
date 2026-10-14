@@ -241,6 +241,13 @@ Podcasts:
   another, ready to play offline; On Wi-Fi waits while you're on mobile
   data and catches up when the app next starts or the Inbox refreshes
   on Wi-Fi. For shows from feeds
+* Star episodes, like Pocket Casts' Starred (Spotify's Your Episodes,
+  Apple Podcasts' Saved): Star episode in an episode's long-press menu
+  or the podcast player's ⋮, from any show, followed or not. Podcasts ›
+  Starred lists them, newest starred first: tap one to play it from
+  where you were, swipe it away to unstar it (with Undo). A starred
+  episode's download is kept when finished downloads are deleted, as
+  AntennaPod keeps its favourites'
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip

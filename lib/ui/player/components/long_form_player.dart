@@ -5,6 +5,8 @@ import 'package:get/get.dart';
 
 import '/ui/screens/Audiobooks/audiobook_bookmarks_ui.dart';
 import '/ui/screens/Podcasts/podcast_segment_ui.dart';
+import '/ui/screens/Podcasts/podcast_starred_screen.dart'
+    show toggleStarredEpisode;
 
 import '/ui/screens/Podcasts/podcast_playback_controls.dart';
 
@@ -21,6 +23,7 @@ import 'backgroud_image.dart';
 import 'player_control.dart';
 import '/services/audiobook_playback.dart';
 import '/services/podcast_playback_profile.dart';
+import '/services/podcast_starred.dart';
 import '/services/podcast_service.dart' show chapterArtAt, chapterSkipTarget;
 import '/services/podcast_transcripts.dart';
 import '/ui/widgets/collection_header.dart' show collectionLength;
@@ -557,6 +560,8 @@ class LongFormToolTiles extends StatelessWidget {
       final left = sleepTimerBadge(pc.timerDurationLeft.value);
       PodcastPlaybackPrefs.rev.value;
       AudiobookPlayback.rev.value;
+      StarredEpisodes.rev.value;
+      final starred = song != null && StarredEpisodes.isStarred(song.id);
       final speed = isPodcast
           ? podcastSpeedLabel(pc.currentPodcastProfile.speed)
           : speedLabel(AudiobookPlayback.speed);
@@ -630,6 +635,12 @@ class LongFormToolTiles extends StatelessWidget {
               icon: Icons.done_all_rounded,
               title: 'markAsPlayed'.tr,
               onTap: () => markPlayingEpisodePlayed(closeSheet()),
+            ),
+          if (isPodcast && song != null)
+            RiffSheetTile(
+              icon: starred ? Icons.star_rounded : Icons.star_outline_rounded,
+              title: starred ? 'unstarEpisode'.tr : 'starEpisode'.tr,
+              onTap: () => toggleStarredEpisode(closeSheet(), song),
             ),
         ],
       );

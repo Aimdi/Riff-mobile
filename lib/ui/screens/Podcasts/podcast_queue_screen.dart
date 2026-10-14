@@ -13,6 +13,7 @@ import '/services/podcast_download_service.dart';
 import '/services/podcast_library.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/podcast_share.dart';
+import '/services/podcast_starred.dart';
 import '/services/wizestream_service.dart';
 import '../Home/home_layout.dart';
 import 'podcast_empty_state.dart';
@@ -24,6 +25,7 @@ import '/ui/widgets/podcast_play.dart';
 import '/ui/widgets/snackbar.dart';
 import 'podcast_download_undo.dart';
 import 'podcast_queue_controller.dart';
+import 'podcast_starred_screen.dart' show toggleStarredEpisode;
 import 'podcasts_screen.dart';
 
 /// Long-press action sheet for a podcast episode: queue, download, play next,
@@ -49,6 +51,7 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode,
           (episode.extras?['url'] as String?)?.isNotEmpty ?? false;
       final notes = episodeNotes(episode).trim();
       final feedUrl = (episode.extras?['feedUrl'] ?? '').toString().trim();
+      final starred = StarredEpisodes.isStarred(episode.id);
       void snack(String msg) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -181,6 +184,18 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode,
                       }
                       Navigator.of(ctx).pop();
                       onChanged?.call();
+                    },
+                  ),
+                  // Pocket Casts' star: kept in Podcasts › Starred.
+                  ListTile(
+                    leading: Icon(starred
+                        ? Icons.star_rounded
+                        : Icons.star_outline_rounded),
+                    title:
+                        Text(starred ? "unstarEpisode".tr : "starEpisode".tr),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      toggleStarredEpisode(context, episode);
                     },
                   ),
                   ListTile(
