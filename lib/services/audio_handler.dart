@@ -199,6 +199,10 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     _addEmptyList();
     _notifyAudioHandlerAboutPlaybackEvents();
     _listenToPlaybackForNextSong();
+    // The playing episode starred or unstarred anywhere: its star follows.
+    ever(StarredEpisodes.rev, (_) {
+      if (mediaItem.value?.isPodcastEpisode ?? false) _publishPlaybackState();
+    });
     final appPrefsBox = Hive.box("AppPrefs");
     _player
         .setSkipSilenceEnabled(appPrefsBox.get("skipSilenceEnabled") ?? false);
@@ -653,6 +657,11 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           repeatLabel:
               const ['repeatAll', 'repeatOne', 'disableRepeat'][_repeatState]
                   .tr,
+          podcast: item?.isPodcastEpisode ?? false,
+          starred: item != null && StarredEpisodes.isStarred(item.id),
+          starLabel: 'starEpisode'.tr,
+          unstarLabel: 'unstarEpisode'.tr,
+          markPlayedLabel: 'markAsPlayed'.tr,
         ),
         systemActions: const {
           MediaAction.seek,
@@ -1955,6 +1964,20 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       case repeatActionName:
         if (Get.isRegistered<PlayerController>()) {
           await Get.find<PlayerController>().cycleRepeatMode();
+        }
+        break;
+
+      // A podcast episode's star and Mark as played, on the notification,
+      // the lock screen and in the car, as the player's own.
+      case starActionName:
+        if (Get.isRegistered<PlayerController>()) {
+          await Get.find<PlayerController>().toggleStarPlaying();
+        }
+        break;
+
+      case markPlayedActionName:
+        if (Get.isRegistered<PlayerController>()) {
+          Get.find<PlayerController>().markCurrentEpisodePlayed();
         }
         break;
 

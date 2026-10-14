@@ -90,6 +90,43 @@ void main() {
         MediaAction.skipToNext,
       ]);
     });
+
+    List<MediaControl> episode({bool starred = false}) => nowPlayingControls(
+          longForm: true,
+          playing: true,
+          canLike: false,
+          liked: false,
+          likeLabel: '',
+          unlikeLabel: '',
+          podcast: true,
+          starred: starred,
+          starLabel: 'Star episode',
+          unstarLabel: 'Unstar episode',
+          markPlayedLabel: 'Mark as played',
+        );
+
+    test("an episode's star and Mark as played after its skips", () {
+      final c = episode();
+      expect(c.take(4).map((m) => m.action), [
+        MediaAction.rewind,
+        MediaAction.pause,
+        MediaAction.fastForward,
+        MediaAction.skipToNext,
+      ]);
+      expect(c.skip(4).map((m) => m.customAction?.name),
+          [starActionName, markPlayedActionName]);
+      expect(named(c, markPlayedActionName).androidIcon, markPlayedIcon);
+      expect(named(c, markPlayedActionName).label, 'Mark as played');
+    });
+
+    test('the star shows whether the episode is starred', () {
+      final not = named(episode(starred: false), starActionName);
+      expect(not.androidIcon, notStarredIcon);
+      expect(not.label, 'Star episode');
+      final starred = named(episode(starred: true), starActionName);
+      expect(starred.androidIcon, starredIcon);
+      expect(starred.label, 'Unstar episode');
+    });
   });
 
   group('nowPlayingLiked', () {

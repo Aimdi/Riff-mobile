@@ -57,6 +57,7 @@ import '/services/auto_sleep_timer.dart';
 import '/services/long_track_resume.dart';
 import '/services/chapter_now_playing.dart';
 import '/services/podcast_bookmarks.dart';
+import '/services/podcast_starred.dart';
 import '/ui/screens/Podcasts/podcast_bookmarks_ui.dart'
     show showBookmarkSavedSnack;
 import '/services/audiobookshelf_service.dart';
@@ -645,6 +646,19 @@ class PlayerController extends GetxController
       showBookmarkSavedSnack(context, bookmark);
     }
     return bookmark;
+  }
+
+  /// The star on the notification, the lock screen and Android Auto:
+  /// stars the episode playing (the player's own: the one announced may
+  /// show its chapter), or unstars it.
+  Future<void> toggleStarPlaying() async {
+    final song = currentSong.value;
+    if (song == null || !song.isPodcastEpisode) return;
+    if (StarredEpisodes.isStarred(song.id)) {
+      await StarredEpisodes.unstar(song.id);
+    } else {
+      await StarredEpisodes.star(song);
+    }
   }
 
   /// Seeks to the pending resume once [song] has just started; whether it

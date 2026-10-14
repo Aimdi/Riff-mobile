@@ -23,10 +23,24 @@ const repeatOffIcon = 'drawable/ic_notif_repeat';
 const repeatAllIcon = 'drawable/ic_notif_repeat_on';
 const repeatOneIcon = 'drawable/ic_notif_repeat_one_on';
 
+/// Custom actions behind a podcast episode's star and Mark as played, as
+/// Pocket Casts has them on its notification and in the car: the star
+/// stars or unstars the episode playing (Starred episodes); Mark as played
+/// ends it as played and goes on to the next.
+const starActionName = 'toggleStar';
+const markPlayedActionName = 'markPlayed';
+
+/// Their icons (kept like the hearts).
+const starredIcon = 'drawable/ic_notif_star';
+const notStarredIcon = 'drawable/ic_notif_star_border';
+const markPlayedIcon = 'drawable/ic_notif_done_all';
+
 /// The controls the media session offers for what is playing.
 ///
 /// Podcast episodes and audiobooks ([longForm]): skip back · play/pause ·
-/// skip forward · next. Everything else: previous · play/pause · next, and
+/// skip forward · next, and for a podcast episode ([podcast]) its star
+/// ([starred], [starLabel] / [unstarLabel]) and Mark as played
+/// ([markPlayedLabel]). Everything else: previous · play/pause · next, and
 /// for music a heart that likes / unlikes the song (like Spotify, YouTube
 /// Music and Metrolist), then shuffle ([shuffle]) and repeat ([repeat]: 0
 /// off, 1 all, 2 one), each [shuffleLabel] / [repeatLabel] saying what a
@@ -42,6 +56,11 @@ List<MediaControl> nowPlayingControls({
   int repeat = 0,
   String shuffleLabel = '',
   String repeatLabel = '',
+  bool podcast = false,
+  bool starred = false,
+  String starLabel = '',
+  String unstarLabel = '',
+  String markPlayedLabel = '',
 }) {
   final playPause = playing ? MediaControl.pause : MediaControl.play;
   if (longForm) {
@@ -50,6 +69,18 @@ List<MediaControl> nowPlayingControls({
       playPause,
       MediaControl.fastForward,
       MediaControl.skipToNext,
+      if (podcast) ...[
+        MediaControl.custom(
+          androidIcon: starred ? starredIcon : notStarredIcon,
+          label: starred ? unstarLabel : starLabel,
+          name: starActionName,
+        ),
+        MediaControl.custom(
+          androidIcon: markPlayedIcon,
+          label: markPlayedLabel,
+          name: markPlayedActionName,
+        ),
+      ],
     ];
   }
   return [

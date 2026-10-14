@@ -8,6 +8,7 @@ import 'package:harmonymusic/services/headphone_controls.dart';
 import 'package:harmonymusic/services/music_service.dart';
 import 'package:harmonymusic/services/podcast_bookmarks.dart';
 import 'package:harmonymusic/services/podcast_service.dart';
+import 'package:harmonymusic/services/podcast_starred.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:harmonymusic/ui/screens/Podcasts/podcast_settings_screen.dart';
 import 'package:harmonymusic/ui/theme/riff_theme.dart';
@@ -40,6 +41,7 @@ void main() {
   setUp(() async {
     await Hive.openBox('AppPrefs', bytes: Uint8List(0));
     await Hive.openBox(PodcastBookmarkStore.box, bytes: Uint8List(0));
+    await Hive.openBox(StarredEpisodes.box, bytes: Uint8List(0));
   });
   tearDown(() async {
     Get.reset();
@@ -126,6 +128,21 @@ void main() {
       expect(none, isFalse);
       expect(music, isFalse);
       expect(handler.seeks, isEmpty);
+    });
+
+    test("the notification's star stars the episode, and unstars it", () async {
+      // As announced, the episode may show its chapter: the player's own
+      // is the one starred.
+      playAt(_episode, Duration.zero);
+      await player.toggleStarPlaying();
+      expect(StarredEpisodes.isStarred('podcast_1'), isTrue);
+      expect(StarredEpisodes.entry('podcast_1')!.item!.artist, 'The Show');
+      await player.toggleStarPlaying();
+      expect(StarredEpisodes.isStarred('podcast_1'), isFalse);
+
+      playAt(const MediaItem(id: 'song', title: 'Song'), Duration.zero);
+      await player.toggleStarPlaying();
+      expect(StarredEpisodes.isStarred('song'), isFalse);
     });
 
     test('a bookmark where the episode is', () async {

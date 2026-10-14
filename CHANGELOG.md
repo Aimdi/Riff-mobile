@@ -144,6 +144,13 @@ Lock screen and notification:
   in place of the show's name, and its own picture, when it has one, in
   place of the episode's art (online). Changes as the chapters do,
   seeking included; the app's own player is unchanged
+* A podcast episode gets a star and Mark as played after its skip
+  buttons in Android Auto, as in Pocket Casts, and the star on the
+  notification and lock screen (Android 13 and later): the star stars or
+  unstars the episode (in Starred episodes; filled when it's starred,
+  stars made in the app included), and Mark as played ends it as played
+  and goes on to the next, as the player's own Mark as played does.
+  Music and audiobooks keep theirs
 
 Android Auto:
 * Ask for music, as with Spotify and YouTube Music: say "Play <song or
