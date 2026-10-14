@@ -219,6 +219,13 @@ Now playing:
   ("Picked up at 23:45", with Start over). Played to its last couple
   of minutes, or started over, it plays from the start next time. The
   last 50 are kept, and nothing is kept in a private session
+* Reopening Riff, the player still knows where your queue came from, as
+  Spotify's Now Playing does: "Playing from" names the playlist, album
+  or artist again and opens it (it used to forget them), and what plays
+  on from a playlist you left out of your taste profile stays out of
+  your stats, recommendations and ListenBrainz, as it was before you
+  closed the app. Removing a song from the playlist playing works after
+  a restart too
 
 Song rows:
 * Explicit songs show an "E" before the artist, as in Spotify, Apple

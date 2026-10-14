@@ -1573,6 +1573,8 @@ class PlayerController extends GetxController
             .toList();
         final int currentIndex = prevSessionData.get("index");
         final int position = prevSessionData.get("position");
+        // Where it came from, before it plays on.
+        playinfrom.value = PlaylingFrom.fromJson(prevSessionData.get("from"));
         await _audioHandler.addQueueItems(songList);
         _playerPanelCheck(restoreSession: true);
         await _audioHandler.customAction("playByIndex", {
@@ -1637,6 +1639,8 @@ class PlayerController extends GetxController
       final int savedIndex = (prevSessionData.get("index") as int?) ?? 0;
       final int position = (prevSessionData.get("position") as int?) ?? 0;
       final index = savedIndex.clamp(0, songList.length - 1);
+      // Where it came from, before it plays on.
+      playinfrom.value = PlaylingFrom.fromJson(prevSessionData.get("from"));
       // Always load the saved queue — a leftover failed session must not
       // play at the saved index of the wrong list.
       await _audioHandler.updateQueue(songList);

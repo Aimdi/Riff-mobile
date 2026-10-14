@@ -2113,16 +2113,26 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     }
     final currIndex = currentIndex ?? 0;
     final position = _player.position.inMilliseconds;
-    final signature =
-        '${currQueue.map((e) => e.id).join(',')}|$currIndex|${position ~/ 1000}';
+    // Where the queue came from goes with it, so after a restart the player
+    // still says (and opens) it and a playlist left out of your taste
+    // profile stays out.
+    final from = Get.isRegistered<PlayerController>()
+        ? Get.find<PlayerController>().playinfrom.value.toJson()
+        : null;
+    final signature = '${currQueue.map((e) => e.id).join(',')}|$currIndex|'
+        '${position ~/ 1000}|$from';
     if (signature == _lastSavedSession) return;
     final queueData =
         currQueue.map((e) => MediaItemBuilder.toJson(e)).toList();
     final prevSessionData = Hive.isBoxOpen("prevSessionData")
         ? Hive.box("prevSessionData")
         : await Hive.openBox("prevSessionData");
-    await prevSessionData.putAll(
-        {"queue": queueData, "position": position, "index": currIndex});
+    await prevSessionData.putAll({
+      "queue": queueData,
+      "position": position,
+      "index": currIndex,
+      "from": from,
+    });
     _lastSavedSession = signature;
     printINFO("Saved session data");
   }
