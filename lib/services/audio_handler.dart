@@ -1204,7 +1204,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     if (shuffleModeEnabled) {
       final mediaItemsIds = mediaItems.toList().map((item) => item.id).toList();
       shuffledQueue = appendToShuffleOrder(
-          shuffledQueue, currentShuffleIndex, mediaItemsIds);
+          shuffledQueue, currentShuffleIndex, mediaItemsIds,
+          artistOf: _queueArtists());
     }
   }
 
@@ -1420,7 +1421,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         nextId = shuffledQueue[pos + 1];
         if (advance) currentShuffleIndex = pos + 1;
       } else if (advance) {
-        shuffledQueue.shuffle();
+        shuffledQueue = balancedShuffle(shuffledQueue, _queueArtists());
         currentShuffleIndex = 0;
         nextId = shuffledQueue[0];
       } else {
@@ -1449,7 +1450,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       final pos = _syncShufflePos();
       if (pos < 0) return currentIndex;
       if (pos - 1 < 0) {
-        shuffledQueue.shuffle();
+        shuffledQueue = balancedShuffle(shuffledQueue, _queueArtists());
         currentShuffleIndex = shuffledQueue.length - 1;
       } else {
         currentShuffleIndex = pos - 1;
@@ -1889,8 +1890,10 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         final currentQueue = queue.value;
         final currentItem = currentQueue[currentIndex];
         currentQueue.remove(currentItem);
-        currentQueue.shuffle();
-        currentQueue.insert(0, currentItem);
+        // As Spotify shuffles: each artist's songs spread out.
+        final shuffled =
+            balancedShuffle(currentQueue, shuffleArtistOf, first: currentItem);
+        currentQueue.replaceRange(0, currentQueue.length, shuffled);
         queue.add(currentQueue);
         mediaItem.add(currentItem);
         currentIndex = 0;
@@ -2113,10 +2116,20 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   void _shuffleCmd(int index) {
     final queueIds = queue.value.toList().map((item) => item.id).toList();
     final currentSongId = queueIds.removeAt(index);
-    queueIds.shuffle();
-    queueIds.insert(0, currentSongId);
-    shuffledQueue.replaceRange(0, shuffledQueue.length, queueIds);
+    // As Spotify shuffles: each artist's songs spread out, and the song
+    // after this one by someone else when it can be.
+    final order =
+        balancedShuffle(queueIds, _queueArtists(), first: currentSongId);
+    shuffledQueue.replaceRange(0, shuffledQueue.length, order);
     currentShuffleIndex = 0;
+  }
+
+  /// Whose each queued song is, by id, for the shuffle order.
+  String Function(String id) _queueArtists() {
+    final artists = {
+      for (final song in queue.value) song.id: shuffleArtistOf(song)
+    };
+    return (id) => artists[id] ?? '';
   }
 
   void _normalizeVolume(double currentLoudnessDb) {
@@ -2652,8 +2665,9 @@ class MediaLibrary {
       {Random? random}) async {
     if (query.trim().isNotEmpty) return searchSongs(query);
     final box = await HiveBoxes.fav();
-    return [for (final e in box.values) MediaItemBuilder.fromJson(e)]
-      ..shuffle(random);
+    return balancedShuffle([
+      for (final e in box.values) MediaItemBuilder.fromJson(e)
+    ], shuffleArtistOf, random: random);
   }
 
   /// Android Auto `getChildren`: one page when the car asks for pages,

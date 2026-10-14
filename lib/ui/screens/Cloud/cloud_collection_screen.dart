@@ -11,6 +11,7 @@ import '/ui/widgets/generated_cover.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import '/ui/widgets/snackbar.dart';
 import 'cloud_screen.dart';
+import '/services/shuffle_order.dart' show balancedShuffle;
 
 /// An album or playlist from the self-hosted server, with playable tracks.
 class CloudCollectionScreen extends StatefulWidget {
@@ -68,7 +69,10 @@ class _CloudCollectionScreenState extends State<CloudCollectionScreen> {
     final d = _detail;
     if (d == null || d.songs.isEmpty) return;
     final cloud = Get.find<CloudMusicService>();
-    final list = shuffle ? (d.songs.toList()..shuffle()) : d.songs;
+    // As Spotify shuffles: each artist's songs spread out.
+    final list = shuffle
+        ? balancedShuffle(d.songs, (CloudSong song) => song.artist ?? '')
+        : d.songs;
     final ok = await Get.find<PlayerController>().playPlayListSong(
         cloud.toMediaItems(list), 0,
         source: DiscoverySource.cloud);

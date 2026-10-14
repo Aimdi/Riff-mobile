@@ -1,4 +1,3 @@
-import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -21,6 +20,7 @@ import '../../widgets/song_list_tile.dart';
 import '../../widgets/sort_widget.dart';
 import '../../theme/riff_spacing.dart';
 import 'album_screen_controller.dart';
+import '/ui/player/play_queue_order.dart' show playQueueFrom;
 
 class AlbumScreen extends StatelessWidget {
   const AlbumScreen({super.key});
@@ -400,8 +400,7 @@ Future<void> _playAlbumFrom(
   int index, {
   bool shuffle = false,
 }) async {
-  final songs = List<MediaItem>.from(albumController.songList);
-  if (shuffle) songs.shuffle();
+  final songs = playQueueFrom(albumController.songList, shuffle: shuffle);
   final ok = await playerController.playPlayListSong(
     songs,
     index,

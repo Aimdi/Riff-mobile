@@ -2,6 +2,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 
 import '/models/media_item_extras.dart';
+import '/services/shuffle_order.dart';
 
 /// Copy [songs] into a playable queue. When [shuffle] is true the copy is
 /// shuffled in place so the original list (Hive / controller) stays stable.
@@ -10,10 +11,8 @@ List<MediaItem> playQueueFrom(
   required bool shuffle,
 }) {
   final list = List<MediaItem>.from(songs);
-  if (shuffle) {
-    list.shuffle();
-  }
-  return list;
+  // As Spotify shuffles: each artist's songs spread out.
+  return shuffle ? balancedShuffle(list, shuffleArtistOf) : list;
 }
 
 /// True when the offline Songs tab should show Play all / Shuffle.

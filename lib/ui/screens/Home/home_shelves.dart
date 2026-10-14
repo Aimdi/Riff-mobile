@@ -33,6 +33,7 @@ import 'home_feed_builder.dart';
 import 'home_feed_data.dart';
 import 'home_metrics.dart';
 import '/ui/theme/riff_text_metrics.dart';
+import '/ui/player/play_queue_order.dart' show playQueueFrom;
 
 /// Card sizes per item type on a shelf of pane width [m].
 class ShelfCardSize {
@@ -430,8 +431,9 @@ List<MediaItem> _mixTracks(GeneratedMix mix) {
 Future<void> _playMix(GeneratedMix mix, {bool shuffle = true}) async {
   final tracks = _mixTracks(mix);
   if (tracks.isEmpty) return;
-  if (shuffle) tracks.shuffle();
-  final tagged = DiscoveryService.tagAll(tracks, DiscoverySource.dailyMix);
+  final tagged = DiscoveryService.tagAll(
+      shuffle ? playQueueFrom(tracks, shuffle: true) : tracks,
+      DiscoverySource.dailyMix);
   // It plays as the playlist it opens as: the player says so and opens it,
   // and one left out of your taste profile stays out.
   final ok = await Get.find<PlayerController>().playPlayListSong(tagged, 0,

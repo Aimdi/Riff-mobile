@@ -47,6 +47,7 @@ import 'playlist_photo.dart';
 import 'playlist_recommendations.dart';
 import 'add_songs_sheet.dart';
 import 'playlist_screen_controller.dart';
+import '/ui/player/play_queue_order.dart' show playQueueFrom;
 
 /// YouTube channel id (`UC…`) — compiled once, not per list row.
 final _channelIdRe = RegExp(r'^UC[\w-]{20,}$');
@@ -620,7 +621,7 @@ Widget _actions(
     onShuffle: songs.isEmpty
         ? null
         : () async {
-            final list = List<MediaItem>.from(c.songList)..shuffle();
+            final list = playQueueFrom(c.songList, shuffle: true);
             if (Get.isRegistered<PlaylistMixService>()) {
               Get.find<PlaylistMixService>().deactivatePlayback();
             }

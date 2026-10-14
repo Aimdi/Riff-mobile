@@ -833,7 +833,7 @@ class _LibraryPinnedRow extends StatelessWidget {
                 thumbnailUrl: Playlist.thumbPlaceholderUrl,
                 isCloudPlaylist: false));
     if (shuffle) {
-      tracks.shuffle();
+      tracks.setAll(0, playQueueFrom(tracks, shuffle: true));
     } else if (id == 'LIBRP') {
       final ok = await Get.find<PlayerController>().playPlayListSong(
           tracks.reversed.toList(), 0,

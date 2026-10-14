@@ -18,6 +18,7 @@ import 'home_feed_builder.dart';
 import 'home_feed_data.dart';
 import '/ui/theme/riff_tokens.dart';
 import 'home_metrics.dart';
+import '/ui/player/play_queue_order.dart' show playQueueFrom;
 
 /// Speed dial: pages of a 3×3 cover grid, no labels and no play glyphs.
 /// Tap plays in place (pinned artists open), long-press opens the menu.
@@ -124,7 +125,7 @@ class _HomeSpeedDialState extends State<HomeSpeedDial> {
   }
 
   Future<void> _shuffle() async {
-    final shuffled = List<MediaItem>.of(_songs)..shuffle();
+    final shuffled = playQueueFrom(_songs, shuffle: true);
     if (shuffled.isEmpty) return;
     final ok = await Get.find<PlayerController>()
         .playPlayListSong(shuffled, 0, source: widget.source);

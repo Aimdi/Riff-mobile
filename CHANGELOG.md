@@ -243,6 +243,16 @@ Now playing:
   too; your top songs from Stats say Top songs, and songs played from a
   list of similar songs (the song menu's or Up Next's) say Similar
   songs, where all of these said Random selection
+* Shuffle spreads an artist's songs out, as Spotify's and Apple Music's
+  shuffle do, instead of pure chance, which often played two or three
+  by the same artist in a row: each artist's songs come one in each
+  stretch of the list, and where one artist has half the songs or more,
+  the rest are moved in between where they fit. In a playlist of a few
+  dozen songs, the same artist twice in a row went from one to four
+  times down to almost never. Shuffle mode, Shuffle on playlists,
+  albums, the Library, Home's mixes and speed dial, your server's
+  albums, Smart shuffle and songs added while shuffling all do it, and
+  the song after the one playing is by someone else when it can be
 
 Song rows:
 * Explicit songs show an "E" before the artist, as in Spotify, Apple

@@ -9,6 +9,7 @@ import 'package:get/get.dart';
 
 import 'discovery/discovery_service.dart';
 import 'discovery/discovery_types.dart';
+import 'shuffle_order.dart';
 
 /// A suggestion Smart Shuffle mixed in (not one of the playlist's own).
 bool isSmartShufflePick(MediaItem song) => song.extras?['smartShuffle'] == true;
@@ -21,7 +22,8 @@ MediaItem markSmartShufflePick(MediaItem song) => DiscoveryService.withSource(
 /// of the playlist's own, none twice, at most one per [every] songs.
 List<MediaItem> smartShuffleOrder(List<MediaItem> songs, List<MediaItem> picks,
     {int every = 3, Random? random}) {
-  final shuffled = [...songs]..shuffle(random);
+  // As Spotify shuffles: each artist's songs spread out.
+  final shuffled = balancedShuffle(songs, shuffleArtistOf, random: random);
   final seen = {for (final s in songs) s.id};
   final extra = [
     for (final p in picks)
