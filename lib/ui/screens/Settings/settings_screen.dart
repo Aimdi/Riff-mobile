@@ -40,6 +40,7 @@ import '/services/cache_eviction.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/utils/theme_controller.dart';
 import 'components/custom_expansion_tile.dart';
+import 'components/smart_downloads_setting.dart';
 import '../Home/home_layout.dart';
 import 'settings_screen_controller.dart';
 import '/ui/widgets/riff_header_bar.dart';
@@ -1231,6 +1232,7 @@ class SettingsScreen extends StatelessWidget {
                             onChanged: WifiOnlyDownloads.set),
                       ),
                     ),
+                  const SmartDownloadsSetting(),
                   ListTile(
                     contentPadding: settingsTilePadding,
                     title: Text("downloadingFormat".tr),

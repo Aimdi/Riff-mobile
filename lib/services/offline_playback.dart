@@ -51,12 +51,15 @@ class OfflinePlayback {
     'device_',
   ];
 
+  /// Whether the song with this id plays from YouTube (by its id alone).
+  static bool playsFromYouTube(String id) => !_otherSources.any(id.startsWith);
+
   /// Whether [song] needs a connection to play: a YouTube song that's
   /// neither downloaded nor in the song cache.
   static bool needsConnection(MediaItem song) {
     if (song.isPodcastEpisode ||
         song.streamSource != null ||
-        _otherSources.any(song.id.startsWith)) {
+        !playsFromYouTube(song.id)) {
       return false;
     }
     return !_kept('SongDownloads', song.id) && !_kept('SongsCache', song.id);

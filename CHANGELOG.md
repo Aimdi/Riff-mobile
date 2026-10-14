@@ -594,6 +594,17 @@ Downloads:
   playing. Waiting for Wi-Fi, it says so and starts by itself once
   there's Wi-Fi. On Android 13 and later, Riff asks once, at your first
   download, to show the notification
+* Smart downloads, like YouTube Music's: switch it on in Settings ›
+  Download and the songs you play most stay downloaded, so there's always
+  music to play offline. Once a day, on Wi-Fi only, Riff downloads the
+  ones it hasn't got (songs you've heard through at least twice in the
+  last three months, most heard first; 25, 50 or 100 of them) and
+  removes the ones it downloaded that you've stopped playing, unless
+  you've liked them or put them in a playlist. A song you delete isn't
+  downloaded again. Off by default; turning it off keeps what's there
+* A song downloaded after playing is listed once in Library › Songs, as a
+  download; it used to show twice (its download and its song cache
+  copy), and the cached copy now makes room
 
 Search:
 * Search by voice, as with YouTube Music, Spotify and Apple Music: tap

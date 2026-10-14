@@ -122,9 +122,12 @@ class LibrarySongsController extends GetxController {
     // A failed listing must not wipe the whole cache index.
     if (listedOk && staleKeys.isNotEmpty) await box.deleteAll(staleKeys);
 
+    final downloads = Hive.box("SongDownloads");
     librarySongsList.value = box.values
         .map<MediaItem?>((item) => MediaItemBuilder.fromJson(item))
         .whereType<MediaItem>()
+        // Downloaded too: it's listed once, as a download.
+        .where((song) => !downloads.containsKey(song.id))
         .toList();
 
     librarySongsList.addAll(Hive.box("SongDownloads")

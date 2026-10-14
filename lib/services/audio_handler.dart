@@ -1717,8 +1717,10 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         if (isPlayingUsingLockCachingSource) {
           final song = extras!['mediaItem'] as MediaItem;
           final songsCacheBox = Hive.box("SongsCache");
+          // Not when it was downloaded meanwhile (Smart downloads).
           if (!_hasDirectStreamUrl(song.id) &&
               !songsCacheBox.containsKey(song.id) &&
+              !Hive.box("SongDownloads").containsKey(song.id) &&
               await File("$_cacheDir/cachedSongs/${song.id}.mp3").exists()) {
             // The next track may already have replaced the source.
             final duration = _player.duration;

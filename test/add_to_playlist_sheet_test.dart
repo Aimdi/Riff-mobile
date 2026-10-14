@@ -13,7 +13,8 @@ class _FakeDownloader extends GetxService implements Downloader {
   List<MediaItem>? got;
 
   @override
-  Future<void> download(MediaItem? song, {List<MediaItem>? songList}) async =>
+  Future<void> download(MediaItem? song,
+          {List<MediaItem>? songList, bool signal = true}) async =>
       got = songList;
 
   @override

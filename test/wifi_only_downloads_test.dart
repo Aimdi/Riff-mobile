@@ -4,6 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/services/downloader.dart';
 import 'package:harmonymusic/services/network_kind.dart';
+import 'package:harmonymusic/services/smart_downloads.dart';
 import 'package:harmonymusic/services/wifi_only_downloads.dart';
 import 'package:hive/hive.dart';
 
@@ -95,6 +96,29 @@ void main() {
   });
 
   group('the downloader', () {
+    test('Smart downloads are left for Wi-Fi; yours go on mobile data',
+        () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      var metered = true;
+      messenger.setMockMethodCallHandler(
+          NetworkKind.channel, (_) async => metered);
+      addTearDown(
+          () => messenger.setMockMethodCallHandler(NetworkKind.channel, null));
+      await Hive.box('AppPrefs').put(SmartDownloads.pendingKey, ['smart']);
+      final d = _Downloader();
+      d.songQueue.addAll([_song('smart'), _song('yours')]);
+      await d.downloadSongList(d.songQueue.toList());
+      expect(d.written, ['yours']);
+      expect(d.songQueue, isEmpty);
+
+      // Its next look, on Wi-Fi.
+      metered = false;
+      d.songQueue.add(_song('smart'));
+      await d.downloadSongList(d.songQueue.toList());
+      expect(d.written, ['yours', 'smart']);
+    });
+
     test('holds the songs until Wi-Fi, then downloads them all', () async {
       await WifiOnlyDownloads.set(true);
       final d = _Downloader();

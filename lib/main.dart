@@ -33,6 +33,7 @@ import '/services/now_playing_widget.dart';
 import '/services/offline_playback.dart';
 import '/services/playback_rules_service.dart';
 import '/services/playlist_mix_service.dart';
+import '/services/smart_downloads.dart';
 import '/services/smart_queue_service.dart';
 import '/services/track_analysis_service.dart';
 import '/ui/home.dart';
@@ -162,6 +163,8 @@ Future<void> _initAudioAndWarm(Future<void> deferredBoxes) async {
   });
   // New-episode notifications (when switched on): the shows followed.
   await _warmUp('New episode alerts', NewEpisodeAlerts.start);
+  // Smart downloads (when switched on): the songs played most, on Wi-Fi.
+  SmartDownloads.start();
   // WebDAV sync (when switched on), after the first screen settles.
   Future<void>.delayed(
       const Duration(seconds: 10), WebDavSyncService.maybeAutoSync);

@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../ui/screens/Album/album_screen_controller.dart';
 import '../ui/screens/Playlist/playlist_screen_controller.dart';
@@ -18,6 +19,7 @@ import '../ui/screens/Settings/settings_screen_controller.dart';
 import '/utils/helper.dart';
 import '/models/media_Item_builder.dart';
 import '../ui/screens/Library/library_controller.dart';
+import '../ui/player/player_controller.dart';
 import 'discovery/discovery_service.dart';
 import 'music_service.dart';
 import 'synced_lyrics_service.dart';
@@ -25,6 +27,8 @@ import 'download_notice.dart';
 import 'download_quality.dart';
 import 'wifi_only_downloads.dart';
 import 'device_music.dart';
+import 'network_kind.dart';
+import 'smart_downloads.dart';
 
 class Downloader extends GetxService {
   // receiveTimeout is the max gap between chunks, so a stalled download
@@ -99,24 +103,44 @@ class Downloader extends GetxService {
     }
   }
 
-  Future<void> download(MediaItem? song, {List<MediaItem>? songList}) async {
+  /// [signal]: a download you chose, a sign of your taste (Smart
+  /// downloads' aren't).
+  Future<void> download(MediaItem? song,
+      {List<MediaItem>? songList, bool signal = true}) async {
     if (!(await checkPermissionNDir())) return;
+    final discovery = signal && Get.isRegistered<DiscoveryService>()
+        ? Get.find<DiscoveryService>()
+        : null;
     if (songList != null) {
       songQueue.addAll(songList);
-      if (Get.isRegistered<DiscoveryService>()) {
-        for (final s in songList) {
-          Get.find<DiscoveryService>().onDownload(s);
-        }
+      for (final s in songList) {
+        discovery?.onDownload(s);
       }
     } else {
       songQueue.add(song!);
-      if (Get.isRegistered<DiscoveryService>()) {
-        Get.find<DiscoveryService>().onDownload(song);
-      }
+      discovery?.onDownload(song);
     }
     if (isJobRunning.isFalse) {
       await triggerDownloadingJob();
     }
+  }
+
+  /// The song cache's copy of [song], now it's downloaded: its entry, and
+  /// its file unless it's playing from it.
+  Future<void> _dropCachedCopy(MediaItem song) async {
+    if (!Hive.isBoxOpen("SongsCache")) return;
+    final cache = Hive.box("SongsCache");
+    if (!cache.containsKey(song.id)) return;
+    await cache.delete(song.id);
+    if (Get.isRegistered<PlayerController>() &&
+        Get.find<PlayerController>().currentSong.value?.id == song.id) {
+      return;
+    }
+    try {
+      final file = File(
+          "${(await getTemporaryDirectory()).path}/cachedSongs/${song.id}.mp3");
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
   }
 
   /// Songs this job has been through, for the downloads' notification.
@@ -209,8 +233,13 @@ class Downloader extends GetxService {
         return;
       }
 
+      // Smart downloads go on Wi-Fi only: on mobile data, one is left for
+      // their next look rather than holding up the songs after it.
+      final leftForWifi =
+          SmartDownloads.isPending(song.id) && await NetworkKind.isMetered();
       // A music file on the phone is there already.
-      if (!Hive.box("SongDownloads").containsKey(song.id) &&
+      if (!leftForWifi &&
+          !Hive.box("SongDownloads").containsKey(song.id) &&
           !DeviceMusic.isDeviceSong(song)) {
         // Download on Wi-Fi only: on mobile data, it waits for Wi-Fi.
         final go = await WifiOnlyDownloads.waitForWifi(
@@ -319,7 +348,12 @@ class Downloader extends GetxService {
         songJson["streamInfo"] = [true, streamInfoJson];
 
         Hive.box("SongDownloads").put(song.id, songJson);
-        Get.find<LibrarySongsController>().librarySongsList.add(song);
+        // Downloaded, it's no longer just cached from listening: one row in
+        // Songs, and the cached copy's room back.
+        await _dropCachedCopy(song);
+        Get.find<LibrarySongsController>().librarySongsList
+          ..remove(song)
+          ..add(song);
         printINFO("Downloaded successfully");
         // Its lyrics too, to show offline (as Spotify's downloads do).
         unawaited(SyncedLyricsService.keepForOffline(song));

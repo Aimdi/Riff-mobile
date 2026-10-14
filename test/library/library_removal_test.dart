@@ -101,6 +101,24 @@ void main() {
       await tmp.delete(recursive: true);
     });
 
+    test('a song downloaded and cached too is listed once, as the download',
+        () async {
+      file('cachedSongs/a.mp3');
+      file('cachedSongs/b.mp3');
+      final download = file('music/a.m4a');
+      await Hive.box('SongsCache').putAll({
+        'a': {'videoId': 'a', 'title': 'A (cached)'},
+        'b': {'videoId': 'b', 'title': 'B'},
+      });
+      await Hive.box('SongDownloads')
+          .put('a', {'videoId': 'a', 'title': 'A', 'url': download.path});
+
+      await library.init();
+      expect(library.librarySongsList.map((s) => s.title), ['B', 'A']);
+      // Its house keeping, done before the boxes close.
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    });
+
     test('undo puts a cached song back where it was', () async {
       file('cachedSongs/b.mp3');
       await Hive.box('SongsCache').put('b', {'videoId': 'b', 'title': 'B'});
