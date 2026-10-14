@@ -1264,7 +1264,9 @@ Map<String, dynamic> parseArtistContents(List results) {
         content = contentList
             .map((album) => parseAlbum(album['musicTwoRowItemRenderer']))
             .toList();
-      } else if (title == "Singles") {
+      } else if (title == "Singles" || title == "Singles & EPs") {
+        // YouTube Music's shelf is "Singles & EPs" now (the artist screen
+        // reads it as Singles).
         content = contentList
             .map((single) => parseSingle(single['musicTwoRowItemRenderer']))
             .toList();

@@ -19,6 +19,19 @@ void main() {
         ['a1', 'a2', 's1']);
   });
 
+  test("singles and EPs by the shelf's name now", () {
+    final page = <String, dynamic>{
+      'Albums': {
+        'content': [_album('a1')]
+      },
+      'Singles & EPs': {
+        'content': [_album('s1'), _album('e1')]
+      },
+    };
+    expect(moreByArtistAlbums(page, 'open').map((a) => a.browseId),
+        ['a1', 's1', 'e1']);
+  });
+
   test('the album open by another id is still left out, by its title', () {
     final page = <String, dynamic>{
       'Albums': {

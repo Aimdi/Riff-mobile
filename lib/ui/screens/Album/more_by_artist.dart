@@ -11,7 +11,8 @@ List<Album> moreByArtistAlbums(
   final seen = {currentBrowseId};
   final title = currentTitle?.trim().toLowerCase();
   final out = <Album>[];
-  for (final key in const ['Albums', 'Singles']) {
+  // Singles by the shelf's name now ("Singles & EPs") or before.
+  for (final key in const ['Albums', 'Singles & EPs', 'Singles']) {
     final shelf = artist[key];
     final content = shelf is Map ? shelf['content'] : null;
     if (content is! List) continue;

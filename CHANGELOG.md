@@ -456,6 +456,16 @@ Audiobooks:
   place it was given for chapters not from an Audiobookshelf server
 
 Library:
+* Release Radar has new releases in it, as Spotify's does: a track from
+  each newest single, EP and album the artists you follow (in Riff, or
+  saved to your Library before) put out this year (early in the year,
+  last year's too), an artist's in turn with the others', refreshed
+  weekly. It used to stay empty, its playlist with it, whoever you
+  followed. With nothing new, the playlist isn't there, and Riff looks
+  again the next day. With many artists followed, 30 are looked at a
+  week, round the list. An artist page's singles and EPs show again too,
+  and "More by" under an album lists them: YouTube Music calls that
+  shelf "Singles & EPs" now, and it was left empty
 * Removing a song (swipe it, or "Remove" in its menu) now says "Removed
   from your library" with Undo, like YouTube Music; its download or
   cached copy is only deleted once Undo is gone (or on the next start if

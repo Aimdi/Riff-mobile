@@ -248,7 +248,8 @@ class DiscoveryService extends GetxService {
   Future<void> materializeMixPlaylists() async {
     try {
       final lib = await Hive.openBox('LibraryPlaylists');
-      final mixes = repo.allMixes();
+      // An empty one (a Release Radar with nothing new) isn't one to open.
+      final mixes = repo.allMixes().where((m) => m.tracks.isNotEmpty).toList();
       final liveIds = {for (final mix in mixes) 'RIFF_${mix.id}'};
       for (final mix in mixes) {
         final playlistId = 'RIFF_${mix.id}';

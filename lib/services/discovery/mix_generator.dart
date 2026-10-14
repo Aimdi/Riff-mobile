@@ -1,7 +1,13 @@
+import 'package:audio_service/audio_service.dart';
+import 'package:hive/hive.dart';
+
+import '/models/album.dart';
+import '/models/media_Item_builder.dart';
 import 'discovery_math.dart';
 import 'discovery_repository.dart';
 import 'discovery_types.dart';
 import 'candidate_sources.dart';
+import 'new_releases.dart';
 import 'taste_model.dart';
 
 /// Daily / weekly mix generation (algorithmic, offline-capable scoring).
@@ -418,59 +424,78 @@ class MixGenerator {
   static const int _freshFindsHop2PerSeed = 3;
   static const int _freshFindsHop2Concurrency = 4;
 
+  /// Artist pages and releases asked for at once (Release Radar).
+  static const int _releaseRadarConcurrency = 4;
+
   // ─── Release Radar ────────────────────────────────────────────────────
 
-  Future<GeneratedMix> ensureReleaseRadar({int limit = 30}) async {
+  Future<GeneratedMix> ensureReleaseRadar(
+      {int limit = 30, DateTime? now}) async {
     final existing = repo.getMix('release_radar');
-    if (existing != null && !_staleWeekly(existing.generatedTs)) {
+    if (existing != null &&
+        !_staleWeekly(existing.generatedTs) &&
+        // Nothing new found: looked for again the next day.
+        !(existing.tracks.isEmpty && _staleDaily(existing.generatedTs))) {
       return existing;
     }
 
-    final followed = repo.followedArtists();
-    // Also top-affinity artists we can resolve via LibraryArtists is caller's job;
-    // here we only use explicit follows + names from affinity events.
-    final channelIds = followed
-        .map((f) => f['channelId'] as String?)
-        .whereType<String>()
-        .toList();
+    // The artists you follow (in Riff, or in your Library from before).
+    final library = Hive.isBoxOpen('LibraryArtists')
+        ? Hive.box('LibraryArtists').keys.map((k) => '$k')
+        : const <String>[];
+    final channelIds = {
+      ...repo
+          .followedArtists()
+          .map((f) => f['channelId'] as String?)
+          .whereType<String>(),
+      ...library,
+    }.where((id) => id.isNotEmpty).toList();
 
+    // Their newest singles, EPs and albums: this year's (artist pages give
+    // only years), one track of each, an artist's in turn with the others'.
+    final at = now ?? DateTime.now();
+    final since = newReleaseYear(at);
+    final week = at.millisecondsSinceEpoch ~/ (7 * 86400000);
+    final releases = <List<Album>>[];
+    final artists = artistsThisWeek(channelIds, week);
+    for (var i = 0; i < artists.length; i += _releaseRadarConcurrency) {
+      releases.addAll((await Future.wait(artists
+              .skip(i)
+              .take(_releaseRadarConcurrency)
+              .map((channelId) async {
+        try {
+          return newReleasesOn(await sources.music.getArtist(channelId),
+              sinceYear: since);
+        } catch (_) {
+          return const <Album>[];
+        }
+      })))
+          .where((found) => found.isNotEmpty));
+    }
     final tracks = <Map<String, dynamic>>[];
     final seen = <String>{};
-    for (final channelId in channelIds.take(20)) {
-      try {
-        final artist = await sources.music.getArtist(channelId);
-        // Singles & albums — take song-like entries
-        for (final key in ['Songs', 'Top songs', 'Singles', 'Singles & EPs', 'Albums']) {
-          final block = artist[key];
-          final results = block is Map ? block['results'] : null;
-          if (results is! List) continue;
-          for (final item in results) {
-            if (item is! Map) continue;
-            // Prefer items with videoId (songs); albums need expansion — skip heavy
-            final m = Map<String, dynamic>.from(item);
-            final vid = m['videoId'] as String?;
-            if (vid == null || vid.isEmpty || seen.contains(vid)) continue;
-            // date filter last 30 days when present
-            final date = m['year'] ?? m['date'];
-            // If we can't parse date, still include lightly
-            seen.add(vid);
-            tracks.add({
-              'videoId': vid,
-              'title': m['title'] ?? '',
-              'artists': m['artists'] ??
-                  [
-                    {'name': artist['name'] ?? ''}
-                  ],
-              'thumbnails': m['thumbnails'] ??
-                  [
-                    {'url': ''}
-                  ],
-              'year': date,
-            });
-          }
+    final inTurn = takeInTurns(releases);
+    for (var i = 0;
+        i < inTurn.length && tracks.length < limit;
+        i += _releaseRadarConcurrency) {
+      final firsts = await Future.wait(
+          inTurn.skip(i).take(_releaseRadarConcurrency).map((release) async {
+        try {
+          final songs = (await sources.music
+              .getPlaylistOrAlbumSongs(albumId: release.browseId))['tracks'];
+          return songs is List ? songs.whereType<MediaItem>().toList() : null;
+        } catch (_) {
+          return null;
         }
-      } catch (_) {}
-      if (tracks.length >= limit) break;
+      }));
+      for (final songs in firsts) {
+        final first = songs
+            ?.where((s) => s.id.isNotEmpty && !seen.contains(s.id))
+            .firstOrNull;
+        if (first == null || tracks.length >= limit) continue;
+        seen.add(first.id);
+        tracks.add(MediaItemBuilder.toJson(first));
+      }
     }
 
     final mix = GeneratedMix(
