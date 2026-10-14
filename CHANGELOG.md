@@ -842,6 +842,10 @@ Stats:
   to play it with the rest of the list after it, or Play to start from
   the top. Songs come as Riff keeps them (Favorites, downloads, Recently
   played); podcast episodes in the list stay as they are
+* Top songs and Top artists of the last 4 weeks, the last 6 months or
+  all time, as Spotify ranks yours: pick one above Top songs. The first
+  two count your plays of music in that time (podcasts and books left
+  out); Play plays that list. All time is as before
 
 App icon shortcuts (Android 7.1+):
 * Long-press Riff's icon for Search, Favorites and Downloads, as with

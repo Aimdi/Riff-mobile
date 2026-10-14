@@ -7,6 +7,22 @@ import 'discovery/discovery_math.dart';
 import 'discovery/discovery_tag.dart';
 import 'discovery/discovery_types.dart';
 
+/// The spans Stats ranks your top songs and artists over, as Spotify
+/// does: the last 4 weeks, the last 6 months, or all time.
+enum StatsRange {
+  fourWeeks(28, 'statsRange4Weeks'),
+  sixMonths(182, 'statsRange6Months'),
+  allTime(null, 'statsRangeAllTime');
+
+  const StatsRange(this.days, this.labelKey);
+
+  /// How far back it goes; null for all time.
+  final int? days;
+
+  /// Its name's translation key.
+  final String labelKey;
+}
+
 /// Local listening statistics.
 ///
 /// Play *starts* increment [plays]. Seconds, skips, and partials are written
@@ -141,22 +157,8 @@ class StatsService {
 
   /// Top songs by play count: [{id, title, artist, plays, skips,
   /// lastSource, kind}] (kind: "podcast", "audiobook" or "" for music).
-  static List<Map<String, dynamic>> topSongs([int n = 10]) {
-    final list = _songs.keys.map((k) {
-      final v = _asMap(_songs.get(k));
-      return {
-        "id": k,
-        "title": v["title"] ?? "",
-        "artist": v["artist"] ?? "",
-        "plays": _intOf(v["plays"]),
-        "skips": _intOf(v["skips"]),
-        "lastSource": v["lastSource"] ?? "",
-        "kind": v["kind"] ?? "",
-      };
-    }).toList();
-    list.sort((a, b) => (b["plays"] as int).compareTo(a["plays"] as int));
-    return list.take(n).toList();
-  }
+  static List<Map<String, dynamic>> topSongs([int n = 10]) =>
+      rankTopSongs(_songs.toMap(), n);
 
   /// Top artists by play count: [{artist, plays}]. Music only: podcast
   /// episodes and audiobook chapters are left out (see [rankTopArtists]).
@@ -218,6 +220,27 @@ bool isNonMusicStat(String id, Map<String, dynamic> row) {
 
 /// Top [n] artists by plays over SongStats rows keyed by item id, music
 /// only. Pure for tests.
+/// The [n] most played of [rows] (id → SongStats row) as
+/// [StatsService.topSongs] lists them.
+List<Map<String, dynamic>> rankTopSongs(Map<dynamic, dynamic> rows,
+    [int n = 10]) {
+  final list = [
+    for (final e in rows.entries)
+      if (_asMap(e.value) case final v)
+        {
+          "id": e.key,
+          "title": v["title"] ?? "",
+          "artist": v["artist"] ?? "",
+          "plays": _intOf(v["plays"]),
+          "skips": _intOf(v["skips"]),
+          "lastSource": v["lastSource"] ?? "",
+          "kind": v["kind"] ?? "",
+        },
+  ];
+  list.sort((a, b) => (b["plays"] as int).compareTo(a["plays"] as int));
+  return list.take(n).toList();
+}
+
 List<Map<String, dynamic>> rankTopArtists(Map<dynamic, dynamic> rows,
     [int n = 10]) {
   final byArtist = <String, int>{};

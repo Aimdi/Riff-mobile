@@ -373,6 +373,31 @@ class DiscoveryRepository {
     return ids.take(limit).toList();
   }
 
+  /// The songs played since [since] as Stats keeps them, id → {title,
+  /// artist, plays}: play starts counted, as Stats counts plays, with the
+  /// latest title and artist; music only. Stats' last 4 weeks and last 6
+  /// months, as Spotify ranks your top songs and artists.
+  Map<String, Map<String, dynamic>> playRowsSince(DateTime since) {
+    final cutoff = since.millisecondsSinceEpoch;
+    final rows = <String, Map<String, dynamic>>{};
+    for (var i = _events.length - 1; i >= 0; i--) {
+      final v = _events.getAt(i);
+      if (v is! Map) continue;
+      final ts = v['ts'] as int? ?? 0;
+      if (ts < cutoff) break;
+      if (v['event'] != DiscoveryEventKind.playStarted.wireName) continue;
+      final id = '${v['videoId'] ?? ''}';
+      if (id.isEmpty || isLongFormId(id)) continue;
+      final row = rows[id] ??= {
+        'title': '${v['title'] ?? ''}',
+        'artist': '${v['artist'] ?? ''}',
+        'plays': 0,
+      };
+      row['plays'] = (row['plays'] as int) + 1;
+    }
+    return rows;
+  }
+
   /// The songs you play at this time of day, for the daylist: played
   /// through at least [minPlays] times in the last [days] during the part
   /// of the day [now] is in, those you play then more than at other times

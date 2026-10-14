@@ -6,15 +6,25 @@ import '/services/discovery/discovery_service.dart';
 import '/services/discovery/discovery_types.dart';
 import '/services/stats_service.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/widgets/riff_sheet.dart' show RiffChoiceChip;
 import '/ui/widgets/snackbar.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '../Home/home_layout.dart';
 
 /// Riff Stats page: plays, hours, top songs/artists and daily activity,
-/// computed from the local listening database only.
-class StatsScreen extends StatelessWidget {
+/// computed from the local listening database only. The top songs and
+/// artists are of the last 4 weeks, the last 6 months or all time, as
+/// Spotify ranks them (the first two from your plays Discovery keeps).
+class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
+
+  @override
+  State<StatsScreen> createState() => _StatsScreenState();
+}
+
+class _StatsScreenState extends State<StatsScreen> {
+  StatsRange _range = StatsRange.allTime;
 
   String _hoursLabel(int seconds) {
     final h = seconds / 3600.0;
@@ -32,9 +42,17 @@ class StatsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final topSongs = StatsService.topSongs(10);
+    final hasDiscovery = Get.isRegistered<DiscoveryService>();
+    final range = hasDiscovery ? _range : StatsRange.allTime;
+    final rows = range.days == null
+        ? null
+        : Get.find<DiscoveryService>().repo.playRowsSince(
+            DateTime.now().subtract(Duration(days: range.days!)));
+    final topSongs =
+        rows == null ? StatsService.topSongs(10) : rankTopSongs(rows, 10);
     final playable = topSongsToPlay(topSongs);
-    final topArtists = StatsService.topArtists(10);
+    final topArtists =
+        rows == null ? StatsService.topArtists(10) : rankTopArtists(rows, 10);
     final days = StatsService.lastDays(7);
     final maxDayPlays = days.fold<int>(
         1, (m, d) => (d["plays"] as int) > m ? d["plays"] as int : m);
@@ -75,7 +93,6 @@ class StatsScreen extends StatelessWidget {
 
     // Chart: the accent for the series (§ Phase 8).
     final accent = Theme.of(context).colorScheme.primary;
-    final hasDiscovery = Get.isRegistered<DiscoveryService>();
     return Scaffold(
       backgroundColor: Theme.of(context).canvasColor,
       body: ListView(
@@ -135,6 +152,25 @@ class StatsScreen extends StatelessWidget {
               ),
             ),
           ),
+          if (hasDiscovery)
+            Padding(
+              padding: const EdgeInsets.only(
+                  left: HomeLayout.gutter,
+                  top: RiffSpacing.lg,
+                  right: HomeLayout.gutter),
+              child: Wrap(
+                spacing: RiffSpacing.sm,
+                runSpacing: RiffSpacing.sm,
+                children: [
+                  for (final r in StatsRange.values)
+                    RiffChoiceChip(
+                      label: r.labelKey.tr,
+                      selected: r == range,
+                      onTap: () => setState(() => _range = r),
+                    ),
+                ],
+              ),
+            ),
           HomeSectionHeader(
             "topSongs".tr,
             // §5.5 text button: accent, theme type, as Recent searches'
