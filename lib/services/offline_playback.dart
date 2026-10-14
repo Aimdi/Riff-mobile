@@ -40,8 +40,16 @@ class OfflinePlayback {
   }
 
   /// Ids of what plays from elsewhere than YouTube: episodes, Audiobookshelf
-  /// and LibriVox books, your music server, Soulseek.
-  static const _otherSources = ['podcast_', 'abs_', 'lv_', 'cloud_', 'slsk_'];
+  /// and LibriVox books, your music server, Soulseek, the phone's own music
+  /// files.
+  static const _otherSources = [
+    'podcast_',
+    'abs_',
+    'lv_',
+    'cloud_',
+    'slsk_',
+    'device_',
+  ];
 
   /// Whether [song] needs a connection to play: a YouTube song that's
   /// neither downloaded nor in the song cache.

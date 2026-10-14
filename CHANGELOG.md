@@ -442,6 +442,14 @@ Library:
 * Recently played keeps your last 100 songs (it was 30), so its days go
   back further, and its ⋮ › Clear history empties it, like YouTube
   Music's; Undo puts it back
+* The music files on your phone, like Spotify's Local files and YouTube
+  Music's Device files (Android): the phone button next to the cloud one
+  in Library › Songs lists the songs saved on the phone (music, not
+  ringtones or voice notes), with their album covers, and plays them
+  straight from the file, offline too. Songs' sort works on them (Date
+  added is when the file came onto the phone), and they can go in
+  playlists and the queue like any song. Riff asks once for permission
+  to read them; refused, it says so with an Allow button
 
 Playlists:
 * Deleting one of your playlists now asks first ("Delete playlist?"),

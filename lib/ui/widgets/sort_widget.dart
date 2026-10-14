@@ -67,6 +67,9 @@ class SortWidget extends StatelessWidget {
     this.isCloudFeatureRequired = false,
     this.isCloudModeActive,
     this.onCloudToggle,
+    this.isDeviceFeatureRequired = false,
+    this.isDeviceModeActive,
+    this.onDeviceToggle,
     this.isDownloadedFilterRequired = false,
     this.isDownloadedOnly,
     this.onDownloadedToggle,
@@ -100,6 +103,12 @@ class SortWidget extends StatelessWidget {
   /// When non-null, drives the selected state of the cloud icon (use with Obx).
   final bool? isCloudModeActive;
   final VoidCallback? onCloudToggle;
+
+  /// Library Songs: the phone's own music files (On this phone), next to
+  /// the cloud icon.
+  final bool isDeviceFeatureRequired;
+  final bool? isDeviceModeActive;
+  final VoidCallback? onDeviceToggle;
 
   /// Library Songs: show only downloaded songs.
   final bool isDownloadedFilterRequired;
@@ -232,6 +241,16 @@ class SortWidget extends StatelessWidget {
                       : Icons.cloud_outlined,
                   tooltip: "cloud".tr,
                   onPressed: () => onCloudToggle?.call(),
+                ),
+              if (isDeviceFeatureRequired)
+                _iconButton(
+                  context,
+                  selected: isDeviceModeActive == true,
+                  icon: isDeviceModeActive == true
+                      ? Icons.phone_android_rounded
+                      : Icons.phone_android_outlined,
+                  tooltip: "onThisPhone".tr,
+                  onPressed: () => onDeviceToggle?.call(),
                 ),
               if (isImportFeatureRequired)
                 _iconButton(

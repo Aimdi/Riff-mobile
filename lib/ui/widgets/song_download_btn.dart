@@ -2,6 +2,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/services/device_music.dart';
 import 'package:harmonymusic/services/downloader.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:hive/hive.dart';
@@ -34,8 +35,10 @@ class SongDownloadButton extends StatelessWidget {
         isDownloadingDoneCallback!(isDownloadingDone);
       }
 
+      // A music file on the phone (On this phone) is there already.
       return (isDownloadingDone ||
-              Hive.box("SongDownloads").containsKey(song!.id))
+              Hive.box("SongDownloads").containsKey(song!.id) ||
+              DeviceMusic.isDeviceSong(song))
           ? Icon(
               Icons.download_done,
               color: Theme.of(context).textTheme.titleMedium!.color,

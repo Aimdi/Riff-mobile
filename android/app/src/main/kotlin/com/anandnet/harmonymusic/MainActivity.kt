@@ -221,6 +221,12 @@ class MainActivity : AudioServiceActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             "riff/episode_alerts"
         ).setMethodCallHandler(EpisodeAlerts)
+        // The music files on the phone (Songs › On this phone).
+        DeviceMusic.appContext = applicationContext
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "riff/device_music"
+        ).setMethodCallHandler(DeviceMusic)
     }
 
     /**

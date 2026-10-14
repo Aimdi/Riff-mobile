@@ -1195,7 +1195,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       id.startsWith("abs_") ||
       id.startsWith("lv_") ||
       id.startsWith("cloud_") ||
-      id.startsWith("slsk_");
+      id.startsWith("slsk_") ||
+      // Music files on the phone (Songs › On this phone).
+      id.startsWith("device_");
 
   @override
   // ignore: avoid_renaming_method_parameters

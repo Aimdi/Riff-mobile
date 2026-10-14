@@ -148,6 +148,10 @@ class ImageWidget extends StatelessWidget {
 
     final bool offlineAvailable =
         song != null && (song?.extras?["url"] ?? "").contains("file");
+    // A cover on the phone itself (a music file's album cover).
+    final localCover = song?.artUri?.isScheme('file') == true
+        ? song!.artUri!.toFilePath()
+        : null;
 
     // Only constrain the longer edge so landscape video frames stay cropped
     // (BoxFit.cover) instead of stretched into a square.
@@ -162,10 +166,9 @@ class ImageWidget extends StatelessWidget {
         shape: artist != null ? BoxShape.circle : BoxShape.rectangle,
         borderRadius: artist != null ? null : BorderRadius.circular(_radius),
       ),
-      child: offlineAvailable
+      child: localCover != null
           ? Image.file(
-              File(
-                  "${Get.find<SettingsScreenController>().supportDirPath}/thumbnails/${song!.id}.png"),
+              File(localCover),
               height: size,
               width: size,
               cacheWidth: decodeSide,
@@ -173,52 +176,64 @@ class ImageWidget extends StatelessWidget {
               filterQuality: FilterQuality.medium,
               errorBuilder: (_, __, ___) => _placeholder(context),
             )
-          : (imageUrl.isEmpty)
-              ? _placeholder(context)
-              // A song whose only art is a 16:9 video frame: show the frame,
-              // then swap to the resolved square audio-track cover (cached).
-              : (song != null &&
-                      Thumbnail.isVideoFrameUrl(raw) &&
-                      !song!.id.startsWith('podcast_') &&
-                      song!.extras?['isPodcast'] != true)
-                  ? _SongCoverImage(
-                      song: song!,
-                      size: size,
-                      decodeSide: decodeSide,
-                      placeholder: _placeholder(context),
-                      shimmer: _shimmer(context),
-                    )
-                  : CachedNetworkImage(
-                      height: size,
-                      width: size,
-                      // One dimension only — setting both forces a square decode and
-                      // elongates 16:9 YouTube frames.
-                      memCacheWidth: decodeSide,
-                      filterQuality: FilterQuality.medium,
-                      imageUrl: imageUrl,
-                      httpHeaders: kCoverImageHeaders,
-                      fit: BoxFit.cover,
-                      alignment: Alignment.center,
-                      errorWidget: (context, url, error) {
-                        if (raw.isNotEmpty && raw != imageUrl) {
-                          return CachedNetworkImage(
-                            height: size,
-                            width: size,
-                            memCacheWidth: decodeSide,
-                            imageUrl: raw,
-                            httpHeaders: kCoverImageHeaders,
-                            fit: BoxFit.cover,
-                            alignment: Alignment.center,
-                            errorWidget: (_, __, ___) => _placeholder(context),
-                            progressIndicatorBuilder: (_, __, ___) =>
-                                _shimmer(context),
-                          );
-                        }
-                        return _placeholder(context);
-                      },
-                      progressIndicatorBuilder: ((_, __, ___) =>
-                          _shimmer(context)),
-                    ),
+          : offlineAvailable
+              ? Image.file(
+                  File(
+                      "${Get.find<SettingsScreenController>().supportDirPath}/thumbnails/${song!.id}.png"),
+                  height: size,
+                  width: size,
+                  cacheWidth: decodeSide,
+                  fit: BoxFit.cover,
+                  filterQuality: FilterQuality.medium,
+                  errorBuilder: (_, __, ___) => _placeholder(context),
+                )
+              : (imageUrl.isEmpty)
+                  ? _placeholder(context)
+                  // A song whose only art is a 16:9 video frame: show the frame,
+                  // then swap to the resolved square audio-track cover (cached).
+                  : (song != null &&
+                          Thumbnail.isVideoFrameUrl(raw) &&
+                          !song!.id.startsWith('podcast_') &&
+                          song!.extras?['isPodcast'] != true)
+                      ? _SongCoverImage(
+                          song: song!,
+                          size: size,
+                          decodeSide: decodeSide,
+                          placeholder: _placeholder(context),
+                          shimmer: _shimmer(context),
+                        )
+                      : CachedNetworkImage(
+                          height: size,
+                          width: size,
+                          // One dimension only — setting both forces a square decode and
+                          // elongates 16:9 YouTube frames.
+                          memCacheWidth: decodeSide,
+                          filterQuality: FilterQuality.medium,
+                          imageUrl: imageUrl,
+                          httpHeaders: kCoverImageHeaders,
+                          fit: BoxFit.cover,
+                          alignment: Alignment.center,
+                          errorWidget: (context, url, error) {
+                            if (raw.isNotEmpty && raw != imageUrl) {
+                              return CachedNetworkImage(
+                                height: size,
+                                width: size,
+                                memCacheWidth: decodeSide,
+                                imageUrl: raw,
+                                httpHeaders: kCoverImageHeaders,
+                                fit: BoxFit.cover,
+                                alignment: Alignment.center,
+                                errorWidget: (_, __, ___) =>
+                                    _placeholder(context),
+                                progressIndicatorBuilder: (_, __, ___) =>
+                                    _shimmer(context),
+                              );
+                            }
+                            return _placeholder(context);
+                          },
+                          progressIndicatorBuilder: ((_, __, ___) =>
+                              _shimmer(context)),
+                        ),
     );
   }
 

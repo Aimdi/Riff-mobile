@@ -24,6 +24,7 @@ import 'synced_lyrics_service.dart';
 import 'download_notice.dart';
 import 'download_quality.dart';
 import 'wifi_only_downloads.dart';
+import 'device_music.dart';
 
 class Downloader extends GetxService {
   // receiveTimeout is the max gap between chunks, so a stalled download
@@ -208,7 +209,9 @@ class Downloader extends GetxService {
         return;
       }
 
-      if (!Hive.box("SongDownloads").containsKey(song.id)) {
+      // A music file on the phone is there already.
+      if (!Hive.box("SongDownloads").containsKey(song.id) &&
+          !DeviceMusic.isDeviceSong(song)) {
         // Download on Wi-Fi only: on mobile data, it waits for Wi-Fi.
         final go = await WifiOnlyDownloads.waitForWifi(
             wanted: () => isPlaylist

@@ -20,6 +20,7 @@ import '/ui/theme/riff_spacing.dart';
 import '../Settings/settings_screen_controller.dart';
 import '/services/piped_service.dart';
 import '/services/cloud_music_service.dart';
+import '/services/device_music.dart';
 import '../../../utils/helper.dart';
 import '/models/album.dart';
 import '/models/artist.dart';
@@ -35,9 +36,48 @@ class LibrarySongsController extends GetxController {
   SortWidgetController? sortWidgetController;
   final additionalOperationMode = OperationMode.none.obs;
 
+  /// When true, Songs shows the music files on this phone (Android), as
+  /// Spotify's Local files and YouTube Music's Device files.
+  final showDeviceSongs = false.obs;
+  final deviceSongs = <MediaItem>[].obs;
+  final deviceLoading = false.obs;
+
+  /// Null until asked; false when Android's permission was refused.
+  final deviceAccess = RxnBool();
+
+  /// On this phone, on or off; on, asks for the permission to read music
+  /// files (the first time) and lists them.
+  Future<void> toggleDeviceSongs() async {
+    showDeviceSongs.toggle();
+    if (showDeviceSongs.isFalse) return;
+    showCloudSongs.value = false;
+    await loadDeviceSongs();
+  }
+
+  /// The phone's songs, listed again; [settings]: refused for good, opens
+  /// Riff's app settings to allow it there.
+  Future<void> loadDeviceSongs({bool settings = false}) async {
+    if (deviceLoading.isTrue) return;
+    deviceLoading.value = true;
+    try {
+      final allowed = await DeviceMusic.askAccess(settings: settings);
+      deviceAccess.value = allowed;
+      if (!allowed) return;
+      final songs = await DeviceMusic.songs();
+      if (songs == null) {
+        deviceAccess.value = false;
+        return;
+      }
+      deviceSongs.assignAll(_sortedLikeSongs(songs));
+    } finally {
+      deviceLoading.value = false;
+    }
+  }
+
   Future<void> toggleCloudSongs() async {
     showCloudSongs.value = !showCloudSongs.value;
     if (!showCloudSongs.value) return;
+    showDeviceSongs.value = false;
     final cloud = Get.find<CloudMusicService>();
     if (cloud.isConnected.isFalse) return;
     if (cloud.songs.isEmpty) {
@@ -98,9 +138,25 @@ class LibrarySongsController extends GetxController {
   }
 
   void onSort(SortType sortType, bool isAscending) {
+    _sort = (sortType, isAscending);
     final songlist = librarySongsList.toList();
     sortSongsNVideos(songlist, sortType, isAscending);
     librarySongsList.value = songlist;
+    if (deviceSongs.isNotEmpty) {
+      deviceSongs.value = _sortedLikeSongs(deviceSongs);
+    }
+  }
+
+  /// Songs' sort, picked last (null: none yet, the phone's songs by title).
+  (SortType, bool)? _sort;
+
+  /// The phone's [songs] sorted as Songs is.
+  List<MediaItem> _sortedLikeSongs(List<MediaItem> songs) {
+    final list = songs.toList();
+    if (_sort case (final type, final ascending)) {
+      sortSongsNVideos(list, type, ascending);
+    }
+    return list;
   }
 
   void onSearchStart(String? tag) {
