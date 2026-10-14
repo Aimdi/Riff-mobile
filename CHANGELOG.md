@@ -445,6 +445,10 @@ Downloads:
   (songs, albums and playlists) wait for Wi-Fi, then start by themselves.
   A playlist waiting shows its hourglass, "Waiting for Wi-Fi"; you can
   still cancel it. Off by default; phones only
+* Download quality, like Spotify's and YouTube Music's: Settings ›
+  Download › Download quality, High (as before) or Low, which takes about
+  a third of the space (Opus about 50 kb/s, AAC 48 kb/s). Songs downloaded
+  before keep theirs
 
 Stats:
 * Play your top songs, like Spotify's: in Stats, tap a song in Top songs

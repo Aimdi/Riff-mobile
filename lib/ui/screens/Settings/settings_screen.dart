@@ -24,6 +24,7 @@ import '/services/song_fade.dart';
 import '/services/music_autoplay.dart';
 import '/services/explicit_content.dart';
 import '/services/wifi_only_downloads.dart';
+import '/services/download_quality.dart';
 import '/ui/widgets/equalizer_sheet.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/listenbrainz_service.dart';
@@ -1243,6 +1244,28 @@ class SettingsScreen extends StatelessWidget {
                           ),
                         ],
                         onChanged: settingsController.changeDownloadingFormat,
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    contentPadding: settingsTilePadding,
+                    title: Text("downloadQuality".tr),
+                    subtitle: Text("downloadQualityDes".tr,
+                        style: settingsSubtitleStyle(context)),
+                    trailing: Obx(
+                      () => DropdownButton<bool>(
+                        dropdownColor:
+                            Theme.of(context).colorScheme.surfaceContainerLow,
+                        underline: const SizedBox.shrink(),
+                        value: DownloadQuality.low.value,
+                        items: [
+                          DropdownMenuItem(
+                              value: false, child: Text("high".tr)),
+                          DropdownMenuItem(value: true, child: Text("low".tr)),
+                        ],
+                        onChanged: (isLow) {
+                          if (isLow != null) DownloadQuality.set(isLow);
+                        },
                       ),
                     ),
                   ),

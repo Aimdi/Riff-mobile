@@ -21,6 +21,7 @@ import '../ui/screens/Library/library_controller.dart';
 import 'discovery/discovery_service.dart';
 import 'music_service.dart';
 import 'synced_lyrics_service.dart';
+import 'download_quality.dart';
 import 'wifi_only_downloads.dart';
 
 class Downloader extends GetxService {
@@ -243,9 +244,13 @@ class Downloader extends GetxService {
       return complete.future;
     }
 
-    Audio requiredAudioStream = downloadingFormat == "opus"
-        ? playerResponse.highestBitrateOpusAudio!
-        : playerResponse.highestBitrateMp4aAudio!;
+    // Download quality Low: the smallest stream in the format.
+    Audio requiredAudioStream = DownloadQuality.low.isTrue
+        ? playerResponse.lowestBitrateAudioOf(
+            downloadingFormat == "opus" ? Codec.opus : Codec.mp4a)!
+        : downloadingFormat == "opus"
+            ? playerResponse.highestBitrateOpusAudio!
+            : playerResponse.highestBitrateMp4aAudio!;
 
     final dirPath = settingsScreenController.downloadLocationPath.string;
     final actualDownformat =

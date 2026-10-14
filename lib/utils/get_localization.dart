@@ -4642,6 +4642,8 @@ Map<String, Map<String, String>> get keys => {
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "downloadQuality": "Download quality",
+    "downloadQualityDes": "Low takes about a third of the space. Songs downloaded before keep their quality",
     "addSongs": "Add songs",
     "searchSongsToAdd": "Search for songs",
     "addSongsHint": "Search for songs to add to this playlist",

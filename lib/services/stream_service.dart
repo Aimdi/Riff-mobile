@@ -336,6 +336,19 @@ class StreamProvider {
       audioFormats?.lastWhere((item) => item.itag == 251 || item.itag == 250,
           orElse: () => audioFormats!.first);
 
+  /// The smallest stream in [codec] (Download quality Low): the lowest
+  /// bitrate YouTube offers in it, else the lowest of any; streams without
+  /// a bitrate only when none has one.
+  Audio? lowestBitrateAudioOf(Codec codec) {
+    final all = audioFormats ?? const <Audio>[];
+    if (all.isEmpty) return null;
+    final same = all.where((a) => a.audioCodec == codec).toList();
+    final pool = same.isEmpty ? all : same;
+    final known = pool.where((a) => a.bitrate > 0).toList();
+    return (known.isEmpty ? pool : known)
+        .reduce((a, b) => b.bitrate < a.bitrate ? b : a);
+  }
+
   Audio? get lowQualityAudio =>
       audioFormats?.lastWhere((item) => item.itag == 249 || item.itag == 139,
           orElse: () => audioFormats!.first);
