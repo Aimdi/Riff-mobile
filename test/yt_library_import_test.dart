@@ -231,6 +231,28 @@ final _albumsPage = _libraryPage({
   }
 });
 
+/// Library › Podcasts: the New episodes card first, then two shows.
+final _podcastsPage = _libraryPage({
+  'gridRenderer': {
+    'items': [
+      _card('New Episodes', 'VLRDPN'),
+      _podcastCard('Show One', 'MPSPPLshowone'),
+      _podcastCard('Show Two', 'MPSPPLshowtwo'),
+    ],
+  }
+});
+
+/// A show's card in Library › Podcasts: its channel under the title.
+Map<String, dynamic> _podcastCard(String title, String browseId) {
+  final card = _card(title, browseId);
+  card['musicTwoRowItemRenderer']['subtitle'] = {
+    'runs': [
+      {'text': 'The Channel'}
+    ]
+  };
+  return card;
+}
+
 /// The subscriptions shelf: two artists and a row that isn't one.
 final _artistsPage = _libraryPage({
   'musicShelfRenderer': {
@@ -351,6 +373,17 @@ void main() {
       expect(first.thumbnailUrl, contains('MPREfirstlight'));
     });
 
+    test('the podcasts you follow, not the New episodes card', () {
+      final podcasts =
+          parseLibraryPodcasts(libraryFirstPage(_podcastsPage).items);
+      expect(podcasts.map((p) => p.playlistId),
+          ['MPSPPLshowone', 'MPSPPLshowtwo']);
+      expect(podcasts.first.title, 'Show One');
+      expect(podcasts.first.kind, 'podcast');
+      expect(podcasts.first.description, 'The Channel');
+      expect(podcasts.first.thumbnailUrl, contains('MPSPPLshowone'));
+    });
+
     test('the artists you subscribe to, page after page', () {
       final page = libraryFirstPage(_artistsPage);
       expect(page.next, 'ART2');
@@ -387,6 +420,8 @@ void main() {
                     ('FEmusic_liked_playlists', 'TOKEN2') => _playlistsPage2,
                     ('FEmusic_liked_playlists', _) => _playlistsPage(),
                     ('FEmusic_liked_albums', _) => _albumsPage,
+                    ('FEmusic_library_non_music_audio_list', _) =>
+                      _podcastsPage,
                     (_, 'ART2') => _artistsPage2,
                     _ => _artistsPage,
                   }));
@@ -401,6 +436,8 @@ void main() {
 
       expect((await music.getLibraryAlbums()).map((a) => a.title),
           ['First Light', 'Second Wind']);
+      expect((await music.getLibraryPodcasts()).map((p) => p.title),
+          ['Show One', 'Show Two']);
 
       asked.clear();
       final artists = await music.getLibrarySubscriptions();
@@ -414,6 +451,7 @@ void main() {
       await expectLater(music.getLibraryPlaylists(), throwsA(anything));
       await expectLater(music.getLibrarySubscriptions(), throwsA(anything));
       await expectLater(music.getLibraryAlbums(), throwsA(anything));
+      await expectLater(music.getLibraryPodcasts(), throwsA(anything));
       SecureCredentials.resetForTest();
     });
   });
@@ -422,11 +460,13 @@ void main() {
     late List<Playlist> playlists;
     late List<Album> albums;
     late List<Artist> artists;
+    late List<Playlist> podcasts;
 
     setUp(() async {
       await Hive.openBox(YtLibraryImport.playlistsBox, bytes: Uint8List(0));
       await Hive.openBox(YtLibraryImport.albumsBox, bytes: Uint8List(0));
       await Hive.openBox(YtLibraryImport.artistsBox, bytes: Uint8List(0));
+      await Hive.openBox(YtLibraryImport.podcastsBox, bytes: Uint8List(0));
       playlists = [
         _playlist('Liked Music', 'VLLM'),
         _playlist('Road trip', 'VLPLroadtrip'),
@@ -446,6 +486,20 @@ void main() {
       YtLibraryImport.fetchPlaylists = () async => playlists;
       YtLibraryImport.fetchAlbums = () async => albums;
       YtLibraryImport.fetchArtists = () async => artists;
+      podcasts = [
+        Playlist(
+            title: 'Show One',
+            playlistId: 'MPSPPLshowone',
+            thumbnailUrl: '',
+            description: 'The Channel',
+            kind: 'podcast'),
+        Playlist(
+            title: 'Show Two',
+            playlistId: 'MPSPPLshowtwo',
+            thumbnailUrl: '',
+            kind: 'podcast'),
+      ];
+      YtLibraryImport.fetchPodcasts = () async => podcasts;
     });
     tearDown(() async {
       Get.reset();
@@ -465,12 +519,21 @@ void main() {
       await playlistsBox.put('VLPLgym', _playlist('Gym', 'VLPLgym').toJson());
       await artistsBox.put(
           'UCsolosinger', _artist('Solo Singer', 'UCsolosinger').toJson());
+      // Followed in Riff before, under its playlist id.
+      final podcastsBox = Hive.box(YtLibraryImport.podcastsBox);
+      await podcastsBox.put('PLshowtwo', {'title': 'Show Two'});
       final albumsBox = Hive.box(YtLibraryImport.albumsBox);
       await albumsBox.put(
           'MPREsecondwind', _album('Second Wind', 'MPREsecondwind').toJson());
 
       final came = await YtLibraryImport.importLibrary();
-      expect(came, (playlists: 1, albums: 1, artists: 1));
+      expect(came, (playlists: 1, albums: 1, artists: 1, podcasts: 1));
+      expect(podcastsBox.keys, unorderedEquals(['PLshowtwo', 'MPSPPLshowone']));
+      final show = podcastsBox.get('MPSPPLshowone') as Map;
+      expect(show['title'], 'Show One');
+      expect(show['kind'], 'podcast');
+      expect(show['description'], 'The Channel');
+      expect(show['addedAt'], isA<int>());
       expect(albumsBox.keys,
           unorderedEquals(['MPREfirstlight', 'MPREsecondwind']));
       final light = Album.fromJson(albumsBox.get('MPREfirstlight'));
@@ -488,7 +551,7 @@ void main() {
       expect(discovery.liked, ['The Band true']);
 
       expect(await YtLibraryImport.importLibrary(),
-          (playlists: 0, albums: 0, artists: 0));
+          (playlists: 0, albums: 0, artists: 0, podcasts: 0));
       expect(discovery.repo.followed, hasLength(1));
       expect(YtLibraryImport.importing.value, isFalse);
     });
@@ -497,7 +560,7 @@ void main() {
         () async {
       YtLibraryImport.fetchPlaylists = () => throw Exception('offline');
       expect(await YtLibraryImport.importLibrary(),
-          (playlists: null, albums: 2, artists: 2));
+          (playlists: null, albums: 2, artists: 2, podcasts: 2));
       expect(YtLibraryImport.importing.value, isFalse);
       YtLibraryImport.connected = () => false;
       expect(await YtLibraryImport.importLibrary(), isNull);
@@ -506,17 +569,27 @@ void main() {
     test('what the snackbar says', () {
       Get.addTranslations(Languages().keys);
       Get.locale = const Locale('en');
-      expect(ytLibraryImportedText((playlists: 3, albums: 2, artists: 1)),
-          'Added from YouTube Music: 3 playlists, 2 albums, 1 artist');
-      expect(ytLibraryImportedText((playlists: 1, albums: 0, artists: 0)),
-          'Added from YouTube Music: 1 playlist');
-      expect(ytLibraryImportedText((playlists: null, albums: 1, artists: 5)),
-          'Added from YouTube Music: 1 album, 5 artists');
       expect(
-          ytLibraryImportedText((playlists: 0, albums: 0, artists: 0)),
-          'Your Library already has your YouTube Music playlists, albums '
-          'and artists');
-      expect(ytLibraryImportedText((playlists: 0, albums: 0, artists: null)),
+          ytLibraryImportedText(
+              (playlists: 3, albums: 2, artists: 1, podcasts: 4)),
+          'Added from YouTube Music: 3 playlists, 2 albums, 1 artist, '
+          '4 podcasts');
+      expect(
+          ytLibraryImportedText(
+              (playlists: 1, albums: 0, artists: 0, podcasts: 0)),
+          'Added from YouTube Music: 1 playlist');
+      expect(
+          ytLibraryImportedText(
+              (playlists: null, albums: 1, artists: 5, podcasts: 1)),
+          'Added from YouTube Music: 1 album, 5 artists, 1 podcast');
+      expect(
+          ytLibraryImportedText(
+              (playlists: 0, albums: 0, artists: 0, podcasts: 0)),
+          'Your Library already has your YouTube Music playlists, albums, '
+          'artists and podcasts');
+      expect(
+          ytLibraryImportedText(
+              (playlists: 0, albums: 0, artists: 0, podcasts: null)),
           "YouTube Music couldn't be reached. Try again later");
       Get.clearTranslations();
     });
@@ -542,6 +615,7 @@ void main() {
       expect(Hive.box(YtLibraryImport.playlistsBox).length, 3);
       expect(Hive.box(YtLibraryImport.albumsBox).length, 2);
       expect(Hive.box(YtLibraryImport.artistsBox).length, 2);
+      expect(Hive.box(YtLibraryImport.podcastsBox).length, 2);
       // `.tr` gives the key in tests.
       expect(find.text('ytLibraryImported'), findsOneWidget);
       await tester.pumpAndSettle();

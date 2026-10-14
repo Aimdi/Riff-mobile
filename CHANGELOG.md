@@ -527,12 +527,14 @@ Library:
   your YouTube account connected, Settings has "Your YouTube Music
   library" under it. A tap adds the playlists in your YouTube Music
   library (yours and the ones you saved) to Library › Playlists, the
-  albums you saved to Library › Albums, and follows the artists you
-  subscribe to in Library › Artists, those not there yet, and says what
-  came ("Added from YouTube Music: 3 playlists, 2 albums, 1 artist").
-  The playlists and albums open as any saved in Riff do; the artists'
-  new releases reach Release Radar and they count as artists you like,
-  as when you follow one in Riff. Liked music comes in as your Favorites
+  albums you saved to Library › Albums, follows the artists you
+  subscribe to in Library › Artists and the podcasts you follow in
+  Podcasts › Subscriptions, those not there yet, and says what came
+  ("Added from YouTube Music: 3 playlists, 2 albums, 1 artist, 4
+  podcasts"). The playlists and albums open as any saved in Riff do;
+  the artists' new releases reach Release Radar and they count as
+  artists you like, as when you follow one in Riff; the shows' new
+  episodes reach your Inbox. Liked music comes in as your Favorites
   (above) and Episodes for later stays out
 * Removing a song (swipe it, or "Remove" in its menu) now says "Removed
   from your library" with Undo, like YouTube Music; its download or

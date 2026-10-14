@@ -3,14 +3,15 @@ import 'package:get/get.dart';
 
 import '/services/yt_library_import.dart';
 import '/ui/screens/Library/library_controller.dart';
+import '/ui/screens/Podcasts/podcasts_library_controller.dart';
 import '/ui/widgets/snackbar.dart';
 import 'components/custom_expansion_tile.dart';
 import 'settings_screen_controller.dart';
 
 /// Settings' "Your YouTube Music library", under the YouTube account while
-/// one is connected: a tap brings your YouTube Music playlists, albums and
-/// the artists you subscribe to into Riff's Library, as Metrolist brings
-/// them in, and says what came.
+/// one is connected: a tap brings your YouTube Music playlists, albums,
+/// podcasts and the artists you subscribe to into Riff's Library, as
+/// Metrolist brings them in, and says what came.
 class YtLibraryImportTile extends StatelessWidget {
   const YtLibraryImportTile({super.key});
 
@@ -47,19 +48,25 @@ class YtLibraryImportTile extends StatelessWidget {
         Get.isRegistered<LibraryArtistsController>()) {
       Get.find<LibraryArtistsController>().refreshLib();
     }
+    if ((came.podcasts ?? 0) > 0 &&
+        Get.isRegistered<LibraryPodcastsController>()) {
+      await Get.find<LibraryPodcastsController>().refreshLib();
+    }
     showUndoSnackbar(target, ytLibraryImportedText(came));
   }
 }
 
 /// What the snackbar says came in: "Added from YouTube Music: 3
-/// playlists, 2 albums, 1 artist", that it's all there already, or that
-/// YouTube couldn't be reached (nothing read).
+/// playlists, 2 albums, 1 artist, 4 podcasts", that it's all there
+/// already, or that YouTube couldn't be reached (nothing read).
 String ytLibraryImportedText(YtLibraryImported came) {
+  final parts = [came.playlists, came.albums, came.artists, came.podcasts];
   final playlists = came.playlists ?? 0;
   final albums = came.albums ?? 0;
   final artists = came.artists ?? 0;
-  if (playlists + albums + artists == 0) {
-    return came.playlists == null || came.albums == null || came.artists == null
+  final podcasts = came.podcasts ?? 0;
+  if (playlists + albums + artists + podcasts == 0) {
+    return parts.contains(null)
         ? 'ytLibraryImportFailed'.tr
         : 'ytLibraryUpToDate'.tr;
   }
@@ -71,6 +78,7 @@ String ytLibraryImportedText(YtLibraryImported came) {
         count(playlists, 'ytPlaylistCountOne', 'ytPlaylistCount'),
       if (albums > 0) count(albums, 'ytAlbumCountOne', 'ytAlbumCount'),
       if (artists > 0) count(artists, 'ytArtistCountOne', 'ytArtistCount'),
+      if (podcasts > 0) count(podcasts, 'ytPodcastCountOne', 'ytPodcastCount'),
     ].join(', '),
   });
 }

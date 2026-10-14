@@ -4,15 +4,15 @@ import '../models/playlist.dart';
 import 'continuations.dart';
 import 'nav_parser.dart';
 
-/// A page of a YouTube Music library list (Library › Playlists and
-/// Albums, its artist subscriptions): the list's items and the token of
-/// the page after it (null on the last).
+/// A page of a YouTube Music library list (Library › Playlists, Albums
+/// and Podcasts, its artist subscriptions): the list's items and the
+/// token of the page after it (null on the last).
 typedef LibraryPage = ({List<dynamic> items, String? next});
 
 /// The first page of a library's list, as ytmusicapi's
-/// get_library_contents finds it: a grid (playlists, albums) or a shelf
-/// (artists), in an itemSectionRenderer of the section list or straight
-/// in it. Empty when the library is.
+/// get_library_contents finds it: a grid (playlists, albums, podcasts) or
+/// a shelf (artists), in an itemSectionRenderer of the section list or
+/// straight in it. Empty when the library is.
 LibraryPage libraryFirstPage(Map<String, dynamic> response) {
   final sections = nav(response, [
     'contents',
@@ -106,6 +106,33 @@ List<Album> parseLibraryAlbums(List<dynamic> items) {
     }
   }
   return albums;
+}
+
+/// The podcasts among a library grid's [items] (ytmusicapi's
+/// parse_podcast): the cards that open a show (MPSP…), not the New
+/// episodes card; their channel says who makes them.
+List<Playlist> parseLibraryPodcasts(List<dynamic> items) {
+  final podcasts = <Playlist>[];
+  for (final item in items) {
+    final data = nav(item, ['musicTwoRowItemRenderer']);
+    final id = nav(data, ['title', 'runs', 0, ...navigation_browse_id]);
+    final title = nav(data, title_text);
+    if (data is! Map<String, dynamic> ||
+        id is! String ||
+        !id.startsWith('MPSP') ||
+        title is! String) {
+      continue;
+    }
+    final channel = nav(data, ['subtitle', 'runs', 0, 'text']);
+    podcasts.add(Playlist.fromJson({
+      'title': title,
+      'playlistId': id,
+      'thumbnails': nav(data, thumbnail_renderer),
+      'description': channel is String && channel.isNotEmpty ? channel : null,
+      'kind': 'podcast',
+    }));
+  }
+  return podcasts;
 }
 
 /// The artists among a library shelf's [items] (ytmusicapi's
