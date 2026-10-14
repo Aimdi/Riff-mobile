@@ -10,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../services/cache_eviction.dart';
 import '../../../services/song_cache_service.dart';
+import '../../../utils/app_language.dart';
 import '../../../utils/app_version.dart';
 import '../../../utils/update_check_flag_file.dart';
 import '/services/wizestream_service.dart';
@@ -93,7 +94,13 @@ class SettingsScreenController extends GetxController {
   final isNewVersionAvailable = false.obs;
   final isLinkedWithPiped = false.obs;
   final stopPlyabackOnSwipeAway = false.obs;
+
+  /// The language Riff shows (see [appLanguageChoice]).
   final currentAppLanguageCode = "en".obs;
+
+  /// Settings › Language's value: a language, or [systemLanguage] to follow
+  /// the phone's.
+  final appLanguageChoice = "en".obs;
   final downloadLocationPath = "".obs;
   final exportLocationPath = "".obs;
   final downloadingFormat = "".obs;
@@ -154,12 +161,12 @@ class SettingsScreenController extends GetxController {
 
   Future<void> _setInitValue() async {
     final isDesktop = GetPlatform.isDesktop;
-    final appLang = setBox.get('currentAppLanguageCode') ?? "en";
-    currentAppLanguageCode.value = appLang == "zh_Hant"
-        ? "zh-TW"
-        : appLang == "zh_Hans"
-            ? "zh-CN"
-            : appLang;
+    final String? appLang = setBox.get('currentAppLanguageCode');
+    appLanguageChoice.value = appLang == systemLanguage
+        ? systemLanguage
+        : appLanguageCode(appLang, const []);
+    currentAppLanguageCode.value = appLanguageCode(
+        appLang, WidgetsBinding.instance.platformDispatcher.locales);
     // Bottom nav option removed — clear any leftover preference.
     if (setBox.get("isBottomNavBarEnabled") == true) {
       setBox.put("isBottomNavBarEnabled", false);
@@ -288,15 +295,35 @@ class SettingsScreenController extends GetxController {
   }
 
   void setAppLanguage(String? val) {
-    Get.updateLocale(Locale(val!));
+    if (val == null) return;
+    appLanguageChoice.value = val;
+    setBox.put('currentAppLanguageCode', val);
+    _showLanguage(appLanguageCode(
+        val, WidgetsBinding.instance.platformDispatcher.locales));
+  }
+
+  /// The phone's language changed ([locales]): on System default, Riff's
+  /// follows it.
+  void followPhoneLanguage(List<Locale>? locales) {
+    if (appLanguageChoice.value != systemLanguage || locales == null) return;
+    final code = languageForLocales(locales);
+    if (code != currentAppLanguageCode.value) _showLanguage(code);
+  }
+
+  void _showLanguage(String code) {
+    Get.updateLocale(Locale(code));
     // The app icon's shortcuts and the home screen widget's buttons, in
     // the new language.
     AppShortcuts.publish();
     NowPlayingWidget.refresh();
-    Get.find<MusicServices>().hlCode = val;
-    Get.find<HomeScreenController>().loadContentFromNetwork(silent: true);
-    currentAppLanguageCode.value = val;
-    setBox.put('currentAppLanguageCode', val);
+    // A change of the phone's can come before these are up.
+    if (Get.isRegistered<MusicServices>()) {
+      Get.find<MusicServices>().hlCode = code;
+    }
+    if (Get.isRegistered<HomeScreenController>()) {
+      Get.find<HomeScreenController>().loadContentFromNetwork(silent: true);
+    }
+    currentAppLanguageCode.value = code;
   }
 
   void setContentNumber(int? no) {

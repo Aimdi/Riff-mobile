@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/utils/app_language.dart';
 import 'package:harmonymusic/utils/lang_mapping.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -180,21 +181,26 @@ class SettingsScreen extends StatelessWidget {
                         dropdownColor: Theme.of(context).colorScheme.surfaceContainerLow,
                         underline: const SizedBox.shrink(),
                         style: Theme.of(context).textTheme.titleSmall,
-                        value: settingsController.currentAppLanguageCode.value,
-                        items: langMap.entries
-                            .map((lang) => DropdownMenuItem(
-                                  value: lang.key,
-                                  child: Text(lang.value),
-                                ))
-                            .whereType<DropdownMenuItem<String>>()
-                            .toList(),
+                        value: settingsController.appLanguageChoice.value,
+                        // The phone's language first, then Riff's.
+                        items: [
+                          DropdownMenuItem(
+                            value: systemLanguage,
+                            child: Text("systemDefault".tr),
+                          ),
+                          ...langMap.entries.map((lang) => DropdownMenuItem(
+                                value: lang.key,
+                                child: Text(lang.value),
+                              )),
+                        ],
                         selectedItemBuilder: (context) =>
-                            langMap.entries.map<Widget>((item) {
+                            ["systemDefault".tr, ...langMap.values]
+                                .map<Widget>((label) {
                           return Container(
                             alignment: Alignment.centerRight,
                             constraints: const BoxConstraints(minWidth: 50),
                             child: Text(
-                              item.value,
+                              label,
                             ),
                           );
                         }).toList(),

@@ -524,6 +524,14 @@ Search:
   ("You're offline", or that it couldn't search) with Retry, as Spotify
   and YouTube Music do; it used to say nothing matched
 
+Language:
+* System default, as in Spotify, YouTube Music and AntennaPod: Settings ›
+  Language › System default shows Riff in the first of your phone's
+  languages it has (else English), and follows when you change the
+  phone's. Riff still starts in English until you pick a language
+* Chinese picked in older versions (Simplified or Traditional) shows
+  again from the start; it used to open in English
+
 Stats:
 * Play your top songs, like Spotify's: in Stats, tap a song in Top songs
   to play it with the rest of the list after it, or Play to start from

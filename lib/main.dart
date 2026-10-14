@@ -45,6 +45,7 @@ import 'ui/screens/Podcasts/podcasts_library_controller.dart';
 import 'ui/screens/Podcasts/podcast_queue_controller.dart';
 import 'ui/screens/Podcasts/podcast_folder_controller.dart';
 import 'ui/screens/Audiobooks/audiobook_library_controller.dart';
+import 'utils/app_language.dart';
 import 'utils/system_tray.dart';
 import 'utils/update_check_flag_file.dart';
 import 'utils/helper.dart';
@@ -187,8 +188,9 @@ class MyApp extends StatelessWidget {
         home: const Home(),
         debugShowCheckedModeBanner: false,
         translations: Languages(),
-        locale:
-            Locale(Hive.box("AppPrefs").get('currentAppLanguageCode') ?? "en"),
+        locale: Locale(appLanguageCode(
+            Hive.box("AppPrefs").get('currentAppLanguageCode'),
+            WidgetsBinding.instance.platformDispatcher.locales)),
         fallbackLocale: const Locale("en"),
         builder: (context, child) {
           final mQuery = MediaQuery.of(context);
@@ -358,6 +360,14 @@ void _setAppInitPrefs() {
 }
 
 class LifecycleHandler extends WidgetsBindingObserver {
+  /// The phone's language changed: on System default, Riff's follows.
+  @override
+  void didChangeLocales(List<Locale>? locales) {
+    if (Get.isRegistered<SettingsScreenController>()) {
+      Get.find<SettingsScreenController>().followPhoneLanguage(locales);
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) async {
     if (state == AppLifecycleState.resumed) {
