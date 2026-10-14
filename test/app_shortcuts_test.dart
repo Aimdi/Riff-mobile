@@ -21,6 +21,32 @@ void main() {
         isNull);
   });
 
+  test('"Play … on Riff" from the Assistant comes as a voice link', () {
+    expect(
+        voiceSearchQuery(Uri.parse('riff://voice?q=daft%20punk')), 'daft punk');
+    expect(voiceSearchQuery(Uri.parse('riff://voice?q=')), '');
+    expect(voiceSearchQuery(Uri.parse('riff://voice')), '');
+    expect(voiceSearchQuery(AppShortcut.search.uri), isNull);
+    expect(voiceSearchQuery(Uri.parse('https://music.youtube.com/watch?v=a')),
+        isNull);
+    // Not a shortcut either.
+    expect(AppShortcut.fromUri(Uri.parse('riff://voice?q=x')), isNull);
+  });
+
+  test("Android hands the Assistant's requests over as voice links", () {
+    final manifest =
+        File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+    expect(manifest, contains('android.media.action.MEDIA_PLAY_FROM_SEARCH'));
+    final activity = File(
+            'android/app/src/main/kotlin/com/anandnet/harmonymusic/MainActivity.kt')
+        .readAsStringSync();
+    expect(
+        activity, contains('MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH'));
+    expect(activity, contains('.scheme("riff")'));
+    expect(activity, contains('.authority("voice")'));
+    expect(activity, contains('appendQueryParameter("q"'));
+  });
+
   test('labels are translated strings', () {
     final en = jsonDecode(File('localization/en.json').readAsStringSync())
         as Map<String, dynamic>;

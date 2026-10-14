@@ -67,6 +67,9 @@ mixin ProcessLink {
     // A long-press shortcut on the app icon.
     final shortcut = AppShortcut.fromUri(uri);
     if (shortcut != null) return openAppShortcut(shortcut);
+    // "Play … on Riff" from the Assistant.
+    final voice = voiceSearchQuery(uri);
+    if (voice != null) return playVoiceSearch(voice);
 
     final playerController = Get.find<PlayerController>();
     if (playerController.playerPanelController.isPanelOpen) {
@@ -118,6 +121,17 @@ mixin ProcessLink {
           Get.context!, "notaValidLink".tr,
           size: SanckBarSize.MEDIUM));
     }
+  }
+
+  /// A voice request plays as it does in Android Auto
+  /// ([PlayerController.playFromVoiceSearch]). It can also start the app,
+  /// so this waits (a few seconds at most) for the player.
+  Future<void> playVoiceSearch(String query) async {
+    for (var i = 0; i < 50 && !Get.isRegistered<PlayerController>(); i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    if (!Get.isRegistered<PlayerController>()) return;
+    await Get.find<PlayerController>().playFromVoiceSearch(query);
   }
 
   /// The page an app icon shortcut names. A shortcut can also start the

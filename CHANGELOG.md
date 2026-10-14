@@ -86,7 +86,9 @@ Android Auto:
   artist> on Riff" and the songs YouTube Music finds play, the best
   match first; "Play music on Riff" carries on with what was playing, or
   shuffles your Favorites. The search button in Riff's car screen lists
-  the songs found; pick one and the rest follow it
+  the songs found; pick one and the rest follow it. On the phone, "Hey
+  Google, play <song or artist> on Riff" does the same, even with Riff
+  closed
 
 Now playing:
 * Tap the time at the end of the seek bar to see the time left

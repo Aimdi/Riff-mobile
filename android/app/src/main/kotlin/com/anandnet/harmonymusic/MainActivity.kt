@@ -2,6 +2,7 @@ package com.anandnet.harmonymusic
 
 import android.app.ActivityManager
 import android.app.ApplicationExitInfo
+import android.app.SearchManager
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -10,6 +11,8 @@ import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
+import android.provider.MediaStore
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -35,6 +38,31 @@ class MainActivity : AudioServiceActivity() {
         true
     } catch (_: PackageManager.NameNotFoundException) {
         false
+    }
+
+    // "Play … on Riff" from the Assistant arrives as MEDIA_PLAY_FROM_SEARCH
+    // with the request in its extras. Given a riff://voice?q=… link
+    // instead, app_links hands it to Dart like the icon's shortcuts, and
+    // Dart plays it as Android Auto's voice search does.
+    override fun onCreate(savedInstanceState: Bundle?) {
+        voiceSearchAsLink(intent)
+        super.onCreate(savedInstanceState)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        voiceSearchAsLink(intent)
+        super.onNewIntent(intent)
+    }
+
+    private fun voiceSearchAsLink(intent: Intent?) {
+        if (intent == null ||
+            intent.action != MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH
+        ) return
+        intent.data = Uri.Builder()
+            .scheme("riff")
+            .authority("voice")
+            .appendQueryParameter("q", intent.getStringExtra(SearchManager.QUERY) ?: "")
+            .build()
     }
 
     // audio_service hands every activity the same cached engine, which

@@ -37,6 +37,15 @@ enum AppShortcut {
   }
 }
 
+/// "Play … on Riff" from the Assistant: MainActivity hands its request
+/// (MEDIA_PLAY_FROM_SEARCH) over as riff://voice?q=…, which app_links
+/// passes on like a shortcut. The request a link carries ('' for "play
+/// music on Riff"), or null for any other link.
+String? voiceSearchQuery(Uri uri) {
+  if (uri.scheme != AppShortcut.scheme || uri.host != 'voice') return null;
+  return uri.queryParameters['q']?.trim() ?? '';
+}
+
 class AppShortcuts {
   AppShortcuts._();
 

@@ -59,6 +59,13 @@
                 <data android:scheme="https" android:host="youtu.be" />
                 <data android:scheme="https" android:host="youtube.com"/>  
             </intent-filter>
+
+            <!-- "Play … on Riff" from the Assistant: MainActivity hands it
+                 to Dart as a riff://voice link. -->
+            <intent-filter>
+                <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
