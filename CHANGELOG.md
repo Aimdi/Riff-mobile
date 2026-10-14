@@ -125,6 +125,12 @@ Lock screen and notification:
   times skips back, as their notification's buttons do (AntennaPod and
   Pocket Casts' default). Once still plays or pauses, after a moment's
   wait for a second press
+* Headphones' and car stereos' own next and previous buttons skip forward
+  and back in a podcast episode or an audiobook too, by the show's (or
+  the book's) lengths, as the notification's buttons do and as in
+  AntennaPod and Pocket Casts: previous used to start the episode over
+  from 0:00, and next to end it for the next one. Music still goes to
+  the next or previous song
 * In a podcast episode with chapters, the lock screen, the notification,
   Android 13+'s media controls, Android Auto and the home screen widget
   show the chapter playing, as Overcast and Apple Podcasts do: its title

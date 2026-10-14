@@ -1,3 +1,4 @@
+import 'package:audio_service/audio_service.dart' show MediaButton;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/services/media_button_presses.dart';
 
@@ -16,6 +17,27 @@ void main() {
       expect(
           mediaButtonAction(2, longForm: true), MediaButtonAction.skipForward);
       expect(mediaButtonAction(3, longForm: true), MediaButtonAction.skipBack);
+    });
+  });
+
+  group("headphones' and car stereos' own next and previous", () {
+    test('music: the next or previous song', () {
+      expect(mediaButtonPressed(MediaButton.next, longForm: false),
+          MediaButtonAction.next);
+      expect(mediaButtonPressed(MediaButton.previous, longForm: false),
+          MediaButtonAction.previous);
+      expect(mediaButtonPressed(MediaButton.media, longForm: false),
+          MediaButtonAction.playPause);
+    });
+
+    test('episodes and books skip forward and back, not on or from the start',
+        () {
+      expect(mediaButtonPressed(MediaButton.next, longForm: true),
+          MediaButtonAction.skipForward);
+      expect(mediaButtonPressed(MediaButton.previous, longForm: true),
+          MediaButtonAction.skipBack);
+      expect(mediaButtonPressed(MediaButton.media, longForm: true),
+          MediaButtonAction.playPause);
     });
   });
 

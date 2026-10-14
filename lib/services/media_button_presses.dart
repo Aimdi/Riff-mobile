@@ -1,9 +1,12 @@
 /// A headset's one button, read as Android's own media sessions, Spotify,
 /// YouTube Music and AntennaPod read it: pressed once it plays or pauses,
-/// twice it goes on, three times it goes back.
+/// twice it goes on, three times it goes back. Headphones' and car
+/// stereos' own next and previous buttons go on and back the same way.
 library;
 
 import 'dart:async';
+
+import 'package:audio_service/audio_service.dart' show MediaButton;
 
 enum MediaButtonAction { playPause, next, previous, skipForward, skipBack }
 
@@ -15,6 +18,20 @@ MediaButtonAction mediaButtonAction(int presses, {required bool longForm}) =>
       <= 1 => MediaButtonAction.playPause,
       2 => longForm ? MediaButtonAction.skipForward : MediaButtonAction.next,
       _ => longForm ? MediaButtonAction.skipBack : MediaButtonAction.previous,
+    };
+
+/// What a headphone's (or a car stereo's) own [button] does: music goes to
+/// the next or previous song; podcast episodes and audiobooks ([longForm])
+/// skip forward or back, as AntennaPod and Pocket Casts do, rather than
+/// end the episode, or start it over.
+MediaButtonAction mediaButtonPressed(MediaButton button,
+        {required bool longForm}) =>
+    switch (button) {
+      MediaButton.media => MediaButtonAction.playPause,
+      MediaButton.next =>
+        longForm ? MediaButtonAction.skipForward : MediaButtonAction.next,
+      MediaButton.previous =>
+        longForm ? MediaButtonAction.skipBack : MediaButtonAction.previous,
     };
 
 /// Counts the button's presses: one within [window] of the last counts

@@ -252,25 +252,32 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       _buttonPresses.press();
       return;
     }
-    await _asMediaButton(() => super.click(button));
+    await _asMediaButton(() =>
+        _buttonAction(mediaButtonPressed(button, longForm: _playingLongForm)));
   }
 
   late final _buttonPresses = MediaButtonPresses(_onButtonPresses);
 
   void _onButtonPresses(int presses) {
-    final item = mediaItem.value;
-    final longForm =
-        item != null && (item.isPodcastEpisode || item.isAudiobook);
-    final action = mediaButtonAction(presses, longForm: longForm);
+    final action = mediaButtonAction(presses, longForm: _playingLongForm);
     // From a timer, not audio_service's call: its errors are ours to catch.
-    unawaited(_asMediaButton(() => switch (action) {
-          MediaButtonAction.playPause => super.click(),
-          MediaButtonAction.next => skipToNext(),
-          MediaButtonAction.previous => skipToPrevious(),
-          MediaButtonAction.skipForward => fastForward(),
-          MediaButtonAction.skipBack => rewind(),
-        }).catchError((Object e) => printERROR('Media button: $e')));
+    unawaited(_asMediaButton(() => _buttonAction(action))
+        .catchError((Object e) => printERROR('Media button: $e')));
   }
+
+  /// A podcast episode or an audiobook is playing.
+  bool get _playingLongForm {
+    final item = mediaItem.value;
+    return item != null && (item.isPodcastEpisode || item.isAudiobook);
+  }
+
+  Future<void> _buttonAction(MediaButtonAction action) => switch (action) {
+        MediaButtonAction.playPause => super.click(),
+        MediaButtonAction.next => skipToNext(),
+        MediaButtonAction.previous => skipToPrevious(),
+        MediaButtonAction.skipForward => fastForward(),
+        MediaButtonAction.skipBack => rewind(),
+      };
 
   Future<void> _asMediaButton(Future<void> Function() run) async {
     _mediaButtonDepth++;
