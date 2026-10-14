@@ -996,6 +996,20 @@ class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
           timeLeft: timeLeft);
       final played = theme.colorScheme.secondary;
       final rest = theme.colorScheme.outlineVariant;
+      // For TalkBack: a slider, "1:23 of 3:45", that swipe up / down moves.
+      final shown = _dragPosition ?? status.current;
+      final canSeek = status.total > Duration.zero;
+      String spoken(Duration at) => canSeek
+          ? 'positionOfTotal'.trParams({
+              'position': _fmtDuration(at),
+              'total': _fmtDuration(status.total),
+            })
+          : _fmtDuration(at);
+      Duration within(Duration at) => at < Duration.zero
+          ? Duration.zero
+          : at > status.total
+              ? status.total
+              : at;
 
       return Padding(
         padding: EdgeInsets.zero,
@@ -1003,30 +1017,50 @@ class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
           children: [
             LayoutBuilder(builder: (context, constraints) {
               final width = constraints.maxWidth;
-              return GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTapDown: (d) =>
-                    _scrubTo(d.localPosition.dx, width, status.total),
-                onTapUp: (_) => _commitScrub(controller),
-                onTapCancel: _endScrub,
-                onHorizontalDragStart: (d) =>
-                    _scrubTo(d.localPosition.dx, width, status.total),
-                onHorizontalDragUpdate: (d) =>
-                    _scrubTo(d.localPosition.dx, width, status.total),
-                onHorizontalDragEnd: (_) => _commitScrub(controller),
-                onHorizontalDragCancel: _endScrub,
-                child: SizedBox(
-                  height: 36,
-                  width: double.infinity,
-                  child: CustomPaint(
-                    painter: _SectionTrackPainter(
-                      progress: frac,
-                      marks: marks,
-                      spans: spans,
-                      playedColor: played,
-                      restColor: rest,
-                      thumbColor: played,
-                      showThumb: _dragging,
+              return Semantics(
+                slider: true,
+                label: 'seekBar'.tr,
+                value: spoken(shown),
+                increasedValue: canSeek
+                    ? spoken(within(shown + RiffDurations.seekStep))
+                    : null,
+                decreasedValue: canSeek
+                    ? spoken(within(shown - RiffDurations.seekStep))
+                    : null,
+                onIncrease: canSeek
+                    ? () => controller.seekBy(RiffDurations.seekStep)
+                    : null,
+                onDecrease: canSeek
+                    ? () => controller.seekBy(-RiffDurations.seekStep)
+                    : null,
+                child: GestureDetector(
+                  // Its tap and drag would be TalkBack's swipe on a slider
+                  // too (a drag to the middle): the steps above stand in.
+                  excludeFromSemantics: true,
+                  behavior: HitTestBehavior.opaque,
+                  onTapDown: (d) =>
+                      _scrubTo(d.localPosition.dx, width, status.total),
+                  onTapUp: (_) => _commitScrub(controller),
+                  onTapCancel: _endScrub,
+                  onHorizontalDragStart: (d) =>
+                      _scrubTo(d.localPosition.dx, width, status.total),
+                  onHorizontalDragUpdate: (d) =>
+                      _scrubTo(d.localPosition.dx, width, status.total),
+                  onHorizontalDragEnd: (_) => _commitScrub(controller),
+                  onHorizontalDragCancel: _endScrub,
+                  child: SizedBox(
+                    height: 36,
+                    width: double.infinity,
+                    child: CustomPaint(
+                      painter: _SectionTrackPainter(
+                        progress: frac,
+                        marks: marks,
+                        spans: spans,
+                        playedColor: played,
+                        restColor: rest,
+                        thumbColor: played,
+                        showThumb: _dragging,
+                      ),
                     ),
                   ),
                 ),

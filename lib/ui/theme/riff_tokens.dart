@@ -114,6 +114,10 @@ class RiffDurations {
 
   /// One loop of the now-playing bars on the playing row.
   static const Duration nowPlayingBars = Duration(milliseconds: 1600);
+
+  /// How far the seek bar moves for TalkBack's swipe up / down, as far as
+  /// the keyboard's Shift + → / ← (Spotify's step).
+  static const Duration seekStep = Duration(seconds: 10);
   static const Curve selectCurve = Curves.easeOutCubic;
 }
 

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/models/durationstate.dart';
@@ -10,9 +11,16 @@ import 'package:harmonymusic/services/seek_time_label.dart';
 import 'package:harmonymusic/ui/player/components/player_control.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:harmonymusic/ui/theme/riff_theme.dart';
+import 'package:harmonymusic/utils/get_localization.dart';
 import 'package:hive/hive.dart';
 
 class _FakePlayer extends GetxController implements PlayerController {
+  /// Each relative seek asked for.
+  final sought = <Duration>[];
+
+  @override
+  void seekBy(Duration offset) => sought.add(offset);
+
   @override
   final progressBarStatus = ProgressBarState(
           buffered: Duration.zero,
@@ -91,6 +99,38 @@ void main() {
             hasTapAction: true,
             onTapHint: 'showTimeLeft',
           ));
+      semantics.dispose();
+    });
+
+    testWidgets(
+        'TalkBack reads it as a slider at the position, and a swipe up or '
+        'down moves it 10 seconds', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(GetMaterialApp(
+        translations: Languages(),
+        locale: const Locale('en'),
+        theme: RiffTheme.dark(const Color(0xFF1DB954)),
+        home: const Scaffold(body: PlayerSeekScrubber()),
+      ));
+      // Only the slider's own steps: no tap or drag (a drag to the middle).
+      expect(
+          tester.getSemantics(find.bySemanticsLabel('Playback position')),
+          matchesSemantics(
+            label: 'Playback position',
+            value: '1:00 of 3:00',
+            increasedValue: '1:10 of 3:00',
+            decreasedValue: '0:50 of 3:00',
+            isSlider: true,
+            hasIncreaseAction: true,
+            hasDecreaseAction: true,
+          ));
+
+      final bar = find.semantics.byLabel('Playback position');
+      tester.semantics.performAction(bar, SemanticsAction.increase);
+      tester.semantics.performAction(bar, SemanticsAction.decrease);
+      final player = Get.find<PlayerController>() as _FakePlayer;
+      expect(
+          player.sought, const [Duration(seconds: 10), Duration(seconds: -10)]);
       semantics.dispose();
     });
   });

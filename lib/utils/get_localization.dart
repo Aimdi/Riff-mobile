@@ -4642,6 +4642,8 @@ Map<String, Map<String, String>> get keys => {
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "seekBar": "Playback position",
+    "positionOfTotal": "@position of @total",
     "offlineSongMsg": "You're offline. Downloaded songs still play",
     "voiceSearch": "Search by voice",
     "voiceSearchPrompt": "Say a song, an artist or an album",

@@ -71,6 +71,10 @@ Screen readers (TalkBack):
   play or pause) reads as "Cover art" with Play / Pause, Next and
   Previous in TalkBack's actions, and double-tap and hold still opens
   the song's options
+* The player's seek bar is a slider for TalkBack, as in Spotify, YouTube
+  Music and Apple Music: it reads where the song or episode is ("Playback
+  position, 1:23 of 3:45"), and swiping up or down moves it 10 seconds.
+  It said nothing before, so it couldn't be used without sight
 
 Remove animations (Android's accessibility setting):
 * Riff now keeps still with it on, as Apple Music does under Reduce
