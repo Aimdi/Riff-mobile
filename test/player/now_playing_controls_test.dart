@@ -8,6 +8,8 @@ void main() {
     bool playing = true,
     bool canLike = true,
     bool liked = false,
+    bool shuffle = false,
+    int repeat = 0,
   }) =>
       nowPlayingControls(
         longForm: longForm,
@@ -16,28 +18,56 @@ void main() {
         liked: liked,
         likeLabel: 'Add to Favorites',
         unlikeLabel: 'Remove from Favorites',
+        shuffle: shuffle,
+        repeat: repeat,
+        shuffleLabel: 'Shuffle label',
+        repeatLabel: 'Repeat label',
       );
 
+  MediaControl named(List<MediaControl> c, String name) =>
+      c.singleWhere((m) => m.customAction?.name == name);
+
   group('nowPlayingControls', () {
-    test('music: previous, pause, next, then the heart', () {
+    test('music: previous, pause, next, then the heart, shuffle and repeat',
+        () {
       final c = controls();
       expect(c.map((m) => m.action), [
         MediaAction.skipToPrevious,
         MediaAction.pause,
         MediaAction.skipToNext,
         MediaAction.custom,
+        MediaAction.custom,
+        MediaAction.custom,
       ]);
-      // The compact notification (indices 0-2) is unchanged.
-      expect(c.last.customAction?.name, likeActionName);
+      // The compact notification (indices 0-2) is unchanged; the heart
+      // comes first of the rest (Android 13's controls show two of them).
+      expect(c.skip(3).map((m) => m.customAction?.name),
+          [likeActionName, shuffleActionName, repeatActionName]);
     });
 
     test('the heart shows the like state and says what a tap does', () {
-      final notLiked = controls(liked: false).last;
+      final notLiked = named(controls(liked: false), likeActionName);
       expect(notLiked.androidIcon, notLikedIcon);
       expect(notLiked.label, 'Add to Favorites');
-      final liked = controls(liked: true).last;
+      final liked = named(controls(liked: true), likeActionName);
       expect(liked.androidIcon, likedIcon);
       expect(liked.label, 'Remove from Favorites');
+    });
+
+    test('shuffle and repeat show their state, and say what a press does', () {
+      expect(named(controls(), shuffleActionName).androidIcon, shuffleOffIcon);
+      expect(named(controls(shuffle: true), shuffleActionName).androidIcon,
+          shuffleOnIcon);
+      expect(named(controls(), shuffleActionName).label, 'Shuffle label');
+      expect([
+        for (final r in [0, 1, 2])
+          named(controls(repeat: r), repeatActionName).androidIcon
+      ], [
+        repeatOffIcon,
+        repeatAllIcon,
+        repeatOneIcon
+      ]);
+      expect(named(controls(), repeatActionName).label, 'Repeat label');
     });
 
     test('paused: play instead of pause', () {

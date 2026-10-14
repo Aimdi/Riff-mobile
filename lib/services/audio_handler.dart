@@ -551,6 +551,14 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   String? _likedReportId;
   bool _likedReport = false;
 
+  /// Repeat as the player's button has it: 0 off, 1 all (the queue loops),
+  /// 2 one (it wins over the queue loop).
+  int get _repeatState => loopModeEnabled
+      ? 2
+      : queueLoopModeEnabled
+          ? 1
+          : 0;
+
   /// Media session state from the player's real state (notification,
   /// Android Auto, lock screen and the app's UI all read it).
   void _publishPlaybackState() {
@@ -574,6 +582,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           ),
           likeLabel: 'addToFavorites'.tr,
           unlikeLabel: 'removeFromFavorites'.tr,
+          shuffle: shuffleModeEnabled,
+          repeat: _repeatState,
+          shuffleLabel:
+              (shuffleModeEnabled ? 'disableShuffle' : 'enableShuffle').tr,
+          repeatLabel:
+              const ['repeatAll', 'repeatOne', 'disableRepeat'][_repeatState]
+                  .tr,
         ),
         systemActions: const {
           MediaAction.seek,
@@ -1470,6 +1485,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     } else {
       loopModeEnabled = true;
     }
+    // The car's and the notification's repeat follow.
+    _publishPlaybackState();
   }
 
   @override
@@ -1481,6 +1498,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       _shuffleCmd(currentIndex);
       shuffleModeEnabled = true;
     }
+    _publishPlaybackState();
   }
 
   @override
@@ -1848,6 +1866,21 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
       case 'toggleQueueLoopMode':
         queueLoopModeEnabled = extras!['enable'];
+        _publishPlaybackState();
+        break;
+
+      // Shuffle and repeat in the car (and the notification): as the
+      // player's buttons, so the app shows the same.
+      case shuffleActionName:
+        if (Get.isRegistered<PlayerController>()) {
+          await Get.find<PlayerController>().toggleShuffleMode();
+        }
+        break;
+
+      case repeatActionName:
+        if (Get.isRegistered<PlayerController>()) {
+          await Get.find<PlayerController>().cycleRepeatMode();
+        }
         break;
 
       case likeActionName:

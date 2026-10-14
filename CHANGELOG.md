@@ -124,6 +124,11 @@ Android Auto:
   closed
 * Your starred podcast episodes are under Podcasts › Starred in the car,
   newest starred first, as Pocket Casts lists them
+* Shuffle and repeat buttons in the car, as YouTube Music's and Spotify's
+  car screens have, next to the heart: shuffle on or off, and repeat off,
+  all or one, as the player's own buttons (and the app follows). They're
+  on the music notification too (Android 13 and later shows the heart and
+  shuffle); podcasts and audiobooks keep their skip buttons
 
 Now playing:
 * Tap the time at the end of the seek bar to see the time left

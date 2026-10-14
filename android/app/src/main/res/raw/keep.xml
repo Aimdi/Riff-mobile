@@ -4,7 +4,8 @@
      small icon (AudioServiceConfig.androidNotificationIcon in Dart): stripped,
      Android rejects the notification with "no valid small icon" and kills
      the app as soon as anything starts playing. The ic_notif_favorite icons
-     are the like heart on the notification / lock screen
+     are the like heart on the notification / lock screen, the shuffle and
+     repeat ones its shuffle and repeat (and Android Auto's)
      (lib/services/now_playing_controls.dart). -->
 <resources xmlns:tools="http://schemas.android.com/tools"
-    tools:keep="@drawable/ic_stat_riff,@drawable/ic_notif_favorite,@drawable/ic_notif_favorite_border" />
+    tools:keep="@drawable/ic_stat_riff,@drawable/ic_notif_favorite,@drawable/ic_notif_favorite_border,@drawable/ic_notif_shuffle,@drawable/ic_notif_shuffle_on,@drawable/ic_notif_repeat,@drawable/ic_notif_repeat_on,@drawable/ic_notif_repeat_one_on" />
