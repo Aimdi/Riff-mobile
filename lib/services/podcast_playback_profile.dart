@@ -173,6 +173,10 @@ String? podcastShowKeyForYoutube(String? playlistId) {
   return id.isEmpty ? null : 'yt:$id';
 }
 
+/// Whether [showKey] is a feed show's ([podcastShowKeyForFeed]), not a
+/// YouTube one's.
+bool podcastShowKeyIsFeed(String showKey) => !showKey.startsWith('yt:');
+
 String? podcastShowKey(MediaItem item) {
   final extras = item.extras ?? const {};
   return podcastShowKeyForFeed(extras['feedUrl'] as String?) ??

@@ -43,18 +43,17 @@ void main() {
     ];
 
     test('first look: dated ones out since, oldest first; undated noted', () {
-      expect(
-          newEpisodesForQueue(eps, seen: null, sinceMs: since).map((e) => e.id),
+      expect(newEpisodesSince(eps, seen: null, sinceMs: since).map((e) => e.id),
           ['new1', 'new2']);
     });
 
     test('later: anything not seen before, still never older ones', () {
       expect(
-          newEpisodesForQueue(eps, seen: {'new1'}, sinceMs: since)
+          newEpisodesSince(eps, seen: {'new1'}, sinceMs: since)
               .map((e) => e.id),
           ['undated', 'new2']);
       expect(
-          newEpisodesForQueue(eps,
+          newEpisodesSince(eps,
               seen: {'new1', 'new2', 'undated'}, sinceMs: since),
           isEmpty);
     });

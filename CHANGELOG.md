@@ -183,6 +183,14 @@ Podcasts:
   oldest first; at the top they go after the episode playing. Episodes
   you've played, ones Keep latest set aside and ones you take out of the
   queue aren't added again
+* Download a show's new episodes, like AntennaPod and Pocket Casts: in
+  the same sheet, Download new episodes (Off, On Wi-Fi, Always). From
+  then on, the show's new episodes download one after another when the
+  Inbox finds them; On Wi-Fi waits while you're on mobile data and gets
+  them on the next refresh on Wi-Fi. Played episodes and ones Keep latest
+  set aside aren't downloaded, and Delete downloads after listening
+  still clears them up. For shows from feeds (YouTube episodes can't be
+  downloaded)
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip

@@ -5,6 +5,7 @@ import 'package:hive/hive.dart';
 import '/utils/helper.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/screens/Podcasts/podcast_queue_controller.dart';
+import 'network_kind.dart';
 import 'podcast_bookmarks.dart';
 import 'podcast_download_service.dart';
 import 'podcast_playback_profile.dart';
@@ -70,11 +71,21 @@ enum NewEpisodesQueue { off, top, end }
 NewEpisodesQueue parseNewEpisodesQueue(dynamic raw) => NewEpisodesQueue.values
     .firstWhere((m) => m.name == raw, orElse: () => NewEpisodesQueue.off);
 
-/// Of a show's [episodes] as the Inbox lists them, the ones new to the
-/// queue, oldest first: not [seen] before, and out after [sinceMs] (when it
-/// was switched on). With [seen] null, the first look since, episodes
-/// without a date are only noted: there's no telling whether they're new.
-List<MediaItem> newEpisodesForQueue(List<MediaItem> episodes,
+/// Whether a show's new episodes download by themselves, like AntennaPod's
+/// and Pocket Casts' auto download: not at all, on Wi-Fi, or on any
+/// connection.
+enum NewEpisodesDownload { off, wifi, always }
+
+NewEpisodesDownload parseNewEpisodesDownload(dynamic raw) => NewEpisodesDownload
+    .values
+    .firstWhere((m) => m.name == raw, orElse: () => NewEpisodesDownload.off);
+
+/// Of a show's [episodes] as the Inbox lists them, the ones new to a job
+/// (the queue, downloads), oldest first: not [seen] before, and out after
+/// [sinceMs] (when it was switched on). With [seen] null, the first look
+/// since, episodes without a date are only noted: there's no telling
+/// whether they're new.
+List<MediaItem> newEpisodesSince(List<MediaItem> episodes,
     {required Set<String>? seen, required int sinceMs}) {
   final out = <MediaItem>[];
   for (final e in PodcastLibrary.sortNewestFirst(episodes).reversed) {
@@ -246,75 +257,110 @@ class PodcastLibrary {
     sweepDownloads();
   }
 
-  // New episodes into the queue (per show only).
-  static const _queueMode = 'queueNew';
-  static const _queueSince = 'queueSince';
-  static const _queueSeen = 'queueSeen';
+  // New episodes into the queue and downloads (per show only). Each job
+  // keeps its choice, when it was switched on, and the episodes it has
+  // looked at.
+  static const _queueJob =
+      (mode: 'queueNew', since: 'queueSince', seen: 'queueSeen');
+  static const _downloadJob = (mode: 'dlNew', since: 'dlSince', seen: 'dlSeen');
 
-  /// Most episode ids a show remembers as looked at (the Inbox keeps a
-  /// show's latest dozen or so).
+  /// Most episode ids a show remembers as looked at, per job (the Inbox
+  /// keeps a show's latest dozen or so).
   static const queueSeenLimit = 100;
 
   static NewEpisodesQueue newEpisodesQueueFor(String? show) =>
-      parseNewEpisodesQueue(_show(show)[_queueMode]);
+      parseNewEpisodesQueue(_show(show)[_queueJob.mode]);
+
+  static NewEpisodesDownload newEpisodesDownloadFor(String? show) =>
+      parseNewEpisodesDownload(_show(show)[_downloadJob.mode]);
 
   /// Switching it on counts episodes from now; switching between top and
   /// end keeps what's been looked at.
   static Future<void> setShowNewEpisodesQueue(
-      String show, NewEpisodesQueue mode,
-      {DateTime? now}) async {
+          String show, NewEpisodesQueue mode, {DateTime? now}) =>
+      _setJob(show, _queueJob, mode == NewEpisodesQueue.off ? null : mode.name,
+          now);
+
+  /// As [setShowNewEpisodesQueue].
+  static Future<void> setShowNewEpisodesDownload(
+          String show, NewEpisodesDownload mode, {DateTime? now}) =>
+      _setJob(show, _downloadJob,
+          mode == NewEpisodesDownload.off ? null : mode.name, now);
+
+  static Future<void> _setJob(
+      String show,
+      ({String mode, String since, String seen}) job,
+      String? mode,
+      DateTime? now) async {
     final b = _box(showBox);
     if (b == null) return;
     final next = Map<String, dynamic>.from(_show(show));
-    if (mode == NewEpisodesQueue.off) {
+    if (mode == null) {
       next
-        ..remove(_queueMode)
-        ..remove(_queueSince)
-        ..remove(_queueSeen);
+        ..remove(job.mode)
+        ..remove(job.since)
+        ..remove(job.seen);
     } else {
-      if (newEpisodesQueueFor(show) == NewEpisodesQueue.off) {
-        next[_queueSince] = (now ?? DateTime.now()).millisecondsSinceEpoch;
-        next.remove(_queueSeen);
+      if (next[job.mode] == null) {
+        next[job.since] = (now ?? DateTime.now()).millisecondsSinceEpoch;
+        next.remove(job.seen);
       }
-      next[_queueMode] = mode.name;
+      next[job.mode] = mode;
     }
     next.isEmpty ? await b.delete(show) : await b.put(show, next);
     rev.value++;
   }
 
+  /// [merged]'s episodes by show, for the shows [wants].
+  static Map<String, List<MediaItem>> _byShow(
+      List<MediaItem> merged, bool Function(String show) wants) {
+    final byShow = <String, List<MediaItem>>{};
+    for (final e in merged) {
+      final key = podcastShowKey(e);
+      if (key != null && wants(key)) (byShow[key] ??= []).add(e);
+    }
+    return byShow;
+  }
+
+  /// [show]'s episodes in [eps] new to [job] ([newEpisodesSince]), still to
+  /// play (not played, not archived). The rest count as looked at from now
+  /// on; with [hold] (waiting for Wi-Fi) the new ones stay new for later.
+  static List<MediaItem> _takeNew(Box b, String show, List<MediaItem> eps,
+      ({String mode, String since, String seen}) job,
+      {bool hold = false}) {
+    final cfg = Map<String, dynamic>.from(_show(show));
+    final seenRaw = cfg[job.seen];
+    final seen = seenRaw is List ? {for (final id in seenRaw) '$id'} : null;
+    final since = cfg[job.since];
+    final fresh = [
+      for (final e in newEpisodesSince(eps,
+          seen: seen, sinceMs: since is int ? since : 0))
+        if (!PodcastProgressService.isPlayed(e.id) && !isArchived(e.id)) e
+    ];
+    final held = hold ? {for (final e in fresh) e.id} : const <String>{};
+    cfg[job.seen] = {
+      for (final e in eps)
+        if (!held.contains(e.id)) e.id,
+      ...?seen,
+    }.take(queueSeenLimit).toList();
+    b.put(show, cfg);
+    return hold ? const [] : fresh;
+  }
+
   /// Puts the new episodes of shows that ask for it in the podcast queue
-  /// ([newEpisodesForQueue]; unplayed, not archived), at the top (after the
+  /// ([newEpisodesSince]; unplayed, not archived), at the top (after the
   /// episode playing, when that's the first) or the end. Run on each Inbox
   /// refresh with every followed show's recent episodes.
   static void queueNewEpisodes(List<MediaItem> merged) {
     final b = _box(showBox);
     if (b == null || !Get.isRegistered<PodcastQueueController>()) return;
-    final byShow = <String, List<MediaItem>>{};
-    for (final e in merged) {
-      final key = podcastShowKey(e);
-      if (key != null && newEpisodesQueueFor(key) != NewEpisodesQueue.off) {
-        (byShow[key] ??= []).add(e);
-      }
-    }
     final top = <MediaItem>[];
     final end = <MediaItem>[];
-    for (final MapEntry(key: show, value: eps) in byShow.entries) {
-      final cfg = Map<String, dynamic>.from(_show(show));
-      final seenRaw = cfg[_queueSeen];
-      final seen = seenRaw is List ? {for (final id in seenRaw) '$id'} : null;
-      final since = cfg[_queueSince];
-      final fresh = [
-        for (final e in newEpisodesForQueue(eps,
-            seen: seen, sinceMs: since is int ? since : 0))
-          if (!PodcastProgressService.isPlayed(e.id) && !isArchived(e.id)) e
-      ];
+    final shows = _byShow(
+        merged, (show) => newEpisodesQueueFor(show) != NewEpisodesQueue.off);
+    for (final MapEntry(key: show, value: eps) in shows.entries) {
       (newEpisodesQueueFor(show) == NewEpisodesQueue.top ? top : end)
-          .addAll(fresh);
-      cfg[_queueSeen] = {
-        for (final e in eps) e.id,
-        ...?seen,
-      }.take(queueSeenLimit).toList();
-      b.put(show, cfg);
+          .addAll(_takeNew(b, show, eps, _queueJob));
     }
     if (top.isEmpty && end.isEmpty) return;
     final queue = Get.find<PodcastQueueController>();
@@ -333,6 +379,42 @@ class PodcastLibrary {
     if (queue.queue.isEmpty || !Get.isRegistered<PlayerController>()) return 0;
     final playing = Get.find<PlayerController>().currentSong.value?.id;
     return queue.queue.first.id == playing ? 1 : 0;
+  }
+
+  /// The new episodes of shows that download them ([newEpisodesSince];
+  /// unplayed, not archived, not downloaded yet, with audio to download).
+  /// On a [metered] connection, "On Wi-Fi" shows' new episodes wait for the
+  /// next refresh on Wi-Fi.
+  static List<MediaItem> takeNewDownloads(List<MediaItem> merged,
+      {required bool metered}) {
+    final b = _box(showBox);
+    if (b == null) return const [];
+    final out = <MediaItem>[];
+    final shows = _byShow(merged,
+        (show) => newEpisodesDownloadFor(show) != NewEpisodesDownload.off);
+    for (final MapEntry(key: show, value: eps) in shows.entries) {
+      final wait =
+          metered && newEpisodesDownloadFor(show) == NewEpisodesDownload.wifi;
+      out.addAll([
+        for (final e in _takeNew(b, show, eps, _downloadJob, hold: wait))
+          if (!PodcastDownloadService.isDownloaded(e.id) &&
+              ((e.extras?['url'] as String?)?.isNotEmpty ?? false))
+            e
+      ]);
+    }
+    return out;
+  }
+
+  /// Downloads [takeNewDownloads]' episodes one after another. Run on each
+  /// Inbox refresh.
+  static Future<void> downloadNewEpisodes(List<MediaItem> merged) async {
+    final shows = _byShow(merged,
+        (show) => newEpisodesDownloadFor(show) != NewEpisodesDownload.off);
+    if (shows.isEmpty) return;
+    final metered = await NetworkKind.isMetered();
+    for (final e in takeNewDownloads(merged, metered: metered)) {
+      await PodcastDownloadService.download(e);
+    }
   }
 
   // Archive.

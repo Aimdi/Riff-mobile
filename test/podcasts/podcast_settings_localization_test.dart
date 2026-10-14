@@ -74,6 +74,7 @@ void main() {
     for (final f in EpisodeFilter.values) 'episodeFilter_${f.name}',
     for (final p in AutoDeletePolicy.values) 'autoDelete_${p.name}',
     for (final m in NewEpisodesQueue.values) 'newEpisodesQueue_${m.name}',
+    for (final m in NewEpisodesDownload.values) 'newEpisodesDownload_${m.name}',
     // Home: station chips and section names come from data.
     for (final s in homeStations) s.key,
     for (final s in HomeSection.values) s.labelKey,

@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import '/services/opml.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/services/podcast_library.dart';
+import '/services/podcast_playback_profile.dart';
 import '/services/podcast_service.dart';
 import '../../widgets/riff_sheet.dart';
 import '../../widgets/snackbar.dart';
@@ -113,6 +114,28 @@ class PodcastLibraryEditor extends StatelessWidget {
                     label: 'newEpisodesQueue_${m.name}'.tr,
                     selected: PodcastLibrary.newEpisodesQueueFor(key) == m,
                     onTap: () => PodcastLibrary.setShowNewEpisodesQueue(key, m),
+                  ),
+              ],
+            ),
+          ],
+          // Feed shows only: YouTube episodes have no file to download.
+          if (key != null && podcastShowKeyIsFeed(key)) ...[
+            const SizedBox(height: RiffSpacing.xxl),
+            Text('newEpisodesDownload'.tr, style: titleStyle),
+            const SizedBox(height: RiffSpacing.xxs),
+            Text('newEpisodesDownloadDes'.tr,
+                style: homeCardSubtitleStyle(context)),
+            const SizedBox(height: RiffSpacing.md),
+            Wrap(
+              spacing: RiffSpacing.sm,
+              runSpacing: RiffSpacing.sm,
+              children: [
+                for (final m in NewEpisodesDownload.values)
+                  RiffChoiceChip(
+                    label: 'newEpisodesDownload_${m.name}'.tr,
+                    selected: PodcastLibrary.newEpisodesDownloadFor(key) == m,
+                    onTap: () =>
+                        PodcastLibrary.setShowNewEpisodesDownload(key, m),
                   ),
               ],
             ),

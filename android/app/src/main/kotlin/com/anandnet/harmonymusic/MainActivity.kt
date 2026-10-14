@@ -120,6 +120,13 @@ class MainActivity : AudioServiceActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             "riff/shake"
         ).setStreamHandler(ShakeChannel)
+        // Metered or not, for downloads that wait for Wi-Fi: also stays, as
+        // the Inbox can refresh in the background.
+        NetworkChannel.appContext = applicationContext
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "riff/network"
+        ).setMethodCallHandler(NetworkChannel)
     }
 
     /**
