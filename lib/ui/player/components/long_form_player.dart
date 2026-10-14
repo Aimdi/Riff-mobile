@@ -23,6 +23,7 @@ import '/services/audiobook_playback.dart';
 import '/services/podcast_playback_profile.dart';
 import '/services/podcast_service.dart' show chapterArtAt, chapterSkipTarget;
 import '/services/podcast_transcripts.dart';
+import '/ui/widgets/collection_header.dart' show collectionLength;
 import '/ui/widgets/riff_sheet.dart';
 import 'podcast_player_tint.dart';
 import 'podcast_transcript_sheet.dart';
@@ -414,6 +415,16 @@ class LongFormChapterLine extends StatelessWidget {
         if (queue.length > 1 && i >= 0) {
           label = 'chapterOf'
               .trParams({'n': '${i + 1}', 'total': '${queue.length}'});
+          // And the time left in the book at its speed, as Audible shows.
+          AudiobookPlayback.rev.value;
+          final status = pc.progressBarStatus.value;
+          final left = bookTimeLeft(queue, i, status.current,
+              trackLength: status.total, speed: AudiobookPlayback.speed);
+          if (left != null && left >= const Duration(minutes: 1)) {
+            label = '$label · ${'bookTimeLeft'.trParams({
+                  'time': collectionLength(left.inSeconds)
+                })}';
+          }
           onTap = () => openQueueChaptersSheet(context);
         }
       }
@@ -440,8 +451,11 @@ class LongFormChapterLine extends StatelessWidget {
                     color: scheme.onSurfaceVariant),
                 const SizedBox(width: RiffSpacing.sm),
                 ConstrainedBox(
+                  // Wider when no chapter buttons sit beside it (a book's
+                  // chapter and time left).
                   constraints: BoxConstraints(
-                      maxWidth: MediaQuery.sizeOf(context).width * 0.6),
+                      maxWidth: MediaQuery.sizeOf(context).width *
+                          (pc.chapters.length < 2 ? 0.8 : 0.6)),
                   child: Text(
                     label,
                     maxLines: 1,

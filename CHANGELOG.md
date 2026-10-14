@@ -214,6 +214,10 @@ Audiobooks:
   Bookmarks in this book lists them in reading order, each with its time
   and chapter. Tap one to play from there, even in another chapter;
   remove one with Undo
+* The book player says how long is left in the book, like Audible and
+  Apple Books: "Chapter 4 of 12 · 5 hr 12 min left", counted at the
+  book's speed and kept up as it plays. For books in several chapters
+  (a book in one file has its time left at the end of the seek bar)
 
 Library:
 * Removing a song (swipe it, or "Remove" in its menu) now says "Removed

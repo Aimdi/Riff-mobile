@@ -1,3 +1,4 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
@@ -37,6 +38,28 @@ double audiobookSpeedFrom({Object? stored, Object? appSpeed}) {
 
 /// What the speed pill steps through.
 const audiobookSpeedSteps = [0.8, 1.0, 1.2, 1.5, 1.75, 2.0];
+
+/// What's left of a book playing track [index] of [tracks] at [position]:
+/// the rest of that track ([trackLength] when the player knows it, else
+/// its own length) and every track after it, in the time it takes at
+/// [speed], as Audible shows it. Null when a length isn't known.
+Duration? bookTimeLeft(List<MediaItem> tracks, int index, Duration position,
+    {Duration? trackLength, double speed = 1}) {
+  if (index < 0 || index >= tracks.length) return null;
+  final current = trackLength != null && trackLength > Duration.zero
+      ? trackLength
+      : tracks[index].duration;
+  if (current == null || current <= Duration.zero) return null;
+  var left = current - position;
+  if (left.isNegative) left = Duration.zero;
+  for (final track in tracks.skip(index + 1)) {
+    final d = track.duration;
+    if (d == null || d <= Duration.zero) return null;
+    left += d;
+  }
+  final s = speed > 0 ? speed : 1.0;
+  return Duration(milliseconds: (left.inMilliseconds / s).round());
+}
 
 /// The next step up from [current], back to the slowest after the fastest.
 double nextAudiobookSpeed(double current) {

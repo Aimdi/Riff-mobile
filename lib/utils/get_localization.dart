@@ -4642,6 +4642,7 @@ Map<String, Map<String, String>> get keys => {
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "bookTimeLeft": "@time left",
     "alreadyInPlaylist": "Already in this playlist",
     "newEpisodesDownload": "Download new episodes",
     "newEpisodesDownloadDes": "Episodes this show puts out from now on download when the Inbox finds them. On Wi-Fi waits for a connection that isn't mobile data.",
