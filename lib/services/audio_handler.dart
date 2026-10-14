@@ -21,6 +21,7 @@ import '/services/equalizer.dart';
 import '/services/riff_equalizer.dart';
 import '/services/explicit_content.dart';
 import '/services/offline_playback.dart';
+import '/services/resume_when_online.dart';
 import '/services/podcast_starred.dart';
 import '/services/youtube_stream_headers.dart';
 import '/services/playlist_mix_service.dart';
@@ -171,6 +172,10 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   static const int _maxStreamUrlRetries = 2;
   bool _runtimeErrorInFlight = false;
 
+  /// Where playback stopped for want of a connection, to go on from there
+  /// once it's back.
+  final _resumeOnline = ResumeWhenOnline();
+
   /// Consecutive playByIndex resolve failures. Reset when playback is ready
   /// so a later dead track can still skip once without looping the queue.
   int _consecutiveResolveFails = 0;
@@ -203,6 +208,10 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     // The playing episode starred or unstarred anywhere: its star follows.
     ever(StarredEpisodes.rev, (_) {
       if (mediaItem.value?.isPodcastEpisode ?? false) _publishPlaybackState();
+    });
+    // The connection back: what stopped for want of it goes on.
+    ever(OfflinePlayback.offline, (bool offline) {
+      if (!offline) unawaited(_resumeWhenBackOnline());
     });
     final appPrefsBox = Hive.box("AppPrefs");
     _player
@@ -710,6 +719,21 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     _runtimeErrorInFlight = true;
     final songId = _currentQueueSongId();
     try {
+      // No connection at all: wait for it, rather than spend the retries
+      // and pass the songs after over; it goes on from here once it's
+      // back.
+      if (songId != null &&
+          OfflinePlayback.offline.value &&
+          !OfflinePlayback.byChoice) {
+        try {
+          await _player.pause();
+        } catch (_) {}
+        _resumeOnline.stopped(songId, position, DateTime.now());
+        if (Get.isRegistered<PlayerController>()) {
+          Get.find<PlayerController>().notifyOffline();
+        }
+        return true;
+      }
       if (isPlayingUsingLockCachingSource &&
           isCacheConnectionClosedError(e)) {
         await _player.stop();
@@ -765,6 +789,19 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     } finally {
       _runtimeErrorInFlight = false;
     }
+  }
+
+  /// The connection is back: playback that stopped for want of it goes on
+  /// from where it stopped ([ResumeWhenOnline]).
+  Future<void> _resumeWhenBackOnline() async {
+    final at = _resumeOnline.take(DateTime.now(), playing: _player.playing);
+    if (at == null) return;
+    final index = queue.value.indexWhere((song) => song.id == at.id);
+    if (index < 0) return;
+    await customAction('playByIndex', {
+      'index': index,
+      if (at.position > Duration.zero) 'position': at.position.inMilliseconds,
+    });
   }
 
   bool _canAutoRetryUrlRefresh(String? songId) {
@@ -1275,6 +1312,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   Future<void> playFrom(PlaybackCommandSource source) async {
     _logCommand('play', source);
+    _resumeOnline.cancel();
     // Video mode's engine owns playback (and plays the audio itself):
     // ignore stray transport (e.g. media notification) so the paused
     // audio pipeline can't start underneath the video.
@@ -1320,6 +1358,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   Future<void> pauseFrom(PlaybackCommandSource source) {
     _logCommand('pause', source);
+    _resumeOnline.cancel();
     return _player.pause();
   }
 
@@ -1538,6 +1577,11 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     if (!backward) {
       _player.seek(Duration.zero);
       _player.pause();
+      // For want of a connection: it goes on with this song once it's
+      // back.
+      if (OfflinePlayback.blocks(passed) && !OfflinePlayback.byChoice) {
+        _resumeOnline.stopped(passed.id, Duration.zero, DateTime.now());
+      }
     }
     _notifyPassedOver(passed);
     return null;
@@ -1620,6 +1664,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         break;
 
       case 'playByIndex':
+        // Something else starts: nothing waits for the connection.
+        _resumeOnline.cancel();
         final songIndex = coercePlayByIndex(extras!['index']);
         if (!isValidQueueIndex(songIndex, queue.value.length)) {
           isSongLoading = false;
@@ -2201,6 +2247,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   Future<void> stop() async {
     _logCommand('stop', _externalSource());
     _buttonPresses.cancel();
+    _resumeOnline.cancel();
     await _player.stop();
     return super.stop();
   }

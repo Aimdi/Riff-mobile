@@ -859,6 +859,15 @@ Downloads:
   everything plays again as soon as you're on Wi-Fi. Tapping one it
   passes over says streaming is on Wi-Fi only. Off by default; podcasts,
   books and your own server's songs stream as before (phones)
+* Back online, it plays on, as Spotify and YouTube Music do: when the
+  connection goes (a tunnel, a lift) and a song stops for want of it,
+  or the next one can't start, Riff now waits, says you're offline, and
+  goes on from where it stopped once the connection is back, within ten
+  minutes. It used to try again, pass the songs after over and stop
+  there for you to press Play. Pressing play, pause or anything else
+  meanwhile, Offline mode and Stream on Wi-Fi only leave it be; podcasts
+  that lose the connection wait too, rather than skipping to the next
+  episode (phones)
 * Downloads keep going after you leave Riff, as with YouTube Music,
   Spotify and AntennaPod: while songs or episodes download, a
   notification shows how far they've got ("Downloading 3 of 25" and the
