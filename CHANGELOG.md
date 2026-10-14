@@ -385,6 +385,13 @@ Private session:
   order or ListenBrainz. The setting shows when it ends; it also ends
   on time if the app was closed
 
+ListenBrainz:
+* Listens made offline aren't lost any more, as with Spotify's Last.fm
+  scrobbling and Pano Scrobbler: when one can't be sent (no connection,
+  or ListenBrainz down), Riff keeps it and sends it with the next one
+  that goes. And your ListenBrainz profile shows the song playing now
+  (songs only, and not in a private session)
+
 Fade between songs:
 * Like Spotify's and Apple Music's Crossfade: Settings › Fade between
   songs (off, 3, 5, 8 or 12 seconds) fades the end of a song out and the

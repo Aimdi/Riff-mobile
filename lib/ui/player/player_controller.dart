@@ -1271,6 +1271,10 @@ class PlayerController extends GetxController
             await _addToRP(mediaItem);
             StatsService.recordPlay(mediaItem);
             unawaited(PodcastHistory.add(mediaItem));
+            // Songs only, as they're scrobbled.
+            if (!mediaItem.isPodcastEpisode && !mediaItem.isAudiobook) {
+              unawaited(ListenBrainzService.playingNow(mediaItem));
+            }
           }
           if (Get.isRegistered<SettingsScreenController>()) {
             unawaited(Get.find<SettingsScreenController>()
