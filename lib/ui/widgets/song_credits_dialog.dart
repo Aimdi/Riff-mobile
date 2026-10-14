@@ -49,8 +49,9 @@ class _SongCreditsDialogState extends State<SongCreditsDialog> {
                 }
                 if (snap.hasError) {
                   return _message(context, 'creditsLoadFailed'.tr,
-                      retry: () => setState(() =>
-                          _credits = SongCreditsService.load(widget.song.id)));
+                      retry: () => setState(() {
+                            _credits = SongCreditsService.load(widget.song.id);
+                          }));
                 }
                 final credits = snap.data;
                 if (credits == null || credits.isEmpty) {

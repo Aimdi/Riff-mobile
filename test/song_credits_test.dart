@@ -32,11 +32,13 @@ void main() {
     expect(c.released, '2011-10-18');
     // In the order listed, one row per role; "Composer, Lyricist" credits
     // both, and the album's "Star Wars: …" isn't a role.
-    expect(c.roles, [
-      ('Producer', ['Justin Meldal-Johnsen', 'Anthony Gonzalez']),
-      ('Composer', ['Anthony Gonzalez']),
-      ('Lyricist', ['Anthony Gonzalez']),
-      ('Mixing Engineer', ['Tony Hoffer']),
+    expect([
+      for (final (role, names) in c.roles) '$role: ${names.join(', ')}'
+    ], [
+      'Producer: Justin Meldal-Johnsen, Anthony Gonzalez',
+      'Composer: Anthony Gonzalez',
+      'Lyricist: Anthony Gonzalez',
+      'Mixing Engineer: Tony Hoffer',
     ]);
   });
 
