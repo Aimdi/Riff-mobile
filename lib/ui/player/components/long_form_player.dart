@@ -25,6 +25,7 @@ import '/services/podcast_service.dart' show chapterArtAt, chapterSkipTarget;
 import '/services/podcast_transcripts.dart';
 import '/ui/widgets/collection_header.dart' show collectionLength;
 import '/ui/widgets/riff_sheet.dart';
+import '/ui/widgets/snackbar.dart';
 import 'podcast_player_tint.dart';
 import 'podcast_transcript_sheet.dart';
 import 'standard_player.dart';
@@ -502,8 +503,8 @@ class LongFormChapterLine extends StatelessWidget {
 }
 
 /// The long-form player's ⋮ (top right): speed, sleep timer, shownotes or
-/// chapters, transcript, video and autoplay; podcasts add bookmarks and
-/// segments below.
+/// chapters, transcript, video and autoplay; podcasts add Mark as played,
+/// then bookmarks and segments below.
 void openLongFormMenu(BuildContext context) {
   final pc = Get.find<PlayerController>();
   if (pc.isCurrentSongPodcast) {
@@ -533,8 +534,8 @@ void openLongFormMenu(BuildContext context) {
 }
 
 /// Speed · sleep timer · shownotes / chapters · transcript · video ·
-/// autoplay, as rows of the ⋮ sheet. Toggles and the audiobook speed stay
-/// in the sheet; the rest close it and open their own.
+/// autoplay · mark as played (podcasts), as rows of the ⋮ sheet. Toggles
+/// and the audiobook speed stay in the sheet; the rest close it.
 class LongFormToolTiles extends StatelessWidget {
   const LongFormToolTiles({super.key});
 
@@ -624,10 +625,25 @@ class LongFormToolTiles extends StatelessWidget {
                   onChanged: settings.togglePodcastContinuousPlayback),
               onTap: () => settings.togglePodcastContinuousPlayback(!autoOn),
             ),
+          if (isPodcast)
+            RiffSheetTile(
+              icon: Icons.done_all_rounded,
+              title: 'markAsPlayed'.tr,
+              onTap: () => markPlayingEpisodePlayed(closeSheet()),
+            ),
         ],
       );
     });
   }
+}
+
+/// The player's Mark as played (Pocket Casts): the episode ends now as if
+/// it had played out, with Undo shown from [context].
+void markPlayingEpisodePlayed(BuildContext context) {
+  final target = undoSnackbarTarget(context);
+  final undo = Get.find<PlayerController>().markCurrentEpisodePlayed();
+  if (undo == null) return;
+  showUndoSnackbar(target, 'markedAsPlayed'.tr, onUndo: undo);
 }
 
 /// Audiobook chapters are the tracks in the queue: list them, mark the

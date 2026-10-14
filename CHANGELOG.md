@@ -211,6 +211,11 @@ Podcasts:
   Inbox: the queue in its order, and the Inbox's new episodes as of its
   last refresh, newest first (played and set-aside ones left out), each
   playable on from there; Continue listening and your shows follow
+* Mark as played from the podcast player, like Pocket Casts: ⋮ › Mark
+  as played ends the episode as if it had played out (the next one
+  plays, or with Autoplay episodes off it stops, back at its start) and
+  marks it played. Undo brings it back unplayed, in its place in the
+  queue, playing from where you were
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip

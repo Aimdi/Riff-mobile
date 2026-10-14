@@ -838,6 +838,26 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     return true;
   }
 
+  /// Ends the playing episode now as if it had played out (the player's
+  /// Mark as played): the usual end of an episode, the next one or a pause
+  /// when continuous playback is off, even with repeat one on; then marked
+  /// played, as at its outro. Still on it, it waits from the start: saving
+  /// where it was, when another plays, would take the mark back.
+  Future<void> _finishEpisode() async {
+    final item = mediaItem.value;
+    if (item == null || !item.isPodcastEpisode) return;
+    // Already ending (it played out meanwhile): only the mark is left.
+    if (!_eofAdvanceInProgress) {
+      await _triggerNext(repeatOne: false);
+      if (mediaItem.value?.id == item.id) {
+        await _player.seek(Duration.zero);
+        // Played again from the start, its end ends it again.
+        _eofArmedForId = null;
+      }
+    }
+    PodcastProgressService.markPlayed(item.id);
+  }
+
   bool _isMixPlaybackActive() {
     try {
       if (!Get.isRegistered<PlaylistMixService>()) return false;
@@ -956,11 +976,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     await _player.setVolume(0);
   }
 
-  Future<void> _triggerNext() async {
+  /// The end of the playing item. [repeatOne] false moves on even with
+  /// repeat one on (an episode marked played).
+  Future<void> _triggerNext({bool repeatOne = true}) async {
     if (_eofAdvanceInProgress) return;
     _eofAdvanceInProgress = true;
     try {
-      if (loopModeEnabled) {
+      if (repeatOne && loopModeEnabled) {
         // Block a second EOF tick while we seek, then clear so loop-one
         // can arm again on the next pass of the same track.
         _eofArmedForId = mediaItem.value?.id;
@@ -1391,6 +1413,10 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         return skipToPreviousResult(
             source: PlaybackCommandSource.parse(extras?['source']),
             restart: extras?['restart'] != false);
+
+      case 'finishEpisode':
+        await _finishEpisode();
+        break;
 
       case 'playByIndex':
         final songIndex = coercePlayByIndex(extras!['index']);

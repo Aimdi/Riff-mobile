@@ -4,6 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/services/opml.dart';
 import 'package:harmonymusic/services/podcast_library.dart';
+import 'package:harmonymusic/services/podcast_progress_service.dart';
 import 'package:harmonymusic/ui/screens/Podcasts/podcast_folder_controller.dart';
 import 'package:hive/hive.dart';
 
@@ -229,6 +230,21 @@ void main() {
       await PodcastLibrary.undoMarkAll(snap);
       expect(Hive.box('PodcastPlayed').keys.toSet(), {'e3'});
       expect((Hive.box('PodcastProgress').get('e1') as Map)['positionMs'], 60000);
+    });
+
+    test('a snapshot alone marks nothing; Undo puts back what it saw',
+        () async {
+      await Hive.box('PodcastProgress')
+          .put('e1', {'id': 'e1', 'positionMs': 60000, 'durationMs': 600000});
+      final snap = PodcastLibrary.listenedSnapshot([ep('e1')]);
+      expect(snap.ids, ['e1']);
+      expect(PodcastProgressService.isPlayed('e1'), isFalse);
+      expect(PodcastProgressService.positionMs('e1'), 60000);
+      // Marked once the episode has ended, as the player does.
+      PodcastProgressService.markPlayed('e1');
+      await PodcastLibrary.undoMarkAll(snap);
+      expect(PodcastProgressService.isPlayed('e1'), isFalse);
+      expect(PodcastProgressService.positionMs('e1'), 60000);
     });
   });
 }

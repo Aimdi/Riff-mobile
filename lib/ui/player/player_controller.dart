@@ -604,6 +604,44 @@ class PlayerController extends GetxController
     seekByIndex(index);
   }
 
+  /// The player's Mark as played: the playing podcast episode ends now, as
+  /// if it had played out (the next episode, or a pause when continuous
+  /// playback is off), and is marked played. Returns its Undo: unplayed
+  /// again, back in its place in the queue and playing from where it was.
+  /// Null when no episode is playing.
+  VoidCallback? markCurrentEpisodePlayed() {
+    final song = currentSong.value;
+    if (song == null || !song.isPodcastEpisode || !_audioReady) return null;
+    final at = progressBarStatus.value.current;
+    final snapshot = PodcastLibrary.listenedSnapshot([song]);
+    // A position save meanwhile would read as listening on and unmark it.
+    _lastProgressSaveMs = DateTime.now().millisecondsSinceEpoch;
+    final finished = _finishEpisode();
+    return () async {
+      await finished;
+      await PodcastLibrary.undoMarkAll(snapshot);
+      final index = currentQueue.indexWhere((m) => m.id == song.id);
+      if (index >= 0) {
+        playQueueItemAt(index, at);
+      } else {
+        await playPodcastAt(song, at);
+      }
+    };
+  }
+
+  Future<void> _finishEpisode() async {
+    try {
+      // Video mode owns a paused audio pipeline: hand off first, as ⏭ does.
+      await _handoffVideoThen(() async {
+        await _audioHandler.customAction('finishEpisode');
+        return true;
+      });
+    } catch (e) {
+      printERROR('finishEpisode failed: $e');
+    }
+    PodcastLibrary.rev.value++;
+  }
+
   /// Arm a one-shot seek after playback starts (ABS resume / explicit offset).
   void armResume(String id, int offsetMs) {
     _pendingResumeId = id;

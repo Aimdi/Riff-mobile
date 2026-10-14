@@ -521,6 +521,18 @@ class PodcastLibrary {
   /// until the next sweep, so Undo finds them (a swipe can be a slip).
   static ListenedSnapshot markAllListened(List<MediaItem> episodes,
       {bool sweep = true}) {
+    final snapshot = listenedSnapshot(episodes);
+    for (final id in snapshot.ids) {
+      PodcastProgressService.markPlayed(id);
+    }
+    rev.value++;
+    if (sweep) sweepDownloads();
+    return snapshot;
+  }
+
+  /// What marking [episodes] played changes, for [undoMarkAll]: those not
+  /// played yet, where you were in them and their places in the queue.
+  static ListenedSnapshot listenedSnapshot(List<MediaItem> episodes) {
     final ids = planMarkAllListened(
         episodes.map((e) => e.id), PodcastProgressService.isPlayed);
     final progressBox = _box('PodcastProgress');
@@ -535,11 +547,6 @@ class PodcastLibrary {
         if (ids.contains(q[i].id)) queued.add((i, q[i]));
       }
     }
-    for (final id in ids) {
-      PodcastProgressService.markPlayed(id);
-    }
-    rev.value++;
-    if (sweep) sweepDownloads();
     return ListenedSnapshot(ids, progress, queued);
   }
 
