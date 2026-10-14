@@ -67,4 +67,23 @@ void main() {
       opens(link, YoutubeLinkKind.invalid);
     }
   });
+
+  test("a link's moment, as YouTube's Share at 1:23 writes it", () {
+    Duration at(String link) => youtubeLinkStart(Uri.parse(link));
+    expect(
+        at('https://youtu.be/dQw4w9WgXcQ?t=83'), const Duration(seconds: 83));
+    expect(at('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=83s'),
+        const Duration(seconds: 83));
+    expect(at('https://youtu.be/dQw4w9WgXcQ?t=1m23s'),
+        const Duration(minutes: 1, seconds: 23));
+    expect(at('https://youtu.be/dQw4w9WgXcQ?t=1h2m3s'),
+        const Duration(hours: 1, minutes: 2, seconds: 3));
+    expect(at('https://www.youtube.com/embed/dQw4w9WgXcQ?start=90'),
+        const Duration(seconds: 90));
+    expect(at('https://www.youtube.com/watch?v=dQw4w9WgXcQ#t=45'),
+        const Duration(seconds: 45));
+    // None, or none that reads as a time.
+    expect(at('https://youtu.be/dQw4w9WgXcQ'), Duration.zero);
+    expect(at('https://youtu.be/dQw4w9WgXcQ?t=soon'), Duration.zero);
+  });
 }

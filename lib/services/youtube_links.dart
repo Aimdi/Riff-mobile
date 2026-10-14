@@ -102,3 +102,23 @@ YoutubeLink youtubeLinkFrom(Uri uri) {
   }
   return YoutubeLink.invalid;
 }
+
+final _clock = RegExp(r'^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$');
+
+/// Where [uri] starts its video, as YouTube's "Share at 1:23" links say
+/// (?t=83, ?t=83s, ?t=1m23s, ?t=1h2m3s, ?start=83 or #t=83); zero when it
+/// doesn't.
+Duration youtubeLinkStart(Uri uri) {
+  final fragment = Uri.splitQueryString(uri.fragment);
+  final raw = (uri.queryParameters['t'] ??
+          uri.queryParameters['start'] ??
+          fragment['t'] ??
+          '')
+      .trim()
+      .toLowerCase();
+  if (raw.isEmpty) return Duration.zero;
+  final m = _clock.firstMatch(raw);
+  if (m == null) return Duration.zero;
+  int part(int i) => int.tryParse(m.group(i) ?? '') ?? 0;
+  return Duration(hours: part(1), minutes: part(2), seconds: part(3));
+}

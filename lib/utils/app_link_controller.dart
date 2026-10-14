@@ -110,7 +110,7 @@ mixin ProcessLink {
       final yt = youtubeLinkFrom(uri);
       switch (yt.kind) {
         case YoutubeLinkKind.song:
-          await playSong(yt.id);
+          await playSong(yt.id, start: youtubeLinkStart(uri));
         case YoutubeLinkKind.playlist:
           await openPlaylistOrAlbum(yt.id);
         case YoutubeLinkKind.album:
@@ -329,7 +329,9 @@ mixin ProcessLink {
         id: ScreenNavigationSetup.id, arguments: [true, channelId]);
   }
 
-  Future<void> playSong(String songId) async {
+  /// The video [songId] played as a song, from [start] into it (a shared
+  /// link's moment).
+  Future<void> playSong(String songId, {Duration start = Duration.zero}) async {
     final result = await _whileSpinning(() async {
       try {
         return await Get.find<MusicServices>().getSongWithId(songId);
@@ -340,9 +342,8 @@ mixin ProcessLink {
       }
     }());
     if (result[0] == true) {
-      final ok = await Get.find<PlayerController>().playPlayListSong(
-          List.from(result[1]), 0,
-          playfrom: PlaylingFrom(type: PlaylingFromType.SELECTION));
+      final ok = await Get.find<PlayerController>()
+          .playFromLink(List.from(result[1]), start: start);
       if (!ok) snackOperationFailed();
     } else {
       ScaffoldMessenger.of(Get.context!).showSnackBar(snackbar(

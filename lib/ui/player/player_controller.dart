@@ -525,6 +525,7 @@ class PlayerController extends GetxController
     _handlePodcastSegments(position);
     _handlePodcastProgress(position);
     _handleAbsProgress(position);
+    _handleSongStart(position);
 
     // Progress widgets (mini player, lyrics, seek bar) only need ~10 Hz.
     if (!_progressUiThrottle.shouldUpdate(
@@ -585,6 +586,40 @@ class PlayerController extends GetxController
   }
 
   bool _isAbsItem(MediaItem? s) => s != null && s.isAudiobookshelf;
+
+  /// A song started at a moment ([playFromLink]): there once it plays
+  /// (podcasts and audiobooks resume through their own progress).
+  void _handleSongStart(Duration position) {
+    final song = currentSong.value;
+    if (song == null ||
+        _pendingResumeId != song.id ||
+        PodcastProgressService.isPodcastItem(song) ||
+        _isAbsItem(song) ||
+        song.isFreeAudiobook) {
+      return;
+    }
+    _maybeApplyPendingResume(song, position, progressBarStatus.value.total);
+  }
+
+  /// Plays [songs] from the first, from [start] into it (a shared link's
+  /// moment, YouTube's ?t=).
+  Future<bool> playFromLink(List<MediaItem> songs,
+      {Duration start = Duration.zero}) async {
+    // The song playing now: there.
+    if (songs.isNotEmpty &&
+        start > Duration.zero &&
+        currentSong.value?.id == songs.first.id) {
+      seek(start);
+      if (buttonState.value == PlayButtonState.paused) play();
+      return true;
+    }
+    if (songs.isNotEmpty && start > Duration.zero) {
+      _explicitStartId = songs.first.id;
+      _explicitStartMs = start.inMilliseconds;
+    }
+    return playPlayListSong(songs, 0,
+        playfrom: PlaylingFrom(type: PlaylingFromType.SELECTION));
+  }
 
   String? _explicitStartId;
   int _explicitStartMs = 0;

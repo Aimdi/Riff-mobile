@@ -692,7 +692,9 @@ Search:
   with a moment in them (?t=42), /live/ and /embed/ ones, YouTube
   Music's album, artist and podcast pages (/browse/…), and a channel's
   @handle (or /c/, /user/ name), whose artist page opens, else a search
-  for it. Links Riff can't open now say so instead of doing nothing
+  for it. Links Riff can't open now say so instead of doing nothing.
+  A link shared from a moment (YouTube's Share at 1:23: ?t=83,
+  ?t=1m23s, ?start=83) plays from that moment, as on YouTube
 
 Language:
 * System default, as in Spotify, YouTube Music and AntennaPod: Settings ›
