@@ -110,6 +110,14 @@ class PodcastService {
     if (url.isEmpty) return [];
     final cached = _chaptersCache[url];
     if (cached != null) return cached;
+    // Chapters the feed itself gave (Podlove Simple Chapters), carried as
+    // a data: URL: nothing to fetch.
+    if (url.startsWith('data:')) {
+      final data = Uri.tryParse(url)?.data;
+      return _chaptersCache[url] = data == null
+          ? const []
+          : parsePodcastChapters(_asMap(data.contentAsString()));
+    }
     try {
       final res = await _dio.get(url);
       final out = parsePodcastChapters(_asMap(res.data));
@@ -704,11 +712,13 @@ class PodcastService {
                               u.contains('image')),
                       orElse: () => null) ??
               channelFallback;
-      // Podcasting 2.0 chapters (used for ad auto-skip when present).
+      // Podcasting 2.0 chapters (used for ad auto-skip when present), else
+      // Podlove Simple Chapters in the feed itself.
       final chaptersUrl = item
-          .findElements('podcast:chapters')
-          .firstOrNull
-          ?.getAttribute('url');
+              .findElements('podcast:chapters')
+              .firstOrNull
+              ?.getAttribute('url') ??
+          _podloveChaptersUrl(item);
       // Podcasting 2.0 transcript (Spotify-style transcript view). A feed
       // can list several formats; keep the one we parse best.
       String? transcriptUrl;
@@ -750,14 +760,43 @@ class PodcastService {
     return episodes;
   }
 
-  static int _parseDuration(String? raw) {
-    if (raw == null || raw.isEmpty) return 0;
-    final t = raw.trim();
-    if (!t.contains(':')) return int.tryParse(t) ?? 0;
-    final parts = t.split(':').map((p) => int.tryParse(p) ?? 0).toList();
-    if (parts.length == 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-    if (parts.length == 2) return parts[0] * 60 + parts[1];
-    return 0;
+  /// itunes:duration in whole seconds ("1:02:03", "3045", "3045.04"); 0
+  /// when there's none or it isn't a time.
+  static int _parseDuration(String? raw) => (parseFeedTime(raw) ?? 0).round();
+
+  /// Podlove Simple Chapters in [item] (<psc:chapters>, as Podlove Publisher
+  /// and Auphonic write them; AntennaPod reads them), as a data: URL of the
+  /// Podcasting 2.0 JSON [chapters] reads: it rides in chaptersUrl, which
+  /// every copy of an episode already carries. Null when there are none.
+  static String? _podloveChaptersUrl(XmlElement item) {
+    bool podlove(XmlElement e) =>
+        e.name.prefix == 'psc' ||
+        (e.name.namespaceUri ?? '').contains('podlove.org/simple-chapters');
+    final list = item.childElements
+        .where((e) => e.name.local == 'chapters' && podlove(e))
+        .firstOrNull;
+    if (list == null) return null;
+    final chapters = <Map<String, dynamic>>[];
+    for (final c in list.childElements) {
+      if (c.name.local != 'chapter') continue;
+      final start = parseFeedTime(c.getAttribute('start'));
+      if (start == null) continue;
+      final href = c.getAttribute('href')?.trim() ?? '';
+      final image = c.getAttribute('image')?.trim() ?? '';
+      chapters.add({
+        'startTime': start,
+        'title': (c.getAttribute('title') ?? '').trim(),
+        if (href.isNotEmpty) 'url': href,
+        if (image.isNotEmpty) 'img': image,
+      });
+    }
+    if (chapters.isEmpty) return null;
+    return Uri.dataFromString(
+            jsonEncode({'version': '1.2.0', 'chapters': chapters}),
+            mimeType: 'application/json',
+            encoding: utf8,
+            base64: true)
+        .toString();
   }
 
   static const Map<String, String> _namedEntities = {
@@ -1192,6 +1231,26 @@ class PodcastTranscriptCue {
 }
 
 /// One Podcasting 2.0 chapter.
+final _feedSecondsRe = RegExp(r'^\d+(?:\.\d+)?$');
+final _feedWholeRe = RegExp(r'^\d+$');
+
+/// Seconds in a time as feeds write one: "1:02:03", "02:03", "3045" or
+/// with a fraction of a second ("00:01:02.500", "3045.04"); null when
+/// [raw] isn't one.
+double? parseFeedTime(String? raw) {
+  final parts = (raw ?? '').trim().split(':');
+  if (parts.length > 3) return null;
+  var seconds = 0.0;
+  for (var i = 0; i < parts.length; i++) {
+    final part = parts[i].trim();
+    // Only the seconds may have a fraction.
+    final shape = i == parts.length - 1 ? _feedSecondsRe : _feedWholeRe;
+    if (!shape.hasMatch(part)) return null;
+    seconds = seconds * 60 + double.parse(part);
+  }
+  return seconds;
+}
+
 /// The chapters in a Podcasting 2.0 chapters file, by start time.
 List<PodcastChapter> parsePodcastChapters(Map? json) {
   final list = json?['chapters'];

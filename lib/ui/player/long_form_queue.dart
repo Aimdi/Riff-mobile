@@ -11,17 +11,31 @@ String episodeNotes(MediaItem? item) {
   return _fullNotes[item.id] ?? '${item.extras?['description'] ?? ''}';
 }
 
+/// Chapters carried in the episode (a data: URL, see
+/// PodcastService.chapters) that [prepareLongFormQueue] left out of its
+/// queue copy, keyed by episode id.
+final Map<String, String> _fullChapters = <String, String>{};
+
+/// The episode's chapters address: the one its queue copy left out, else
+/// whatever the item carries.
+String? episodeChaptersUrl(MediaItem? item) {
+  if (item == null) return null;
+  return _fullChapters[item.id] ?? item.extras?['chaptersUrl'] as String?;
+}
+
 /// Podcast queues are sent to Android's media session, which copies every
 /// item and its text extras across processes. A show with thousands of
 /// daily episodes, each with kilobytes of show notes, overflows that
 /// transaction and crashes the app. Keep a window of [max] episodes around
-/// [index] and shorten notes over [notesMax] characters (the full text stays
-/// available through [episodeNotes]).
+/// [index], shorten notes over [notesMax] characters (the full text stays
+/// available through [episodeNotes]) and leave out chapters the feed gave
+/// inline over [chaptersMax] characters ([episodeChaptersUrl] has them).
 ({List<MediaItem> items, int index}) prepareLongFormQueue(
   List<MediaItem> items,
   int index, {
   int max = 120,
   int notesMax = 600,
+  int chaptersMax = 300,
 }) {
   var start = 0;
   var end = items.length;
@@ -34,16 +48,27 @@ String episodeNotes(MediaItem? item) {
   for (var i = start; i < end; i++) {
     final m = items[i];
     final notes = m.extras?['description'];
-    if (notes is String && notes.length > notesMax) {
+    final chapters = m.extras?['chaptersUrl'];
+    final longNotes = notes is String && notes.length > notesMax;
+    final longChapters = chapters is String &&
+        chapters.startsWith('data:') &&
+        chapters.length > chaptersMax;
+    if (!longNotes && !longChapters) {
+      window.add(m);
+      continue;
+    }
+    final extras = {...?m.extras};
+    if (longNotes) {
       if (_fullNotes.length > 600) _fullNotes.clear();
       _fullNotes[m.id] = notes;
-      window.add(m.copyWith(extras: {
-        ...?m.extras,
-        'description': '${notes.substring(0, notesMax)}…',
-      }));
-    } else {
-      window.add(m);
+      extras['description'] = '${notes.substring(0, notesMax)}…';
     }
+    if (longChapters) {
+      if (_fullChapters.length > 600) _fullChapters.clear();
+      _fullChapters[m.id] = chapters;
+      extras.remove('chaptersUrl');
+    }
+    window.add(m.copyWith(extras: extras));
   }
   return (items: window, index: index - start);
 }

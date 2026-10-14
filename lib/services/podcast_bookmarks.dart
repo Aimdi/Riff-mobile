@@ -2,6 +2,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
+import '/ui/player/long_form_queue.dart';
 import 'podcast_progress_service.dart';
 import 'podcast_segments.dart' show formatSegmentLength;
 
@@ -126,6 +127,9 @@ Map<String, dynamic> episodeSnapshot(MediaItem item) {
   }
   // Long show notes aren't needed to play it again.
   extras.remove('description');
+  // Chapters the queue copy left out (see prepareLongFormQueue) are.
+  final chapters = episodeChaptersUrl(item);
+  if (chapters != null) extras['chaptersUrl'] = chapters;
   return {
     'id': item.id,
     'title': item.title,

@@ -116,7 +116,7 @@ class PodcastQueueController extends GetxController {
         'date': m.extras?['date'],
         'description': episodeNotes(m),
         'length': m.extras?['length'],
-        'chaptersUrl': m.extras?['chaptersUrl'],
+        'chaptersUrl': episodeChaptersUrl(m),
         'transcriptUrl': m.extras?['transcriptUrl'],
         'transcriptType': m.extras?['transcriptType'],
         // The episode's page, for sharing it.

@@ -174,7 +174,7 @@ class PodcastDownloadService {
         'description': episodeNotes(episode),
         'date': episode.extras?['date'],
         'pubDateMs': episode.extras?['pubDateMs'],
-        'chaptersUrl': episode.extras?['chaptersUrl'],
+        'chaptersUrl': episodeChaptersUrl(episode),
         'transcriptUrl': episode.extras?['transcriptUrl'],
         'transcriptType': episode.extras?['transcriptType'],
       });

@@ -772,7 +772,7 @@ class PlayerController extends GetxController
     _chaptersForSongId = item.id;
     chapters.clear();
     inAdChapter.value = false;
-    final url = item.chaptersUrl;
+    final url = episodeChaptersUrl(item);
     if (url == null || url.isEmpty) return;
     final chs = await PodcastService.chapters(url);
     if (_chaptersForSongId == item.id) chapters.assignAll(chs);

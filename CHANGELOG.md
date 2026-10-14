@@ -205,6 +205,12 @@ Podcasts:
   following the episode as it goes, and chapters that link to a web page
   (show notes, a guest's site) get a button that opens it, as in Pocket
   Casts
+* Chapters written in the feed itself (Podlove Simple Chapters, as
+  Podlove Publisher and Auphonic shows have them) count, as in AntennaPod:
+  the chapter list, previous / next chapter, chapter art and links,
+  Skip chapters and the ad skip work for those episodes too. Episode
+  lengths written with a fraction of a second ("3045.04") show; they used
+  to read as no length
 * A show's page remembers its episode order (Newest first / Oldest
   first) for that show, like Pocket Casts and AntennaPod, so a series you
   hear in order stays oldest first. The eye button next to it hides

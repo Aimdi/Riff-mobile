@@ -78,7 +78,7 @@ class PodcastProgressService {
       ),
       'feedUrl': episode.extras?['feedUrl'],
       'description': episodeNotes(episode),
-      'chaptersUrl': episode.extras?['chaptersUrl'],
+      'chaptersUrl': episodeChaptersUrl(episode),
       'transcriptUrl': episode.extras?['transcriptUrl'],
       'transcriptType': episode.extras?['transcriptType'],
       'positionMs': posMs,

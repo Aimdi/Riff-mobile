@@ -38,4 +38,26 @@ void main() {
     expect(episodeNotes(q.items[1]), 'short');
     expect(q.items[0].extras!['isPodcast'], isTrue);
   });
+
+  test("chapters a feed gave inline stay out of the queue's copy, kept whole",
+      () {
+    final inline = 'data:application/json;base64,${'A' * 2000}';
+    const short = 'data:application/json;base64,AAAA';
+    const file = 'https://example.com/chapters.json';
+    MediaItem withChapters(int i, String url) => MediaItem(
+        id: 'ch$i',
+        title: 'Episode $i',
+        extras: {'isPodcast': true, 'chaptersUrl': url});
+    final q = prepareLongFormQueue([
+      withChapters(1, inline),
+      withChapters(2, short),
+      withChapters(3, file),
+    ], 0);
+    expect(q.items[0].extras!.containsKey('chaptersUrl'), isFalse);
+    expect(episodeChaptersUrl(q.items[0]), inline);
+    expect(q.items[0].extras!['isPodcast'], isTrue);
+    expect(episodeChaptersUrl(q.items[1]), short);
+    expect(q.items[1].extras!['chaptersUrl'], short);
+    expect(q.items[2].extras!['chaptersUrl'], file);
+  });
 }
