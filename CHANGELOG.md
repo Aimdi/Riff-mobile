@@ -628,6 +628,12 @@ Downloads:
 * A song downloaded after playing is listed once in Library › Songs, as a
   download; it used to show twice (its download and its song cache
   copy), and the cached copy now makes room
+* Remove downloaded songs, like Spotify's Remove all downloads and
+  YouTube Music's Delete downloads: Settings › Remove downloaded songs
+  (under the song cache, while there are downloads) asks first, saying
+  how many and how much space, then frees it all; the songs play online
+  again. Podcast episodes keep their downloads. With Smart downloads on,
+  it says they'll download the songs you play most again on Wi-Fi
 
 Search:
 * Search by voice, as with YouTube Music, Spotify and Apple Music: tap

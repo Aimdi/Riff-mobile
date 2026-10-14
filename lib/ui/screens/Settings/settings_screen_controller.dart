@@ -10,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../services/cache_eviction.dart';
 import '../../../services/song_cache_service.dart';
+import '../../../services/song_downloads_removal.dart';
 import '../../../utils/app_language.dart';
 import '../../../utils/app_version.dart';
 import '../../../utils/update_check_flag_file.dart';
@@ -519,6 +520,25 @@ class SettingsScreenController extends GetxController {
     } catch (e) {
       printERROR('clearCachedSongs: $e');
       return false;
+    }
+  }
+
+  /// Settings › Remove downloaded songs: how many were removed (null when
+  /// it failed).
+  Future<int?> removeAllDownloads() async {
+    try {
+      final removed = await removeAllSongDownloads(supportDir: supportDirPath);
+      if (removed.isNotEmpty && Get.isRegistered<LibrarySongsController>()) {
+        final ids = removed.toSet();
+        Get.find<LibrarySongsController>()
+            .librarySongsList
+            .removeWhere((s) => ids.contains(s.id));
+      }
+      await refreshCacheSizes();
+      return removed.length;
+    } catch (e) {
+      printERROR('removeAllDownloads: $e');
+      return null;
     }
   }
 

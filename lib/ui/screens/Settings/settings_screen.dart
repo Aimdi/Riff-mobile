@@ -41,6 +41,7 @@ import '/ui/player/player_controller.dart';
 import '/ui/utils/theme_controller.dart';
 import 'components/custom_expansion_tile.dart';
 import 'components/smart_downloads_setting.dart';
+import 'components/remove_downloads.dart';
 import '../Home/home_layout.dart';
 import 'settings_screen_controller.dart';
 import '/ui/widgets/riff_header_bar.dart';
@@ -674,6 +675,16 @@ class SettingsScreen extends StatelessWidget {
                                 });
                               },
                             ),
+                            // Spotify's Remove all downloads.
+                            if (settingsController.downloadsBytes.value > 0)
+                              ListTile(
+                                contentPadding: settingsTilePadding,
+                                title: Text('removeAllDownloads'.tr),
+                                subtitle: Text('removeAllDownloadsDes'.tr,
+                                    style: settingsSubtitleStyle(context)),
+                                isThreeLine: true,
+                                onTap: () => removeAllDownloadsAsked(context),
+                              ),
                           ],
                         );
                       }),

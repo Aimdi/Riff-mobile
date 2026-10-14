@@ -122,6 +122,11 @@ class SmartDownloads {
     return run(force: true);
   }
 
+  /// All downloads removed at once (Settings): what it downloaded, set
+  /// downloading and was told not to download again, forgotten.
+  static Future<void> forgetDownloads() async =>
+      _prefs?.deleteAll(const [keptKey, pendingKey, declinedKey]);
+
   static Timer? _timer;
 
   /// Looks a minute after Riff starts, then every hour it stays open (a
