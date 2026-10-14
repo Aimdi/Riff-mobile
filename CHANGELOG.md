@@ -196,6 +196,11 @@ Podcasts:
   or itpc:// subscribe link) into the Podcasts search and that show comes
   up with Follow, for private feeds (Patreon, Supercast, Substack) and
   shows the directories don't list. YouTube links still find the channel
+* Swipe episodes in the Inbox, like AntennaPod and Pocket Casts: swipe
+  one right to add it to the queue, left to mark it played (it leaves
+  the Inbox, with Undo, which also puts it back where it was in the
+  queue and where you were in it). Off with the other swipe actions in
+  Settings; TalkBack offers both as actions
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip

@@ -4642,6 +4642,8 @@ Map<String, Map<String, String>> get keys => {
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "markedAsPlayed": "Marked as played",
+    "alreadyInQueue": "Already in the queue",
     "bookTimeLeft": "@time left",
     "alreadyInPlaylist": "Already in this playlist",
     "newEpisodesDownload": "Download new episodes",
