@@ -46,9 +46,11 @@ class LyricsWidget extends StatelessWidget {
         final theme = Theme.of(context);
         // Read here so switching it in Settings redraws the lyrics.
         final romanized = LyricsRomanization.enabled.isTrue;
+        // None for want of a connection (they come once it's back).
+        final offline = playerController.lyrics['offline'] == true;
         if (playerController.lyricsMode.toInt() == 1) {
           final plain = playerController.lyrics["plainLyrics"] == "NA"
-              ? "lyricsNotAvailable".tr
+              ? (offline ? "lyricsOffline" : "lyricsNotAvailable").tr
               : (playerController.lyrics["plainLyrics"] ?? "").toString();
           return Center(
             child: SingleChildScrollView(
@@ -120,7 +122,7 @@ class LyricsWidget extends StatelessWidget {
             ),
             emptyBuilder: () => Center(
               child: Text(
-                "syncedLyricsNotAvailable".tr,
+                (offline ? "lyricsOffline" : "syncedLyricsNotAvailable").tr,
                 style: theme.textTheme.titleMedium!
                     .copyWith(color: theme.colorScheme.onSurface),
               ),

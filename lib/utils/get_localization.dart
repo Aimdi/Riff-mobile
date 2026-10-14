@@ -4642,6 +4642,7 @@ Map<String, Map<String, String>> get keys => {
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "lyricsOffline": "You're offline. The lyrics will come once you're back online",
     "searchOffline": "You're offline. Your downloads are in Library",
     "searchFailed": "Couldn't search right now. Check your connection and try again",
     "downloadingCount": "Downloading @current of @total",

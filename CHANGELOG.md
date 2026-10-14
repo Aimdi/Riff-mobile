@@ -48,6 +48,10 @@ Lyrics:
   them up on LRCLIB by its title and artist, or any words you type, and
   lists what it finds, synced ones first and the nearest in length
   among them. Tap one and it's the song's lyrics from then on
+* Lyrics that can't be fetched because you're offline say so ("You're
+  offline. The lyrics will come once you're back online") instead of
+  "Lyrics not available", and are looked up again as soon as the
+  connection is back; they used to stay "not available" for that song
 
 Mini player (phones):
 * Drag it sideways and the song follows your finger while the next (or

@@ -267,6 +267,11 @@ class PlayerController extends GetxController
       // Full player open: fetch lyrics for the line under the title.
       ever(currentSong, (_) => _scheduleLyricsPrefetch()),
       ever(isPlayerPanelOpen, (_) => _scheduleLyricsPrefetch()),
+      // Lyrics missing for want of a connection: looked up again once
+      // it's back.
+      ever(OfflinePlayback.offline, (bool offline) {
+        if (!offline && lyrics['offline'] == true) _loadLyrics();
+      }),
       // Shake to restart a timed sleep timer (Android).
       everAll([
         isSleepTimerActive,
@@ -2464,9 +2469,11 @@ class PlayerController extends GetxController
 
   Future<void> _loadLyrics() {
     final song = currentSong.value;
+    // Missing only for want of a connection: not the song's last word.
     if (song == null ||
-        lyrics["synced"].isNotEmpty ||
-        lyrics['plainLyrics'].isNotEmpty) {
+        (lyrics['offline'] != true &&
+            (lyrics["synced"].isNotEmpty ||
+                lyrics['plainLyrics'].isNotEmpty))) {
       return Future.value();
     }
     if (_lyricsLoadId == song.id && _lyricsLoad != null) return _lyricsLoad!;
@@ -2502,6 +2509,11 @@ class PlayerController extends GetxController
       result = {"synced": "", "plainLyrics": "NA"};
     }
     if (!stillCurrent()) return;
+    // None found with no connection: that's why (the lyrics say so, and
+    // are looked up again once it's back).
+    if (lyricsMissing(result) && OfflinePlayback.offline.value) {
+      result = {...result, 'offline': true};
+    }
     lyrics.value = result;
     isLyricsLoading.value = false;
   }
@@ -2816,3 +2828,9 @@ class PlayerController extends GetxController
 }
 
 enum PlayButtonState { paused, playing, loading }
+
+/// Whether a lyrics lookup's [result] has no lyrics at all.
+bool lyricsMissing(Map<String, dynamic> result) =>
+    result['plainLyrics'] == 'NA' &&
+    '${result['synced'] ?? ''}'.isEmpty &&
+    '${result['ttml'] ?? ''}'.isEmpty;
