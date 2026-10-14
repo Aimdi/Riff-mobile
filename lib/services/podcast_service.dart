@@ -680,6 +680,14 @@ class PodcastService {
     final channelFallback =
         (rssImage != null && rssImage.isNotEmpty) ? rssImage : channelArtRaw;
 
+    // A serial show (heard in order): its page lists it from the start.
+    final serial = doc
+            .findAllElements('itunes:type')
+            .firstOrNull
+            ?.innerText
+            .trim()
+            .toLowerCase() ==
+        'serial';
     final items = doc.findAllElements('item');
     final episodes = <Map<String, dynamic>>[];
     for (final item in items) {
@@ -770,6 +778,7 @@ class PodcastService {
         if (episodeNumber != null) 'episode': episodeNumber,
         if (episodeType == 'trailer' || episodeType == 'bonus')
           'episodeType': episodeType,
+        if (serial) 'serial': true,
       });
     }
     return episodes;
@@ -1184,10 +1193,10 @@ class PodcastService {
   }
 }
 
-/// A feed episode's season, number and type (from [parsePodcastFeed]'s
-/// map) as MediaItem extras, for episodeNumberLabel.
+/// A feed episode's season, number and type, and whether its show is
+/// serial (from [parsePodcastFeed]'s map), as MediaItem extras.
 Map<String, Object> episodeNumbering(Map<dynamic, dynamic> episode) => {
-      for (final key in const ['season', 'episode', 'episodeType'])
+      for (final key in const ['season', 'episode', 'episodeType', 'serial'])
         if (episode[key] != null) key: episode[key] as Object,
     };
 

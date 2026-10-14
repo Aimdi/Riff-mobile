@@ -99,14 +99,22 @@ class _PodcastShowViewState extends State<PodcastShowView> {
   bool _showTitle = false;
   bool _aboutOpen = false;
 
-  /// Kept per show (by [PodcastShowView.playbackKey]), as Pocket Casts does.
-  late bool _oldestFirst = PodcastShowViewPrefs.oldestFirst(widget.playbackKey);
+  /// Kept per show (by [PodcastShowView.playbackKey]), as Pocket Casts does;
+  /// a serial show (its feed says it's heard in order) lists oldest first
+  /// until set otherwise, as in Apple Podcasts. [_orderPick] is the order
+  /// picked here, for shows with no key to keep it under.
+  bool? _orderPick;
+  bool get _oldestFirst =>
+      _orderPick ??
+      PodcastShowViewPrefs.oldestFirst(widget.playbackKey,
+          serial: widget.episodes.firstOrNull?.extras?['serial'] == true);
   late bool _hidePlayed = PodcastShowViewPrefs.hidePlayed(widget.playbackKey);
 
   void _toggleOrder() {
-    setState(() => _oldestFirst = !_oldestFirst);
+    final oldestFirst = !_oldestFirst;
+    setState(() => _orderPick = oldestFirst);
     final show = widget.playbackKey;
-    if (show != null) PodcastShowViewPrefs.setOldestFirst(show, _oldestFirst);
+    if (show != null) PodcastShowViewPrefs.setOldestFirst(show, oldestFirst);
   }
 
   void _toggleHidePlayed() {
@@ -142,6 +150,16 @@ class _PodcastShowViewState extends State<PodcastShowView> {
     _scroll.dispose();
     _search.dispose();
     super.dispose();
+  }
+
+  /// Listed oldest first, a series plays in order: the index (feed order)
+  /// of its first episode not yet played, else of its first.
+  int _nextInOrder() {
+    final eps = widget.episodes;
+    for (var i = eps.length - 1; i >= 0; i--) {
+      if (!PodcastProgressService.isPlayed(eps[i].id)) return i;
+    }
+    return eps.length - 1;
   }
 
   /// Index (feed order) of this show's episode with a saved position.
@@ -412,6 +430,10 @@ class _PodcastShowViewState extends State<PodcastShowView> {
         RiffComponentSizes.showCoverMin, RiffComponentSizes.showCoverMax);
     final eps = widget.episodes;
     final resume = widget.loading ? null : _resumeIndex();
+    // Listed oldest first: the series' next episode, not its latest.
+    final inOrder = resume == null && eps.isNotEmpty && _oldestFirst
+        ? _nextInOrder()
+        : null;
     final latestDate = eps.isEmpty ? '' : '${eps.first.extras?['date'] ?? ''}';
     final meta = episodeMetaLine([
       if (!widget.loading && eps.isNotEmpty) podcastEpisodeCount(eps.length),
@@ -468,13 +490,17 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                       child: FilledButton.icon(
                         onPressed: eps.isEmpty
                             ? null
-                            : () => widget.onPlay(resume ?? 0),
+                            : () => widget.onPlay(resume ?? inOrder ?? 0),
                         icon: const Icon(Icons.play_arrow_rounded,
                             size: RiffComponentSizes.headerIcon),
                         label: Text(
                           resume != null
                               ? 'resumeEpisode'.tr
-                              : 'latestEpisode'.tr,
+                              : inOrder == null
+                                  ? 'latestEpisode'.tr
+                                  : inOrder == eps.length - 1
+                                      ? 'firstEpisode'.tr
+                                      : 'nextEpisode'.tr,
                         ),
                       ),
                     ),

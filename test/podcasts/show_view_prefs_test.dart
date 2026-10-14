@@ -92,7 +92,16 @@ void main() {
           isEmpty);
     });
 
-    Future<List<int>> pumpShow(WidgetTester tester) async {
+    test('a serial show lists oldest first until set otherwise', () async {
+      expect(PodcastShowViewPrefs.oldestFirst('serial', serial: true), isTrue);
+      await PodcastShowViewPrefs.setOldestFirst('serial', false);
+      expect(PodcastShowViewPrefs.oldestFirst('serial', serial: true), isFalse);
+      await PodcastShowViewPrefs.setOldestFirst('serial', true);
+      expect(PodcastShowViewPrefs.oldestFirst('serial', serial: true), isTrue);
+    });
+
+    Future<List<int>> pumpShow(WidgetTester tester,
+        {List<MediaItem>? episodes}) async {
       tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
@@ -104,7 +113,7 @@ void main() {
           author: 'Host',
           artUrl: '',
           description: '',
-          episodes: _episodes,
+          episodes: episodes ?? _episodes,
           loading: false,
           subscribed: true,
           onToggleSubscribe: () {},
@@ -135,6 +144,32 @@ void main() {
       // Still plays the episode tapped (feed order index).
       await tester.tap(find.text('Episode 1'));
       expect(played, [2]);
+    });
+
+    testWidgets(
+        'a serial show starts from its first episode, then plays on in '
+        'order', (tester) async {
+      MediaItem serial(int n) => MediaItem(
+          id: 'podcast_ep$n',
+          title: 'Episode $n',
+          extras: const {'isPodcast': true, 'serial': true});
+      final played =
+          await pumpShow(tester, episodes: [serial(3), serial(2), serial(1)]);
+      expect(top(tester, 'Episode 1'), lessThan(top(tester, 'Episode 3')));
+      await tester.tap(find.text('firstEpisode'));
+      expect(played, [2]);
+
+      await _markPlayed(tester, ['podcast_ep1']);
+      await tester.pump();
+      await tester.tap(find.text('nextEpisode'));
+      expect(played, [2, 1]);
+    });
+
+    testWidgets('newest first, the button plays the latest as before',
+        (tester) async {
+      final played = await pumpShow(tester);
+      await tester.tap(find.text('latestEpisode'));
+      expect(played, [0]);
     });
 
     testWidgets('played episodes hidden, also when played later',

@@ -9,18 +9,26 @@ class PodcastShowViewPrefs {
   PodcastShowViewPrefs._();
 
   /// AppPrefs keys: the shows (their playback keys) that list oldest
-  /// first, and those that hide played episodes.
+  /// first, those set back to newest first, and those that hide played
+  /// episodes.
   static const oldestFirstKey = 'podcastShowsOldestFirst';
+  static const newestFirstKey = 'podcastShowsNewestFirst';
   static const hidePlayedKey = 'podcastShowsHidePlayed';
 
   static Box? get _prefs =>
       Hive.isBoxOpen('AppPrefs') ? Hive.box('AppPrefs') : null;
 
-  static bool oldestFirst(String? show) => _has(oldestFirstKey, show);
+  /// Oldest first: as set for [show], else as its feed says it's heard: a
+  /// [serial] show from its start, as Apple Podcasts lists one.
+  static bool oldestFirst(String? show, {bool serial = false}) =>
+      _has(oldestFirstKey, show) || (serial && !_has(newestFirstKey, show));
   static bool hidePlayed(String? show) => _has(hidePlayedKey, show);
 
-  static Future<void> setOldestFirst(String show, bool on) =>
-      _set(oldestFirstKey, show, on);
+  static Future<void> setOldestFirst(String show, bool on) async {
+    await _set(oldestFirstKey, show, on);
+    await _set(newestFirstKey, show, !on);
+  }
+
   static Future<void> setHidePlayed(String show, bool on) =>
       _set(hidePlayedKey, show, on);
 

@@ -50,6 +50,17 @@ void main() {
     expect(episodeNumbering(eps[2]), isEmpty);
   });
 
+  test('a serial show says so on every episode', () {
+    final eps = parsePodcastFeed(
+        _feed.replaceFirst('<title>Serial</title>',
+            '<title>Serial</title><itunes:type>serial</itunes:type>'),
+        'Serial',
+        '');
+    expect(eps.every((e) => e['serial'] == true), isTrue);
+    expect(episodeNumbering(eps[2]), {'serial': true});
+    expect(parsePodcastFeed(_feed, 'Serial', '').first['serial'], isNull);
+  });
+
   test('labelled as Apple Podcasts and Pocket Casts label them', () {
     expect(
         episodeNumberLabel(_episode({'episodeType': 'trailer', 'season': 2})),

@@ -221,6 +221,12 @@ Podcasts:
   show's page and the Inbox label trailers ("Trailer"), bonus episodes
   ("Bonus") and numbered ones ("S2 E5", "Ep. 12") as the feed numbers
   them, before the date
+* Serial shows play in order, as in Apple Podcasts: a show whose feed
+  says it's heard from the start (a serial) lists oldest first until you
+  set its order. On a show listed oldest first, the button under the
+  cover plays the first episode you haven't heard, "First episode" or
+  "Next episode", instead of the latest (an episode you're in the middle
+  of still resumes)
 * A show's page remembers its episode order (Newest first / Oldest
   first) for that show, like Pocket Casts and AntennaPod, so a series you
   hear in order stays oldest first. The eye button next to it hides

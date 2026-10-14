@@ -4642,6 +4642,8 @@ Map<String, Map<String, String>> get keys => {
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "firstEpisode": "First episode",
+    "nextEpisode": "Next episode",
     "episodeTrailer": "Trailer",
     "episodeBonus": "Bonus",
     "episodeSeasonNumber": "S@season E@episode",
