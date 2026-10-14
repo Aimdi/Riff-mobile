@@ -216,6 +216,12 @@ Podcasts:
   plays, or with Autoplay episodes off it stops, back at its start) and
   marks it played. Undo brings it back unplayed, in its place in the
   queue, playing from where you were
+* Skip chapters, like Pocket Casts: in an episode's chapter list, Skip
+  chapters lets you untick the ones you don't want to hear, and playback
+  jumps over them each time it reaches them (with Undo, as other
+  skips); an unticked last chapter ends the episode there. Unticked
+  chapters read as skipped in the list (tap one to hear it anyway), show
+  with the episode's segments, and sync with the segments you mark
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip

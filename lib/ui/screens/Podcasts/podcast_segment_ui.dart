@@ -264,7 +264,7 @@ Future<SegmentCategory?> _pickCategory(BuildContext context) {
           children: [
             const RiffSheetHandle(),
             RiffSheetTitle('segmentWhatIsIt'.tr),
-            for (final c in SegmentCategory.values)
+            for (final c in SegmentCategory.sponsorBlock)
               ListTile(
                 leading: _Dot(color: c.color),
                 titleTextStyle: Theme.of(sheet).textTheme.bodyLarge,
@@ -350,7 +350,7 @@ class PodcastSegmentSettings extends StatelessWidget {
                   ?.copyWith(color: Theme.of(context).colorScheme.secondary),
             ),
           ],
-          for (final c in SegmentCategory.values) ...[
+          for (final c in SegmentCategory.sponsorBlock) ...[
             const SizedBox(height: 16),
             Row(
               children: [

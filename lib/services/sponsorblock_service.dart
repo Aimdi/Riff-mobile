@@ -155,8 +155,8 @@ class SponsorBlockService extends GetxService {
       final res = await _dio.get(
         '$defaultApi/skipSegments/${sponsorBlockHashPrefix(videoId)}',
         queryParameters: {
-          'categories':
-              jsonEncode([for (final c in SegmentCategory.values) c.apiName]),
+          'categories': jsonEncode(
+              [for (final c in SegmentCategory.sponsorBlock) c.apiName]),
           'actionTypes': jsonEncode(['skip', 'mute']),
         },
       );

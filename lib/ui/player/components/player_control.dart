@@ -18,6 +18,8 @@ import '/ui/player/components/podcast_transcript_sheet.dart';
 import '/ui/utils/theme_controller.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '/services/podcast_segments.dart'
+    show PodcastSegmentStore, chapterSkipKey;
 import '/services/podcast_service.dart' show PodcastChapter, chapterIndexAt;
 import '/services/seek_time_label.dart';
 import '/ui/widgets/now_playing_bars.dart';
@@ -259,6 +261,8 @@ void openChaptersSheet(
 /// An episode's chapters: tap one to play from it. The one playing shows
 /// the now-playing bars (Pocket Casts marks it too), following the
 /// episode; chapters that link to a web page get a button to open it.
+/// Skip chapters ticks them off, as in Pocket Casts: playback then jumps
+/// over the ones unticked.
 class ChapterList extends StatefulWidget {
   const ChapterList(
       {super.key, required this.playerController, this.scrollController});
@@ -273,6 +277,9 @@ class ChapterList extends StatefulWidget {
 class _ChapterListState extends State<ChapterList> {
   late final ValueNotifier<int> _playing;
   Worker? _follow;
+
+  /// Ticking chapters off (to skip) or back on.
+  bool _choosing = false;
 
   int _playingNow() {
     final pc = widget.playerController;
@@ -304,64 +311,120 @@ class _ChapterListState extends State<ChapterList> {
     return h > 0 ? '$h:$m:$s' : '$m:$s';
   }
 
+  /// Ticks chapter [index] off ([skipped]) or back on, for this episode.
+  Future<void> _setSkipped(int index, bool skipped) async {
+    final pc = widget.playerController;
+    final song = pc.currentSong.value;
+    if (song == null) return;
+    final total = pc.progressBarStatus.value.total;
+    final length = total > Duration.zero ? total : song.duration;
+    await PodcastSegmentStore.setChapterSkipped(song.id, pc.chapters, index,
+        skipped: skipped, durationSec: (length?.inMilliseconds ?? 0) / 1000.0);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final chapters = widget.playerController.chapters;
+    final pc = widget.playerController;
     final scheme = Theme.of(context).colorScheme;
-    return ListView.builder(
-      controller: widget.scrollController,
-      padding: const EdgeInsets.only(
-          left: RiffSpacing.sm, right: RiffSpacing.sm, bottom: RiffSpacing.xxl),
-      itemCount: chapters.length + 1,
-      itemBuilder: (ctx, i) {
-        if (i == 0) {
-          return Padding(
-            padding: const EdgeInsets.only(
-                left: RiffSpacing.md,
-                top: RiffSpacing.xs,
-                right: RiffSpacing.md,
-                bottom: RiffSpacing.md),
-            child:
-                Text('chapters'.tr, style: Theme.of(ctx).textTheme.titleLarge),
-          );
-        }
-        final c = chapters[i - 1];
-        final link = c.linkUrl;
-        return ValueListenableBuilder<int>(
-          valueListenable: _playing,
-          builder: (ctx, playing, _) => ListTile(
-            leading: SizedBox.square(
-              dimension: RiffComponentSizes.headerIcon,
-              child: playing == i - 1
-                  ? const NowPlayingBars(size: RiffComponentSizes.headerIcon)
-                  : Icon(
-                      c.isAd
-                          ? Icons.campaign_outlined
-                          : Icons.play_arrow_rounded,
-                      size: RiffComponentSizes.headerIcon,
-                      color: c.isAd ? scheme.error : scheme.onSurface,
-                    ),
-            ),
-            title: Text(c.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-            subtitle: Text(_fmt(c.startSec)),
-            trailing: link == null
-                ? null
-                : IconButton(
-                    tooltip: 'openChapterLink'.tr,
-                    icon: const Icon(Icons.open_in_new_rounded),
-                    onPressed: () => launchUrl(Uri.parse(link),
-                        mode: LaunchMode.externalApplication),
+    return Obx(() {
+      PodcastSegmentStore.rev.value;
+      final chapters = pc.chapters.toList();
+      final id = pc.currentSong.value?.id;
+      final skipped = id == null
+          ? const <String>{}
+          : PodcastSegmentStore.skippedChapters(id);
+      return ListView.builder(
+        controller: widget.scrollController,
+        padding: const EdgeInsets.only(
+            left: RiffSpacing.sm,
+            right: RiffSpacing.sm,
+            bottom: RiffSpacing.xxl),
+        itemCount: chapters.length + 1,
+        itemBuilder: (ctx, i) {
+          if (i == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(
+                  left: RiffSpacing.md,
+                  top: RiffSpacing.xs,
+                  right: RiffSpacing.md,
+                  bottom: RiffSpacing.md),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text('chapters'.tr,
+                        style: Theme.of(ctx).textTheme.titleLarge),
                   ),
-            onTap: () {
-              Navigator.pop(ctx);
-              widget.playerController.seek(
-                Duration(milliseconds: (c.startSec * 1000).round()),
-              );
-            },
-          ),
-        );
-      },
-    );
+                  TextButton(
+                    onPressed: () => setState(() => _choosing = !_choosing),
+                    style: TextButton.styleFrom(
+                      minimumSize: Size.zero,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: RiffSpacing.md),
+                    ),
+                    child: Text(_choosing ? 'done'.tr : 'skipChapters'.tr),
+                  ),
+                ],
+              ),
+            );
+          }
+          final index = i - 1;
+          final c = chapters[index];
+          final link = c.linkUrl;
+          final skip = skipped.contains(chapterSkipKey(c.startSec));
+          final time = _fmt(c.startSec);
+          return ValueListenableBuilder<int>(
+            valueListenable: _playing,
+            builder: (ctx, playing, _) => ListTile(
+              leading: SizedBox.square(
+                dimension: RiffComponentSizes.headerIcon,
+                child: _choosing
+                    ? Checkbox(
+                        value: !skip,
+                        onChanged: (on) => _setSkipped(index, on == false),
+                      )
+                    : playing == index
+                        ? const NowPlayingBars(
+                            size: RiffComponentSizes.headerIcon)
+                        : Icon(
+                            skip
+                                ? Icons.redo_rounded
+                                : c.isAd
+                                    ? Icons.campaign_outlined
+                                    : Icons.play_arrow_rounded,
+                            size: RiffComponentSizes.headerIcon,
+                            color: skip
+                                ? scheme.onSurfaceVariant
+                                : c.isAd
+                                    ? scheme.error
+                                    : scheme.onSurface,
+                          ),
+              ),
+              // A chapter ticked off reads dimmed.
+              textColor: skip ? scheme.onSurfaceVariant : null,
+              title:
+                  Text(c.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+              subtitle: Text(skip ? '$time · ${'chapterSkipped'.tr}' : time),
+              trailing: link == null
+                  ? null
+                  : IconButton(
+                      tooltip: 'openChapterLink'.tr,
+                      icon: const Icon(Icons.open_in_new_rounded),
+                      onPressed: () => launchUrl(Uri.parse(link),
+                          mode: LaunchMode.externalApplication),
+                    ),
+              onTap: _choosing
+                  ? () => _setSkipped(index, !skip)
+                  : () {
+                      Navigator.pop(ctx);
+                      pc.seek(
+                        Duration(milliseconds: (c.startSec * 1000).round()),
+                      );
+                    },
+            ),
+          );
+        },
+      );
+    });
   }
 }
 

@@ -100,6 +100,21 @@ void main() {
     test('tiny segments are dropped', () {
       expect(resolveSegments([seg('a', 10, 10.1)], actions), isEmpty);
     });
+
+    test('a chapter ticked off is skipped, whatever the settings', () {
+      final out = resolveSegments([
+        seg('c', 10, 20,
+            c: SegmentCategory.chapter,
+            action: SegmentAction.ignore,
+            source: SegmentSource.manual),
+      ], actions, skippingOn: false);
+      expect(out.single.action, SegmentAction.autoSkip);
+      // Not SponsorBlock's: never asked for, set or marked by hand.
+      expect(SegmentCategory.sponsorBlock,
+          isNot(contains(SegmentCategory.chapter)));
+      expect(SegmentCategory.sponsorBlock,
+          hasLength(SegmentCategory.values.length - 1));
+    });
   });
 
   group('when to auto-skip', () {
@@ -118,6 +133,21 @@ void main() {
     test('outside the segment never counts', () {
       expect(enteredFromBefore(s, 99, 99.5), isFalse);
       expect(enteredFromBefore(s, 129.9, 130.1), isFalse);
+    });
+
+    test('to the very end: only a chapter ticked off ends the episode', () {
+      PodcastSegment chapter(double a, double b) =>
+          seg('c', a, b, c: SegmentCategory.chapter);
+      expect(
+          SegmentSkip.of(seg('a', 10, 20), totalMs: 100000), SegmentSkip.jump);
+      expect(
+          SegmentSkip.of(seg('o', 90, 100), totalMs: 100000), SegmentSkip.none);
+      expect(SegmentSkip.of(chapter(90, 99.7), totalMs: 100000),
+          SegmentSkip.endEpisode);
+      expect(
+          SegmentSkip.of(chapter(40, 60), totalMs: 100000), SegmentSkip.jump);
+      // The length isn't known yet.
+      expect(SegmentSkip.of(chapter(90, 100), totalMs: 0), SegmentSkip.jump);
     });
 
     test('segmentAt finds the covering segment', () {
@@ -148,6 +178,22 @@ void main() {
       expect(out[1].end, 660);
       expect(out[2].end, 1300);
       expect(out.every((s) => s.source == SegmentSource.chapters), isTrue);
+    });
+
+    test('what a chapter ticked off covers', () {
+      final chapters = [
+        PodcastChapter(startSec: 0, title: 'Intro'),
+        PodcastChapter(startSec: 30, title: 'News', endSec: 200),
+        PodcastChapter(startSec: 300, title: 'Story'),
+      ];
+      final first = chapterSkipSegment(chapters, 0, 1000, id: 'm_1')!;
+      expect((first.start, first.end), (0.0, 30.0));
+      expect(first.category, SegmentCategory.chapter);
+      expect(first.source, SegmentSource.manual);
+      expect(chapterSkipSegment(chapters, 1, 1000, id: 'm_2')!.end, 200);
+      expect(chapterSkipSegment(chapters, 2, 1000, id: 'm_3')!.end, 1000);
+      // The last one's end waits for the episode's length.
+      expect(chapterSkipSegment(chapters, 2, 0, id: 'm_4'), isNull);
     });
 
     test('hash prefix is the first 4 hex digits of sha256', () {
@@ -284,6 +330,41 @@ void main() {
       await PodcastSegmentStore.addTimeSaved(const Duration(seconds: 30));
       await PodcastSegmentStore.addTimeSaved(const Duration(seconds: 12));
       expect(PodcastSegmentStore.timeSaved, const Duration(seconds: 42));
+    });
+
+    test('chapters ticked off and back on; marks made by hand stay', () async {
+      final chapters = [
+        PodcastChapter(startSec: 0, title: 'Intro'),
+        PodcastChapter(startSec: 30.5, title: 'Ad'),
+        PodcastChapter(startSec: 90, title: 'Story'),
+      ];
+      await PodcastSegmentStore.addManual(
+          'ep', seg('m', 200, 210, source: SegmentSource.manual));
+      expect(
+          await PodcastSegmentStore.setChapterSkipped('ep', chapters, 1,
+              skipped: true, durationSec: 600),
+          isTrue);
+      expect(PodcastSegmentStore.skippedChapters('ep'), {chapterSkipKey(30.5)});
+      final skip = PodcastSegmentStore.manual('ep')
+          .firstWhere((s) => s.category == SegmentCategory.chapter);
+      expect((skip.start, skip.end), (30.5, 90.0));
+      expect(skip.id, startsWith('m_'));
+
+      // Ticked off again: still once.
+      await PodcastSegmentStore.setChapterSkipped('ep', chapters, 1,
+          skipped: true, durationSec: 600);
+      expect(PodcastSegmentStore.manual('ep'), hasLength(2));
+
+      await PodcastSegmentStore.setChapterSkipped('ep', chapters, 1,
+          skipped: false, durationSec: 600);
+      expect(PodcastSegmentStore.skippedChapters('ep'), isEmpty);
+      expect(PodcastSegmentStore.manual('ep').single.id, 'm');
+
+      // The last chapter waits for the episode's length.
+      expect(
+          await PodcastSegmentStore.setChapterSkipped('ep', chapters, 2,
+              skipped: true, durationSec: 0),
+          isFalse);
     });
   });
 }

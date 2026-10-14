@@ -614,8 +614,6 @@ class PlayerController extends GetxController
     if (song == null || !song.isPodcastEpisode || !_audioReady) return null;
     final at = progressBarStatus.value.current;
     final snapshot = PodcastLibrary.listenedSnapshot([song]);
-    // A position save meanwhile would read as listening on and unmark it.
-    _lastProgressSaveMs = DateTime.now().millisecondsSinceEpoch;
     final finished = _finishEpisode();
     return () async {
       await finished;
@@ -629,7 +627,11 @@ class PlayerController extends GetxController
     };
   }
 
+  /// Ends the playing episode as if it had played out (the handler's
+  /// finishEpisode): marked played, then the next one or a pause.
   Future<void> _finishEpisode() async {
+    // A position save meanwhile would read as listening on and unmark it.
+    _lastProgressSaveMs = DateTime.now().millisecondsSinceEpoch;
     try {
       // Video mode owns a paused audio pipeline: hand off first, as ⏭ does.
       await _handoffVideoThen(() async {
@@ -867,7 +869,8 @@ class PlayerController extends GetxController
 
   /// One position tick of a podcast episode: mute, the Skip pill, and the
   /// auto-skip (only when playback runs into a segment from before it,
-  /// never twice, never a segment the user undid).
+  /// never twice but for chapters ticked off, never a segment the user
+  /// undid).
   void _handlePodcastSegments(Duration position) {
     final item = currentSong.value;
     if (item == null || !item.isPodcastEpisode) return;
@@ -899,9 +902,9 @@ class PlayerController extends GetxController
       return;
     }
     final skipped = _segmentsSkipped.putIfAbsent(item.id, () => <String>{});
-    if (skipped.contains(active.id) || !enteredFromBefore(active, prev, sec)) {
-      return;
-    }
+    final again = skipped.contains(active.id) &&
+        active.category != SegmentCategory.chapter;
+    if (again || !enteredFromBefore(active, prev, sec)) return;
     // A seek a person just made (app, notification, Android Auto) wins.
     if (!autoSkipAllowed(
         lastSeek: _tagged?.lastUserSeek,
@@ -910,13 +913,14 @@ class PlayerController extends GetxController
         segEndSec: active.end)) {
       return;
     }
-    final total = progressBarStatus.value.total;
-    if (total > Duration.zero &&
-        Duration(milliseconds: (active.end * 1000).round()) >=
-            total - const Duration(milliseconds: 400)) {
+    final exit = SegmentSkip.of(active,
+        totalMs: progressBarStatus.value.total.inMilliseconds);
+    if (exit == SegmentSkip.none) return;
+    skipped.add(active.id);
+    if (exit == SegmentSkip.endEpisode) {
+      unawaited(_finishEpisode());
       return;
     }
-    skipped.add(active.id);
     _skipSegment(active, fromSec: sec, auto: true);
   }
 
