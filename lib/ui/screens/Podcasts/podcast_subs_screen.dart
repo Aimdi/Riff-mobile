@@ -9,6 +9,7 @@ import '/models/playlist.dart';
 import '/services/folder_cover.dart';
 import '/services/podcast_playback_profile.dart';
 import '/services/podcast_service.dart';
+import '/services/podcast_subs_sort.dart';
 import '/services/wizestream_service.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
@@ -302,8 +303,9 @@ class PodcastSubsScreen extends StatelessWidget {
           onAction: onDiscover,
         );
       }
+      final shows = sortedSubsShows(subs, rssSubs);
       return LayoutBuilder(builder: (context, constraints) {
-        final total = folderList.length + subs.length + rssSubs.length;
+        final total = folderList.length + shows.length;
         return GridView.builder(
           padding: kPodcastSubsGridPadding,
           gridDelegate: podcastSubsGridDelegate(constraints.maxWidth,
@@ -313,9 +315,9 @@ class PodcastSubsScreen extends StatelessWidget {
             if (index < folderList.length) {
               return _folderTile(context, folders, folderList[index]);
             }
-            final subIndex = index - folderList.length;
-            if (subIndex < subs.length) {
-              final podcast = subs[subIndex];
+            final show = shows[index - folderList.length];
+            final podcast = show.library;
+            if (podcast != null) {
               return PodcastCoverTile(
                 title: podcast.title,
                 subtitle: libraryPodcastSubtitle(podcast),
@@ -331,7 +333,7 @@ class PodcastSubsScreen extends StatelessWidget {
                 onLongPress: () => showPodcastFolderSheet(context, podcast),
               );
             }
-            final rss = rssSubs[subIndex - subs.length];
+            final rss = show.feed!;
             return rssPodcastTile(rss,
                 onLongPress: () => showRssPodcastSheet(context, rss));
           },
@@ -370,6 +372,7 @@ class PodcastSubsScreen extends StatelessWidget {
                           ?.copyWith(color: homeMutedColor(context)),
                     ),
                   ),
+                  if (shows > 1) const PodcastSubsSortButton(),
                   if (folders.folders.length > 1)
                     IconButton(
                       tooltip: 'reorderFolders'.tr,
@@ -506,4 +509,44 @@ Future<void> pickPodcastFolderPhoto(
     return;
   }
   Get.find<PodcastFolderController>().setImage(folderId, saved);
+}
+
+/// "Default", "Name", … for [s].
+String podcastSubsSortLabel(PodcastSubsSort s) => switch (s) {
+      PodcastSubsSort.standard => 'sortDefault'.tr,
+      PodcastSubsSort.name => 'sortName'.tr,
+      PodcastSubsSort.latestEpisode => 'latestEpisode'.tr,
+      PodcastSubsSort.recentlyFollowed => 'recentlyFollowed'.tr,
+    };
+
+/// The Subscriptions header's sort menu (the song lists' checked items);
+/// its icon is in the accent while a sort other than the default is on.
+class PodcastSubsSortButton extends StatelessWidget {
+  const PodcastSubsSortButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final current = PodcastSubsOrder.sort.value;
+      return PopupMenuButton<PodcastSubsSort>(
+        tooltip: 'sortBy'.tr,
+        position: PopupMenuPosition.under,
+        icon: Icon(Icons.sort_rounded,
+            size: RiffComponentSizes.headerIcon,
+            color: current == PodcastSubsSort.standard
+                ? null
+                : Theme.of(context).colorScheme.primary),
+        onSelected: PodcastSubsOrder.set,
+        itemBuilder: (_) => [
+          for (final s in PodcastSubsSort.values)
+            CheckedPopupMenuItem<PodcastSubsSort>(
+              height: RiffComponentSizes.sheetRow,
+              value: s,
+              checked: s == current,
+              child: Text(podcastSubsSortLabel(s)),
+            ),
+        ],
+      );
+    });
+  }
 }

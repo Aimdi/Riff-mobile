@@ -45,6 +45,19 @@ class PodcastInboxCounts {
     return _inbox ?? const [];
   }
 
+  /// Each show's newest episode in the Inbox (its `pubDateMs`), by
+  /// [podcastShowKey], for sorting by latest episode.
+  static Map<String, int> latestByShow() {
+    final latest = <String, int>{};
+    for (final e in _episodes()) {
+      final show = podcastShowKey(e);
+      final pub = e.extras?['pubDateMs'];
+      if (show == null || pub is! int || pub <= 0) continue;
+      if (pub > (latest[show] ?? 0)) latest[show] = pub;
+    }
+    return latest;
+  }
+
   static int count(Set<String> shows) => podcastWaitingCount(
         _episodes(),
         shows,

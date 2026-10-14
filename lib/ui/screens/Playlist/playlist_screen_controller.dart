@@ -393,7 +393,9 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
           final json = content is Playlist
               ? {...content.toJson(), 'kind': kind}
               : content.toJson();
-          await box.put(id, json);
+          // When you followed it, for Subscriptions' Recently followed.
+          await box.put(
+              id, {...json, 'addedAt': DateTime.now().millisecondsSinceEpoch});
         } else {
           await box.delete(id);
         }

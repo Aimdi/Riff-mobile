@@ -40,6 +40,8 @@
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "sortDefault": "Default",
+    "recentlyFollowed": "Recently followed",
     "markedAsPlayed": "Marked as played",
     "alreadyInQueue": "Already in the queue",
     "bookTimeLeft": "@time left",

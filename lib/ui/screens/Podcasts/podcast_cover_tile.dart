@@ -9,6 +9,7 @@ import '/models/thumbnail.dart';
 import '/services/podcast_inbox_counts.dart';
 import '/services/podcast_library.dart';
 import '/services/podcast_playback_profile.dart';
+import '/services/podcast_subs_sort.dart';
 import '/ui/navigator.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
@@ -327,6 +328,46 @@ class _PodcastInboxCountBadgeState extends State<PodcastInboxCountBadge> {
       builder: (context, _, __) => _count(),
     );
   }
+}
+
+/// A followed show in a Subscriptions grid: a YouTube Music library show
+/// ([library]) or a feed ([feed]).
+typedef SubsShow = ({Playlist? library, Map<String, dynamic>? feed});
+
+/// [library] and [feeds] as one list in the chosen [PodcastSubsOrder]
+/// (latest episodes from the Inbox; follow dates as stored, 0 when not).
+List<SubsShow> sortedSubsShows(
+    List<Playlist> library, List<Map<String, dynamic>> feeds) {
+  final shows = <SubsShow>[
+    for (final p in library) (library: p, feed: null),
+    for (final f in feeds) (library: null, feed: f),
+  ];
+  final sort = PodcastSubsOrder.sort.value;
+  if (sort == PodcastSubsSort.standard) return shows;
+  PodcastInboxCounts.rev.value; // Inbox refreshes move latest episodes.
+  final latest = PodcastInboxCounts.latestByShow();
+  final stored =
+      Hive.isBoxOpen('LibraryPodcasts') ? Hive.box('LibraryPodcasts') : null;
+  int latestOf(String? show) => show == null ? 0 : latest[show] ?? 0;
+  return sortPodcastSubs(shows, sort, (s) {
+    final p = s.library;
+    if (p != null) {
+      final entry = stored?.get(p.playlistId);
+      final at = entry is Map ? entry['addedAt'] : null;
+      return (
+        title: p.title,
+        latestMs: latestOf(podcastShowKeyForYoutube(p.playlistId)),
+        followedMs: at is int ? at : 0,
+      );
+    }
+    final f = s.feed!;
+    final at = f['subscribedAt'];
+    return (
+      title: '${f['title'] ?? ''}',
+      latestMs: latestOf(podcastShowKeyForFeed('${f['feedUrl']}')),
+      followedMs: at is int ? at : 0,
+    );
+  });
 }
 
 /// [PodcastInboxCountBadge] for one show, or null when it has no key.

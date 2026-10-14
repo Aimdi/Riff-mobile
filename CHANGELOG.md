@@ -201,6 +201,11 @@ Podcasts:
   the Inbox, with Undo, which also puts it back where it was in the
   queue and where you were in it). Off with the other swipe actions in
   Settings; TalkBack offers both as actions
+* Sort the shows you follow, like Pocket Casts, AntennaPod and Apple
+  Podcasts: the sort button in Podcasts › Subscriptions orders them by
+  Name, Latest episode or Recently followed (Default keeps the order
+  they had), inside folders too; folders stay first. Shows followed
+  before this update count as followed earliest
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip

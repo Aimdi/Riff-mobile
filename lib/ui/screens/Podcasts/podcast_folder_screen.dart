@@ -63,19 +63,20 @@ class PodcastFolderScreen extends StatelessWidget {
               ),
             );
           }
+          final shows = sortedSubsShows(items, feeds);
           return LayoutBuilder(builder: (context, constraints) {
             return GridView.builder(
               padding: kPodcastSubsGridPadding,
               gridDelegate: podcastSubsGridDelegate(constraints.maxWidth,
                   textScaler: MediaQuery.textScalerOf(context)),
-              itemCount: items.length + feeds.length,
+              itemCount: shows.length,
               itemBuilder: (context, index) {
-                if (index >= items.length) {
-                  final rss = feeds[index - items.length];
+                final podcast = shows[index].library;
+                if (podcast == null) {
+                  final rss = shows[index].feed!;
                   return rssPodcastTile(rss,
                       onLongPress: () => showRssPodcastSheet(context, rss));
                 }
-                final podcast = items[index];
                 return PodcastCoverTile(
                   title: podcast.title,
                   subtitle: libraryPodcastSubtitle(podcast),

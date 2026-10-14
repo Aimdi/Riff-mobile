@@ -350,6 +350,8 @@ class LibraryPodcastsController extends GetxController {
       'kind': kind,
       'description': podcast.description ??
           (kind == 'yt_channel' ? 'YouTube channel' : 'Podcast'),
+      // When you followed it, for Subscriptions' Recently followed.
+      'addedAt': DateTime.now().millisecondsSinceEpoch,
     });
     await refreshLib();
   }
