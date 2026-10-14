@@ -167,6 +167,20 @@ enum DiscoverySource {
     }
   }
 
+  /// Picked for you, by Riff or YouTube Music (radio, Autoplay, the mixes,
+  /// Smart shuffle, similar songs): what "Not interested" is for.
+  bool get isPickedForYou => switch (this) {
+        DiscoverySource.radio ||
+        DiscoverySource.dailyMix ||
+        DiscoverySource.freshFinds ||
+        DiscoverySource.discover ||
+        DiscoverySource.related ||
+        DiscoverySource.similar ||
+        DiscoverySource.smartShuffle =>
+          true,
+        _ => false,
+      };
+
   /// Played from podcasts or audiobooks: not music (see [isLongFormId]).
   bool get isLongForm =>
       this == DiscoverySource.podcast || this == DiscoverySource.audiobook;

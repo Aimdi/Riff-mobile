@@ -13,6 +13,7 @@ import '../../models/media_Item_builder.dart';
 import '../../models/media_item_extras.dart';
 import '../../services/ban_service.dart';
 import '../../services/discovery/discovery_service.dart';
+import '../../services/discovery/discovery_tag.dart';
 import '../../utils/hive_boxes.dart';
 import '../screens/Playlist/playlist_screen_controller.dart';
 import '/utils/helper.dart';
@@ -29,6 +30,7 @@ import '/ui/player/player_controller.dart';
 import '../screens/Library/library_controller.dart';
 import '/ui/widgets/add_to_playlist.dart';
 import '/ui/widgets/favorite_heart_button.dart';
+import '/ui/widgets/not_interested_action.dart';
 import '/ui/widgets/queue_undo.dart';
 import '/ui/widgets/snackbar.dart';
 import '/ui/utils/sheet_insets.dart';
@@ -432,6 +434,18 @@ class SongInfoBottomSheet extends StatelessWidget {
               ),
             ),
             const RiffSheetDivider(),
+            // YouTube Music's and Spotify's "Not interested", for a song
+            // picked for you (radio, Autoplay, a mix, Smart shuffle).
+            if ((calledFromPlayer || calledFromQueue) &&
+                sourceFromMediaItem(song).isPickedForYou)
+              RiffSheetTile(
+                icon: Icons.thumb_down_off_alt_rounded,
+                title: "notInterested".tr,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  markNotInterested(song);
+                },
+              ),
             RiffSheetTile(
               icon: Icons.block_rounded,
               title: "neverPlayThis".tr,

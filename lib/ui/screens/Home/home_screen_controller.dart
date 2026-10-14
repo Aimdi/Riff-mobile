@@ -13,6 +13,7 @@ import '../../../utils/helper.dart';
 import '/models/album.dart';
 import '/models/playlist.dart';
 import '/services/ban_service.dart';
+import '/services/not_interested.dart';
 import '/models/quick_picks.dart';
 import '/services/music_service.dart';
 import '/utils/content_filters.dart';
@@ -149,7 +150,8 @@ class HomeScreenController extends GetxController {
   List<MediaItem> _filterSongs(List<MediaItem> songs) {
     final s = Get.find<SettingsScreenController>();
     return ContentFilters.apply(
-      songs,
+      // Nor the songs you said you're not interested in.
+      NotInterested.filter(songs),
       hideVideos: s.hideVideoSongs.isTrue,
       hideShorts: s.hideShorts.isTrue,
     );

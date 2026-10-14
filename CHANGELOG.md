@@ -617,6 +617,14 @@ Up Next:
   exactly where it was, or brings the whole queue back
 * Swiping a song away shows what it does: a remove icon on a red tint.
   The playing song doesn't swipe (it can't be removed)
+* Not interested, as YouTube Music and Spotify have it for what they
+  pick for you: a song's menu in the player or in Up Next has it when the
+  song came from radio, Autoplay, a mix, Smart shuffle or similar songs.
+  It goes at once (skipped when it's playing, taken out of Up Next when
+  it's still to come), won't be picked for you again (radio, Up next,
+  Autoplay, the mixes, Home's Quick picks and song shelves) and its artist
+  comes up a little less, with Undo. Unlike Never play this, you can still
+  play it yourself
 
 Home's Speed dial:
 * Swiping now goes round: a swipe right on the first page slides to the

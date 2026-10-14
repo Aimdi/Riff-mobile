@@ -293,6 +293,7 @@ initHiveCritical() async {
     safeOpenBox("BannedSongs"),
     safeOpenBox("BannedArtists"),
     safeOpenBox("BannedCollections"),
+    safeOpenBox("NotInterested"),
     // Home's Riff Wave hero reads play stats on its first build.
     safeOpenBox("SongStats"),
   ]);

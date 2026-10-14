@@ -15,6 +15,7 @@ import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/ban_service.dart';
 import '/services/explicit_content.dart';
+import '/services/not_interested.dart';
 import '/services/utils.dart';
 import '/services/yt_auth_service.dart';
 import '../utils/helper.dart';
@@ -410,7 +411,9 @@ class MusicServices extends getx.GetxService {
       // but an explicitly requested seed song is kept. Nor do explicit
       // songs while they're off (the seed stays all the same).
       'tracks': ExplicitContent.filter(
-          BanService.filterTracks(tracks, keepVideoId: videoId),
+          NotInterested.filter(
+              BanService.filterTracks(tracks, keepVideoId: videoId),
+              keepId: videoId),
           keepId: videoId),
       'playlistId': playlist,
       'lyrics': lyricsBrowseId,

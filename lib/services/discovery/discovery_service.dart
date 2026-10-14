@@ -9,6 +9,7 @@ import '../../models/thumbnail.dart';
 import '../ban_service.dart';
 import '../explicit_content.dart';
 import '../music_service.dart';
+import '../not_interested.dart';
 import '../stats_service.dart';
 import 'candidate_sources.dart';
 import 'discovery_engine.dart';
@@ -51,8 +52,12 @@ class DiscoveryService extends GetxService {
               Hive.isBoxOpen('SongStats') ? Hive.box('SongStats') : null);
     } catch (_) {}
 
-    BanServiceSafe.setBanHook(BanService.isBanned);
-    BanServiceSafe.setTrackBanHook(BanService.isTrackBlocked);
+    // What's picked for you leaves out Never play this, and the songs
+    // you're not interested in.
+    BanServiceSafe.setBanHook(
+        (id) => BanService.isBanned(id) || NotInterested.has(id));
+    BanServiceSafe.setTrackBanHook(
+        (t) => BanService.isTrackBlocked(t) || NotInterested.hasTrack(t));
 
     taste = TasteModel(repo);
     final music = Get.find<MusicServices>();
@@ -222,6 +227,12 @@ class DiscoveryService extends GetxService {
 
   Future<void> onFollow(String artistName, {required bool follow}) =>
       taste.logFollow(artistName, follow: follow);
+
+  /// "Not interested" in [song], picked for you; [undo] takes it back.
+  Future<void> onNotInterested(MediaItem song, {bool undo = false}) async {
+    if (!tasted(song)) return;
+    await taste.logDismiss(song.id, song.artist, song.title, undo: undo);
+  }
 
   Future<void> onNeverPlay(MediaItem song) async {
     if (!tasted(song)) return;
