@@ -60,4 +60,27 @@ void main() {
         'The Show, The Episode @ 12:34\nhttps://cdn.example/ep1.mp3#t=754');
     expect(podcastEpisodeShareText(_rss()), 'The Show, The Episode');
   });
+
+  group('a show', () {
+    test("its feed's address, which podcast apps follow", () {
+      expect(podcastShowShareLink('https://feeds.example.com/show.xml'),
+          'https://feeds.example.com/show.xml');
+      expect(podcastShowShareText('The Show', 'https://feeds.example.com/x'),
+          'The Show\nhttps://feeds.example.com/x');
+    });
+
+    test('on YouTube: its YouTube Music page, or its channel', () {
+      expect(podcastShowShareLink('yt:PLabc'),
+          'https://music.youtube.com/playlist?list=PLabc');
+      expect(podcastShowShareLink('yt:UCxyz'),
+          'https://www.youtube.com/channel/UCxyz');
+    });
+
+    test('nothing to link to: the name alone, and no Share show', () {
+      expect(podcastShowShareLink(null), isNull);
+      expect(podcastShowShareLink('yt:'), isNull);
+      expect(podcastShowShareLink('feed'), isNull);
+      expect(podcastShowShareText(' The Show ', null), 'The Show');
+    });
+  });
 }

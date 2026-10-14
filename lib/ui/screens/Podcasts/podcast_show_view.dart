@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '/services/podcast_playback_profile.dart';
@@ -15,6 +16,7 @@ import 'podcast_playback_controls.dart';
 
 import '/services/podcast_download_service.dart';
 import '/services/podcast_progress_service.dart';
+import '/services/podcast_share.dart';
 import '/services/podcast_show_view_prefs.dart';
 import '/services/show_notes_links.dart';
 import '/ui/player/components/show_notes_text.dart';
@@ -543,6 +545,9 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                     });
                   case 2:
                     _startSelecting();
+                  case 3:
+                    Share.share(
+                        podcastShowShareText(widget.title, widget.playbackKey));
                 }
               },
               itemBuilder: (_) => [
@@ -551,6 +556,9 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                   PopupMenuItem(value: 1, child: Text('markAllListened'.tr)),
                 if (widget.episodes.length > 1)
                   PopupMenuItem(value: 2, child: Text('selectEpisodes'.tr)),
+                // As Pocket Casts, Apple Podcasts and Spotify share a show.
+                if (podcastShowShareLink(widget.playbackKey) != null)
+                  PopupMenuItem(value: 3, child: Text('shareShow'.tr)),
               ],
             ),
         ],

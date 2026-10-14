@@ -311,6 +311,10 @@ Podcasts:
   link is the YouTube video for a YouTube episode (starting at that
   moment), else the episode's page from its feed, else its audio file
   (which a browser starts at that moment)
+* Share a show, like Pocket Casts, Apple Podcasts and Spotify: a show's
+  ⋮ › Share show shares its name and its feed's address, which podcast
+  apps follow (AntennaPod, Pocket Casts, Riff), or a YouTube show's
+  page on YouTube Music (a channel's YouTube page)
 * Timestamps in show notes play the episode from there, as in Pocket
   Casts, Spotify and YouTube: tap "12:34" (or "1:02:03") in the notes,
   and web addresses in them open in the browser; both in the accent.

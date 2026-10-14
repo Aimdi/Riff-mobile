@@ -52,3 +52,26 @@ String podcastEpisodeShareText(MediaItem item, {Duration? at}) {
   final link = podcastEpisodeShareLink(item, at: at);
   return link == null ? head : '$head\n$link';
 }
+
+/// The link to share a show with, by its show key (podcastShowKeyForFeed
+/// / podcastShowKeyForYoutube): its feed's address, which podcast apps
+/// (Riff too) follow, as AntennaPod shares a feed; else its page on
+/// YouTube Music, or its YouTube channel. Null when there's none.
+String? podcastShowShareLink(String? showKey) {
+  final key = showKey?.trim() ?? '';
+  if (!key.startsWith('yt:')) return _web(key);
+  final id = key.substring(3);
+  if (id.isEmpty) return null;
+  return id.startsWith('UC')
+      ? 'https://www.youtube.com/channel/$id'
+      : 'https://music.youtube.com/playlist?list=$id';
+}
+
+/// A show's name and its link ([podcastShowShareLink]), as Pocket Casts,
+/// Apple Podcasts and Spotify share a show.
+String podcastShowShareText(String title, String? showKey) {
+  final name = title.trim();
+  final link = podcastShowShareLink(showKey);
+  if (link == null) return name;
+  return name.isEmpty ? link : '$name\n$link';
+}
