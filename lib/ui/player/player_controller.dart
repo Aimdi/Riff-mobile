@@ -24,6 +24,7 @@ import '../../services/discovery/discovery_types.dart';
 import '../../services/smart_queue_service.dart';
 import '../screens/Playlist/playlist_screen_controller.dart';
 import '../widgets/snackbar.dart';
+import '../widgets/sleep_timer_bottom_sheet.dart' show formatSleepMinutes;
 import '/services/listenbrainz_service.dart';
 import '/services/audiobook_progress_service.dart';
 import '/services/scrobble_rules.dart';
@@ -52,6 +53,7 @@ import '/services/podcast_service.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/podcast_history.dart';
 import '/services/sleep_shake.dart';
+import '/services/auto_sleep_timer.dart';
 import '/services/audiobookshelf_service.dart';
 import '/ui/player/riff_wave.dart';
 import '/ui/player/play_log_gate.dart';
@@ -282,6 +284,10 @@ class PlayerController extends GetxController
         isSleepEndOfChapterActive,
         SleepShake.enabled,
       ], (_) => _followShakes()),
+      // Playback starting at night: the automatic sleep timer.
+      ever(buttonState, (PlayButtonState state) {
+        if (state == PlayButtonState.playing) autoSleep();
+      }),
     ]);
     super.onInit();
   }
@@ -2648,6 +2654,29 @@ class PlayerController extends GetxController
     if (!_sleepFadeStarted) return;
     _sleepFadeStarted = false;
     _audioHandler.customAction('cancelSleepFade');
+  }
+
+  /// AntennaPod's automatic sleep timer: playback starting within its
+  /// hours starts the sleep timer, none running, for the length picked
+  /// last, and says so with Undo. [now] is for tests.
+  @visibleForTesting
+  void autoSleep({DateTime? now}) {
+    final at = now ?? DateTime.now();
+    if (!AutoSleepTimer.startsAt(at, timerRunning: isSleepTimerActive.isTrue)) {
+      return;
+    }
+    final minutes = AutoSleepTimer.minutes;
+    if (!startSleepTimer(minutes)) return;
+    showUndoSnackbar(undoSnackbarTarget(null),
+        'autoSleepTimerOn'.trParams({'time': formatSleepMinutes(minutes)}),
+        onUndo: turnOffSleepTimer);
+  }
+
+  /// You turned the sleep timer off: the automatic one doesn't start
+  /// again until its hours are over.
+  void turnOffSleepTimer() {
+    cancelSleepTimer();
+    AutoSleepTimer.decline(DateTime.now());
   }
 
   void cancelSleepTimer() {

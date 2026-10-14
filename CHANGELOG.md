@@ -107,6 +107,12 @@ Sleep timer:
   length, even with the screen off; it buzzes so you know, and a fade
   that had begun stops. On by default; the switch is in the sleep timer
   while it runs
+* Turn on automatically, like AntennaPod: switched on in the sleep
+  timer, it starts by itself when you play between the hours you set
+  (from 22:00 until 06:00 at first; the same hour twice is all day),
+  for the length you picked last (30 minutes at first), and says so
+  with Undo. Turn a sleep timer off within those hours and it leaves
+  you be until they're over. Off by default
 
 Lock screen and notification:
 * A heart next to previous / play / next likes or unlikes the playing

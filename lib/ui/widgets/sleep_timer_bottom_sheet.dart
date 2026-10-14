@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
+import '/services/auto_sleep_timer.dart';
 import '/services/sleep_shake.dart';
 import '/ui/player/play_queue_order.dart';
 import '/ui/player/player_controller.dart';
@@ -106,7 +107,7 @@ class SleepTimerBottomSheet extends StatelessWidget {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () {
-                          playerController.cancelSleepTimer();
+                          playerController.turnOffSleepTimer();
                           _done(context, 'cancelTimerAlert'.tr);
                         },
                         style: OutlinedButton.styleFrom(
@@ -135,6 +136,7 @@ class SleepTimerBottomSheet extends StatelessWidget {
                   ),
                 ),
               ],
+              const AutoSleepTimerTile(),
             ] else ...[
               Padding(
                 padding: const EdgeInsets.only(
@@ -155,6 +157,7 @@ class SleepTimerBottomSheet extends StatelessWidget {
                         minutes: dur,
                         onTap: () {
                           final ok = playerController.startSleepTimer(dur);
+                          AutoSleepTimer.rememberMinutes(dur);
                           _done(
                               context,
                               ok
@@ -173,6 +176,7 @@ class SleepTimerBottomSheet extends StatelessWidget {
                   final minutes = await showCustomSleepTimerDialog(context);
                   if (minutes == null || !context.mounted) return;
                   final ok = playerController.startSleepTimer(minutes);
+                  AutoSleepTimer.rememberMinutes(minutes);
                   _done(context,
                       ok ? 'sleepTimeSetAlert'.tr : 'operationFailed'.tr);
                 },
@@ -197,6 +201,7 @@ class SleepTimerBottomSheet extends StatelessWidget {
                     playerController.sleepEndOfChapter();
                   },
                 ),
+              const AutoSleepTimerTile(),
               if (playerController.isCurrentSongPodcast)
                 Padding(
                   padding: const EdgeInsets.only(
@@ -211,6 +216,120 @@ class SleepTimerBottomSheet extends StatelessWidget {
           ],
         );
       }),
+    );
+  }
+}
+
+/// The automatic sleep timer (AntennaPod's): the switch, saying for how
+/// long and between which hours, and while it's on, those hours to change.
+class AutoSleepTimerTile extends StatelessWidget {
+  const AutoSleepTimerTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final labelStyle = theme.textTheme.bodyMedium
+        ?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    return Obx(() {
+      final on = AutoSleepTimer.enabled.value;
+      final from = AutoSleepTimer.from.value;
+      final to = AutoSleepTimer.to.value;
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          RiffSheetTile(
+            icon: Icons.schedule_rounded,
+            title: 'autoSleepTimer'.tr,
+            subtitle:
+                (from == to ? 'autoSleepTimerAllDay' : 'autoSleepTimerDes')
+                    .trParams({
+              'time': formatSleepMinutes(AutoSleepTimer.minutes),
+              'from': sleepHourLabel(context, from),
+              'to': sleepHourLabel(context, to),
+            }),
+            onTap: () => AutoSleepTimer.setEnabled(!on),
+            trailing: CustSwitch(
+              value: on,
+              onChanged: AutoSleepTimer.setEnabled,
+            ),
+          ),
+          if (on)
+            Padding(
+              // Under the tile's text.
+              padding: const EdgeInsets.only(
+                  left: RiffSpacing.lg +
+                      RiffComponentSizes.sheetIcon +
+                      RiffSpacing.lg,
+                  right: RiffSpacing.lg),
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: RiffSpacing.lg,
+                children: [
+                  _HourDropdown(
+                    label: 'autoSleepTimerFrom'.tr,
+                    labelStyle: labelStyle,
+                    hour: from,
+                    onChanged: (h) => AutoSleepTimer.setHours(fromHour: h),
+                  ),
+                  _HourDropdown(
+                    label: 'autoSleepTimerTo'.tr,
+                    labelStyle: labelStyle,
+                    hour: to,
+                    onChanged: (h) => AutoSleepTimer.setHours(toHour: h),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      );
+    });
+  }
+}
+
+/// [hour] o'clock as the phone tells the time ("22:00", "10:00 PM").
+String sleepHourLabel(BuildContext context, int hour) =>
+    MaterialLocalizations.of(context).formatTimeOfDay(
+        TimeOfDay(hour: hour, minute: 0),
+        alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context));
+
+/// One of the automatic sleep timer's hours ([label]: From, Until), to
+/// pick from the 24; read out with its label.
+class _HourDropdown extends StatelessWidget {
+  const _HourDropdown(
+      {required this.label,
+      required this.labelStyle,
+      required this.hour,
+      required this.onChanged});
+
+  final String label;
+  final TextStyle? labelStyle;
+  final int hour;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return MergeSemantics(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: labelStyle),
+          const SizedBox(width: RiffSpacing.sm),
+          DropdownButton<int>(
+            dropdownColor: Theme.of(context).colorScheme.surfaceContainerLow,
+            underline: const SizedBox.shrink(),
+            value: hour,
+            items: [
+              for (var h = 0; h < Duration.hoursPerDay; h++)
+                DropdownMenuItem(
+                    value: h, child: Text(sleepHourLabel(context, h))),
+            ],
+            onChanged: (h) {
+              if (h != null) onChanged(h);
+            },
+          ),
+        ],
+      ),
     );
   }
 }
