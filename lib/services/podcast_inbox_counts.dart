@@ -58,6 +58,15 @@ class PodcastInboxCounts {
     return latest;
   }
 
+  /// The Inbox as it lists episodes: not played, not archived by Keep
+  /// latest, newest first (for the car).
+  static List<MediaItem> waiting() => [
+        for (final e in _episodes())
+          if (!PodcastProgressService.isPlayed(e.id) &&
+              !PodcastLibrary.isArchived(e.id))
+            e
+      ];
+
   static int count(Set<String> shows) => podcastWaitingCount(
         _episodes(),
         shows,

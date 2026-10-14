@@ -206,6 +206,11 @@ Podcasts:
   Name, Latest episode or Recently followed (Default keeps the order
   they had), inside folders too; folders stay first. Shows followed
   before this update count as followed earliest
+* In Android Auto, Podcasts starts with your queue and your Inbox, as
+  Pocket Casts starts with Up Next and AntennaPod with its queue and
+  Inbox: the queue in its order, and the Inbox's new episodes as of its
+  last refresh, newest first (played and set-aside ones left out), each
+  playable on from there; Continue listening and your shows follow
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip

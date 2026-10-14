@@ -22,6 +22,7 @@ import '/services/youtube_stream_headers.dart';
 import '/services/playlist_mix_service.dart';
 import '/services/audiobookshelf_service.dart';
 import '/services/cloud_music_service.dart';
+import '/services/podcast_inbox_counts.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/android_auto_paging.dart';
 import '/services/playback_hardening.dart';
@@ -2235,6 +2236,11 @@ class MediaLibrary {
   static const podcastProgressId = 'aa_pod_progress';
   static const podcastFeedPrefix = 'aa_pod_feed:';
 
+  /// The podcast queue and the Inbox, first under Podcasts in the car, as
+  /// Pocket Casts puts Up Next and AntennaPod its queue and Inbox there.
+  static const podcastQueueId = 'aa_pod_queue';
+  static const podcastInboxId = 'aa_pod_inbox';
+
   /// Podcast episode lists Android Auto browsed, by list id: played from
   /// there without fetching the feed again.
   static final autoPodcastLists = <String, List<MediaItem>>{};
@@ -2296,6 +2302,8 @@ class MediaLibrary {
   /// Followed podcasts: Continue listening, then each feed show.
   Future<List<MediaItem>> getPodcastNodes() async {
     final nodes = <MediaItem>[
+      MediaItem(id: podcastQueueId, title: "queue".tr, playable: false),
+      MediaItem(id: podcastInboxId, title: "podcastInbox".tr, playable: false),
       MediaItem(
           id: podcastProgressId,
           title: "continueListening".tr,
@@ -2323,6 +2331,14 @@ class MediaLibrary {
         items = PodcastProgressService.inProgress()
             .map(PodcastProgressService.toMediaItem)
             .toList();
+      } else if (id == podcastQueueId) {
+        items = Get.isRegistered<PodcastQueueController>()
+            ? Get.find<PodcastQueueController>().queue.toList()
+            : const [];
+      } else if (id == podcastInboxId) {
+        // The Inbox as the app lists it, newest first, from its last
+        // refresh (the car doesn't fetch every feed).
+        items = PodcastInboxCounts.waiting().take(100).toList();
       } else if (id.startsWith(podcastFeedPrefix)) {
         final feed = id.substring(podcastFeedPrefix.length);
         final sub = PodcastService.subscriptions.firstWhere(
@@ -2348,7 +2364,10 @@ class MediaLibrary {
 
   Future<List<MediaItem>> getByRootId(String id) async {
     if (id == podcastsRootId) return getPodcastNodes();
-    if (id == podcastProgressId || id.startsWith(podcastFeedPrefix)) {
+    if (id == podcastProgressId ||
+        id == podcastQueueId ||
+        id == podcastInboxId ||
+        id.startsWith(podcastFeedPrefix)) {
       return getPodcastList(id);
     }
     switch (id) {
