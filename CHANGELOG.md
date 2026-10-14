@@ -383,6 +383,15 @@ Autoplay:
   on the last song then too. Not for podcasts or audiobooks; offline the
   queue ends as before. Off by default
 
+Equalizer:
+* Riff's own, like Spotify's, for phones without one (Pixels among
+  them, where Settings › Equalizer used to land on the sound settings):
+  Settings › Equalizer opens it. Turn it on, pick a preset (Bass booster,
+  Vocal booster, Rock, Spoken word, Small speakers and more) or move each
+  of the phone's bands yourself (Custom). It's kept, and works with Bass
+  boost, Volume boost and the rest. Your phone's own equalizer is a tap
+  away in it. Off by default; Android
+
 Streaming quality:
 * Auto, as in Metrolist (YouTube Music and Spotify set Wi-Fi and mobile
   data apart too): Settings › Streaming quality › Auto plays songs in

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:harmonymusic/utils/helper.dart';
 import 'package:harmonymusic/utils/lang_mapping.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -23,6 +22,7 @@ import '/services/normalization_level.dart';
 import '/services/private_session.dart';
 import '/services/song_fade.dart';
 import '/services/music_autoplay.dart';
+import '/ui/widgets/equalizer_sheet.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/listenbrainz_service.dart';
 import '/services/music_service.dart';
@@ -741,13 +741,8 @@ class SettingsScreen extends StatelessWidget {
                       title: Text("equalizer".tr),
                       subtitle: Text("equalizerDes".tr,
                           style: settingsSubtitleStyle(context)),
-                      onTap: () async {
-                        try {
-                          await Get.find<PlayerController>().openEqualizer();
-                        } catch (e) {
-                          printERROR(e);
-                        }
-                      },
+                      // Riff's own (Spotify's), with the phone's one tap on.
+                      onTap: () => showEqualizerSheet(context),
                     ),
                   if (isDesktop)
                     ListTile(

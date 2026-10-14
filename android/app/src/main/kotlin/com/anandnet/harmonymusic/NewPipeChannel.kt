@@ -92,8 +92,15 @@ object NewPipeChannel : MethodChannel.MethodCallHandler {
                     loudnessMb = call.argument<Int>("loudnessMb") ?: 0,
                     reverb = call.argument<Int>("reverb") ?: 0,
                     virtualizer = call.argument<Int>("virtualizer") ?: 0,
+                    eqEnabled = call.argument<Boolean>("eqEnabled") ?: false,
+                    eqLevels = call.argument<List<Int>>("eqLevels") ?: emptyList(),
                 )
                 result.success(true)
+            }
+            // Riff's equalizer screen: the phone's bands (null: it has none).
+            "eqLayout" -> {
+                val sessionId = call.argument<Int>("sessionId") ?: 0
+                result.success(if (sessionId == 0) null else AudioFx.equalizerLayout(sessionId))
             }
             else -> result.notImplemented()
         }
@@ -178,6 +185,8 @@ object AudioFx {
     private var loudnessEnhancer: android.media.audiofx.LoudnessEnhancer? = null
     private var reverb: android.media.audiofx.PresetReverb? = null
     private var virtualizer: android.media.audiofx.Virtualizer? = null
+    /** Made only once Riff's equalizer is wanted: most never turn it on. */
+    private var equalizer: android.media.audiofx.Equalizer? = null
     private var fxSessionId: Int = 0
 
     /**
@@ -188,11 +197,71 @@ object AudioFx {
     private var fxInitialised = false
 
     @Synchronized
-    fun apply(sessionId: Int, bass: Int, loudnessMb: Int, reverb: Int, virtualizer: Int) {
+    fun apply(
+        sessionId: Int,
+        bass: Int,
+        loudnessMb: Int,
+        reverb: Int,
+        virtualizer: Int,
+        eqEnabled: Boolean = false,
+        eqLevels: List<Int> = emptyList(),
+    ) {
         applyBassBoost(sessionId, bass)
         applyLoudness(sessionId, loudnessMb)
         applyReverb(sessionId, reverb)
         applyVirtualizer(sessionId, virtualizer)
+        applyEqualizer(sessionId, eqEnabled, eqLevels)
+    }
+
+    /**
+     * The phone's equalizer bands for Riff's equalizer screen: their centre
+     * frequencies (Hz) and the level range (millibels). Null when the phone
+     * can't make one.
+     */
+    @Synchronized
+    fun equalizerLayout(sessionId: Int): Map<String, Any>? = try {
+        val eq = equalizerFor(sessionId)
+        if (eq == null) {
+            null
+        } else {
+            val range = eq.bandLevelRange
+            mapOf(
+                "centersHz" to (0 until eq.numberOfBands.toInt()).map {
+                    eq.getCenterFreq(it.toShort()) / 1000
+                },
+                "minMb" to range[0].toInt(),
+                "maxMb" to range[1].toInt(),
+            )
+        }
+    } catch (_: Throwable) {
+        null
+    }
+
+    private fun equalizerFor(sessionId: Int): android.media.audiofx.Equalizer? {
+        ensureSession(sessionId)
+        if (equalizer == null) {
+            try { equalizer = android.media.audiofx.Equalizer(0, sessionId) } catch (_: Throwable) {}
+        }
+        return equalizer
+    }
+
+    // levels: millibels per band, lowest first; off leaves the sound alone.
+    private fun applyEqualizer(sessionId: Int, enabled: Boolean, levels: List<Int>) {
+        try {
+            if (!enabled) {
+                equalizer?.enabled = false
+                return
+            }
+            val eq = equalizerFor(sessionId) ?: return
+            val range = eq.bandLevelRange
+            for (i in 0 until minOf(levels.size, eq.numberOfBands.toInt())) {
+                eq.setBandLevel(
+                    i.toShort(),
+                    levels[i].coerceIn(range[0].toInt(), range[1].toInt()).toShort()
+                )
+            }
+            eq.enabled = true
+        } catch (_: Throwable) {}
     }
 
     private fun ensureSession(sessionId: Int) {
@@ -212,7 +281,9 @@ object AudioFx {
         try { loudnessEnhancer?.release() } catch (_: Throwable) {}
         try { reverb?.release() } catch (_: Throwable) {}
         try { virtualizer?.release() } catch (_: Throwable) {}
+        try { equalizer?.release() } catch (_: Throwable) {}
         bassBoost = null; loudnessEnhancer = null; reverb = null; virtualizer = null
+        equalizer = null
         fxSessionId = 0
         fxInitialised = false
     }

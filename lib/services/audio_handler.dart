@@ -18,6 +18,7 @@ import 'package:rxdart/rxdart.dart';
 import '/models/album.dart';
 import '../models/playlist.dart';
 import '/services/equalizer.dart';
+import '/services/riff_equalizer.dart';
 import '/services/youtube_stream_headers.dart';
 import '/services/playlist_mix_service.dart';
 import '/services/audiobookshelf_service.dart';
@@ -509,6 +510,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       'loudnessMb': _effectiveLoudnessMb(box.get("volumeBoostMb")),
       'reverb': box.get("reverbPreset") ?? 0,
       'virtualizer': box.get("virtualizer") ?? 0,
+      'eqEnabled': RiffEqualizer.enabled,
+      'eqLevels': RiffEqualizer.levelsMb,
     });
   }
 
@@ -1419,6 +1422,16 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       case 'setAudioFx':
         _applyAudioFx();
         break;
+
+      // Riff's equalizer screen: the phone's bands, null without any.
+      case 'equalizerLayout':
+        final id = _player.androidAudioSessionId;
+        if (id == null) return null;
+        try {
+          return await _fxChannel.invokeMethod('eqLayout', {'sessionId': id});
+        } catch (_) {
+          return null;
+        }
 
       case 'skipToNext':
         return skipToNextResult(

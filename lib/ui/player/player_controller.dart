@@ -40,6 +40,7 @@ import '../widgets/sliding_up_panel.dart';
 import '/models/durationstate.dart';
 import '/services/music_service.dart';
 import '/services/music_autoplay.dart';
+import '/services/riff_equalizer.dart';
 import '/services/sponsorblock_service.dart';
 import '/services/podcast_service.dart';
 import '/services/podcast_progress_service.dart';
@@ -2616,6 +2617,14 @@ class PlayerController extends GetxController
 
   Future<void> openEqualizer() async {
     await _audioHandler.customAction("openEqualizer");
+  }
+
+  /// The phone's equalizer bands for Riff's equalizer (null: it has none,
+  /// or nothing has played yet).
+  Future<EqualizerLayout?> equalizerLayout() async {
+    if (!_audioReady) return null;
+    return EqualizerLayout.fromMap(
+        await _audioHandler.customAction('equalizerLayout'));
   }
 
   /// Called from audio handler when audio is not playable, a stream resolve
