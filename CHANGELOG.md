@@ -113,6 +113,12 @@ Screen readers (TalkBack):
   From and Until wrap beside their hours, and album and playlist rows
   (search results, artist pages) grow taller with the text instead of
   cutting their lines off. At the default size they look as before
+* On small phones (360 dp wide) the Theme dialog's six accent colours
+  ran off its edge, Cyan half cut, at any font size; they now go on a
+  second line when they don't fit. And a choice chip whose label is too
+  long for its line (the podcast settings' download and queue choices at
+  a larger font size, a long translation) wraps inside the chip instead
+  of running past the sheet's edge. Where they fit, they look as before
 
 Remove animations (Android's accessibility setting):
 * Riff now keeps still with it on, as Apple Music does under Reduce

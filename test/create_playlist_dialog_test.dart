@@ -89,7 +89,8 @@ void main() {
     final cancel = tester.getRect(find.text('Cancel'));
     final create = tester.getRect(find.text('Create & add'));
     expect(create.top, greaterThanOrEqualTo(cancel.bottom));
-    expect(create.right, lessThanOrEqualTo(tester.view.physicalSize.width));
+    final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
+    expect(create.right, lessThanOrEqualTo(screen.width));
   });
 
   Widget editing(Playlist playlist) => GetMaterialApp(

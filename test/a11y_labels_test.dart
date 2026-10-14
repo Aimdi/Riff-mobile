@@ -178,4 +178,24 @@ style: IconButton.styleFrom(padding: EdgeInsets.zero),
     expect(find.text('cancel').hitTestable(), findsOneWidget);
     handle.dispose();
   });
+
+  testWidgets('on a small phone, the six accents fit (on two lines)',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    // 360 dp wide, the narrowest phones Riff lays out for.
+    tester.view.physicalSize = const Size(1080, 2220);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    Get.put<SettingsScreenController>(_FakeSettings());
+    final theme = Get.put<ThemeController>(_FakeTheme()) as _FakeTheme;
+    // An overflow fails the test: the sixth ran 32 dp off the dialog.
+    await _pump(tester, const ThemeSelectorDialog());
+    for (final accent in ThemeController.riffAccents.keys) {
+      expect(find.bySemanticsLabel('color$accent'), findsOneWidget);
+    }
+    tester.semantics.tap(find.semantics.byLabel('colorCyan'));
+    await tester.pump();
+    expect(theme.accentColor.value, ThemeController.riffAccents['Cyan']);
+    handle.dispose();
+  });
 }

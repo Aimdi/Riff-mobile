@@ -1711,14 +1711,17 @@ class ThemeSelectorDialog extends StatelessWidget {
             child: Obx(() {
               final themeController = Get.find<ThemeController>();
               final current = themeController.accentColor.value;
-              return Row(
-                children: ThemeController.riffAccents.entries
-                    .map((entry) => Padding(
-                          padding:
-                              const EdgeInsets.only(right: RiffSpacing.md),
-                          // TalkBack says each accent's name, and which
-                          // is picked.
-                          child: Semantics(
+              // A second line on a small phone, where the six don't fit;
+              // from the left edge, as the row was.
+              return Align(
+                alignment: Alignment.centerLeft,
+                child: Wrap(
+                  spacing: RiffSpacing.md,
+                  runSpacing: RiffSpacing.md,
+                  children: ThemeController.riffAccents.entries
+                      .map((entry) => Semantics(
+                            // TalkBack says each accent's name, and which
+                            // is picked.
                             container: true,
                             button: true,
                             selected: current.value == entry.value.value,
@@ -1727,8 +1730,7 @@ class ThemeSelectorDialog extends StatelessWidget {
                               customBorder: const CircleBorder(),
                               onTap: () {
                                 HapticFeedback.selectionClick();
-                                themeController
-                                    .changeAccentColor(entry.value);
+                                themeController.changeAccentColor(entry.value);
                               },
                               child: Container(
                                 width: RiffComponentSizes.accentSwatch,
@@ -1746,9 +1748,9 @@ class ThemeSelectorDialog extends StatelessWidget {
                                     : null,
                               ),
                             ),
-                          ),
-                        ))
-                    .toList(),
+                          ))
+                      .toList(),
+                ),
               );
             }),
           ),
