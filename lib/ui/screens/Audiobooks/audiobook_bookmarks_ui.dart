@@ -9,11 +9,17 @@ import '/services/podcast_segments.dart' show formatSegmentLength;
 import '/ui/player/player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/bookmark_note_dialog.dart';
 import '/ui/widgets/riff_sheet.dart';
 import '/ui/widgets/snackbar.dart';
 import '../Home/home_layout.dart';
 
 String _at(int ms) => formatSegmentLength(ms / 1000);
+
+/// The bookmark's chapter: its track's title, else "Chapter n".
+String _chapterOf(AudiobookBookmark bm) => bm.trackTitle.isEmpty
+    ? 'bookChapter'.trParams({'n': '${bm.trackIndex + 1}'})
+    : bm.trackTitle;
 
 /// The book the player is reading from, if it's an audiobook.
 String? _playingBook(PlayerController pc) {
@@ -33,9 +39,24 @@ Future<void> bookmarkBookMoment(BuildContext context) async {
   final bm = await AudiobookBookmarkStore.add(
       track, pc.progressBarStatus.value.current,
       trackIndex: pc.currentQueue.indexWhere((m) => m.id == track.id));
-  if (bm == null) return;
-  showUndoSnackbar(
-      target, 'bookmarkSaved'.trParams({'time': _at(bm.positionMs)}));
+  if (bm == null || target == null || !target.messenger.mounted) return;
+  // With Add note, as Audible asks for one.
+  target.messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(themedSnackbar(
+        target.theme, 'bookmarkSaved'.trParams({'time': _at(bm.positionMs)}),
+        actionLabel: 'bookmarkAddNote'.tr,
+        onAction: () => editAudiobookBookmarkNote(context, bm)));
+}
+
+/// Adds or edits [bm]'s note (Audible's bookmark notes).
+Future<void> editAudiobookBookmarkNote(
+    BuildContext context, AudiobookBookmark bm) async {
+  final ctx = context.mounted ? context : Get.context;
+  if (ctx == null) return;
+  final note = await askBookmarkNote(ctx,
+      note: bm.note, subtitle: '${_chapterOf(bm)} · ${_at(bm.positionMs)}');
+  if (note != null) await AudiobookBookmarkStore.setNote(bm, note);
 }
 
 /// Play from [bm]: its track is in the queue while its book plays.
@@ -158,7 +179,8 @@ Future<void> showBookBookmarksSheet(BuildContext context) {
   );
 }
 
-/// One bookmark: the time in a tag, the chapter, and Remove.
+/// One bookmark: the time in a tag, the chapter and its note, a note to
+/// add or edit, and Remove.
 class AudiobookBookmarkTile extends StatelessWidget {
   const AudiobookBookmarkTile(
       {super.key, required this.bookmark, required this.onTap});
@@ -169,9 +191,8 @@ class AudiobookBookmarkTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final fg = theme.colorScheme.onSurface;
-    final title = bookmark.trackTitle.isEmpty
-        ? 'bookChapter'.trParams({'n': '${bookmark.trackIndex + 1}'})
-        : bookmark.trackTitle;
+    final muted = theme.colorScheme.onSurfaceVariant;
+    final note = bookmark.note;
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -195,10 +216,38 @@ class AudiobookBookmarkTile extends StatelessWidget {
             ),
             const SizedBox(width: RiffSpacing.md),
             Expanded(
-              child: Text(title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyLarge?.copyWith(color: fg)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_chapterOf(bookmark),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyLarge?.copyWith(color: fg)),
+                  if (note != null) ...[
+                    const SizedBox(height: RiffSpacing.xxs),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.sticky_note_2_outlined,
+                            size: RiffSizes.chipGlyph, color: muted),
+                        const SizedBox(width: RiffSpacing.xs),
+                        Expanded(
+                          child: Text(note,
+                              style: theme.textTheme.bodyMedium
+                                  ?.copyWith(color: muted)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip:
+                  note == null ? 'bookmarkAddNote'.tr : 'bookmarkEditNote'.tr,
+              icon: const Icon(Icons.edit_note_rounded,
+                  size: RiffComponentSizes.trailingIcon),
+              onPressed: () => editAudiobookBookmarkNote(context, bookmark),
             ),
             IconButton(
               tooltip: 'bookmarkRemove'.tr,

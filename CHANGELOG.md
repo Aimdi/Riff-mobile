@@ -250,6 +250,10 @@ Audiobooks:
   Apple Books: "Chapter 4 of 12 · 5 hr 12 min left", counted at the
   book's speed and kept up as it plays. For books in several chapters
   (a book in one file has its time left at the end of the seek bar)
+* Notes on audiobook bookmarks, like Audible's: "Bookmarked at 12:34"
+  offers Add note, and in Bookmarks in this book each bookmark has a
+  note button (add or edit; an empty note takes it off), its note shown
+  under its chapter. Podcast bookmarks' notes use the same editor
 
 Library:
 * Removing a song (swipe it, or "Remove" in its menu) now says "Removed

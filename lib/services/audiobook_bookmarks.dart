@@ -7,7 +7,8 @@ import 'package:hive/hive.dart';
 import 'audiobook_progress_service.dart';
 
 /// A saved moment in an audiobook, like Audible's bookmarks: the track
-/// (its id and its place in the book) and the position in it.
+/// (its id and its place in the book), the position in it and an optional
+/// note.
 class AudiobookBookmark {
   const AudiobookBookmark({
     required this.id,
@@ -17,6 +18,7 @@ class AudiobookBookmark {
     required this.positionMs,
     required this.createdAt,
     this.trackTitle = '',
+    this.note,
   });
 
   final String id;
@@ -28,6 +30,19 @@ class AudiobookBookmark {
   final int positionMs;
   final int createdAt;
   final String trackTitle;
+  final String? note;
+
+  /// With [note], or without one ([note] empty).
+  AudiobookBookmark withNote(String note) => AudiobookBookmark(
+        id: id,
+        bookId: bookId,
+        trackId: trackId,
+        trackIndex: trackIndex,
+        positionMs: positionMs,
+        createdAt: createdAt,
+        trackTitle: trackTitle,
+        note: note.trim().isEmpty ? null : note.trim(),
+      );
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -37,6 +52,7 @@ class AudiobookBookmark {
         'positionMs': positionMs,
         'createdAt': createdAt,
         'trackTitle': trackTitle,
+        if (note != null) 'note': note,
       };
 
   static AudiobookBookmark? fromJson(Object? value) {
@@ -49,6 +65,7 @@ class AudiobookBookmark {
     if (position is! int) return null;
     final index = value['trackIndex'];
     final created = value['createdAt'];
+    final note = value['note'];
     return AudiobookBookmark(
       id: id,
       bookId: bookId,
@@ -57,6 +74,7 @@ class AudiobookBookmark {
       positionMs: position,
       createdAt: created is int ? created : 0,
       trackTitle: '${value['trackTitle'] ?? ''}',
+      note: note is String && note.trim().isNotEmpty ? note : null,
     );
   }
 }
@@ -127,6 +145,15 @@ class AudiobookBookmarkStore {
   /// Puts a removed bookmark back (Undo).
   static Future<void> restore(AudiobookBookmark bm) async {
     await _box?.put(bm.id, bm.toJson());
+    rev.value++;
+  }
+
+  /// Gives [bm] [note] (Audible's bookmark notes); an empty one takes it
+  /// off.
+  static Future<void> setNote(AudiobookBookmark bm, String note) async {
+    final b = _box;
+    if (b == null) return;
+    await b.put(bm.id, bm.withNote(note).toJson());
     rev.value++;
   }
 }

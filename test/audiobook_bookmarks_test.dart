@@ -81,6 +81,20 @@ void main() {
     expect(AudiobookBookmarkStore.forBook('book1'), hasLength(3));
   });
 
+  test('a note is kept trimmed, and an empty one takes it off', () async {
+    final bm = (await AudiobookBookmarkStore.add(
+        _track(0), const Duration(seconds: 30),
+        trackIndex: 0))!;
+    expect(bm.note, isNull);
+    expect(bm.toJson().containsKey('note'), isFalse);
+    await AudiobookBookmarkStore.setNote(bm, '  The twist  ');
+    final noted = AudiobookBookmarkStore.forBook('book1').single;
+    expect(noted.note, 'The twist');
+    expect(noted.positionMs, 30000);
+    await AudiobookBookmarkStore.setNote(noted, ' ');
+    expect(AudiobookBookmarkStore.forBook('book1').single.note, isNull);
+  });
+
   group('in the player', () {
     late _FakePlayer player;
     setUp(
@@ -155,6 +169,42 @@ void main() {
       await tester.tap(find.text('undo'));
       await tester.pumpAndSettle();
       expect(find.text('Chapter 1'), findsOneWidget);
+    });
+
+    testWidgets('Add note right after bookmarking', (tester) async {
+      await pumpPlayer(tester);
+      await openMenu(tester);
+      await tester.tap(find.text('bookmarkThisMoment'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('bookmarkAddNote'));
+      await tester.pumpAndSettle();
+      expect(find.text('Chapter 2 · 5:00'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'Remember this');
+      await tester.tap(find.text('save'));
+      await tester.pumpAndSettle();
+      expect(
+          AudiobookBookmarkStore.forBook('book1').single.note, 'Remember this');
+    });
+
+    testWidgets('a note added from the list shows under its chapter',
+        (tester) async {
+      await tester.runAsync(() => AudiobookBookmarkStore.add(
+          _track(0), const Duration(seconds: 42),
+          trackIndex: 0));
+      await pumpPlayer(tester);
+      await openMenu(tester);
+      await tester.tap(find.text('bookBookmarks'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('bookmarkAddNote'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Where it turns');
+      await tester.tap(find.text('save'));
+      await tester.pumpAndSettle();
+      expect(find.text('Where it turns'), findsOneWidget);
+      expect(find.byTooltip('bookmarkEditNote'), findsOneWidget);
+      expect(AudiobookBookmarkStore.forBook('book1').single.note,
+          'Where it turns');
     });
 
     testWidgets('nothing for music', (tester) async {
