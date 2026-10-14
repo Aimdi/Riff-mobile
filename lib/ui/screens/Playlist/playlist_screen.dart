@@ -14,6 +14,7 @@ import '/models/thumbnail.dart';
 import '/services/playlist_covers.dart';
 import '/services/podcast_service.dart';
 import '/services/playlist_mix_service.dart';
+import '/services/smart_shuffle.dart';
 import '../Podcasts/podcast_queue_screen.dart';
 import '../Podcasts/podcasts_screen.dart';
 import '../Podcasts/podcast_show_view.dart';
@@ -656,6 +657,27 @@ Widget _actions(
           () async {
         final ok = await player.enqueueSongList(c.songList.toList());
         snack(ok ? "songEnqueueAlert" : "operationFailed");
+      }),
+      // Spotify's Smart shuffle: songs like these mixed in.
+      CollectionMenuItem(Icons.shuffle_on_rounded, 'smartShuffle'.tr, () async {
+        final list = c.songList.toList();
+        if (list.isEmpty) return;
+        final picks = await smartShufflePicks(list);
+        if (Get.isRegistered<PlaylistMixService>()) {
+          Get.find<PlaylistMixService>().deactivatePlayback();
+        }
+        final ok = await player.playPlayListSong(
+            smartShuffleOrder(list, picks), 0,
+            playfrom: PlaylingFrom(
+                name: pl.title,
+                type: PlaylingFromType.PLAYLIST,
+                id: pl.playlistId,
+                item: pl));
+        snack(!ok
+            ? "operationFailed"
+            : picks.isEmpty
+                ? 'smartShuffleNoPicks'
+                : 'smartShuffleOn');
       }),
       CollectionMenuItem(Icons.sensors, "startRadio".tr, () async {
         final list = c.songList.toList();

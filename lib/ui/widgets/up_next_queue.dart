@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/services/smart_shuffle.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:harmonymusic/ui/theme/riff_spacing.dart';
 import 'package:harmonymusic/ui/theme/riff_tokens.dart';
@@ -274,13 +275,30 @@ class _QueueSongRow extends StatelessWidget {
                                       ),
                                     ),
                                     const SizedBox(height: RiffSpacing.xxs),
-                                    Text(
-                                      song.artist ?? '',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: text.bodyMedium?.copyWith(
-                                        color: muted,
-                                      ),
+                                    Row(
+                                      children: [
+                                        // Mixed in by Smart shuffle.
+                                        if (isSmartShufflePick(song)) ...[
+                                          Semantics(
+                                            label: 'smartShufflePick'.tr,
+                                            child: Icon(
+                                                Icons.auto_awesome_rounded,
+                                                size: RiffSizes.chipGlyph,
+                                                color: muted),
+                                          ),
+                                          const SizedBox(width: RiffSpacing.xs),
+                                        ],
+                                        Expanded(
+                                          child: Text(
+                                            song.artist ?? '',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: text.bodyMedium?.copyWith(
+                                              color: muted,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),

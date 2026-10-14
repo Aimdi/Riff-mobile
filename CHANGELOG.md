@@ -322,6 +322,10 @@ Playlists:
 * A downloaded playlist stays downloaded, as in Spotify: when every song
   in one of your playlists is downloaded, songs you add to it later
   (from Add to playlist or its Recommended songs) download too
+* Smart shuffle, like Spotify's: a playlist's ⋮ › Smart shuffle plays it
+  shuffled, with a song like it that you haven't heard mixed in after
+  every three. In Up Next a ✦ before the artist marks the songs it
+  added; the playlist itself doesn't change. Offline it just shuffles
 
 Up Next:
 * Removing a song (swipe it away, the song menu, or ✕ on desktop) and
