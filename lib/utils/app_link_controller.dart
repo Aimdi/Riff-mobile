@@ -12,6 +12,7 @@ import '/services/podcast_feed_url.dart';
 import '/services/apple_music_links.dart';
 import '/services/podcast_links.dart';
 import '/services/spotify_links.dart';
+import '/services/youtube_links.dart';
 import '/ui/widgets/spotify_import_dialog.dart';
 import '/ui/screens/Podcasts/podcast_cover_tile.dart' show openRssPodcast;
 import '/ui/screens/Home/home_screen_controller.dart';
@@ -103,41 +104,30 @@ mixin ProcessLink {
       Navigator.of(Get.context!).pop();
     }
 
-    if (uri.host == "youtube.com" ||
-        uri.host == "music.youtube.com" ||
-        uri.host == "youtu.be" ||
-        uri.host == "www.youtube.com" ||
-        uri.host == "m.youtube.com") {
+    if (youtubeHosts.contains(uri.host.toLowerCase())) {
       printINFO(
           "pathsegmet: ${uri.pathSegments} params:${uri.queryParameters}");
-      // A bare host (music.youtube.com) or a link missing its id is not
-      // something to open; say so instead of throwing.
-      final segs = uri.pathSegments;
-      final first = segs.isEmpty ? '' : segs[0];
-      final videoId = uri.queryParameters['v'] ?? '';
-      final listId = uri.queryParameters['list'] ?? '';
-      if (first.isEmpty ||
-          (first == "watch" && videoId.isEmpty) ||
-          (first == "channel" && segs.length < 2) ||
-          (first == "playlist" && listId.isEmpty)) {
-        ScaffoldMessenger.of(Get.context!).showSnackBar(snackbar(
-            Get.context!, "notaValidLink".tr,
-            size: SanckBarSize.MEDIUM));
-        return;
-      }
-      if (first == "playlist") {
-        await openPlaylistOrAlbum(listId);
-      } else if (first == "shorts") {
-        ScaffoldMessenger.of(Get.context!).showSnackBar(snackbar(
-            Get.context!, "notaSongVideo".tr,
-            size: SanckBarSize.MEDIUM));
-      } else if (first == "watch") {
-        await playSong(videoId);
-      } else if (first == "channel") {
-        await openArtist(segs[1]);
-      } else if ((uri.queryParameters.isEmpty || uri.query.contains("si=")) &&
-          uri.host == "youtu.be") {
-        await playSong(first);
+      final yt = youtubeLinkFrom(uri);
+      switch (yt.kind) {
+        case YoutubeLinkKind.song:
+          await playSong(yt.id);
+        case YoutubeLinkKind.playlist:
+          await openPlaylistOrAlbum(yt.id);
+        case YoutubeLinkKind.album:
+          Get.toNamed(ScreenNavigationSetup.albumScreen,
+              id: ScreenNavigationSetup.id, arguments: (null, yt.id));
+        case YoutubeLinkKind.artist:
+          await openArtist(yt.id);
+        case YoutubeLinkKind.handle:
+          await openYoutubeHandle(uri, yt.id);
+        case YoutubeLinkKind.short:
+          ScaffoldMessenger.of(Get.context!).showSnackBar(snackbar(
+              Get.context!, "notaSongVideo".tr,
+              size: SanckBarSize.MEDIUM));
+        case YoutubeLinkKind.invalid:
+          // A bare host (music.youtube.com) or a link missing its id is
+          // not something to open; say so instead of doing nothing.
+          _notALink();
       }
     } else {
       final link = written ?? uri.toString();
@@ -209,6 +199,16 @@ mixin ProcessLink {
           ctx, 'notFoundOnYouTubeMusic'.tr,
           size: SanckBarSize.MEDIUM));
     }
+  }
+
+  /// A channel's @handle (or /c/, /user/ name): its artist page, as
+  /// YouTube resolves it; else what a search for the name finds.
+  Future<void> openYoutubeHandle(Uri uri, String name) async {
+    final id = await _whileSpinning(
+        Get.find<MusicServices>().resolveUrl(uri.toString()));
+    if (id != null && id.startsWith('UC')) return openArtist(id);
+    Get.toNamed(ScreenNavigationSetup.searchResultScreen,
+        id: ScreenNavigationSetup.id, arguments: name);
   }
 
   void _notALink() {

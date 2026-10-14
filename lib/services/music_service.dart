@@ -183,6 +183,21 @@ class MusicServices extends getx.GetxService {
     return response;
   }
 
+  /// The page YouTube resolves a web address to ([url], e.g. a channel's
+  /// @handle): its browse id (UC… for a channel), or null.
+  Future<String?> resolveUrl(String url) async {
+    try {
+      final data = _ctx();
+      data['url'] = url;
+      final response = await _sendRequest('navigation/resolve_url', data);
+      final id = nav(response.data, ['endpoint', 'browseEndpoint', 'browseId']);
+      return id is String && id.isNotEmpty ? id : null;
+    } catch (e) {
+      printERROR('Resolving $url failed: $e');
+      return null;
+    }
+  }
+
   /// Chips YouTube Music showed over the last unfiltered home feed.
   List<HomeChip> lastHomeChips = const [];
 

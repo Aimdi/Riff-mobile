@@ -688,6 +688,11 @@ Search:
   plays its YouTube Music match, and an album or an artist opens the
   same album or artist on YouTube Music, found from what Apple's public
   directory says of it
+* YouTube links shared to Riff open in all their forms: youtu.be links
+  with a moment in them (?t=42), /live/ and /embed/ ones, YouTube
+  Music's album, artist and podcast pages (/browse/…), and a channel's
+  @handle (or /c/, /user/ name), whose artist page opens, else a search
+  for it. Links Riff can't open now say so instead of doing nothing
 
 Language:
 * System default, as in Spotify, YouTube Music and AntennaPod: Settings ›

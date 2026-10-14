@@ -1,0 +1,70 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:harmonymusic/services/youtube_links.dart';
+
+void main() {
+  void opens(String link, YoutubeLinkKind kind, [String id = '']) {
+    final l = youtubeLinkFrom(Uri.parse(link));
+    expect(l.kind, kind, reason: link);
+    expect(l.id, id, reason: link);
+  }
+
+  test('a video plays, however its link is written', () {
+    const id = 'dQw4w9WgXcQ';
+    opens(
+        'https://music.youtube.com/watch?v=$id&si=x', YoutubeLinkKind.song, id);
+    opens('https://www.youtube.com/watch?v=$id&list=RDAMVM$id',
+        YoutubeLinkKind.song, id);
+    opens('https://youtu.be/$id', YoutubeLinkKind.song, id);
+    opens('https://youtu.be/$id?si=abc', YoutubeLinkKind.song, id);
+    // Only a moment in it: it used to do nothing.
+    opens('https://youtu.be/$id?t=42', YoutubeLinkKind.song, id);
+    opens('https://www.youtube.com/live/$id?feature=share',
+        YoutubeLinkKind.song, id);
+    opens('https://www.youtube.com/embed/$id', YoutubeLinkKind.song, id);
+    opens('https://m.youtube.com/watch?v=$id', YoutubeLinkKind.song, id);
+  });
+
+  test('playlists, albums, artists and podcasts open their pages', () {
+    opens('https://music.youtube.com/playlist?list=PLabc',
+        YoutubeLinkKind.playlist, 'PLabc');
+    opens('https://music.youtube.com/playlist?list=OLAK5uy_album',
+        YoutubeLinkKind.playlist, 'OLAK5uy_album');
+    opens('https://music.youtube.com/browse/MPREb_abc', YoutubeLinkKind.album,
+        'MPREb_abc');
+    opens('https://music.youtube.com/browse/VLPLabc', YoutubeLinkKind.playlist,
+        'PLabc');
+    opens('https://music.youtube.com/browse/MPSPPLshow',
+        YoutubeLinkKind.playlist, 'MPSPPLshow');
+    opens('https://music.youtube.com/channel/UCuAXFkgsw1L7xaCfnd5JJOw',
+        YoutubeLinkKind.artist, 'UCuAXFkgsw1L7xaCfnd5JJOw');
+    opens('https://music.youtube.com/browse/UCuAXFkgsw1L7xaCfnd5JJOw',
+        YoutubeLinkKind.artist, 'UCuAXFkgsw1L7xaCfnd5JJOw');
+  });
+
+  test('a channel by its name is looked up', () {
+    opens('https://www.youtube.com/@RickAstleyYT', YoutubeLinkKind.handle,
+        'RickAstleyYT');
+    opens('https://www.youtube.com/@RickAstleyYT/videos',
+        YoutubeLinkKind.handle, 'RickAstleyYT');
+    opens('https://www.youtube.com/c/RickAstley', YoutubeLinkKind.handle,
+        'RickAstley');
+    opens('https://www.youtube.com/user/RickAstleyVEVO', YoutubeLinkKind.handle,
+        'RickAstleyVEVO');
+  });
+
+  test('a Short is no song; the rest is nothing to open', () {
+    opens('https://youtube.com/shorts/dQw4w9WgXcQ', YoutubeLinkKind.short);
+    for (final link in [
+      'https://music.youtube.com',
+      'https://music.youtube.com/watch',
+      'https://music.youtube.com/playlist',
+      'https://www.youtube.com/channel/notachannel',
+      'https://music.youtube.com/browse/FEmusic_home',
+      'https://youtu.be/',
+      'https://www.youtube.com/feed/subscriptions',
+      'https://example.com/watch?v=dQw4w9WgXcQ',
+    ]) {
+      opens(link, YoutubeLinkKind.invalid);
+    }
+  });
+}
