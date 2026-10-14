@@ -110,6 +110,9 @@ class DiscoveryEngine {
   Future<GeneratedMix> onRepeat({int limit = 30}) =>
       mixGenerator.ensureOnRepeat(limit: limit);
 
+  Future<GeneratedMix> daylist({int limit = 30}) =>
+      mixGenerator.ensureDaylist(limit: limit);
+
   Future<List<DiscoverySection>> homeSections() async {
     if (!taste.hasEnoughSignal) return [];
 

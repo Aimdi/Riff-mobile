@@ -511,6 +511,14 @@ Library:
   30 days, the most played first: songs you played through at least
   twice, skips left out. Made afresh each day from your own plays, so
   offline too; it shows once there are five such songs
+* A daylist, as Spotify has one: a playlist in your Library (and in
+  Android Auto's playlists) of what you play at this time of day, named
+  for it ("Your Tuesday evening"). It's made afresh for each part of
+  the day (morning from 5, afternoon from 12, evening from 17, night
+  from 21) when you open Riff in it: the songs you played through at
+  least twice at that time in the last 30 days, those you play then
+  more than at other times first. Made from your own plays, so offline
+  too; it shows once there are five such songs
 * Rediscover's songs have their covers, and their albums and lengths
   when Riff keeps the song (Favorites, downloads, Recently played): they
   used to show blank. Songs you said never to play stay out of it

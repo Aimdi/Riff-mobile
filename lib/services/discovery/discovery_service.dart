@@ -258,9 +258,10 @@ class DiscoveryService extends GetxService {
     }
     isGenerating.value = true;
     try {
-      // Rediscover and On Repeat first (local, free)
+      // Rediscover, On Repeat and the daylist first (local, free)
       await engine.rediscover();
       await engine.onRepeat();
+      await engine.daylist();
       final mixes = await engine.dailyMixes();
       dailyMixes.assignAll(mixes);
       await engine.freshFinds();

@@ -83,19 +83,8 @@ class MixGenerator {
     if (existing != null && !_staleDaily(existing.generatedTs, now: now)) {
       return existing;
     }
-    final meta = <String, DiscoveryEvent>{
-      for (final e in repo.recentEvents(limit: 5000))
-        if (e.title?.isNotEmpty ?? false) e.videoId: e,
-    };
-    final kept = KeptSongs();
-    final tracks = <Map<String, dynamic>>[];
-    for (final id in repo.onRepeatIds(limit: limit * 2, now: now)) {
-      final e = meta[id];
-      final track = kept.track(id, title: e?.title, artist: e?.artist);
-      if (track == null || BanServiceSafe.isTrackBanned(track)) continue;
-      tracks.add(track);
-      if (tracks.length >= limit) break;
-    }
+    final tracks =
+        _ownSongs(repo.onRepeatIds(limit: limit * 2, now: now), limit);
     final mix = GeneratedMix(
       id: 'on_repeat',
       title: 'On Repeat',
@@ -105,6 +94,79 @@ class MixGenerator {
           ? tracks
           : const <Map<String, dynamic>>[],
       generatedTs: (now ?? DateTime.now()).millisecondsSinceEpoch,
+    );
+    await repo.saveMix(mix);
+    return mix;
+  }
+
+  /// [ids] as songs you played: as Riff keeps them (KeptSongs), else with
+  /// their title and artist from your plays; what can't play from a mix
+  /// and songs you said never to play left out; at most [limit].
+  List<Map<String, dynamic>> _ownSongs(List<String> ids, int limit) {
+    final meta = <String, DiscoveryEvent>{
+      for (final e in repo.recentEvents(limit: 5000))
+        if (e.title?.isNotEmpty ?? false) e.videoId: e,
+    };
+    final kept = KeptSongs();
+    final tracks = <Map<String, dynamic>>[];
+    for (final id in ids) {
+      final e = meta[id];
+      final track = kept.track(id, title: e?.title, artist: e?.artist);
+      if (track == null || BanServiceSafe.isTrackBanned(track)) continue;
+      tracks.add(track);
+      if (tracks.length >= limit) break;
+    }
+    return tracks;
+  }
+
+  // ─── daylist (pure local) ─────────────────────────────────────────────
+
+  /// The fewest songs the daylist is made of; with fewer it waits for
+  /// more plays at that time of day.
+  static const daylistMin = 5;
+
+  static const _weekdays = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+
+  static const _daylistReasons = {
+    DayPart.morning: 'What you play in the morning',
+    DayPart.afternoon: 'What you play in the afternoon',
+    DayPart.evening: 'What you play in the evening',
+    DayPart.night: 'What you play at night',
+  };
+
+  /// Spotify's daylist: the songs you play at this time of day, those you
+  /// play then more than at other times first, from your own plays of the
+  /// last 30 days (no network). Made afresh as the day moves on (morning,
+  /// afternoon, evening, night) and named for it ("Your Tuesday
+  /// evening").
+  Future<GeneratedMix> ensureDaylist({int limit = 30, DateTime? now}) async {
+    final at = now ?? DateTime.now();
+    final start = DayPart.startOf(at);
+    final existing = repo.getMix('daylist');
+    if (existing != null &&
+        DayPart.startOf(
+                DateTime.fromMillisecondsSinceEpoch(existing.generatedTs)) ==
+            start) {
+      return existing;
+    }
+    final tracks = _ownSongs(repo.daylistIds(limit: limit * 2, now: at), limit);
+    final part = DayPart.of(at);
+    final mix = GeneratedMix(
+      id: 'daylist',
+      title: 'Your ${_weekdays[start.weekday - 1]} ${part.name}',
+      reason: _daylistReasons[part]!,
+      kind: MixKind.daylist,
+      tracks:
+          tracks.length >= daylistMin ? tracks : const <Map<String, dynamic>>[],
+      generatedTs: at.millisecondsSinceEpoch,
     );
     await repo.saveMix(mix);
     return mix;

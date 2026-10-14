@@ -299,6 +299,39 @@ class DiscoverySurface {
   static const String fansAlsoLike = 'fans_also_like';
 }
 
+/// The parts of a day the daylist follows, as Spotify's daylist changes
+/// through the day: morning from 5, afternoon from 12, evening from 17 and
+/// night from 21 to 5 the next morning (local time).
+enum DayPart {
+  morning(5),
+  afternoon(12),
+  evening(17),
+  night(21);
+
+  const DayPart(this.startHour);
+
+  /// The hour this part of the day begins.
+  final int startHour;
+
+  static DayPart of(DateTime t) {
+    final h = t.hour;
+    if (h >= night.startHour || h < morning.startHour) return night;
+    if (h >= evening.startHour) return evening;
+    if (h >= afternoon.startHour) return afternoon;
+    return morning;
+  }
+
+  /// When the part of the day [t] is in began; a night's small hours
+  /// belong to the evening before.
+  static DateTime startOf(DateTime t) {
+    final part = of(t);
+    final day = part == night && t.hour < morning.startHour
+        ? DateTime(t.year, t.month, t.day - 1)
+        : t;
+    return DateTime(day.year, day.month, day.day, part.startHour);
+  }
+}
+
 /// Playlist kind flags for system-generated mixes.
 class MixKind {
   static const String dailyMix = 'daily_mix';
@@ -306,6 +339,7 @@ class MixKind {
   static const String releaseRadar = 'release_radar';
   static const String rediscover = 'rediscover';
   static const String onRepeat = 'on_repeat';
+  static const String daylist = 'daylist';
 }
 
 /// Per-track listen stats stored in `riff_track_stats`.

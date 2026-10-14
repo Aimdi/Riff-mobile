@@ -373,6 +373,43 @@ class DiscoveryRepository {
     return ids.take(limit).toList();
   }
 
+  /// The songs you play at this time of day, for the daylist: played
+  /// through at least [minPlays] times in the last [days] during the part
+  /// of the day [now] is in, those you play then more than at other times
+  /// first (plays then × the share of their plays that are then), the
+  /// latest among equals.
+  List<String> daylistIds(
+      {int days = 30, int minPlays = 2, int limit = 30, DateTime? now}) {
+    final at = now ?? DateTime.now();
+    final part = DayPart.of(at);
+    final cutoff = at.subtract(Duration(days: days)).millisecondsSinceEpoch;
+    final then = <String, int>{};
+    final all = <String, int>{};
+    final latest = <String, int>{};
+    for (var i = _events.length - 1; i >= 0; i--) {
+      final v = _events.getAt(i);
+      if (v is! Map) continue;
+      final ts = v['ts'] as int? ?? 0;
+      if (ts < cutoff) break;
+      if (v['event'] != DiscoveryEventKind.playEnded.wireName) continue;
+      final id = '${v['videoId'] ?? ''}';
+      if (id.isEmpty || isLongFormId(id)) continue;
+      all[id] = (all[id] ?? 0) + 1;
+      if (DayPart.of(DateTime.fromMillisecondsSinceEpoch(ts)) != part) continue;
+      then[id] = (then[id] ?? 0) + 1;
+      latest[id] ??= ts;
+    }
+    double score(String id) => then[id]! * then[id]! / all[id]!;
+    final ids = [
+      for (final e in then.entries)
+        if (e.value >= minPlays) e.key,
+    ]..sort((a, b) {
+        final byScore = score(b).compareTo(score(a));
+        return byScore != 0 ? byScore : latest[b]!.compareTo(latest[a]!);
+      });
+    return ids.take(limit).toList();
+  }
+
   // ─── Co-occurrence graph ──────────────────────────────────────────────
 
   static const int maxNeighbors = 150;
