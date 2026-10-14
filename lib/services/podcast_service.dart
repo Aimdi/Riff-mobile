@@ -1531,10 +1531,16 @@ class PodcastChapter {
       required this.title,
       this.endSec,
       this.imageUrl,
-      this.linkUrl});
+      this.linkUrl,
+      this.fromNotes = false});
   final double startSec;
   final double? endSec;
   final String title;
+
+  /// Read from the show notes' timestamps (showNotesChapters): ads put in
+  /// as the episode is fetched can move the audio away from them, so
+  /// nothing is skipped by them on its own.
+  final bool fromNotes;
 
   /// The chapter's own art (its "img"), if it has one.
   final String? imageUrl;

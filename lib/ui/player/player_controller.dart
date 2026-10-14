@@ -12,6 +12,7 @@ import '../../utils/hive_boxes.dart';
 import 'abs_session.dart';
 import 'long_form_queue.dart';
 import '/services/id3_chapters.dart';
+import '/services/show_notes_chapters.dart';
 import 'play_queue_order.dart';
 import 'video_handoff.dart';
 import '../../services/play_by_index_skip.dart';
@@ -776,10 +777,14 @@ class PlayerController extends GetxController
     chapters.clear();
     inAdChapter.value = false;
     final url = episodeChaptersUrl(item);
-    final chs = url != null && url.isNotEmpty
+    var chs = url != null && url.isNotEmpty
         ? await PodcastService.chapters(url)
         // None in the feed: the episode's MP3 may carry its own (ID3).
         : await Id3Chapters.forEpisode(item);
+    // None in either: its show notes may list its parts by their start.
+    if (chs.isEmpty && item.isPodcastEpisode) {
+      chs = showNotesChapters(episodeNotes(item), length: item.duration);
+    }
     if (_chaptersForSongId == item.id) chapters.assignAll(chs);
   }
 

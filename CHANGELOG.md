@@ -217,6 +217,13 @@ Podcasts:
   Riff reads them from the start of the episode (its download, offline),
   with their titles and links. Only the tag at the start is read (at most
   4 MB), not the episode
+* Chapters from the show notes, as YouTube and Spotify make them: an
+  episode with none in its feed or its MP3 whose notes list its parts by
+  their start ("00:00 Intro", "(12:34) The interview", "Wrap-up 1:02:03";
+  three or more, in order) gets them as chapters, for the chapter list,
+  previous / next chapter and Skip chapters. Nothing is skipped by them
+  on its own: ads put into an episode as it's fetched can move its audio
+  away from the notes' times
 * Episodes say what they are, as in Apple Podcasts and Pocket Casts: a
   show's page and the Inbox label trailers ("Trailer"), bonus episodes
   ("Bonus") and numbered ones ("S2 E5", "Ep. 12") as the feed numbers

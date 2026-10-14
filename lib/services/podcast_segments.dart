@@ -297,7 +297,8 @@ List<PodcastSegment> segmentsFromChapters(
     final c = sorted[i];
     final end = c.endSec ??
         (i + 1 < sorted.length ? sorted[i + 1].startSec : durationSec);
-    if (end <= c.startSec) continue;
+    // Not from the notes' timestamps: they may not match the audio.
+    if (end <= c.startSec || c.fromNotes) continue;
     final SegmentCategory? cat = c.isAd
         ? SegmentCategory.sponsor
         : _promoRe.hasMatch(c.title)
