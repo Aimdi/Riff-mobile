@@ -501,6 +501,12 @@ Library:
 * Rediscover's songs have their covers, and their albums and lengths
   when Riff keeps the song (Favorites, downloads, Recently played): they
   used to show blank. Songs you said never to play stay out of it
+* Like on YouTube Music too, as Metrolist keeps likes in step: with your
+  YouTube account connected, Settings has a switch (off at first) that
+  likes in YouTube Music the songs you like in Riff, so they're in Liked
+  music there and steer the feed Riff shows you. Unlike one in Riff and
+  it's unliked there too, if Riff liked it there (a like you made in
+  YouTube Music stays). Likes made offline go once YouTube can be reached
 * Removing a song (swipe it, or "Remove" in its menu) now says "Removed
   from your library" with Undo, like YouTube Music; its download or
   cached copy is only deleted once Undo is gone (or on the next start if

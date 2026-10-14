@@ -34,6 +34,7 @@ import '/services/music_service.dart';
 import '/services/video_stream_service.dart';
 import '/ui/player/video_mode_controller.dart';
 import '/services/yt_auth_service.dart';
+import '/services/yt_like_sync.dart';
 import 'yt_login_screen.dart';
 import '../Home/home_screen_controller.dart';
 import '../../navigator.dart';
@@ -926,6 +927,7 @@ class SettingsScreen extends StatelessWidget {
                         onTap: () async {
                           if (connected) {
                             await YtAuthService.disconnect();
+                            await YtLikeSync.forgetAccount();
                             settingsController.ytConnected.value = false;
                             Get.find<HomeScreenController>()
                                 .loadContentFromNetwork();
@@ -948,6 +950,24 @@ class SettingsScreen extends StatelessWidget {
                             }
                           }
                         },
+                      );
+                    }),
+                    // Metrolist's like sync: likes made in Riff go to the
+                    // connected YouTube Music account too.
+                    Obx(() {
+                      YtLikeSync.rev.value;
+                      if (!settingsController.ytConnected.value) {
+                        return const SizedBox.shrink();
+                      }
+                      return ListTile(
+                        contentPadding: settingsTilePadding,
+                        title: Text("ytLikeSync".tr),
+                        subtitle: Text("ytLikeSyncDes".tr,
+                            style: settingsSubtitleStyle(context)),
+                        trailing: CustSwitch(
+                          value: YtLikeSync.enabled,
+                          onChanged: YtLikeSync.setEnabled,
+                        ),
                       );
                     }),
                     ListTile(

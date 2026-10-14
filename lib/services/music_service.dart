@@ -184,6 +184,22 @@ class MusicServices extends getx.GetxService {
     return response;
   }
 
+  /// Rates [videoId] on the connected YouTube account, as YouTube Music's
+  /// own like button does: [endpoint] 'like/like' or 'like/removelike'.
+  /// Whether YouTube took it (false without an account).
+  Future<bool> rateSong(String endpoint, String videoId) async {
+    if (!YtAuthService.isConnected) return false;
+    try {
+      final data = _ctx();
+      data['target'] = {'videoId': videoId};
+      final response = await _sendRequest(endpoint, data, retries: 1);
+      return (response.statusCode ?? 0) ~/ 100 == 2;
+    } catch (e) {
+      printERROR('Rating $videoId ($endpoint) failed: $e');
+      return false;
+    }
+  }
+
   /// The page YouTube resolves a web address to ([url], e.g. a channel's
   /// @handle): its browse id (UC… for a channel), or null.
   Future<String?> resolveUrl(String url) async {

@@ -56,6 +56,7 @@ import 'utils/house_keeping.dart';
 import 'utils/secure_credentials.dart';
 import 'services/sync/webdav_sync_service.dart';
 import 'services/spotify_like_sync.dart';
+import 'services/yt_like_sync.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -170,6 +171,7 @@ Future<void> _initAudioAndWarm(Future<void> deferredBoxes) async {
       const Duration(seconds: 10), WebDavSyncService.maybeAutoSync);
   // Spotify like changes left over from last time.
   SpotifyLikeSync.flushSoon(delay: const Duration(seconds: 20));
+  YtLikeSync.flushSoon(delay: const Duration(seconds: 20));
 }
 
 /// Runs one background start-up step; a failure is logged, never thrown.

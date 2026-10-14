@@ -12,6 +12,7 @@ import '../../services/discovery/discovery_service.dart';
 import '../../services/downloader.dart';
 import '../../services/piped_service.dart';
 import '../../services/spotify_like_sync.dart';
+import '../../services/yt_like_sync.dart';
 import '/models/media_Item_builder.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/screens/Library/library_controller.dart';
@@ -169,6 +170,7 @@ Future<bool> addSongsToLikedSongs(List<MediaItem> songs) async {
       Get.find<DiscoveryService>().onFavorite(song, add: true);
     }
     unawaited(SpotifyLikeSync.onFavorite(song, add: true));
+    unawaited(YtLikeSync.onFavorite(song, add: true));
     if (Get.isRegistered<SettingsScreenController>() &&
         Get.find<SettingsScreenController>()
             .autoDownloadFavoriteSongEnabled

@@ -4642,6 +4642,8 @@ Map<String, Map<String, String>> get keys => {
     "libraries": "libraries",
     "narrator": "Narrator",
     "chapters": "Chapters",
+    "ytLikeSync": "Like on YouTube Music too",
+    "ytLikeSyncDes": "Songs you like in Riff are liked in YouTube Music as well, and unliked there when you unlike them in Riff",
     "notInterested": "Not interested",
     "notInterestedDone": "Got it: it won't be picked for you again",
     "headphoneButtons": "Headphone buttons",
