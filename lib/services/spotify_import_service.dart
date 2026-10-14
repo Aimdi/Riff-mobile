@@ -49,12 +49,17 @@ class SpotifyTrackRef {
     this.isrc,
     this.album,
     this.artUrl,
+    this.youtubeId,
   });
 
   final String id;
   final String title;
   final String artists;
   final int? durationMs;
+
+  /// The YouTube video a playlist file links to (an M3U of YouTube links,
+  /// as Metrolist saves): that very track, taken before any search.
+  final String? youtubeId;
 
   /// Album name and cover, when the source has them (Web API).
   final String? album;
@@ -289,9 +294,12 @@ class SpotifyImportService extends GetxService {
     return results;
   }
 
-  /// One track's YouTube Music match: stored match first, then search
-  /// (ISRC, then title and artist). Null when nothing is close enough.
+  /// One track's YouTube Music match: the track a playlist file links to,
+  /// else the stored match, then search (ISRC, then title and artist).
+  /// Null when nothing is close enough.
   Future<MediaItem?> resolveTrack(SpotifyTrackRef t) async {
+    final linked = t.youtubeId == null ? null : await linkedTrack(t.youtubeId!);
+    if (linked != null) return linked;
     // Playback calls this directly, often before anything opened the
     // store; reading it closed missed the stored match (even one the
     // listener picked) and searched again.
@@ -307,6 +315,26 @@ class SpotifyImportService extends GetxService {
     }
     await SpotifyMatchStore.putAuto(t.id, best.item, best.score);
     return best.item;
+  }
+
+  /// The YouTube video [id] as a track (its own entry in its watch queue),
+  /// or null when it's no song or can't be reached; a search for the
+  /// entry's title follows then.
+  Future<MediaItem?> linkedTrack(String id) async {
+    try {
+      final found = await Get.find<MusicServices>().getSongWithId(id);
+      if (found.length < 2 || found[0] != true || found[1] is! List) {
+        return null;
+      }
+      final tracks = (found[1] as List).whereType<MediaItem>().toList();
+      for (final t in tracks) {
+        if (t.id == id) return t;
+      }
+      return tracks.isEmpty ? null : tracks.first;
+    } catch (e) {
+      printERROR('Linked track $id: $e');
+      return null;
+    }
   }
 
   /// YouTube Music candidates for [t], best first, each with its score:

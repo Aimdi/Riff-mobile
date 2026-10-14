@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
@@ -11,6 +10,7 @@ import 'package:hive/hive.dart';
 import '/models/media_Item_builder.dart';
 import '/models/playlist.dart';
 import '/services/csv_playlist_import.dart';
+import '/services/m3u_playlist_import.dart';
 import '/services/spotify_import_service.dart';
 import '/ui/screens/Library/library_controller.dart';
 import '/ui/widgets/snackbar.dart';
@@ -98,9 +98,11 @@ class _SpotifyImportDialogState extends State<SpotifyImportDialog> {
     }
   }
 
-  /// A CSV export (Exportify, TuneMyMusic or any title/artist CSV): same
-  /// matching as Spotify links, using ISRC codes when the file has them.
-  Future<void> _importCsv() async {
+  /// A playlist file: an M3U / PLS playlist or a CSV export (Exportify,
+  /// TuneMyMusic or any title/artist CSV). Same matching as Spotify links,
+  /// using ISRC codes when the file has them and taking the tracks its
+  /// YouTube links name.
+  Future<void> _importFile() async {
     final FilePickerResult? res;
     try {
       res = await FilePicker.platform.pickFiles(
@@ -119,10 +121,9 @@ class _SpotifyImportDialogState extends State<SpotifyImportDialog> {
     _progress.value = 0.05;
     _status.value = 'csvImportReading'.tr;
     try {
-      final text = f.bytes != null
-          ? utf8.decode(f.bytes!, allowMalformed: true)
-          : await File(f.path!).readAsString();
-      final csv = parsePlaylistCsv(text);
+      final text =
+          decodePlaylistBytes(f.bytes ?? await File(f.path!).readAsBytes());
+      final csv = parsePlaylistFile(f.name, text);
       if (csv.tracks.isEmpty) throw StateError('csvImportEmpty'.tr);
       final fileName = f.name.replaceFirst(RegExp(r'\.[^.]+$'), '');
       await _resolveAndSave(
@@ -133,6 +134,8 @@ class _SpotifyImportDialogState extends State<SpotifyImportDialog> {
             CsvPlaylistFormat.exportify => 'Exportify',
             CsvPlaylistFormat.tuneMyMusic => 'TuneMyMusic',
             CsvPlaylistFormat.generic => 'CSV',
+            CsvPlaylistFormat.m3u => 'M3U',
+            CsvPlaylistFormat.pls => 'PLS',
           }
         }),
         tracks: csv.tracks,
@@ -256,7 +259,7 @@ class _SpotifyImportDialogState extends State<SpotifyImportDialog> {
               const SizedBox(height: RiffSpacing.xs),
               Center(
                 child: TextButton.icon(
-                  onPressed: busy ? null : _importCsv,
+                  onPressed: busy ? null : _importFile,
                   icon: const Icon(Icons.table_view_rounded,
                       size: RiffComponentSizes.trailingIcon),
                   label: Text('csvImport'.tr),

@@ -656,6 +656,16 @@ Playlists:
   all its songs. Songs your playlist has already aren't added again, and a
   song that's twice among those added goes in once. Adding several songs
   says "Songs added to playlist!" (or that they're in it already)
+* Import a playlist file, as Metrolist and local players do: the import
+  window's Import a playlist file (it read only CSV exports) now also
+  takes M3U / M3U8 and PLS playlists, as foobar2000, VLC, Winamp, AIMP,
+  MusicBee, Poweramp, iTunes / Apple Music and Metrolist save them. Each
+  entry is looked for by the title its player gave it ("Artist - Title",
+  or iTunes's "Title - Artist", which the file's name or its artist's
+  folder tells apart) or, without one, by its file name (track number
+  dropped) and folders; a YouTube link is taken as the very track. Files
+  that aren't UTF-8 (older .m3u files, CSVs saved by Excel) keep their
+  accents
 
 Albums:
 * More by the artist, like Spotify, Apple Music and YouTube Music: under

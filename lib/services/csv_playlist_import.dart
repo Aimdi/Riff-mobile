@@ -5,8 +5,10 @@ library;
 
 import 'spotify_import_service.dart' show SpotifyTrackRef;
 
-/// Which tool made the file (for the summary only; parsing is by header).
-enum CsvPlaylistFormat { exportify, tuneMyMusic, generic }
+/// Which tool made the file, or which kind of playlist file it is (for the
+/// summary only; a CSV is read by its header). M3U and PLS files are read
+/// in m3u_playlist_import.dart.
+enum CsvPlaylistFormat { exportify, tuneMyMusic, generic, m3u, pls }
 
 class CsvPlaylist {
   const CsvPlaylist(
@@ -14,10 +16,11 @@ class CsvPlaylist {
   final CsvPlaylistFormat format;
   final List<SpotifyTrackRef> tracks;
 
-  /// Playlist name from the file, when it has one (TuneMyMusic).
+  /// Playlist name from the file, when it has one (TuneMyMusic, an M3U's
+  /// #PLAYLIST).
   final String? name;
 
-  /// Rows without a title.
+  /// Rows without a title (entries with nothing to look for).
   final int skipped;
 }
 
