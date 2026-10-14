@@ -68,6 +68,7 @@ MediaItem podcastEpisodeToMediaItem(
         'transcriptUrl': episode['transcriptUrl'],
       if (episode['transcriptUrl'] != null)
         'transcriptType': episode['transcriptType'],
+      ...episodeNumbering(episode),
     },
   );
 }

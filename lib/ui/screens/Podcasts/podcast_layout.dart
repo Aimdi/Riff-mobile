@@ -1,3 +1,4 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -27,6 +28,24 @@ String podcastShowCount(int n) =>
 /// "Show · date · 45m" with empty parts dropped.
 String episodeMetaLine(Iterable<String?> parts) =>
     parts.map((p) => (p ?? '').trim()).where((p) => p.isNotEmpty).join(' · ');
+
+/// "Trailer", "Bonus", "S2 E5", "Ep. 5" or "Season 2", as Apple Podcasts
+/// and Pocket Casts label episodes; empty when the feed doesn't say.
+String episodeNumberLabel(MediaItem episode) {
+  final extras = episode.extras;
+  final type = extras?['episodeType'];
+  if (type == 'trailer') return 'episodeTrailer'.tr;
+  if (type == 'bonus') return 'episodeBonus'.tr;
+  final season = extras?['season'];
+  final number = extras?['episode'];
+  if (season is int && number is int) {
+    return 'episodeSeasonNumber'
+        .trParams({'season': '$season', 'episode': '$number'});
+  }
+  if (number is int) return 'episodeNumber'.trParams({'episode': '$number'});
+  if (season is int) return 'episodeSeason'.trParams({'season': '$season'});
+  return '';
+}
 
 /// Rounded square episode / show art from a URL, with a quiet fallback.
 class PodcastArt extends StatelessWidget {

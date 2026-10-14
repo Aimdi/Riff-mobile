@@ -69,6 +69,7 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
           if (e['transcriptUrl'] != null) 'transcriptUrl': e['transcriptUrl'],
           if (e['transcriptUrl'] != null) 'transcriptType': e['transcriptType'],
           if (e['link'] != null) 'link': e['link'],
+          ...episodeNumbering(e),
         },
       );
 
@@ -95,6 +96,7 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
           if (e['transcriptUrl'] != null) 'transcriptUrl': e['transcriptUrl'],
           if (e['transcriptUrl'] != null) 'transcriptType': e['transcriptType'],
           if (e['link'] != null) 'link': e['link'],
+          ...episodeNumbering(e),
         },
       );
 

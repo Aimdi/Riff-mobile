@@ -296,6 +296,7 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
           if (e['transcriptUrl'] != null) 'transcriptUrl': e['transcriptUrl'],
           if (e['transcriptUrl'] != null) 'transcriptType': e['transcriptType'],
           if (e['link'] != null) 'link': e['link'],
+          ...episodeNumbering(e),
         },
       );
 
@@ -575,8 +576,12 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     final tile = PodcastEpisodeTile(
       artUrl: Thumbnail(e.artUri?.toString() ?? '').medium,
       title: e.title,
-      meta: episodeMetaLine(
-          [e.artist, '${e.extras?['date'] ?? ''}', _remainingLabel(e)]),
+      meta: episodeMetaLine([
+        e.artist,
+        episodeNumberLabel(e),
+        '${e.extras?['date'] ?? ''}',
+        _remainingLabel(e),
+      ]),
       progress: PodcastProgressService.progress(e.id),
       onTap: () => _play(list, i),
       onLongPress: () =>

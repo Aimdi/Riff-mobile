@@ -217,6 +217,10 @@ Podcasts:
   Riff reads them from the start of the episode (its download, offline),
   with their titles and links. Only the tag at the start is read (at most
   4 MB), not the episode
+* Episodes say what they are, as in Apple Podcasts and Pocket Casts: a
+  show's page and the Inbox label trailers ("Trailer"), bonus episodes
+  ("Bonus") and numbered ones ("S2 E5", "Ep. 12") as the feed numbers
+  them, before the date
 * A show's page remembers its episode order (Newest first / Oldest
   first) for that show, like Pocket Casts and AntennaPod, so a series you
   hear in order stays oldest first. The eye button next to it hides

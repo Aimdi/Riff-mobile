@@ -563,7 +563,11 @@ class _EpisodeRow extends StatelessWidget {
     final length = partly && left != null && left > 0
         ? '${compactEpisodeLength(left)} ${'left'.tr}'
         : compactEpisodeLength(tot);
-    final meta = episodeMetaLine(['${episode.extras?['date'] ?? ''}', length]);
+    final meta = episodeMetaLine([
+      episodeNumberLabel(episode),
+      '${episode.extras?['date'] ?? ''}',
+      length,
+    ]);
     final notes = podcastPlainText('${episode.extras?['description'] ?? ''}');
     final player = Get.isRegistered<PlayerController>()
         ? Get.find<PlayerController>()

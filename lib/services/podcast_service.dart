@@ -738,6 +738,17 @@ class PodcastService {
       final pubRaw = item.getElement('pubDate')?.innerText.trim();
       // The episode's own web page, for sharing it.
       final link = item.getElement('link')?.innerText.trim();
+      // Season and episode numbers, trailers and bonus episodes, as Apple
+      // Podcasts and Pocket Casts label them.
+      int? number(String name) {
+        final n = int.tryParse(item.getElement(name)?.innerText.trim() ?? '');
+        return n != null && n > 0 ? n : null;
+      }
+
+      final season = number('itunes:season');
+      final episodeNumber = number('itunes:episode');
+      final episodeType =
+          item.getElement('itunes:episodeType')?.innerText.trim().toLowerCase();
       episodes.add({
         'id': 'podcast_${guid.hashCode}',
         'title': title,
@@ -755,6 +766,10 @@ class PodcastService {
         if (transcriptUrl != null) 'transcriptUrl': transcriptUrl,
         if (transcriptUrl != null) 'transcriptType': transcriptType ?? '',
         if (link != null && link.isNotEmpty) 'link': link,
+        if (season != null) 'season': season,
+        if (episodeNumber != null) 'episode': episodeNumber,
+        if (episodeType == 'trailer' || episodeType == 'bonus')
+          'episodeType': episodeType,
       });
     }
     return episodes;
@@ -1168,6 +1183,13 @@ class PodcastService {
     return h > 0 ? "$h:${two(m)}:${two(s)}" : "$m:${two(s)}";
   }
 }
+
+/// A feed episode's season, number and type (from [parsePodcastFeed]'s
+/// map) as MediaItem extras, for episodeNumberLabel.
+Map<String, Object> episodeNumbering(Map<dynamic, dynamic> episode) => {
+      for (final key in const ['season', 'episode', 'episodeType'])
+        if (episode[key] != null) key: episode[key] as Object,
+    };
 
 /// Pure RSS body → episode maps holding only primitives, so it can run on a
 /// background isolate (no GetX translations, no Hive). Throws on bad XML.
