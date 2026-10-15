@@ -201,6 +201,19 @@ Lock screen and notification:
   Settings › Resume on headphones, on by default. And for either, only a
   pause the unplugging made: if you played on through the speaker in the
   meantime, plugging them back in later starts nothing
+* Riff picks up where you left off, as Spotify, YouTube Music, Pocket
+  Casts and AntennaPod do. It opens with what was playing (a song, an
+  episode or a book) in the mini player, paused at its place, as
+  Settings › Restore last playback session says it will: the switch
+  showed on, but it only did so once turned off and on again. With
+  nothing loaded, Play on Android's media controls (after Riff was
+  closed or the phone restarted), on headphones or in the car plays it
+  on from its place, whatever that setting, where it did nothing; "Play
+  music on Riff" does too, before shuffling your Favorites. The media
+  controls show it, an episode or a book as well, rather than the last
+  song played. And if its song can't load as Riff opens (YouTube not
+  answering), it stays there, paused, instead of the next song starting
+  by itself; Play tries it again at its place
 
 Android Auto:
 * Ask for music, as with Spotify and YouTube Music: say "Play <song or

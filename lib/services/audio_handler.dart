@@ -23,6 +23,7 @@ import '/services/riff_equalizer.dart';
 import '/services/explicit_content.dart';
 import '/services/offline_playback.dart';
 import '/services/resume_when_online.dart';
+import '/services/saved_session.dart';
 import '/services/player_interruptions.dart';
 import '/services/spoken_audio_focus.dart';
 import '/services/podcast_starred.dart';
@@ -1366,13 +1367,18 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         Get.find<VideoModeController>().isActive.value) {
       return;
     }
+    if (await _playSavedSession()) return;
     if (currentSongUrl == null ||
         (GetPlatform.isDesktop &&
             (_player.duration == null ||
                 _player.duration?.inMilliseconds == 0)) ||
         // Loaded before explicit content was turned off: not played.
         ExplicitContent.blocks(mediaItem.value)) {
-      await customAction("playByIndex", {'index': currentIndex});
+      // A session back at launch whose song didn't load then: from its
+      // place.
+      final held = _takeHeldPlace();
+      await customAction("playByIndex",
+          {'index': currentIndex, if (held > 0) 'position': held});
       return;
     }
     await _maybeSmartResume();
@@ -1381,6 +1387,25 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     } catch (e) {
       printERROR('play() player start failed: $e');
       await _handleRuntimePlaybackError(e, position: _player.position);
+    }
+  }
+
+  /// Play with nothing loaded, Riff having been closed: Android's media
+  /// controls (after Riff closed or the phone restarted), headphones or
+  /// the car pressed it. The session saved last time plays on from its
+  /// place (true), as Spotify and AntennaPod pick up where you left off.
+  /// Coming back as Riff opens meanwhile, it's waited for, then plays as
+  /// usual (false).
+  Future<bool> _playSavedSession() async {
+    try {
+      if (_comeback.coming) {
+        await _comeback(play: false);
+        return false;
+      }
+      return queue.value.isEmpty && await _comeback(play: true);
+    } catch (e) {
+      printERROR('Saved session not played: $e');
+      return false;
     }
   }
 
@@ -1749,6 +1774,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         currentIndex = songIndex;
         if (shuffleModeEnabled) _syncShufflePos();
         final requestId = ++_playRequestId;
+        _heldPlace = null;
         bool superseded() => requestId != _playRequestId;
         final isNewUrlReq = extras['newUrl'] ?? false;
         final currentSong = queue.value[currentIndex];
@@ -1793,6 +1819,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
         // A newer play request owns the player (and the loading state).
         if (superseded()) return null;
+        if (restoreSession && (resolveFailed || !streamInfo.playable)) {
+          return _holdRestored(currentSong.id, extras['position']);
+        }
         if (resolveFailed) {
           return _onPlayByIndexUnresolvable(
             songId: currentSong.id,
@@ -1827,6 +1856,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           // Never leave the notification stuck on "loading".
           printERROR('playByIndex source setup failed: $e');
           isSongLoading = false;
+          if (restoreSession) {
+            return _holdRestored(currentSong.id, extras['position']);
+          }
           return _handleRuntimePlaybackError(e, position: Duration.zero);
         }
 
@@ -1865,6 +1897,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           }
         } catch (e) {
           printERROR('playByIndex player start failed: $e');
+          if (restoreSession) return _holdRestored(currentSong.id, resumeMs);
           return _handleRuntimePlaybackError(
             e,
             position: Duration(milliseconds: resumeMs),
@@ -1872,6 +1905,17 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
         prefetchNextInQueue();
         return true;
+
+      // Riff opening: the session saved last time back, paused at its
+      // place; true once it's back (Play pressed outside Riff may have
+      // brought it back already, playing).
+      case 'restoreSession':
+        try {
+          return await _comeback(play: extras?['play'] == true);
+        } catch (e) {
+          printERROR('Session not restored: $e');
+          return false;
+        }
 
       case 'checkWithCacheDb':
         if (isPlayingUsingLockCachingSource) {
@@ -2231,7 +2275,11 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       return;
     }
     final currIndex = currentIndex ?? 0;
-    final position = _player.position.inMilliseconds;
+    // A song that didn't load at launch ([_holdRestored]) keeps its place.
+    final held = _heldPlace;
+    final position = held != null && held.id == _currentQueueSongId()
+        ? held.ms
+        : _player.position.inMilliseconds;
     // Where the queue came from goes with it, so after a restart the player
     // still says (and opens) it and a playlist left out of your taste
     // profile stays out.
@@ -2254,6 +2302,55 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     });
     _lastSavedSession = signature;
     printINFO("Saved session data");
+  }
+
+  /// The session saved last time coming back (Riff opening, or Play
+  /// pressed outside Riff with nothing loaded), once.
+  late final _comeback = SessionComeback(
+      loaded: () => queue.value.isNotEmpty, bringBack: _bringBack);
+
+  /// [session] back in the player: where it came from first (the player
+  /// says so before it plays on, and the mini player shows it), then its
+  /// queue at its song and place, paused or [play]ing on.
+  Future<void> _bringBack(SavedSession session, {required bool play}) async {
+    if (Get.isRegistered<PlayerController>()) {
+      Get.find<PlayerController>().sessionCameBack(session.from);
+    }
+    await updateQueue(session.queue);
+    await customAction('playByIndex', {
+      'index': session.index,
+      'position': session.position.inMilliseconds,
+      'restoreSession': !play,
+    });
+  }
+
+  /// The song of a session back at launch that didn't load then, and its
+  /// place: Play starts it there.
+  ({String id, int ms})? _heldPlace;
+
+  /// A session back at launch whose song doesn't load now (YouTube not
+  /// answering, a stream that won't start): it stays there, paused, without
+  /// a word, rather than passing on to the next song and playing it; Play
+  /// tries it again at its place.
+  bool _holdRestored(String songId, Object? positionMs) {
+    isSongLoading = false;
+    // The queue was replaced meanwhile: nothing to keep.
+    if (isStalePlayByIndex(
+        requestedSongId: songId, currentSongId: _currentQueueSongId())) {
+      return false;
+    }
+    currentSongUrl = null;
+    _heldPlace = (id: songId, ms: positionMs is num ? positionMs.toInt() : 0);
+    playbackState.add(playbackState.value
+        .copyWith(processingState: AudioProcessingState.idle));
+    return false;
+  }
+
+  /// The place [_holdRestored] kept, while its song is the one loaded.
+  int _takeHeldPlace() {
+    final held = _heldPlace;
+    _heldPlace = null;
+    return held != null && held.id == _currentQueueSongId() ? held.ms : 0;
   }
 
   /// Android Auto
@@ -2673,6 +2770,9 @@ class MediaLibrary {
   /// What the car's search, or a voice request, found.
   static const searchResultsId = 'aa_search';
 
+  /// The song of the session saved last time, first in [getRecent].
+  static const lastSessionId = 'riff_last_session';
+
   /// Podcast episode lists Android Auto browsed, by list id: played from
   /// there without fetching the feed again.
   static final autoPodcastLists = <String, List<MediaItem>>{};
@@ -2691,7 +2791,8 @@ class MediaLibrary {
       listId.startsWith('aa_pod_') ||
       listId.startsWith('riff_mix_') ||
       listId == freshFindsRootId ||
-      listId == searchResultsId;
+      listId == searchResultsId ||
+      listId == lastSessionId;
 
   /// Songs found for [query] (YouTube Music's song search, best match
   /// first), kept as the car-built list [searchResultsId]. Empty when
@@ -2864,7 +2965,8 @@ class MediaLibrary {
       case playlistsRootId:
         return getPlaylists();
       case AudioService.recentRootId:
-        return getLibSongs("LIBRP");
+      case lastSessionId:
+        return getRecent();
       case dailyMixesRootId:
         return getDiscoveryMixes(kind: 'daily_mix');
       case freshFindsRootId:
@@ -2876,6 +2978,29 @@ class MediaLibrary {
         }
         return getLibSongs(id);
     }
+  }
+
+  /// What Android's media controls show once Riff was closed (the first
+  /// one), their Play picking up the session saved last time: so its song
+  /// first (an episode or a book's chapter too), then the songs played
+  /// lately.
+  Future<List<MediaItem>> getRecent() async {
+    final played = await getLibSongs("LIBRP");
+    SavedSession? saved;
+    try {
+      saved = await SavedSession.load();
+    } catch (e) {
+      printERROR('Saved session unread: $e');
+    }
+    if (saved == null) return played;
+    final song = saved.song;
+    return [
+      song.copyWith(
+          playable: true,
+          extras: {...?song.extras, 'libraryId': lastSessionId}),
+      for (final m in played)
+        if (m.id != song.id) m,
+    ];
   }
 
   Future<List<MediaItem>> getDiscoveryMixes(

@@ -133,6 +133,10 @@ class PlayerController extends GetxController
   final playerPanelPosition = ValueNotifier<double>(0.0);
   final playerPanelMinHeight = 0.0.obs;
   bool initFlagForPlayer = true;
+
+  /// A session came back before Riff's screens were up (Play pressed on
+  /// Android's media controls): the mini player shows it once they are.
+  bool _panelOnReady = false;
   PanelController playerPanelController = PanelController();
   PanelController queuePanelController = PanelController();
   AnimationController? gesturePlayerStateAnimationController;
@@ -1567,27 +1571,35 @@ class PlayerController extends GetxController
     }));
   }
 
+  /// Riff opening: the session saved last time comes back, paused at its
+  /// place, as Settings › Restore last playback session says (on until
+  /// switched off). The audio handler brings it back, once: Play pressed
+  /// outside Riff may have brought it back already.
   Future<void> _restorePrevSession() async {
-    final restrorePrevSessionEnabled =
-        _prefs.get("restrorePlaybackSession") ?? false;
-    if (restrorePrevSessionEnabled) {
-      final prevSessionData = await Hive.openBox("prevSessionData");
-      if (prevSessionData.keys.isNotEmpty) {
-        final songList = (prevSessionData.get("queue") as List)
-            .map((e) => MediaItemBuilder.fromJson(e))
-            .toList();
-        final int currentIndex = prevSessionData.get("index");
-        final int position = prevSessionData.get("position");
-        // Where it came from, before it plays on.
-        playinfrom.value = PlaylingFrom.fromJson(prevSessionData.get("from"));
-        await _audioHandler.addQueueItems(songList);
-        _playerPanelCheck(restoreSession: true);
-        await _audioHandler.customAction("playByIndex", {
-          "index": currentIndex,
-          "position": position,
-          "restoreSession": true
-        });
+    if (_prefs.get("restrorePlaybackSession") ?? true) {
+      try {
+        await _audioHandler.customAction("restoreSession");
+      } catch (e) {
+        printERROR('Last session not restored: $e');
       }
+    }
+    if (_panelOnReady) {
+      _panelOnReady = false;
+      _playerPanelCheck(restoreSession: true);
+    }
+  }
+
+  /// The session saved last time came back into the player (Riff opening,
+  /// or Play pressed outside Riff with nothing loaded): it says again where
+  /// it came from, before it plays on, and the mini player shows it.
+  void sessionCameBack(Object? from) {
+    playinfrom.value = PlaylingFrom.fromJson(from);
+    showContinueListening.value = false;
+    try {
+      _playerPanelCheck(restoreSession: true);
+    } catch (_) {
+      // No screen yet to size it by.
+      _panelOnReady = true;
     }
   }
 
@@ -2098,6 +2110,11 @@ class PlayerController extends GetxController
       printERROR('Android Auto play: no list for $songId');
       return;
     }
+    // The song of the session saved last time: that session plays on.
+    if (libraryId == MediaLibrary.lastSessionId) {
+      await resumeSavedSession();
+      return;
+    }
     // Lists built for the car, not stored in a box named after them:
     // podcast lists (Continue listening, a followed show; from the browse
     // cache, the long-form queue window keeps them small) and discovery
@@ -2137,11 +2154,17 @@ class PlayerController extends GetxController
 
   /// "Play … on Riff" (Android Auto, the Assistant): what
   /// [MediaLibrary.voiceSearchList] finds, from the top. With nothing asked
-  /// for and something in the queue, that plays on instead.
+  /// for, what's in the queue plays on instead, or with nothing there, the
+  /// session saved last time, from its place.
   Future<void> playFromVoiceSearch(String query) async {
-    if (query.trim().isEmpty && currentQueue.isNotEmpty) {
-      play();
-      return;
+    if (query.trim().isEmpty) {
+      if (currentQueue.isNotEmpty) {
+        play();
+        return;
+      }
+      final back =
+          await _audioHandler.customAction("restoreSession", {"play": true});
+      if (back == true) return;
     }
     final list = await MediaLibrary().voiceSearchList(query);
     if (list.isEmpty) return;
