@@ -863,6 +863,13 @@ Albums:
 * Add to playlist, like Spotify, Apple Music and YouTube Music: an
   album's ⋮ › Add to playlist adds the whole album to one of your
   playlists or Favorites, without selecting its songs first
+* Other versions, as YouTube Music's and Apple Music's album pages show
+  them: under an album's songs (before More by the artist), a row of its
+  other editions YouTube Music lists (a deluxe edition, a remaster, the
+  clean or explicit one), headed as YouTube Music heads it; tap one to
+  open it. More by the artist leaves them out. Albums in your library
+  get it too when YouTube Music can be reached; an odd answer never
+  costs an album its songs
 
 Up Next:
 * Removing a song (swipe it away, the song menu, or ✕ on desktop) and

@@ -14,6 +14,7 @@ import '../../../mixins/additional_opeartion_mixin.dart';
 import '../../../models/media_Item_builder.dart';
 import '../Library/library_controller.dart';
 import 'more_by_artist.dart';
+import 'package:harmonymusic/services/album_versions.dart';
 
 ///AlbumScreenController handles album screen
 ///
@@ -27,6 +28,11 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
   /// artist's other releases. Empty until they load, and offline.
   final moreByArtist = <Album>[].obs;
   String moreByArtistName = '';
+
+  /// The album's other versions (a deluxe edition, a remaster), as its
+  /// page lists them, and what the page calls them.
+  final otherVersions = <Album>[].obs;
+  String otherVersionsTitle = '';
 
   // Title animation
   late AnimationController _animationController;
@@ -66,6 +72,7 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
         album.value = Album.fromJson(content);
         animationController.forward();
         songList.value = List<MediaItem>.from(content['tracks']);
+        _takeOtherVersions(content);
       } else {
         // If the album is offline, fetch the songs from the local database
         // Album details are already fetched in _checkIfAddedToLibrary method
@@ -74,6 +81,8 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
             .map<MediaItem?>((item) => MediaItemBuilder.fromJson(item))
             .whereType<MediaItem>()
             .toList();
+        // Saved: its page, for its other versions, when it can be reached.
+        unawaited(_loadOtherVersions(albumId));
         // Shared box (Hive hands every caller the same instance): never close
         // it here, or the player and other screens using it fail mid-write.
       }
@@ -93,6 +102,30 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
       if (!isClosed) isContentFetched.value = true;
     }
   }
+
+  void _takeOtherVersions(Map<String, dynamic> content) {
+    final versions = content['otherVersions'];
+    if (versions is! AlbumVersions) return;
+    otherVersionsTitle = versions.title;
+    otherVersions.value = versions.albums;
+  }
+
+  Future<void> _loadOtherVersions(String albumId) async {
+    try {
+      final content =
+          await musicServices.getPlaylistOrAlbumSongs(albumId: albumId);
+      if (!isClosed) _takeOtherVersions(content);
+    } catch (e) {
+      // Offline, or the page didn't load: no section.
+      printERROR('Other versions: $e');
+    }
+  }
+
+  /// More by the artist without the other versions shown above it.
+  List<Album> get moreByArtistShown => [
+        for (final a in moreByArtist)
+          if (!otherVersions.any((v) => v.browseId == a.browseId)) a
+      ];
 
   Future<void> _loadMoreByArtist() async {
     final artist = album.value.artists

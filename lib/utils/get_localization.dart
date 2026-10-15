@@ -4810,6 +4810,7 @@ Map<String, Map<String, String>> get keys => {
     "allowExplicitDes": "Songs marked E play. Turned off, they're skipped, dimmed in lists, and left out of radio and suggestions",
     "explicitOffMsg": "Explicit content is off. You can allow it in Settings",
     "moreByArtist": "More by @artist",
+    "otherVersions": "Other versions",
     "equalizerOn": "Riff's equalizer",
     "equalizerUnavailable": "Your phone doesn't give Riff an equalizer. Try your phone's own",
     "phoneEqualizer": "Phone's equalizer",

@@ -164,6 +164,9 @@ class AlbumScreen extends StatelessWidget {
                                     ? 4
                                     : albumController.songList.length +
                                         3 +
+                                        (_showOtherVersions(albumController)
+                                            ? 1
+                                            : 0) +
                                         (_showMoreBy(albumController) ? 1 : 0),
                             itemBuilder: (_, index) {
                               if (index == 0) {
@@ -232,9 +235,28 @@ class AlbumScreen extends StatelessWidget {
                                 );
                               }
 
-                              // After the songs: More by the artist.
-                              if (index - 3 >=
-                                  albumController.songList.length) {
+                              // After the songs: its other versions, then
+                              // More by the artist.
+                              final after =
+                                  index - 3 - albumController.songList.length;
+                              if (after == 0 &&
+                                  _showOtherVersions(albumController)) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(
+                                      top: RiffSpacing.lg),
+                                  child: ContentListWidget(
+                                    content: AlbumContent(
+                                        title: albumController
+                                                .otherVersionsTitle.isEmpty
+                                            ? 'otherVersions'.tr
+                                            : albumController
+                                                .otherVersionsTitle,
+                                        albumList: albumController.otherVersions
+                                            .toList()),
+                                  ),
+                                );
+                              }
+                              if (after >= 0) {
                                 return Padding(
                                   padding: const EdgeInsets.only(
                                       top: RiffSpacing.lg),
@@ -244,8 +266,8 @@ class AlbumScreen extends StatelessWidget {
                                           'artist':
                                               albumController.moreByArtistName
                                         }),
-                                        albumList: albumController.moreByArtist
-                                            .toList()),
+                                        albumList:
+                                            albumController.moreByArtistShown),
                                   ),
                                 );
                               }
@@ -280,10 +302,16 @@ class AlbumScreen extends StatelessWidget {
     );
   }
 
-  /// More by the artist shows once it's loaded, and not while the album's
-  /// songs are searched.
+  /// More by the artist shows once it's loaded (without the other
+  /// versions above it), and not while the album's songs are searched.
   bool _showMoreBy(AlbumScreenController albumController) =>
-      albumController.moreByArtist.isNotEmpty &&
+      albumController.moreByArtistShown.isNotEmpty &&
+      albumController.isSearchingOn.isFalse;
+
+  /// The album's other versions, as its page lists them; not while its
+  /// songs are searched.
+  bool _showOtherVersions(AlbumScreenController albumController) =>
+      albumController.otherVersions.isNotEmpty &&
       albumController.isSearchingOn.isFalse;
 
   Widget _header(BuildContext context, AlbumScreenController albumController) {

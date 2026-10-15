@@ -17,6 +17,7 @@ import '/services/ban_service.dart';
 import '/services/explicit_content.dart';
 import '/services/not_interested.dart';
 import '/services/search_spelling.dart';
+import '/services/album_versions.dart';
 import '/services/search_suggestions.dart';
 import '/services/search_top_result.dart';
 import '/services/yt_playback_tracking.dart';
@@ -746,14 +747,18 @@ class MusicServices extends getx.GetxService {
     if (albumRows is! List) {
       throw FormatException('Unrecognised album page for $browseId');
     }
-    // (An "other versions" carousel used to be parsed here too. Nothing read
-    // it, and a carousel in an unexpected shape threw away the whole album.)
     album['tracks'] = parsePlaylistItems(albumRows,
         artistsM: album['artists'],
         thumbnailsM: album["thumbnails"],
         albumIdName: {"id": albumId, 'name': album['title']},
         albumYear: album['year'],
         isAlbum: true);
+    // Its other versions (a deluxe edition, a remaster), as the page lists
+    // them; read apart, so an odd carousel can't cost the album its tracks
+    // (as it once did, when they were read along with them).
+    final versions =
+        AlbumVersions.fromAlbumPage(response, currentBrowseId: browseId);
+    if (versions != null) album['otherVersions'] = versions;
 
     return album;
   }
