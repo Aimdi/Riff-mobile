@@ -12,6 +12,7 @@ import '/ui/theme/riff_tokens.dart';
 import 'additional_operation_dialog.dart';
 import 'modified_text_field.dart';
 import 'spotify_import_dialog.dart';
+import 'total_length.dart';
 
 enum OperationMode { arrange, delete, addToPlaylist, none }
 
@@ -87,6 +88,7 @@ class SortWidget extends StatelessWidget {
     super.key,
     required this.tag,
     this.itemCountTitle = '',
+    this.totalLength,
     this.titleLeftPadding = 12,
     this.isAdditionalOperationRequired = true,
     this.requiredSortTypes = const <SortType>{SortType.Name},
@@ -118,6 +120,10 @@ class SortWidget extends StatelessWidget {
   /// unique identifier for each sortwidget
   final String tag;
   final String itemCountTitle;
+
+  /// How long the songs counted play together, given after their count
+  /// ("14 songs · 52 min"), as Spotify and Apple Music give it.
+  final Duration? totalLength;
   final IconData? itemIcon;
   final bool isAdditionalOperationRequired;
   final double titleLeftPadding;
@@ -357,11 +363,15 @@ class SortWidget extends StatelessWidget {
     );
   }
 
-  /// Song lists pass a bare number with [itemIcon]: show "14 songs".
+  /// Song lists pass a bare number with [itemIcon]: show "14 songs", and
+  /// their length when it's given ("14 songs · 52 min").
   String get _countLabel {
     final n = int.tryParse(itemCountTitle.trim());
     if (itemIcon == null || n == null) return itemCountTitle;
-    return n == 1 ? "songCountOne".tr : "songCount".trParams({'count': '$n'});
+    final count =
+        n == 1 ? "songCountOne".tr : "songCount".trParams({'count': '$n'});
+    final length = totalLength;
+    return length == null ? count : '$count · ${lengthLabel(length)}';
   }
 
   static String _sortLabel(SortType type) => switch (type) {

@@ -21,6 +21,7 @@ import '../../widgets/sort_widget.dart';
 import '../../theme/riff_spacing.dart';
 import 'album_screen_controller.dart';
 import '/ui/player/play_queue_order.dart' show playQueueFrom;
+import '/ui/widgets/total_length.dart';
 
 class AlbumScreen extends StatelessWidget {
   const AlbumScreen({super.key});
@@ -192,6 +193,8 @@ class AlbumScreen extends StatelessWidget {
                                         isSearchFeatureRequired: true,
                                         itemCountTitle:
                                             "${albumController.songList.length}",
+                                        totalLength: totalLength(
+                                            albumController.songList),
                                         itemIcon: Icons.music_note,
                                         requiredSortTypes:
                                             buildSortTypeSet(false, true),

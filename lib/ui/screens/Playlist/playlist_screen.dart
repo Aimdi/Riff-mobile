@@ -48,6 +48,7 @@ import 'playlist_recommendations.dart';
 import 'add_songs_sheet.dart';
 import 'playlist_screen_controller.dart';
 import '/ui/player/play_queue_order.dart' show playQueueFrom;
+import '/ui/widgets/total_length.dart';
 
 /// YouTube channel id (`UC…`) — compiled once, not per list row.
 final _channelIdRe = RegExp(r'^UC[\w-]{20,}$');
@@ -284,6 +285,8 @@ class PlaylistScreen extends StatelessWidget {
                                                     .value.isCloudPlaylist,
                                             itemCountTitle:
                                                 "${playlistController.songList.length}",
+                                            totalLength: totalLength(
+                                                playlistController.songList),
                                             itemIcon: Icons.music_note,
                                             requiredSortTypes: {
                                               ...buildSortTypeSet(false, true),

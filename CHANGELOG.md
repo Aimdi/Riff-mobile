@@ -863,6 +863,10 @@ Albums:
 * Add to playlist, like Spotify, Apple Music and YouTube Music: an
   album's ⋮ › Add to playlist adds the whole album to one of your
   playlists or Favorites, without selecting its songs first
+* An album's length after its songs' count, as Spotify ("12 songs, 45
+  min") and Apple Music give it: "14 songs · 52 min" in the bar over the
+  songs, playlists' too ("1 h 12 min" from an hour on), when each song's
+  length is known
 * Other versions, as YouTube Music's and Apple Music's album pages show
   them: under an album's songs (before More by the artist), a row of its
   other editions YouTube Music lists (a deluxe edition, a remaster, the
