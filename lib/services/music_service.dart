@@ -17,6 +17,7 @@ import '/services/ban_service.dart';
 import '/services/explicit_content.dart';
 import '/services/not_interested.dart';
 import '/services/search_spelling.dart';
+import '/services/search_suggestions.dart';
 import '/services/search_top_result.dart';
 import '/services/utils.dart';
 import '/services/yt_auth_service.dart';
@@ -1056,27 +1057,18 @@ class MusicServices extends getx.GetxService {
     return result;
   }
 
-  Future<List<String>> getSearchSuggestion(String queryStr) async {
+  Future<List<String>> getSearchSuggestion(String queryStr) async =>
+      (await getSearchSuggestions(queryStr)).queries;
+
+  /// What YouTube Music suggests as you type: searches, and the songs,
+  /// artists, albums and playlists to open straight away. Non-query rows
+  /// (history, "did you mean" cards) are no searches; their missing query
+  /// used to be suggested as the literal text "null".
+  Future<SearchSuggestions> getSearchSuggestions(String queryStr) async {
     final data = _ctx();
     data['input'] = queryStr;
-    final res = nav(
-            (await _sendRequest("music/get_search_suggestions", data)).data,
-            ['contents', 0, 'searchSuggestionsSectionRenderer', 'contents']) ??
-        [];
-    // Non-query rows (history, "did you mean" cards) have no query; calling
-    // toString() on that null used to suggest the literal text "null".
-    return res
-        .map<String?>((item) {
-          final query = nav(item, [
-            'searchSuggestionRenderer',
-            'navigationEndpoint',
-            'searchEndpoint',
-            'query'
-          ]);
-          return query is String ? query : null;
-        })
-        .whereType<String>()
-        .toList();
+    return SearchSuggestions.fromResponse(
+        (await _sendRequest("music/get_search_suggestions", data)).data);
   }
 
   ///Specially created for deep-links

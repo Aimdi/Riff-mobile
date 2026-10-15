@@ -44,11 +44,15 @@ String searchRecentSubtitle(SearchRecent recent) {
 /// One recent search (Spotify's and Apple Music's recent searches): its
 /// cover, its name and what it is; a tap plays the song or opens the
 /// artist, album, playlist or podcast again, the trailing ✕ forgets it.
-/// Laid out as the recent search rows of text ([SearchRow]).
+/// Laid out as the recent search rows of text ([SearchRow]). Also what
+/// YouTube Music suggests as you type, kept as a recent search once opened
+/// ([removable] false: nothing to forget yet).
 class SearchRecentRow extends StatelessWidget {
-  const SearchRecentRow({super.key, required this.recent});
+  const SearchRecentRow(
+      {super.key, required this.recent, this.removable = true});
 
   final SearchRecent recent;
+  final bool removable;
 
   String get _title => switch (recent.item) {
         final MediaItem song => song.title,
@@ -95,10 +99,12 @@ class SearchRecentRow extends StatelessWidget {
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.only(
+          padding: EdgeInsets.only(
               left: HomeLayout.gutter,
               top: RiffSpacing.sm,
-              right: HomeLayout.gutter - RiffSpacing.sm,
+              right: removable
+                  ? HomeLayout.gutter - RiffSpacing.sm
+                  : HomeLayout.gutter,
               bottom: RiffSpacing.sm),
           child: Row(
             children: [
@@ -129,16 +135,17 @@ class SearchRecentRow extends StatelessWidget {
                   ],
                 ),
               ),
-              IconButton(
-                tooltip: 'clear'.tr,
-                iconSize: RiffComponentSizes.trailingIcon,
-                color: scheme.onSurfaceVariant,
-                style: IconButton.styleFrom(
-                  minimumSize: const Size.square(RiffComponentSizes.iconHit),
+              if (removable)
+                IconButton(
+                  tooltip: 'clear'.tr,
+                  iconSize: RiffComponentSizes.trailingIcon,
+                  color: scheme.onSurfaceVariant,
+                  style: IconButton.styleFrom(
+                    minimumSize: const Size.square(RiffComponentSizes.iconHit),
+                  ),
+                  onPressed: () => SearchRecents.remove(recent),
+                  icon: const Icon(Icons.close_rounded),
                 ),
-                onPressed: () => SearchRecents.remove(recent),
-                icon: const Icon(Icons.close_rounded),
-              ),
             ],
           ),
         ),

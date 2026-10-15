@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:get/get.dart';
 import 'package:harmonymusic/services/music_service.dart';
+import 'package:harmonymusic/services/search_suggestions.dart';
 
 /// [MusicServices] without the network: each call is answered by the test
 /// through a [Completer] (or fails with [error] when set). Unused members
@@ -49,6 +50,14 @@ class FakeMusicServices extends GetxService implements MusicServices {
     if (error != null) throw error!;
     return ['$queryStr suggestion'];
   }
+
+  /// What getSearchSuggestions suggests to open, besides the searches.
+  List<Object> suggestedItems = const [];
+
+  @override
+  Future<SearchSuggestions> getSearchSuggestions(String queryStr) async =>
+      SearchSuggestions(
+          queries: await getSearchSuggestion(queryStr), items: suggestedItems);
 
   @override
   Future<Map<String, dynamic>> getPlaylistOrAlbumSongs(

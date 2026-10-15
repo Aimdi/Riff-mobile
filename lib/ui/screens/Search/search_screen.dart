@@ -57,11 +57,17 @@ class SearchScreen extends StatelessWidget {
                 )),
             Expanded(
               child: RiffScrollUnder(child: Obx(() {
-                final isEmpty = searchScreenController.suggestionList.isEmpty ||
+                final queries = searchScreenController.suggestionList.toList();
+                final items = searchScreenController.suggestedItems.toList();
+                final isEmpty = (queries.isEmpty && items.isEmpty) ||
                     searchScreenController.textInputController.text == "";
                 final list = isEmpty
                     ? searchScreenController.historyQuerylist.toList()
-                    : searchScreenController.suggestionList.toList();
+                    : queries;
+                // What YouTube Music would open for it, after the searches.
+                final suggested = isEmpty
+                    ? const <SearchRecent>[]
+                    : items.map(SearchRecent.of).whereType<SearchRecent>();
                 // What was opened from search, before the words searched.
                 SearchRecents.rev.value;
                 final recents =
@@ -83,7 +89,7 @@ class SearchScreen extends StatelessWidget {
                     ],
                   );
                 }
-                if (list.isEmpty && recents.isEmpty) {
+                if (list.isEmpty && recents.isEmpty && suggested.isEmpty) {
                   return PodcastEmptyState(
                     icon: Icons.search_rounded,
                     message: 'searchDes'.tr,
@@ -126,6 +132,10 @@ class SearchScreen extends StatelessWidget {
                               ? ''
                               : searchScreenController.textInputController.text,
                         )),
+                    ...suggested.map((item) => SearchRecentRow(
+                        key: ValueKey('suggested:${item.kind.name}:${item.id}'),
+                        recent: item,
+                        removable: false)),
                     Padding(
                       padding: const EdgeInsets.only(
                           left: HomeLayout.gutter,

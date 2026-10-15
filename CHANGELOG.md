@@ -1130,6 +1130,14 @@ Search:
   "Top result" as those of its kind below, and isn't listed again under
   them. Riff used to drop it, so searching an artist's name could leave
   that artist out of the results' Artists
+* Suggested results as you type, as YouTube Music's search box (and
+  Spotify's, Apple Music's, Metrolist's) shows them: under the suggested
+  searches, the songs, artists, albums and playlists YouTube Music would
+  open for what you typed, with their covers. Tap a song to play it, or
+  an artist, album or playlist to open it, without searching first; it's
+  kept in Recent searches as anything opened from the results is
+  (explicit songs are left out when explicit content is off). Riff used
+  to drop them and only suggest searches
 
 Language:
 * System default, as in Spotify, YouTube Music and AntennaPod: Settings ›
