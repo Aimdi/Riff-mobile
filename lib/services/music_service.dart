@@ -17,6 +17,7 @@ import '/services/ban_service.dart';
 import '/services/explicit_content.dart';
 import '/services/not_interested.dart';
 import '/services/search_spelling.dart';
+import '/services/search_top_result.dart';
 import '/services/utils.dart';
 import '/services/yt_auth_service.dart';
 import '../utils/helper.dart';
@@ -1282,6 +1283,14 @@ class MusicServices extends getx.GetxService {
 
     for (var res in results) {
       if (res is! Map) continue;
+      // "Top result", first on the overview (its own; not a tab).
+      if (res['musicCardShelfRenderer'] case final Map card) {
+        if (filter == null && !searchResults.containsKey(SearchTopResult.key)) {
+          final top = SearchTopResult.parse(card);
+          if (top != null) searchResults[SearchTopResult.key] = top;
+        }
+        continue;
+      }
       String category;
       if (res['musicShelfRenderer'] != null) {
         dynamic itemResults = res['musicShelfRenderer']['contents'];

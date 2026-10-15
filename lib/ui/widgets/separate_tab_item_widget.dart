@@ -26,6 +26,7 @@ class SeparateTabItemWidget extends StatelessWidget {
       this.isCompleteList = true,
       this.isResultWidget = true,
       this.hideTitle = false,
+      this.heading,
       this.topPadding = 0,
       this.scrollController,
       this.artistControllerTag});
@@ -38,6 +39,10 @@ class SeparateTabItemWidget extends StatelessWidget {
   final double topPadding;
   final bool isResultWidget;
   final bool hideTitle;
+
+  /// The section's title in place of [title]'s, with nothing beside it
+  /// (the search's top result: a section of one).
+  final String? heading;
   final ScrollController? scrollController;
 
   List<MediaItem> _tabSongs() {
@@ -104,13 +109,13 @@ class SeparateTabItemWidget extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        title.toLowerCase().removeAllWhitespace.tr,
+                        heading ?? title.toLowerCase().removeAllWhitespace.tr,
                         style: homeSectionTitleStyle(context),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (!isCompleteList)
+                    if (heading == null && !isCompleteList)
                       TextButton(
                         onPressed: () =>
                             searchResController!.viewAllCallback(title),
@@ -125,13 +130,15 @@ class SeparateTabItemWidget extends StatelessWidget {
                                 .labelMedium
                                 ?.copyWith(color: homeMutedColor(context))),
                       ),
-                    if (isCompleteList && shouldShowTabPlayAllHeader(title))
+                    if (heading == null &&
+                        isCompleteList &&
+                        shouldShowTabPlayAllHeader(title))
                       IconButton(
                         tooltip: 'shuffle'.tr,
                         icon: const Icon(Icons.shuffle_rounded, size: 22),
                         onPressed: () => _playTabItems(shuffle: true),
                       ),
-                    if (shouldShowTabPlayAllHeader(title))
+                    if (heading == null && shouldShowTabPlayAllHeader(title))
                       Padding(
                         padding: const EdgeInsets.only(right: 4),
                         child: HomeSectionPlayButton(

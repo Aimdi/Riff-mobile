@@ -1114,6 +1114,12 @@ Search:
   "Did you mean beyoncé" searches it with a tap, above the results or
   in place of "No match". Riff used to drop both, so a misspelled
   search showed what YouTube Music guessed without a word, or nothing
+* Top result first, as YouTube Music's and Spotify's search show it: the
+  best match for what you typed (the artist, song, album, playlist or
+  podcast YouTube Music puts on top) leads the results, one row under
+  "Top result" as those of its kind below, and isn't listed again under
+  them. Riff used to drop it, so searching an artist's name could leave
+  that artist out of the results' Artists
 
 Language:
 * System default, as in Spotify, YouTube Music and AntennaPod: Settings ›

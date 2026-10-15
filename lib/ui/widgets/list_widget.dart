@@ -120,9 +120,24 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
                   maxItems: _overviewPreviewCount),
             );
     } else if (title.contains("playlists") || title == "Podcasts") {
-      return listViewPlaylists(context, items, sc: scrollController);
+      return isCompleteList
+          ? listViewPlaylists(context, items, sc: scrollController)
+          // A preview (the search's top result): its rows, in place.
+          : Column(children: [
+              for (final p in items)
+                SizedBox(
+                    height: wideRowExtentOf(context),
+                    child: _playlistRow(context, p)),
+            ]);
     } else if (title == "Albums" || title == "Singles") {
-      return listViewAlbums(context, items, sc: scrollController);
+      return isCompleteList
+          ? listViewAlbums(context, items, sc: scrollController)
+          : Column(children: [
+              for (final a in items)
+                SizedBox(
+                    height: wideRowExtentOf(context),
+                    child: _albumRow(context, a)),
+            ]);
     } else if (title.contains('Artists')) {
       return isCompleteList
           ? Expanded(child: listViewArtists(items, sc: scrollController))
@@ -219,13 +234,17 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           itemCount: playlists.length,
           itemExtent: wideRowExtentOf(context),
           physics: const BouncingScrollPhysics(),
-          itemBuilder: (context, index) => wideListTile(context,
-              playlist: playlists[index],
-              title: playlists[index].title,
-              subtitle: playlists[index]?.description ?? "NA",
-              subtitle2: "")),
+          itemBuilder: (context, index) =>
+              _playlistRow(context, playlists[index])),
     );
   }
+
+  Widget _playlistRow(BuildContext context, dynamic playlist) =>
+      wideListTile(context,
+          playlist: playlist,
+          title: playlist.title,
+          subtitle: playlist?.description ?? "NA",
+          subtitle2: "");
 
   Widget listViewAlbums(BuildContext context, List<dynamic> albums,
       {ScrollController? sc}) {
@@ -239,26 +258,27 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           itemCount: albums.length,
           itemExtent: wideRowExtentOf(context),
           physics: const BouncingScrollPhysics(),
-          itemBuilder: (context, index) {
-            String artistName = "";
-            try {
-              for (dynamic items in (albums[index].artists).sublist(1)) {
-                artistName = "${artistName + items['name']},";
-              }
-              // ignore: empty_catches
-            } catch (e) {}
-            artistName = artistName.length > 16
-                ? artistName.substring(0, 16)
-                : artistName;
-            return wideListTile(context,
-                album: albums[index],
-                title: albums[index].title,
-                subtitle: artistName,
-                subtitle2: albums[index].artists.isEmpty
-                    ? "${albums[index].year}"
-                    : "${(albums[index].artists[0]['name'])} • ${albums[index].year}");
-          }),
+          itemBuilder: (context, index) => _albumRow(context, albums[index])),
     );
+  }
+
+  Widget _albumRow(BuildContext context, dynamic album) {
+    String artistName = "";
+    try {
+      for (dynamic items in (album.artists).sublist(1)) {
+        artistName = "${artistName + items['name']},";
+      }
+      // ignore: empty_catches
+    } catch (e) {}
+    artistName =
+        artistName.length > 16 ? artistName.substring(0, 16) : artistName;
+    return wideListTile(context,
+        album: album,
+        title: album.title,
+        subtitle: artistName,
+        subtitle2: album.artists.isEmpty
+            ? "${album.year}"
+            : "${(album.artists[0]['name'])} • ${album.year}");
   }
 
   Widget listViewArtists(List<dynamic> artists,

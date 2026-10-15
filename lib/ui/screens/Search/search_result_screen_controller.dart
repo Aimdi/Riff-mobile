@@ -5,6 +5,7 @@ import '../../../utils/helper.dart';
 import '/services/music_service.dart';
 import '/services/plugin_service.dart';
 import '/services/search_spelling.dart';
+import '/services/search_top_result.dart';
 import '/ui/player/play_queue_order.dart';
 import '/ui/widgets/sort_widget.dart';
 
@@ -214,6 +215,9 @@ class SearchResultScreenController extends GetxController {
 
   /// Searches the same words again, after [searchFailed].
   Future<void> retrySearch() => _search(queryString.value);
+
+  /// YouTube Music's best match for this search ("Top result"), if any.
+  Object? get topResult => resultContent[SearchTopResult.key];
 
   /// YouTube Music's spelling help for this search, if it gave any.
   SearchSpelling? get spelling {

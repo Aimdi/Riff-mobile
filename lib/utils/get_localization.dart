@@ -4778,6 +4778,7 @@ Map<String, Map<String, String>> get keys => {
     "searchShowingResultsFor": "Showing results for",
     "searchInsteadFor": "Search instead for @query",
     "searchDidYouMean": "Did you mean",
+    "topResult": "Top result",
     "downloadingCount": "Downloading @current of @total",
     "seekBar": "Playback position",
     "positionOfTotal": "@position of @total",
