@@ -91,3 +91,21 @@ List<String?> songSearchFields(MediaItem song) {
     if (album is Map) album['name']?.toString(),
   ];
 }
+
+/// The songs of [songs] (each once) that have every word of [query] in
+/// their title, artist or album, at most [limit]: what a search that can't
+/// reach YouTube Music finds in your library, as Spotify's and YouTube
+/// Music's search finds your downloads offline.
+List<MediaItem> librarySearchMatches(String query, Iterable<MediaItem> songs,
+    {int limit = 50}) {
+  if (query.trim().isEmpty) return const [];
+  final seen = <String>{};
+  final found = <MediaItem>[];
+  for (final song in songs) {
+    if (!seen.add(song.id)) continue;
+    if (!libraryMatches(query, songSearchFields(song))) continue;
+    found.add(song);
+    if (found.length >= limit) break;
+  }
+  return found;
+}

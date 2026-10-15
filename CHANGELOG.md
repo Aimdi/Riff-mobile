@@ -950,6 +950,12 @@ Search:
 * When a search can't reach YouTube Music, the results page says so
   ("You're offline", or that it couldn't search) with Retry, as Spotify
   and YouTube Music do; it used to say nothing matched
+* Offline, search finds what your library has, as Spotify's and YouTube
+  Music's search finds your downloads: when YouTube Music can't be
+  reached, the songs from your downloads, the song cache and your
+  phone's music that have every word you typed (title, artist or album)
+  are listed under From your library, below the message and Retry. Tap
+  one to play it, with the others found after it
 * Recent searches show what you opened, as in Spotify and Apple Music:
   the songs you played and the artists, albums, playlists and podcasts
   you opened from search results (your last ten) are listed with their
