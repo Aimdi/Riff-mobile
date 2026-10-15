@@ -16,6 +16,7 @@ import '/models/thumbnail.dart';
 import '/services/ban_service.dart';
 import '/services/explicit_content.dart';
 import '/services/not_interested.dart';
+import '/services/search_spelling.dart';
 import '/services/utils.dart';
 import '/services/yt_auth_service.dart';
 import '../utils/helper.dart';
@@ -1251,6 +1252,12 @@ class MusicServices extends getx.GetxService {
     results = nav(results, ['sectionListRenderer', 'contents']);
     if (results == null) {
       return searchResults;
+    }
+
+    // "Showing results for … / Did you mean …", for the overview.
+    if (filter == null) {
+      final spelling = SearchSpelling.fromSections(results);
+      if (spelling != null) searchResults[SearchSpelling.key] = spelling;
     }
 
     // Flatten itemSectionRenderer wrappers (some payloads nest shelves).

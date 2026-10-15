@@ -20,6 +20,7 @@ import '../../widgets/animated_screen_transition.dart';
 import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
 import '../../widgets/search_related_widgets.dart';
 import '../../widgets/separate_tab_item_widget.dart';
+import 'components/search_spelling_line.dart';
 import 'search_result_screen_controller.dart';
 
 class SearchResultScreen extends StatelessWidget {
@@ -230,7 +231,7 @@ class Body extends StatelessWidget {
         if (ytmRails.isEmpty) {
           final hasSoulseek = searchResScrController.railItems
               .any(searchResScrController.isSoulseekRail);
-          return PodcastEmptyState(
+          final empty = PodcastEmptyState(
             icon: Icons.search_off_rounded,
             message:
                 "${"nomatch".tr}\n'${searchResScrController.queryString.value}'",
@@ -245,6 +246,21 @@ class Body extends StatelessWidget {
                     }
                   }
                 : null,
+          );
+          // Nothing for the words as typed: "Did you mean …" above.
+          final spelling = searchResScrController.spelling;
+          if (spelling == null) return empty;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SearchSpellingLine(
+                spelling: spelling,
+                searched: searchResScrController.queryString.value,
+                onCorrected: searchResScrController.searchCorrected,
+                onOriginal: searchResScrController.searchOriginal,
+              ),
+              Expanded(child: empty),
+            ],
           );
         }
         return const ResultWidget();

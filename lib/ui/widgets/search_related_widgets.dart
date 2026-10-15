@@ -2,6 +2,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../screens/Search/components/search_spelling_line.dart';
 import '../screens/Search/search_result_screen_controller.dart';
 import '/models/album.dart';
 import '/models/artist.dart';
@@ -82,6 +83,17 @@ class ResultWidget extends StatelessWidget {
       }
     }
 
-    return list;
+    // "Showing results for … / Did you mean …" above them.
+    final spelling = searchResScrController.spelling;
+    return [
+      if (spelling != null)
+        SearchSpellingLine(
+          spelling: spelling,
+          searched: searchResScrController.queryString.value,
+          onCorrected: searchResScrController.searchCorrected,
+          onOriginal: searchResScrController.searchOriginal,
+        ),
+      ...list,
+    ];
   }
 }

@@ -1100,6 +1100,13 @@ Search:
   album.link page, plays or opens its YouTube Music page, found by
   Odesli (song.link). Spotify's and Apple Music's songs and albums ask
   it first too, for the exact match, before Riff's own search
+* Spelling help, as YouTube Music, Spotify and Apple Music give it: when
+  YouTube Music corrects what you typed, the results say so ("Showing
+  results for beyoncé") with Search instead for "beyonse", which looks
+  for your words exactly, in every tab; when it only has a suggestion,
+  "Did you mean beyoncé" searches it with a tap, above the results or
+  in place of "No match". Riff used to drop both, so a misspelled
+  search showed what YouTube Music guessed without a word, or nothing
 
 Language:
 * System default, as in Spotify, YouTube Music and AntennaPod: Settings ›

@@ -12,6 +12,14 @@ class FakeMusicServices extends GetxService implements MusicServices {
 
   /// Pending `search` calls by filter (null for the overview search).
   final searches = <String?, List<Completer<Map<String, dynamic>>>>{};
+
+  /// What each `search` asked for, in order.
+  final searchCalls = <({
+    String query,
+    String? filter,
+    bool ignoreSpelling,
+    String? filterParams
+  })>[];
   final suggestionCalls = <String>[];
   int playlistCalls = 0;
   int artistCalls = 0;
@@ -23,6 +31,12 @@ class FakeMusicServices extends GetxService implements MusicServices {
       int limit = 30,
       bool ignoreSpelling = false,
       String? filterParams}) {
+    searchCalls.add((
+      query: query,
+      filter: filter,
+      ignoreSpelling: ignoreSpelling,
+      filterParams: filterParams
+    ));
     if (error != null) return Future.error(error!);
     final c = Completer<Map<String, dynamic>>();
     (searches[filter] ??= []).add(c);
