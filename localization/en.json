@@ -935,6 +935,8 @@
     "podcastResume": "Resuming",
     "smartResume": "Smart resume",
     "smartResumeDes": "After a pause, go back a few seconds so you don't lose the thread, in episodes and audiobooks. The longer the pause, the further back",
+    "pauseForInterruptions": "Pause for interruptions",
+    "pauseForInterruptionsDes": "While a navigation prompt or a notification sound plays, episodes and audiobooks pause, then go on, so you don't miss a word. Off, they play on quieter under it, as music does",
     "endOfThisChapter": "End of this chapter",
     "podcastSleepFadeNote": "Episodes fade out over the last 10 seconds before they stop",
     "undo": "Undo",

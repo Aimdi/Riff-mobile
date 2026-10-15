@@ -323,6 +323,7 @@ class PodcastPlaybackPrefs {
   static const showBox = 'PodcastShowPrefs';
   static const defaultsKey = 'podcastPlaybackDefaults';
   static const smartResumeKey = 'podcastSmartResume';
+  static const pauseForInterruptionsKey = 'podcastPauseForInterruptions';
   static const autoSkipAdsKey = 'podcastAutoSkipAds';
 
   /// Bumped on every change so Obx widgets showing a profile rebuild.
@@ -358,6 +359,19 @@ class PodcastPlaybackPrefs {
 
   static Future<void> setSmartResume(bool on) async {
     await _prefs?.put(smartResumeKey, on);
+    rev.value++;
+  }
+
+  /// Episodes and audiobooks pause while a navigation prompt or a
+  /// notification sound plays (SpokenAudioFocus); off, they play on quieter
+  /// under it, as music does. On unless turned off.
+  static bool get pauseForInterruptions {
+    final v = _prefs?.get(pauseForInterruptionsKey);
+    return v is bool ? v : true;
+  }
+
+  static Future<void> setPauseForInterruptions(bool on) async {
+    await _prefs?.put(pauseForInterruptionsKey, on);
     rev.value++;
   }
 

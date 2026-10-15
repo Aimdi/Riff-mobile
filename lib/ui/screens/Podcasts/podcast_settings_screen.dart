@@ -118,6 +118,29 @@ class PodcastSettingsScreen extends StatelessWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(height: RiffSpacing.lg),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('pauseForInterruptions'.tr,
+                                style: Theme.of(context).textTheme.bodyLarge),
+                            const SizedBox(height: RiffSpacing.xxs),
+                            Text('pauseForInterruptionsDes'.tr,
+                                style: homeCardSubtitleStyle(context)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: RiffSpacing.md),
+                      CustSwitch(
+                        value: PodcastPlaybackPrefs.pauseForInterruptions,
+                        onChanged:
+                            PodcastPlaybackPrefs.setPauseForInterruptions,
+                      ),
+                    ],
+                  ),
                   const Divider(height: _groupGap),
                   const HeadphoneButtonsSetting(),
                 ],

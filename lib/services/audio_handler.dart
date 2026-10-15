@@ -12,6 +12,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:audio_session/audio_session.dart';
 // ignore: depend_on_referenced_packages
 import 'package:rxdart/rxdart.dart';
 
@@ -22,6 +23,7 @@ import '/services/riff_equalizer.dart';
 import '/services/explicit_content.dart';
 import '/services/offline_playback.dart';
 import '/services/resume_when_online.dart';
+import '/services/spoken_audio_focus.dart';
 import '/services/podcast_starred.dart';
 import '/services/youtube_stream_headers.dart';
 import '/services/playlist_mix_service.dart';
@@ -176,6 +178,17 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   /// once it's back.
   final _resumeOnline = ResumeWhenOnline();
 
+  /// An episode or a book pauses for a navigation prompt or a notification
+  /// sound; music plays on quieter under them.
+  late final _spokenFocus = SpokenAudioFocus(
+    configure: (configuration) async =>
+        (await AudioSession.instance).configure(configuration),
+    setActive: (active) async =>
+        (await AudioSession.instance).setActive(active),
+    playing: () => _player.playing,
+    pauseForInterruptions: () => PodcastPlaybackPrefs.pauseForInterruptions,
+  );
+
   /// Consecutive playByIndex resolve failures. Reset when playback is ready
   /// so a later dead track can still skip once without looping the queue.
   int _consecutiveResolveFails = 0;
@@ -213,6 +226,12 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     ever(OfflinePlayback.offline, (bool offline) {
       if (!offline) unawaited(_resumeWhenBackOnline());
     });
+    // Speech or music: how it gives way to a navigation prompt.
+    if (GetPlatform.isAndroid) {
+      mediaItem.listen((item) => unawaited(_spokenFocus.follow(item)));
+      ever(PodcastPlaybackPrefs.rev,
+          (_) => unawaited(_spokenFocus.follow(mediaItem.value)));
+    }
     final appPrefsBox = Hive.box("AppPrefs");
     _player
         .setSkipSilenceEnabled(appPrefsBox.get("skipSilenceEnabled") ?? false);

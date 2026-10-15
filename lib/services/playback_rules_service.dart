@@ -17,7 +17,11 @@ class PlaybackRulesService extends GetxService {
   Future<PlaybackRulesService> init() async {
     try {
       final session = await AudioSession.instance;
-      await session.configure(const AudioSessionConfiguration.music());
+      // Music, unless the player has set it up for an episode or a book
+      // already (SpokenAudioFocus).
+      if (!session.isConfigured) {
+        await session.configure(const AudioSessionConfiguration.music());
+      }
       _noisySub = session.becomingNoisyEventStream.listen((_) {
         if (!_enabled('pauseOnHeadsetDisconnect')) return;
         if (!Get.isRegistered<PlayerController>()) return;

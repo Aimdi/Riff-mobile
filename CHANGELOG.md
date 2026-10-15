@@ -281,6 +281,13 @@ Song rows:
   without them (music videos, uploads) say there are none
 
 Podcasts:
+* Pause for interruptions, as in AntennaPod (Pocket Casts' Play over
+  notifications): while a navigation prompt or a notification sound
+  plays, an episode or an audiobook pauses and goes on after it, so you
+  don't miss a word, as Android asks of podcast and audiobook players;
+  they used to play on quieter under it. Music still plays on quieter.
+  On by default; Podcast settings › Resuming › Pause for interruptions
+  turns it off
 * Each show can skip its intro and outro, like Pocket Casts and
   AntennaPod: on the show's page, the sliders button (Playback
   settings) › Skip intro / Skip outro (off up to 5 minutes, in 5 s steps
