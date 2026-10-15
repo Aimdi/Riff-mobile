@@ -530,6 +530,8 @@ class CloudMusicService extends GetxService {
         'url': streamUrl(s.id),
         'streamSource': 'cloud',
         'album': s.albumId != null ? {'name': s.album, 'id': s.albumId} : null,
+        // Its number on the album, for an album played and sorted in order.
+        if ((s.track ?? 0) > 0) 'trackDetails': '${s.track}',
         'artists': [
           {'name': artist, 'id': null}
         ],

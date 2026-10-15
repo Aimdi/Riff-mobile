@@ -92,6 +92,8 @@ MediaItem? deviceSong(Map<String, dynamic> song) {
   final art = text('art');
   final ms = song['durationMs'];
   final addedSec = song['addedSec'];
+  final track = song['track'];
+  final albumId = text('albumId');
   return MediaItem(
     id: '${DeviceMusic.idPrefix}$id',
     title: text('title') ?? '',
@@ -103,6 +105,10 @@ MediaItem? deviceSong(Map<String, dynamic> song) {
       'url': uri,
       // When it came onto the phone, for Songs' Date added sort.
       if (addedSec is int && addedSec > 0) 'date': addedSec * 1000,
+      // Its album and number on it (MediaStore's, the disc in thousands),
+      // for an album played and sorted in order.
+      if (albumId != null) 'albumId': albumId,
+      if (track is int && track > 0) 'trackDetails': '$track',
       if (artist != null)
         'artists': [
           {'name': artist},

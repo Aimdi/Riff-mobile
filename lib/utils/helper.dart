@@ -1,6 +1,8 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '/models/media_item_extras.dart';
 import '/services/collection_recents.dart';
 import '/services/diag_log.dart';
 import '/ui/widgets/sort_widget.dart';
@@ -47,9 +49,21 @@ void sortSongsNVideos(
     case SortType.Artist:
       compareFunction = (a, b) => _compareSongsBy(
           a, b, [(s) => s.artist, _songAlbumName, (s) => s.title]);
+    // An album's numbered tracks in their order, as Spotify and Apple
+    // Music list them (each album of a name on its own); the rest after,
+    // by artist and title.
     case SortType.Album:
-      compareFunction = (a, b) => _compareSongsBy(
-          a, b, [_songAlbumName, (s) => s.artist, (s) => s.title]);
+      compareFunction = (a, b) => _compareSongsBy(a, b, [
+            _songAlbumName,
+            (s) => s is MediaItem && s.albumTrackNumber != null
+                ? s.albumKey
+                : null,
+            (s) => s is MediaItem
+                ? s.albumTrackNumber?.toString().padLeft(9, '0')
+                : null,
+            (s) => s.artist,
+            (s) => s.title
+          ]);
     case SortType.Name:
     default:
       compareFunction =

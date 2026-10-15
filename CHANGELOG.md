@@ -651,6 +651,10 @@ Library:
 * Library Songs and the songs of a playlist sort by Artist or by Album
   too, like Spotify and Apple Music: each artist's (or album's) songs
   together, then by album (or artist) and title, songs without one last
+* Sorted by Album, an album's songs come in their order on it (track 1,
+  2, 3 …, disc by disc for the music files on your phone), as in
+  Spotify and Apple Music, rather than by title; songs without a number
+  follow, by artist and title as before
 * Library › Playlists and Albums sort by Recently played, like Spotify's
   Recents: the ones you last played from come first, the never played
   after them by name (Riff remembers from now on when you play from a
@@ -840,6 +844,12 @@ Fade between songs:
   back. Music only: podcasts, audiobooks, repeat-one, the last song of
   the queue, songs shorter than three fades and playlist Mixes (which
   have their own transitions) play as they are. Off by default
+* An album playing in order runs on without the fade, as Apple Music
+  doesn't crossfade a gapless album: from one track to the album's next
+  one (YouTube Music albums, your music server's, the music files on
+  your phone), a live album, a DJ mix or a symphony's movements flow
+  into each other as recorded. Shuffled, skipping about, or into
+  another album, songs fade as before
 * Loudness normalization has a volume level, like Spotify's: Settings ›
   Volume level (under Loudness normalization, Android): Quiet, Normal (as
   before) or Loud, which keeps more of each song's volume. Changing it

@@ -549,9 +549,10 @@ class Downloader extends GetxService {
         // Its lyrics too, to show offline (as Spotify's downloads do).
         unawaited(SyncedLyricsService.keepForOffline(song));
 
-        final trackDetails = (song.extras?['trackDetails'])?.split("/");
-        final int? trackNumber = int.tryParse(trackDetails?[0] ?? "");
-        final int? totalTracks = int.tryParse(trackDetails?[1] ?? "");
+        final trackDetails = "${song.extras?['trackDetails'] ?? ''}".split("/");
+        final int? trackNumber = int.tryParse(trackDetails.first);
+        final int? totalTracks =
+            trackDetails.length > 1 ? int.tryParse(trackDetails[1]) : null;
 
         try {
           /// Reverted -- Removed AudioTags as using this package, app is flagged as TROJ_GEN.R002V01K623 by TrendMicro-HouseCall

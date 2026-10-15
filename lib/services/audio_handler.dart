@@ -1092,13 +1092,14 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     }
     var outMs = item == null ? 0 : _songFadeLength(item, endMs);
     // Not near the end yet; or repeat-one, a Mix (it has its own
-    // transitions) or the last song of the queue, which play out as they
-    // are.
+    // transitions), the last song of the queue or one its album's next
+    // track follows, which play out as they are.
     if (outMs > 0 &&
         (endMs - posMs >= outMs ||
             loopModeEnabled ||
             _isMixPlaybackActive() ||
-            !_hasNextSong())) {
+            !_hasNextSong() ||
+            _nextContinuesAlbum(item!))) {
       outMs = 0;
     }
     final factor =
@@ -1122,6 +1123,15 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   bool _hasNextSong() =>
       currentIndex is int && _getNextSongIndex() != currentIndex;
+
+  /// The song after [item] is its album's next track (continuesAlbum).
+  bool _nextContinuesAlbum(MediaItem item) {
+    final next = _getNextSongIndex();
+    if (next == currentIndex || next < 0 || next >= queue.value.length) {
+      return false;
+    }
+    return continuesAlbum(item, queue.value[next]);
+  }
 
   /// Puts the volume back if the fade between songs lowered it.
   void _endSongFade() {

@@ -28,6 +28,34 @@ extension MediaItemExtras on MediaItem {
   /// Marked explicit by YouTube Music (the "E" badge).
   bool get isExplicit => extrasBool('isExplicit');
 
+  /// The album the song is on, told apart from others of the same name: its
+  /// id (YouTube Music's, your music server's), the phone's album (Media
+  /// Store), else its name. Null when it's on none.
+  String? get albumKey {
+    final album = extras?['album'];
+    if (album is Map) {
+      final id = album['id'];
+      if (id is String && id.isNotEmpty) return 'id:$id';
+    }
+    final onPhone = extrasString('albumId');
+    if (onPhone != null) return 'device:$onPhone';
+    final name = album is Map && album['name'] is String
+        ? album['name'] as String
+        : this.album;
+    final key = name?.trim().toLowerCase() ?? '';
+    return key.isEmpty ? null : 'name:$key';
+  }
+
+  /// The song's number on its album ("3" of YouTube Music's "3/12"; the
+  /// phone's counts the disc in thousands, 2003 for disc 2's third). Null
+  /// when unknown.
+  int? get albumTrackNumber {
+    final details = extrasString('trackDetails');
+    if (details == null) return null;
+    final number = int.tryParse(details.split('/').first.trim());
+    return number != null && number > 0 ? number : null;
+  }
+
   /// Stream / file URL stored by [MediaItemBuilder] and cache writes.
   String? get extrasUrl => extrasString('url');
 

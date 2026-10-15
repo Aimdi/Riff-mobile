@@ -57,7 +57,7 @@ object DeviceMusic : MethodChannel.MethodCallHandler {
         }
     }
 
-    /** Every song, by title: {id, uri, title, artist, album, albumId, durationMs, addedSec, art}. */
+    /** Every song, by title: {id, uri, title, artist, album, albumId, track, durationMs, addedSec, art}. */
     private fun songs(context: Context, artDir: String?): List<Map<String, Any?>> {
         val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
@@ -70,6 +70,7 @@ object DeviceMusic : MethodChannel.MethodCallHandler {
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.ALBUM_ID,
+            MediaStore.Audio.Media.TRACK,
             MediaStore.Audio.Media.DURATION,
             MediaStore.Audio.Media.DATE_ADDED,
         )
@@ -90,6 +91,7 @@ object DeviceMusic : MethodChannel.MethodCallHandler {
             val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
             val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
             val albumIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
+            val trackColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK)
             val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
             val addedColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
             while (cursor.moveToNext()) {
@@ -108,6 +110,8 @@ object DeviceMusic : MethodChannel.MethodCallHandler {
                         "artist" to cursor.getString(artistColumn),
                         "album" to cursor.getString(albumColumn),
                         "albumId" to albumId.toString(),
+                        // Its number on the album (the disc in thousands); 0 when untagged.
+                        "track" to cursor.getInt(trackColumn),
                         "durationMs" to cursor.getLong(durationColumn),
                         "addedSec" to cursor.getLong(addedColumn),
                     )

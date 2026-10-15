@@ -5,8 +5,11 @@ library;
 
 import 'dart:math';
 
+import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
+
+import '/models/media_item_extras.dart';
 
 class SongFade {
   SongFade._();
@@ -56,4 +59,16 @@ double? songFadeFactor(
     factor = factor == null ? out : min(factor, out);
   }
   return factor;
+}
+
+/// Whether [next] is the track after [song] on its album: an album playing
+/// in order, whose songs run into one another without a fade, as Apple
+/// Music doesn't crossfade a gapless album (a live album, a DJ mix, a
+/// symphony's movements).
+bool continuesAlbum(MediaItem song, MediaItem next) {
+  final album = song.albumKey;
+  if (album == null || album != next.albumKey) return false;
+  final number = song.albumTrackNumber;
+  final after = next.albumTrackNumber;
+  return number != null && after != null && after == number + 1;
 }
