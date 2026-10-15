@@ -585,6 +585,18 @@ Audiobooks:
   from your Audiobookshelf server is marked finished there too once Undo
   is gone, so it leaves Continue listening in its other apps as well. A
   book you gave up on used to stay in Jump back in for good
+* Download books to listen offline, as Audible and the Audiobookshelf
+  app keep them: the arrow at the top of a book's page (your
+  Audiobookshelf server's, or a free LibriVox book's) downloads it, a
+  chapter at a time. While it downloads the arrow shows how far it's got
+  (tap to cancel), and so does the download notification; done, tap it
+  to remove the book from the phone. A download cut off picks up where
+  it stopped, waits for the connection to come back, and keeps to Wi-Fi
+  when Download on Wi-Fi only is on; books queue one after another.
+  Downloaded books play from the phone (online too), with no connection
+  from Jump back in, Continue listening, the book's page (a LibriVox
+  book's opens offline with its chapters) and Saved › Downloaded, which
+  lists them
 
 Library:
 * Release Radar has new releases in it, as Spotify's does: a track from

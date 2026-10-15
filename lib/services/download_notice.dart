@@ -27,6 +27,9 @@ class DownloadNotice {
   /// Podcast episode downloads.
   static const episodes = 'episodes';
 
+  /// Audiobook downloads (AudiobookDownloads).
+  static const books = 'books';
+
   /// AppPrefs: the notifications permission was asked for (once).
   static const askedKey = 'askedDownloadNotifications';
 

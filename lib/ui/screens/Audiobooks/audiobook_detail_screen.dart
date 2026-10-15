@@ -8,6 +8,7 @@ import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/song_list_tile.dart' show RiffRowHairline;
+import 'audiobook_download_button.dart';
 import 'audiobook_play.dart';
 
 class AudiobookDetailScreen extends StatefulWidget {
@@ -74,7 +75,16 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
 
     return Scaffold(
       body: Column(children: [
-        RiffPageHeader(_detail?.title ?? 'audiobooks'.tr),
+        RiffPageHeader(
+          _detail?.title ?? 'audiobooks'.tr,
+          actions: [
+            if (_detail != null)
+              AudiobookDownloadButton(
+                bookId: widget.bookId,
+                chapters: () => abs.toMediaItems(_detail!),
+              ),
+          ],
+        ),
         Expanded(
             child: _loading
                 ? const SongListShimmer(itemCount: 8, topPadding: 12)

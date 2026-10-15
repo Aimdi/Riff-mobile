@@ -19,6 +19,7 @@ import '/services/podcast_service.dart';
 import '/services/piped_service.dart';
 import '/services/sponsorblock_service.dart';
 import '/services/spotify_import_service.dart';
+import '/services/audiobook_downloads.dart';
 import '/services/audiobookshelf_service.dart';
 import '/services/cloud_music_service.dart';
 import '/services/plugin_service.dart';
@@ -327,6 +328,7 @@ Future<void> initHiveDeferred() async {
     safeOpenBox("PodcastDownloads"),
     safeOpenBox("PodcastProgress"),
     safeOpenBox("AudiobookProgress"),
+    safeOpenBox(AudiobookDownloads.boxName),
     safeOpenBox("PodcastPlayed"),
     safeOpenBox("PodcastShowPrefs"),
     safeOpenBox("PodcastSegmentCache"),

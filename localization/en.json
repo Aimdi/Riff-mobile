@@ -368,6 +368,8 @@
     "downloadFailed": "Download failed",
     "downloadRemoved": "Download removed",
     "removeDownload": "Remove download",
+    "cancelDownload": "Cancel download",
+    "removeBookDownloadMsg": "This book will be removed from your phone. You can download it again anytime.",
     "markAsPlayed": "Mark as played",
     "markAsUnplayed": "Mark as unplayed",
     "shownotes": "Shownotes",

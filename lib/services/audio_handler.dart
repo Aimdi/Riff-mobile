@@ -28,6 +28,7 @@ import '/services/spoken_audio_focus.dart';
 import '/services/podcast_starred.dart';
 import '/services/youtube_stream_headers.dart';
 import '/services/playlist_mix_service.dart';
+import '/services/audiobook_downloads.dart';
 import '/services/audiobookshelf_service.dart';
 import '/services/cloud_music_service.dart';
 import '/services/server_login.dart';
@@ -2380,6 +2381,11 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           }
           url = "file://$path";
         }
+      }
+      // A downloaded audiobook plays from its files, with no server or
+      // connection (AudiobookDownloads).
+      if (songId.startsWith('abs_') || songId.startsWith('lv_')) {
+        url = AudiobookDownloads.playUrl(songId, url, item?.extras);
       }
       // Refresh ABS stream URL on retry — tokenized URLs expire.
       if (generateNewUrl &&

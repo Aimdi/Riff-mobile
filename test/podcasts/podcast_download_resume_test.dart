@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/services/offline_playback.dart';
 import 'package:harmonymusic/services/podcast_download_service.dart';
+import 'package:harmonymusic/services/resumable_download.dart';
 import 'package:hive/hive.dart';
 
 /// A request as the test server got it: its headers (names in lower case)
@@ -90,7 +91,7 @@ void main() {
             (call) async => tmp.path);
     Hive.init('${tmp.path}/hive');
     await Hive.openBox('PodcastDownloads');
-    PodcastDownloadService.retryDelay = const Duration(milliseconds: 1);
+    ResumableDownload.retryDelay = const Duration(milliseconds: 1);
 
     requests.clear();
     answers.clear();
@@ -108,7 +109,7 @@ void main() {
   });
 
   tearDown(() async {
-    PodcastDownloadService.retryDelay = const Duration(seconds: 2);
+    ResumableDownload.retryDelay = const Duration(seconds: 2);
     await OfflinePlayback.resetForTest();
     await server.close();
     await Hive.deleteFromDisk();
