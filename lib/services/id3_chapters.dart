@@ -146,6 +146,20 @@ Iterable<({String id, Uint8List data})> id3Frames(Uint8List tag) sync* {
 /// order mark, 2 UTF-16BE, 3 UTF-8).
 String id3Decode(int encoding, Uint8List bytes) => _decode(encoding, bytes);
 
+/// Where the text in [encoding] that starts at [from] in [d] ends ([at])
+/// and what follows its terminator ([next]): one zero byte, or two on a
+/// two-byte boundary in UTF-16. Null when it isn't terminated.
+({int at, int next})? id3TextEnd(Uint8List d, int from, int encoding) {
+  if (encoding == 1 || encoding == 2) {
+    for (var i = from; i + 1 < d.length; i += 2) {
+      if (d[i] == 0 && d[i + 1] == 0) return (at: i, next: i + 2);
+    }
+    return null;
+  }
+  final i = d.indexOf(0, from);
+  return i < 0 ? null : (at: i, next: i + 1);
+}
+
 class _Frame {
   const _Frame(this.id, this.data);
   final String id;

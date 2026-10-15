@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:harmonymusic/services/device_file_tags.dart';
 import 'package:harmonymusic/services/embedded_lyrics.dart';
 import 'package:harmonymusic/services/synced_lyrics_service.dart';
 import 'package:hive/hive.dart';
@@ -163,10 +164,10 @@ void main() {
     late List<(int, int)> reads;
 
     setUp(() {
-      EmbeddedLyrics.forget();
+      DeviceFileTags.forget();
       files = {};
       reads = [];
-      EmbeddedLyrics.reader = (uri, offset, length) async {
+      DeviceFileTags.reader = (uri, offset, length) async {
         reads.add((offset, length));
         final file = files[uri];
         if (file == null || offset >= file.length) return null;

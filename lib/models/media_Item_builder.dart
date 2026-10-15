@@ -84,6 +84,8 @@ class MediaItemBuilder {
           if (json['dailyMixId'] != null) 'dailyMixId': json['dailyMixId'],
           if (json['dailyMixTitle'] != null)
             'dailyMixTitle': json['dailyMixTitle'],
+          // A server song's loudness, for normalization.
+          if (json['replayGain'] != null) 'replayGain': json['replayGain'],
         });
   }
 
@@ -227,5 +229,7 @@ class MediaItemBuilder {
         'discoverySource': mediaItem.extras?['discoverySource'],
         'dailyMixId': mediaItem.extras?['dailyMixId'],
         'dailyMixTitle': mediaItem.extras?['dailyMixTitle'],
+        if (mediaItem.extras?['replayGain'] != null)
+          'replayGain': mediaItem.extras?['replayGain'],
       };
 }

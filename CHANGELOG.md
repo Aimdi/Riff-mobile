@@ -936,6 +936,16 @@ Fade between songs:
   Volume level (under Loudness normalization, Android): Quiet, Normal (as
   before) or Loud, which keeps more of each song's volume. Changing it
   applies to the song playing straight away
+* Loudness normalization covers your own music too, as Poweramp,
+  Symfonium and foobar2000 play it: the music files on your phone by the
+  ReplayGain in their tags (an MP3's REPLAYGAIN_TRACK_GAIN, as
+  foobar2000, MusicBrainz Picard, beets and Mp3tag write it, or Quod
+  Libet's RVA2; a FLAC's), and your music server's songs by what it
+  measured (Navidrome and the other OpenSubsonic servers), the song's
+  own gain else its album's. They used to play at full volume between
+  normalized songs, as loud as an unnormalized master. A file's tags are
+  read once (with its lyrics) and the next song's ahead of time; songs
+  without ReplayGain play as before
 
 Autoplay:
 * Like Spotify's, YouTube Music's and Apple Music's: when an album,

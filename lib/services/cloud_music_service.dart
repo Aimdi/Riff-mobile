@@ -10,6 +10,7 @@ import 'package:hive/hive.dart';
 
 import '../utils/helper.dart';
 import '../utils/secure_credentials.dart';
+import 'replay_gain.dart';
 
 /// An int from a Subsonic number field. Some servers send numbers as
 /// strings; the `as num?` casts this replaces threw on those and lost the
@@ -28,6 +29,7 @@ class CloudSong {
     this.coverArt,
     this.duration,
     this.track,
+    this.replayGain,
   });
 
   final String id;
@@ -38,6 +40,9 @@ class CloudSong {
   final String? coverArt;
   final Duration? duration;
   final int? track;
+
+  /// What the server measured of its loudness (OpenSubsonic's replayGain).
+  final ReplayGain? replayGain;
 
   static CloudSong? fromJson(dynamic j) {
     if (j is! Map || j['id'] == null) return null;
@@ -51,6 +56,7 @@ class CloudSong {
       coverArt: j['coverArt']?.toString(),
       duration: durSec != null && durSec > 0 ? Duration(seconds: durSec) : null,
       track: _asInt(j['track']),
+      replayGain: ReplayGain.fromSubsonic(j['replayGain']),
     );
   }
 }
@@ -499,6 +505,28 @@ class CloudMusicService extends GetxService {
   /// Tokenized stream URL for the player (`stream`).
   String streamUrl(String songId) => _restUrl('stream.view', {'id': songId});
 
+  final _replayGains = <String, ReplayGain?>{};
+
+  /// What the server measured of [songId]'s loudness (getSong's
+  /// replayGain), for a song kept from before Riff read it with the song;
+  /// asked once. Null when the server doesn't say.
+  Future<ReplayGain?> replayGainOf(String songId) async {
+    if (_replayGains.containsKey(songId)) return _replayGains[songId];
+    if (!isConnected.value) return null;
+    try {
+      final body = await _request('getSong.view', {'id': songId});
+      final song = body['song'];
+      return _replayGains[songId] =
+          song is Map ? ReplayGain.fromSubsonic(song['replayGain']) : null;
+    } on CloudApiException {
+      // The server has no such song, or doesn't do getSong: don't ask again.
+      return _replayGains[songId] = null;
+    } catch (e) {
+      printERROR('ReplayGain of $songId: $e');
+      return null;
+    }
+  }
+
   /// Cover art URL, or empty string when the item has none.
   String coverUrl(String? coverArt, {int size = 400}) {
     if (coverArt == null || coverArt.isEmpty || isConnected.isFalse) {
@@ -532,6 +560,8 @@ class CloudMusicService extends GetxService {
         'album': s.albumId != null ? {'name': s.album, 'id': s.albumId} : null,
         // Its number on the album, for an album played and sorted in order.
         if ((s.track ?? 0) > 0) 'trackDetails': '${s.track}',
+        // For loudness normalization.
+        if (s.replayGain != null) 'replayGain': s.replayGain!.toJson(),
         'artists': [
           {'name': artist, 'id': null}
         ],

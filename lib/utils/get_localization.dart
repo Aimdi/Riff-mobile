@@ -5083,7 +5083,7 @@ Map<String, Map<String, String>> get keys => {
     "import": "Import",
     "paste": "Paste",
     "loudnessNormalization": "Loudness normalization",
-    "loudnessNormalizationDes": "Sets same lavel of loudness for all songs (Experimental) (Will not work on songs downloaded on previous version(< v1.10.0))",
+    "loudnessNormalizationDes": "Sets the same level of loudness for all songs: as YouTube Music measures them, and by the ReplayGain of your music files and your music server's songs (not songs downloaded before v1.10.0)",
     "normalizationLevel": "Volume level",
     "normalizationLevelDes": "How loud normalized songs play. Loud keeps more of their volume; quieter songs can't go above full",
     "normalizationQuiet": "Quiet",

@@ -49,6 +49,7 @@ import '/models/media_item_extras.dart';
 import '/services/now_playing_controls.dart';
 import '/services/queue_undo.dart';
 import '/services/normalization_level.dart';
+import '/services/own_loudness.dart';
 import '/services/shuffle_order.dart';
 import '/services/song_fade.dart';
 import '/services/stream_service.dart';
@@ -1780,6 +1781,12 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         final currentSong = queue.value[currentIndex];
         final futureStreamInfo =
             checkNGetUrl(currentSong.id, generateNewUrl: isNewUrlReq);
+        // A phone or server song's loudness (its ReplayGain), meanwhile.
+        final ownLoudness = loudnessNormalizationEnabled &&
+                GetPlatform.isAndroid &&
+                hasOwnLoudness(currentSong)
+            ? _ownLoudnessDb(currentSong)
+            : null;
         final bool restoreSession = extras['restoreSession'] ?? false;
         isSongLoading = true;
         playbackState.add(playbackState.value
@@ -1842,6 +1849,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
             errorCode: 404,
           );
         }
+        // Known before the song can be heard.
+        final own = await _ownLoudnessSoon(ownLoudness, requestId);
+        if (superseded()) return null;
         _consecutiveResolveFails = 0;
         try {
           currentSongUrl = currentSong.extras!['url'] = streamInfo.audio!.url;
@@ -1866,7 +1876,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         // The fade between songs keeps the level it lowered the volume from.
         final level = _songFadeBase ?? _player.volume;
         final normalize = loudnessNormalizationEnabled && GetPlatform.isAndroid;
-        if (normalize) {
+        if (normalize && own != null) {
+          _setLoudness(own);
+        } else if (normalize) {
           _normalizeVolume(streamInfo.audio!.loudnessDb);
         } else {
           _baseVolume = level.clamp(0.0, 1.0);
@@ -1970,7 +1982,17 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
         if (loudnessNormalizationEnabled) {
           try {
-            final currentSongId = (queue.value[currentIndex]).id;
+            final current = queue.value[currentIndex];
+            final own =
+                hasOwnLoudness(current) ? await _ownLoudnessDb(current) : null;
+            if (own != null) {
+              if (loudnessNormalizationEnabled &&
+                  mediaItem.value?.id == current.id) {
+                _setLoudness(own, playing: true);
+              }
+              return;
+            }
+            final currentSongId = current.id;
             if (Hive.box("SongsUrlCache").containsKey(currentSongId)) {
               final songJson = Hive.box("SongsUrlCache").get(currentSongId);
               _normalizeVolume((songJson)["highQualityAudio"]["loudnessDb"]);
@@ -2244,13 +2266,50 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       _player.setVolume(1.0);
       return;
     }
-    // Brought to the volume level chosen in Settings (Normal: −5 dB).
-    final volumeAdjustment = normalizedVolume(
-        currentLoudnessDb, NormalizationLevel.selected.value.targetDb);
-    printINFO(
-        "loudness:$currentLoudnessDb Normalized volume: $volumeAdjustment");
-    _baseVolume = volumeAdjustment;
-    _player.setVolume(_baseVolume);
+    _setLoudness(currentLoudnessDb);
+  }
+
+  /// The volume for a song [loudnessDb] above YouTube's reference, at the
+  /// level chosen in Settings (Normal: −5 dB). [playing]: the song is
+  /// already heard, so a fade under way (between songs, the sleep timer's)
+  /// carries on from it instead.
+  void _setLoudness(double loudnessDb, {bool playing = false}) {
+    _baseVolume = normalizedVolume(
+        loudnessDb, NormalizationLevel.selected.value.targetDb);
+    printINFO("loudness:$loudnessDb Normalized volume: $_baseVolume");
+    if (playing && _songFadeBase != null) {
+      _songFadeBase = _baseVolume;
+    } else if (playing && _sleepFadeRestoreVolume != null) {
+      _sleepFadeRestoreVolume = _baseVolume;
+    } else {
+      _player.setVolume(_baseVolume);
+    }
+  }
+
+  /// A phone or server song's loudness, from its ReplayGain (ownLoudnessDb).
+  Future<double?> _ownLoudnessDb(MediaItem song) async {
+    try {
+      return await ownLoudnessDb(song,
+          server: Get.isRegistered<CloudMusicService>()
+              ? Get.find<CloudMusicService>().replayGainOf
+              : null);
+    } catch (e) {
+      printERROR('ReplayGain of ${song.id}: $e');
+      return null;
+    }
+  }
+
+  /// [loudness] when it's known within half a second (a file read before,
+  /// a short tag); when it takes longer, the song starts as one of unknown
+  /// loudness and it applies once known, if that play still holds the
+  /// player.
+  Future<double?> _ownLoudnessSoon(Future<double?>? loudness, int requestId) {
+    if (loudness == null) return Future.value();
+    return soonOrLate(loudness, const Duration(milliseconds: 500), (db) {
+      if (requestId == _playRequestId && loudnessNormalizationEnabled) {
+        _setLoudness(db, playing: true);
+      }
+    });
   }
 
   Future<void> _sessionSave = Future.value();
@@ -2744,7 +2803,14 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       final next = _getNextSongIndex();
       if (next == currentIndex) return;
       if (next < 0 || next >= queue.value.length) return;
-      prefetchStreamUrl(queue.value[next].id);
+      final nextSong = queue.value[next];
+      prefetchStreamUrl(nextSong.id);
+      // A phone or server song's loudness, ready for when it plays.
+      if (loudnessNormalizationEnabled &&
+          GetPlatform.isAndroid &&
+          hasOwnLoudness(nextSong)) {
+        unawaited(_ownLoudnessDb(nextSong));
+      }
     } catch (_) {}
   }
 }

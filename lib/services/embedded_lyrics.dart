@@ -6,18 +6,14 @@
 library;
 
 import 'dart:convert';
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
-import '/services/device_music.dart';
+import '/services/device_file_tags.dart';
 import '/services/id3_chapters.dart';
-import '/utils/helper.dart';
-
-/// The most of a tag read for its lyrics (cover art can make it big).
-const embeddedLyricsReadLimit = 8 * 1024 * 1024;
+import '/services/vorbis_comments.dart';
 
 class EmbeddedLyrics {
   const EmbeddedLyrics({this.synced, this.plain});
@@ -28,72 +24,10 @@ class EmbeddedLyrics {
   /// Lyrics as text.
   final String? plain;
 
-  /// [length] bytes of the file at [uri] from [offset] (fewer at its end;
-  /// null when it can't be read). Tests swap it.
-  @visibleForTesting
-  static Future<Uint8List?> Function(String uri, int offset, int length)
-      reader = DeviceMusic.read;
-
-  static final _cache = <String, EmbeddedLyrics?>{};
-
-  @visibleForTesting
-  static void forget() => _cache.clear();
-
   /// What [song]'s file carries, when it's one of the phone's music files
   /// (Songs › On this phone); null when it carries none.
-  static Future<EmbeddedLyrics?> forSong(MediaItem song) async {
-    if (!DeviceMusic.isDeviceSong(song)) return null;
-    final uri = '${song.extras?['url'] ?? ''}';
-    if (!uri.startsWith('content://')) return null;
-    if (_cache.containsKey(uri)) return _cache[uri];
-    EmbeddedLyrics? found;
-    try {
-      found = await _read(uri);
-    } catch (e) {
-      printERROR('Lyrics in the file ($uri): $e');
-    }
-    return _cache[uri] = found;
-  }
-
-  static Future<EmbeddedLyrics?> _read(String uri) async {
-    final head = await reader(uri, 0, 10);
-    if (head == null || head.length < 10) return null;
-    final tagLength = id3TagLength(head);
-    if (tagLength != null) {
-      final tag =
-          await reader(uri, 0, math.min(tagLength, embeddedLyricsReadLimit));
-      return tag == null ? null : fromId3(tag);
-    }
-    // "fLaC"
-    if (head[0] == 0x66 &&
-        head[1] == 0x4C &&
-        head[2] == 0x61 &&
-        head[3] == 0x43) {
-      return _flac(uri);
-    }
-    return null;
-  }
-
-  /// A FLAC's Vorbis comment block, found among its metadata blocks (the
-  /// pictures in between skipped, not read).
-  static Future<EmbeddedLyrics?> _flac(String uri) async {
-    var at = 4;
-    for (var blocks = 0; blocks < 64; blocks++) {
-      final header = await reader(uri, at, 4);
-      if (header == null || header.length < 4) return null;
-      final last = header[0] & 0x80 != 0;
-      final type = header[0] & 0x7F;
-      final length = (header[1] << 16) | (header[2] << 8) | header[3];
-      if (type == 4) {
-        if (length > embeddedLyricsReadLimit) return null;
-        final block = await reader(uri, at + 4, length);
-        return block == null ? null : fromVorbisComments(block);
-      }
-      if (last) return null;
-      at += 4 + length;
-    }
-    return null;
-  }
+  static Future<EmbeddedLyrics?> forSong(MediaItem song) async =>
+      (await DeviceFileTags.forSong(song))?.lyrics;
 
   /// The lyrics in an ID3v2.3 / 2.4 [tag]: a SYLT frame's in milliseconds,
   /// else the USLT frames' (LRC ones as synced).
@@ -119,28 +53,14 @@ class EmbeddedLyrics {
   /// The lyrics among a Vorbis comment [block]'s fields (FLAC, as
   /// MusicBrainz Picard, foobar2000, Mp3tag and LRCGET write them).
   static EmbeddedLyrics? fromVorbisComments(Uint8List block) {
-    final b = ByteData.sublistView(block);
-    if (block.length < 8) return null;
-    var at = 4 + b.getUint32(0, Endian.little);
-    if (at + 4 > block.length) return null;
-    final count = b.getUint32(at, Endian.little);
-    at += 4;
     String? synced;
     String? plain;
-    for (var i = 0; i < count && at + 4 <= block.length; i++) {
-      final length = b.getUint32(at, Endian.little);
-      at += 4;
-      if (at + length > block.length) break;
-      final field = utf8.decode(Uint8List.sublistView(block, at, at + length),
-          allowMalformed: true);
-      at += length;
-      final eq = field.indexOf('=');
-      if (eq <= 0) continue;
-      final key = field.substring(0, eq).toUpperCase().replaceAll(' ', '');
+    for (final (name, value) in vorbisComments(block)) {
+      final key = name.replaceAll(' ', '');
       if (key != 'LYRICS' && key != 'SYNCEDLYRICS' && key != 'UNSYNCEDLYRICS') {
         continue;
       }
-      final text = _clean(field.substring(eq + 1));
+      final text = _clean(value);
       if (text == null) continue;
       if (looksLikeLrc(text)) {
         synced ??= text;
@@ -173,7 +93,7 @@ class EmbeddedLyrics {
     var rest = _afterTerminated(d, 6, encoding);
     final lines = <String>[];
     while (rest != null && rest.isNotEmpty) {
-      final end = _terminator(rest, 0, encoding);
+      final end = id3TextEnd(rest, 0, encoding);
       if (end == null || end.next + 4 > rest.length) break;
       final text = id3Decode(encoding, Uint8List.sublistView(rest, 0, end.at))
           .replaceAll(RegExp(r'[\r\n]+'), ' ')
@@ -189,23 +109,8 @@ class EmbeddedLyrics {
   /// The bytes after the text terminated in [encoding] that starts at
   /// [from] (a description); null when it isn't terminated.
   static Uint8List? _afterTerminated(Uint8List d, int from, int encoding) {
-    final end = _terminator(d, from, encoding);
+    final end = id3TextEnd(d, from, encoding);
     return end == null ? null : Uint8List.sublistView(d, end.next);
-  }
-
-  /// Where the text from [from] ends ([at]) and what follows its
-  /// terminator ([next]): one zero byte, or two on a two-byte boundary in
-  /// UTF-16.
-  static ({int at, int next})? _terminator(
-      Uint8List d, int from, int encoding) {
-    if (encoding == 1 || encoding == 2) {
-      for (var i = from; i + 1 < d.length; i += 2) {
-        if (d[i] == 0 && d[i + 1] == 0) return (at: i, next: i + 2);
-      }
-      return null;
-    }
-    final i = d.indexOf(0, from);
-    return i < 0 ? null : (at: i, next: i + 1);
   }
 
   static String? _clean(String text) {
