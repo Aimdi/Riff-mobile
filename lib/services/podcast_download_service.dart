@@ -1,12 +1,15 @@
 import '/ui/player/long_form_queue.dart';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '/services/offline_playback.dart';
 import '/services/pending_file_deletes.dart';
 import '/services/download_notice.dart';
 
@@ -99,7 +102,202 @@ class PodcastDownloadService {
     final base = (await getApplicationSupportDirectory()).path;
     final dir = Directory('$base/podcast_downloads');
     if (!dir.existsSync()) dir.createSync(recursive: true);
+    _sweepParts(dir);
     return dir.path;
+  }
+
+  /// A download broken off keeps what it got in `<file>.part`, and what the
+  /// server said of the file in `<file>.part.json` (its address, and its
+  /// ETag or Last-Modified), so the next try asks for the rest only (Range,
+  /// If-Range), as AntennaPod resumes its downloads: the rest when the
+  /// server says it's the same file, else all of it again.
+  static const _partSuffix = '.part';
+  static const _metaSuffix = '.part.json';
+
+  /// Partial downloads untouched this long are deleted.
+  static const partsKeptFor = Duration(days: 7);
+
+  /// A download broken off with a connection there is tried again after
+  /// this, then twice this, before it's given up (what it got is kept for
+  /// the next try).
+  @visibleForTesting
+  static Duration retryDelay = const Duration(seconds: 2);
+  static const _tries = 3;
+
+  static void _sweepParts(Directory dir) {
+    final before = DateTime.now().subtract(partsKeptFor);
+    try {
+      for (final file in dir.listSync().whereType<File>()) {
+        if (!file.path.endsWith(_partSuffix) &&
+            !file.path.endsWith(_metaSuffix)) {
+          continue;
+        }
+        if (file.lastModifiedSync().isBefore(before)) file.deleteSync();
+      }
+    } catch (_) {}
+  }
+
+  static int _partLength(String path) {
+    final part = File('$path$_partSuffix');
+    return part.existsSync() ? part.lengthSync() : 0;
+  }
+
+  static void _dropPart(String path) {
+    for (final suffix in [_partSuffix, _metaSuffix]) {
+      try {
+        final file = File('$path$suffix');
+        if (file.existsSync()) file.deleteSync();
+      } catch (_) {}
+    }
+  }
+
+  /// What the server said of the file at [url] when [path]'s download broke
+  /// off (the If-Range to resume it with), or null when it can't resume.
+  static String? _validatorKept(String path, String url) {
+    try {
+      final meta = File('$path$_metaSuffix');
+      if (_partLength(path) == 0 || !meta.existsSync()) return null;
+      final kept = jsonDecode(meta.readAsStringSync());
+      if (kept is! Map || kept['url'] != url) return null;
+      final validator = kept['validator'];
+      return validator is String && validator.isNotEmpty ? validator : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// What resumes the file later: its ETag (a weak one can't), else its
+  /// Last-Modified.
+  static String? _validatorOf(Headers headers) {
+    final etag = headers.value('etag');
+    if (etag != null && !etag.startsWith('W/')) return etag;
+    return headers.value('last-modified');
+  }
+
+  /// Where a partial answer (Content-Range) starts.
+  static int? _rangeStart(String? contentRange) {
+    final start =
+        RegExp(r'^bytes\s+(\d+)-').firstMatch(contentRange?.trim() ?? '');
+    return start == null ? null : int.tryParse(start.group(1)!);
+  }
+
+  /// Fetches [url] into [path], after what a try before got when the server
+  /// says it's the same file.
+  static Future<void> _fetch(
+      String url, String path, void Function(double)? onProgress) async {
+    final part = File('$path$_partSuffix');
+    final meta = File('$path$_metaSuffix');
+    final discard = File('$path.discard');
+    final validator = _validatorKept(path, url);
+    if (validator == null) _dropPart(path);
+    var offset = validator == null ? 0 : part.lengthSync();
+    final cancel = CancelToken();
+    try {
+      await _dio.download(
+        url,
+        (Headers headers) {
+          final range = headers.value('content-range');
+          final got = _validatorOf(headers);
+          if (offset > 0 &&
+              !(_rangeStart(range) == offset &&
+                  (got == null || got == validator))) {
+            // A part of another file can't follow on: called off, for all
+            // of it again.
+            if (range != null) {
+              cancel.cancel(const _PartOfAnother());
+              return discard.path;
+            }
+            // The whole file (the server not resuming, or it changed).
+            offset = 0;
+            part.writeAsBytesSync(const [], flush: true);
+          }
+          meta.writeAsStringSync(jsonEncode({'url': url, 'validator': got}),
+              flush: true);
+          return part.path;
+        },
+        cancelToken: cancel,
+        deleteOnError: false,
+        fileAccessMode: FileAccessMode.append,
+        options: Options(headers: {
+          if (offset > 0) 'range': 'bytes=$offset-',
+          if (offset > 0) 'if-range': validator,
+        }),
+        onReceiveProgress: (received, total) {
+          if (total > 0 && onProgress != null) {
+            onProgress((offset + received) / (offset + total));
+          }
+        },
+      );
+    } finally {
+      if (discard.existsSync()) discard.deleteSync();
+    }
+    // An older copy (one kept for Undo) gives way, as it did before.
+    final done = File(path);
+    if (done.existsSync()) done.deleteSync();
+    await part.rename(path);
+    if (meta.existsSync()) meta.deleteSync();
+  }
+
+  /// Whether a download that failed with [e] is worth trying again: the
+  /// connection broke it off (or the file changed under it, so it starts
+  /// over), not the server refusing it.
+  static bool _worthAnotherTry(Object e, String path) {
+    if (e is! DioException) return false;
+    if (e.error is _PartOfAnother) {
+      _dropPart(path);
+      return true;
+    }
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+      case DioExceptionType.connectionError:
+      case DioExceptionType.unknown:
+        return true;
+      case DioExceptionType.badResponse:
+        // More asked for than there is: the file changed; from the start.
+        if (e.response?.statusCode == 416) {
+          _dropPart(path);
+          return true;
+        }
+        return false;
+      default:
+        return false;
+    }
+  }
+
+  /// Fetches [episode]'s [url] into [path], resuming what it got when it's
+  /// broken off: with the connection gone, once it's back (nothing got yet,
+  /// it fails as before); with it there, after [retryDelay], twice. False
+  /// when given up.
+  static Future<bool> _fetchResuming(MediaItem episode, String url, String path,
+      void Function(double)? onProgress) async {
+    var brokenOff = 0;
+    while (true) {
+      try {
+        await _fetch(url, path, onProgress);
+        return true;
+      } catch (e) {
+        if (!_worthAnotherTry(e, path)) return false;
+        if (OfflinePlayback.noConnection.isTrue) {
+          if (_partLength(path) == 0) return false;
+          await _connectionBack(episode);
+          continue;
+        }
+        if (++brokenOff >= _tries) return false;
+        await Future<void>.delayed(retryDelay * brokenOff);
+      }
+    }
+  }
+
+  /// Until there's a connection again, the notification saying so.
+  static Future<void> _connectionBack(MediaItem episode) async {
+    if (OfflinePlayback.noConnection.isFalse) return;
+    _noticeText = 'waitingForConnection'.tr;
+    _noticeShow();
+    await OfflinePlayback.noConnection.stream.firstWhere((none) => !none);
+    _noticeText = episode.title;
+    _noticeShow();
   }
 
   /// Downloads still running, by episode id.
@@ -158,9 +356,7 @@ class PodcastDownloadService {
       final dir = await _dir();
       final safe = episode.id.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
       final path = '$dir/$safe${_ext(url)}';
-      await _dio.download(url, path, onReceiveProgress: (rec, total) {
-        if (total > 0 && onProgress != null) onProgress(rec / total);
-      });
+      if (!await _fetchResuming(episode, url, path, onProgress)) return false;
       await _box.put(episode.id, {
         'path': path,
         'id': episode.id,
@@ -320,4 +516,9 @@ class PodcastDownloadService {
     if (dot != -1 && path.length - dot <= 5) return path.substring(dot);
     return '.mp3';
   }
+}
+
+/// A partial answer to a resumed download that isn't of the file it began.
+class _PartOfAnother implements Exception {
+  const _PartOfAnother();
 }

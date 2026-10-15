@@ -533,6 +533,16 @@ Podcasts:
   first, Longest first, By show, or Shuffle), with Undo. Episodes it
   can't tell apart keep the order you gave them, and those without a
   date or length go last
+* Episode downloads pick up where they broke off, as AntennaPod's do: a
+  download cut off (the connection dropping, Wi-Fi handing over to
+  mobile data) used to lose all it had got, and fail. Now what it got is
+  kept and the rest asked for, a little later and twice more if needed,
+  so a 200 MB episode cut off at 180 MB needs only the last 20; with the
+  connection gone, it waits for it (the downloads notification says so)
+  and goes on. The rest is only asked for when the server says it's the
+  same file (its ETag or date), else it starts over, so episodes with
+  ads put in as they're fetched don't come out spliced. Given up, it
+  resumes the next time you download it; leftovers go after a week
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip
