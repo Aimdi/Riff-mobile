@@ -158,6 +158,52 @@ class ImageWidget extends StatelessWidget {
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final decodeSide = (size * dpr).round().clamp(64, 1600);
 
+    Widget network() => (imageUrl.isEmpty)
+        ? _placeholder(context)
+        // A song whose only art is a 16:9 video frame: show the frame,
+        // then swap to the resolved square audio-track cover (cached).
+        : (song != null &&
+                Thumbnail.isVideoFrameUrl(raw) &&
+                !song!.id.startsWith('podcast_') &&
+                song!.extras?['isPodcast'] != true)
+            ? _SongCoverImage(
+                song: song!,
+                size: size,
+                decodeSide: decodeSide,
+                placeholder: _placeholder(context),
+                shimmer: _shimmer(context),
+              )
+            : CachedNetworkImage(
+                height: size,
+                width: size,
+                // One dimension only — setting both forces a square decode and
+                // elongates 16:9 YouTube frames.
+                memCacheWidth: decodeSide,
+                filterQuality: FilterQuality.medium,
+                imageUrl: imageUrl,
+                httpHeaders: kCoverImageHeaders,
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+                errorWidget: (context, url, error) {
+                  if (raw.isNotEmpty && raw != imageUrl) {
+                    return CachedNetworkImage(
+                      height: size,
+                      width: size,
+                      memCacheWidth: decodeSide,
+                      imageUrl: raw,
+                      httpHeaders: kCoverImageHeaders,
+                      fit: BoxFit.cover,
+                      alignment: Alignment.center,
+                      errorWidget: (_, __, ___) => _placeholder(context),
+                      progressIndicatorBuilder: (_, __, ___) =>
+                          _shimmer(context),
+                    );
+                  }
+                  return _placeholder(context);
+                },
+                progressIndicatorBuilder: ((_, __, ___) => _shimmer(context)),
+              );
+
     return Container(
       height: size,
       width: size,
@@ -185,55 +231,11 @@ class ImageWidget extends StatelessWidget {
                   cacheWidth: decodeSide,
                   fit: BoxFit.cover,
                   filterQuality: FilterQuality.medium,
-                  errorBuilder: (_, __, ___) => _placeholder(context),
+                  // Not saved (an episode or a book's chapter playing from the
+                  // phone): its cover from the network.
+                  errorBuilder: (_, __, ___) => network(),
                 )
-              : (imageUrl.isEmpty)
-                  ? _placeholder(context)
-                  // A song whose only art is a 16:9 video frame: show the frame,
-                  // then swap to the resolved square audio-track cover (cached).
-                  : (song != null &&
-                          Thumbnail.isVideoFrameUrl(raw) &&
-                          !song!.id.startsWith('podcast_') &&
-                          song!.extras?['isPodcast'] != true)
-                      ? _SongCoverImage(
-                          song: song!,
-                          size: size,
-                          decodeSide: decodeSide,
-                          placeholder: _placeholder(context),
-                          shimmer: _shimmer(context),
-                        )
-                      : CachedNetworkImage(
-                          height: size,
-                          width: size,
-                          // One dimension only — setting both forces a square decode and
-                          // elongates 16:9 YouTube frames.
-                          memCacheWidth: decodeSide,
-                          filterQuality: FilterQuality.medium,
-                          imageUrl: imageUrl,
-                          httpHeaders: kCoverImageHeaders,
-                          fit: BoxFit.cover,
-                          alignment: Alignment.center,
-                          errorWidget: (context, url, error) {
-                            if (raw.isNotEmpty && raw != imageUrl) {
-                              return CachedNetworkImage(
-                                height: size,
-                                width: size,
-                                memCacheWidth: decodeSide,
-                                imageUrl: raw,
-                                httpHeaders: kCoverImageHeaders,
-                                fit: BoxFit.cover,
-                                alignment: Alignment.center,
-                                errorWidget: (_, __, ___) =>
-                                    _placeholder(context),
-                                progressIndicatorBuilder: (_, __, ___) =>
-                                    _shimmer(context),
-                              );
-                            }
-                            return _placeholder(context);
-                          },
-                          progressIndicatorBuilder: ((_, __, ___) =>
-                              _shimmer(context)),
-                        ),
+              : network(),
     );
   }
 

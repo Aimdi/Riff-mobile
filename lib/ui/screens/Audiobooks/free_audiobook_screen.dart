@@ -170,7 +170,9 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
         children: [
           // Show-page header (§ Phase 7): art radius 8, title
           // headlineSmall, author bodyMedium, Play as the primary pill.
-          AudiobookCover(url: book.cover, size: cover),
+          AudiobookCover(
+              url: AudiobookDownloads.coverOf(book.id) ?? book.cover,
+              size: cover),
           const SizedBox(height: RiffSpacing.lg),
           Text(
             book.title,

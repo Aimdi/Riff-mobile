@@ -223,7 +223,17 @@ class AudiobookDownloads {
         kept.add({..._chapterToJson(chapter), 'path': path});
         progress[bookId] = (i + 1) / chapters.length;
       }
-      _dropOthers(dir, {for (final c in kept) c['path'] as String});
+      // The cover too, so the book shows as it is with no connection.
+      final cover = await _keepCover(dir, chapters.first.artUri);
+      if (cover != null) {
+        for (final chapter in kept) {
+          chapter['artUri'] = Uri.file(cover).toString();
+        }
+      }
+      _dropOthers(dir, {
+        for (final c in kept) c['path'] as String,
+        if (cover != null) cover,
+      });
       await _box?.put(bookId, {
         'chapters': kept,
         'at': DateTime.now().millisecondsSinceEpoch,
@@ -297,6 +307,33 @@ class AudiobookDownloads {
 
   static Future<String> _root() async =>
       '${(await baseDir()).path}/audiobook_downloads';
+
+  /// The book's cover from [art], kept in [dir] (one kept already stays);
+  /// null when it can't be had.
+  static Future<String?> _keepCover(Directory dir, Uri? art) async {
+    if (art == null || !(art.isScheme('http') || art.isScheme('https'))) {
+      return null;
+    }
+    final path = '${dir.path}/cover';
+    if (File(path).existsSync()) return path;
+    try {
+      await _dio.downloadUri(art, '$path.part');
+      await File('$path.part').rename(path);
+      return path;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// The downloaded book's cover on the phone (a file:// address), or null.
+  static String? coverOf(String bookId) {
+    final book = _box?.get(bookId);
+    final list = book is Map ? book['chapters'] : null;
+    final first = list is List && list.isNotEmpty ? list.first : null;
+    final art = first is Map ? '${first['artUri'] ?? ''}' : '';
+    if (!art.startsWith('file://')) return null;
+    return File(Uri.parse(art).toFilePath()).existsSync() ? art : null;
+  }
 
   /// Files in [dir] that aren't the book's chapters now (of an earlier
   /// download of it), deleted.

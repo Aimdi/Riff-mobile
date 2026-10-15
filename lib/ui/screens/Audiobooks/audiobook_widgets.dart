@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -54,6 +56,15 @@ class AudiobookCover extends StatelessWidget {
           children: [
             if (url.isEmpty)
               fallback
+            // A downloaded book's cover, kept on the phone.
+            else if (url.startsWith('file://'))
+              Image.file(
+                File(Uri.parse(url).toFilePath()),
+                fit: BoxFit.cover,
+                cacheWidth:
+                    (size * MediaQuery.devicePixelRatioOf(context)).round(),
+                errorBuilder: (_, __, ___) => fallback,
+              )
             else
               CachedNetworkImage(
                 imageUrl: url,

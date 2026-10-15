@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -202,6 +204,14 @@ class _Art extends StatelessWidget {
   }
 
   Widget _episodeArt(BuildContext context, int cacheWidth) {
+    // A downloaded book's cover, kept on the phone.
+    final art = song?.artUri;
+    if (art != null && art.isScheme('file')) {
+      return Image.file(File(art.toFilePath()),
+          fit: BoxFit.cover,
+          cacheWidth: cacheWidth,
+          errorBuilder: (_, __, ___) => _fallback(context));
+    }
     final url = Thumbnail(song?.artUri?.toString() ?? '').extraHigh;
     if (url.isEmpty) return _fallback(context);
     return CachedNetworkImage(

@@ -122,7 +122,8 @@ void main() {
         await AudiobookDownloads.download('b1', chapters), BookDownload.done);
     expect(AudiobookDownloads.isDownloaded('b1'), isTrue);
     expect(AudiobookDownloads.isDownloading('b1'), isFalse);
-    expect(asked, ['/b1/0.mp3', '/b1/1.mp3', '/b1/2.mp3']);
+    // The chapters, then the cover.
+    expect(asked, ['/b1/0.mp3', '/b1/1.mp3', '/b1/2.mp3', '/b1/cover']);
 
     for (final c in chapters) {
       final path = AudiobookDownloads.localPath(c.id);
@@ -146,12 +147,29 @@ void main() {
     expect(kept.first.album, 'Book b1');
     expect(kept.first.artist, 'An Author');
     expect(kept.first.duration, const Duration(minutes: 30));
-    expect(kept.first.artUri, chapters.first.artUri);
+    // The cover kept with the book, so it shows with no connection.
+    final cover = '${bookDir('b1').path}/cover';
+    expect(kept.first.artUri, Uri.file(cover));
+    expect(kept.last.artUri, Uri.file(cover));
+    expect(File(cover).readAsBytesSync(), audioOf('/b1/cover'));
+    expect(AudiobookDownloads.coverOf('b1'), Uri.file(cover).toString());
     expect(kept[1].extras!['absItemId'], 'b1');
     expect(kept[1].extras!['absTrackIndex'], 1);
     expect(kept[1].extras!['url'], chapters[1].extras!['url']);
     // Not a listening session long closed.
     expect(kept[1].extras!.containsKey('absSessionId'), isFalse);
+  });
+
+  test('a cover that can\'t be had: the book is downloaded all the same',
+      () async {
+    refused.add('/b9/cover');
+    expect(await AudiobookDownloads.download('b9', book('b9', 1)),
+        BookDownload.done);
+    final kept = AudiobookDownloads.chapters('b9')!;
+    expect(kept.single.artUri, book('b9', 1).single.artUri);
+    expect(AudiobookDownloads.coverOf('b9'), isNull);
+    expect(File('${bookDir('b9').path}/cover').existsSync(), isFalse);
+    expect(File('${bookDir('b9').path}/cover.part').existsSync(), isFalse);
   });
 
   test('the books downloaded, the latest first; LibriVox\'s are free',
@@ -182,7 +200,8 @@ void main() {
     expect(await AudiobookDownloads.download('b2', book('b2', 3)),
         BookDownload.done);
     // The first chapter wasn't fetched again.
-    expect(asked, ['/b2/0.mp3', '/b2/1.mp3', '/b2/1.mp3', '/b2/2.mp3']);
+    expect(asked,
+        ['/b2/0.mp3', '/b2/1.mp3', '/b2/1.mp3', '/b2/2.mp3', '/b2/cover']);
     expect(AudiobookDownloads.isDownloaded('b2'), isTrue);
   });
 
@@ -221,7 +240,7 @@ void main() {
     expect(await first, BookDownload.done);
     expect(await second, BookDownload.cancelled);
     expect(await third, BookDownload.done);
-    expect(asked, ['/p/0.mp3', '/p/1.mp3', '/r/0.mp3']);
+    expect(asked, ['/p/0.mp3', '/p/1.mp3', '/p/cover', '/r/0.mp3', '/r/cover']);
     expect(AudiobookDownloads.isDownloaded('q'), isFalse);
   });
 
@@ -275,7 +294,7 @@ void main() {
 
     metered = false;
     expect(await result, BookDownload.done);
-    expect(asked, ['/b5/0.mp3']);
+    expect(asked, ['/b5/0.mp3', '/b5/cover']);
   });
 
   test('a book whose download stopped a week ago: its chapters deleted',

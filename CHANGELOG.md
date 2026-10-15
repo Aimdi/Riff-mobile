@@ -1019,6 +1019,12 @@ Downloads:
   how many and how much space, then frees it all; the songs play online
   again. Podcast episodes keep their downloads. With Smart downloads on,
   it says they'll download the songs you play most again on Wi-Fi
+* Downloaded episodes and audiobook chapters keep their cover while they
+  play: the mini player and the queue showed an empty square for them
+  (they looked for a saved song thumbnail, which only songs have), and
+  now show the cover. A downloaded book keeps its cover with it, as
+  Audible does, so the book, its player, Saved › Downloaded and its page
+  show it with no connection too
 
 Search:
 * Search by voice, as with YouTube Music, Spotify and Apple Music: tap
