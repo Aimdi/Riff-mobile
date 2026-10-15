@@ -698,6 +698,12 @@ Library:
 * Library › Albums sorts by Artist too, like Spotify's Creator and Apple
   Music's Artist: each artist's albums together, oldest first, albums
   without an artist last
+* The Library remembers how you sorted it, as Spotify keeps Your
+  Library's sort: Songs, Playlists, Albums and Artists each come back
+  sorted as you last chose, after a restart too (they came back in the
+  order they were saved in, the sort menu still saying Name). Playlists
+  also stays sorted when it refreshes, where it went back to that order
+  with the menu showing your choice
 * Folders for your playlists, like Spotify's: long-press a playlist in
   Library › Playlists › Move to folder › New folder (or one you have).
   Folders sit after Riff's own playlists and the pinned ones, and their

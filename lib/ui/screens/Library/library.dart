@@ -104,7 +104,7 @@ class SongsLibraryWidget extends StatelessWidget {
             // The library's own songs: what search, sort and the rest act on.
             final libraryMode = !cloudMode && !deviceMode;
             return SortWidget(
-              tag: "LibSongSort",
+              tag: LibrarySortTags.songs,
               screenController: libSongsController,
               itemCountTitle: "$count",
               itemIcon: Icons.music_note,
@@ -541,7 +541,7 @@ class _PlaylistNAlbumLibraryWidgetState
           Obx(
             () => isAlbumContent
                 ? SortWidget(
-                    tag: "LibAlbumSort",
+                    tag: LibrarySortTags.albums,
                     screenController: libralbumCntrller,
                     isAdditionalOperationRequired: false,
                     isSearchFeatureRequired: true,
@@ -559,7 +559,7 @@ class _PlaylistNAlbumLibraryWidgetState
                     onSearchStart: libralbumCntrller.onSearchStart,
                   )
                 : SortWidget(
-                    tag: "LibPlaylistSort",
+                    tag: LibrarySortTags.playlists,
                     screenController: librplstCntrller,
                     isAdditionalOperationRequired: false,
                     isSearchFeatureRequired: true,
@@ -636,7 +636,7 @@ class LibraryArtistWidget extends StatelessWidget {
           LibraryHeader(title: "libArtists".tr),
           Obx(
             () => SortWidget(
-              tag: "LibArtistSort",
+              tag: LibrarySortTags.artists,
               screenController: cntrller,
               isAdditionalOperationRequired: false,
               isSearchFeatureRequired: true,

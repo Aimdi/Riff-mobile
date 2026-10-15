@@ -1,8 +1,11 @@
 // ignore_for_file: constant_identifier_names
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/ui/screens/Library/library_controller.dart';
+import 'package:hive/hive.dart';
 
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
@@ -24,6 +27,42 @@ enum SortType {
 /// Song lists also sort by artist and by album, as in Spotify and Apple
 /// Music.
 const songOrderSortTypes = {SortType.Artist, SortType.Album};
+
+/// The Library tabs' sort widgets: what they're sorted by is remembered
+/// across restarts ([SortChoice]), as Spotify keeps Your Library's sort.
+abstract final class LibrarySortTags {
+  static const songs = 'LibSongSort';
+  static const albums = 'LibAlbumSort';
+  static const playlists = 'LibPlaylistSort';
+  static const artists = 'LibArtistSort';
+  static const all = {songs, albums, playlists, artists};
+}
+
+/// A list's sort as you last chose it, kept in AppPrefs.
+class SortChoice {
+  const SortChoice(this.type, this.ascending);
+
+  final SortType type;
+  final bool ascending;
+
+  static String _key(String tag) => 'sort:$tag';
+
+  static Box? get _prefs =>
+      Hive.isBoxOpen('AppPrefs') ? Hive.box('AppPrefs') : null;
+
+  /// Null until one was chosen for [tag].
+  static SortChoice? load(String tag) {
+    final raw = _prefs?.get(_key(tag));
+    if (raw is! Map) return null;
+    final type = SortType.values.asNameMap()[raw['type']];
+    if (type == null) return null;
+    return SortChoice(type, raw['ascending'] != false);
+  }
+
+  static Future<void> save(String tag, SortType type, bool ascending) async {
+    await _prefs?.put(_key(tag), {'type': type.name, 'ascending': ascending});
+  }
+}
 
 Set<SortType> buildSortTypeSet(
     [bool dateRequired = false,
@@ -196,7 +235,10 @@ class SortWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.isRegistered<SortWidgetController>(tag: tag)
         ? Get.find<SortWidgetController>(tag: tag)
-        : Get.put(SortWidgetController(), tag: tag);
+        : Get.put(
+            SortWidgetController(
+                rememberAs: LibrarySortTags.all.contains(tag) ? tag : null),
+            tag: tag);
     final theme = Theme.of(context);
     final muted = theme.textTheme.titleSmall?.color;
     return Padding(
@@ -483,6 +525,18 @@ class SortWidget extends StatelessWidget {
 }
 
 class SortWidgetController extends GetxController {
+  SortWidgetController({this.rememberAs}) {
+    final saved = rememberAs == null ? null : SortChoice.load(rememberAs!);
+    if (saved != null) {
+      sortType.value = saved.type;
+      isAscending.value = saved.ascending;
+    }
+  }
+
+  /// A Library tab's ([LibrarySortTags]): the sort chosen comes back after
+  /// a restart.
+  final String? rememberAs;
+
   final Rx<SortType> sortType = SortType.Name.obs;
   final isAscending = true.obs;
   final isSearchingEnabled = false.obs;
@@ -504,37 +558,50 @@ class SortWidgetController extends GetxController {
 
   void onSortByName(Function onSort) {
     sortType.value = SortType.Name;
+    _keep();
     onSort(sortType.value, isAscending.value);
   }
 
   void onSortByDuration(Function onSort) {
     sortType.value = SortType.Duration;
+    _keep();
     onSort(sortType.value, isAscending.value);
   }
 
   void onSortByDate(Function onSort) {
     sortType.value = SortType.Date;
+    _keep();
     onSort(sortType.value, isAscending.value);
   }
 
   void onSortByRecentlyPlayed(Function onSort) {
     sortType.value = SortType.RecentlyPlayed;
+    _keep();
     onSort(sortType.value, isAscending.value);
   }
 
   void onSortByArtist(Function onSort) {
     sortType.value = SortType.Artist;
+    _keep();
     onSort(sortType.value, isAscending.value);
   }
 
   void onSortByAlbum(Function onSort) {
     sortType.value = SortType.Album;
+    _keep();
     onSort(sortType.value, isAscending.value);
   }
 
   void onAscendNDescend(Function onSort) {
     isAscending.value = !isAscending.value;
+    _keep();
     onSort(sortType.value, isAscending.value);
+  }
+
+  void _keep() {
+    final tag = rememberAs;
+    if (tag == null) return;
+    unawaited(SortChoice.save(tag, sortType.value, isAscending.value));
   }
 
   void toggleSearch() {

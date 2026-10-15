@@ -136,6 +136,7 @@ class LibrarySongsController extends GetxController {
         .map<MediaItem?>((item) => MediaItemBuilder.fromJson(item))
         .whereType<MediaItem>()
         .toList());
+    _sortAsChosen(LibrarySortTags.songs, onSort);
 
     //Remove deleted songs and expired songUrl from database
     startHouseKeeping();
@@ -417,7 +418,7 @@ class LibraryPlaylistsController extends GetxController
   }
 
   void refreshLib() async {
-    // Rebuilt in stored order: no sort is applied any more.
+    // Rebuilt in stored order, then sorted as you last chose (if you did).
     _sort = null;
     // Shared box, kept open: closing it here raced other openers (playlist
     // screen, add-to-playlist) and forced a file re-read on every refresh.
@@ -437,6 +438,7 @@ class LibraryPlaylistsController extends GetxController
           .toList()),
       ...pipedShown,
     ]);
+    _sortAsChosen(LibrarySortTags.playlists, onSort);
     // Local content is ready: don't hold the spinner on the network sync.
     isContentFetched.value = true;
 
@@ -864,6 +866,7 @@ class LibraryAlbumsController extends GetxController {
         .map<Album?>((item) => Album.fromJson(item))
         .whereType<Album>()
         .toList();
+    _sortAsChosen(LibrarySortTags.albums, onSort);
 
     isContentFetched.value = true;
   }
@@ -912,6 +915,7 @@ class LibraryArtistsController extends GetxController {
         .map<Artist?>((item) => Artist.fromJson(item))
         .whereType<Artist>()
         .toList();
+    _sortAsChosen(LibrarySortTags.artists, onSort);
     isContentFetched.value = true;
   }
 
@@ -936,4 +940,11 @@ class LibraryArtistsController extends GetxController {
     libraryArtists.value = tempListContainer.toList();
     tempListContainer.clear();
   }
+}
+
+/// A Library tab's list, loaded, sorted as you last chose ([SortChoice]),
+/// as Spotify keeps Your Library's sort; never chosen, as it's stored.
+void _sortAsChosen(String tag, void Function(SortType, bool) onSort) {
+  final chosen = SortChoice.load(tag);
+  if (chosen != null) onSort(chosen.type, chosen.ascending);
 }
