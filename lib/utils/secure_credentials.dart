@@ -48,6 +48,7 @@ class SecureCredentials {
     'cloudMusic': 'password',
     'audiobookshelf': 'token',
     'webdavSync': 'password',
+    'gpodderSync': 'password',
   };
 
   static Future<void> init() async {

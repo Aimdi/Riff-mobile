@@ -550,6 +550,19 @@ Podcasts:
   and one that hasn't answers in a few bytes, its episodes kept as they
   were; only new episodes cost a download. Remembered across restarts,
   and read in full again after a week, or after Riff is updated
+* Sync with AntennaPod and the other gpodder apps: Settings › Advanced ›
+  Podcast sync (gpodder) signs in to a Nextcloud server with the GPodder
+  Sync app (an app password) or to gpodder.net, as AntennaPod, Kasts and
+  gPodder do. The shows you follow go both ways by what changed on each
+  side since the last sync (the first joins both lists and unfollows
+  nothing; a show changed on both sides keeps this phone's change; a show
+  whose feed can't be read yet is followed once it can). Where you are
+  in each episode and which you finished go as gpodder play actions, the
+  newer side winning: a place from another app shows in Continue
+  listening (an episode Riff hasn't seen is looked up in its feed), and
+  an episode finished there is marked played here and leaves Up Next.
+  It syncs when Riff opens and when you leave it (Sync automatically),
+  or with Sync now; the password stays in secure storage
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip

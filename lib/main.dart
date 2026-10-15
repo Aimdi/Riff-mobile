@@ -58,6 +58,7 @@ import 'utils/helper.dart';
 import 'utils/hive_safe_open.dart';
 import 'utils/house_keeping.dart';
 import 'utils/secure_credentials.dart';
+import 'services/sync/gpodder_sync.dart';
 import 'services/sync/webdav_sync_service.dart';
 import 'services/spotify_like_sync.dart';
 import 'services/yt_like_sync.dart';
@@ -178,6 +179,8 @@ Future<void> _initAudioAndWarm(Future<void> deferredBoxes) async {
   // WebDAV sync (when switched on), after the first screen settles.
   Future<void>.delayed(
       const Duration(seconds: 10), WebDavSyncService.maybeAutoSync);
+  // gpodder sync (when switched on), as with WebDAV.
+  Future<void>.delayed(const Duration(seconds: 12), GpodderSync.maybeAutoSync);
   // Spotify like changes left over from last time.
   SpotifyLikeSync.flushSoon(delay: const Duration(seconds: 20));
   YtLikeSync.flushSoon(delay: const Duration(seconds: 20));
@@ -412,10 +415,12 @@ class LifecycleHandler extends WidgetsBindingObserver {
         unawaited(evictSongCacheInBackground());
       });
       WebDavSyncService.maybeAutoSync();
+      GpodderSync.maybeAutoSync();
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       // Hand this session's changes to the other devices.
       WebDavSyncService.maybeAutoSync(leaving: true);
+      GpodderSync.maybeAutoSync(leaving: true);
       if (Get.isRegistered<AudioHandler>()) {
         await Get.find<AudioHandler>().customAction("saveSession");
       }

@@ -1442,6 +1442,16 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     ListTile(
                       contentPadding: settingsTilePadding,
+                      title: Text("gpodderSync".tr),
+                      subtitle: Text("gpodderSyncSettingDes".tr,
+                          style: settingsSubtitleStyle(context)),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Get.toNamed(
+                          ScreenNavigationSetup.gpodderSyncScreen,
+                          id: ScreenNavigationSetup.id),
+                    ),
+                    ListTile(
+                      contentPadding: settingsTilePadding,
                       title: Text("backupAppData".tr),
                       subtitle: Text(
                         "backupSettingsAndPlaylistsDes".tr,
