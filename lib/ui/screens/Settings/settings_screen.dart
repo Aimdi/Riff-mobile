@@ -39,6 +39,7 @@ import '/services/yt_like_sync.dart';
 import '/services/offline_playback.dart';
 import 'last_fm_dialog.dart';
 import 'yt_like_sync_tile.dart';
+import 'yt_history_sync_tile.dart';
 import 'yt_library_import_tile.dart';
 import 'yt_login_screen.dart';
 import '../Home/home_screen_controller.dart';
@@ -1002,6 +1003,8 @@ class SettingsScreen extends StatelessWidget {
                     }),
                     // Metrolist's like sync with the connected account.
                     const YtLikeSyncTile(),
+                    // And what's played into its YouTube Music history.
+                    const YtHistorySyncTile(),
                     // And its playlists and artists into the Library.
                     const YtLibraryImportTile(),
                     ListTile(

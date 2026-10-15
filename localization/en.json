@@ -85,6 +85,8 @@
     "colorBrown": "Brown",
     "ytLikeSync": "Like on YouTube Music too",
     "ytLikeSyncDes": "Your YouTube Music likes come into your Favorites, and songs you like in Riff are liked in YouTube Music too",
+    "ytHistorySync": "Add to YouTube Music history",
+    "ytHistorySyncDes": "What you play in Riff goes into your YouTube Music history and shapes its recommendations, as plays in YouTube Music do (not in a private session)",
     "ytLikesImported": "@count songs you like in YouTube Music are in your Favorites now",
     "ytLikesUpToDate": "Your Favorites already have your YouTube Music likes",
     "ytLikesImportFailed": "YouTube Music couldn't be reached: your likes will come in later",

@@ -674,6 +674,15 @@ Library:
   a song you unlike in Riff is unliked there too. Changes made offline go
   once YouTube can be reached. The likes that come in aren't downloaded,
   sent back or sent on to Spotify
+* Your plays in your YouTube Music history, as YouTube Music's own app
+  counts them (and Metrolist, InnerTune): with your YouTube account
+  connected, a song or video you play in Riff goes into the account's
+  History, so its Listen again, mixes and recommendations (the feed Riff
+  shows you) learn from what you play here too. Settings › Add to
+  YouTube Music history (under the account, on) turns it off; what a
+  private session plays, or a playlist left out of your taste profile,
+  isn't counted, nor are phone songs, a music server's, feed episodes or
+  books
 * Your YouTube Music library in yours, as Metrolist brings it in: with
   your YouTube account connected, Settings has "Your YouTube Music
   library" under it. A tap adds the playlists in your YouTube Music

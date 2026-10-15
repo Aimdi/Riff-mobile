@@ -26,6 +26,7 @@ import '../screens/Playlist/playlist_screen_controller.dart';
 import '../widgets/snackbar.dart';
 import '../widgets/sleep_timer_bottom_sheet.dart' show formatSleepMinutes;
 import '/services/last_fm_service.dart';
+import '/services/yt_history_sync.dart';
 import '/services/listenbrainz_service.dart';
 import '/services/audiobook_progress_service.dart';
 import '/services/scrobble_rules.dart';
@@ -1535,6 +1536,8 @@ class PlayerController extends GetxController
               unawaited(ListenBrainzService.playingNow(mediaItem));
               unawaited(LastFmService.playingNow(mediaItem));
             }
+            // Into the connected account's YouTube Music history too.
+            if (!untasted) unawaited(YtHistorySync.notePlay(mediaItem));
           }
           if (Get.isRegistered<SettingsScreenController>()) {
             unawaited(Get.find<SettingsScreenController>()

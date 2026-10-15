@@ -19,6 +19,7 @@ import '/services/not_interested.dart';
 import '/services/search_spelling.dart';
 import '/services/search_suggestions.dart';
 import '/services/search_top_result.dart';
+import '/services/yt_playback_tracking.dart';
 import '/services/utils.dart';
 import '/services/yt_auth_service.dart';
 import '../utils/helper.dart';
@@ -202,6 +203,34 @@ class MusicServices extends getx.GetxService {
       printERROR('Rating $videoId ($endpoint) failed: $e');
       return false;
     }
+  }
+
+  /// Counts a play of [videoId] in the connected account's YouTube Music
+  /// history, as YouTube Music's web player does when a song starts: the
+  /// player's playback tracking address (videostatsPlaybackUrl), asked
+  /// with the account, then fetched (ytPlaybackUrl). Whether YouTube took
+  /// it; false without an account or a tracking address.
+  Future<bool> registerPlayback(String videoId) async {
+    if (!YtAuthService.isConnected) return false;
+    final data = _ctx();
+    data['videoId'] = videoId;
+    final player = (await _sendRequest('player', data, retries: 1)).data;
+    final base =
+        nav(player, ['playbackTracking', 'videostatsPlaybackUrl', 'baseUrl']);
+    if (base is! String || base.isEmpty) return false;
+    final response = await dio.getUri(
+      ytPlaybackUrl(base, cpn: ytCpn()),
+      options: Options(
+        headers: {
+          'user-agent': userAgent,
+          'accept': '*/*',
+          'origin': 'https://music.youtube.com',
+          ...YtAuthService.authHeaders(),
+        },
+        validateStatus: (_) => true,
+      ),
+    );
+    return (response.statusCode ?? 0) ~/ 100 == 2;
   }
 
   /// The playlists in the connected account's YouTube Music library (its
