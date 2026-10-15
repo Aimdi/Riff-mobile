@@ -189,6 +189,12 @@ Lock screen and notification:
   stars made in the app included), and Mark as played ends it as played
   and goes on to the next, as the player's own Mark as played does.
   Music and audiobooks keep theirs
+* Settings › Pause on headset disconnect works when turned off: pulling
+  out the headphones (or Bluetooth headphones going) paused whatever the
+  switch said; off, music now plays on through the phone's speaker, as
+  AntennaPod's switch lets it. Calls and other apps pause and resume it
+  as before, except that a sleep timer running out during a call now
+  keeps it paused after the call instead of it starting again
 
 Android Auto:
 * Ask for music, as with Spotify and YouTube Music: say "Play <song or

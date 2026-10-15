@@ -23,6 +23,7 @@ import '/services/riff_equalizer.dart';
 import '/services/explicit_content.dart';
 import '/services/offline_playback.dart';
 import '/services/resume_when_online.dart';
+import '/services/player_interruptions.dart';
 import '/services/spoken_audio_focus.dart';
 import '/services/podcast_starred.dart';
 import '/services/youtube_stream_headers.dart';
@@ -178,6 +179,16 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   /// once it's back.
   final _resumeOnline = ResumeWhenOnline();
 
+  /// A call, another app, unplugged headphones.
+  late final _interruptions = PlayerInterruptions(
+    playing: () => _player.playing,
+    play: _player.play,
+    pause: _player.pause,
+    pauseOnUnplug: () =>
+        !Hive.isBoxOpen('AppPrefs') ||
+        Hive.box('AppPrefs').get('pauseOnHeadsetDisconnect') != false,
+  );
+
   /// An episode or a book pauses for a navigation prompt or a notification
   /// sound; music plays on quieter under them.
   late final _spokenFocus = SpokenAudioFocus(
@@ -207,13 +218,16 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     }
     _mediaLibrary = MediaLibrary();
     _player = AudioPlayer(
+        // Calls, other apps and unplugging: PlayerInterruptions, so Pause
+        // on headset disconnect can be turned off.
+        handleInterruptions: false,
         audioLoadConfiguration: const AudioLoadConfiguration(
             androidLoadControl: AndroidLoadControl(
-      minBufferDuration: Duration(seconds: 50),
-      maxBufferDuration: Duration(seconds: 120),
-      bufferForPlaybackDuration: Duration(milliseconds: 50),
-      bufferForPlaybackAfterRebufferDuration: Duration(seconds: 2),
-    )));
+          minBufferDuration: Duration(seconds: 50),
+          maxBufferDuration: Duration(seconds: 120),
+          bufferForPlaybackDuration: Duration(milliseconds: 50),
+          bufferForPlaybackAfterRebufferDuration: Duration(seconds: 2),
+        )));
     _cacheDirReady = _createCacheDir();
     _addEmptyList();
     _notifyAudioHandlerAboutPlaybackEvents();
@@ -226,6 +240,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     ever(OfflinePlayback.offline, (bool offline) {
       if (!offline) unawaited(_resumeWhenBackOnline());
     });
+    unawaited(_followInterruptions());
     // Speech or music: how it gives way to a navigation prompt.
     if (GetPlatform.isAndroid) {
       mediaItem.listen((item) => unawaited(_spokenFocus.follow(item)));
@@ -1379,7 +1394,22 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   Future<void> pauseFrom(PlaybackCommandSource source) {
     _logCommand('pause', source);
     _resumeOnline.cancel();
+    _interruptions.onUserPause();
     return _player.pause();
+  }
+
+  /// Calls, other apps' audio and unplugged headphones, from the audio
+  /// session (as just_audio's handleInterruptions did).
+  Future<void> _followInterruptions() async {
+    try {
+      final session = await AudioSession.instance;
+      session.interruptionEventStream.listen(_interruptions.onInterruption);
+      session.becomingNoisyEventStream
+          .listen((_) => _interruptions.onBecomingNoisy());
+      _player.playingStream.listen(_interruptions.onPlaying);
+    } catch (e) {
+      printERROR('Interruptions: $e');
+    }
   }
 
   @override
