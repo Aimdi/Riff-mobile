@@ -82,6 +82,10 @@ class SettingsScreenController extends GetxController {
   final pauseOnHeadsetDisconnect = true.obs;
   /// Resume when Bluetooth headphones reconnect after a noisy pause.
   final resumeOnBluetooth = true.obs;
+
+  /// Settings › Resume on headphones (wired or USB), as AntennaPod's
+  /// Headphones reconnect.
+  final resumeOnHeadphones = true.obs;
   /// Inject similar tracks when the queue runs low (Echo Brain–lite).
   final smartQueueInjection = true.obs;
   /// Ambient canvas motion behind album art.
@@ -255,6 +259,7 @@ class SettingsScreenController extends GetxController {
     pauseOnHeadsetDisconnect.value =
         setBox.get('pauseOnHeadsetDisconnect') ?? true;
     resumeOnBluetooth.value = setBox.get('resumeOnBluetooth') ?? true;
+    resumeOnHeadphones.value = setBox.get('resumeOnHeadphones') ?? true;
     smartQueueInjection.value = setBox.get('smartQueueInjection') ?? true;
     playerCanvas.value = setBox.get('playerCanvas') ?? true;
     playerUi.value = isDesktop ? 0 : _asInt(setBox.get('playerUi'), 0);
@@ -401,6 +406,11 @@ class SettingsScreenController extends GetxController {
   void toggleResumeOnBluetooth(bool val) {
     setBox.put('resumeOnBluetooth', val);
     resumeOnBluetooth.value = val;
+  }
+
+  void toggleResumeOnHeadphones(bool val) {
+    setBox.put('resumeOnHeadphones', val);
+    resumeOnHeadphones.value = val;
   }
 
   void toggleSmartQueueInjection(bool val) {

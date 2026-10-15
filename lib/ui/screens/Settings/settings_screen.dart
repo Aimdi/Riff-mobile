@@ -549,6 +549,24 @@ class SettingsScreen extends StatelessWidget {
                     }),
                   ),
                   SettingsSearchable(
+                    title: 'resumeOnHeadphones'.tr,
+                    subtitle: 'resumeOnHeadphonesDes'.tr,
+                    child: Obx(() {
+                      return ListTile(
+                        contentPadding:
+                            settingsTilePadding,
+                        title: Text('resumeOnHeadphones'.tr),
+                        subtitle: Text('resumeOnHeadphonesDes'.tr,
+                            style: settingsSubtitleStyle(context)),
+                        trailing: CustSwitch(
+                          value: settingsController.resumeOnHeadphones.isTrue,
+                          onChanged:
+                              settingsController.toggleResumeOnHeadphones,
+                        ),
+                      );
+                    }),
+                  ),
+                  SettingsSearchable(
                     title: 'smartQueueInjection'.tr,
                     subtitle: 'smartQueueInjectionDes'.tr,
                     child: Obx(() {

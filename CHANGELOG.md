@@ -195,6 +195,12 @@ Lock screen and notification:
   AntennaPod's switch lets it. Calls and other apps pause and resume it
   as before, except that a sleep timer running out during a call now
   keeps it paused after the call instead of it starting again
+* Resume on headphones, as AntennaPod's Headphones reconnect: wired and
+  USB-C headphones plugged back in after pulling them out paused playback
+  start it again, as Bluetooth ones already did (Resume on Bluetooth).
+  Settings › Resume on headphones, on by default. And for either, only a
+  pause the unplugging made: if you played on through the speaker in the
+  meantime, plugging them back in later starts nothing
 
 Android Auto:
 * Ask for music, as with Spotify and YouTube Music: say "Play <song or

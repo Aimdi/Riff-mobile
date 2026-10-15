@@ -5220,6 +5220,8 @@ Map<String, Map<String, String>> get keys => {
     "pauseOnHeadsetDisconnectDes": "Pause when headphones are unplugged or audio becomes noisy",
     "resumeOnBluetooth": "Resume on Bluetooth",
     "resumeOnBluetoothDes": "Resume after reconnecting Bluetooth headphones",
+    "resumeOnHeadphones": "Resume on headphones",
+    "resumeOnHeadphonesDes": "Resume after plugging wired or USB headphones back in",
     "smartQueueInjection": "Smart queue",
     "smartQueueInjectionDes": "Auto-add similar songs when your queue runs low",
     "playerCanvas": "Player canvas",

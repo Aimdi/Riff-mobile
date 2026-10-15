@@ -1,18 +1,21 @@
 import 'dart:async';
 
+import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
+import '/services/headphones_back.dart';
 import '/ui/player/player_controller.dart';
 import '/utils/helper.dart';
 
-/// Pause-on-mute / resume-on-Bluetooth style playback rules (Echo-inspired).
+/// Pause on headset disconnect, and play again when the headphones come
+/// back (Resume on Bluetooth, Resume on headphones: HeadphonesBack).
 class PlaybackRulesService extends GetxService {
   StreamSubscription<void>? _noisySub;
   StreamSubscription<AudioDevicesChangedEvent>? _devicesSub;
-  bool _pausedByNoisy = false;
-  bool _hadBtOutput = false;
+  StreamSubscription<bool>? _playingSub;
+  final _back = HeadphonesBack();
 
   Future<PlaybackRulesService> init() async {
     try {
@@ -27,7 +30,7 @@ class PlaybackRulesService extends GetxService {
         if (!Get.isRegistered<PlayerController>()) return;
         final p = Get.find<PlayerController>();
         if (p.buttonState.value == PlayButtonState.playing) {
-          _pausedByNoisy = true;
+          _back.pausedByUnplug();
           p.pause();
           printINFO('PlaybackRules: paused (becoming noisy)');
         }
@@ -35,9 +38,16 @@ class PlaybackRulesService extends GetxService {
       _devicesSub = session.devicesChangedEventStream.listen((event) {
         _onDevicesChanged(session);
       });
-      // Seed BT state.
-      final devices = await session.getDevices();
-      _hadBtOutput = devices.any(_isBtOutput);
+      // Played again some other way: the headphones coming back later
+      // start nothing.
+      if (Get.isRegistered<AudioHandler>()) {
+        _playingSub = Get.find<AudioHandler>()
+            .playbackState
+            .map((state) => state.playing)
+            .distinct()
+            .listen(_back.playing);
+      }
+      _back.seed(await session.getDevices());
     } catch (e) {
       printINFO('PlaybackRules init skipped: $e');
     }
@@ -46,28 +56,18 @@ class PlaybackRulesService extends GetxService {
 
   bool _enabled(String key) => Hive.box('AppPrefs').get(key) ?? true;
 
-  bool _isBtOutput(AudioDevice d) {
-    final t = d.type;
-    return t == AudioDeviceType.bluetoothA2dp ||
-        t == AudioDeviceType.bluetoothSco ||
-        t == AudioDeviceType.bluetoothLe;
-  }
-
   Future<void> _onDevicesChanged(AudioSession session) async {
-    if (!_enabled('resumeOnBluetooth')) return;
-    if (!Get.isRegistered<PlayerController>()) return;
     try {
       final devices = await session.getDevices();
-      final hasBt = devices.any(_isBtOutput);
-      if (hasBt && !_hadBtOutput && _pausedByNoisy) {
-        final p = Get.find<PlayerController>();
-        if (p.buttonState.value != PlayButtonState.playing) {
-          p.play();
-          printINFO('PlaybackRules: resumed on Bluetooth');
-        }
-        _pausedByNoisy = false;
+      final resume = _back.resumeNow(devices,
+          bluetooth: _enabled('resumeOnBluetooth'),
+          wired: _enabled('resumeOnHeadphones'));
+      if (!resume || !Get.isRegistered<PlayerController>()) return;
+      final p = Get.find<PlayerController>();
+      if (p.buttonState.value != PlayButtonState.playing) {
+        p.play();
+        printINFO('PlaybackRules: resumed (headphones back)');
       }
-      _hadBtOutput = hasBt;
     } catch (_) {}
   }
 
@@ -75,6 +75,7 @@ class PlaybackRulesService extends GetxService {
   void onClose() {
     _noisySub?.cancel();
     _devicesSub?.cancel();
+    _playingSub?.cancel();
     super.onClose();
   }
 }
