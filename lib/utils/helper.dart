@@ -87,6 +87,14 @@ String? _songAlbumName(dynamic song) {
   return song.album;
 }
 
+/// An album's (first) artist.
+String? _albumArtistName(dynamic album) {
+  final artists = album.artists;
+  if (artists is! List || artists.isEmpty) return null;
+  final first = artists.first;
+  return first is Map ? first['name']?.toString() : null;
+}
+
 /// [a] before [b] by the first of [keys] that tells them apart, ignoring
 /// case; songs without a value go after those with one.
 int _compareSongsBy(
@@ -121,6 +129,17 @@ void sortAlbumNSingles(
       compareFunction = byLastPlayed<dynamic>(CollectionRecents.snapshot(),
           (a) => '${a.browseId}', (a) => '${a.title}');
       break;
+    // Each artist's albums together, oldest first, as Spotify (Creator)
+    // and Apple Music (Artist) list them; albums without one last.
+    case SortType.Artist:
+      compareFunction = (a, b) => _compareSongsBy(a, b, [
+            _albumArtistName,
+            (album) {
+              final year = '${album.year ?? ''}'.trim();
+              return year.isEmpty ? null : year.padLeft(4, '0');
+            },
+            (album) => album.title,
+          ]);
     case SortType.Name:
     default:
       compareFunction =

@@ -1,5 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:harmonymusic/models/album.dart';
+import 'package:harmonymusic/models/media_Item_builder.dart';
 import 'package:harmonymusic/models/media_item_extras.dart';
 import 'package:harmonymusic/services/device_music.dart';
 import 'package:harmonymusic/services/song_fade.dart';
@@ -115,5 +117,45 @@ void main() {
     sortSongsNVideos(songs, SortType.Album, true);
     expect(_ids(songs),
         ['device_D1', 'device_D2', 'L1', 'L2', 'L3', 'M1', 'M2', 'loose']);
+  });
+
+  test('the phone\'s songs keep their album through playlists and restarts',
+      () {
+    MediaItem kept(MediaItem song) =>
+        MediaItemBuilder.fromJson(MediaItemBuilder.toJson(song));
+    final song = kept(_onPhone('1', 1003));
+    expect(song.album, 'Album');
+    expect(song.albumKey, 'device:7');
+    expect(song.albumTrackNumber, 1003);
+    expect(continuesAlbum(song, kept(_onPhone('2', 1004))), isTrue);
+
+    // YouTube Music's, with an id to open it by, as before.
+    final json = MediaItemBuilder.toJson(_track('a', 3));
+    expect(json.containsKey('albumName'), isFalse);
+    expect(json.containsKey('albumId'), isFalse);
+    expect(MediaItemBuilder.fromJson(json).albumKey, 'id:MPREb_live');
+  });
+
+  test('Library › Albums by artist: each artist\'s albums, oldest first', () {
+    Album album(String id, String? artist, String? year) => Album(
+          title: 'Album $id',
+          browseId: id,
+          artists: artist == null
+              ? null
+              : [
+                  {'name': artist}
+                ],
+          year: year,
+          thumbnailUrl: '',
+        );
+    final albums = [
+      album('b2', 'Beta', '2020'),
+      album('none', null, '2000'),
+      album('a1', 'alpha', '1999'),
+      album('b1', 'Beta', '2010'),
+      album('b0', 'Beta', null),
+    ];
+    sortAlbumNSingles(albums, SortType.Artist, true);
+    expect(albums.map((a) => a.browseId), ['a1', 'b1', 'b2', 'b0', 'none']);
   });
 }

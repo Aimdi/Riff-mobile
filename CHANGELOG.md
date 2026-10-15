@@ -684,6 +684,13 @@ Library:
   added is when the file came onto the phone), and they can go in
   playlists and the queue like any song. Riff asks once for permission
   to read them; refused, it says so with an Allow button
+* Songs from your phone (and your music server's without an album page)
+  keep their album in playlists and after a restart: saved, they used
+  to come back without it, so the player showed none and sorting by
+  album put them last
+* Library › Albums sorts by Artist too, like Spotify's Creator and Apple
+  Music's Artist: each artist's albums together, oldest first, albums
+  without an artist last
 * Folders for your playlists, like Spotify's: long-press a playlist in
   Library › Playlists › Move to folder › New folder (or one you have).
   Folders sit after Riff's own playlists and the pinned ones, and their

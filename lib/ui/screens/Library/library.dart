@@ -547,7 +547,10 @@ class _PlaylistNAlbumLibraryWidgetState
                     isSearchFeatureRequired: true,
                     itemCountTitle:
                         "${libralbumCntrller.libraryAlbums.length} ${"items".tr}",
-                    requiredSortTypes: buildSortTypeSet(true, false, true),
+                    requiredSortTypes: {
+                      ...buildSortTypeSet(true, false, true),
+                      SortType.Artist,
+                    },
                     onSort: (type, ascending) {
                       libralbumCntrller.onSort(type, ascending);
                     },

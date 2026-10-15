@@ -41,7 +41,8 @@ class MediaItemBuilder {
         duration: json['duration'] != null
             ? Duration(seconds: json['duration'])
             : toDuration(json['length']),
-        album: album != null ? album['name'] : null,
+        // An album known by name only (the phone's, a server's): kept too.
+        album: album != null ? album['name'] : json['albumName']?.toString(),
         artist: artistName,
         artUri: art.isNotEmpty ? Uri.parse(art) : null,
         extras: {
@@ -52,6 +53,7 @@ class MediaItemBuilder {
           'date': json['date'],
           'pubDateMs': json['pubDateMs'] ?? _pubDateMsFromDate(json['date']),
           'trackDetails': json['trackDetails'],
+          if (json['albumId'] != null) 'albumId': json['albumId'],
           'year': json['year'],
           'isPodcast': isPodcast,
           if (json['isExplicit'] == true) 'isExplicit': true,
@@ -124,6 +126,11 @@ class MediaItemBuilder {
     }
   }
 
+  static Object? _albumIdOf(MediaItem mediaItem) {
+    final album = mediaItem.extras?['album'];
+    return album is Map ? album['id'] : null;
+  }
+
   static String _fallbackThumbUrl(dynamic json) {
     final thumbs = json["thumbnails"];
     if (thumbs is List && thumbs.isNotEmpty) {
@@ -186,6 +193,13 @@ class MediaItemBuilder {
         ],
         'url': mediaItem.extras?['url'],
         'trackDetails': mediaItem.extras?['trackDetails'],
+        // An album without an id to open it by (the phone's music files,
+        // a server's): its name, and the phone's album, so playlists and
+        // the saved queue keep it.
+        if (mediaItem.album != null && _albumIdOf(mediaItem) == null)
+          'albumName': mediaItem.album,
+        if (mediaItem.extras?['albumId'] != null)
+          'albumId': mediaItem.extras?['albumId'],
         'year': mediaItem.extras?['year'],
         'videoType': mediaItem.extras?['videoType'],
         'resultType': mediaItem.extras?['resultType'],
