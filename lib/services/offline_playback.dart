@@ -43,8 +43,9 @@ class OfflinePlayback {
   /// costs data it's as Offline mode, so only songs kept play there.
   static final wifiOnly = false.obs;
 
-  /// No connection at all, as the phone says.
-  static bool _noConnection = false;
+  /// No connection at all, as the phone says (Android): downloads wait
+  /// for one (Downloader).
+  static final noConnection = false.obs;
 
   /// The connection in use costs data (mobile data, a metered hotspot), as
   /// the phone says.
@@ -53,7 +54,7 @@ class OfflinePlayback {
   static bool get _wifiOnlyHolds => wifiOnly.value && _metered;
 
   static void _update() =>
-      offline.value = _noConnection || mode.value || _wifiOnlyHolds;
+      offline.value = noConnection.value || mode.value || _wifiOnlyHolds;
 
   static StreamSubscription<dynamic>? _watching;
 
@@ -71,12 +72,12 @@ class OfflinePlayback {
     }
     _watching = channel.receiveBroadcastStream().listen((event) {
       // {online, metered}; a bare online before Riff asked about data.
-      _noConnection = (event is Map ? event['online'] : event) == false;
+      noConnection.value = (event is Map ? event['online'] : event) == false;
       _metered = event is Map && event['metered'] == true;
       _update();
     }, onError: (_) {
       // Can't tell: online, on Wi-Fi, so nothing is passed over by mistake.
-      _noConnection = false;
+      noConnection.value = false;
       _metered = false;
       _update();
     });
@@ -98,12 +99,13 @@ class OfflinePlayback {
 
   /// Offline because Offline mode is on, or Stream on Wi-Fi only on mobile
   /// data, not for want of a connection.
-  static bool get byChoice => (mode.value || _wifiOnlyHolds) && !_noConnection;
+  static bool get byChoice =>
+      (mode.value || _wifiOnlyHolds) && !noConnection.value;
 
   /// What to say when a song that needs a connection doesn't play: there's
   /// none, Offline mode is on, or it's mobile data with Stream on Wi-Fi
   /// only (a translation key).
-  static String get songMessageKey => _noConnection
+  static String get songMessageKey => noConnection.value
       ? 'offlineSongMsg'
       : mode.value
           ? 'offlineModeSongMsg'
@@ -149,7 +151,7 @@ class OfflinePlayback {
   static Future<void> resetForTest() async {
     await _watching?.cancel();
     _watching = null;
-    _noConnection = false;
+    noConnection.value = false;
     _metered = false;
     mode.value = false;
     wifiOnly.value = false;

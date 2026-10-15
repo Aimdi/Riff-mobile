@@ -28,8 +28,20 @@ import 'download_quality.dart';
 import 'wifi_only_downloads.dart';
 import 'device_music.dart';
 import 'network_kind.dart';
+import 'offline_playback.dart';
 import 'smart_downloads.dart';
 import 'pending_downloads.dart';
+
+/// A song's download broken off, or its stream not had, for want of a
+/// connection (or with the connection to blame): it's tried again.
+class DownloadInterrupted implements Exception {
+  const DownloadInterrupted([this.cause]);
+
+  final Object? cause;
+
+  @override
+  String toString() => 'Download interrupted: $cause';
+}
 
 class Downloader extends GetxService {
   // receiveTimeout is the max gap between chunks, so a stalled download
@@ -49,6 +61,19 @@ class Downloader extends GetxService {
 
   /// Download on Wi-Fi only, on mobile data: the next song waits for Wi-Fi.
   final waitingForWifi = false.obs;
+
+  /// No connection: the next song waits for one, as Spotify's and YouTube
+  /// Music's downloads wait for the network.
+  final waitingForConnection = false.obs;
+
+  /// A song broken off while there's a connection (it may be changing,
+  /// Wi-Fi to mobile data, or the server failing) is tried again after
+  /// this, then twice this, before it's passed over.
+  @visibleForTesting
+  static Duration retryDelay = const Duration(seconds: 2);
+
+  /// Tries of a song broken off with a connection there.
+  static const _triesOnline = 3;
 
   RxList<MediaItem> songQueue = <MediaItem>[].obs;
 
@@ -225,6 +250,10 @@ class Downloader extends GetxService {
   /// Songs this job has been through, for the downloads' notification.
   int _doneThisJob = 0;
 
+  /// This job said it waits for a connection (once: a connection that
+  /// comes and goes doesn't say it each time).
+  bool _saidNoConnection = false;
+
   /// The notification: [text] (the song downloading, or why it waits) and
   /// how many of the job's songs are done.
   void _notice(String text) => DownloadNotice.update(DownloadNotice.songs,
@@ -233,6 +262,7 @@ class Downloader extends GetxService {
   Future<void> triggerDownloadingJob() async {
     isJobRunning.value = true;
     _doneThisJob = 0;
+    _saidNoConnection = false;
     try {
       // Loop (was recursion) until both queues drain.
       do {
@@ -302,6 +332,92 @@ class Downloader extends GetxService {
     _notice('waitingForWifi'.tr);
   }
 
+  /// Holds the next song while there's no connection at all, until there's
+  /// one (true) or [wanted] says it was called off meanwhile (false).
+  Future<bool> _waitForConnection(bool Function() wanted) async {
+    if (OfflinePlayback.noConnection.isFalse) return true;
+    try {
+      waitingForConnection.value = true;
+      if (!_saidNoConnection) {
+        _saidNoConnection = true;
+        _showSnack('downloadsWaitForConnection'.tr);
+      }
+      // Riff stays up meanwhile, so they go on once it's back.
+      _notice('waitingForConnection'.tr);
+      while (OfflinePlayback.noConnection.isTrue) {
+        if (!wanted()) return false;
+        await _nextChange();
+      }
+      return wanted();
+    } finally {
+      waitingForConnection.value = false;
+    }
+  }
+
+  /// Until the connection or the queues change.
+  Future<void> _nextChange() {
+    final changed = Completer<void>();
+    void wake([_]) {
+      if (!changed.isCompleted) changed.complete();
+    }
+
+    final subscriptions = [
+      OfflinePlayback.noConnection.listen(wake),
+      songQueue.listen(wake),
+      playlistQueue.listen(wake),
+    ];
+    return changed.future.whenComplete(() {
+      for (final subscription in subscriptions) {
+        subscription.cancel();
+      }
+    });
+  }
+
+  bool _isDownloaded(MediaItem song) =>
+      Hive.box("SongDownloads").containsKey(song.id);
+
+  /// Downloads [song] once it may (Download on Wi-Fi only) and can (a
+  /// connection): broken off for want of one, it waits for it and goes on;
+  /// broken off with one there, it's tried again a little later, twice.
+  /// False when [wanted] says it was called off meanwhile.
+  Future<bool> _downloadWhenConnected(
+      MediaItem song, bool Function() wanted) async {
+    var brokenOff = 0;
+    while (true) {
+      // Download on Wi-Fi only: on mobile data, it waits for Wi-Fi.
+      final go = await WifiOnlyDownloads.waitForWifi(
+          wanted: wanted, onWait: _onWaitForWifi);
+      waitingForWifi.value = false;
+      if (!go) return false;
+      // Broken off as the connection went: that's not the song's fault.
+      if (OfflinePlayback.noConnection.isTrue) brokenOff = 0;
+      if (!await _waitForConnection(wanted)) return false;
+      currentSong = song;
+      songDownloadingProgress.value = 0;
+      _notice(song.title);
+      try {
+        await writeFileStream(song);
+        return true;
+      } on DownloadInterrupted catch (e) {
+        printERROR("Download of ${song.id} broken off: $e");
+        // Kept already: what broke came after.
+        if (_isDownloaded(song)) return true;
+        if (OfflinePlayback.noConnection.isFalse) {
+          if (++brokenOff >= _triesOnline) {
+            _showSnack("downloadError3".tr);
+            return true;
+          }
+          await Future<void>.delayed(retryDelay * brokenOff);
+        }
+      } catch (e) {
+        // Skip this song (it leaves the queue) rather than aborting the job
+        // and retrying the same failing song forever.
+        printERROR("Download of ${song.id} failed: $e");
+        return true;
+      }
+    }
+  }
+
   Future<void> downloadSongList(List<MediaItem> jobSongList,
       {bool isPlaylist = false}) async {
     for (MediaItem song in jobSongList) {
@@ -320,13 +436,11 @@ class Downloader extends GetxService {
       if (!leftForWifi &&
           !Hive.box("SongDownloads").containsKey(song.id) &&
           !DeviceMusic.isDeviceSong(song)) {
-        // Download on Wi-Fi only: on mobile data, it waits for Wi-Fi.
-        final go = await WifiOnlyDownloads.waitForWifi(
-            wanted: () => isPlaylist
+        final go = await _downloadWhenConnected(
+            song,
+            () => isPlaylist
                 ? playlistQueue.containsKey(currentPlaylistId.value)
-                : songQueue.contains(song),
-            onWait: _onWaitForWifi);
-        waitingForWifi.value = false;
+                : songQueue.contains(song));
         if (!go) {
           // Called off meanwhile (its playlist's download cancelled).
           if (isPlaylist) {
@@ -335,16 +449,6 @@ class Downloader extends GetxService {
             return;
           }
           continue;
-        }
-        currentSong = song;
-        songDownloadingProgress.value = 0;
-        _notice(song.title);
-        try {
-          await writeFileStream(song);
-        } catch (e) {
-          // Skip this song (it leaves the queue below) rather than aborting
-          // the job and retrying the same failing song forever.
-          printERROR("Download of ${song.id} failed: $e");
         }
       }
       songQueue.remove(song);
@@ -356,6 +460,10 @@ class Downloader extends GetxService {
     }
   }
 
+  /// What a stream not had says when the connection is (or may be) to
+  /// blame.
+  static const _byConnection = {'networkError', 'streamUnknownError'};
+
   Future<void> writeFileStream(MediaItem song) async {
     Completer<void> complete = Completer();
 
@@ -364,6 +472,10 @@ class Downloader extends GetxService {
 
     final playerResponse = await StreamProvider.fetch(song.id);
     if (!playerResponse.playable) {
+      if (OfflinePlayback.noConnection.isTrue ||
+          _byConnection.contains(playerResponse.statusMSG)) {
+        throw DownloadInterrupted(playerResponse.statusMSG);
+      }
       _showSnack(playerResponse.statusMSG.tr);
       printINFO("Requested song is not downloadable. You may try again");
       if (!complete.isCompleted) complete.complete();
@@ -471,10 +583,11 @@ class Downloader extends GetxService {
       },
     ).onError(
       (error, stackTrace) {
-        _showSnack("downloadError3".tr);
         printINFO(
             "Downloading failed due to network/stream error! Please try again");
-        if (!complete.isCompleted) complete.complete();
+        if (!complete.isCompleted) {
+          complete.completeError(DownloadInterrupted(error));
+        }
       },
     );
 

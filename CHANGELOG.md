@@ -878,6 +878,16 @@ Downloads:
   playlist or album shows as downloading again); one you cancelled stays
   cancelled. Where downloading would first have to ask for storage
   access, it waits for your next download instead of asking at start
+* Downloads wait for a connection, as Spotify's and YouTube Music's wait
+  for the network: losing it in the middle of a playlist's download used
+  to fail every song left in turn, each with its own "download failed",
+  and drop them. Now, on phones, the songs wait (the playlist shows its
+  hourglass, "Waiting for a connection", and so does the downloads
+  notification) and go on by themselves once it's back, the song that
+  was cut off first. A song cut off while the connection is there
+  (Wi-Fi handing over to mobile data) is tried again a little later,
+  twice, before Riff says it failed; songs that can't be downloaded are
+  passed over at once, as before
 * Download on Wi-Fi only, as with Spotify, YouTube Music and Apple Music:
   turn it on in Settings › Download and, on mobile data, song downloads
   (songs, albums and playlists) wait for Wi-Fi, then start by themselves.

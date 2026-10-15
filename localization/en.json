@@ -204,6 +204,8 @@
     "downloadOnWifiOnlyDes": "On mobile data, song downloads wait for Wi-Fi and start by themselves once you're on it",
     "downloadsWaitForWifi": "Downloads will start once you're on Wi-Fi",
     "waitingForWifi": "Waiting for Wi-Fi",
+    "downloadsWaitForConnection": "Downloads will go on once you're back online",
+    "waitingForConnection": "Waiting for a connection",
     "allowExplicit": "Allow explicit content",
     "allowExplicitDes": "Songs marked E play. Turned off, they're skipped, dimmed in lists, and left out of radio and suggestions",
     "explicitOffMsg": "Explicit content is off. You can allow it in Settings",
