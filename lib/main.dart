@@ -15,6 +15,7 @@ import '/ui/screens/Search/search_screen_controller.dart';
 import '/utils/get_localization.dart';
 import '/services/downloader.dart';
 import '/services/pending_downloads.dart';
+import '/services/podcast_service.dart';
 import '/services/piped_service.dart';
 import '/services/sponsorblock_service.dart';
 import '/services/spotify_import_service.dart';
@@ -316,6 +317,7 @@ Future<void> initHiveDeferred() async {
   await Future.wait([
     safeOpenBox("PodcastSubs"),
     safeOpenBox(PendingDownloads.boxName),
+    safeOpenBox(PodcastService.feedMemoBox),
     safeOpenBox("DailyStats"),
     safeOpenBox("SquareCovers"),
     safeOpenBox("PodcastQueue"),

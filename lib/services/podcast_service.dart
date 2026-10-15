@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
@@ -10,6 +11,7 @@ import 'package:xml/xml.dart';
 
 import '/models/thumbnail.dart';
 import '/services/podcast_feed_url.dart';
+import '/utils/app_version.dart';
 import '/utils/helper.dart';
 
 /// Podcast support modelled on AntennaPod: discovery via Apple's public
@@ -753,10 +755,121 @@ class PodcastService {
 
   static Future<({PodcastFeed feed, String? movedTo})> _fetchFeed(String url,
       String podcastTitle, String fallbackArt, int? maxItems) async {
-    final res =
-        await _dio.get(url, options: Options(responseType: ResponseType.plain));
-    return _parseFeedInBackground(
+    final key = [url, podcastTitle, fallbackArt, maxItems ?? ''].join('\u0000');
+    // The Inbox's reads (a few episodes each) are kept across starts.
+    final keep = maxItems != null;
+    final memo = _feedMemoFor(key, kept: keep);
+    final res = await _dio.get(url,
+        options: Options(
+          responseType: ResponseType.plain,
+          headers: {
+            if (memo?.etag != null) 'if-none-match': memo!.etag,
+            if (memo?.lastModified != null)
+              'if-modified-since': memo!.lastModified,
+          },
+          validateStatus: (status) =>
+              status != null &&
+              (status >= 200 && status < 300 || status == 304 && memo != null),
+        ));
+    if (res.statusCode == 304 && memo != null) {
+      // Unchanged: its episodes as they were read, each a copy.
+      return (
+        feed: (
+          episodes: [
+            for (final e in memo.episodes) {...e}
+          ],
+          about: memo.about,
+        ),
+        movedTo: memo.movedTo,
+      );
+    }
+    final read = await _parseFeedInBackground(
         res.data as String, podcastTitle, fallbackArt, maxItems);
+    final etag = res.headers.value('etag');
+    final lastModified = res.headers.value('last-modified');
+    if (etag != null || lastModified != null) {
+      _rememberFeed(
+          key,
+          _FeedMemo(
+            etag: etag,
+            lastModified: lastModified,
+            // Its own copies: what callers do to theirs stays theirs.
+            episodes: [
+              for (final e in read.feed.episodes) {...e}
+            ],
+            about: read.feed.about,
+            movedTo: read.movedTo,
+            at: now(),
+            version: kPubspecAppVersion,
+          ),
+          keep: keep);
+    }
+    return read;
+  }
+
+  // --- Asking a feed only whether it changed ---
+
+  /// Feeds remembered across starts ([_FeedMemo]): the Inbox's.
+  static const feedMemoBox = 'PodcastFeedMemo';
+
+  /// A feed remembered this long is read in full again whatever its server
+  /// says, so a new version of Riff's feed reading reaches every show.
+  static const feedMemoMaxAge = Duration(days: 7);
+
+  static const _feedMemoLimit = 200;
+
+  @visibleForTesting
+  static DateTime Function() now = DateTime.now;
+
+  /// What each feed's server said of it when it was last read (its ETag,
+  /// Last-Modified) and what it held, so the next read asks only whether
+  /// it changed (If-None-Match, If-Modified-Since), as AntennaPod does: an
+  /// unchanged feed answers 304 in a few bytes instead of sending all of
+  /// it again (often megabytes, for every show, at every Inbox refresh).
+  static final _feedMemos = <String, _FeedMemo>{};
+
+  @visibleForTesting
+  static void forgetFeedsInMemory() => _feedMemos.clear();
+
+  static _FeedMemo? _feedMemoFor(String key, {required bool kept}) {
+    var memo = _feedMemos[key];
+    if (memo == null && kept && Hive.isBoxOpen(feedMemoBox)) {
+      memo = _FeedMemo.fromJson(Hive.box(feedMemoBox).get(key));
+      if (memo != null) _feedMemos[key] = memo;
+    }
+    if (memo == null ||
+        memo.version != kPubspecAppVersion ||
+        now().difference(memo.at) >= feedMemoMaxAge) {
+      return null;
+    }
+    return memo;
+  }
+
+  static void _rememberFeed(String key, _FeedMemo memo, {required bool keep}) {
+    _feedMemos
+      ..remove(key)
+      ..[key] = memo;
+    if (_feedMemos.length > _feedMemoLimit) {
+      _feedMemos.remove(_feedMemos.keys.first);
+    }
+    if (!keep || !Hive.isBoxOpen(feedMemoBox)) return;
+    final box = Hive.box(feedMemoBox);
+    unawaited(() async {
+      try {
+        await box.put(key, memo.toJson());
+        if (box.length <= _feedMemoLimit) return;
+        // The longest unread go first.
+        int at(dynamic key) {
+          final kept = box.get(key);
+          return kept is Map && kept['at'] is int ? kept['at'] as int : 0;
+        }
+
+        final keys = box.keys.toList()..sort((a, b) => at(a).compareTo(at(b)));
+        await box.deleteAll(keys.take(box.length - _feedMemoLimit));
+      } catch (e) {
+        printERROR('Feed memo: $e');
+      }
+    }());
   }
 
   /// Kept apart from [feed] so the isolate closure captures only these
@@ -1597,5 +1710,58 @@ class PodcastChapter {
     if (needles.any(t.contains)) return true;
     // Standalone "ad" / "ads" token.
     return RegExp(r'(^|\s)ads?(\s|:|$)').hasMatch(t);
+  }
+}
+
+/// A feed as it was last read ([PodcastService._fetchFeed]).
+class _FeedMemo {
+  const _FeedMemo({
+    this.etag,
+    this.lastModified,
+    required this.episodes,
+    required this.about,
+    this.movedTo,
+    required this.at,
+    required this.version,
+  });
+
+  final String? etag;
+  final String? lastModified;
+  final List<Map<String, dynamic>> episodes;
+  final String about;
+  final String? movedTo;
+
+  /// When it was read, and by which version of Riff.
+  final DateTime at;
+  final String version;
+
+  Map<String, dynamic> toJson() => {
+        if (etag != null) 'etag': etag,
+        if (lastModified != null) 'lastModified': lastModified,
+        'episodes': episodes,
+        'about': about,
+        if (movedTo != null) 'movedTo': movedTo,
+        'at': at.millisecondsSinceEpoch,
+        'version': version,
+      };
+
+  static _FeedMemo? fromJson(dynamic j) {
+    if (j is! Map) return null;
+    final episodes = j['episodes'];
+    final at = j['at'];
+    if (episodes is! List || at is! int) return null;
+    String? text(String key) => j[key] is String ? j[key] as String : null;
+    return _FeedMemo(
+      etag: text('etag'),
+      lastModified: text('lastModified'),
+      episodes: [
+        for (final e in episodes)
+          if (e is Map) Map<String, dynamic>.from(e)
+      ],
+      about: text('about') ?? '',
+      movedTo: text('movedTo'),
+      at: DateTime.fromMillisecondsSinceEpoch(at),
+      version: text('version') ?? '',
+    );
   }
 }

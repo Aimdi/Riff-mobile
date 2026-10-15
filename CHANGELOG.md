@@ -543,6 +543,13 @@ Podcasts:
   same file (its ETag or date), else it starts over, so episodes with
   ads put in as they're fetched don't come out spliced. Given up, it
   resumes the next time you download it; leftovers go after a week
+* Refreshing the Inbox uses far less data, as AntennaPod's does: every
+  refresh downloaded every show's whole feed again (often megabytes
+  each, for twelve episodes), changed or not. Now Riff asks each show's
+  server whether its feed changed since last time (its ETag or date),
+  and one that hasn't answers in a few bytes, its episodes kept as they
+  were; only new episodes cost a download. Remembered across restarts,
+  and read in full again after a week, or after Riff is updated
 
 Audiobooks:
 * The lock screen, notification, Android Auto and headset buttons skip
