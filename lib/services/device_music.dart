@@ -72,6 +72,20 @@ class DeviceMusic {
   }
 
   static bool isDeviceSong(MediaItem song) => song.id.startsWith(idPrefix);
+
+  /// [length] bytes of the music file at [uri] (its content:// address)
+  /// from [offset], fewer at its end: its tags, for the lyrics in them.
+  /// Null when it can't be read.
+  static Future<Uint8List?> read(String uri, int offset, int length) async {
+    if (!available) return null;
+    try {
+      return await channel.invokeMethod<Uint8List>(
+          'read', {'uri': uri, 'offset': offset, 'length': length});
+    } catch (e) {
+      printERROR('Music file read: $e');
+      return null;
+    }
+  }
 }
 
 /// One of MediaStore's songs ([DeviceMusic.songs]) as Riff plays it: its

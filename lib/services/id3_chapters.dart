@@ -108,8 +108,22 @@ int? id3TagLength(List<int> header) {
 /// The chapters (CHAP frames) in an ID3v2.3 / 2.4 [tag], by start time:
 /// their titles (TIT2) and links (WXXX).
 List<PodcastChapter> parseId3Chapters(Uint8List tag) {
+  final chapters = <PodcastChapter>[];
+  for (final frame in id3Frames(tag)) {
+    if (frame.id != 'CHAP') continue;
+    final chapter = _chapter(frame.data, tag[3]);
+    if (chapter != null) chapters.add(chapter);
+  }
+  chapters.sort((a, b) => a.startSec.compareTo(b.startSec));
+  return chapters;
+}
+
+/// The frames of an ID3v2.3 / 2.4 [tag] (none when it isn't one), past
+/// any extended header, a 2.3 tag's unsynchronisation undone: each one's
+/// id and data.
+Iterable<({String id, Uint8List data})> id3Frames(Uint8List tag) sync* {
   final length = id3TagLength(tag);
-  if (length == null) return const [];
+  if (length == null) return;
   final major = tag[3];
   final flags = tag[5];
   var frames = Uint8List.sublistView(tag, 10, math.min(length, tag.length));
@@ -118,20 +132,19 @@ List<PodcastChapter> parseId3Chapters(Uint8List tag) {
   var at = 0;
   if (flags & 0x40 != 0) {
     // An extended header: 2.4 counts its own size field, 2.3 doesn't.
-    if (frames.length < 4) return const [];
+    if (frames.length < 4) return;
     at = major == 4
         ? _syncsafe(frames, 0) ?? frames.length
         : 4 + _uint32(frames, 0);
   }
-  final chapters = <PodcastChapter>[];
   for (final frame in _frames(frames, at, major)) {
-    if (frame.id != 'CHAP') continue;
-    final chapter = _chapter(frame.data, major);
-    if (chapter != null) chapters.add(chapter);
+    yield (id: frame.id, data: frame.data);
   }
-  chapters.sort((a, b) => a.startSec.compareTo(b.startSec));
-  return chapters;
 }
+
+/// Text in an ID3 frame's [encoding] (0 ISO-8859-1, 1 UTF-16 with a byte
+/// order mark, 2 UTF-16BE, 3 UTF-8).
+String id3Decode(int encoding, Uint8List bytes) => _decode(encoding, bytes);
 
 class _Frame {
   const _Frame(this.id, this.data);

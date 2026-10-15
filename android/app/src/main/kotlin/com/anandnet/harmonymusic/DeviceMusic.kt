@@ -53,7 +53,52 @@ object DeviceMusic : MethodChannel.MethodCallHandler {
                     main.post { result.success(songs) }
                 }.start()
             }
+            "read" -> {
+                // Part of a music file (its tags, for the lyrics in them):
+                // length bytes from offset, fewer at its end; null when it
+                // can't be read.
+                val uri = call.argument<String>("uri")
+                val offset = call.argument<Number>("offset")?.toLong() ?: 0L
+                val length = call.argument<Number>("length")?.toInt() ?: 0
+                Thread {
+                    val bytes = try {
+                        if (uri == null || offset < 0 || length <= 0) null
+                        else read(context, Uri.parse(uri), offset, minOf(length, MAX_READ))
+                    } catch (_: Exception) {
+                        null
+                    }
+                    main.post { result.success(bytes) }
+                }.start()
+            }
             else -> result.notImplemented()
+        }
+    }
+
+    /** The most of a file read at once. */
+    private const val MAX_READ = 8 * 1024 * 1024
+
+    private fun read(context: Context, uri: Uri, offset: Long, length: Int): ByteArray? {
+        val input = context.contentResolver.openInputStream(uri) ?: return null
+        return input.use {
+            var left = offset
+            while (left > 0) {
+                val skipped = it.skip(left)
+                if (skipped > 0) {
+                    left -= skipped
+                } else {
+                    // skip() may move nothing without being at the end.
+                    if (it.read() < 0) return ByteArray(0)
+                    left--
+                }
+            }
+            val out = ByteArray(length)
+            var at = 0
+            while (at < length) {
+                val n = it.read(out, at, length - at)
+                if (n < 0) break
+                at += n
+            }
+            if (at == length) out else out.copyOf(at)
         }
     }
 

@@ -6,6 +6,7 @@ import 'package:harmonymusic/utils/helper.dart';
 import 'package:hive/hive.dart';
 
 import '/services/better_lyrics_service.dart';
+import '/services/embedded_lyrics.dart';
 import '/services/kugou_lyrics_service.dart';
 import '/services/lrclib_query.dart';
 import '/services/music_service.dart';
@@ -110,6 +111,20 @@ class SyncedLyricsService {
       return Map<String, dynamic>.from(await lyricsBox.get(song.id));
     }
 
+    // A file on the phone may carry its own (Musicolet, Poweramp and
+    // Samsung Music show them): synced ones before any found online, the
+    // text after them.
+    final embedded = await EmbeddedLyrics.forSong(song);
+    if (embedded?.synced case final lrc?) {
+      final hit = {
+        "synced": lrc,
+        "plainLyrics": embedded!.plain,
+        "source": "embedded",
+      };
+      await lyricsBox.put(song.id, hit);
+      return hit;
+    }
+
     final dur = song.duration?.inSeconds ?? durInSec;
     final artist = song.artist ?? '';
     final title = song.title;
@@ -189,6 +204,11 @@ class SyncedLyricsService {
         await lyricsBox.put(song.id, hit);
         return hit;
       }
+    }
+    if (embedded?.plain case final text?) {
+      final hit = {"synced": "", "plainLyrics": text, "source": "embedded"};
+      await lyricsBox.put(song.id, hit);
+      return hit;
     }
     return null;
   }

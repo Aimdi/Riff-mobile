@@ -57,6 +57,13 @@ Lyrics:
   offline. The lyrics will come once you're back online") instead of
   "Lyrics not available", and are looked up again as soon as the
   connection is back; they used to stay "not available" for that song
+* Lyrics in your own music files, as Musicolet, Poweramp and Samsung
+  Music show them: a song on the phone (Songs › On this phone) whose
+  file carries its lyrics (an MP3's ID3 lyrics, synced or not, as
+  MusicBrainz Picard, Mp3tag and LRCGET write them; a FLAC's LYRICS
+  comment) shows them, with no connection too. Synced ones come before
+  any looked up online; text-only ones when nothing synced is found.
+  Only the file's tags are read, not its music
 
 Mini player (phones):
 * Drag it sideways and the song follows your finger while the next (or
