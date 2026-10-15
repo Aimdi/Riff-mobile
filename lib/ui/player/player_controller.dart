@@ -25,6 +25,7 @@ import '../../services/smart_queue_service.dart';
 import '../screens/Playlist/playlist_screen_controller.dart';
 import '../widgets/snackbar.dart';
 import '../widgets/sleep_timer_bottom_sheet.dart' show formatSleepMinutes;
+import '/services/last_fm_service.dart';
 import '/services/listenbrainz_service.dart';
 import '/services/audiobook_progress_service.dart';
 import '/services/scrobble_rules.dart';
@@ -1463,6 +1464,8 @@ class PlayerController extends GetxController
                 listened: Duration(milliseconds: posMs),
                 total: outgoingProgress.total)) {
           ListenBrainzService.submitListen(outgoing);
+          LastFmService.scrobble(outgoing,
+              listened: Duration(milliseconds: posMs));
         }
         currentSong.value = mediaItem;
         if (isQueuedByYou(mediaItem)) _heardQueued.add(mediaItem.id);
@@ -1526,6 +1529,7 @@ class PlayerController extends GetxController
                 !mediaItem.isPodcastEpisode &&
                 !mediaItem.isAudiobook) {
               unawaited(ListenBrainzService.playingNow(mediaItem));
+              unawaited(LastFmService.playingNow(mediaItem));
             }
           }
           if (Get.isRegistered<SettingsScreenController>()) {

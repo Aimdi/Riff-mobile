@@ -37,6 +37,10 @@ class SecureCredentials {
     'listenBrainzToken',
     'spotifyAccessToken',
     'spotifyRefreshToken',
+    'lastFmSession',
+    'lastFmUser',
+    'lastFmApiKey',
+    'lastFmSecret',
   ];
 
   /// Nested map fields stored as `mapKey.field` in secure storage.

@@ -29,6 +29,7 @@ import '/services/wifi_only_downloads.dart';
 import '/services/download_quality.dart';
 import '/ui/widgets/equalizer_sheet.dart';
 import '/services/discovery/discovery_service.dart';
+import '/services/last_fm_service.dart';
 import '/services/listenbrainz_service.dart';
 import '/services/music_service.dart';
 import '/services/video_stream_service.dart';
@@ -36,6 +37,7 @@ import '/ui/player/video_mode_controller.dart';
 import '/services/yt_auth_service.dart';
 import '/services/yt_like_sync.dart';
 import '/services/offline_playback.dart';
+import 'last_fm_dialog.dart';
 import 'yt_like_sync_tile.dart';
 import 'yt_library_import_tile.dart';
 import 'yt_login_screen.dart';
@@ -1099,6 +1101,23 @@ class SettingsScreen extends StatelessWidget {
                           context: context,
                           builder: (context) => const ListenBrainzDialog()),
                     ),
+                    Obx(() {
+                      LastFmService.rev.value;
+                      final user = LastFmService.user;
+                      return ListTile(
+                        contentPadding: settingsTilePadding,
+                        title: Text("lastFm".tr),
+                        subtitle: Text(
+                            user.isEmpty
+                                ? "lastFmDes".tr
+                                : "lastFmConnectedAs"
+                                    .trParams({'user': user}),
+                            style: settingsSubtitleStyle(context)),
+                        onTap: () => showDialog(
+                            context: context,
+                            builder: (context) => const LastFmDialog()),
+                      );
+                    }),
                     ListTile(
                       contentPadding: settingsTilePadding,
                       title: Text("blacklistTitle".tr),

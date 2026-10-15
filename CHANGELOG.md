@@ -868,6 +868,23 @@ ListenBrainz:
   that goes. And your ListenBrainz profile shows the song playing now
   (songs only, and not in a private session)
 
+Last.fm:
+* Scrobble to Last.fm, as Spotify, Metrolist and InnerTune do: Settings
+  › Library & sync › Last.fm scrobbling. Sign in with your Last.fm
+  username and password (sent to Last.fm once; only the session it
+  gives is kept, in secure storage). Songs you listen to go to your
+  profile once they've played half way or 4 minutes, as of when they
+  started, by their first artist as Spotify scrobbles them, and the song
+  playing shows there as scrobbling now. Scrobbles that can't go
+  (offline, Last.fm down) are kept and sent 50 at a time with the next
+  that goes; ones older than Last.fm takes (14 days) are let go. Not in
+  a private session, not podcasts or audiobooks, and not playlists left
+  out of your taste profile. Access taken back on last.fm disconnects
+  Riff; Disconnect stops it and drops what was kept. Last.fm wants an
+  API account for each app: builds made with LASTFM_API_KEY and
+  LASTFM_SECRET use theirs, others ask for yours (free, linked from the
+  dialog)
+
 Fade between songs:
 * Like Spotify's and Apple Music's Crossfade: Settings › Fade between
   songs (off, 3, 5, 8 or 12 seconds) fades the end of a song out and the
