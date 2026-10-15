@@ -14,6 +14,7 @@ import '/ui/theme/riff_text_metrics.dart';
 import '/ui/screens/Search/search_screen_controller.dart';
 import '/utils/get_localization.dart';
 import '/services/downloader.dart';
+import '/services/pending_downloads.dart';
 import '/services/piped_service.dart';
 import '/services/sponsorblock_service.dart';
 import '/services/spotify_import_service.dart';
@@ -137,6 +138,11 @@ Future<void> _initAudioAndWarm(Future<void> deferredBoxes) async {
   // Each step on its own: one shared try used to let a failing step (e.g.
   // discovery on a damaged box) skip playback rules, the smart queue,
   // auto-sync and the Spotify flush for the whole session.
+  // Downloads left when Riff last stopped go on.
+  await _warmUp('Pending downloads', () async {
+    if (PendingDownloads.isEmpty) return;
+    await Get.find<Downloader>().resumePending();
+  });
   await _warmUp('Discovery', () async {
     if (!Get.isRegistered<DiscoveryService>()) {
       await Get.putAsync(() => DiscoveryService().init(), permanent: true);
@@ -309,6 +315,7 @@ initHiveCritical() async {
 Future<void> initHiveDeferred() async {
   await Future.wait([
     safeOpenBox("PodcastSubs"),
+    safeOpenBox(PendingDownloads.boxName),
     safeOpenBox("DailyStats"),
     safeOpenBox("SquareCovers"),
     safeOpenBox("PodcastQueue"),

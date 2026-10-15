@@ -29,6 +29,7 @@ import 'wifi_only_downloads.dart';
 import 'device_music.dart';
 import 'network_kind.dart';
 import 'smart_downloads.dart';
+import 'pending_downloads.dart';
 
 class Downloader extends GetxService {
   // receiveTimeout is the max gap between chunks, so a stalled download
@@ -50,6 +51,82 @@ class Downloader extends GetxService {
   final waitingForWifi = false.obs;
 
   RxList<MediaItem> songQueue = <MediaItem>[].obs;
+
+  /// The queues kept for the next start (PendingDownloads), this long
+  /// after they last changed.
+  static const keepDelay = Duration(seconds: 1);
+  final _keepWorkers = <Worker>[];
+  Future<void> _kept = Future.value();
+
+  @override
+  void onInit() {
+    super.onInit();
+    _keepWorkers
+      ..add(debounce(songQueue, (_) => _keepPending(), time: keepDelay))
+      ..add(debounce(playlistQueue, (_) => _keepPending(), time: keepDelay));
+  }
+
+  @override
+  void onClose() {
+    for (final worker in _keepWorkers) {
+      worker.dispose();
+    }
+    super.onClose();
+  }
+
+  void _keepPending() {
+    final songs = songQueue.toList();
+    final playlists = {
+      for (final e in playlistQueue.entries) e.key: e.value.toList()
+    };
+    _kept = _kept
+        .then((_) => PendingDownloads.mirror(songs, playlists))
+        .catchError((Object e) => printERROR('Pending downloads: $e'));
+  }
+
+  /// Whether the songs can be written now without asking for anything (the
+  /// app's own folder, or storage access granted already): resuming at
+  /// start must not open a permission prompt.
+  Future<bool> canResumeWithoutAsking() async {
+    final settings = Get.find<SettingsScreenController>();
+    if (!settings.isCurrentPathsupportDownDir &&
+        !await PermissionService.hasExtStoragePermission()) {
+      return false;
+    }
+    return checkPermissionNDir();
+  }
+
+  bool _pendingMerged = false;
+
+  /// What was left to download when Riff last stopped, back in the queues
+  /// (once a run): the playlists' and albums' (shown downloading again) and
+  /// the songs on their own, each once.
+  void _mergePending() {
+    if (_pendingMerged) return;
+    _pendingMerged = true;
+    final left = PendingDownloads.load(
+        isDownloaded: (id) =>
+            Hive.isBoxOpen('SongDownloads') &&
+            Hive.box('SongDownloads').containsKey(id));
+    left.playlists.forEach((id, songs) {
+      if (playlistQueue.containsKey(id)) return;
+      playlistQueue[id] = songs;
+      songQueue.addAll(songs.where((s) => !songQueue.contains(s)));
+    });
+    songQueue.addAll(left.songs.where((s) => !songQueue.contains(s)));
+  }
+
+  /// At start: what was left goes on, as Spotify's downloads do after a
+  /// restart. Where that would mean asking for storage access first, it
+  /// waits for your next download (which asks) instead.
+  Future<void> resumePending() async {
+    if (_pendingMerged || PendingDownloads.isEmpty) return;
+    if (!await canResumeWithoutAsking()) return;
+    _mergePending();
+    if (songQueue.isNotEmpty && isJobRunning.isFalse) {
+      unawaited(triggerDownloadingJob());
+    }
+  }
 
   Future<bool> checkPermissionNDir() async {
     final settingsScreenController = Get.find<SettingsScreenController>();
@@ -95,8 +172,9 @@ class Downloader extends GetxService {
       return;
     }
 
+    _mergePending();
     playlistQueue[playlistId] = songList;
-    songQueue.addAll(songList);
+    songQueue.addAll(songList.where((s) => !songQueue.contains(s)));
 
     if (isJobRunning.isFalse) {
       await triggerDownloadingJob();
@@ -108,6 +186,7 @@ class Downloader extends GetxService {
   Future<void> download(MediaItem? song,
       {List<MediaItem>? songList, bool signal = true}) async {
     if (!(await checkPermissionNDir())) return;
+    _mergePending();
     final discovery = signal && Get.isRegistered<DiscoveryService>()
         ? Get.find<DiscoveryService>()
         : null;

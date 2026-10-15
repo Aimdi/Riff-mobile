@@ -2,6 +2,15 @@ import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '/native_bindings/andrid_utils.dart' show SDKInt;
 class PermissionService {
+  /// Whether storage access is granted already, without asking for it.
+  static Future<bool> hasExtStoragePermission() async {
+    if (GetPlatform.isDesktop) return true;
+    if ((SDKInt.Companion.getSDKInt()) < 30) {
+      return Permission.storage.isGranted;
+    }
+    return Permission.manageExternalStorage.isGranted;
+  }
+
   static Future<bool> getExtStoragePermission() async {
     if (GetPlatform.isDesktop) {
       return Future.value(true);

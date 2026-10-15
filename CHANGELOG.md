@@ -864,6 +864,14 @@ Streaming quality:
   everywhere; video mode's audio and the song info follow the same rule
 
 Downloads:
+* Downloads go on after a restart, as Spotify's and YouTube Music's do:
+  the songs still to download were only kept while Riff ran, so Android
+  closing it in the background, a crash or the phone restarting in the
+  middle of a playlist's download dropped the rest without a word. Riff
+  now keeps them and, at its next start, downloads what's left (a
+  playlist or album shows as downloading again); one you cancelled stays
+  cancelled. Where downloading would first have to ask for storage
+  access, it waits for your next download instead of asking at start
 * Download on Wi-Fi only, as with Spotify, YouTube Music and Apple Music:
   turn it on in Settings › Download and, on mobile data, song downloads
   (songs, albums and playlists) wait for Wi-Fi, then start by themselves.
