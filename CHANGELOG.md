@@ -350,7 +350,10 @@ Podcasts:
 * Select episodes on a show's page, as in Pocket Casts and AntennaPod:
   ⋮ › Select episodes, tap the ones you want (or Select all), then add
   them to the queue, download them or mark them played (with Undo) all
-  at once
+  at once. While selecting, a long press on an episode picks it and all
+  above it, or all below it (Select all above / below, as in AntennaPod
+  and Pocket Casts): to mark a show's older episodes played, a long
+  press on the newest one you've heard, Select all below, Mark as played
 * Episodes say what they are, as in Apple Podcasts and Pocket Casts: a
   show's page and the Inbox label trailers ("Trailer"), bonus episodes
   ("Bonus") and numbered ones ("S2 E5", "Ep. 12") as the feed numbers

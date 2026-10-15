@@ -4928,6 +4928,8 @@ Map<String, Map<String, String>> get keys => {
     "reArrangeSongs": "Rearrange songs",
     "selectSongs": "Select songs",
     "selectAll": "Select All",
+    "selectAllAbove": "Select all above",
+    "selectAllBelow": "Select all below",
     "removeMultiple": "Remove multiple songs",
     "addMultipleSongs": "Add songs to playlist",
     "cancel": "Cancel",

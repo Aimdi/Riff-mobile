@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -25,6 +26,7 @@ import '/ui/screens/Audiobooks/audiobook_widgets.dart'
     show AudiobookSearchField;
 import '/ui/widgets/podcast_follow_button.dart';
 import '/ui/widgets/now_playing_bars.dart';
+import '/ui/widgets/riff_sheet.dart';
 import '/ui/widgets/snackbar.dart';
 import '../Home/home_layout.dart';
 import 'podcast_layout.dart';
@@ -166,6 +168,56 @@ class _PodcastShowViewState extends State<PodcastShowView> {
         final all = shown.every((e) => picked.contains(e.id));
         all ? picked.clear() : picked.addAll(shown.map((e) => e.id));
       });
+
+  /// [at] and every episode [shown] above it, or under it with [below],
+  /// picked as well (none unpicked).
+  void _pickRange(List<MediaItem> shown, int at, {required bool below}) =>
+      setState(() {
+        final picked = _selected;
+        if (picked == null || at < 0 || at >= shown.length) return;
+        final range = below ? shown.sublist(at) : shown.sublist(0, at + 1);
+        picked.addAll(range.map((e) => e.id));
+      });
+
+  /// A long press while selecting, as in AntennaPod and Pocket Casts: this
+  /// episode and all above it, or all below it, picked at once (catching
+  /// up on a show: everything older, then Mark as played).
+  void _pickRangeSheet(List<MediaItem> shown, int at) {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      builder: (sheet) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: RiffSpacing.sm),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const RiffSheetHandle(),
+              RiffSheetTile(
+                icon: Icons.vertical_align_top_rounded,
+                title: 'selectAllAbove'.tr,
+                onTap: () {
+                  Navigator.of(sheet).pop();
+                  _pickRange(shown, at, below: false);
+                },
+              ),
+              RiffSheetTile(
+                icon: Icons.vertical_align_bottom_rounded,
+                title: 'selectAllBelow'.tr,
+                onTap: () {
+                  Navigator.of(sheet).pop();
+                  _pickRange(shown, at, below: true);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   /// The episodes picked, in the feed's order.
   List<MediaItem> get _picked => [
@@ -411,8 +463,10 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                         onTap: picked != null
                             ? () => _togglePicked(eps[index].id)
                             : () => widget.onPlay(index),
-                        onLongPress:
-                            picked != null || widget.onEpisodeLongPress == null
+                        onLongPress: picked != null
+                            ? () => _pickRangeSheet(
+                                [for (final j in order) eps[j]], i)
+                            : widget.onEpisodeLongPress == null
                                 ? null
                                 : () => widget.onEpisodeLongPress!(eps[index]),
                         divider: i < order.length - 1,

@@ -119,6 +119,42 @@ void main() {
     expect(find.text('markedAllListened'), findsOneWidget);
   });
 
+  testWidgets(
+      'a long press picks it and all below it (the older ones), '
+      'to mark them played at once', (tester) async {
+    await pumpShow(tester);
+    await startSelecting(tester);
+    await tester.longPress(find.text('Episode 2'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('selectAllBelow'));
+    await tester.pumpAndSettle();
+    // Episodes 2 and 1, listed under it; 3 stays as it was.
+    expect(find.byIcon(Icons.check_circle_rounded), findsNWidgets(2));
+
+    await act(tester, 'markAsPlayed');
+    expect(PodcastProgressService.isPlayed('podcast_ep2'), isTrue);
+    expect(PodcastProgressService.isPlayed('podcast_ep1'), isTrue);
+    expect(PodcastProgressService.isPlayed('podcast_ep3'), isFalse);
+  });
+
+  testWidgets('or it and all above it, keeping what was picked',
+      (tester) async {
+    await pumpShow(tester);
+    await startSelecting(tester);
+    await tester.tap(find.text('Episode 1'));
+    await tester.pump();
+    await tester.longPress(find.text('Episode 2'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('selectAllAbove'));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.check_circle_rounded), findsNWidgets(3));
+
+    await act(tester, 'addToQueue');
+    // In the feed's order.
+    expect(queue.queue.map((e) => e.id),
+        ['podcast_ep3', 'podcast_ep2', 'podcast_ep1']);
+  });
+
   testWidgets('✕ leaves without doing anything', (tester) async {
     await pumpShow(tester);
     await startSelecting(tester);
