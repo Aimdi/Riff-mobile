@@ -219,6 +219,31 @@ void main() {
       expect(PodcastLibrary.applyKeepLatest(merged), hasLength(5));
     });
 
+    test('removed from the Inbox by hand: unplayed, and out for good',
+        () async {
+      // AntennaPod's Remove from inbox, Pocket Casts' Archive.
+      const feedA = 'https://a/feed';
+      final merged = [
+        ep('a2', feed: feedA, pub: 20),
+        ep('a1', feed: feedA, pub: 10),
+      ];
+      await PodcastLibrary.removeFromInbox(merged.first);
+      expect(PodcastLibrary.isArchived('a2'), isTrue);
+      expect(PodcastProgressService.isPlayed('a2'), isFalse);
+      expect(PodcastLibrary.applyKeepLatest(merged).map((e) => e.id), ['a1']);
+
+      // A Keep latest change brings back what it archived, not this.
+      await PodcastLibrary.setShowKeepLatest(feedA, 1);
+      await PodcastLibrary.setShowKeepLatest(feedA, null);
+      await PodcastLibrary.setDefaultKeepLatest(5);
+      expect(PodcastLibrary.isArchived('a2'), isTrue);
+
+      // Undo: back in the Inbox.
+      await PodcastLibrary.backToInbox('a2');
+      expect(PodcastLibrary.isArchived('a2'), isFalse);
+      expect(PodcastLibrary.applyKeepLatest(merged), hasLength(2));
+    });
+
     test('mark all as listened and undo', () async {
       await Hive.box('PodcastProgress')
           .put('e1', {'id': 'e1', 'positionMs': 60000, 'durationMs': 600000});

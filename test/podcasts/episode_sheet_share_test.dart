@@ -70,6 +70,34 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('Remove from Inbox, only where the Inbox offers it',
+      (tester) async {
+    await openSheet(tester);
+    expect(find.text('removeFromInbox'), findsNothing);
+    Navigator.of(tester.element(find.text('shareEpisode'))).pop();
+    await tester.pumpAndSettle();
+
+    var removed = 0;
+    await tester.pumpWidget(MaterialApp(
+      theme: RiffTheme.dark(const Color(0xFF1DB954)),
+      home: Scaffold(
+        body: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => showAddToQueueSheet(context, _episode,
+                onRemoveFromInbox: () => removed++),
+            child: const Text('inbox row'),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('inbox row'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('removeFromInbox'));
+    await tester.pumpAndSettle();
+    expect(removed, 1);
+    expect(find.text('removeFromInbox'), findsNothing);
+  });
+
   testWidgets('the episode menu shares the episode', (tester) async {
     await openSheet(tester);
     expect(find.text('shareEpisode'), findsOneWidget);

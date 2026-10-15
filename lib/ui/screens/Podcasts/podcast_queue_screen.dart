@@ -33,9 +33,10 @@ import 'podcasts_screen.dart';
 /// resolved inside the builder so the sheet never waits on disk I/O.
 ///
 /// [onChanged] runs after an action that changes the episode's state
-/// (played, queued, downloaded) so the list behind can refresh.
+/// (played, queued, downloaded) so the list behind can refresh. With
+/// [onRemoveFromInbox] (the Inbox's own rows) it offers Remove from Inbox.
 void showAddToQueueSheet(BuildContext context, MediaItem episode,
-    {VoidCallback? onChanged}) {
+    {VoidCallback? onChanged, VoidCallback? onRemoveFromInbox}) {
   HapticFeedback.mediumImpact();
   showModalBottomSheet(
     context: context,
@@ -159,6 +160,17 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode,
                             await PodcastDownloadService.download(episode);
                         snack(ok ? "downloadComplete".tr : "downloadFailed".tr);
                         onChanged?.call();
+                      },
+                    ),
+                  // Out of the Inbox, unplayed (AntennaPod's Remove from
+                  // inbox, Pocket Casts' Archive).
+                  if (onRemoveFromInbox != null)
+                    ListTile(
+                      leading: const Icon(Icons.inbox_outlined),
+                      title: Text("removeFromInbox".tr),
+                      onTap: () {
+                        Navigator.of(ctx).pop();
+                        onRemoveFromInbox();
                       },
                     ),
                   ListTile(

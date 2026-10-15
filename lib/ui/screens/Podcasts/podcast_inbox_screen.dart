@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -29,6 +31,7 @@ import 'podcast_layout.dart';
 import 'podcast_queue_controller.dart';
 import 'podcast_queue_screen.dart';
 import 'podcasts_library_controller.dart';
+import '/services/podcast_inbox_counts.dart';
 
 /// AntennaPod-style Inbox: the latest episodes across every subscribed podcast,
 /// merged into one list sorted by publish date (newest first). Tap an episode
@@ -584,8 +587,11 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
       ]),
       progress: PodcastProgressService.progress(e.id),
       onTap: () => _play(list, i),
-      onLongPress: () =>
-          showAddToQueueSheet(context, e, onChanged: () => setState(() {})),
+      onLongPress: () => showAddToQueueSheet(context, e,
+          onChanged: () => setState(() {}),
+          onRemoveFromInbox: _episodes.any((x) => x.id == e.id)
+              ? () => _removeFromInbox(context, e)
+              : null),
     );
     // Swipes in the plain Inbox only, where a played episode leaves the
     // list (with a filter on it can stay), and when swipe actions are on.
@@ -643,6 +649,20 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
       ..showSnackBar(snackbar(
           context, (had ? 'alreadyInQueue' : 'addedToQueue').tr,
           size: SanckBarSize.MEDIUM));
+  }
+
+  /// Takes [e] out of the Inbox, unplayed, with Undo.
+  void _removeFromInbox(BuildContext context, MediaItem e) {
+    final target = undoSnackbarTarget(context);
+    unawaited(PodcastLibrary.removeFromInbox(e));
+    // Its show's count of new episodes too.
+    PodcastInboxCounts.rev.value++;
+    setState(() => _episodes = _unplayed(_merged));
+    showUndoSnackbar(target, 'removedFromInbox'.tr, onUndo: () async {
+      await PodcastLibrary.backToInbox(e.id);
+      PodcastInboxCounts.rev.value++;
+      if (mounted) setState(() => _episodes = _unplayed(_merged));
+    });
   }
 
   /// Marks [e] played (it leaves the Inbox, and the queue) with Undo,

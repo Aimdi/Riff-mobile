@@ -424,14 +424,35 @@ class PodcastLibrary {
   static String? _archivedShow(dynamic v) =>
       v is Map && v['show'] is String ? v['show'] as String : null;
 
+  /// What Keep latest archived of the shows [test] picks (what you took
+  /// out of the Inbox yourself stays out).
   static void _archiveRemoveWhere(bool Function(String? show) test) {
     final b = _box(archiveBox);
     if (b == null) return;
     final drop = [
       for (final k in b.keys)
-        if (test(_archivedShow(b.get(k)))) k
+        if (!_byHand(b.get(k)) && test(_archivedShow(b.get(k)))) k
     ];
     if (drop.isNotEmpty) b.deleteAll(drop);
+  }
+
+  static bool _byHand(dynamic v) => v is Map && v['byHand'] == true;
+
+  /// Takes [e] out of the Inbox without marking it played, as AntennaPod's
+  /// Remove from inbox and Pocket Casts' Archive do: it stays unplayed
+  /// among its show's episodes, and out of the Inbox's counts. Changing a
+  /// show's Keep latest doesn't bring it back.
+  static Future<void> removeFromInbox(MediaItem e, {DateTime? now}) async {
+    await _box(archiveBox)?.put(e.id, {
+      'at': (now ?? DateTime.now()).millisecondsSinceEpoch,
+      'show': podcastShowKey(e),
+      'byHand': true,
+    });
+  }
+
+  /// [id] back in the Inbox (Undo of [removeFromInbox]).
+  static Future<void> backToInbox(String id) async {
+    await _box(archiveBox)?.delete(id);
   }
 
   /// Apply each show's "Keep latest" to a merged inbox: archive the older

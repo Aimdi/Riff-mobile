@@ -4861,6 +4861,8 @@ Map<String, Map<String, String>> get keys => {
     "sortDefault": "Default",
     "recentlyFollowed": "Recently followed",
     "markedAsPlayed": "Marked as played",
+    "removeFromInbox": "Remove from Inbox",
+    "removedFromInbox": "Removed from Inbox",
     "alreadyInQueue": "Already in the queue",
     "bookTimeLeft": "@time left",
     "alreadyInPlaylist": "Already in this playlist",

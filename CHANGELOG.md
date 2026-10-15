@@ -512,6 +512,11 @@ Podcasts:
   the Inbox, with Undo, which also puts it back where it was in the
   queue and where you were in it). Off with the other swipe actions in
   Settings; TalkBack offers both as actions
+* Remove from Inbox, as AntennaPod's Inbox and Pocket Casts' Archive
+  have it: long-press an Inbox episode › Remove from Inbox takes it out
+  of the Inbox (and its show's count of new episodes) without marking it
+  played, with Undo; it stays unplayed on its show's page. Changing a
+  show's Keep latest doesn't bring it back
 * Sort the shows you follow, like Pocket Casts, AntennaPod and Apple
   Podcasts: the sort button in Podcasts › Subscriptions orders them by
   Name, Latest episode or Recently followed (Default keeps the order
