@@ -6,8 +6,11 @@ library;
 
 import 'dart:io';
 
+import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
+import 'downloader.dart';
+import 'pending_downloads.dart';
 import 'smart_downloads.dart';
 
 /// Removes every downloaded song: its file, its cover in [supportDir] and
@@ -15,6 +18,16 @@ import 'smart_downloads.dart';
 Future<List<String>> removeAllSongDownloads(
     {required String supportDir}) async {
   if (!Hive.isBoxOpen('SongDownloads')) return const [];
+  // What's waiting to download goes too, or it would fill the room again
+  // (and come back after a restart).
+  if (Get.isRegistered<Downloader>()) {
+    final downloader = Get.find<Downloader>();
+    downloader.playlistQueue.clear();
+    downloader.songQueue.clear();
+  }
+  if (Hive.isBoxOpen(PendingDownloads.boxName)) {
+    await Hive.box(PendingDownloads.boxName).clear();
+  }
   final box = Hive.box('SongDownloads');
   final ids = [for (final key in box.keys) '$key'];
   for (final entry in box.toMap().entries) {

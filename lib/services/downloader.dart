@@ -198,6 +198,7 @@ class Downloader extends GetxService {
     }
 
     _mergePending();
+    unawaited(SmartDownloads.claim(songList.map((s) => s.id)));
     playlistQueue[playlistId] = songList;
     songQueue.addAll(songList.where((s) => !songQueue.contains(s)));
 
@@ -215,6 +216,11 @@ class Downloader extends GetxService {
     final discovery = signal && Get.isRegistered<DiscoveryService>()
         ? Get.find<DiscoveryService>()
         : null;
+    // Asked for: yours, whatever Smart downloads thought of it.
+    if (signal) {
+      unawaited(SmartDownloads.claim(
+          songList?.map((s) => s.id) ?? [if (song != null) song.id]));
+    }
     if (songList != null) {
       songQueue.addAll(songList);
       for (final s in songList) {
@@ -498,6 +504,12 @@ class Downloader extends GetxService {
     final songTitle = "${song.title.trim()} (${song.artist?.trim()})"
         .replaceAll(invalidChar, "");
     String filePath = "$dirPath/$songTitle.$actualDownformat";
+    // Another song of the same title and artist (an album version and the
+    // single) keeps its own file: named apart by id.
+    if (Hive.box("SongDownloads").values.any(
+        (v) => v is Map && v['videoId'] != song.id && v['url'] == filePath)) {
+      filePath = "$dirPath/$songTitle ${song.id}.$actualDownformat";
+    }
     printINFO("Downloading filePath: $filePath");
     final totalBytes = requiredAudioStream.size;
 

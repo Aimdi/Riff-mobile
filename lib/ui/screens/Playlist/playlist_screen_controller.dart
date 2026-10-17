@@ -22,6 +22,7 @@ import '../../../models/media_Item_builder.dart';
 import '../../../models/playlist.dart';
 import '../../../utils/content_filters.dart';
 import '../../../utils/hive_boxes.dart';
+import '/ui/player/player_controller.dart';
 import '../../../services/music_service.dart';
 import '../../../services/piped_service.dart';
 import '../../../services/m3u_playlist_import.dart';
@@ -450,6 +451,12 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
   Future<void> updateSongsIntoDb() async {
     final songsBox = await Hive.openBox(playlist.value.playlistId);
     final songListCopy = songList.toList();
+    if (playlist.value.playlistId == HiveBoxes.libFav) {
+      // Kept by song id, not position (the hearts look them up by id).
+      await HiveBoxes.writeFavorites(
+          songsBox, songListCopy.map(MediaItemBuilder.toJson).toList());
+      return;
+    }
     await songsBox.clear();
     // One batched write instead of one disk flush per song (up to thousands).
     await songsBox.putAll({
@@ -503,6 +510,14 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
       }
     }
     songList.removeWhere((song) => removeIds.contains(song.id));
+    // Unliked in Favorites: unliked everywhere (YouTube Music, Spotify,
+    // the hearts), or like sync would bring them back.
+    if (id == HiveBoxes.libFav && Get.isRegistered<PlayerController>()) {
+      for (final song in songs) {
+        await Get.find<PlayerController>()
+            .toggleFavouriteFor(song, adding: false);
+      }
+    }
     // Shared box (Hive hands every caller the same instance): never close
     // it here, or the player and other screens using it fail mid-write.
 

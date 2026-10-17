@@ -42,6 +42,7 @@ import '/services/smart_queue_service.dart';
 import '/services/track_analysis_service.dart';
 import '/ui/home.dart';
 import '/ui/player/player_controller.dart';
+import '/utils/hive_boxes.dart';
 import '/ui/widgets/player_shortcuts.dart';
 import 'ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/utils/theme_controller.dart';
@@ -320,6 +321,9 @@ initHiveCritical() async {
 Future<void> initHiveDeferred() async {
   await Future.wait([
     safeOpenBox("PodcastSubs"),
+    // Opened here so Favorites keyed by position (an older reorder or
+    // Undo) are put back under song ids before anything reads a heart.
+    HiveBoxes.fav(),
     safeOpenBox(PendingDownloads.boxName),
     safeOpenBox(PodcastService.feedMemoBox),
     safeOpenBox("DailyStats"),

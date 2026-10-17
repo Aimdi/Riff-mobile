@@ -9,6 +9,21 @@
   page; searching again moves the search to the top of Recent searches
   instead of leaving it where it was; and the hint under them says what
   a tap does
+* Favorites: removing a song and tapping Undo no longer empties every
+  heart in the app (Favorites already affected are put right when Riff
+  starts); a song removed from Favorites is unliked on YouTube Music too,
+  so like sync doesn't bring it back
+* Smart downloads no longer delete a song you downloaded yourself (on an
+  album or playlist) when it drops out of your most played, and songs it
+  had picked no longer get skipped when you download them on mobile data
+* Two songs with the same title and artist (an album version and the
+  single) are downloaded into separate files instead of one overwriting
+  the other
+* YouTube Music like sync: one like YouTube refuses no longer holds up
+  all the others; liking a song on the phone no longer tries to like it
+  on YouTube; unliking while the like was still being sent isn't lost
+* Remove downloaded songs also stops the downloads still waiting, which
+  used to fill the space again
 
 # 1.7.153
 
