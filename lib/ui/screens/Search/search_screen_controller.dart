@@ -6,12 +6,19 @@ import 'package:hive/hive.dart';
 
 import '/utils/app_link_controller.dart' show ProcessLink;
 import '/utils/helper.dart' show printERROR;
+import '/services/explicit_content.dart';
 import '/services/music_service.dart';
+import '/services/search_recents.dart';
+import '/services/search_suggestions.dart';
 
 class SearchScreenController extends GetxController with ProcessLink {
   final textInputController = TextEditingController();
   final musicServices = Get.find<MusicServices>();
   final suggestionList = [].obs;
+
+  /// The songs, artists, albums and playlists YouTube Music suggests for
+  /// what's typed, to play or open straight away.
+  final suggestedItems = <Object>[].obs;
   final historyQuerylist = [].obs;
   late Box<dynamic> queryBox;
   final urlPasted = false.obs;
@@ -40,6 +47,7 @@ class SearchScreenController extends GetxController with ProcessLink {
     _suggestionDebounce?.cancel();
     if (text.isEmpty) {
       suggestionList.clear();
+      suggestedItems.clear();
       return;
     }
     _suggestionDebounce = Timer(const Duration(milliseconds: 350), () {
@@ -49,9 +57,9 @@ class SearchScreenController extends GetxController with ProcessLink {
 
   Future<void> _fetchSuggestions(String text) async {
     final gen = ++_suggestionGen;
-    final List<String> results;
+    final SearchSuggestions results;
     try {
-      results = await musicServices.getSearchSuggestion(text);
+      results = await musicServices.getSearchSuggestions(text);
     } catch (e) {
       // Offline or a bad reply: keep what is shown. This runs from a timer,
       // so a throw here was an uncaught error on every debounced keystroke.
@@ -60,7 +68,11 @@ class SearchScreenController extends GetxController with ProcessLink {
     }
     if (isClosed || gen != _suggestionGen) return;
     if (textInputController.text != text) return;
-    suggestionList.value = results;
+    // Copies: clearing them later mustn't empty (or, for a const list,
+    // throw on) the answer's own lists. Explicit songs left out when
+    // explicit content is off, as suggestions leave them out.
+    suggestionList.value = List.of(results.queries);
+    suggestedItems.value = ExplicitContent.filter(List.of(results.items));
   }
 
   Future<void> suggestionInput(String txt) async {
@@ -73,6 +85,8 @@ class SearchScreenController extends GetxController with ProcessLink {
   }
 
   Future<void> addToHistryQueryList(String txt) async {
+    // Search history paused: nothing kept.
+    if (SearchRecents.paused.value) return;
     // Only a new query makes room: searching one already in the history
     // used to drop the oldest entry anyway, shrinking the list.
     if (!historyQuerylist.contains(txt)) {
@@ -94,6 +108,7 @@ class SearchScreenController extends GetxController with ProcessLink {
     urlPasted.value = false;
     textInputController.text = "";
     suggestionList.clear();
+    suggestedItems.clear();
   }
 
   Future<void> removeQueryFromHistory(String txt) async {

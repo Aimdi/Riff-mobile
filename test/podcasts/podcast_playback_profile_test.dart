@@ -132,6 +132,22 @@ void main() {
   });
 
   group('smart resume', () {
+    test('steps back in podcasts and audiobooks, not music', () {
+      expect(smartResumeApplies(const MediaItem(id: 'podcast_1', title: 'Ep')),
+          isTrue);
+      expect(
+          smartResumeApplies(const MediaItem(
+              id: 'dQw4w9WgXcQ', title: 'Ep', extras: {'isPodcast': true})),
+          isTrue);
+      expect(smartResumeApplies(const MediaItem(id: 'abs_1', title: 'Book')),
+          isTrue);
+      expect(smartResumeApplies(const MediaItem(id: 'lv_1', title: 'Book')),
+          isTrue);
+      expect(
+          smartResumeApplies(const MediaItem(id: 'dQw4w9WgXcQ', title: 'Song')),
+          isFalse);
+    });
+
     test('rewind steps by pause length', () {
       expect(smartResumeRewind(const Duration(seconds: 4)), Duration.zero);
       expect(smartResumeRewind(const Duration(seconds: 5)),
@@ -165,6 +181,14 @@ void main() {
       expect(sleepFadeFactor(const Duration(seconds: 5), len), 0.5);
       expect(sleepFadeFactor(const Duration(seconds: 12), len), 0.0);
       expect(sleepFadeFactor(Duration.zero, Duration.zero), 0.0);
+    });
+
+    test('everything fades except video mode and a playlist Mix', () {
+      // Music, podcasts and audiobooks all fade now (it used to be podcasts
+      // only, so music stopped dead).
+      expect(sleepFadeApplies(videoMode: false, mixActive: false), isTrue);
+      expect(sleepFadeApplies(videoMode: true, mixActive: false), isFalse);
+      expect(sleepFadeApplies(videoMode: false, mixActive: true), isFalse);
     });
 
     test('wall-clock time accounts for playback speed', () {

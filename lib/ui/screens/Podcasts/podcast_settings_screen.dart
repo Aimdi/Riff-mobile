@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '/ui/theme/riff_spacing.dart';
+import '/services/headphone_controls.dart';
+import '/services/new_episode_alerts.dart';
 import '/services/podcast_playback_profile.dart';
+import '/ui/widgets/snackbar.dart';
 import '../../widgets/cust_switch.dart';
 import '../Home/home_layout.dart';
 import '/ui/player/components/podcast_player_tint.dart';
@@ -57,6 +61,10 @@ class PodcastSettingsScreen extends StatelessWidget {
                   const PodcastSegmentSettings(),
                   const Divider(height: _groupGap),
                   const PodcastLibrarySettings(),
+                  if (NewEpisodeAlerts.available) ...[
+                    const Divider(height: _groupGap),
+                    const NewEpisodeAlertsSetting(),
+                  ],
                   const Divider(height: _groupGap),
                   Text('podcastPlayerLook'.tr,
                       style: homeSectionTitleStyle(context)),
@@ -110,12 +118,150 @@ class PodcastSettingsScreen extends StatelessWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(height: RiffSpacing.lg),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('pauseForInterruptions'.tr,
+                                style: Theme.of(context).textTheme.bodyLarge),
+                            const SizedBox(height: RiffSpacing.xxs),
+                            Text('pauseForInterruptionsDes'.tr,
+                                style: homeCardSubtitleStyle(context)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: RiffSpacing.md),
+                      CustSwitch(
+                        value: PodcastPlaybackPrefs.pauseForInterruptions,
+                        onChanged:
+                            PodcastPlaybackPrefs.setPauseForInterruptions,
+                      ),
+                    ],
+                  ),
+                  const Divider(height: _groupGap),
+                  const HeadphoneButtonsSetting(),
                 ],
               );
             }),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Headphone buttons, as Pocket Casts' Headphone controls: what a
+/// headphone's (or a car's) next and previous do in an episode.
+class HeadphoneButtonsSetting extends StatelessWidget {
+  const HeadphoneButtonsSetting({super.key});
+
+  /// [action] as next ([next]) or previous does it.
+  static String label(HeadphoneAction action, {required bool next}) =>
+      switch (action) {
+        HeadphoneAction.skip => (next ? 'skipForward' : 'skipBack').tr,
+        HeadphoneAction.chapter =>
+          (next ? 'nextChapter' : 'previousChapter').tr,
+        HeadphoneAction.bookmark => 'addBookmark'.tr,
+        HeadphoneAction.episode =>
+          (next ? 'nextEpisode' : 'previousEpisode').tr,
+      };
+
+  Widget _button(BuildContext context, {required bool next}) {
+    final theme = Theme.of(context);
+    return MergeSemantics(
+      child: Row(
+        children: [
+          Expanded(
+            child: Text((next ? 'next' : 'previous').tr,
+                style: theme.textTheme.bodyLarge),
+          ),
+          DropdownButton<HeadphoneAction>(
+            dropdownColor: theme.colorScheme.surfaceContainerLow,
+            underline: const SizedBox.shrink(),
+            value: next ? HeadphoneControls.next : HeadphoneControls.previous,
+            items: [
+              for (final action in HeadphoneAction.values)
+                DropdownMenuItem(
+                    value: action, child: Text(label(action, next: next))),
+            ],
+            onChanged: (action) {
+              if (action != null) HeadphoneControls.set(action, next: next);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('headphoneButtons'.tr, style: homeSectionTitleStyle(context)),
+        const SizedBox(height: RiffSpacing.xxs),
+        Text('headphoneButtonsDes'.tr, style: homeCardSubtitleStyle(context)),
+        const SizedBox(height: RiffSpacing.xs),
+        Obx(() {
+          HeadphoneControls.rev.value;
+          return Column(
+            children: [
+              _button(context, next: true),
+              _button(context, next: false),
+            ],
+          );
+        }),
+      ],
+    );
+  }
+}
+
+/// New-episode notifications (Android): off until switched on, which asks
+/// for the permission to notify first.
+class NewEpisodeAlertsSetting extends StatelessWidget {
+  const NewEpisodeAlertsSetting({super.key});
+
+  Future<void> _set(BuildContext context, bool on) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final theme = Theme.of(context);
+    if (await NewEpisodeAlerts.setEnabled(on)) return;
+    // Refused: where to allow it.
+    messenger.showSnackBar(themedSnackbar(theme, 'newEpisodeAlertsBlocked'.tr,
+        actionLabel: 'settings'.tr, onAction: openAppSettings));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('newEpisodes'.tr, style: homeSectionTitleStyle(context)),
+        const SizedBox(height: RiffSpacing.sm),
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('newEpisodeAlerts'.tr,
+                      style: Theme.of(context).textTheme.bodyLarge),
+                  const SizedBox(height: RiffSpacing.xxs),
+                  Text('newEpisodeAlertsDes'.tr,
+                      style: homeCardSubtitleStyle(context)),
+                ],
+              ),
+            ),
+            const SizedBox(width: RiffSpacing.md),
+            Obx(() => CustSwitch(
+                  value: NewEpisodeAlerts.enabled.value,
+                  onChanged: (on) => _set(context, on),
+                )),
+          ],
+        ),
+      ],
     );
   }
 }

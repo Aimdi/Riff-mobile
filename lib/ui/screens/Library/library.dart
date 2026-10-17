@@ -8,12 +8,16 @@ import '/models/media_Item_builder.dart';
 import '/models/playlist.dart';
 import '/models/playling_from.dart';
 import '/services/cloud_music_service.dart';
+import '/services/device_music.dart';
 import '/services/discovery/discovery_tag.dart';
 import '/services/discovery/discovery_types.dart';
 import '/services/spotify_auth_service.dart';
+import '/services/library_view_mode.dart';
+import '/services/playlist_folders.dart';
 import '/ui/screens/Plugins/spotify_pages.dart';
 import '../../navigator.dart';
 import '../../player/play_queue_order.dart';
+import '../../player/library_list_source.dart';
 import '../../player/player_controller.dart';
 import '../../utils/riff_tokens.dart';
 import '../../utils/theme_controller.dart';
@@ -27,6 +31,7 @@ import '../../widgets/list_widget.dart';
 import '../../widgets/riff_sheet.dart';
 import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
 import '../../widgets/snackbar.dart';
+import '../../widgets/song_list_tile.dart';
 import '../../widgets/sort_widget.dart';
 import '../Cloud/cloud_play.dart';
 import '../Cloud/cloud_screen.dart';
@@ -34,7 +39,10 @@ import '../Settings/settings_screen_controller.dart';
 import '../../theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '../Home/home_layout.dart';
+import '../Podcasts/podcast_empty_state.dart';
 import 'library_controller.dart';
+import 'library_pins.dart';
+import 'playlist_folder_ui.dart';
 import '/ui/theme/riff_text_metrics.dart';
 import '/ui/widgets/riff_header_bar.dart';
 
@@ -52,21 +60,32 @@ class SongsLibraryWidget extends StatelessWidget {
         children: [
           Obx(() {
             final cloudMode = libSongsController.showCloudSongs.value;
-            final canPlay = shouldShowLibrarySongsPlayBar(
-              cloudMode: cloudMode,
-              songCount: libSongsController.librarySongsList.length,
-            );
+            final deviceMode = libSongsController.showDeviceSongs.value;
+            final canPlay = deviceMode
+                ? libSongsController.deviceSongs.isNotEmpty
+                : shouldShowLibrarySongsPlayBar(
+                    cloudMode: cloudMode,
+                    songCount: libSongsController.visibleSongs.length,
+                  );
             return LibraryHeader(
-              title: cloudMode ? "cloud".tr : "libSongs".tr,
+              title: deviceMode
+                  ? "onThisPhone".tr
+                  : cloudMode
+                      ? "cloud".tr
+                      : "libSongs".tr,
               actions: [
                 if (canPlay) ...[
                   IconButton(
                     tooltip: 'shuffle'.tr,
                     icon: const Icon(Icons.shuffle_rounded),
-                    onPressed: () => _playLibrarySongs(shuffle: true),
+                    onPressed: () => deviceMode
+                        ? _playDeviceSongs(shuffle: true)
+                        : _playLibrarySongs(shuffle: true),
                   ),
                   LibraryPlayButton(
-                      onPressed: () => _playLibrarySongs(shuffle: false)),
+                      onPressed: () => deviceMode
+                          ? _playDeviceSongs()
+                          : _playLibrarySongs(shuffle: false)),
                 ],
               ],
             );
@@ -74,21 +93,37 @@ class SongsLibraryWidget extends StatelessWidget {
           const _LibraryPinnedRow(),
           Obx(() {
             final cloudMode = libSongsController.showCloudSongs.value;
+            final deviceMode = libSongsController.showDeviceSongs.value;
             final cloud = Get.find<CloudMusicService>();
-            final count = cloudMode
-                ? (cloud.isConnected.value ? cloud.songs.length : 0)
-                : libSongsController.librarySongsList.length;
+            final downloadedOnly = libSongsController.downloadedOnly.value;
+            final count = deviceMode
+                ? libSongsController.deviceSongs.length
+                : cloudMode
+                    ? (cloud.isConnected.value ? cloud.songs.length : 0)
+                    : libSongsController.visibleSongs.length;
+            // The library's own songs: what search, sort and the rest act on.
+            final libraryMode = !cloudMode && !deviceMode;
             return SortWidget(
-              tag: "LibSongSort",
+              tag: LibrarySortTags.songs,
               screenController: libSongsController,
               itemCountTitle: "$count",
               itemIcon: Icons.music_note,
-              requiredSortTypes: buildSortTypeSet(true, true),
-              isSearchFeatureRequired: !cloudMode,
-              isSongDeletetioFeatureRequired: !cloudMode,
+              requiredSortTypes: {
+                ...buildSortTypeSet(true, true),
+                ...songOrderSortTypes,
+              },
+              isSearchFeatureRequired: libraryMode,
+              isSongDeletetioFeatureRequired: libraryMode,
+              isDownloadedFilterRequired: libraryMode,
+              isDownloadedOnly: downloadedOnly,
+              onDownloadedToggle: libSongsController.toggleDownloadedOnly,
               isCloudFeatureRequired: true,
               isCloudModeActive: cloudMode,
               onCloudToggle: () => libSongsController.toggleCloudSongs(),
+              isDeviceFeatureRequired: DeviceMusic.available,
+              isDeviceModeActive: deviceMode,
+              onDeviceToggle: () => libSongsController.toggleDeviceSongs(),
+              // The library's songs and the phone's, not the cloud's.
               onSort: (type, ascending) {
                 if (!cloudMode) {
                   libSongsController.onSort(type, ascending);
@@ -108,11 +143,20 @@ class SongsLibraryWidget extends StatelessWidget {
           }),
           Expanded(
             child: RiffScrollUnder(child: Obx(() {
+              if (libSongsController.showDeviceSongs.value) {
+                return const _DeviceSongsPane();
+              }
               if (libSongsController.showCloudSongs.value) {
                 return const _CloudSongsPane();
               }
               return GetX<LibrarySongsController>(builder: (controller) {
-                return controller.librarySongsList.isNotEmpty
+                final songs = controller.visibleSongs;
+                if (controller.downloadedOnly.isTrue &&
+                    songs.isEmpty &&
+                    controller.librarySongsList.isNotEmpty) {
+                  return EmptyPlayHint(message: "noDownloadedSongs".tr);
+                }
+                return songs.isNotEmpty
                     ? (controller.additionalOperationMode.value ==
                             OperationMode.none
                         // ListWidget returns an Expanded, so it needs a Flex
@@ -123,7 +167,7 @@ class SongsLibraryWidget extends StatelessWidget {
                             child: Column(
                               children: [
                                 ListWidget(
-                                  controller.librarySongsList,
+                                  songs,
                                   "library Songs",
                                   true,
                                   isPlaylistOrAlbum: true,
@@ -156,7 +200,7 @@ Future<void> _playLibrarySongs({required bool shuffle}) async {
       !Get.isRegistered<PlayerController>()) {
     return;
   }
-  final songs = Get.find<LibrarySongsController>().librarySongsList;
+  final songs = Get.find<LibrarySongsController>().visibleSongs;
   if (songs.isEmpty) return;
   final queue = playQueueFrom(songs, shuffle: shuffle);
   final ok = await Get.find<PlayerController>().playPlayListSong(
@@ -169,6 +213,67 @@ Future<void> _playLibrarySongs({required bool shuffle}) async {
     source: DiscoverySource.downloads,
   );
   if (!ok) _snackPlayFailed();
+}
+
+/// Plays the phone's music files, from [from] or shuffled.
+Future<void> _playDeviceSongs({int from = 0, bool shuffle = false}) async {
+  if (!Get.isRegistered<LibrarySongsController>() ||
+      !Get.isRegistered<PlayerController>()) {
+    return;
+  }
+  final songs = Get.find<LibrarySongsController>().deviceSongs.toList();
+  if (songs.isEmpty) return;
+  final ok = await Get.find<PlayerController>().playPlayListSong(
+    shuffle ? playQueueFrom(songs, shuffle: true) : songs,
+    shuffle ? 0 : from,
+    playfrom: PlaylingFrom(
+      type: PlaylingFromType.SELECTION,
+      name: 'onThisPhone'.tr,
+    ),
+    source: DiscoverySource.downloads,
+  );
+  if (!ok) _snackPlayFailed();
+}
+
+/// Songs › On this phone: the phone's music files, once Android lets Riff
+/// read them.
+class _DeviceSongsPane extends StatelessWidget {
+  const _DeviceSongsPane();
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = Get.find<LibrarySongsController>();
+    return Obx(() {
+      final songs = controller.deviceSongs.toList();
+      if (controller.deviceAccess.value == false) {
+        return PodcastEmptyState(
+          icon: Icons.phone_android_outlined,
+          message: 'deviceMusicAccess'.tr,
+          actionLabel: 'allowAccess'.tr,
+          actionIcon: Icons.lock_open_rounded,
+          onAction: () => controller.loadDeviceSongs(settings: true),
+        );
+      }
+      if (songs.isEmpty) {
+        return controller.deviceLoading.isTrue
+            ? const SongListShimmer(itemCount: 8, topPadding: RiffSpacing.md)
+            : PodcastEmptyState(
+                icon: Icons.phone_android_outlined,
+                message: 'noDeviceSongs'.tr,
+              );
+      }
+      return ListView.builder(
+        padding: const EdgeInsets.only(bottom: RiffSpacing.listEnd),
+        itemExtent: RiffComponentSizes.songRowExtent,
+        itemCount: songs.length,
+        itemBuilder: (context, i) => SongListTile(
+          key: ValueKey(songs[i].id),
+          song: songs[i],
+          onTap: () => _playDeviceSongs(from: i),
+        ),
+      );
+    });
+  }
 }
 
 /// Library tab title row: title on the left, tab actions on the right.
@@ -355,6 +460,51 @@ class _PlaylistNAlbumLibraryWidgetState
     super.dispose();
   }
 
+  /// What the tab lists: the albums, or the playlists with their folders
+  /// (playlists in a folder show in it, not here).
+  List<Object> _items(
+      LibraryAlbumsController albums, LibraryPlaylistsController playlists) {
+    if (isAlbumContent) return albums.libraryAlbums;
+    PlaylistFolders.rev.value;
+    return libraryPlaylistItems(
+        playlists.libraryPlaylists, PlaylistFolders.folders,
+        leading: (id) =>
+            isSystemLibraryPlaylistId(id) || LibraryPins.isPinned(id),
+        searching: playlists.tempListContainer.isNotEmpty);
+  }
+
+  /// One of [_items]: a folder's tile, or the album or playlist.
+  Widget _item(Object item, LibraryPlaylistsController playlists,
+          {required double size, bool asRow = false}) =>
+      item is PlaylistFolder
+          ? PlaylistFolderTile(
+              folder: item,
+              count: folderPlaylists(item, playlists.libraryPlaylists).length,
+              size: size,
+              asRow: asRow,
+            )
+          : ContentListItem(
+              content: item,
+              isLibraryItem: true,
+              size: size,
+              asRow: asRow,
+            );
+
+  /// The list view: one row per album, playlist or folder.
+  Widget _list(
+      LibraryAlbumsController albums, LibraryPlaylistsController playlists) {
+    final items = _items(albums, playlists);
+    return ListView.builder(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.only(
+          top: RiffSpacing.xs, bottom: RiffSpacing.listEnd),
+      controller: _gridScroll,
+      itemCount: items.length,
+      itemBuilder: (context, index) => _item(items[index], playlists,
+          size: RiffComponentSizes.rowArt, asRow: true),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final libralbumCntrller = Get.find<LibraryAlbumsController>();
@@ -376,18 +526,31 @@ class _PlaylistNAlbumLibraryWidgetState
                 PipedSyncWidget(
                   padding: EdgeInsets.only(right: size.width * .02),
                 ),
+              // Grid or list, as Spotify's Your Library switches.
+              Obx(() {
+                final list = LibraryViewMode.list.isTrue;
+                return IconButton(
+                  tooltip: (list ? 'showAsGrid' : 'showAsList').tr,
+                  icon: Icon(
+                      list ? Icons.grid_view_rounded : Icons.view_list_rounded),
+                  onPressed: () => LibraryViewMode.setList(!list),
+                );
+              }),
             ],
           ),
           Obx(
             () => isAlbumContent
                 ? SortWidget(
-                    tag: "LibAlbumSort",
+                    tag: LibrarySortTags.albums,
                     screenController: libralbumCntrller,
                     isAdditionalOperationRequired: false,
                     isSearchFeatureRequired: true,
                     itemCountTitle:
                         "${libralbumCntrller.libraryAlbums.length} ${"items".tr}",
-                    requiredSortTypes: buildSortTypeSet(true),
+                    requiredSortTypes: {
+                      ...buildSortTypeSet(true, false, true),
+                      SortType.Artist,
+                    },
                     onSort: (type, ascending) {
                       libralbumCntrller.onSort(type, ascending);
                     },
@@ -396,13 +559,13 @@ class _PlaylistNAlbumLibraryWidgetState
                     onSearchStart: libralbumCntrller.onSearchStart,
                   )
                 : SortWidget(
-                    tag: "LibPlaylistSort",
+                    tag: LibrarySortTags.playlists,
                     screenController: librplstCntrller,
                     isAdditionalOperationRequired: false,
                     isSearchFeatureRequired: true,
                     itemCountTitle:
                         "${librplstCntrller.libraryPlaylists.length} ${"items".tr}",
-                    requiredSortTypes: buildSortTypeSet(),
+                    requiredSortTypes: buildSortTypeSet(false, false, true),
                     onSort: (type, ascending) {
                       librplstCntrller.onSort(type, ascending);
                     },
@@ -413,47 +576,45 @@ class _PlaylistNAlbumLibraryWidgetState
                   ),
           ),
           Expanded(
-            child: RiffScrollUnder(
-                child: Obx(
-              () => (isAlbumContent
+            child: RiffScrollUnder(child: Obx(() {
+              // Folders change what the playlists are listed with (read
+              // here: the grid's builder runs outside this Obx).
+              PlaylistFolders.rev.value;
+              return (isAlbumContent
                       ? libralbumCntrller.libraryAlbums.isNotEmpty
                       : librplstCntrller.libraryPlaylists.isNotEmpty)
-                  ? LayoutBuilder(builder: (context, constraints) {
-                      final grid = libraryGridMetrics(constraints.maxWidth);
-                      return GridView.builder(
-                          physics: const BouncingScrollPhysics(),
-                          padding: const EdgeInsets.only(
-                              left: HomeLayout.gutter,
-                              top: RiffSpacing.sm,
-                              right: HomeLayout.gutter,
-                              bottom: RiffSpacing.listEnd),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: grid.columns,
-                            crossAxisSpacing: HomeLayout.cardGap,
-                            mainAxisSpacing: 14,
-                            mainAxisExtent:
-                                ContentListItem.heightFor(context, grid.cover),
-                          ),
-                          controller: _gridScroll,
-                          itemCount: isAlbumContent
-                              ? libralbumCntrller.libraryAlbums.length
-                              : librplstCntrller.libraryPlaylists.length,
-                          itemBuilder: (BuildContext context, int index) {
-                            return ContentListItem(
-                              content: isAlbumContent
-                                  ? libralbumCntrller.libraryAlbums[index]
-                                  : librplstCntrller.libraryPlaylists[index],
-                              isLibraryItem: true,
-                              size: grid.cover,
-                            );
-                          });
-                    })
+                  ? LibraryViewMode.list.isTrue
+                      ? _list(libralbumCntrller, librplstCntrller)
+                      : LayoutBuilder(builder: (context, constraints) {
+                          final grid = libraryGridMetrics(constraints.maxWidth);
+                          final items =
+                              _items(libralbumCntrller, librplstCntrller);
+                          return GridView.builder(
+                              physics: const BouncingScrollPhysics(),
+                              padding: const EdgeInsets.only(
+                                  left: HomeLayout.gutter,
+                                  top: RiffSpacing.sm,
+                                  right: HomeLayout.gutter,
+                                  bottom: RiffSpacing.listEnd),
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: grid.columns,
+                                crossAxisSpacing: HomeLayout.cardGap,
+                                mainAxisSpacing: 14,
+                                mainAxisExtent: ContentListItem.heightFor(
+                                    context, grid.cover),
+                              ),
+                              controller: _gridScroll,
+                              itemCount: items.length,
+                              itemBuilder: (BuildContext context, int index) =>
+                                  _item(items[index], librplstCntrller,
+                                      size: grid.cover));
+                        })
                   : EmptyPlayHint(
                       message: isAlbumContent
                           ? "noLibAlbums".tr
-                          : "noLibPlaylist".tr),
-            )),
+                          : "noLibPlaylist".tr);
+            })),
           )
         ],
       ),
@@ -475,7 +636,7 @@ class LibraryArtistWidget extends StatelessWidget {
           LibraryHeader(title: "libArtists".tr),
           Obx(
             () => SortWidget(
-              tag: "LibArtistSort",
+              tag: LibrarySortTags.artists,
               screenController: cntrller,
               isAdditionalOperationRequired: false,
               isSearchFeatureRequired: true,
@@ -663,17 +824,28 @@ class _LibraryPinnedRow extends StatelessWidget {
       _open(id, title);
       return;
     }
+    // Where it comes from, as its own page plays it: the player says so.
+    final from = PlaylingFrom(
+        type: PlaylingFromType.PLAYLIST,
+        name: title,
+        id: id,
+        item: libraryOwnList(id) ??
+            Playlist(
+                title: title,
+                playlistId: id,
+                thumbnailUrl: Playlist.thumbPlaceholderUrl,
+                isCloudPlaylist: false));
     if (shuffle) {
-      tracks.shuffle();
+      tracks.setAll(0, playQueueFrom(tracks, shuffle: true));
     } else if (id == 'LIBRP') {
       final ok = await Get.find<PlayerController>().playPlayListSong(
           tracks.reversed.toList(), 0,
-          source: sourceFromPlaylistId(id));
+          playfrom: from, source: sourceFromPlaylistId(id));
       if (!ok) _snackPlayFailed();
       return;
     }
-    final ok = await Get.find<PlayerController>()
-        .playPlayListSong(tracks, 0, source: sourceFromPlaylistId(id));
+    final ok = await Get.find<PlayerController>().playPlayListSong(tracks, 0,
+        playfrom: from, source: sourceFromPlaylistId(id));
     if (!ok) _snackPlayFailed();
   }
 

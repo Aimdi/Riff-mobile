@@ -12,30 +12,54 @@ import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:audio_session/audio_session.dart';
 // ignore: depend_on_referenced_packages
 import 'package:rxdart/rxdart.dart';
 
 import '/models/album.dart';
 import '../models/playlist.dart';
 import '/services/equalizer.dart';
+import '/services/riff_equalizer.dart';
+import '/services/explicit_content.dart';
+import '/services/offline_playback.dart';
+import '/services/resume_when_online.dart';
+import '/services/saved_session.dart';
+import '/services/player_interruptions.dart';
+import '/services/spoken_audio_focus.dart';
+import '/services/podcast_starred.dart';
 import '/services/youtube_stream_headers.dart';
 import '/services/playlist_mix_service.dart';
+import '/services/audiobook_downloads.dart';
 import '/services/audiobookshelf_service.dart';
 import '/services/cloud_music_service.dart';
+import '/services/server_login.dart';
+import '/services/music_service.dart' show MusicServices;
+import '/services/podcast_inbox_counts.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/android_auto_paging.dart';
 import '/services/playback_hardening.dart';
+import '/services/media_button_presses.dart';
+import '/services/headphone_controls.dart';
 import '/services/podcast_service.dart';
+import '/services/chapter_now_playing.dart';
 import '/ui/widgets/podcast_play.dart' show podcastEpisodeToMediaItem;
+import '/services/audiobook_playback.dart';
 import '/services/podcast_playback_profile.dart';
 import '/models/media_item_extras.dart';
+import '/services/now_playing_controls.dart';
+import '/services/queue_undo.dart';
+import '/services/normalization_level.dart';
+import '/services/own_loudness.dart';
 import '/services/shuffle_order.dart';
+import '/services/song_fade.dart';
 import '/services/stream_service.dart';
+import '/services/network_kind.dart';
 import '/ui/screens/Podcasts/podcast_queue_controller.dart';
 import '/models/hm_streaming_data.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/player/radio_continuation.dart';
 import '/ui/player/video_mode_controller.dart';
+import '/ui/screens/Search/search_play_top.dart' show songsFromSearchResult;
 import '../ui/screens/Home/home_screen_controller.dart';
 import '/services/background_task.dart';
 import '/services/client_config_service.dart';
@@ -45,19 +69,30 @@ import '/services/play_runtime_error.dart';
 import '/ui/player/video_handoff.dart';
 import '../utils/helper.dart';
 import '/models/media_Item_builder.dart';
+import '/utils/hive_boxes.dart';
 import '/utils/songs_url_cache.dart';
 import '../ui/screens/Settings/settings_screen_controller.dart';
 import '../ui/screens/Library/library_controller.dart';
 
 Future<AudioHandler> initAudioService() async {
+  // On Linux the MPRIS backend uses the channel name as the player identity
+  // and the channel id in its D-Bus name, so media keys and desktop widgets
+  // show "Riff". Android keeps its existing notification channel.
+  final linux = GetPlatform.isLinux;
   return await AudioService.init(
     builder: () => MyAudioHandler(),
-    config: const AudioServiceConfig(
+    config: AudioServiceConfig(
       androidNotificationIcon: 'drawable/ic_stat_riff',
-      androidNotificationChannelId: 'com.mycompany.myapp.audio',
-      androidNotificationChannelName: 'Harmony Music Notification',
+      androidNotificationChannelId:
+          linux ? 'riff' : 'com.mycompany.myapp.audio',
+      androidNotificationChannelName:
+          linux ? 'Riff' : 'Harmony Music Notification',
       androidNotificationOngoing: true,
       androidStopForegroundOnPause: true,
+      // Android Auto shows its search button.
+      androidBrowsableRootExtras: const {
+        'android.media.browse.SEARCH_SUPPORTED': true,
+      },
     ),
   );
 }
@@ -95,7 +130,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   int? _podcastLoudnessMb;
 
   /// When the current podcast episode was paused, for smart resume.
-  DateTime? _podcastPausedAt;
+  DateTime? _longFormPausedAt;
 
   /// Bumped to cancel a running sleep-timer fade.
   int _sleepFadeToken = 0;
@@ -122,6 +157,14 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   int _watchdogTicks = 0;
   bool _mixTransitionInProgress = false;
   bool _startMutedForMix = false;
+
+  /// Fade between songs: while it has the volume lowered, the level it
+  /// plays at otherwise.
+  double? _songFadeBase;
+
+  /// The song fading in after the one before faded out, and over how long.
+  String? _songFadeInId;
+  int _songFadeInMs = 0;
   /// Song id we already near-end-prefetched, so the 45s listener fires once.
   String? _prefetchArmedForId;
   /// Song id we already EOF-advanced, so position ticks cannot double-skip.
@@ -134,6 +177,31 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   int _streamRetryCount = 0;
   static const int _maxStreamUrlRetries = 2;
   bool _runtimeErrorInFlight = false;
+
+  /// Where playback stopped for want of a connection, to go on from there
+  /// once it's back.
+  final _resumeOnline = ResumeWhenOnline();
+
+  /// A call, another app, unplugged headphones.
+  late final _interruptions = PlayerInterruptions(
+    playing: () => _player.playing,
+    play: _player.play,
+    pause: _player.pause,
+    pauseOnUnplug: () =>
+        !Hive.isBoxOpen('AppPrefs') ||
+        Hive.box('AppPrefs').get('pauseOnHeadsetDisconnect') != false,
+  );
+
+  /// An episode or a book pauses for a navigation prompt or a notification
+  /// sound; music plays on quieter under them.
+  late final _spokenFocus = SpokenAudioFocus(
+    configure: (configuration) async =>
+        (await AudioSession.instance).configure(configuration),
+    setActive: (active) async =>
+        (await AudioSession.instance).setActive(active),
+    playing: () => _player.playing,
+    pauseForInterruptions: () => PodcastPlaybackPrefs.pauseForInterruptions,
+  );
 
   /// Consecutive playByIndex resolve failures. Reset when playback is ready
   /// so a later dead track can still skip once without looping the queue.
@@ -148,27 +216,45 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   MyAudioHandler() {
     if (GetPlatform.isWindows || GetPlatform.isLinux) {
-      JustAudioMediaKit.title = 'Harmony music';
+      JustAudioMediaKit.title = 'Riff';
       JustAudioMediaKit.protocolWhitelist = const ['http', 'https', 'file'];
     }
     _mediaLibrary = MediaLibrary();
     _player = AudioPlayer(
+        // Calls, other apps and unplugging: PlayerInterruptions, so Pause
+        // on headset disconnect can be turned off.
+        handleInterruptions: false,
         audioLoadConfiguration: const AudioLoadConfiguration(
             androidLoadControl: AndroidLoadControl(
-      minBufferDuration: Duration(seconds: 50),
-      maxBufferDuration: Duration(seconds: 120),
-      bufferForPlaybackDuration: Duration(milliseconds: 50),
-      bufferForPlaybackAfterRebufferDuration: Duration(seconds: 2),
-    )));
+          minBufferDuration: Duration(seconds: 50),
+          maxBufferDuration: Duration(seconds: 120),
+          bufferForPlaybackDuration: Duration(milliseconds: 50),
+          bufferForPlaybackAfterRebufferDuration: Duration(seconds: 2),
+        )));
     _cacheDirReady = _createCacheDir();
     _addEmptyList();
     _notifyAudioHandlerAboutPlaybackEvents();
     _listenToPlaybackForNextSong();
+    // The playing episode starred or unstarred anywhere: its star follows.
+    ever(StarredEpisodes.rev, (_) {
+      if (mediaItem.value?.isPodcastEpisode ?? false) _publishPlaybackState();
+    });
+    // The connection back: what stopped for want of it goes on.
+    ever(OfflinePlayback.offline, (bool offline) {
+      if (!offline) unawaited(_resumeWhenBackOnline());
+    });
+    unawaited(_followInterruptions());
+    // Speech or music: how it gives way to a navigation prompt.
+    if (GetPlatform.isAndroid) {
+      mediaItem.listen((item) => unawaited(_spokenFocus.follow(item)));
+      ever(PodcastPlaybackPrefs.rev,
+          (_) => unawaited(_spokenFocus.follow(mediaItem.value)));
+    }
     final appPrefsBox = Hive.box("AppPrefs");
     _player
         .setSkipSilenceEnabled(appPrefsBox.get("skipSilenceEnabled") ?? false);
     _player.setSpeed((appPrefsBox.get("playbackSpeed") ?? 1.0).toDouble());
-    _player.setPitch((appPrefsBox.get("playbackPitch") ?? 1.0).toDouble());
+    _setPitch((appPrefsBox.get("playbackPitch") ?? 1.0).toDouble());
     loopModeEnabled = appPrefsBox.get("isLoopModeEnabled") ?? false;
     shuffleModeEnabled = appPrefsBox.get("isShuffleModeEnabled") ?? false;
     queueLoopModeEnabled =
@@ -209,12 +295,73 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   }
 
   /// Headset / Bluetooth buttons arrive here; whatever they trigger is
-  /// tagged [PlaybackCommandSource.system].
+  /// tagged [PlaybackCommandSource.system]. The play/pause button's presses
+  /// are counted first, as Android's own media sessions count them: twice
+  /// goes on, three times goes back (mediaButtonAction).
   @override
   Future<void> click([MediaButton button = MediaButton.media]) async {
+    if (button == MediaButton.media) {
+      _buttonPresses.press();
+      return;
+    }
+    final item = mediaItem.value;
+    await _asMediaButton(() => _buttonAction(mediaButtonPressed(button,
+        longForm: _playingLongForm,
+        podcast: item?.isPodcastEpisode ?? false,
+        nextAction: HeadphoneControls.next,
+        previousAction: HeadphoneControls.previous)));
+  }
+
+  late final _buttonPresses = MediaButtonPresses(_onButtonPresses);
+
+  void _onButtonPresses(int presses) {
+    final action = mediaButtonAction(presses,
+        longForm: _playingLongForm,
+        podcast: mediaItem.value?.isPodcastEpisode ?? false,
+        nextAction: HeadphoneControls.next,
+        previousAction: HeadphoneControls.previous);
+    // From a timer, not audio_service's call: its errors are ours to catch.
+    unawaited(_asMediaButton(() => _buttonAction(action))
+        .catchError((Object e) => printERROR('Media button: $e')));
+  }
+
+  /// A podcast episode or an audiobook is playing.
+  bool get _playingLongForm {
+    final item = mediaItem.value;
+    return item != null && (item.isPodcastEpisode || item.isAudiobook);
+  }
+
+  Future<void> _buttonAction(MediaButtonAction action) => switch (action) {
+        MediaButtonAction.playPause => super.click(),
+        MediaButtonAction.next => skipToNext(),
+        MediaButtonAction.previous => skipToPrevious(),
+        MediaButtonAction.skipForward => fastForward(),
+        MediaButtonAction.skipBack => rewind(),
+        MediaButtonAction.nextChapter => _skipChapter(forward: true),
+        MediaButtonAction.previousChapter => _skipChapter(forward: false),
+        MediaButtonAction.bookmark => _bookmarkHere(),
+      };
+
+  /// Headphone buttons' chapters: the episode's next (or previous)
+  /// chapter; a skip when it has none to go to.
+  Future<void> _skipChapter({required bool forward}) async {
+    final player = Get.isRegistered<PlayerController>()
+        ? Get.find<PlayerController>()
+        : null;
+    if (player != null && player.skipChapter(forward: forward)) return;
+    await (forward ? fastForward() : rewind());
+  }
+
+  /// Headphone buttons' bookmark: the episode playing, where it is.
+  Future<void> _bookmarkHere() async {
+    if (!Get.isRegistered<PlayerController>()) return;
+    await Get.find<PlayerController>().bookmarkHere();
+  }
+
+  Future<void> _asMediaButton(Future<void> Function() run) async {
     _mediaButtonDepth++;
     try {
-      await super.click(button);
+      await run();
     } finally {
       _mediaButtonDepth--;
     }
@@ -352,24 +499,25 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     return true;
   }
 
-  /// Smart resume: remember when a podcast episode stopped playing (any
-  /// cause: pause button, notification, headset, audio focus); forget it
-  /// once playback runs again.
+  /// Smart resume: remember when a podcast episode or audiobook stopped
+  /// playing (any cause: pause button, notification, headset, audio
+  /// focus); forget it once playback runs again.
   void _listenForPodcastPauses() {
     _player.playingStream.listen((playing) {
       if (playing) {
-        _podcastPausedAt = null;
+        _longFormPausedAt = null;
         return;
       }
       final item = mediaItem.value;
-      if (item == null || !item.isPodcastEpisode || isSongLoading) return;
+      if (item == null || !smartResumeApplies(item) || isSongLoading) return;
       if (_player.processingState == ProcessingState.completed) return;
-      _podcastPausedAt ??= DateTime.now();
+      _longFormPausedAt ??= DateTime.now();
     });
   }
 
   /// Podcast playback profile (speed, trim silence, voice boost) for
-  /// [item]; any other item gets music's own settings back.
+  /// [item]; any other item gets music's own settings back, except that
+  /// audiobooks keep their own speed.
   Future<void> _applyPlaybackProfile(MediaItem? item) async {
     try {
       if (item != null && item.isPodcastEpisode) {
@@ -386,8 +534,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
       } else {
         final prefs = Hive.box("AppPrefs");
-        await _player
-            .setSpeed((prefs.get("playbackSpeed") ?? 1.0).toDouble());
+        await _player.setSpeed(item != null && item.isAudiobook
+            ? AudiobookPlayback.speed
+            : (prefs.get("playbackSpeed") ?? 1.0).toDouble());
         await _player
             .setSkipSilenceEnabled(prefs.get("skipSilenceEnabled") ?? false);
         if (_podcastLoudnessMb != null) {
@@ -400,15 +549,25 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     }
   }
 
-  /// Notification / headset skip for podcast episodes, by the show's
-  /// skip lengths. Music keeps the handler default (nothing).
-  Future<void> _podcastSkip(
+  /// Notification / headset skip for podcast episodes (by the show's skip
+  /// lengths) and audiobooks. Music keeps the handler default (nothing).
+  Future<void> _longFormSkip(
       {required bool forward, required PlaybackCommandSource source}) async {
     final item = mediaItem.value;
-    if (item == null || !item.isPodcastEpisode) return;
-    final p = PodcastPlaybackPrefs.forItem(item);
-    var target = _player.position +
-        Duration(seconds: forward ? p.skipForwardSec : -p.skipBackSec);
+    if (item == null) return;
+    final int seconds;
+    if (item.isPodcastEpisode) {
+      final p = PodcastPlaybackPrefs.forItem(item);
+      seconds = forward ? p.skipForwardSec : p.skipBackSec;
+    } else if (item.isAudiobook) {
+      seconds = forward
+          ? AudiobookPlayback.skipForwardSec
+          : AudiobookPlayback.skipBackSec;
+    } else {
+      return;
+    }
+    var target =
+        _player.position + Duration(seconds: forward ? seconds : -seconds);
     final total = _player.duration;
     if (target.isNegative) target = Duration.zero;
     if (total != null && target > total) target = total;
@@ -417,11 +576,11 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   @override
   Future<void> fastForward() =>
-      _podcastSkip(forward: true, source: _externalSource());
+      _longFormSkip(forward: true, source: _externalSource());
 
   @override
   Future<void> rewind() =>
-      _podcastSkip(forward: false, source: _externalSource());
+      _longFormSkip(forward: false, source: _externalSource());
 
   Future<void> _createCacheDir() async {
     _cacheDir = (await getTemporaryDirectory()).path;
@@ -439,6 +598,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   }
 
   static const _fxChannel = MethodChannel('riff/newpipe');
+
+  /// The desktop (mpv) player is created without pitch support, so a pitch
+  /// change throws there; desktop keeps the original pitch instead.
+  Future<void> _setPitch(double pitch) async {
+    if (GetPlatform.isDesktop) return;
+    await _player.setPitch(pitch);
+  }
 
   void _listenSessionIdStream() {
     _player.androidAudioSessionIdStream.listen((int? id) {
@@ -462,6 +628,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       'loudnessMb': _effectiveLoudnessMb(box.get("volumeBoostMb")),
       'reverb': box.get("reverbPreset") ?? 0,
       'virtualizer': box.get("virtualizer") ?? 0,
+      'eqEnabled': RiffEqualizer.enabled,
+      'eqLevels': RiffEqualizer.levelsMb,
     });
   }
 
@@ -493,26 +661,55 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     });
   }
 
+  /// The app's last word on whether the playing song is liked (see
+  /// [nowPlayingLiked]); set through the 'setLiked' custom action.
+  String? _likedReportId;
+  bool _likedReport = false;
+
+  /// Repeat as the player's button has it: 0 off, 1 all (the queue loops),
+  /// 2 one (it wins over the queue loop).
+  int get _repeatState => loopModeEnabled
+      ? 2
+      : queueLoopModeEnabled
+          ? 1
+          : 0;
+
   /// Media session state from the player's real state (notification,
   /// Android Auto, lock screen and the app's UI all read it).
   void _publishPlaybackState() {
       final playing = _player.playing;
-      final podcast = mediaItem.value?.isPodcastEpisode ?? false;
+      final item = mediaItem.value;
+      final longForm =
+          item != null && (item.isPodcastEpisode || item.isAudiobook);
       playbackState.add(playbackState.value.copyWith(
-        // Podcast episodes: skip back / forward by the show's lengths
-        // (rewind / fastForward). Music keeps previous / next.
-        controls: podcast
-            ? [
-                MediaControl.rewind,
-                if (playing) MediaControl.pause else MediaControl.play,
-                MediaControl.fastForward,
-                MediaControl.skipToNext,
-              ]
-            : [
-                MediaControl.skipToPrevious,
-                if (playing) MediaControl.pause else MediaControl.play,
-                MediaControl.skipToNext,
-              ],
+        // Podcast episodes and audiobooks: skip back / forward (rewind /
+        // fastForward) by the show's lengths or the book's. Music keeps
+        // previous / next, plus the like heart.
+        controls: nowPlayingControls(
+          longForm: longForm,
+          playing: playing,
+          canLike: item != null && !longForm,
+          liked: nowPlayingLiked(
+            currentId: item?.id,
+            reportedId: _likedReportId,
+            reportedLiked: _likedReport,
+            stored: HiveBoxes.favContains,
+          ),
+          likeLabel: 'addToFavorites'.tr,
+          unlikeLabel: 'removeFromFavorites'.tr,
+          shuffle: shuffleModeEnabled,
+          repeat: _repeatState,
+          shuffleLabel:
+              (shuffleModeEnabled ? 'disableShuffle' : 'enableShuffle').tr,
+          repeatLabel:
+              const ['repeatAll', 'repeatOne', 'disableRepeat'][_repeatState]
+                  .tr,
+          podcast: item?.isPodcastEpisode ?? false,
+          starred: item != null && StarredEpisodes.isStarred(item.id),
+          starLabel: 'starEpisode'.tr,
+          unstarLabel: 'unstarEpisode'.tr,
+          markPlayedLabel: 'markAsPlayed'.tr,
+        ),
         systemActions: const {
           MediaAction.seek,
         },
@@ -559,6 +756,21 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     _runtimeErrorInFlight = true;
     final songId = _currentQueueSongId();
     try {
+      // No connection at all: wait for it, rather than spend the retries
+      // and pass the songs after over; it goes on from here once it's
+      // back.
+      if (songId != null &&
+          OfflinePlayback.offline.value &&
+          !OfflinePlayback.byChoice) {
+        try {
+          await _player.pause();
+        } catch (_) {}
+        _resumeOnline.stopped(songId, position, DateTime.now());
+        if (Get.isRegistered<PlayerController>()) {
+          Get.find<PlayerController>().notifyOffline();
+        }
+        return true;
+      }
       if (isPlayingUsingLockCachingSource &&
           isCacheConnectionClosedError(e)) {
         await _player.stop();
@@ -614,6 +826,19 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     } finally {
       _runtimeErrorInFlight = false;
     }
+  }
+
+  /// The connection is back: playback that stopped for want of it goes on
+  /// from where it stopped ([ResumeWhenOnline]).
+  Future<void> _resumeWhenBackOnline() async {
+    final at = _resumeOnline.take(DateTime.now(), playing: _player.playing);
+    if (at == null) return;
+    final index = queue.value.indexWhere((song) => song.id == at.id);
+    if (index < 0) return;
+    await customAction('playByIndex', {
+      'index': index,
+      if (at.position > Duration.zero) 'position': at.position.inMilliseconds,
+    });
   }
 
   bool _canAutoRetryUrlRefresh(String? songId) {
@@ -727,13 +952,22 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
       if (_mixTransitionInProgress) return;
 
-      final remainingMs = durationMs - posMs;
+      _songFadeTick(posMs, durationMs - playerDurationOffset);
+
+      // A show that skips its outro ends the episode where it begins.
+      final outroCut = _podcastOutroCutMs(durationMs);
+
+      final remainingMs = (outroCut ?? durationMs) - posMs;
       if (remainingMs > 0 && remainingMs < 45000) {
         final id = mediaItem.value?.id;
         if (id != null && _prefetchArmedForId != id) {
           _prefetchArmedForId = id;
           prefetchNextInQueue();
         }
+      }
+
+      if (outroCut != null && await _maybeEndAtOutro(posMs, outroCut)) {
+        return;
       }
 
       if (posMs >= (durationMs - playerDurationOffset)) {
@@ -743,6 +977,61 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
       }
     });
+  }
+
+  /// Where the playing episode ends when its show skips the outro, or null.
+  int? _podcastOutroCutMs(int durationMs) {
+    final item = mediaItem.value;
+    if (item == null || !item.isPodcastEpisode) return null;
+    return podcastOutroCutMs(
+        totalMs: durationMs, trim: PodcastPlaybackPrefs.trimForItem(item));
+  }
+
+  /// The episode an outro skip already ended, so ticks past the cut (paused
+  /// there when continuous playback is off) don't end it again.
+  String? _outroEndedForId;
+
+  /// Ends the playing episode at its show's outro ([cutMs]) as if it had
+  /// played out: marked played, then the usual end of an episode (the next
+  /// one, or a pause when continuous playback is off). Only while playing,
+  /// so scrubbing into the outro while paused doesn't skip.
+  Future<bool> _maybeEndAtOutro(int posMs, int cutMs) async {
+    final id = mediaItem.value?.id;
+    if (id == null) return false;
+    if (posMs < cutMs) {
+      // Played or sought back before the cut: it can end there again.
+      if (_outroEndedForId == id) _outroEndedForId = null;
+      return false;
+    }
+    if (!_player.playing || isSongLoading || _outroEndedForId == id) {
+      return false;
+    }
+    _outroEndedForId = id;
+    await _triggerNext();
+    // Only now: marking it played takes it out of the podcast Up Next,
+    // which _triggerNext reads to know what follows it.
+    PodcastProgressService.markPlayed(id);
+    return true;
+  }
+
+  /// Ends the playing episode now as if it had played out (the player's
+  /// Mark as played): the usual end of an episode, the next one or a pause
+  /// when continuous playback is off, even with repeat one on; then marked
+  /// played, as at its outro. Still on it, it waits from the start: saving
+  /// where it was, when another plays, would take the mark back.
+  Future<void> _finishEpisode() async {
+    final item = mediaItem.value;
+    if (item == null || !item.isPodcastEpisode) return;
+    // Already ending (it played out meanwhile): only the mark is left.
+    if (!_eofAdvanceInProgress) {
+      await _triggerNext(repeatOne: false);
+      if (mediaItem.value?.id == item.id) {
+        await _player.seek(Duration.zero);
+        // Played again from the start, its end ends it again.
+        _eofArmedForId = null;
+      }
+    }
+    PodcastProgressService.markPlayed(item.id);
   }
 
   bool _isMixPlaybackActive() {
@@ -785,11 +1074,101 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     await _player.setVolume(target.clamp(0.0, 1.0));
   }
 
-  Future<void> _triggerNext() async {
+  // ── Fade between songs ────────────────────────────────────────────────
+
+  /// The last seconds of a song fade out, the first ones of the song after
+  /// it fade in. The volume follows the position ([posMs] of a song that
+  /// ends at [endMs]), so a seek, pause, stall or speed change just moves
+  /// along the fade and can't leave the volume low.
+  void _songFadeTick(int posMs, int endMs) {
+    // A loading song's ticks are the last one's, and the sleep timer's
+    // fade has the volume meanwhile.
+    if (isSongLoading || _sleepFadeRestoreVolume != null) return;
+    final item = mediaItem.value;
+    var inMs = 0;
+    if (item != null && item.id == _songFadeInId) {
+      if (posMs < _songFadeInMs) {
+        inMs = _songFadeInMs;
+      } else {
+        _songFadeInId = null;
+      }
+    }
+    var outMs = item == null ? 0 : _songFadeLength(item, endMs);
+    // Not near the end yet; or repeat-one, a Mix (it has its own
+    // transitions), the last song of the queue or one its album's next
+    // track follows, which play out as they are.
+    if (outMs > 0 &&
+        (endMs - posMs >= outMs ||
+            loopModeEnabled ||
+            _isMixPlaybackActive() ||
+            !_hasNextSong() ||
+            _nextContinuesAlbum(item!))) {
+      outMs = 0;
+    }
+    final factor =
+        songFadeFactor(posMs: posMs, lengthMs: endMs, inMs: inMs, outMs: outMs);
+    if (factor == null) {
+      _endSongFade();
+      return;
+    }
+    final level = (_songFadeBase ??= _player.volume) * factor;
+    if ((_player.volume - level).abs() > 0.001) {
+      unawaited(_player.setVolume(level.clamp(0.0, 1.0)));
+    }
+  }
+
+  /// How long [item], [lengthMs] long, fades for: music only, podcasts and
+  /// audiobooks play as they are.
+  static int _songFadeLength(MediaItem item, int lengthMs) {
+    if (item.isPodcastEpisode || item.isAudiobook) return 0;
+    return songFadeMs(seconds: SongFade.seconds, lengthMs: lengthMs);
+  }
+
+  bool _hasNextSong() =>
+      currentIndex is int && _getNextSongIndex() != currentIndex;
+
+  /// The song after [item] is its album's next track (continuesAlbum).
+  bool _nextContinuesAlbum(MediaItem item) {
+    final next = _getNextSongIndex();
+    if (next == currentIndex || next < 0 || next >= queue.value.length) {
+      return false;
+    }
+    return continuesAlbum(item, queue.value[next]);
+  }
+
+  /// Puts the volume back if the fade between songs lowered it.
+  void _endSongFade() {
+    _songFadeInId = null;
+    final base = _songFadeBase;
+    if (base == null) return;
+    _songFadeBase = null;
+    unawaited(_player.setVolume(base));
+  }
+
+  /// [song] follows one that faded out: it starts silent and fades in up
+  /// to [level], or plays at it straight away (a podcast, a short song).
+  Future<void> _startSongFadeIn(MediaItem song, double level) async {
+    final length = _player.duration ?? song.duration;
+    final ms = _songFadeLength(song, length?.inMilliseconds ?? 0);
+    if (ms <= 0) {
+      _songFadeBase = null;
+      _songFadeInId = null;
+      await _player.setVolume(level);
+      return;
+    }
+    _songFadeBase = level;
+    _songFadeInId = song.id;
+    _songFadeInMs = ms;
+    await _player.setVolume(0);
+  }
+
+  /// The end of the playing item. [repeatOne] false moves on even with
+  /// repeat one on (an episode marked played).
+  Future<void> _triggerNext({bool repeatOne = true}) async {
     if (_eofAdvanceInProgress) return;
     _eofAdvanceInProgress = true;
     try {
-      if (loopModeEnabled) {
+      if (repeatOne && loopModeEnabled) {
         // Block a second EOF tick while we seek, then clear so loop-one
         // can arm again on the next pass of the same track.
         _eofArmedForId = mediaItem.value?.id;
@@ -872,7 +1251,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     if (shuffleModeEnabled) {
       final mediaItemsIds = mediaItems.toList().map((item) => item.id).toList();
       shuffledQueue = appendToShuffleOrder(
-          shuffledQueue, currentShuffleIndex, mediaItemsIds);
+          shuffledQueue, currentShuffleIndex, mediaItemsIds,
+          artistOf: _queueArtists());
     }
   }
 
@@ -931,11 +1311,14 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     );
   }
 
+  /// Auto goes by [NetworkKind.lastMetered]: [checkNGetUrl] asks afresh
+  /// as each song starts.
   static int _streamingQualityIndex() {
     final prefs = Hive.box('AppPrefs');
     return streamingQualityIndex(
         dataSaver: prefs.get('dataSaver'),
-        streamingQuality: prefs.get('streamingQuality'));
+        streamingQuality: prefs.get('streamingQuality'),
+        metered: NetworkKind.lastMetered);
   }
 
   static bool _hasDirectStreamUrl(String id) =>
@@ -943,7 +1326,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       id.startsWith("abs_") ||
       id.startsWith("lv_") ||
       id.startsWith("cloud_") ||
-      id.startsWith("slsk_");
+      id.startsWith("slsk_") ||
+      // Music files on the phone (Songs › On this phone).
+      id.startsWith("device_");
 
   @override
   // ignore: avoid_renaming_method_parameters
@@ -975,6 +1360,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   Future<void> playFrom(PlaybackCommandSource source) async {
     _logCommand('play', source);
+    _resumeOnline.cancel();
     // Video mode's engine owns playback (and plays the audio itself):
     // ignore stray transport (e.g. media notification) so the paused
     // audio pipeline can't start underneath the video.
@@ -982,11 +1368,18 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         Get.find<VideoModeController>().isActive.value) {
       return;
     }
+    if (await _playSavedSession()) return;
     if (currentSongUrl == null ||
         (GetPlatform.isDesktop &&
             (_player.duration == null ||
-                _player.duration?.inMilliseconds == 0))) {
-      await customAction("playByIndex", {'index': currentIndex});
+                _player.duration?.inMilliseconds == 0)) ||
+        // Loaded before explicit content was turned off: not played.
+        ExplicitContent.blocks(mediaItem.value)) {
+      // A session back at launch whose song didn't load then: from its
+      // place.
+      final held = _takeHeldPlace();
+      await customAction("playByIndex",
+          {'index': currentIndex, if (held > 0) 'position': held});
       return;
     }
     await _maybeSmartResume();
@@ -998,13 +1391,32 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     }
   }
 
-  /// Podcasts only: after a pause, step back a little (longer pause,
-  /// longer step) so the sentence that was cut off plays again.
+  /// Play with nothing loaded, Riff having been closed: Android's media
+  /// controls (after Riff closed or the phone restarted), headphones or
+  /// the car pressed it. The session saved last time plays on from its
+  /// place (true), as Spotify and AntennaPod pick up where you left off.
+  /// Coming back as Riff opens meanwhile, it's waited for, then plays as
+  /// usual (false).
+  Future<bool> _playSavedSession() async {
+    try {
+      if (_comeback.coming) {
+        await _comeback(play: false);
+        return false;
+      }
+      return queue.value.isEmpty && await _comeback(play: true);
+    } catch (e) {
+      printERROR('Saved session not played: $e');
+      return false;
+    }
+  }
+
+  /// Podcasts and audiobooks: after a pause, step back a little (longer
+  /// pause, longer step) so the sentence that was cut off plays again.
   Future<void> _maybeSmartResume() async {
-    final pausedAt = _podcastPausedAt;
-    _podcastPausedAt = null;
+    final pausedAt = _longFormPausedAt;
+    _longFormPausedAt = null;
     final item = mediaItem.value;
-    if (pausedAt == null || item == null || !item.isPodcastEpisode) return;
+    if (pausedAt == null || item == null || !smartResumeApplies(item)) return;
     if (!PodcastPlaybackPrefs.smartResume) return;
     final rewind = smartResumeRewind(DateTime.now().difference(pausedAt));
     if (rewind == Duration.zero) return;
@@ -1018,7 +1430,23 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   Future<void> pauseFrom(PlaybackCommandSource source) {
     _logCommand('pause', source);
+    _resumeOnline.cancel();
+    _interruptions.onUserPause();
     return _player.pause();
+  }
+
+  /// Calls, other apps' audio and unplugged headphones, from the audio
+  /// session (as just_audio's handleInterruptions did).
+  Future<void> _followInterruptions() async {
+    try {
+      final session = await AudioSession.instance;
+      session.interruptionEventStream.listen(_interruptions.onInterruption);
+      session.becomingNoisyEventStream
+          .listen((_) => _interruptions.onBecomingNoisy());
+      _player.playingStream.listen(_interruptions.onPlaying);
+    } catch (e) {
+      printERROR('Interruptions: $e');
+    }
   }
 
   @override
@@ -1079,7 +1507,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         nextId = shuffledQueue[pos + 1];
         if (advance) currentShuffleIndex = pos + 1;
       } else if (advance) {
-        shuffledQueue.shuffle();
+        shuffledQueue = balancedShuffle(shuffledQueue, _queueArtists());
         currentShuffleIndex = 0;
         nextId = shuffledQueue[0];
       } else {
@@ -1108,7 +1536,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       final pos = _syncShufflePos();
       if (pos < 0) return currentIndex;
       if (pos - 1 < 0) {
-        shuffledQueue.shuffle();
+        shuffledQueue = balancedShuffle(shuffledQueue, _queueArtists());
         currentShuffleIndex = shuffledQueue.length - 1;
       } else {
         currentShuffleIndex = pos - 1;
@@ -1149,6 +1577,11 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     if (radioShouldExtendInsteadOfPause(radioOn: radioOn, hasNext: false)) {
       return Get.find<PlayerController>().extendRadioThenPlayNext();
     }
+    // Autoplay (when on): songs like the last one play on.
+    if (Get.isRegistered<PlayerController>() &&
+        await Get.find<PlayerController>().autoplayAfterQueue()) {
+      return true;
+    }
     _player.seek(Duration.zero);
     _player.pause();
     return false;
@@ -1160,10 +1593,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   }
 
   /// True when previous restarted the track or started the prior item.
+  /// [restart] false always goes to the prior item (the mini player's
+  /// swipe shows that track sliding in, so restarting would contradict it).
   Future<bool> skipToPreviousResult(
-      {PlaybackCommandSource source = PlaybackCommandSource.system}) async {
+      {PlaybackCommandSource source = PlaybackCommandSource.system,
+      bool restart = true}) async {
     _logCommand('skipToPrevious', source);
-    if (shouldRestartOnPrevious(_player.position)) {
+    if (restart && shouldRestartOnPrevious(_player.position)) {
       _player.seek(Duration.zero);
       return true;
     }
@@ -1173,8 +1609,80 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     if (!skipNextDidAdvance(fromIndex: from, toIndex: index)) {
       return true;
     }
-    final result = await customAction("playByIndex", {'index': index});
+    final result =
+        await customAction("playByIndex", {'index': index, 'backward': true});
     return !playByIndexHardFailed(result);
+  }
+
+  /// Whether [song] may not play now: explicit while explicit content is
+  /// off, or needing a connection while there's none.
+  static bool _passedOver(MediaItem song) =>
+      ExplicitContent.blocks(song) || OfflinePlayback.blocks(song);
+
+  /// The song at [index] may not play ([_passedOver]): plays the next song
+  /// in play order that may ([backward]: the one before), as Next
+  /// (Previous) would. Past the end, radio and Autoplay go on as after the
+  /// last song; when nothing plays the queue ends there, and the player
+  /// says why. [restore] (the session coming back at launch) loads the song
+  /// found, paused, without a word.
+  Future<dynamic> _playPastUnplayable(int index,
+      {bool backward = false, bool restore = false}) async {
+    final q = queue.value;
+    final passed = q[index];
+    final before = currentIndex;
+    final found = playableFrom(index, q.length,
+        step: (at) {
+          // Both follow the shuffle order from the current index.
+          currentIndex = at;
+          return backward
+              ? _getPrevSongIndex()
+              : _getNextSongIndex(advance: true);
+        },
+        mayPlay: (i) => !_passedOver(q[i]));
+    if (found.index case final next?) {
+      // Songs running on by themselves skip them without a word.
+      if (!restore && !_eofAdvanceInProgress) _notifyPassedOver(passed);
+      return customAction("playByIndex",
+          {'index': next, if (restore) 'restoreSession': true});
+    }
+    // Back on the song that was playing, when it's still the one loaded.
+    final stillLoaded = before is int &&
+        isValidQueueIndex(before, q.length) &&
+        q[before].id == mediaItem.value?.id;
+    currentIndex = stillLoaded ? before : index;
+    if (shuffleModeEnabled) _syncShufflePos();
+    if (restore) return null;
+    if (found.atEnd &&
+        !backward &&
+        stillLoaded &&
+        Get.isRegistered<PlayerController>()) {
+      final player = Get.find<PlayerController>();
+      if (player.isRadioModeOn) return player.extendRadioThenPlayNext();
+      if (await player.autoplayAfterQueue()) return true;
+    }
+    // The queue ends here (going back, the song playing goes on).
+    if (!backward) {
+      _player.seek(Duration.zero);
+      _player.pause();
+      // For want of a connection: it goes on with this song once it's
+      // back.
+      if (OfflinePlayback.blocks(passed) && !OfflinePlayback.byChoice) {
+        _resumeOnline.stopped(passed.id, Duration.zero, DateTime.now());
+      }
+    }
+    _notifyPassedOver(passed);
+    return null;
+  }
+
+  /// Says why [song] didn't play.
+  void _notifyPassedOver(MediaItem song) {
+    if (!Get.isRegistered<PlayerController>()) return;
+    final player = Get.find<PlayerController>();
+    if (OfflinePlayback.blocks(song)) {
+      player.notifyOffline();
+    } else {
+      player.notifyExplicitOff();
+    }
   }
 
   @override
@@ -1184,6 +1692,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     } else {
       loopModeEnabled = true;
     }
+    // The car's and the notification's repeat follow.
+    _publishPlaybackState();
   }
 
   @override
@@ -1195,6 +1705,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       _shuffleCmd(currentIndex);
       shuffleModeEnabled = true;
     }
+    _publishPlaybackState();
   }
 
   @override
@@ -1202,12 +1713,22 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     switch (name) {
       case 'setSpeedAndPitch':
         await _player.setSpeed((extras!['speed'] as num).toDouble());
-        await _player.setPitch((extras['pitch'] as num).toDouble());
+        await _setPitch((extras['pitch'] as num).toDouble());
         break;
 
       case 'setAudioFx':
         _applyAudioFx();
         break;
+
+      // Riff's equalizer screen: the phone's bands, null without any.
+      case 'equalizerLayout':
+        final id = _player.androidAudioSessionId;
+        if (id == null) return null;
+        try {
+          return await _fxChannel.invokeMethod('eqLayout', {'sessionId': id});
+        } catch (_) {
+          return null;
+        }
 
       case 'skipToNext':
         return skipToNextResult(
@@ -1215,9 +1736,23 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
       case 'skipToPrevious':
         return skipToPreviousResult(
-            source: PlaybackCommandSource.parse(extras?['source']));
+            source: PlaybackCommandSource.parse(extras?['source']),
+            restart: extras?['restart'] != false);
+
+      case 'finishEpisode':
+        await _finishEpisode();
+        break;
+
+      // The podcast chapter playing, on the lock screen, the notification,
+      // Android Auto and the home screen widget (chapterNowPlaying).
+      case 'showChapter':
+        final shown = chapterShown(mediaItem.value, extras);
+        if (shown != null) mediaItem.add(shown);
+        break;
 
       case 'playByIndex':
+        // Something else starts: nothing waits for the connection.
+        _resumeOnline.cancel();
         final songIndex = coercePlayByIndex(extras!['index']);
         if (!isValidQueueIndex(songIndex, queue.value.length)) {
           isSongLoading = false;
@@ -1226,14 +1761,32 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           ));
           return false;
         }
+        // Explicit content off: an explicit song doesn't play, the next
+        // one that may does; offline, nor does one that needs a connection.
+        if (_passedOver(queue.value[songIndex])) {
+          return _playPastUnplayable(songIndex,
+              backward: extras['backward'] == true,
+              restore: extras['restoreSession'] == true);
+        }
+        // Fade between songs: the song after one that faded out fades in;
+        // anything else played meanwhile puts the volume back first.
+        final fadeIn = _songFadeBase != null && _eofAdvanceInProgress;
+        if (!fadeIn) _endSongFade();
         currentIndex = songIndex;
         if (shuffleModeEnabled) _syncShufflePos();
         final requestId = ++_playRequestId;
+        _heldPlace = null;
         bool superseded() => requestId != _playRequestId;
         final isNewUrlReq = extras['newUrl'] ?? false;
         final currentSong = queue.value[currentIndex];
         final futureStreamInfo =
             checkNGetUrl(currentSong.id, generateNewUrl: isNewUrlReq);
+        // A phone or server song's loudness (its ReplayGain), meanwhile.
+        final ownLoudness = loudnessNormalizationEnabled &&
+                GetPlatform.isAndroid &&
+                hasOwnLoudness(currentSong)
+            ? _ownLoudnessDb(currentSong)
+            : null;
         final bool restoreSession = extras['restoreSession'] ?? false;
         isSongLoading = true;
         playbackState.add(playbackState.value
@@ -1243,7 +1796,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
 
         mediaItem.add(currentSong);
-        _podcastPausedAt = null;
+        _longFormPausedAt = null;
         // Podcast episodes play with their show's profile (this is also the
         // queue auto-advance path); anything else gets music's settings.
         await _applyPlaybackProfile(currentSong);
@@ -1273,6 +1826,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
         // A newer play request owns the player (and the loading state).
         if (superseded()) return null;
+        if (restoreSession && (resolveFailed || !streamInfo.playable)) {
+          return _holdRestored(currentSong.id, extras['position']);
+        }
         if (resolveFailed) {
           return _onPlayByIndexUnresolvable(
             songId: currentSong.id,
@@ -1293,6 +1849,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
             errorCode: 404,
           );
         }
+        // Known before the song can be heard.
+        final own = await _ownLoudnessSoon(ownLoudness, requestId);
+        if (superseded()) return null;
         _consecutiveResolveFails = 0;
         try {
           currentSongUrl = currentSong.extras!['url'] = streamInfo.audio!.url;
@@ -1307,19 +1866,30 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           // Never leave the notification stuck on "loading".
           printERROR('playByIndex source setup failed: $e');
           isSongLoading = false;
+          if (restoreSession) {
+            return _holdRestored(currentSong.id, extras['position']);
+          }
           return _handleRuntimePlaybackError(e, position: Duration.zero);
         }
 
         isSongLoading = false;
-        if (loudnessNormalizationEnabled && GetPlatform.isAndroid) {
+        // The fade between songs keeps the level it lowered the volume from.
+        final level = _songFadeBase ?? _player.volume;
+        final normalize = loudnessNormalizationEnabled && GetPlatform.isAndroid;
+        if (normalize && own != null) {
+          _setLoudness(own);
+        } else if (normalize) {
           _normalizeVolume(streamInfo.audio!.loudnessDb);
         } else {
-          _baseVolume = _player.volume.clamp(0.0, 1.0);
+          _baseVolume = level.clamp(0.0, 1.0);
           if (_baseVolume <= 0) _baseVolume = 1.0;
         }
         if (_startMutedForMix) {
           await _player.setVolume(0);
           _startMutedForMix = false;
+        }
+        if (fadeIn) {
+          await _startSongFadeIn(currentSong, normalize ? _baseVolume : level);
         }
 
         final resumeMs = (extras['position'] as num?)?.toInt() ?? 0;
@@ -1339,6 +1909,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           }
         } catch (e) {
           printERROR('playByIndex player start failed: $e');
+          if (restoreSession) return _holdRestored(currentSong.id, resumeMs);
           return _handleRuntimePlaybackError(
             e,
             position: Duration(milliseconds: resumeMs),
@@ -1347,12 +1918,25 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         prefetchNextInQueue();
         return true;
 
+      // Riff opening: the session saved last time back, paused at its
+      // place; true once it's back (Play pressed outside Riff may have
+      // brought it back already, playing).
+      case 'restoreSession':
+        try {
+          return await _comeback(play: extras?['play'] == true);
+        } catch (e) {
+          printERROR('Session not restored: $e');
+          return false;
+        }
+
       case 'checkWithCacheDb':
         if (isPlayingUsingLockCachingSource) {
           final song = extras!['mediaItem'] as MediaItem;
           final songsCacheBox = Hive.box("SongsCache");
+          // Not when it was downloaded meanwhile (Smart downloads).
           if (!_hasDirectStreamUrl(song.id) &&
               !songsCacheBox.containsKey(song.id) &&
+              !Hive.box("SongDownloads").containsKey(song.id) &&
               await File("$_cacheDir/cachedSongs/${song.id}.mp3").exists()) {
             // The next track may already have replaced the source.
             final duration = _player.duration;
@@ -1398,7 +1982,17 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
         if (loudnessNormalizationEnabled) {
           try {
-            final currentSongId = (queue.value[currentIndex]).id;
+            final current = queue.value[currentIndex];
+            final own =
+                hasOwnLoudness(current) ? await _ownLoudnessDb(current) : null;
+            if (own != null) {
+              if (loudnessNormalizationEnabled &&
+                  mediaItem.value?.id == current.id) {
+                _setLoudness(own, playing: true);
+              }
+              return;
+            }
+            final currentSongId = current.id;
             if (Hive.box("SongsUrlCache").containsKey(currentSongId)) {
               final songJson = Hive.box("SongsUrlCache").get(currentSongId);
               _normalizeVolume((songJson)["highQualityAudio"]["loudnessDb"]);
@@ -1422,8 +2016,10 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         final currentQueue = queue.value;
         final currentItem = currentQueue[currentIndex];
         currentQueue.remove(currentItem);
-        currentQueue.shuffle();
-        currentQueue.insert(0, currentItem);
+        // As Spotify shuffles: each artist's songs spread out.
+        final shuffled =
+            balancedShuffle(currentQueue, shuffleArtistOf, first: currentItem);
+        currentQueue.replaceRange(0, currentQueue.length, shuffled);
         queue.add(currentQueue);
         mediaItem.add(currentItem);
         currentIndex = 0;
@@ -1484,7 +2080,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         break;
 
       case 'sleepFadePause':
-        // Podcast sleep timer: fade out, pause, put the volume back.
+        // Sleep timer: fade out, pause, put the volume back.
         final ms = (extras?['ms'] as num?)?.toInt() ?? 10000;
         final length = Duration(milliseconds: ms.clamp(0, 60000));
         final token = ++_sleepFadeToken;
@@ -1511,6 +2107,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
       case 'setVolume':
         _baseVolume = (extras!['value'] / 100).clamp(0.0, 1.0);
+        // A fade between songs carries on from the new level.
+        if (_songFadeBase != null) _songFadeBase = _baseVolume;
         _player.setVolume(_baseVolume);
         break;
 
@@ -1528,6 +2126,101 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
       case 'toggleQueueLoopMode':
         queueLoopModeEnabled = extras!['enable'];
+        _publishPlaybackState();
+        break;
+
+      // Shuffle and repeat in the car (and the notification): as the
+      // player's buttons, so the app shows the same.
+      case shuffleActionName:
+        if (Get.isRegistered<PlayerController>()) {
+          await Get.find<PlayerController>().toggleShuffleMode();
+        }
+        break;
+
+      case repeatActionName:
+        if (Get.isRegistered<PlayerController>()) {
+          await Get.find<PlayerController>().cycleRepeatMode();
+        }
+        break;
+
+      // A podcast episode's star and Mark as played, on the notification,
+      // the lock screen and in the car, as the player's own.
+      case starActionName:
+        if (Get.isRegistered<PlayerController>()) {
+          await Get.find<PlayerController>().toggleStarPlaying();
+        }
+        break;
+
+      case markPlayedActionName:
+        if (Get.isRegistered<PlayerController>()) {
+          Get.find<PlayerController>().markCurrentEpisodePlayed();
+        }
+        break;
+
+      case likeActionName:
+        // The heart on the notification / lock screen / Android Auto.
+        if (Get.isRegistered<PlayerController>()) {
+          await Get.find<PlayerController>().toggleFavourite();
+        }
+        break;
+
+      case 'setLiked':
+        // The app checked or toggled the playing song's like.
+        _likedReportId = extras!['id'] as String?;
+        _likedReport = extras['liked'] == true;
+        _publishPlaybackState();
+        break;
+
+      case 'removeQueueItemUndoable':
+        // Removes like removeQueueItem, and says where the song was so
+        // Undo can put it back in the same place.
+        final item = extras!['mediaItem'] as MediaItem;
+        final at = queue.value.indexWhere((e) => e.id == item.id);
+        if (at < 0) return null;
+        final shuffleAt =
+            shuffleModeEnabled ? shuffledQueue.indexOf(item.id) : -1;
+        await removeQueueItem(queue.value[at]);
+        return {'index': at, 'shuffleIndex': shuffleAt};
+
+      case 'restoreQueueItem':
+        final item = extras!['mediaItem'] as MediaItem;
+        final currentQueue = queue.value;
+        // Already back (e.g. re-added from a menu meanwhile).
+        if (currentQueue.any((e) => e.id == item.id)) break;
+        final cur = currentIndex is int ? currentIndex as int : 0;
+        final at = restoreQueuePositions(
+          queueLength: currentQueue.length,
+          currentIndex: cur,
+          index: extras['index'] as int? ?? currentQueue.length,
+          shuffleLength: shuffledQueue.length,
+          currentShuffleIndex: currentShuffleIndex,
+          shuffleIndex: extras['shuffleIndex'] as int? ?? -1,
+        );
+        final currentSong = mediaItem.value;
+        currentQueue.insert(at.index, item);
+        currentIndex = at.currentIndex;
+        if (shuffleModeEnabled) {
+          shuffledQueue.insert(at.shuffleIndex, item.id);
+          currentShuffleIndex = at.currentShuffleIndex;
+        }
+        queue.add(currentQueue);
+        mediaItem.add(currentSong);
+        break;
+
+      case 'restoreQueue':
+        // Undo "Clear queue": only while the same song is still playing.
+        final snapshot = (extras!['queue'] as List).cast<MediaItem>();
+        final currentSong = mediaItem.value;
+        final at = snapshot.indexWhere((e) => e.id == currentSong?.id);
+        if (currentSong == null || at < 0) break;
+        final restored =
+            mergeRestoredQueue<MediaItem>(snapshot, queue.value, (e) => e.id);
+        final currentQueue = queue.value
+          ..replaceRange(0, queue.value.length, restored);
+        currentIndex = at;
+        queue.add(currentQueue);
+        if (shuffleModeEnabled) _shuffleCmd(at);
+        mediaItem.add(currentSong);
         break;
 
       case 'clearQueue':
@@ -1549,10 +2242,20 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   void _shuffleCmd(int index) {
     final queueIds = queue.value.toList().map((item) => item.id).toList();
     final currentSongId = queueIds.removeAt(index);
-    queueIds.shuffle();
-    queueIds.insert(0, currentSongId);
-    shuffledQueue.replaceRange(0, shuffledQueue.length, queueIds);
+    // As Spotify shuffles: each artist's songs spread out, and the song
+    // after this one by someone else when it can be.
+    final order =
+        balancedShuffle(queueIds, _queueArtists(), first: currentSongId);
+    shuffledQueue.replaceRange(0, shuffledQueue.length, order);
     currentShuffleIndex = 0;
+  }
+
+  /// Whose each queued song is, by id, for the shuffle order.
+  String Function(String id) _queueArtists() {
+    final artists = {
+      for (final song in queue.value) song.id: shuffleArtistOf(song)
+    };
+    return (id) => artists[id] ?? '';
   }
 
   void _normalizeVolume(double currentLoudnessDb) {
@@ -1563,16 +2266,50 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       _player.setVolume(1.0);
       return;
     }
-    double loudnessDifference = -5 - currentLoudnessDb;
+    _setLoudness(currentLoudnessDb);
+  }
 
-    // Converted loudness difference to a volume multiplier
-    // We use a factor to convert dB difference to a linear scale
-    // 10^(difference / 20) converts dB difference to a linear volume factor
-    final volumeAdjustment = pow(10.0, loudnessDifference / 20.0);
-    printINFO(
-        "loudness:$currentLoudnessDb Normalized volume: $volumeAdjustment");
-    _baseVolume = volumeAdjustment.toDouble().clamp(0, 1.0);
-    _player.setVolume(_baseVolume);
+  /// The volume for a song [loudnessDb] above YouTube's reference, at the
+  /// level chosen in Settings (Normal: −5 dB). [playing]: the song is
+  /// already heard, so a fade under way (between songs, the sleep timer's)
+  /// carries on from it instead.
+  void _setLoudness(double loudnessDb, {bool playing = false}) {
+    _baseVolume = normalizedVolume(
+        loudnessDb, NormalizationLevel.selected.value.targetDb);
+    printINFO("loudness:$loudnessDb Normalized volume: $_baseVolume");
+    if (playing && _songFadeBase != null) {
+      _songFadeBase = _baseVolume;
+    } else if (playing && _sleepFadeRestoreVolume != null) {
+      _sleepFadeRestoreVolume = _baseVolume;
+    } else {
+      _player.setVolume(_baseVolume);
+    }
+  }
+
+  /// A phone or server song's loudness, from its ReplayGain (ownLoudnessDb).
+  Future<double?> _ownLoudnessDb(MediaItem song) async {
+    try {
+      return await ownLoudnessDb(song,
+          server: Get.isRegistered<CloudMusicService>()
+              ? Get.find<CloudMusicService>().replayGainOf
+              : null);
+    } catch (e) {
+      printERROR('ReplayGain of ${song.id}: $e');
+      return null;
+    }
+  }
+
+  /// [loudness] when it's known within half a second (a file read before,
+  /// a short tag); when it takes longer, the song starts as one of unknown
+  /// loudness and it applies once known, if that play still holds the
+  /// player.
+  Future<double?> _ownLoudnessSoon(Future<double?>? loudness, int requestId) {
+    if (loudness == null) return Future.value();
+    return soonOrLate(loudness, const Duration(milliseconds: 500), (db) {
+      if (requestId == _playRequestId && loudnessNormalizationEnabled) {
+        _setLoudness(db, playing: true);
+      }
+    });
   }
 
   Future<void> _sessionSave = Future.value();
@@ -1597,19 +2334,82 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       return;
     }
     final currIndex = currentIndex ?? 0;
-    final position = _player.position.inMilliseconds;
-    final signature =
-        '${currQueue.map((e) => e.id).join(',')}|$currIndex|${position ~/ 1000}';
+    // A song that didn't load at launch ([_holdRestored]) keeps its place.
+    final held = _heldPlace;
+    final position = held != null && held.id == _currentQueueSongId()
+        ? held.ms
+        : _player.position.inMilliseconds;
+    // Where the queue came from goes with it, so after a restart the player
+    // still says (and opens) it and a playlist left out of your taste
+    // profile stays out.
+    final from = Get.isRegistered<PlayerController>()
+        ? Get.find<PlayerController>().playinfrom.value.toJson()
+        : null;
+    final signature = '${currQueue.map((e) => e.id).join(',')}|$currIndex|'
+        '${position ~/ 1000}|$from';
     if (signature == _lastSavedSession) return;
     final queueData =
         currQueue.map((e) => MediaItemBuilder.toJson(e)).toList();
     final prevSessionData = Hive.isBoxOpen("prevSessionData")
         ? Hive.box("prevSessionData")
         : await Hive.openBox("prevSessionData");
-    await prevSessionData.putAll(
-        {"queue": queueData, "position": position, "index": currIndex});
+    await prevSessionData.putAll({
+      "queue": queueData,
+      "position": position,
+      "index": currIndex,
+      "from": from,
+    });
     _lastSavedSession = signature;
     printINFO("Saved session data");
+  }
+
+  /// The session saved last time coming back (Riff opening, or Play
+  /// pressed outside Riff with nothing loaded), once.
+  late final _comeback = SessionComeback(
+      loaded: () => queue.value.isNotEmpty, bringBack: _bringBack);
+
+  /// [session] back in the player: where it came from first (the player
+  /// says so before it plays on, and the mini player shows it), then its
+  /// queue at its song and place, paused or [play]ing on.
+  Future<void> _bringBack(SavedSession session, {required bool play}) async {
+    if (Get.isRegistered<PlayerController>()) {
+      Get.find<PlayerController>().sessionCameBack(session.from);
+    }
+    await updateQueue(session.queue);
+    await customAction('playByIndex', {
+      'index': session.index,
+      'position': session.position.inMilliseconds,
+      'restoreSession': !play,
+    });
+  }
+
+  /// The song of a session back at launch that didn't load then, and its
+  /// place: Play starts it there.
+  ({String id, int ms})? _heldPlace;
+
+  /// A session back at launch whose song doesn't load now (YouTube not
+  /// answering, a stream that won't start): it stays there, paused, without
+  /// a word, rather than passing on to the next song and playing it; Play
+  /// tries it again at its place.
+  bool _holdRestored(String songId, Object? positionMs) {
+    isSongLoading = false;
+    // The queue was replaced meanwhile: nothing to keep.
+    if (isStalePlayByIndex(
+        requestedSongId: songId, currentSongId: _currentQueueSongId())) {
+      return false;
+    }
+    currentSongUrl = null;
+    _heldPlace = (id: songId, ms: positionMs is num ? positionMs.toInt() : 0);
+    playbackState.add(playbackState.value
+        .copyWith(processingState: AudioProcessingState.idle));
+    return false;
+  }
+
+  /// The place [_holdRestored] kept, while its song is the one loaded.
+  int _takeHeldPlace() {
+    final held = _heldPlace;
+    _heldPlace = null;
+    return held != null && held.id == _currentQueueSongId() ? held.ms : 0;
   }
 
   /// Android Auto
@@ -1628,6 +2428,24 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
             _mediaLibrary.getByRootId(parentMediaId).then((items) => items))
         .map((_) => <String, dynamic>{})
         .shareValue();
+  }
+
+  /// Android Auto's search button: the songs found for [query], played
+  /// from that list like the car's others.
+  @override
+  Future<List<MediaItem>> search(String query,
+      [Map<String, dynamic>? extras]) async {
+    _lastAutoBrowseAt = DateTime.now();
+    final found = await _mediaLibrary.searchSongs(query);
+    return _mediaLibrary._forCar(MediaLibrary.searchResultsId, found);
+  }
+
+  /// "Play … on Riff", to Android Auto or the Assistant: the player plays
+  /// what [MediaLibrary.voiceSearchList] finds.
+  @override
+  Future<void> playFromSearch(String query,
+      [Map<String, dynamic>? extras]) async {
+    customEvent.add({'eventType': 'playFromSearch', 'query': query});
   }
 
   // only for Android Auto
@@ -1657,6 +2475,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   @override
   Future<void> stop() async {
     _logCommand('stop', _externalSource());
+    _buttonPresses.cancel();
+    _resumeOnline.cancel();
     await _player.stop();
     return super.stop();
   }
@@ -1718,6 +2538,11 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           url = "file://$path";
         }
       }
+      // A downloaded audiobook plays from its files, with no server or
+      // connection (AudiobookDownloads).
+      if (songId.startsWith('abs_') || songId.startsWith('lv_')) {
+        url = AudiobookDownloads.playUrl(songId, url, item?.extras);
+      }
       // Refresh ABS stream URL on retry — tokenized URLs expire.
       if (generateNewUrl &&
           songId.startsWith('abs_') &&
@@ -1742,7 +2567,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           }
         }
       }
-      if (generateNewUrl &&
+      // Signed afresh on a retry, and when the song came without its
+      // server's login (an imported playlist).
+      if ((generateNewUrl || !hasServerLogin(url ?? '')) &&
           songId.startsWith('cloud_') &&
           Get.isRegistered<CloudMusicService>()) {
         try {
@@ -1862,6 +2689,11 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     } else {
       //check if song stream url is cached and allocate url accordingly
       final songsUrlCacheBox = Hive.box("SongsUrlCache");
+      // Auto quality goes by the connection the song starts on.
+      if (Hive.box('AppPrefs').get('streamingQuality') ==
+          autoStreamingQuality) {
+        await NetworkKind.isMetered();
+      }
       final qualityIndex = _streamingQualityIndex();
       HMStreamingData? streamInfo;
       if (songsUrlCacheBox.containsKey(songId) && !generateNewUrl) {
@@ -1971,7 +2803,14 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       final next = _getNextSongIndex();
       if (next == currentIndex) return;
       if (next < 0 || next >= queue.value.length) return;
-      prefetchStreamUrl(queue.value[next].id);
+      final nextSong = queue.value[next];
+      prefetchStreamUrl(nextSong.id);
+      // A phone or server song's loudness, ready for when it plays.
+      if (loudnessNormalizationEnabled &&
+          GetPlatform.isAndroid &&
+          hasOwnLoudness(nextSong)) {
+        unawaited(_ownLoudnessDb(nextSong));
+      }
     } catch (_) {}
   }
 }
@@ -1985,6 +2824,20 @@ class MediaLibrary {
   static const podcastsRootId = 'riff_podcasts';
   static const podcastProgressId = 'aa_pod_progress';
   static const podcastFeedPrefix = 'aa_pod_feed:';
+
+  /// The podcast queue and the Inbox, first under Podcasts in the car, as
+  /// Pocket Casts puts Up Next and AntennaPod its queue and Inbox there.
+  static const podcastQueueId = 'aa_pod_queue';
+  static const podcastInboxId = 'aa_pod_inbox';
+
+  /// Starred episodes, as Pocket Casts lists Starred in the car.
+  static const podcastStarredId = 'aa_pod_starred';
+
+  /// What the car's search, or a voice request, found.
+  static const searchResultsId = 'aa_search';
+
+  /// The song of the session saved last time, first in [getRecent].
+  static const lastSessionId = 'riff_last_session';
 
   /// Podcast episode lists Android Auto browsed, by list id: played from
   /// there without fetching the feed again.
@@ -2003,7 +2856,51 @@ class MediaLibrary {
   static bool isBuiltList(String listId) =>
       listId.startsWith('aa_pod_') ||
       listId.startsWith('riff_mix_') ||
-      listId == freshFindsRootId;
+      listId == freshFindsRootId ||
+      listId == searchResultsId ||
+      listId == lastSessionId;
+
+  /// Songs found for [query] (YouTube Music's song search, best match
+  /// first), kept as the car-built list [searchResultsId]. Empty when
+  /// nothing is asked for or the search fails.
+  Future<List<MediaItem>> searchSongs(String query, {int limit = 20}) async {
+    final q = query.trim();
+    if (q.isEmpty || !Get.isRegistered<MusicServices>()) return const [];
+    final List<MediaItem> songs;
+    try {
+      songs = songsFromSearchResult(await Get.find<MusicServices>()
+          .search(q, filter: 'songs', limit: limit));
+    } catch (e) {
+      printERROR('Android Auto search ($q): $e');
+      return const [];
+    }
+    final tagged = [
+      for (final m in songs)
+        m.copyWith(playable: true, extras: {
+          ...?m.extras,
+          'libraryId': searchResultsId,
+          'discoverySource': 'android_auto',
+        })
+    ];
+    if (autoPodcastLists.length > 20) autoPodcastLists.clear();
+    autoPodcastLists[searchResultsId] = tagged;
+    for (final m in tagged) {
+      _browsedFrom[m.id] = searchResultsId;
+    }
+    return tagged;
+  }
+
+  /// What "play … on Riff" plays: the songs found for [query], the best
+  /// match first; with nothing asked for ("play music on Riff"), your
+  /// Favorites, shuffled.
+  Future<List<MediaItem>> voiceSearchList(String query,
+      {Random? random}) async {
+    if (query.trim().isNotEmpty) return searchSongs(query);
+    final box = await HiveBoxes.fav();
+    return balancedShuffle([
+      for (final e in box.values) MediaItemBuilder.fromJson(e)
+    ], shuffleArtistOf, random: random);
+  }
 
   /// Android Auto `getChildren`: one page when the car asks for pages,
   /// else the whole list if it's short, or sections ("1–100", …) if not.
@@ -2047,10 +2944,13 @@ class MediaLibrary {
   /// Followed podcasts: Continue listening, then each feed show.
   Future<List<MediaItem>> getPodcastNodes() async {
     final nodes = <MediaItem>[
+      MediaItem(id: podcastQueueId, title: "queue".tr, playable: false),
+      MediaItem(id: podcastInboxId, title: "podcastInbox".tr, playable: false),
       MediaItem(
           id: podcastProgressId,
           title: "continueListening".tr,
           playable: false),
+      MediaItem(id: podcastStarredId, title: "starred".tr, playable: false),
     ];
     try {
       for (final s in PodcastService.subscriptions) {
@@ -2074,6 +2974,19 @@ class MediaLibrary {
         items = PodcastProgressService.inProgress()
             .map(PodcastProgressService.toMediaItem)
             .toList();
+      } else if (id == podcastQueueId) {
+        items = Get.isRegistered<PodcastQueueController>()
+            ? Get.find<PodcastQueueController>().queue.toList()
+            : const [];
+      } else if (id == podcastInboxId) {
+        // The Inbox as the app lists it, newest first, from its last
+        // refresh (the car doesn't fetch every feed).
+        items = PodcastInboxCounts.waiting().take(100).toList();
+      } else if (id == podcastStarredId) {
+        items = [
+          for (final s in StarredEpisodes.all)
+            if (s.item case final m?) m
+        ];
       } else if (id.startsWith(podcastFeedPrefix)) {
         final feed = id.substring(podcastFeedPrefix.length);
         final sub = PodcastService.subscriptions.firstWhere(
@@ -2099,7 +3012,11 @@ class MediaLibrary {
 
   Future<List<MediaItem>> getByRootId(String id) async {
     if (id == podcastsRootId) return getPodcastNodes();
-    if (id == podcastProgressId || id.startsWith(podcastFeedPrefix)) {
+    if (id == podcastProgressId ||
+        id == podcastQueueId ||
+        id == podcastInboxId ||
+        id == podcastStarredId ||
+        id.startsWith(podcastFeedPrefix)) {
       return getPodcastList(id);
     }
     switch (id) {
@@ -2114,7 +3031,8 @@ class MediaLibrary {
       case playlistsRootId:
         return getPlaylists();
       case AudioService.recentRootId:
-        return getLibSongs("LIBRP");
+      case lastSessionId:
+        return getRecent();
       case dailyMixesRootId:
         return getDiscoveryMixes(kind: 'daily_mix');
       case freshFindsRootId:
@@ -2126,6 +3044,29 @@ class MediaLibrary {
         }
         return getLibSongs(id);
     }
+  }
+
+  /// What Android's media controls show once Riff was closed (the first
+  /// one), their Play picking up the session saved last time: so its song
+  /// first (an episode or a book's chapter too), then the songs played
+  /// lately.
+  Future<List<MediaItem>> getRecent() async {
+    final played = await getLibSongs("LIBRP");
+    SavedSession? saved;
+    try {
+      saved = await SavedSession.load();
+    } catch (e) {
+      printERROR('Saved session unread: $e');
+    }
+    if (saved == null) return played;
+    final song = saved.song;
+    return [
+      song.copyWith(
+          playable: true,
+          extras: {...?song.extras, 'libraryId': lastSessionId}),
+      for (final m in played)
+        if (m.id != song.id) m,
+    ];
   }
 
   Future<List<MediaItem>> getDiscoveryMixes(

@@ -336,6 +336,19 @@ class StreamProvider {
       audioFormats?.lastWhere((item) => item.itag == 251 || item.itag == 250,
           orElse: () => audioFormats!.first);
 
+  /// The smallest stream in [codec] (Download quality Low): the lowest
+  /// bitrate YouTube offers in it, else the lowest of any; streams without
+  /// a bitrate only when none has one.
+  Audio? lowestBitrateAudioOf(Codec codec) {
+    final all = audioFormats ?? const <Audio>[];
+    if (all.isEmpty) return null;
+    final same = all.where((a) => a.audioCodec == codec).toList();
+    final pool = same.isEmpty ? all : same;
+    final known = pool.where((a) => a.bitrate > 0).toList();
+    return (known.isEmpty ? pool : known)
+        .reduce((a, b) => b.bitrate < a.bitrate ? b : a);
+  }
+
   Audio? get lowQualityAudio =>
       audioFormats?.lastWhere((item) => item.itag == 249 || item.itag == 139,
           orElse: () => audioFormats!.first);
@@ -350,12 +363,19 @@ class StreamProvider {
   }
 }
 
+/// The stored Streaming quality that goes by the connection (Auto, after
+/// Low and High): high on Wi-Fi, low on mobile data, as Metrolist's.
+const autoStreamingQuality = 2;
+
 /// Audio quality the music pipeline plays at, as an index into the
 /// streaming data's qualities: 0 (low) while Data saver is on, else the
-/// Streaming quality setting (1, high, when unset). Takes the raw AppPrefs
-/// values.
-int streamingQualityIndex({Object? dataSaver, Object? streamingQuality}) {
+/// Streaming quality setting (1, high, when unset); Auto is low while the
+/// connection is [metered] (mobile data), else high. Takes the raw
+/// AppPrefs values.
+int streamingQualityIndex(
+    {Object? dataSaver, Object? streamingQuality, bool metered = false}) {
   if (dataSaver == true) return 0;
+  if (streamingQuality == autoStreamingQuality) return metered ? 0 : 1;
   return streamingQuality is int ? streamingQuality : 1;
 }
 

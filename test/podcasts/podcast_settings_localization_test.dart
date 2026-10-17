@@ -27,6 +27,7 @@ void main() {
     for (final f in const [
       'lib/ui/screens/Podcasts/podcast_playback_controls.dart',
       'lib/ui/screens/Podcasts/podcast_settings_screen.dart',
+      'lib/services/new_episode_alerts.dart',
       'lib/ui/widgets/sleep_timer_bottom_sheet.dart',
       'lib/ui/screens/Podcasts/podcast_segment_ui.dart',
       'lib/ui/player/player_controller.dart',
@@ -73,6 +74,8 @@ void main() {
     // Library filter chips and auto-delete choices, from enum names.
     for (final f in EpisodeFilter.values) 'episodeFilter_${f.name}',
     for (final p in AutoDeletePolicy.values) 'autoDelete_${p.name}',
+    for (final m in NewEpisodesQueue.values) 'newEpisodesQueue_${m.name}',
+    for (final m in NewEpisodesDownload.values) 'newEpisodesDownload_${m.name}',
     // Home: station chips and section names come from data.
     for (final s in homeStations) s.key,
     for (final s in HomeSection.values) s.labelKey,

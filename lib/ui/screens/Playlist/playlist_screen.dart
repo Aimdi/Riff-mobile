@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hive/hive.dart';
 
 import '/services/podcast_playback_profile.dart';
 import '/models/playlist.dart';
@@ -9,8 +12,12 @@ import 'package:share_plus/share_plus.dart';
 
 import '/models/playling_from.dart';
 import '/models/thumbnail.dart';
+import '/services/playlist_covers.dart';
 import '/services/podcast_service.dart';
 import '/services/playlist_mix_service.dart';
+import '/services/smart_shuffle.dart';
+import '/services/taste_exclusions.dart';
+import '/services/recently_played_days.dart';
 import '../Podcasts/podcast_queue_screen.dart';
 import '../Podcasts/podcasts_screen.dart';
 import '../Podcasts/podcast_show_view.dart';
@@ -19,6 +26,8 @@ import '/ui/theme/riff_spacing.dart';
 import '/ui/widgets/playlist_album_scroll_behaviour.dart';
 import '../../navigator.dart';
 import '../../player/player_controller.dart';
+import '../../widgets/add_to_playlist.dart' show showAddToPlaylistSheet;
+import '../../widgets/confirm_dialog.dart';
 import '../../widgets/create_playlist_dialog.dart';
 import '../../widgets/generated_cover.dart';
 import '../../widgets/collection_header.dart';
@@ -34,7 +43,12 @@ import '../../widgets/snackbar.dart';
 import '../../widgets/song_list_tile.dart';
 import '../../widgets/sort_widget.dart';
 import '../Library/library_controller.dart';
+import 'playlist_photo.dart';
+import 'playlist_recommendations.dart';
+import 'add_songs_sheet.dart';
 import 'playlist_screen_controller.dart';
+import '/ui/player/play_queue_order.dart' show playQueueFrom;
+import '/ui/widgets/total_length.dart';
 
 /// YouTube channel id (`UC…`) — compiled once, not per list row.
 final _channelIdRe = RegExp(r'^UC[\w-]{20,}$');
@@ -90,6 +104,8 @@ class PlaylistScreen extends StatelessWidget {
                             : -.25 * playlistController.scrollOffset.value,
                         right: landscape ? 0 : null,
                         child: Obx(() {
+                          // A new photo shows straight away.
+                          PlaylistCovers.rev.value;
                           final opacityValue = 1 -
                               playlistController.scrollOffset.value /
                                   (size.width - 100);
@@ -103,10 +119,11 @@ class PlaylistScreen extends StatelessWidget {
                             leftShadowOffset: -size.height,
                             bottomShadowOffset:
                                 landscape ? size.height : size.width + 80,
-                            // No art of its own (or it fails to load): the
-                            // generated cover, without the title (the header
-                            // under it shows that).
-                            child: !playlistController.playlist.value.hasArt
+                            // A photo of its own, else, with no art (or when
+                            // it fails to load), the generated cover without
+                            // the title (the header under it shows that).
+                            child: !playlistController.playlist.value.hasArt ||
+                                    _ownPhoto(playlistController.playlist.value)
                                 ? _heroCover(playlistController.playlist.value,
                                     landscape ? size.height : size.width)
                                 : CachedNetworkImage(
@@ -198,7 +215,18 @@ class PlaylistScreen extends StatelessWidget {
                                           .isContentFetched.isFalse ||
                                       playlistController.songList.isEmpty
                                   ? 4
-                                  : playlistController.songList.length + 3,
+                                  : playlistController.songList.length +
+                                      3 +
+                                      (_showsRecommendations(playlistController)
+                                          ? 1
+                                          : 0),
+                              // The recommendations move down a row with
+                              // each song added: keep them (and what they
+                              // showed) instead of loading new ones.
+                              findChildIndexCallback: (key) =>
+                                  key == _recommendationsKey(playlistController)
+                                      ? playlistController.songList.length + 3
+                                      : null,
                               itemBuilder: (_, index) {
                                 if (index == 0) {
                                   return FadeTransition(
@@ -213,8 +241,15 @@ class PlaylistScreen extends StatelessWidget {
                                       playlistController.playlist.value)) {
                                     return const SizedBox(height: 8);
                                   }
-                                  return _actions(context, playlistController,
-                                      playerController);
+                                  // Rebuilt with the photo, so ⋮ offers
+                                  // to set or change it, and with the
+                                  // taste profile's exclusions.
+                                  return Obx(() {
+                                    PlaylistCovers.rev.value;
+                                    TasteExclusions.rev.value;
+                                    return _actions(context, playlistController,
+                                        playerController);
+                                  });
                                 } else if (index == 2) {
                                   return SizedBox(
                                       height: playlistController
@@ -250,9 +285,13 @@ class PlaylistScreen extends StatelessWidget {
                                                     .value.isCloudPlaylist,
                                             itemCountTitle:
                                                 "${playlistController.songList.length}",
+                                            totalLength: totalLength(
+                                                playlistController.songList),
                                             itemIcon: Icons.music_note,
-                                            requiredSortTypes:
-                                                buildSortTypeSet(false, true),
+                                            requiredSortTypes: {
+                                              ...buildSortTypeSet(false, true),
+                                              ...songOrderSortTypes,
+                                            },
                                             onSort: playlistController.onSort,
                                             onSearch:
                                                 playlistController.onSearch,
@@ -295,6 +334,16 @@ class PlaylistScreen extends StatelessWidget {
                                 }
 
                                 final pl = playlistController.playlist.value;
+                                if (index ==
+                                    playlistController.songList.length + 3) {
+                                  return PlaylistRecommendations(
+                                    key:
+                                        _recommendationsKey(playlistController),
+                                    songs: playlistController.songList.toList(),
+                                    playlistTitle: pl.title,
+                                    onAdd: playlistController.appendSong,
+                                  );
+                                }
                                 final isPodcastList = pl.kind == 'podcast' ||
                                     pl.kind == 'yt_channel' ||
                                     pl.playlistId.startsWith('MPSP') ||
@@ -332,11 +381,22 @@ class PlaylistScreen extends StatelessWidget {
                                       ? playlistController
                                           .transitionForGap(songIndex)
                                       : null;
+                                  // Recently played by day, as Spotify's
+                                  // and YouTube Music's histories.
+                                  final day = pl.playlistId == 'LIBRP'
+                                      ? _recentlyPlayedDay(
+                                          playlistController, songIndex)
+                                      : null;
                                   return Padding(
                                     padding: const EdgeInsets.only(
                                         left: 4, right: 4),
                                     child: Column(
                                       children: [
+                                        if (day != null)
+                                          HomeSectionHeader(day,
+                                              top: songIndex == 0
+                                                  ? RiffSpacing.sm
+                                                  : HomeLayout.sectionTop),
                                         SongListTile(
                                           onTap: playThis,
                                           song: song,
@@ -459,9 +519,46 @@ class _PodcastShow extends StatelessWidget {
   }
 }
 
-/// Header backdrop for a playlist without a cover of its own.
-Widget _heroCover(Playlist pl, double side) =>
-    GeneratedCover.playlist(pl, size: side, showTitle: false);
+bool _ownPhoto(Playlist pl) => PlaylistCovers.pathFor(pl.playlistId) != null;
+
+/// Recently played's day heading over its [index]th song, where a day
+/// begins (and the list is in the order played).
+String? _recentlyPlayedDay(PlaylistScreenController c, int index) {
+  if (!Hive.isBoxOpen('LIBRP')) return null;
+  final times = recentlyPlayedTimes(Hive.box('LIBRP').values);
+  final days = recentlyPlayedHeadings(
+      [for (final song in c.songList) times[song.id]], DateTime.now());
+  return index < days.length ? days[index] : null;
+}
+
+Key _recommendationsKey(PlaylistScreenController c) =>
+    ValueKey('recommendations:${c.playlist.value.playlistId}');
+
+/// Songs to add show under your own playlists, unless you're searching or
+/// arranging or picking songs in it.
+bool _showsRecommendations(PlaylistScreenController c) {
+  final pl = c.playlist.value;
+  return !pl.isCloudPlaylist &&
+      c.isDefaultPlaylist.isFalse &&
+      !_isPodcastPage(pl) &&
+      c.isSearchingOn.isFalse &&
+      c.additionalOperationMode.value == OperationMode.none;
+}
+
+/// Header backdrop for a playlist without a cover of its own: the photo it
+/// was given, else (or when that file is gone) its generated cover.
+Widget _heroCover(Playlist pl, double side) {
+  final generated = GeneratedCover.playlist(pl, size: side, showTitle: false);
+  final photo = PlaylistCovers.pathFor(pl.playlistId);
+  if (photo == null) return generated;
+  return Image.file(
+    File(photo),
+    width: side,
+    height: side,
+    fit: BoxFit.cover,
+    errorBuilder: (_, __, ___) => generated,
+  );
+}
 
 bool _isPodcastPage(Playlist pl) =>
     pl.kind == 'podcast' ||
@@ -473,7 +570,9 @@ Widget _header(
     BuildContext context, PlaylistScreenController c, PlayerController player) {
   final pl = c.playlist.value;
   final isPodcast = _isPodcastPage(pl);
-  final description = (pl.description ?? '').trim();
+  // A library playlist's default ("Library Playlist") reads "Playlist".
+  final description =
+      isPodcast ? (pl.description ?? '').trim() : pl.ownDescription;
   return CollectionHeader(
     cover: ImageWidget(size: 96, playlist: pl),
     title: pl.title,
@@ -525,7 +624,7 @@ Widget _actions(
     onShuffle: songs.isEmpty
         ? null
         : () async {
-            final list = List<MediaItem>.from(c.songList)..shuffle();
+            final list = playQueueFrom(c.songList, shuffle: true);
             if (Get.isRegistered<PlaylistMixService>()) {
               Get.find<PlaylistMixService>().deactivatePlayback();
             }
@@ -590,8 +689,37 @@ Widget _actions(
       }),
       CollectionMenuItem(Icons.queue_music_rounded, "enqueueSongs".tr,
           () async {
-        final ok = await player.enqueueSongList(c.songList.toList());
+        final ok =
+            await player.enqueueSongList(c.songList.toList(), byYou: true);
         snack(ok ? "songEnqueueAlert" : "operationFailed");
+      }),
+      // Spotify's Add to other playlist: all of this one's songs at once.
+      CollectionMenuItem(Icons.playlist_add_rounded,
+          (isLocal ? 'addToOtherPlaylist' : 'addToPlaylist').tr, () {
+        final list = c.songList.toList();
+        if (list.isEmpty) return snack('emptyPlaylist');
+        showAddToPlaylistSheet(context, list);
+      }),
+      // Spotify's Smart shuffle: songs like these mixed in.
+      CollectionMenuItem(Icons.shuffle_on_rounded, 'smartShuffle'.tr, () async {
+        final list = c.songList.toList();
+        if (list.isEmpty) return;
+        final picks = await smartShufflePicks(list);
+        if (Get.isRegistered<PlaylistMixService>()) {
+          Get.find<PlaylistMixService>().deactivatePlayback();
+        }
+        final ok = await player.playPlayListSong(
+            smartShuffleOrder(list, picks), 0,
+            playfrom: PlaylingFrom(
+                name: pl.title,
+                type: PlaylingFromType.PLAYLIST,
+                id: pl.playlistId,
+                item: pl));
+        snack(!ok
+            ? "operationFailed"
+            : picks.isEmpty
+                ? 'smartShuffleNoPicks'
+                : 'smartShuffleOn');
       }),
       CollectionMenuItem(Icons.sensors, "startRadio".tr, () async {
         final list = c.songList.toList();
@@ -620,7 +748,42 @@ Widget _actions(
               ? pl.playlistId.substring(2)
               : pl.playlistId;
           Share.share("https://youtube.com/playlist?list=$id");
+        })
+      // One of your own, as Spotify shares yours: a link and its M3U file.
+      else if (pl.playlistId != 'LIBRP' && c.songList.isNotEmpty)
+        CollectionMenuItem(Icons.share_outlined, "sharePlaylist".tr, () async {
+          try {
+            await c.sharePlaylist();
+          } catch (e) {
+            snack('operationFailed');
+          }
         }),
+      // YouTube Music's Clear history, with Undo as the podcast history's.
+      if (pl.playlistId == 'LIBRP')
+        CollectionMenuItem(Icons.delete_sweep_outlined, "clearHistory".tr,
+            () async {
+          final target = undoSnackbarTarget(context);
+          final held = await clearRecentlyPlayed();
+          c.songList.clear();
+          showUndoSnackbar(target, 'historyCleared'.tr, onUndo: () async {
+            await restoreRecentlyPlayed(held);
+            c.fetchSongsfromDatabase('LIBRP');
+          });
+        }),
+      // Spotify's "Exclude from your Taste Profile": what plays from it
+      // isn't counted in stats or recommendations.
+      if (pl.playlistId != 'LIBRP')
+        TasteExclusions.excludes(pl.playlistId)
+            ? CollectionMenuItem(Icons.insights_rounded, 'includeInTaste'.tr,
+                () async {
+                await TasteExclusions.setExcluded(pl.playlistId, false);
+                snack('includedInTasteMsg');
+              })
+            : CollectionMenuItem(
+                Icons.not_interested_rounded, 'excludeFromTaste'.tr, () async {
+                await TasteExclusions.setExcluded(pl.playlistId, true);
+                snack('excludedFromTasteMsg');
+              }),
       CollectionMenuItem(Icons.file_upload_outlined, "exportPlaylist".tr, () {
         showDialog(
           context: context,
@@ -636,15 +799,36 @@ Widget _actions(
           snack(ok ? "playlistBlacklistAlert" : "operationFailed");
         }),
       if (isLocal) ...[
-        CollectionMenuItem(Icons.edit_outlined, "renamePlaylist".tr, () {
+        // Spotify's "Add to this playlist": search and add, staying here.
+        CollectionMenuItem(Icons.add_rounded, "addSongs".tr,
+            () => showAddSongsSheet(context, c)),
+        CollectionMenuItem(Icons.edit_outlined, "editPlaylistDetails".tr, () {
           showDialog(
             context: context,
             builder: (context) => CreateNRenamePlaylistPopup(
                 renamePlaylist: true, playlist: c.playlist.value),
           );
         }),
+        CollectionMenuItem(
+            Icons.add_photo_alternate_outlined,
+            (_ownPhoto(pl) ? "changePlaylistPhoto" : "setPlaylistPhoto").tr,
+            () => pickPlaylistPhoto(context, pl.playlistId)),
+        if (_ownPhoto(pl))
+          CollectionMenuItem(
+              Icons.hide_image_outlined,
+              "removePlaylistPhoto".tr,
+              () => PlaylistCovers.remove(pl.playlistId)),
         CollectionMenuItem(Icons.delete_outline_rounded, "removePlaylist".tr,
-            () {
+            () async {
+          // Deleting erases the playlist's songs from disk: ask first.
+          final confirmed = await confirmDestructive(
+            context,
+            title: "deletePlaylistTitle".tr,
+            message: "deletePlaylistMessage"
+                .trParams({'name': c.playlist.value.title}),
+            confirmLabel: "delete".tr,
+          );
+          if (!confirmed) return;
           c.addNremoveFromLibrary(c.playlist.value, add: false).then((ok) {
             Get.nestedKey(ScreenNavigationSetup.id)!.currentState!.pop();
             snack(ok ? "playlistRemovedAlert" : "operationFailed");

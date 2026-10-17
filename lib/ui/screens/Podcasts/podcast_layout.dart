@@ -1,3 +1,4 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -27,6 +28,24 @@ String podcastShowCount(int n) =>
 /// "Show · date · 45m" with empty parts dropped.
 String episodeMetaLine(Iterable<String?> parts) =>
     parts.map((p) => (p ?? '').trim()).where((p) => p.isNotEmpty).join(' · ');
+
+/// "Trailer", "Bonus", "S2 E5", "Ep. 5" or "Season 2", as Apple Podcasts
+/// and Pocket Casts label episodes; empty when the feed doesn't say.
+String episodeNumberLabel(MediaItem episode) {
+  final extras = episode.extras;
+  final type = extras?['episodeType'];
+  if (type == 'trailer') return 'episodeTrailer'.tr;
+  if (type == 'bonus') return 'episodeBonus'.tr;
+  final season = extras?['season'];
+  final number = extras?['episode'];
+  if (season is int && number is int) {
+    return 'episodeSeasonNumber'
+        .trParams({'season': '$season', 'episode': '$number'});
+  }
+  if (number is int) return 'episodeNumber'.trParams({'episode': '$number'});
+  if (season is int) return 'episodeSeason'.trParams({'season': '$season'});
+  return '';
+}
 
 /// Rounded square episode / show art from a URL, with a quiet fallback.
 class PodcastArt extends StatelessWidget {
@@ -187,9 +206,13 @@ class PodcastEpisodeTile extends StatelessWidget {
 
 /// Outline play pill for episode rows (§5.5 secondary button look).
 class PodcastPlayButton extends StatelessWidget {
-  const PodcastPlayButton({super.key, this.onPressed});
+  const PodcastPlayButton({super.key, this.onPressed, this.loading = false});
 
   final VoidCallback? onPressed;
+
+  /// A spinner in the glyph's place (the pill's size kept) while what it
+  /// plays is being fetched.
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -202,8 +225,17 @@ class PodcastPlayButton extends StatelessWidget {
         minimumSize: const Size(0, RiffComponentSizes.buttonCompact),
         padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
       ),
-      child: const Icon(Icons.play_arrow_rounded,
-          size: RiffComponentSizes.trailingIcon),
+      child: loading
+          ? const SizedBox.square(
+              dimension: RiffComponentSizes.trailingIcon,
+              child: Padding(
+                padding: EdgeInsets.all(RiffSpacing.xxs),
+                child: CircularProgressIndicator(
+                    strokeWidth: RiffComponentSizes.spinnerStroke),
+              ),
+            )
+          : const Icon(Icons.play_arrow_rounded,
+              size: RiffComponentSizes.trailingIcon),
     );
   }
 }

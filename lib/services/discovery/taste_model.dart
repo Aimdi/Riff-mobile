@@ -207,6 +207,27 @@ class TasteModel {
         displayName: artist);
   }
 
+  /// "Not interested" in a song picked for you: its artist comes up a
+  /// little less ([AffinityWeights.dismiss]); [undo] takes that back.
+  Future<void> logDismiss(String videoId, String? artist, String? title,
+      {bool undo = false}) async {
+    final artistKey = normalizeArtistKey(artist);
+    if (!undo) {
+      await repo.appendEvent(DiscoveryEvent(
+        videoId: videoId,
+        artistKey: artistKey,
+        ts: DateTime.now().millisecondsSinceEpoch,
+        source: DiscoverySource.userClick,
+        event: DiscoveryEventKind.dismiss,
+        title: title,
+        artist: artist,
+      ));
+    }
+    await repo.bumpAffinity(
+        artistKey, undo ? -AffinityWeights.dismiss : AffinityWeights.dismiss,
+        displayName: artist);
+  }
+
   // ─── Scoring helpers used by the pipeline ─────────────────────────────
 
   /// Score a candidate track. Higher is better.

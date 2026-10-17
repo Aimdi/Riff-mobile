@@ -101,6 +101,11 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
       _status.value = 'spotifyNoClientId'.tr;
       return;
     }
+    if (GetPlatform.isDesktop) {
+      // The login runs in a WebView, which Linux lacks.
+      _status.value = 'desktopSignInUnavailable'.tr;
+      return;
+    }
     final ok = await Get.to(() => const SpotifyLoginScreen());
     if (ok == true) {
       await SpotifyApiService.clearCache();

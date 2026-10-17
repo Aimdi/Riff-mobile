@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '/services/podcast_bookmarks.dart';
@@ -17,6 +21,7 @@ import '/services/music_service.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import '/ui/widgets/podcast_play.dart';
 import '/ui/widgets/snackbar.dart';
@@ -26,6 +31,7 @@ import 'podcast_layout.dart';
 import 'podcast_queue_controller.dart';
 import 'podcast_queue_screen.dart';
 import 'podcasts_library_controller.dart';
+import '/services/podcast_inbox_counts.dart';
 
 /// AntennaPod-style Inbox: the latest episodes across every subscribed podcast,
 /// merged into one list sorted by publish date (newest first). Tap an episode
@@ -292,6 +298,8 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
           if (e['chaptersUrl'] != null) 'chaptersUrl': e['chaptersUrl'],
           if (e['transcriptUrl'] != null) 'transcriptUrl': e['transcriptUrl'],
           if (e['transcriptUrl'] != null) 'transcriptType': e['transcriptType'],
+          if (e['link'] != null) 'link': e['link'],
+          ...episodeNumbering(e),
         },
       );
 
@@ -568,17 +576,130 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
 
   Widget _row(BuildContext context, List<MediaItem> list, int i) {
     final e = list[i];
-    return PodcastEpisodeTile(
+    final tile = PodcastEpisodeTile(
       artUrl: Thumbnail(e.artUri?.toString() ?? '').medium,
       title: e.title,
-      meta: episodeMetaLine(
-          [e.artist, '${e.extras?['date'] ?? ''}', _remainingLabel(e)]),
+      meta: episodeMetaLine([
+        e.artist,
+        episodeNumberLabel(e),
+        '${e.extras?['date'] ?? ''}',
+        _remainingLabel(e),
+      ]),
       progress: PodcastProgressService.progress(e.id),
       onTap: () => _play(list, i),
-      onLongPress: () =>
-          showAddToQueueSheet(context, e, onChanged: () => setState(() {})),
+      onLongPress: () => showAddToQueueSheet(context, e,
+          onChanged: () => setState(() {}),
+          onRemoveFromInbox: _episodes.any((x) => x.id == e.id)
+              ? () => _removeFromInbox(context, e)
+              : null),
+    );
+    // Swipes in the plain Inbox only, where a played episode leaves the
+    // list (with a filter on it can stay), and when swipe actions are on.
+    if (widget.filter != null || !_swipeActionsOn) return tile;
+    final scheme = Theme.of(context).colorScheme;
+    void queue() => _queueFromInbox(context, e);
+    void played() => _markPlayedFromInbox(context, e);
+    return Dismissible(
+      key: ValueKey('inbox_${e.id}'),
+      // Right: into the queue, as song rows swipe to queue (the row stays).
+      background: _InboxSwipeBackground(
+        alignment: Alignment.centerLeft,
+        color: scheme.secondary,
+        icon: Icons.playlist_add_rounded,
+        iconColor: scheme.onSecondary,
+      ),
+      // Left: played, so it leaves the Inbox.
+      secondaryBackground: _InboxSwipeBackground(
+        alignment: Alignment.centerRight,
+        color: RiffColors.of(context).surface2,
+        icon: Icons.done_all_rounded,
+        iconColor: scheme.onSurface,
+      ),
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) {
+          queue();
+          return false;
+        }
+        return true;
+      },
+      onDismissed: (_) => played(),
+      // The swipes, for screen readers (a swipe there moves focus).
+      child: Semantics(
+        customSemanticsActions: {
+          CustomSemanticsAction(label: 'addToQueue'.tr): queue,
+          CustomSemanticsAction(label: 'markAsPlayed'.tr): played,
+        },
+        child: tile,
+      ),
     );
   }
+
+  bool get _swipeActionsOn =>
+      !Get.isRegistered<SettingsScreenController>() ||
+      Get.find<SettingsScreenController>().slidableActionEnabled.isTrue;
+
+  void _queueFromInbox(BuildContext context, MediaItem e) {
+    HapticFeedback.lightImpact();
+    final queue = Get.find<PodcastQueueController>();
+    final had = queue.isQueued(e.id);
+    queue.add(e);
+    // In place of the one before, so swipe after swipe says each.
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(snackbar(
+          context, (had ? 'alreadyInQueue' : 'addedToQueue').tr,
+          size: SanckBarSize.MEDIUM));
+  }
+
+  /// Takes [e] out of the Inbox, unplayed, with Undo.
+  void _removeFromInbox(BuildContext context, MediaItem e) {
+    final target = undoSnackbarTarget(context);
+    unawaited(PodcastLibrary.removeFromInbox(e));
+    // Its show's count of new episodes too.
+    PodcastInboxCounts.rev.value++;
+    setState(() => _episodes = _unplayed(_merged));
+    showUndoSnackbar(target, 'removedFromInbox'.tr, onUndo: () async {
+      await PodcastLibrary.backToInbox(e.id);
+      PodcastInboxCounts.rev.value++;
+      if (mounted) setState(() => _episodes = _unplayed(_merged));
+    });
+  }
+
+  /// Marks [e] played (it leaves the Inbox, and the queue) with Undo,
+  /// which brings back where you were in it and its place in the queue.
+  void _markPlayedFromInbox(BuildContext context, MediaItem e) {
+    final target = undoSnackbarTarget(context);
+    final snap = PodcastLibrary.markAllListened([e], sweep: false);
+    setState(() => _episodes = _unplayed(_merged));
+    showUndoSnackbar(target, 'markedAsPlayed'.tr, onUndo: () async {
+      await PodcastLibrary.undoMarkAll(snap);
+      if (mounted) setState(() => _episodes = _unplayed(_merged));
+    });
+  }
+}
+
+/// What shows under an Inbox row as it's swiped: the action's icon on its
+/// colour, on the side it's swiped from.
+class _InboxSwipeBackground extends StatelessWidget {
+  const _InboxSwipeBackground({
+    required this.alignment,
+    required this.color,
+    required this.icon,
+    required this.iconColor,
+  });
+
+  final Alignment alignment;
+  final Color color;
+  final IconData icon;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        alignment: alignment,
+        padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.xxl),
+        color: color,
+        child: Icon(icon, color: iconColor),
+      );
 }
 
 /// "New", "In progress", … for [f].

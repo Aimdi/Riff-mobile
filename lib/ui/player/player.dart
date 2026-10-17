@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 
+import '/services/music_autoplay.dart';
 import '/ui/player/components/gesture_player.dart';
 import '/ui/player/components/long_form_player.dart';
 import '/ui/player/components/queue_panel.dart';
@@ -11,6 +12,7 @@ import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '../../utils/helper.dart';
 import '../widgets/add_to_playlist.dart';
+import '../widgets/queue_undo.dart';
 import '../widgets/snackbar.dart';
 import '/ui/player/play_queue_order.dart';
 import '/ui/player/player_controller.dart';
@@ -31,6 +33,9 @@ class Player extends StatelessWidget {
     final PlayerController playerController = Get.find<PlayerController>();
     final settingsScreenController = Get.find<SettingsScreenController>();
     return Scaffold(
+      // Clear: the players paint their own page (see home.dart's panel).
+      backgroundColor: Colors.transparent,
+
       /// SlidingUpPanel is used to create a panel that can slide up and down
       /// It is used to show the current queue panel in mobile
       body: Obx(() {
@@ -123,6 +128,25 @@ class Player extends StatelessWidget {
                                   .isQueueLoopModeEnabled.isTrue,
                               onTap: playerController.toggleQueueLoopMode,
                             )),
+                        // Autoplay (Apple Music's ∞): similar songs
+                        // once the queue runs out.
+                        Obx(() => _QueueBarButton(
+                              tooltip: 'autoplayShort'.tr,
+                              icon: Icons.all_inclusive_rounded,
+                              active: MusicAutoplay.enabled.isTrue,
+                              onTap: () {
+                                final on = MusicAutoplay.enabled.isFalse;
+                                MusicAutoplay.set(on);
+                                ScaffoldMessenger.of(context)
+                                  ..hideCurrentSnackBar()
+                                  ..showSnackBar(snackbar(
+                                      context,
+                                      on
+                                          ? 'musicAutoplayOn'.tr
+                                          : 'musicAutoplayOff'.tr,
+                                      size: SanckBarSize.BIG));
+                              },
+                            )),
                         _QueueBarButton(
                           tooltip: "shuffleQueue".tr,
                           icon: Icons.shuffle_rounded,
@@ -159,7 +183,7 @@ class Player extends StatelessWidget {
                         _QueueBarButton(
                           tooltip: "clearQueue".tr,
                           icon: Icons.playlist_remove_rounded,
-                          onTap: playerController.clearQueue,
+                          onTap: () => clearQueueWithUndo(context: context),
                         ),
                       ],
                     ),
@@ -182,7 +206,9 @@ class Player extends StatelessWidget {
                 ? const LongFormPlayer()
                 : settingsScreenController.playerUi.value == 0
                     ? const StandardPlayer()
-                    : const GesturePlayer()),
+                    : ColoredBox(
+                        color: Theme.of(context).colorScheme.surface,
+                        child: const GesturePlayer())),
           ),
         );
       }),

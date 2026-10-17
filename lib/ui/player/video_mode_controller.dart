@@ -8,6 +8,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '/models/hm_streaming_data.dart';
 import '/services/client_config_service.dart';
+import '/services/network_kind.dart';
 import '/services/stream_service.dart';
 import '/services/utils.dart';
 import '/services/video_stream_service.dart';
@@ -360,11 +361,14 @@ class VideoModeController extends GetxController with WidgetsBindingObserver {
   /// resolved stream if fresh, else a fresh resolve at the user's
   /// streaming-quality setting.
   Future<String?> _audioUrlFor(String songId) async {
-    // Data saver included, as in the audio pipeline.
+    // Data saver and Auto included, as in the audio pipeline.
     final prefs = Hive.box('AppPrefs');
+    final setting = prefs.get('streamingQuality');
     final quality = streamingQualityIndex(
         dataSaver: prefs.get('dataSaver'),
-        streamingQuality: prefs.get('streamingQuality'));
+        streamingQuality: setting,
+        metered:
+            setting == autoStreamingQuality && await NetworkKind.isMetered());
     try {
       if (Hive.isBoxOpen('SongsUrlCache')) {
         final cached = Hive.box('SongsUrlCache').get(songId);

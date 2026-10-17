@@ -9,6 +9,10 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
 
 import '../../../utils/hive_boxes.dart';
+import 'library_search.dart';
+import 'library_pins.dart';
+import 'library_removal.dart';
+import '/services/pending_file_deletes.dart';
 import '../../../utils/house_keeping.dart';
 import '../../widgets/add_to_playlist.dart';
 import '/ui/widgets/sort_widget.dart';
@@ -16,6 +20,8 @@ import '/ui/theme/riff_spacing.dart';
 import '../Settings/settings_screen_controller.dart';
 import '/services/piped_service.dart';
 import '/services/cloud_music_service.dart';
+import '/services/server_login.dart';
+import '/services/device_music.dart';
 import '../../../utils/helper.dart';
 import '/models/album.dart';
 import '/models/artist.dart';
@@ -31,9 +37,48 @@ class LibrarySongsController extends GetxController {
   SortWidgetController? sortWidgetController;
   final additionalOperationMode = OperationMode.none.obs;
 
+  /// When true, Songs shows the music files on this phone (Android), as
+  /// Spotify's Local files and YouTube Music's Device files.
+  final showDeviceSongs = false.obs;
+  final deviceSongs = <MediaItem>[].obs;
+  final deviceLoading = false.obs;
+
+  /// Null until asked; false when Android's permission was refused.
+  final deviceAccess = RxnBool();
+
+  /// On this phone, on or off; on, asks for the permission to read music
+  /// files (the first time) and lists them.
+  Future<void> toggleDeviceSongs() async {
+    showDeviceSongs.toggle();
+    if (showDeviceSongs.isFalse) return;
+    showCloudSongs.value = false;
+    await loadDeviceSongs();
+  }
+
+  /// The phone's songs, listed again; [settings]: refused for good, opens
+  /// Riff's app settings to allow it there.
+  Future<void> loadDeviceSongs({bool settings = false}) async {
+    if (deviceLoading.isTrue) return;
+    deviceLoading.value = true;
+    try {
+      final allowed = await DeviceMusic.askAccess(settings: settings);
+      deviceAccess.value = allowed;
+      if (!allowed) return;
+      final songs = await DeviceMusic.songs();
+      if (songs == null) {
+        deviceAccess.value = false;
+        return;
+      }
+      deviceSongs.assignAll(_sortedLikeSongs(songs));
+    } finally {
+      deviceLoading.value = false;
+    }
+  }
+
   Future<void> toggleCloudSongs() async {
     showCloudSongs.value = !showCloudSongs.value;
     if (!showCloudSongs.value) return;
+    showDeviceSongs.value = false;
     final cloud = Get.find<CloudMusicService>();
     if (cloud.isConnected.isFalse) return;
     if (cloud.songs.isEmpty) {
@@ -78,9 +123,12 @@ class LibrarySongsController extends GetxController {
     // A failed listing must not wipe the whole cache index.
     if (listedOk && staleKeys.isNotEmpty) await box.deleteAll(staleKeys);
 
+    final downloads = Hive.box("SongDownloads");
     librarySongsList.value = box.values
         .map<MediaItem?>((item) => MediaItemBuilder.fromJson(item))
         .whereType<MediaItem>()
+        // Downloaded too: it's listed once, as a download.
+        .where((song) => !downloads.containsKey(song.id))
         .toList();
 
     librarySongsList.addAll(Hive.box("SongDownloads")
@@ -88,15 +136,32 @@ class LibrarySongsController extends GetxController {
         .map<MediaItem?>((item) => MediaItemBuilder.fromJson(item))
         .whereType<MediaItem>()
         .toList());
+    _sortAsChosen(LibrarySortTags.songs, onSort);
 
     //Remove deleted songs and expired songUrl from database
     startHouseKeeping();
   }
 
   void onSort(SortType sortType, bool isAscending) {
+    _sort = (sortType, isAscending);
     final songlist = librarySongsList.toList();
     sortSongsNVideos(songlist, sortType, isAscending);
     librarySongsList.value = songlist;
+    if (deviceSongs.isNotEmpty) {
+      deviceSongs.value = _sortedLikeSongs(deviceSongs);
+    }
+  }
+
+  /// Songs' sort, picked last (null: none yet, the phone's songs by title).
+  (SortType, bool)? _sort;
+
+  /// The phone's [songs] sorted as Songs is.
+  List<MediaItem> _sortedLikeSongs(List<MediaItem> songs) {
+    final list = songs.toList();
+    if (_sort case (final type, final ascending)) {
+      sortSongsNVideos(list, type, ascending);
+    }
+    return list;
   }
 
   void onSearchStart(String? tag) {
@@ -105,15 +170,98 @@ class LibrarySongsController extends GetxController {
 
   void onSearch(String value, String? tag) {
     final songlist = tempListContainer
-        .where((element) =>
-            element.title.toLowerCase().contains(value.toLowerCase()))
+        .where((song) => libraryMatches(value, songSearchFields(song)))
         .toList();
     librarySongsList.value = songlist;
+  }
+
+  /// Songs tab filter: only songs downloaded to the device (the list also
+  /// holds songs that are just cached from listening).
+  final downloadedOnly = false.obs;
+
+  void toggleDownloadedOnly() => downloadedOnly.toggle();
+
+  /// What the Songs tab shows and plays: the list after search and sort,
+  /// narrowed to downloads when [downloadedOnly] is on.
+  List<MediaItem> get visibleSongs {
+    if (downloadedOnly.isFalse) return librarySongsList;
+    final downloads = Hive.box("SongDownloads");
+    return librarySongsList.where((s) => downloads.containsKey(s.id)).toList();
   }
 
   void onSearchClose(String? tag) {
     librarySongsList.value = tempListContainer.toList();
     tempListContainer.clear();
+  }
+
+  /// Takes [song] out of the library: its download and cache entries and
+  /// its place in the list go now; its files stay until [commitRemoval],
+  /// so [undoRemoval] can put everything back. Null when it isn't in the
+  /// library.
+  Future<LibrarySongRemoval?> takeOutOfLibrary(MediaItem song) async {
+    final cacheDir = (await getTemporaryDirectory()).path;
+    final supportDir = Get.find<SettingsScreenController>().supportDirPath;
+    final downloads = Hive.box("SongDownloads");
+    final cache = Hive.box("SongsCache");
+    final download = downloads.get(song.id);
+    final cached = cache.get(song.id);
+    // Decided and done synchronously, so two quick removals can't shift
+    // each other's positions.
+    final listIndex = librarySongsList.indexWhere((s) => s.id == song.id);
+    final searchIndex = tempListContainer.indexWhere((s) => s.id == song.id);
+    if (download == null && cached == null && listIndex < 0) return null;
+    // Every row: a song both downloaded and cached is listed twice.
+    librarySongsList.removeWhere((s) => s.id == song.id);
+    tempListContainer.removeWhere((s) => s.id == song.id);
+    final removal = LibrarySongRemoval(
+      song: song,
+      download: download,
+      cached: cached,
+      listIndex: listIndex,
+      searchIndex: searchIndex,
+      files: libraryFilesOf(
+        id: song.id,
+        download: download,
+        cached: cached != null,
+        cacheDir: cacheDir,
+        supportDir: supportDir,
+      ),
+    );
+    await markPendingFiles(
+        Hive.box("AppPrefs"), song.id, removal.files);
+    if (download != null) await downloads.delete(song.id);
+    if (cached != null) await cache.delete(song.id);
+    return removal;
+  }
+
+  /// Undo for [takeOutOfLibrary]: the entries and the list place come back.
+  Future<void> undoRemoval(LibrarySongRemoval removal) async {
+    final song = removal.song;
+    await clearPendingFiles(Hive.box("AppPrefs"), song.id);
+    if (removal.download != null) {
+      await Hive.box("SongDownloads").put(song.id, removal.download);
+    }
+    if (removal.cached != null) {
+      await Hive.box("SongsCache").put(song.id, removal.cached);
+    }
+    if (removal.listIndex >= 0 &&
+        librarySongsList.every((s) => s.id != song.id)) {
+      insertClamped(librarySongsList, removal.listIndex, song);
+    }
+    if (removal.searchIndex >= 0 &&
+        tempListContainer.every((s) => s.id != song.id)) {
+      insertClamped(tempListContainer, removal.searchIndex, song);
+    }
+  }
+
+  /// Undo is no longer offered: the files go, unless the song came back
+  /// into the library meanwhile (played into the cache, downloaded again).
+  Future<void> commitRemoval(LibrarySongRemoval removal) async {
+    final id = removal.song.id;
+    final back = Hive.box("SongDownloads").containsKey(id) ||
+        Hive.box("SongsCache").containsKey(id);
+    if (!back) await deleteFiles(removal.files);
+    await clearPendingFiles(Hive.box("AppPrefs"), id);
   }
 
   /// remove song from library list and from storage only, not from database
@@ -270,6 +418,8 @@ class LibraryPlaylistsController extends GetxController
   }
 
   void refreshLib() async {
+    // Rebuilt in stored order, then sorted as you last chose (if you did).
+    _sort = null;
     // Shared box, kept open: closing it here raced other openers (playlist
     // screen, add-to-playlist) and forced a file re-read on every refresh.
     final box = await HiveBoxes.open("LibraryPlaylists");
@@ -280,14 +430,15 @@ class LibraryPlaylistsController extends GetxController
     final pipedShown = pipedLoggedIn
         ? libraryPlaylists.where((p) => p.isPipedPlaylist).toList()
         : const <Playlist>[];
-    libraryPlaylists.value = [
+    libraryPlaylists.value = _ordered([
       ...initPlst,
       ...(box.values
           .map<Playlist?>((item) => Playlist.fromJson(item))
           .whereType<Playlist>()
           .toList()),
       ...pipedShown,
-    ];
+    ]);
+    _sortAsChosen(LibrarySortTags.playlists, onSort);
     // Local content is ready: don't hold the spinner on the network sync.
     isContentFetched.value = true;
 
@@ -358,13 +509,18 @@ class LibraryPlaylistsController extends GetxController
               (element) => element.playlistId == playlist.playlistId);
         }
       }
+      // New ones were added at the end; a pinned one goes back up.
+      libraryPlaylists.value = _ordered(libraryPlaylists.toList());
     }
     return res.code == 1;
   }
 
-  Future<bool> renamePlaylist(Playlist playlist) async {
-    String title = textInputController.text;
-    if (title.trim().isNotEmpty) {
+  /// Renames [playlist] to the name typed, as typed (it used to come out
+  /// in lower case after the first letter); a library playlist also takes
+  /// [description] (empty: none), as Spotify's Edit details.
+  Future<bool> renamePlaylist(Playlist playlist, {String? description}) async {
+    final title = textInputController.text.trim();
+    if (title.isNotEmpty) {
       if (playlist.isPipedPlaylist) {
         final res = await Get.find<PipedServices>()
             .renamePlaylist(playlist.playlistId, title);
@@ -372,9 +528,9 @@ class LibraryPlaylistsController extends GetxController
         playlist.newTitle = title;
       } else {
         final box = await HiveBoxes.open("LibraryPlaylists");
-        title = "${title[0].toUpperCase()}${title.substring(1).toLowerCase()}";
         playlist.newTitle = title;
-        await box.put(playlist.playlistId, playlist.toJson());
+        await box.put(playlist.playlistId,
+            playlist.copyWith(description: description?.trim()).toJson());
       }
       refreshLib();
       return true;
@@ -467,11 +623,43 @@ class LibraryPlaylistsController extends GetxController
   }
 
   void onSort(SortType sortType, bool isAscending) {
+    _sort = (sortType, isAscending);
     final playlists = libraryPlaylists.toList();
     playlists.removeRange(0, 4);
     sortPlayLists(playlists, sortType, isAscending);
     playlists.insertAll(0, initPlst);
-    libraryPlaylists.value = playlists;
+    libraryPlaylists.value = _ordered(playlists);
+  }
+
+  /// The sort picked last (null: stored order), so an unpinned playlist
+  /// goes back to its place.
+  (SortType, bool)? _sort;
+
+  static final _riffOwn = {for (final p in initPlst) p.playlistId};
+
+  /// Riff's own four, then the pinned playlists, then the rest.
+  List<Playlist> _ordered(List<Playlist> playlists) =>
+      orderLibraryPlaylists(playlists, LibraryPins.ids, _riffOwn);
+
+  /// Pins or unpins [playlist] and moves it there. False when it can't be
+  /// pinned: [LibraryPins.max] are pinned already.
+  Future<bool> togglePin(Playlist playlist) async {
+    final searching = tempListContainer.isNotEmpty;
+    final all = searching ? tempListContainer : libraryPlaylists;
+    final ok = await LibraryPins.toggle(playlist.playlistId,
+        library: {for (final p in all) p.playlistId});
+    if (!ok) return false;
+    final sort = _sort;
+    if (searching) {
+      // The results, and the full list for when the search closes.
+      libraryPlaylists.value = _ordered(libraryPlaylists.toList());
+      tempListContainer = _ordered(tempListContainer);
+    } else if (sort != null) {
+      onSort(sort.$1, sort.$2);
+    } else {
+      refreshLib();
+    }
+    return true;
   }
 
   void onSearchStart(String? tag) {
@@ -480,10 +668,10 @@ class LibraryPlaylistsController extends GetxController
 
   void onSearch(String value, String? tag) {
     final songlist = tempListContainer
-        .where((element) =>
-            element.title.toLowerCase().contains(value.toLowerCase()))
+        .where((playlist) => libraryMatches(
+            value, [playlist.title, playlist.description]))
         .toList();
-    libraryPlaylists.value = songlist;
+    libraryPlaylists.value = _ordered(songlist);
   }
 
   void onSearchClose(String? tag) {
@@ -496,6 +684,15 @@ class LibraryPlaylistsController extends GetxController
     textInputController.dispose();
     controller.dispose();
     super.onClose();
+  }
+
+  /// An exported playlist ([jsonData]) with its links to your music server
+  /// signed with the login Riff has (exports leave it out).
+  dynamic _withServerLogin(dynamic jsonData) {
+    if (!Get.isRegistered<CloudMusicService>()) return jsonData;
+    final cloud = Get.find<CloudMusicService>();
+    return withServerLogins(jsonData,
+        server: cloud.host.value, login: cloud.linkLogin);
   }
 
   Future<void> importPlaylistFromJson(BuildContext context) async {
@@ -533,7 +730,7 @@ class LibraryPlaylistsController extends GetxController
       final jsonString = await file.readAsString();
       importProgress.value = 0.3;
 
-      final jsonData = jsonDecode(jsonString);
+      final jsonData = _withServerLogin(jsonDecode(jsonString));
       importProgress.value = 0.4;
 
       // Validate JSON structure
@@ -669,6 +866,7 @@ class LibraryAlbumsController extends GetxController {
         .map<Album?>((item) => Album.fromJson(item))
         .whereType<Album>()
         .toList();
+    _sortAsChosen(LibrarySortTags.albums, onSort);
 
     isContentFetched.value = true;
   }
@@ -685,8 +883,10 @@ class LibraryAlbumsController extends GetxController {
 
   void onSearch(String value, String? tag) {
     final songlist = tempListContainer
-        .where((element) =>
-            element.title.toLowerCase().contains(value.toLowerCase()))
+        .where((album) => libraryMatches(value, [
+              album.title,
+              for (final a in album.artists ?? const []) a['name']?.toString(),
+            ]))
         .toList();
     libraryAlbums.value = songlist;
   }
@@ -715,6 +915,7 @@ class LibraryArtistsController extends GetxController {
         .map<Artist?>((item) => Artist.fromJson(item))
         .whereType<Artist>()
         .toList();
+    _sortAsChosen(LibrarySortTags.artists, onSort);
     isContentFetched.value = true;
   }
 
@@ -730,8 +931,7 @@ class LibraryArtistsController extends GetxController {
 
   void onSearch(String value, String? tag) {
     final songlist = tempListContainer
-        .where((element) =>
-            element.name.toLowerCase().contains(value.toLowerCase()))
+        .where((artist) => libraryMatches(value, [artist.name]))
         .toList();
     libraryArtists.value = songlist;
   }
@@ -740,4 +940,11 @@ class LibraryArtistsController extends GetxController {
     libraryArtists.value = tempListContainer.toList();
     tempListContainer.clear();
   }
+}
+
+/// A Library tab's list, loaded, sorted as you last chose ([SortChoice]),
+/// as Spotify keeps Your Library's sort; never chosen, as it's stored.
+void _sortAsChosen(String tag, void Function(SortType, bool) onSort) {
+  final chosen = SortChoice.load(tag);
+  if (chosen != null) onSort(chosen.type, chosen.ascending);
 }

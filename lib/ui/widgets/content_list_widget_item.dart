@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '/models/album.dart';
+import '/ui/screens/Library/library_controller.dart';
+import '/ui/screens/Library/library_pins.dart';
 import '../navigator.dart';
 import '../player/player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
@@ -12,7 +14,11 @@ import '../utils/theme_controller.dart';
 import 'collection_play.dart';
 import 'image_widget.dart';
 import 'podcast_play.dart';
+import '/services/search_recents.dart';
+import '../screens/Library/playlist_folder_ui.dart' show showMoveToFolderSheet;
 import 'snackbar.dart';
+import 'song_list_tile.dart' show RiffRowHairline;
+import '../screens/Home/home_layout.dart' show HomeLayout;
 
 class ContentListItem extends StatelessWidget {
   const ContentListItem(
@@ -20,7 +26,12 @@ class ContentListItem extends StatelessWidget {
       required this.content,
       this.isLibraryItem = false,
       this.showSimilarOnOpen = false,
-      this.size = defaultSize});
+      this.size = defaultSize,
+      this.asRow = false});
+
+  /// A row of a list (Library's list view): the cover at [size], then the
+  /// title and subtitle, opening and long-pressing as the card does.
+  final bool asRow;
 
   /// Cover width of a shelf card; grids pass a size that fills a column.
   static const double defaultSize = 112;
@@ -171,6 +182,25 @@ class ContentListItem extends StatelessWidget {
     if (!queued) _snackOperationFailed();
   }
 
+  /// Library playlists, all but Riff's own four, can be pinned to the top.
+  bool get _canPin =>
+      isLibraryItem &&
+      !_isAlbum &&
+      !isSystemLibraryPlaylistId(_collectionId) &&
+      Get.isRegistered<LibraryPlaylistsController>();
+
+  Future<void> _togglePin(UndoSnackbarTarget? target) async {
+    final pinning = !LibraryPins.isPinned(_collectionId);
+    final ok = await Get.find<LibraryPlaylistsController>().togglePin(content);
+    showUndoSnackbar(
+        target,
+        !ok
+            ? 'pinPlaylistLimit'.trParams({'count': '${LibraryPins.max}'})
+            : pinning
+                ? 'playlistPinned'.tr
+                : 'playlistUnpinned'.tr);
+  }
+
   void _showPlaySheet(BuildContext context) {
     HapticFeedback.mediumImpact();
     showModalBottomSheet<void>(
@@ -226,6 +256,17 @@ class ContentListItem extends StatelessWidget {
                     _openContent();
                   },
                 ),
+                if (_canPin) _pinTile(ctx, undoSnackbarTarget(context)),
+                // Spotify's folders for Your Library.
+                if (_canPin)
+                  ListTile(
+                    leading: const Icon(Icons.drive_file_move_outlined),
+                    title: Text('moveToFolder'.tr),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      showMoveToFolderSheet(context, content);
+                    },
+                  ),
               ],
             ),
           ),
@@ -234,7 +275,48 @@ class ContentListItem extends StatelessWidget {
     );
   }
 
-  Widget _art(BuildContext context) {
+  Widget _pinTile(BuildContext sheet, UndoSnackbarTarget? target) {
+    final pinned = LibraryPins.isPinned(_collectionId);
+    return ListTile(
+      leading: Icon(pinned ? Icons.push_pin_rounded : Icons.push_pin_outlined),
+      title: Text(pinned ? 'unpinPlaylist'.tr : 'pinPlaylist'.tr),
+      onTap: () {
+        Navigator.of(sheet).pop();
+        _togglePin(target);
+      },
+    );
+  }
+
+  /// The subtitle, after a pin in the accent when the playlist is pinned.
+  Widget _subtitleLine(BuildContext context, Color? muted) {
+    final line = Text(
+      _subtitle(_isAlbum),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: muted,
+          ),
+    );
+    if (!_canPin) return line;
+    return Obx(() {
+      LibraryPins.rev.value;
+      if (!LibraryPins.isPinned(_collectionId)) return line;
+      return Row(
+        children: [
+          Icon(
+            Icons.push_pin_rounded,
+            size: RiffComponentSizes.pinMark,
+            color: Theme.of(context).colorScheme.secondary,
+            semanticLabel: 'pinned'.tr,
+          ),
+          const SizedBox(width: RiffSpacing.xxs),
+          Flexible(child: line),
+        ],
+      );
+    });
+  }
+
+  Widget _cover(BuildContext context) {
     final Widget child;
     if (_isAlbum) {
       child = ImageWidget(
@@ -274,12 +356,16 @@ class ContentListItem extends StatelessWidget {
             size: size * 0.32,
           )));
     }
+    return child;
+  }
+
+  Widget _art(BuildContext context) {
     return SizedBox(
       width: size,
       height: size,
       child: Stack(
         children: [
-          child,
+          _cover(context),
           Positioned(
             right: _playInset,
             bottom: _playInset,
@@ -292,6 +378,7 @@ class ContentListItem extends StatelessWidget {
                 child: InkWell(
                   customBorder: const CircleBorder(),
                   onTap: () {
+                    noteSearchOpen(context, content);
                     _playFromOverlay();
                   },
                   child: Padding(
@@ -311,22 +398,73 @@ class ContentListItem extends StatelessWidget {
     );
   }
 
+  /// A tap: [_onTap], kept among recent searches when it's a search
+  /// result.
+  void _open(BuildContext context) {
+    noteSearchOpen(context, content);
+    _onTap();
+  }
+
+  /// What a tap does: open the album / playlist / show page (the play
+  /// button on a card's cover still plays).
+  VoidCallback get _onTap => shouldPlayCollectionOnTap() &&
+          (_isAlbum ||
+              !isPodcastCollection(kind: _collectionKind, id: _collectionId))
+      ? _playFromOverlay
+      : _openContent;
+
+  /// [asRow]: the cover, then the title and subtitle, with the hairline
+  /// list rows have (§5.2).
+  Widget _row(BuildContext context, Color? muted) {
+    return Stack(
+      children: [
+        InkWell(
+          onTap: () => _open(context),
+          onLongPress: () => _showPlaySheet(context),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: HomeLayout.gutter, vertical: RiffSpacing.sm),
+            child: Row(
+              children: [
+                SizedBox.square(dimension: size, child: _cover(context)),
+                const SizedBox(width: RiffSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: RiffSpacing.xxs),
+                      _subtitleLine(context, muted),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const RiffRowHairline(),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final muted = Theme.of(context).brightness == Brightness.dark
         ? RiffSurfaces.textMuted
         : Theme.of(context).textTheme.titleSmall?.color?.withOpacity(0.6);
+    if (asRow) return _row(context, muted);
     return InkWell(
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
       // Open the album / playlist / show page; the play button on the
       // cover still plays.
-      onTap: shouldPlayCollectionOnTap() &&
-              (_isAlbum ||
-                  !isPodcastCollection(
-                      kind: _collectionKind, id: _collectionId))
-          ? _playFromOverlay
-          : _openContent,
+      onTap: () => _open(context),
       onLongPress: () => _showPlaySheet(context),
       child: SizedBox(
         width: size,
@@ -343,14 +481,7 @@ class ContentListItem extends StatelessWidget {
               style: Theme.of(context).textTheme.labelMedium,
             ),
             const SizedBox(height: 2),
-            Text(
-              _subtitle(_isAlbum),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: muted,
-                  ),
-            ),
+            _subtitleLine(context, muted),
           ],
         ),
       ),

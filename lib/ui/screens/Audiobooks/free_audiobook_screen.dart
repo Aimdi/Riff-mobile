@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/services/audiobook_downloads.dart';
 import '/services/audiobook_progress_service.dart';
 import '/services/free_audiobook_service.dart';
 import '/ui/player/player_controller.dart';
@@ -9,10 +10,12 @@ import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/song_list_tile.dart' show RiffRowHairline;
 import '../Home/home_layout.dart';
 import '../Podcasts/podcast_layout.dart';
+import 'audiobook_download_button.dart';
 import 'audiobook_library_controller.dart';
 import 'audiobook_play.dart';
 import 'audiobook_widgets.dart';
 import '/ui/widgets/riff_header_bar.dart';
+import '/ui/widgets/now_playing_bars.dart';
 
 /// A free LibriVox book: cover, play / resume, about, and its chapters.
 class FreeAudiobookScreen extends StatefulWidget {
@@ -36,12 +39,34 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final d = await FreeAudiobookService.detail(widget.book.id);
+    // Out of reach (offline): the book as downloaded, which plays from the
+    // phone.
+    final d = await FreeAudiobookService.detail(widget.book.id) ??
+        _downloaded(widget.book);
     if (!mounted) return;
     setState(() {
       _detail = d;
       _loading = false;
     });
+  }
+
+  /// The downloaded book [book]: its chapters as they were downloaded.
+  static FreeAudiobookDetail? _downloaded(FreeAudiobook book) {
+    final chapters = AudiobookDownloads.chapters(book.id);
+    if (chapters == null) return null;
+    return FreeAudiobookDetail(
+      book: book,
+      description: '',
+      chapters: [
+        for (final (i, c) in chapters.indexed)
+          FreeAudiobookChapter(
+            index: (c.extras?['audiobookTrackIndex'] as num?)?.toInt() ?? i,
+            title: c.title,
+            url: '${c.extras?['url'] ?? ''}',
+            durationSec: (c.duration?.inMilliseconds ?? 0) / 1000,
+          ),
+      ],
+    );
   }
 
   Future<void> _play({int? index}) async {
@@ -61,6 +86,11 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         actions: [
+          if (_detail != null)
+            AudiobookDownloadButton(
+              bookId: widget.book.id,
+              chapters: () => FreeAudiobookService.toMediaItems(_detail!),
+            ),
           Obx(() {
             final saved = lib.isFreeSaved(widget.book.id);
             return IconButton(
@@ -140,7 +170,9 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
         children: [
           // Show-page header (§ Phase 7): art radius 8, title
           // headlineSmall, author bodyMedium, Play as the primary pill.
-          AudiobookCover(url: book.cover, size: cover),
+          AudiobookCover(
+              url: AudiobookDownloads.coverOf(book.id) ?? book.cover,
+              size: cover),
           const SizedBox(height: RiffSpacing.lg),
           Text(
             book.title,
@@ -285,9 +317,9 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
                           SizedBox(
                             width: RiffSpacing.x3l,
                             child: playing
-                                ? Icon(Icons.graphic_eq_rounded,
-                                    size: RiffComponentSizes.trailingIcon,
-                                    color: accent)
+                                ? const Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: NowPlayingBars())
                                 : Text(
                                     '${i + 1}',
                                     style: Theme.of(context)

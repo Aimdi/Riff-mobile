@@ -1,7 +1,14 @@
+import 'package:audio_service/audio_service.dart';
+import 'package:hive/hive.dart';
+
+import '/models/album.dart';
+import '/models/media_Item_builder.dart';
 import 'discovery_math.dart';
 import 'discovery_repository.dart';
 import 'discovery_types.dart';
 import 'candidate_sources.dart';
+import 'kept_songs.dart';
+import 'new_releases.dart';
 import 'taste_model.dart';
 
 /// Daily / weekly mix generation (algorithmic, offline-capable scoring).
@@ -37,19 +44,15 @@ class MixGenerator {
         metaById[e.videoId] = e;
       }
     }
+    // As Riff keeps them (art, album, length), not a title on a blank.
+    final kept = KeptSongs();
     final enriched = <Map<String, dynamic>>[];
     for (final id in ids) {
       final e = metaById[id];
-      enriched.add({
-        'videoId': id,
-        'title': e?.title ?? id,
-        'artists': [
-          {'name': e?.artist ?? e?.artistKey ?? ''}
-        ],
-        'thumbnails': [
-          {'url': ''}
-        ],
-      });
+      final track =
+          kept.track(id, title: e?.title, artist: e?.artist ?? e?.artistKey);
+      if (track == null || BanServiceSafe.isTrackBanned(track)) continue;
+      enriched.add(track);
       if (enriched.length >= limit) break;
     }
 
@@ -64,6 +67,108 @@ class MixGenerator {
     await repo.saveMix(mix);
     await repo.logImpressions(
         enriched.map((t) => t['videoId'] as String), DiscoverySurface.rediscover);
+    return mix;
+  }
+
+  // ─── On Repeat (pure local) ───────────────────────────────────────────
+
+  /// The fewest songs On Repeat is made of; with fewer it waits for more
+  /// plays.
+  static const onRepeatMin = 5;
+
+  /// Spotify's On Repeat: the songs you've played most in the last 30 days,
+  /// from your own plays (no network), made afresh each day.
+  Future<GeneratedMix> ensureOnRepeat({int limit = 30, DateTime? now}) async {
+    final existing = repo.getMix('on_repeat');
+    if (existing != null && !_staleDaily(existing.generatedTs, now: now)) {
+      return existing;
+    }
+    final tracks =
+        _ownSongs(repo.onRepeatIds(limit: limit * 2, now: now), limit);
+    final mix = GeneratedMix(
+      id: 'on_repeat',
+      title: 'On Repeat',
+      reason: "The songs you've played most lately",
+      kind: MixKind.onRepeat,
+      tracks: tracks.length >= onRepeatMin
+          ? tracks
+          : const <Map<String, dynamic>>[],
+      generatedTs: (now ?? DateTime.now()).millisecondsSinceEpoch,
+    );
+    await repo.saveMix(mix);
+    return mix;
+  }
+
+  /// [ids] as songs you played: as Riff keeps them (KeptSongs), else with
+  /// their title and artist from your plays; what can't play from a mix
+  /// and songs you said never to play left out; at most [limit].
+  List<Map<String, dynamic>> _ownSongs(List<String> ids, int limit) {
+    final meta = <String, DiscoveryEvent>{
+      for (final e in repo.recentEvents(limit: 5000))
+        if (e.title?.isNotEmpty ?? false) e.videoId: e,
+    };
+    final kept = KeptSongs();
+    final tracks = <Map<String, dynamic>>[];
+    for (final id in ids) {
+      final e = meta[id];
+      final track = kept.track(id, title: e?.title, artist: e?.artist);
+      if (track == null || BanServiceSafe.isTrackBanned(track)) continue;
+      tracks.add(track);
+      if (tracks.length >= limit) break;
+    }
+    return tracks;
+  }
+
+  // ─── daylist (pure local) ─────────────────────────────────────────────
+
+  /// The fewest songs the daylist is made of; with fewer it waits for
+  /// more plays at that time of day.
+  static const daylistMin = 5;
+
+  static const _weekdays = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+
+  static const _daylistReasons = {
+    DayPart.morning: 'What you play in the morning',
+    DayPart.afternoon: 'What you play in the afternoon',
+    DayPart.evening: 'What you play in the evening',
+    DayPart.night: 'What you play at night',
+  };
+
+  /// Spotify's daylist: the songs you play at this time of day, those you
+  /// play then more than at other times first, from your own plays of the
+  /// last 30 days (no network). Made afresh as the day moves on (morning,
+  /// afternoon, evening, night) and named for it ("Your Tuesday
+  /// evening").
+  Future<GeneratedMix> ensureDaylist({int limit = 30, DateTime? now}) async {
+    final at = now ?? DateTime.now();
+    final start = DayPart.startOf(at);
+    final existing = repo.getMix('daylist');
+    if (existing != null &&
+        DayPart.startOf(
+                DateTime.fromMillisecondsSinceEpoch(existing.generatedTs)) ==
+            start) {
+      return existing;
+    }
+    final tracks = _ownSongs(repo.daylistIds(limit: limit * 2, now: at), limit);
+    final part = DayPart.of(at);
+    final mix = GeneratedMix(
+      id: 'daylist',
+      title: 'Your ${_weekdays[start.weekday - 1]} ${part.name}',
+      reason: _daylistReasons[part]!,
+      kind: MixKind.daylist,
+      tracks:
+          tracks.length >= daylistMin ? tracks : const <Map<String, dynamic>>[],
+      generatedTs: at.millisecondsSinceEpoch,
+    );
+    await repo.saveMix(mix);
     return mix;
   }
 
@@ -418,59 +523,78 @@ class MixGenerator {
   static const int _freshFindsHop2PerSeed = 3;
   static const int _freshFindsHop2Concurrency = 4;
 
+  /// Artist pages and releases asked for at once (Release Radar).
+  static const int _releaseRadarConcurrency = 4;
+
   // ─── Release Radar ────────────────────────────────────────────────────
 
-  Future<GeneratedMix> ensureReleaseRadar({int limit = 30}) async {
+  Future<GeneratedMix> ensureReleaseRadar(
+      {int limit = 30, DateTime? now}) async {
     final existing = repo.getMix('release_radar');
-    if (existing != null && !_staleWeekly(existing.generatedTs)) {
+    if (existing != null &&
+        !_staleWeekly(existing.generatedTs) &&
+        // Nothing new found: looked for again the next day.
+        !(existing.tracks.isEmpty && _staleDaily(existing.generatedTs))) {
       return existing;
     }
 
-    final followed = repo.followedArtists();
-    // Also top-affinity artists we can resolve via LibraryArtists is caller's job;
-    // here we only use explicit follows + names from affinity events.
-    final channelIds = followed
-        .map((f) => f['channelId'] as String?)
-        .whereType<String>()
-        .toList();
+    // The artists you follow (in Riff, or in your Library from before).
+    final library = Hive.isBoxOpen('LibraryArtists')
+        ? Hive.box('LibraryArtists').keys.map((k) => '$k')
+        : const <String>[];
+    final channelIds = {
+      ...repo
+          .followedArtists()
+          .map((f) => f['channelId'] as String?)
+          .whereType<String>(),
+      ...library,
+    }.where((id) => id.isNotEmpty).toList();
 
+    // Their newest singles, EPs and albums: this year's (artist pages give
+    // only years), one track of each, an artist's in turn with the others'.
+    final at = now ?? DateTime.now();
+    final since = newReleaseYear(at);
+    final week = at.millisecondsSinceEpoch ~/ (7 * 86400000);
+    final releases = <List<Album>>[];
+    final artists = artistsThisWeek(channelIds, week);
+    for (var i = 0; i < artists.length; i += _releaseRadarConcurrency) {
+      releases.addAll((await Future.wait(artists
+              .skip(i)
+              .take(_releaseRadarConcurrency)
+              .map((channelId) async {
+        try {
+          return newReleasesOn(await sources.music.getArtist(channelId),
+              sinceYear: since);
+        } catch (_) {
+          return const <Album>[];
+        }
+      })))
+          .where((found) => found.isNotEmpty));
+    }
     final tracks = <Map<String, dynamic>>[];
     final seen = <String>{};
-    for (final channelId in channelIds.take(20)) {
-      try {
-        final artist = await sources.music.getArtist(channelId);
-        // Singles & albums — take song-like entries
-        for (final key in ['Songs', 'Top songs', 'Singles', 'Singles & EPs', 'Albums']) {
-          final block = artist[key];
-          final results = block is Map ? block['results'] : null;
-          if (results is! List) continue;
-          for (final item in results) {
-            if (item is! Map) continue;
-            // Prefer items with videoId (songs); albums need expansion — skip heavy
-            final m = Map<String, dynamic>.from(item);
-            final vid = m['videoId'] as String?;
-            if (vid == null || vid.isEmpty || seen.contains(vid)) continue;
-            // date filter last 30 days when present
-            final date = m['year'] ?? m['date'];
-            // If we can't parse date, still include lightly
-            seen.add(vid);
-            tracks.add({
-              'videoId': vid,
-              'title': m['title'] ?? '',
-              'artists': m['artists'] ??
-                  [
-                    {'name': artist['name'] ?? ''}
-                  ],
-              'thumbnails': m['thumbnails'] ??
-                  [
-                    {'url': ''}
-                  ],
-              'year': date,
-            });
-          }
+    final inTurn = takeInTurns(releases);
+    for (var i = 0;
+        i < inTurn.length && tracks.length < limit;
+        i += _releaseRadarConcurrency) {
+      final firsts = await Future.wait(
+          inTurn.skip(i).take(_releaseRadarConcurrency).map((release) async {
+        try {
+          final songs = (await sources.music
+              .getPlaylistOrAlbumSongs(albumId: release.browseId))['tracks'];
+          return songs is List ? songs.whereType<MediaItem>().toList() : null;
+        } catch (_) {
+          return null;
         }
-      } catch (_) {}
-      if (tracks.length >= limit) break;
+      }));
+      for (final songs in firsts) {
+        final first = songs
+            ?.where((s) => s.id.isNotEmpty && !seen.contains(s.id))
+            .firstOrNull;
+        if (first == null || tracks.length >= limit) continue;
+        seen.add(first.id);
+        tracks.add(MediaItemBuilder.toJson(first));
+      }
     }
 
     final mix = GeneratedMix(
@@ -490,9 +614,9 @@ class MixGenerator {
 
   // ─── Staleness ────────────────────────────────────────────────────────
 
-  bool _staleDaily(int generatedTs) {
+  bool _staleDaily(int generatedTs, {DateTime? now}) {
     final gen = DateTime.fromMillisecondsSinceEpoch(generatedTs);
-    final now = DateTime.now();
+    now ??= DateTime.now();
     // Stale past 4 AM local if generated before today's 4 AM
     final today4am = DateTime(now.year, now.month, now.day, 4);
     final threshold = now.isBefore(today4am)

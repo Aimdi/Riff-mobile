@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 
 import '/services/discovery/discovery_service.dart';
 import '/services/discovery/discovery_types.dart';
+import '/ui/widgets/discovery/similar_songs_sheet.dart' show similarSongsSource;
 import '/ui/player/player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/widgets/riff_sheet.dart';
@@ -167,7 +168,8 @@ class _SimilarSongsPanelListState extends State<SimilarSongsPanelList> {
     final list = List<MediaItem>.from(_songs);
     list[i] = DiscoveryService.withSource(list[i], DiscoverySource.similar);
     _pickedId = list[i].id;
-    final ok = await Get.find<PlayerController>().playPlayListSong(list, i);
+    final ok = await Get.find<PlayerController>()
+        .playPlayListSong(list, i, playfrom: similarSongsSource());
     if (!ok) snackOperationFailed();
   }
 

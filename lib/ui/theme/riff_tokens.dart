@@ -37,10 +37,17 @@ class RiffPalette {
   /// Pulse ring behind the listen button.
   static const double recognizeRingOpacity = 0.2;
 
+  /// Error colour behind a row swiped away to remove it.
+  static const double swipeRemoveOpacity = 0.18;
+
   /// Podcast folder tile without a photo: the colour's tint behind the
   /// folder icon, and its hairline edge.
   static const double folderTint = 0.22;
   static const double folderEdge = 0.55;
+
+  /// Under a mark on a show's cover (YouTube channel, new episodes), so it
+  /// reads on any artwork.
+  static const double coverBadgeScrim = 0.65;
 
   /// Active rail item: accent fill and outline strengths.
   static const double railActiveFillOpacity = 0.16;
@@ -56,8 +63,16 @@ class RiffPalette {
   static const double playerHeaderScrim = 0.75;
   static const double playerHeaderScrimMid = 0.45;
 
+  /// Round buttons by the player title (song options, like): white at
+  /// this strength over the page.
+  static const double playerButtonVeil = 0.14;
+
   /// Lyrics lines other than the current one (secondary text at 60%).
   static const double lyricsDimOpacity = 0.6;
+
+  /// A row that won't play (an explicit song while explicit content is
+  /// off): Material's disabled strength.
+  static const double unavailableOpacity = 0.38;
 
   /// Riff Wave card cover: the accent tint shown when there is no cover
   /// yet, and the scrim under the waveform (keep the current values).
@@ -87,11 +102,22 @@ class RiffDurations {
   static const Duration sheet = Duration(milliseconds: 250);
   static const Duration page = Duration(milliseconds: 250);
 
+  /// How long typing pauses before a search runs as you type (the search
+  /// screen's suggestions wait as long).
+  static const Duration typingPause = Duration(milliseconds: 350);
+
   /// Page-header hairline fading in/out as content scrolls under it.
   static const Duration headerHairline = Duration(milliseconds: 200);
 
   /// One full loading-skeleton opacity pulse, 0.5 → 1.0 → 0.5 (§5.13).
   static const Duration skeletonPulse = Duration(milliseconds: 1200);
+
+  /// One loop of the now-playing bars on the playing row.
+  static const Duration nowPlayingBars = Duration(milliseconds: 1600);
+
+  /// How far the seek bar moves for TalkBack's swipe up / down, as far as
+  /// the keyboard's Shift + → / ← (Spotify's step).
+  static const Duration seekStep = Duration(seconds: 10);
   static const Curve selectCurve = Curves.easeOutCubic;
 }
 
@@ -224,6 +250,18 @@ class RiffComponentSizes {
   static const double chipLeadingIcon = 16;
   static const double chipChevron = 18;
 
+  /// The pin before a pinned Library playlist's subtitle, inside its line.
+  static const double pinMark = 12;
+
+  /// The "E" before an explicit song's artist: its square, corners and the
+  /// room around the letter.
+  static const double explicitBadge = 14;
+  static const double explicitBadgeRadius = 2;
+  static const double explicitBadgeInset = 2;
+
+  /// The download mark before a downloaded song's artist, the E's size.
+  static const double downloadedMark = 14;
+
   /// Audiobook headers, keeping the current sizes: the Audiobookshelf
   /// book's 2:3 cover (also the "Similar titles" cards), the square store
   /// cover, and the chapter-number circle on Audiobookshelf chapter rows.
@@ -296,6 +334,11 @@ class RiffComponentSizes {
   static const double sheetRow = 52;
   static const double sheetIcon = 22;
   static const double sheetQuickIcon = 24;
+
+  /// A sheet with a list (Search lyrics): the share of the screen it opens
+  /// to, and the most it takes when dragged up (as the chapters sheet).
+  static const double listSheetStart = 0.6;
+  static const double listSheetMax = 0.92;
 
   /// Widest a bottom sheet gets on tablets (the song sheet's width).
   static const double sheetMaxWidth = 500;

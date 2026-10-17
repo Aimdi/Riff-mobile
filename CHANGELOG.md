@@ -1,3 +1,1223 @@
+# 1.7.153
+
+The music player takes its look from the cover, like BitChord:
+* The page under the cover fills with the cover's own colour, darkening
+  towards the bottom, and a second colour from the cover glows behind
+  the play button. Dark themes only; the light theme and videos look as
+  before. With Player canvas on, the glow drifts slowly
+* The line being sung shows under the title for songs with synced
+  lyrics; tap it for the full lyrics
+* Minimising the player shrinks the cover into a card that lands on the
+  mini player, while the screen behind shows through; opening it grows
+  the cover back out
+
+Lyrics:
+* Synced lyrics can be scrolled through now (they used to sit still
+  under your finger). While you look around, the line in the middle
+  shows its time and ▶; tap ▶ to play the song from that line, as you
+  can in Spotify, Apple Music and YouTube Music. A few seconds after you
+  let go they go back to following the song. A tap still closes them
+* Share lyrics as a picture, like Spotify and Apple Music: ⋮ › Share
+  lyrics, pick up to 5 lines and share the card (the song's cover
+  colours, the lines large, the song and artist) to any app
+* Romanized lyrics, like Metrolist and YouTube Music: Korean, Cyrillic
+  and Greek lyrics show how they sound in Latin letters under each line
+  ("사랑해" → "saranghae", with the sound changes you hear in the song,
+  like "감사합니다" → "gamsahamnida"). Not for the script of the app's own
+  language; Settings › Romanized lyrics turns it off
+* Translated lyrics, like Apple Music, Spotify and YouTube Music: switch
+  on ⋮ › Translate lyrics (or in Settings) and lines in another language
+  show their translation into the app's language under them, with the
+  romanization when there's one; synced, word-by-word and plain lyrics.
+  Off by default; while on, lyrics are sent to Google Translate
+* Lyrics text size, like Metrolist's: Settings › Lyrics text size
+  (Small, Default, Large, Largest) for synced, word-by-word and plain
+  lyrics. Synced lyrics now also follow your phone's font size; they
+  used to stay the same size whatever it was set to
+* Lyrics timing, like Musixmatch's sync: when a song's synced lyrics
+  run ahead of the singing or behind it (some from LRCLIB do), ⋮ ›
+  Lyrics timing moves them later or earlier, half a second a tap, for
+  that song only; it's remembered for next time. The line under the
+  title and "play from this line" follow it too
+* Lyrics offline, like Spotify's for downloaded songs: downloading a
+  song now fetches its lyrics too, and YouTube Music's own lyrics (for
+  songs without synced ones) are kept once seen, so both show without a
+  connection; they used to need one each time
+* Search lyrics, like Metrolist and InnerTune: when a song's lyrics are
+  wrong (another version, a cover) or missing, ⋮ › Search lyrics looks
+  them up on LRCLIB by its title and artist, or any words you type, and
+  lists what it finds, synced ones first and the nearest in length
+  among them. Tap one and it's the song's lyrics from then on
+* Synced lyrics keep time with the singing: lines lit up as much as a
+  second early (".50" in their times was read as 50 thousandths, not
+  half a second), and a line sung twice showed its second time as text.
+  The line under the title, which had them right, and the full lyrics
+  now agree
+* Lyrics that can't be fetched because you're offline say so ("You're
+  offline. The lyrics will come once you're back online") instead of
+  "Lyrics not available", and are looked up again as soon as the
+  connection is back; they used to stay "not available" for that song
+* Lyrics in your own music files, as Musicolet, Poweramp and Samsung
+  Music show them: a song on the phone (Songs › On this phone) whose
+  file carries its lyrics (an MP3's ID3 lyrics, synced or not, as
+  MusicBrainz Picard, Mp3tag and LRCGET write them; a FLAC's LYRICS
+  comment) shows them, with no connection too. Synced ones come before
+  any looked up online; text-only ones when nothing synced is found.
+  Only the file's tags are read, not its music
+
+Mini player (phones):
+* Drag it sideways and the song follows your finger while the next (or
+  previous) song slides in beside it; let go past a third of the way,
+  or flick, to skip. A short drag springs back, and where there's
+  nothing to skip to it only gives a little. Swiping back always goes to
+  the previous song (the ⏮ button still restarts the song first when
+  you're more than 3 seconds in)
+
+Screen readers (TalkBack):
+* Play / pause, the mini player's previous / next, every song row's ⋮
+  and the download button now say what they do ("Pause", "Next",
+  "More options", "Download", "Downloading 45%") instead of just
+  "button"; on desktop the mini player's shuffle, repeat, lyrics, queue,
+  mute and song info buttons show what they are on hover
+* What a swipe does on a song row (add to queue, play next, add to
+  playlist, remove) and on an Up Next row (remove) is in TalkBack's
+  actions for that row, as in Spotify; with TalkBack on, a swipe moves
+  between items, so those were out of reach
+* The gesture player's cover (swipe for next / previous, double-tap to
+  play or pause) reads as "Cover art" with Play / Pause, Next and
+  Previous in TalkBack's actions, and double-tap and hold still opens
+  the song's options
+* Synced lyrics can be read with TalkBack, as Spotify's can: with it on,
+  they show as text, a line at a time (with its romanization or
+  translation), and double-tapping a line plays the song from there. The
+  drawn lyrics said nothing to a screen reader
+* The player's seek bar is a slider for TalkBack, as in Spotify, YouTube
+  Music and Apple Music: it reads where the song or episode is ("Playback
+  position, 1:23 of 3:45"), and swiping up or down moves it 10 seconds.
+  It said nothing before, so it couldn't be used without sight
+* The last icon buttons that said only "button" now say what they do,
+  and show it on a long press: Shuffle Queue and Clear queue by the
+  queue on a tablet or desktop, Show / Hide password in password fields,
+  Search by the arrow in Soulseek, SoulSync and torrent search, Close on
+  the sign-in pages, Clear in podcast and cloud search, Play on a book's
+  chapters, Play / Pause in Spotify Connect and Sync Piped playlists
+* A show's play button in Subscriptions can be reached on its own and
+  reads "Play"; it was folded into the show's tile, so it couldn't be
+  pressed with TalkBack. The accent colours (Settings › Theme) and a
+  podcast folder's colours say their names and which one is picked
+* The Theme dialog fits its content: on phones the accent colours and
+  Cancel spilled out of its bottom, more so with larger text; it now
+  scrolls when the screen is too short. "Accent" there is translated
+* Riff follows Android's Font size up to Largest (1.3x), as YouTube
+  Music, Pocket Casts and AntennaPod follow it: it stopped at 1.1x, so
+  Large and Largest made hardly any difference. The mini player's title
+  and artist lines, and Up Next's rows and Now playing / Next up labels,
+  grow with the text instead of cutting it off (the mini player's title
+  lost the bottom of its letters past 1.1x). At the default size Riff
+  looks as before
+* With a larger font size (Android's Font size, from "Large"), the
+  Discovery settings and Discover content dialogs fit too: their
+  switches and buttons spilled out of them, and Reset taste model ran
+  off the side. They grow with the text and scroll when the screen is
+  too short; Reset taste model and Confirm go one over the other when
+  they don't fit side by side. At the default size they look as before
+* The other places a larger font size made spill fit now as well: the
+  New playlist dialog's and the Equalizer's buttons go one over the
+  other when they don't fit side by side, the automatic sleep timer's
+  From and Until wrap beside their hours, and album and playlist rows
+  (search results, artist pages) grow taller with the text instead of
+  cutting their lines off. At the default size they look as before
+* On small phones (360 dp wide) the Theme dialog's six accent colours
+  ran off its edge, Cyan half cut, at any font size; they now go on a
+  second line when they don't fit. And a choice chip whose label is too
+  long for its line (the podcast settings' download and queue choices at
+  a larger font size, a long translation) wraps inside the chip instead
+  of running past the sheet's edge. Where they fit, they look as before
+
+Remove animations (Android's accessibility setting):
+* Riff now keeps still with it on, as Apple Music does under Reduce
+  Motion: song titles too long for their line stay put and end in "…"
+  (song rows, Up Next, the mini player and the player) instead of
+  scrolling by, and the player canvas, the cover's glow and the
+  equalizer bars hold still. With it off, they move as before
+
+Sleep timer:
+* Music and audiobooks now fade out over the last 10 seconds before the
+  timer stops them, like podcasts already did, instead of cutting off
+  mid-note (not in video mode or a playlist Mix, which fade their own way)
+* Custom: any length from 5 minutes to 4 hours on a slider, like Pocket
+  Casts and AntennaPod; it opens at the length you picked last time
+* Shake to restart (Android), like Pocket Casts and AntennaPod: while a
+  timed sleep timer runs, shake the phone to set it back to its full
+  length, even with the screen off; it buzzes so you know, and a fade
+  that had begun stops. On by default; the switch is in the sleep timer
+  while it runs
+* Turn on automatically, like AntennaPod: switched on in the sleep
+  timer, it starts by itself when you play between the hours you set
+  (from 22:00 until 06:00 at first; the same hour twice is all day),
+  for the length you picked last (30 minutes at first), and says so
+  with Undo. Turn a sleep timer off within those hours and it leaves
+  you be until they're over. Off by default
+
+Lock screen and notification:
+* A heart next to previous / play / next likes or unlikes the playing
+  song, like Spotify and YouTube Music; it also shows in Android 13+'s
+  media controls and in Android Auto, and follows likes you make in the
+  app. Music only (podcasts keep skip back / forward)
+* Headphones with one button: press it twice for the next song and three
+  times for the previous one, as with Spotify, YouTube Music and Android's
+  own players; in a podcast or an audiobook, twice skips forward and three
+  times skips back, as their notification's buttons do (AntennaPod and
+  Pocket Casts' default). Once still plays or pauses, after a moment's
+  wait for a second press
+* Headphones' and car stereos' own next and previous buttons skip forward
+  and back in a podcast episode or an audiobook too, by the show's (or
+  the book's) lengths, as the notification's buttons do and as in
+  AntennaPod and Pocket Casts: previous used to start the episode over
+  from 0:00, and next to end it for the next one. Music still goes to
+  the next or previous song
+* Headphone buttons, as Pocket Casts' Headphone controls: Podcast
+  settings set what next and previous on your headphones or in your car
+  do in an episode: skip forward and back (as before), go to the next or
+  previous chapter (a skip in an episode without chapters), add a
+  bookmark where you are ("Bookmarked at 12:34" when Riff is open), or
+  go on to the next or previous episode. A one-button headset's two and
+  three presses follow them. Audiobooks and music keep theirs
+* In a podcast episode with chapters, the lock screen, the notification,
+  Android 13+'s media controls, Android Auto and the home screen widget
+  show the chapter playing, as Overcast and Apple Podcasts do: its title
+  in place of the show's name, and its own picture, when it has one, in
+  place of the episode's art (online). Changes as the chapters do,
+  seeking included; the app's own player is unchanged
+* A podcast episode gets a star and Mark as played after its skip
+  buttons in Android Auto, as in Pocket Casts, and the star on the
+  notification and lock screen (Android 13 and later): the star stars or
+  unstars the episode (in Starred episodes; filled when it's starred,
+  stars made in the app included), and Mark as played ends it as played
+  and goes on to the next, as the player's own Mark as played does.
+  Music and audiobooks keep theirs
+* Settings › Pause on headset disconnect works when turned off: pulling
+  out the headphones (or Bluetooth headphones going) paused whatever the
+  switch said; off, music now plays on through the phone's speaker, as
+  AntennaPod's switch lets it. Calls and other apps pause and resume it
+  as before, except that a sleep timer running out during a call now
+  keeps it paused after the call instead of it starting again
+* Resume on headphones, as AntennaPod's Headphones reconnect: wired and
+  USB-C headphones plugged back in after pulling them out paused playback
+  start it again, as Bluetooth ones already did (Resume on Bluetooth).
+  Settings › Resume on headphones, on by default. And for either, only a
+  pause the unplugging made: if you played on through the speaker in the
+  meantime, plugging them back in later starts nothing
+* Riff picks up where you left off, as Spotify, YouTube Music, Pocket
+  Casts and AntennaPod do. It opens with what was playing (a song, an
+  episode or a book) in the mini player, paused at its place, as
+  Settings › Restore last playback session says it will: the switch
+  showed on, but it only did so once turned off and on again. With
+  nothing loaded, Play on Android's media controls (after Riff was
+  closed or the phone restarted), on headphones or in the car plays it
+  on from its place, whatever that setting, where it did nothing; "Play
+  music on Riff" does too, before shuffling your Favorites. The media
+  controls show it, an episode or a book as well, rather than the last
+  song played. And if its song can't load as Riff opens (YouTube not
+  answering), it stays there, paused, instead of the next song starting
+  by itself; Play tries it again at its place
+
+Android Auto:
+* Ask for music, as with Spotify and YouTube Music: say "Play <song or
+  artist> on Riff" and the songs YouTube Music finds play, the best
+  match first; "Play music on Riff" carries on with what was playing, or
+  shuffles your Favorites. The search button in Riff's car screen lists
+  the songs found; pick one and the rest follow it. On the phone, "Hey
+  Google, play <song or artist> on Riff" does the same, even with Riff
+  closed
+* Your starred podcast episodes are under Podcasts › Starred in the car,
+  newest starred first, as Pocket Casts lists them
+* Shuffle and repeat buttons in the car, as YouTube Music's and Spotify's
+  car screens have, next to the heart: shuffle on or off, and repeat off,
+  all or one, as the player's own buttons (and the app follows). They're
+  on the music notification too (Android 13 and later shows the heart and
+  shuffle); podcasts and audiobooks keep their skip buttons
+* What you play in the car from your Library (Favorites, Recently played,
+  Downloads, your playlists, saved albums and the mixes Riff makes) says
+  where it comes from on the phone, as Spotify's car screen does: the
+  player's "Playing from" names it and opens it (it said Random
+  selection), and a playlist left out of your taste profile stays out of
+  your stats and recommendations in the car too. Recently played plays
+  in the order the car lists it, newest first, on from the song you
+  pick (it went the other way). The Library's Play on Favorites and
+  Recently played says where it comes from too, and after a restart
+  "Playing from" opens those lists again rather than looking for them
+  online
+
+Now playing:
+* Tap the time at the end of the seek bar to see the time left
+  ("−2:31") instead of the length, as in Apple Music and Pocket Casts;
+  tap again for the length. Remembered, in every player
+* The playing song's row (lists, Up Next, a show's episodes, a book's
+  chapters) shows three little bars that bounce while it plays and stop
+  while it's paused, as in Spotify, Apple Music and YouTube Music,
+  instead of a still equalizer icon. Still with "Remove animations" on;
+  TalkBack reads it as "Now playing"
+* "Play on another device" in the player's ⋮ menu (music, podcasts and
+  audiobooks) opens the phone's own output switcher, as Spotify's and
+  YouTube Music's devices button does: move what's playing to Bluetooth
+  headphones or a speaker, or back to the phone, without leaving Riff
+  (Android 11 and later; Bluetooth settings before)
+* Long tracks pick up where you left off, as YouTube does with long
+  videos: a mix, a DJ set or a full-album video of 20 minutes or more
+  keeps its place, and the next time it plays it goes on from there
+  ("Picked up at 23:45", with Start over). Played to its last couple
+  of minutes, or started over, it plays from the start next time. The
+  last 50 are kept, and nothing is kept in a private session
+* Reopening Riff, the player still knows where your queue came from, as
+  Spotify's Now Playing does: "Playing from" names the playlist, album
+  or artist again and opens it (it used to forget them), and what plays
+  on from a playlist you left out of your taste profile stays out of
+  your stats, recommendations and ListenBrainz, as it was before you
+  closed the app. Removing a song from the playlist playing works after
+  a restart too
+* "Playing from" names more of what plays: a mix played from Home (its
+  Play and Shuffle) plays as the playlist it opens as, and opens it, so
+  a mix left out of your taste profile stays out when played from Home
+  too; your top songs from Stats say Top songs, and songs played from a
+  list of similar songs (the song menu's or Up Next's) say Similar
+  songs, where all of these said Random selection
+* Shuffle spreads an artist's songs out, as Spotify's and Apple Music's
+  shuffle do, instead of pure chance, which often played two or three
+  by the same artist in a row: each artist's songs come one in each
+  stretch of the list, and where one artist has half the songs or more,
+  the rest are moved in between where they fit. In a playlist of a few
+  dozen songs, the same artist twice in a row went from one to four
+  times down to almost never. Shuffle mode, Shuffle on playlists,
+  albums, the Library, Home's mixes and speed dial, your server's
+  albums, Smart shuffle and songs added while shuffling all do it, and
+  the song after the one playing is by someone else when it can be
+
+Song rows:
+* Explicit songs show an "E" before the artist, as in Spotify, Apple
+  Music and YouTube Music: in playlists, albums, search results and
+  Similar songs (TalkBack reads it as "Explicit"). Songs saved before
+  this get it the next time they're loaded from YouTube Music
+* Downloaded songs show a small download mark before the artist, like
+  Spotify's green arrow, in every song list, so you can see what plays
+  offline. It appears as soon as a download finishes and goes when you
+  delete it (TalkBack reads it as "Downloaded")
+* Swipe a song all the way to the left to add it to the queue straight
+  away, like Spotify; the row slides back with a tick. A shorter swipe
+  still shows the Add to queue / Play next buttons
+* Song credits, like Spotify's View credits and YouTube Music's View
+  song credits: a song's ⋮ › Credits shows who performs it, the roles
+  its label lists (producer, composer, lyricist, engineers…), when it
+  came out, its source (the ℗ line) and who provided it to YouTube.
+  They're read from the notes YouTube keeps with each track; songs
+  without them (music videos, uploads) say there are none
+
+Podcasts:
+* Pause for interruptions, as in AntennaPod (Pocket Casts' Play over
+  notifications): while a navigation prompt or a notification sound
+  plays, an episode or an audiobook pauses and goes on after it, so you
+  don't miss a word, as Android asks of podcast and audiobook players;
+  they used to play on quieter under it. Music still plays on quieter.
+  On by default; Podcast settings › Resuming › Pause for interruptions
+  turns it off
+* Each show can skip its intro and outro, like Pocket Casts and
+  AntennaPod: on the show's page, the sliders button (Playback
+  settings) › Skip intro / Skip outro (off up to 5 minutes, in 5 s steps
+  to a minute, then 15 s).
+  Episodes then start after the intro, unless you're resuming further
+  in (bookmarks still open where they point), and end where the outro
+  begins: marked played and on to the next episode, as if they'd played
+  out, also from the lock screen and Android Auto. Episodes too short to
+  leave a minute play whole. The setting is the show's own and stays
+  when it goes back to the global playback defaults
+* "Sleep at end of episode" (and of the last chapter) stops where a
+  skipped outro begins
+* Unsubscribing from a show (its page, or long-press › Unsubscribe) says
+  "Unsubscribed from <show>" with Undo, which brings the subscription
+  back as it was and puts the show back in its folders; unsubscribing
+  from the show's page now also takes it out of your folders
+* Removing an episode from the podcast Up Next with its ✕ button gives
+  the same Undo as swiping it away, and both look like the app's other
+  snackbars
+* Clearing the podcast Up Next says "Queue cleared" with Undo, as the
+  music queue does, which brings it back in its order (episodes added
+  since stay, after it); it used to empty at once with no way back
+* Removing an episode's download (Downloads, or the episode's menu) says
+  "Download removed" with Undo; the file is only deleted once Undo is
+  gone (or on the next start), so a slip doesn't mean downloading a big
+  episode again
+* Chapter art, like Pocket Casts and AntennaPod: in episodes whose
+  chapters come with their own pictures, the cover shows the playing
+  chapter's picture, crossfading as chapters change, and the episode's
+  own art in chapters without one
+* The chapter list marks the chapter playing with the now-playing bars,
+  following the episode as it goes, and chapters that link to a web page
+  (show notes, a guest's site) get a button that opens it, as in Pocket
+  Casts
+* Chapters written in the feed itself (Podlove Simple Chapters, as
+  Podlove Publisher and Auphonic shows have them) count, as in AntennaPod:
+  the chapter list, previous / next chapter, chapter art and links,
+  Skip chapters and the ad skip work for those episodes too. Episode
+  lengths written with a fraction of a second ("3045.04") show; they used
+  to read as no length
+* Chapters inside the episode's MP3 (ID3 chapters, as Auphonic,
+  Hindenburg, Forecast and Ferrite write them) count too, as in Overcast,
+  Pocket Casts, Apple Podcasts and AntennaPod: when the feed gives none,
+  Riff reads them from the start of the episode (its download, offline),
+  with their titles and links. Only the tag at the start is read (at most
+  4 MB), not the episode
+* Chapters from the show notes, as YouTube and Spotify make them: an
+  episode with none in its feed or its MP3 whose notes list its parts by
+  their start ("00:00 Intro", "(12:34) The interview", "Wrap-up 1:02:03";
+  three or more, in order) gets them as chapters, for the chapter list,
+  previous / next chapter and Skip chapters. Nothing is skipped by them
+  on its own: ads put into an episode as it's fetched can move its audio
+  away from the notes' times
+* Select episodes on a show's page, as in Pocket Casts and AntennaPod:
+  ⋮ › Select episodes, tap the ones you want (or Select all), then add
+  them to the queue, download them or mark them played (with Undo) all
+  at once. While selecting, a long press on an episode picks it and all
+  above it, or all below it (Select all above / below, as in AntennaPod
+  and Pocket Casts): to mark a show's older episodes played, a long
+  press on the newest one you've heard, Select all below, Mark as played
+* Episodes say what they are, as in Apple Podcasts and Pocket Casts: a
+  show's page and the Inbox label trailers ("Trailer"), bonus episodes
+  ("Bonus") and numbered ones ("S2 E5", "Ep. 12") as the feed numbers
+  them, before the date
+* Serial shows play in order, as in Apple Podcasts: a show whose feed
+  says it's heard from the start (a serial) lists oldest first until you
+  set its order. On a show listed oldest first, the button under the
+  cover plays the first episode you haven't heard, "First episode" or
+  "Next episode", instead of the latest (an episode you're in the middle
+  of still resumes)
+* A show that moved to another host keeps coming, as in Apple Podcasts,
+  Pocket Casts and AntennaPod: when its old feed says where the new one is
+  (itunes:new-feed-url), Riff reads the new one, so new episodes keep
+  reaching your Inbox and the show's page (the old feed's episodes if the
+  new one can't be read). Following a show by an old address keeps the
+  new one
+* A show's page says what the show is about, as Apple Podcasts, Pocket
+  Casts and AntennaPod do: shows found in Discover or followed by their
+  feed had no About, as Apple's directory gives no description; it now
+  comes from the show's feed (its fuller description), under the cover.
+  Read more shows it as the show wrote it, paragraphs and links that
+  open, with where to support the show last (Podcasting 2.0 funding
+  links, as AntennaPod shows them)
+* New-episode notifications, like Pocket Casts, AntennaPod and Apple
+  Podcasts: Podcast settings › New episodes › Notify me about new
+  episodes (Android; off until you switch it on, when it asks for
+  permission to notify). Every few hours, with Riff closed too, the
+  phone looks at the newest episodes of each show you follow and lets
+  you know about ones it hadn't seen there before: one notification per
+  show, with its cover and the episode's title (or how many, with their
+  titles). Tap it for the Podcasts Inbox. A feed unchanged since the
+  last look isn't read again, and only its first few episodes are, so
+  it takes little data. For shows from feeds. A show can be left out,
+  as Pocket Casts, Apple Podcasts and AntennaPod let you: its page's ⋮ ›
+  Episodes and downloads › Notify me about new episodes
+* Search finds shows from the podcast directory again, as in Apple
+  Podcasts, Pocket Casts and AntennaPod: the Podcasts tab's search only
+  asked YouTube, so a show you follow by its feed (with its chapters,
+  downloads and new-episode notifications) could only be found by
+  pasting its address. Podcast feeds now lists the first ten shows
+  Apple's directory has for your search, from your country's store,
+  above YouTube's; tap one for its page, or follow it from the row
+* Search finds episodes too, as Pocket Casts, Apple Podcasts and Spotify
+  do: an interview with someone, a topic, an episode's title. Episodes,
+  under the shows, lists the directory's first ten (its show, date and
+  length, how far you've got); tap one and it plays as on its show's
+  page, from the show's own feed, with its chapters and transcript and
+  the show's episodes after it (as found, when the feed doesn't have it).
+  It's the same episode as in its show's list: where you were, played
+  or not and its download are shared
+* A show's page remembers its episode order (Newest first / Oldest
+  first) for that show, like Pocket Casts and AntennaPod, so a series you
+  hear in order stays oldest first. The eye button next to it hides
+  played episodes (the count follows), and episodes you finish while the
+  page is open drop out of the list; tap it again to show them
+* Search a show's episodes, like Pocket Casts and AntennaPod: the search
+  button in a show's Episodes header opens a field that narrows the list
+  to episodes with those words in the title or notes as you type (the
+  count follows); its ✕ closes it
+* Previous and next chapter buttons either side of the chapter in the
+  podcast and audiobook player, like Pocket Casts and Audible: next goes
+  to the next chapter; previous starts the chapter playing again, or in
+  its first 3 seconds goes to the one before. For episodes and books with
+  chapters inside them; a book's separate tracks keep the player's own
+  previous / next
+* Listening history, like AntennaPod's and Pocket Casts': Podcasts ›
+  History lists the episodes you've played, newest first, under Today,
+  Yesterday and the date, with where each stands (played, time left).
+  Tap one to carry on where you were, long-press for Up Next, swipe one
+  away to take it out, or Clear history; both with Undo. Episodes played
+  in a private session aren't kept
+* Share an episode from the podcast player's ⋮, like Pocket Casts and
+  Spotify: Share episode, or Share from 12:34 to share the moment
+  playing; Share episode is in an episode's long-press menu too. The
+  link is the YouTube video for a YouTube episode (starting at that
+  moment), else the episode's page from its feed, else its audio file
+  (which a browser starts at that moment)
+* Share a show, like Pocket Casts, Apple Podcasts and Spotify: a show's
+  ⋮ › Share show shares its name and its feed's address, which podcast
+  apps follow (AntennaPod, Pocket Casts, Riff), or a YouTube show's
+  page on YouTube Music (a channel's YouTube page)
+* Timestamps in show notes play the episode from there, as in Pocket
+  Casts, Spotify and YouTube: tap "12:34" (or "1:02:03") in the notes,
+  and web addresses in them open in the browser; both in the accent.
+  Times past the episode's end stay plain text (a clock time, not a
+  moment of the episode). In an episode's long-press menu › Shownotes,
+  a timestamp plays that episode from there
+* Show notes read as the show wrote them, as in Pocket Casts, AntennaPod
+  and Apple Podcasts: paragraphs and line breaks stay apart (they used
+  to run together, "One paragraph.Next one"), list items get lines of
+  their own, and a link keeps its words, in the accent, opening where it
+  goes (it used to lose where it went). When a feed gives full notes
+  besides a short summary (content:encoded), those show. Episodes'
+  previews and episode search read links as their words
+* Followed shows count their new episodes, like AntennaPod and Pocket
+  Casts: in Podcasts › Subscriptions, a show's cover shows how many of
+  its episodes are waiting in the Inbox (a folder's, those of its
+  shows), and the number goes down as you play them or mark them played
+* Add a show's new episodes to the queue, like Pocket Casts' "Add to Up
+  Next": on the show's page, ⋮ › Episodes and downloads › Add new
+  episodes to the queue (Off, At the top, At the end). From then on, the
+  show's new episodes join the podcast queue when the Inbox finds them,
+  oldest first; at the top they go after the episode playing. Episodes
+  you've played, ones Keep latest set aside and ones you take out of the
+  queue aren't added again
+* Download a show's new episodes, like AntennaPod and Pocket Casts: in
+  the same sheet, Download new episodes (Off, On Wi-Fi, Always). From
+  then on, the show's new episodes download one after another when the
+  Inbox finds them; On Wi-Fi waits while you're on mobile data and gets
+  them on the next refresh on Wi-Fi. Played episodes and ones Keep latest
+  set aside aren't downloaded, and Delete downloads after listening
+  still clears them up. For shows from feeds (YouTube episodes can't be
+  downloaded)
+* Follow a show by its feed address, like AntennaPod, Pocket Casts,
+  Apple Podcasts and Overcast: paste an RSS link (or a feed://, pcast://
+  or itpc:// subscribe link) into the Podcasts search and that show comes
+  up with Follow, for private feeds (Patreon, Supercast, Substack) and
+  shows the directories don't list. YouTube links still find the channel
+* Podcast links open in Riff, as they do in AntennaPod and Pocket Casts:
+  a podcast site's Subscribe link (feed://, pcast://, itpc://,
+  podcast://, Subscribe on Android's and AntennaPod's own), a show's link
+  on Apple Podcasts or Overcast (an episode's opens its show), an old
+  Google Podcasts link, or a feed's address, shared to Riff or opened
+  from the browser, open that show's page with Follow. Pasting one into
+  the Podcasts search finds the show too. Shared text with words around
+  its link (as podcast and video apps share) now opens the link in it,
+  YouTube's included, where it used to say it wasn't a valid link
+* Swipe episodes in the Inbox, like AntennaPod and Pocket Casts: swipe
+  one right to add it to the queue, left to mark it played (it leaves
+  the Inbox, with Undo, which also puts it back where it was in the
+  queue and where you were in it). Off with the other swipe actions in
+  Settings; TalkBack offers both as actions
+* Remove from Inbox, as AntennaPod's Inbox and Pocket Casts' Archive
+  have it: long-press an Inbox episode › Remove from Inbox takes it out
+  of the Inbox (and its show's count of new episodes) without marking it
+  played, with Undo; it stays unplayed on its show's page. Changing a
+  show's Keep latest doesn't bring it back
+* Sort the shows you follow, like Pocket Casts, AntennaPod and Apple
+  Podcasts: the sort button in Podcasts › Subscriptions orders them by
+  Name, Latest episode or Recently followed (Default keeps the order
+  they had), inside folders too; folders stay first. Shows followed
+  before this update count as followed earliest
+* In Android Auto, Podcasts starts with your queue and your Inbox, as
+  Pocket Casts starts with Up Next and AntennaPod with its queue and
+  Inbox: the queue in its order, and the Inbox's new episodes as of its
+  last refresh, newest first (played and set-aside ones left out), each
+  playable on from there; Continue listening and your shows follow
+* Mark as played from the podcast player, like Pocket Casts: ⋮ › Mark
+  as played ends the episode as if it had played out (the next one
+  plays, or with Autoplay episodes off it stops, back at its start) and
+  marks it played. Undo brings it back unplayed, in its place in the
+  queue, playing from where you were
+* Skip chapters, like Pocket Casts: in an episode's chapter list, Skip
+  chapters lets you untick the ones you don't want to hear, and playback
+  jumps over them each time it reaches them (with Undo, as other
+  skips); an unticked last chapter ends the episode there. Unticked
+  chapters read as skipped in the list (tap one to hear it anyway), show
+  with the episode's segments, and sync with the segments you mark
+* Download queued episodes, like Pocket Casts' auto download of Up
+  Next: Podcast settings › Download queued episodes (Off, On Wi-Fi,
+  Always). Episodes you add to the podcast queue then download one after
+  another, ready to play offline; On Wi-Fi waits while you're on mobile
+  data and catches up when the app next starts or the Inbox refreshes
+  on Wi-Fi. For shows from feeds
+* Star episodes, like Pocket Casts' Starred (Spotify's Your Episodes,
+  Apple Podcasts' Saved): Star episode in an episode's long-press menu
+  or the podcast player's ⋮, from any show, followed or not. Podcasts ›
+  Starred lists them, newest starred first: tap one to play it from
+  where you were, swipe it away to unstar it (with Undo). A starred
+  episode's download is kept when finished downloads are deleted, as
+  AntennaPod keeps its favourites'. With sync (WebDAV) on, starred
+  episodes reach your other devices, and unstarring one unstars it
+  there too (podcasts/starred.json, see docs/sync-format.md)
+* Sort the queue, as AntennaPod does: the sort button in the queue's
+  header puts it in order once (Newest first, Oldest first, Shortest
+  first, Longest first, By show, or Shuffle), with Undo. Episodes it
+  can't tell apart keep the order you gave them, and those without a
+  date or length go last
+* Episode downloads pick up where they broke off, as AntennaPod's do: a
+  download cut off (the connection dropping, Wi-Fi handing over to
+  mobile data) used to lose all it had got, and fail. Now what it got is
+  kept and the rest asked for, a little later and twice more if needed,
+  so a 200 MB episode cut off at 180 MB needs only the last 20; with the
+  connection gone, it waits for it (the downloads notification says so)
+  and goes on. The rest is only asked for when the server says it's the
+  same file (its ETag or date), else it starts over, so episodes with
+  ads put in as they're fetched don't come out spliced. Given up, it
+  resumes the next time you download it; leftovers go after a week
+* Refreshing the Inbox uses far less data, as AntennaPod's does: every
+  refresh downloaded every show's whole feed again (often megabytes
+  each, for twelve episodes), changed or not. Now Riff asks each show's
+  server whether its feed changed since last time (its ETag or date),
+  and one that hasn't answers in a few bytes, its episodes kept as they
+  were; only new episodes cost a download. Remembered across restarts,
+  and read in full again after a week, or after Riff is updated
+* Sync with AntennaPod and the other gpodder apps: Settings › Advanced ›
+  Podcast sync (gpodder) signs in to a Nextcloud server with the GPodder
+  Sync app (an app password) or to gpodder.net, as AntennaPod, Kasts and
+  gPodder do. The shows you follow go both ways by what changed on each
+  side since the last sync (the first joins both lists and unfollows
+  nothing; a show changed on both sides keeps this phone's change; a show
+  whose feed can't be read yet is followed once it can). Where you are
+  in each episode and which you finished go as gpodder play actions, the
+  newer side winning: a place from another app shows in Continue
+  listening (an episode Riff hasn't seen is looked up in its feed), and
+  an episode finished there is marked played here and leaves Up Next.
+  It syncs when Riff opens and when you leave it (Sync automatically),
+  or with Sync now; the password stays in secure storage
+
+Audiobooks:
+* The lock screen, notification, Android Auto and headset buttons skip
+  back 10 s / forward 30 s in a book, like podcasts and Audible, instead
+  of previous / next; next stays in the expanded notification
+* Smart resume works in audiobooks too, as in Audible: after a pause the
+  book steps back a few seconds (the longer the pause, the further), so
+  you pick up the sentence. It follows the Smart resume switch in
+  Podcast settings
+* Books keep their own speed: the speed pill in the book player (and in
+  its ⋮) no longer changes how fast music plays, and the music speed in
+  Settings no longer changes a book or podcast that's playing. Books
+  start at the speed they played at before
+* Bookmarks in audiobooks, like Audible's: the book player's ⋮ ›
+  Bookmark this moment saves where you are ("Bookmarked at 12:34"), and
+  Bookmarks in this book lists them in reading order, each with its time
+  and chapter. Tap one to play from there, even in another chapter;
+  remove one with Undo
+* The book player says how long is left in the book, like Audible and
+  Apple Books: "Chapter 4 of 12 · 5 hr 12 min left", counted at the
+  book's speed and kept up as it plays. For books in several chapters
+  (a book in one file has its time left at the end of the seek bar)
+* Notes on audiobook bookmarks, like Audible's: "Bookmarked at 12:34"
+  offers Add note, and in Bookmarks in this book each bookmark has a
+  note button (add or edit; an empty note takes it off), its note shown
+  under its chapter. Podcast bookmarks' notes use the same editor
+* Free (LibriVox) books continue where you stopped: they opened the
+  right chapter but played it from its start, as the player dropped the
+  place it was given for chapters not from an Audiobookshelf server
+* Mark as finished, as Audible and Audiobookshelf have it: long-press a
+  book in Home's Jump back in. Its place is forgotten, so it leaves Jump
+  back in (and the free books' Continue listening), with Undo. A book
+  from your Audiobookshelf server is marked finished there too once Undo
+  is gone, so it leaves Continue listening in its other apps as well. A
+  book you gave up on used to stay in Jump back in for good
+* Download books to listen offline, as Audible and the Audiobookshelf
+  app keep them: the arrow at the top of a book's page (your
+  Audiobookshelf server's, or a free LibriVox book's) downloads it, a
+  chapter at a time. While it downloads the arrow shows how far it's got
+  (tap to cancel), and so does the download notification; done, tap it
+  to remove the book from the phone. A download cut off picks up where
+  it stopped, waits for the connection to come back, and keeps to Wi-Fi
+  when Download on Wi-Fi only is on; books queue one after another.
+  Downloaded books play from the phone (online too), with no connection
+  from Jump back in, Continue listening, the book's page (a LibriVox
+  book's opens offline with its chapters) and Saved › Downloaded, which
+  lists them
+
+Library:
+* Release Radar has new releases in it, as Spotify's does: a track from
+  each newest single, EP and album the artists you follow (in Riff, or
+  saved to your Library before) put out this year (early in the year,
+  last year's too), an artist's in turn with the others', refreshed
+  weekly. It used to stay empty, its playlist with it, whoever you
+  followed. With nothing new, the playlist isn't there, and Riff looks
+  again the next day. With many artists followed, 30 are looked at a
+  week, round the list. An artist page's singles and EPs show again too,
+  and "More by" under an album lists them: YouTube Music calls that
+  shelf "Singles & EPs" now, and it was left empty
+* Podcasts and audiobooks no longer steer your music, as Spotify keeps
+  them apart: what you play of them isn't counted in your taste, so a
+  show or an author no longer becomes an "artist" your Daily Mixes,
+  Fresh finds, Home's "Because you liked" and Stats' Top rising artists
+  are made from, and episodes no longer turn up in Rediscover, where they
+  couldn't play. What they had put in it before is taken out once.
+  Stats still counts the time you spend on them
+* On Repeat, as Spotify has it: a playlist in your Library (and in
+  Android Auto's playlists) of the songs you've played most in the last
+  30 days, the most played first: songs you played through at least
+  twice, skips left out. Made afresh each day from your own plays, so
+  offline too; it shows once there are five such songs
+* A daylist, as Spotify has one: a playlist in your Library (and in
+  Android Auto's playlists) of what you play at this time of day, named
+  for it ("Your Tuesday evening"). It's made afresh for each part of
+  the day (morning from 5, afternoon from 12, evening from 17, night
+  from 21) when you open Riff in it: the songs you played through at
+  least twice at that time in the last 30 days, those you play then
+  more than at other times first. Made from your own plays, so offline
+  too; it shows once there are five such songs
+* Rediscover's songs have their covers, and their albums and lengths
+  when Riff keeps the song (Favorites, downloads, Recently played): they
+  used to show blank. Songs you said never to play stay out of it
+* Like on YouTube Music too, as Metrolist keeps likes in step: with your
+  YouTube account connected, Settings has a switch (off at first). Turned
+  on, your YouTube Music likes come into your Favorites (it says how
+  many), and the ones you make in YouTube Music afterwards come in once a
+  day; from then on, songs you like in Riff are liked in YouTube Music,
+  so they're in Liked music there and steer the feed Riff shows you, and
+  a song you unlike in Riff is unliked there too. Changes made offline go
+  once YouTube can be reached. The likes that come in aren't downloaded,
+  sent back or sent on to Spotify
+* Your plays in your YouTube Music history, as YouTube Music's own app
+  counts them (and Metrolist, InnerTune): with your YouTube account
+  connected, a song or video you play in Riff goes into the account's
+  History, so its Listen again, mixes and recommendations (the feed Riff
+  shows you) learn from what you play here too. Settings › Add to
+  YouTube Music history (under the account, on) turns it off; what a
+  private session plays, or a playlist left out of your taste profile,
+  isn't counted, nor are phone songs, a music server's, feed episodes or
+  books
+* Your YouTube Music library in yours, as Metrolist brings it in: with
+  your YouTube account connected, Settings has "Your YouTube Music
+  library" under it. A tap adds the playlists in your YouTube Music
+  library (yours and the ones you saved) to Library › Playlists, the
+  albums you saved to Library › Albums, follows the artists you
+  subscribe to in Library › Artists and the podcasts you follow in
+  Podcasts › Subscriptions, those not there yet, and says what came
+  ("Added from YouTube Music: 3 playlists, 2 albums, 1 artist, 4
+  podcasts"). The playlists and albums open as any saved in Riff do;
+  the artists' new releases reach Release Radar and they count as
+  artists you like, as when you follow one in Riff; the shows' new
+  episodes reach your Inbox. Liked music comes in as your Favorites
+  (above) and Episodes for later stays out
+* Removing a song (swipe it, or "Remove" in its menu) now says "Removed
+  from your library" with Undo, like YouTube Music; its download or
+  cached copy is only deleted once Undo is gone (or on the next start if
+  the app closed first), so a slip no longer costs the download
+* Removing a song you'd only listened to (cached, not downloaded) from
+  Library Songs now sticks; it used to come back on the next start
+* Search finds songs by artist and album too, not just the title, and
+  every word counts ("daft lucky" finds Get Lucky by Daft Punk); accents
+  don't matter ("beyonce" finds Beyoncé). Albums match their artist,
+  playlists their description
+* Songs has a "Downloaded only" switch next to the cloud one: the list,
+  the count and Play / Shuffle then cover only songs saved to the
+  device, not ones that are just cached from listening
+* Library Songs and the songs of a playlist sort by Artist or by Album
+  too, like Spotify and Apple Music: each artist's (or album's) songs
+  together, then by album (or artist) and title, songs without one last
+* Sorted by Album, an album's songs come in their order on it (track 1,
+  2, 3 …, disc by disc for the music files on your phone), as in
+  Spotify and Apple Music, rather than by title; songs without a number
+  follow, by artist and title as before
+* Library › Playlists and Albums sort by Recently played, like Spotify's
+  Recents: the ones you last played from come first, the never played
+  after them by name (Riff remembers from now on when you play from a
+  playlist or album)
+* Pin up to 4 playlists to the top of Library › Playlists, like
+  Spotify: long-press a playlist › Pin to top (Unpin to undo). Pinned
+  playlists sit right under Recently played, Favorites, Cached/Offline
+  and Downloads, whatever the sort or search, with a small pin before
+  their song count; they also come first when adding a song to a
+  playlist
+* Library › Playlists and Albums as a list, like Spotify's Your Library:
+  the button next to the title switches between the grid of covers and
+  rows (small cover, name, songs or artist); tap, long-press and pins
+  work the same. The choice is kept, for both tabs
+* Recently played shows when, like Spotify's listening history and
+  YouTube Music's History: its songs come under Today, Yesterday and the
+  dates you played them. Songs from before this version sit under
+  Earlier; sorted another way, the list is as before
+* Recently played keeps your last 100 songs (it was 30), so its days go
+  back further, and its ⋮ › Clear history empties it, like YouTube
+  Music's; Undo puts it back
+* The music files on your phone, like Spotify's Local files and YouTube
+  Music's Device files (Android): the phone button next to the cloud one
+  in Library › Songs lists the songs saved on the phone (music, not
+  ringtones or voice notes), with their album covers, and plays them
+  straight from the file, offline too. Songs' sort works on them (Date
+  added is when the file came onto the phone), and they can go in
+  playlists and the queue like any song. Riff asks once for permission
+  to read them; refused, it says so with an Allow button
+* Songs from your phone (and your music server's without an album page)
+  keep their album in playlists and after a restart: saved, they used
+  to come back without it, so the player showed none and sorting by
+  album put them last
+* Library › Albums sorts by Artist too, like Spotify's Creator and Apple
+  Music's Artist: each artist's albums together, oldest first, albums
+  without an artist last
+* The Library remembers how you sorted it, as Spotify keeps Your
+  Library's sort: Songs, Playlists, Albums and Artists each come back
+  sorted as you last chose, after a restart too (they came back in the
+  order they were saved in, the sort menu still saying Name). Playlists
+  also stays sorted when it refreshes, where it went back to that order
+  with the menu showing your choice
+* Folders for your playlists, like Spotify's: long-press a playlist in
+  Library › Playlists › Move to folder › New folder (or one you have).
+  Folders sit after Riff's own playlists and the pinned ones, and their
+  playlists show inside them (a search still finds them). Tap a folder
+  to open it; long-press it (or ⋮ inside) to rename or delete it, which
+  puts its playlists back among the rest (Undo brings it back)
+
+Playlists:
+* Edit details, as in Spotify: a playlist's ⋮ › Edit details starts from
+  the name it has (Rename started empty) and keeps it as you type it (it
+  used to lowercase everything after the first letter: "My EDM Mix"
+  became "My edm mix"), and gives your playlists a description of their
+  own, shown under the name. Without one they read "Playlist", no longer
+  "Library Playlist"
+* Deleting one of your playlists now asks first ("Delete playlist?"),
+  like Spotify and YouTube Music; before, one tap erased it and its
+  songs straight away
+* Removing a song from one of your playlists (swipe or the song menu)
+  shows "Removed from <playlist>" with Undo, which puts the song back
+  where it was; the swipe used to remove it without a word
+* Give one of your playlists a photo of your own, like Spotify's Change
+  image: open it › ⋮ › Set photo (later Change photo or Remove photo).
+  It's cropped square and shows wherever the playlist's cover does: the
+  Library, Home and Speed dial, and the playlist's page
+* Recommended songs under your own playlists, like Spotify: ten songs
+  like the ones in it, from your latest additions and others across the
+  playlist. Tap + to add one, tap a song to play it, ↻ for others. Not
+  shown offline, or while you search, arrange or select songs in it
+* Add to playlist shows where the song already is, like Spotify and
+  YouTube: Favorites and your playlists that already have it (all of
+  the songs, when you add several) get a check, so you can see it before
+  you add it twice
+* A downloaded playlist stays downloaded, as in Spotify: when every song
+  in one of your playlists is downloaded, songs you add to it later
+  (from Add to playlist or its Recommended songs) download too
+* Smart shuffle, like Spotify's: a playlist's ⋮ › Smart shuffle plays it
+  shuffled, with a song like it that you haven't heard mixed in after
+  every three. In Up Next a ✦ before the artist marks the songs it
+  added; the playlist itself doesn't change. Offline it just shuffles
+* Add songs, like Spotify's "Add to this playlist": one of your
+  playlists' ⋮ › Add songs searches YouTube Music as you type, and + adds
+  a song to the end of the playlist without leaving it. Songs already in
+  it have a check
+* Exclude a playlist from your taste profile, as Spotify lets you (a
+  sleep, white-noise or kids' playlist): its ⋮ › Exclude from your taste
+  profile. What plays from it then isn't counted in your stats and
+  Rewind, doesn't steer your mixes and recommendations and isn't sent to
+  ListenBrainz; it still shows in Recently played. Include in your taste
+  profile undoes it
+* Add a whole playlist to another one, as Spotify's Add to other
+  playlist: a playlist's ⋮ › Add to other playlist (Add to playlist for
+  ones that aren't yours, Favorites included) opens Add to playlist with
+  all its songs. Songs your playlist has already aren't added again, and a
+  song that's twice among those added goes in once. Adding several songs
+  says "Songs added to playlist!" (or that they're in it already)
+* Import a playlist file, as Metrolist and local players do: the import
+  window's Import a playlist file (it read only CSV exports) now also
+  takes M3U / M3U8 and PLS playlists, as foobar2000, VLC, Winamp, AIMP,
+  MusicBee, Poweramp, iTunes / Apple Music and Metrolist save them. Each
+  entry is looked for by the title its player gave it ("Artist - Title",
+  or iTunes's "Title - Artist", which the file's name or its artist's
+  folder tells apart) or, without one, by its file name (track number
+  dropped) and folders; a YouTube link is taken as the very track. Files
+  that aren't UTF-8 (older .m3u files, CSVs saved by Excel) keep their
+  accents
+* Export a playlist as M3U, the playlist file other players and apps
+  (Metrolist, VLC, foobar2000) open: a playlist's ⋮ › Export playlist ›
+  Export playlist as M3U writes each song's length and "Artist - Title"
+  over its YouTube Music link (a song on the phone, its address; a song
+  from your own server, never its link with the server's login in it).
+  Riff's import brings it back song for song, and Riff's own CSV export
+  now does too: its YouTube ids are taken as the very songs and its
+  "3:45" lengths are read (that export used to say "Can't be imported
+  here"). A CSV with a YouTube link column is read the same way. The
+  Export window scrolls when a larger font size makes it taller than the
+  screen
+* Exported playlists no longer carry your music server's login: the
+  JSON and CSV exports kept the links of songs from your own (Subsonic)
+  server as Riff signs them, with your user name and a token, or, with
+  the older sign-in, your password barely disguised, readable by anyone
+  you sent the file to. They're written without it now; importing the
+  playlist on a phone connected to that server signs them again, and a
+  song that comes without its server's login is signed when it plays
+* Share one of your own playlists, as Spotify shares yours: its ⋮ ›
+  Share playlist (only YouTube and Piped playlists had it) sends its name
+  with a link anyone can open, where YouTube plays its first 50 songs as
+  a playlist, and the playlist as an M3U file, which Riff, Metrolist or
+  VLC open whole. Sharing a song that's on the phone or from your own
+  server now sends its title and artist (its link went nowhere), and a
+  podcast episode goes as episodes are shared
+* Remove from playlist in the player, as Spotify's Now Playing has
+  "Remove from this playlist": while one of your own playlists plays,
+  the player's ⋮ (and a song's menu in Up Next) has Remove from
+  playlist, with the playlist's name under it, for a song that's in it.
+  The song plays on; Undo puts it back where it was. Not for Favorites
+  (the heart is there), the mixes Riff makes or YouTube Music playlists
+
+Albums:
+* More by the artist, like Spotify, Apple Music and YouTube Music: under
+  an album's songs, a row of the artist's other albums, then their
+  singles and EPs (not the album you're on); tap one to open it. Not
+  shown while you search the album's songs, or offline
+* Add to playlist, like Spotify, Apple Music and YouTube Music: an
+  album's ⋮ › Add to playlist adds the whole album to one of your
+  playlists or Favorites, without selecting its songs first
+* An album's length after its songs' count, as Spotify ("12 songs, 45
+  min") and Apple Music give it: "14 songs · 52 min" in the bar over the
+  songs, playlists' too ("1 h 12 min" from an hour on), when each song's
+  length is known
+* Other versions, as YouTube Music's and Apple Music's album pages show
+  them: under an album's songs (before More by the artist), a row of its
+  other editions YouTube Music lists (a deluxe edition, a remaster, the
+  clean or explicit one), headed as YouTube Music heads it; tap one to
+  open it. More by the artist leaves them out. Albums in your library
+  get it too when YouTube Music can be reached; an odd answer never
+  costs an album its songs
+
+Up Next:
+* Removing a song (swipe it away, the song menu, or ✕ on desktop) and
+  Clear queue now show "Undo" for a few seconds; undo puts the song back
+  exactly where it was, or brings the whole queue back
+* Swiping a song away shows what it does: a remove icon on a red tint.
+  The playing song doesn't swipe (it can't be removed)
+* Not interested, as YouTube Music and Spotify have it for what they
+  pick for you: a song's menu in the player or in Up Next has it when the
+  song came from radio, Autoplay, a mix, Smart shuffle or similar songs.
+  It goes at once (skipped when it's playing, taken out of Up Next when
+  it's still to come), won't be picked for you again (radio, Up next,
+  Autoplay, the mixes, Home's Quick picks and song shelves) and its artist
+  comes up a little less, with Undo. Unlike Never play this, you can still
+  play it yourself
+* Songs you queue stay queued, as Spotify keeps its "Next in queue":
+  playing a playlist, an album, a song from a list or a radio used to
+  throw away what you'd added with Play next or Add to queue (an album's
+  or a playlist's too). The ones you haven't heard yet now play right
+  after the song you started, in their order, then the rest of what you
+  started. What radio, Autoplay or a mix added isn't kept, and a podcast
+  episode or a book starts on its own. In Up Next, the songs you queued
+  that are still to come have a queue icon before the artist ("Queued by
+  you" with TalkBack), as Smart shuffle's picks have ✦
+
+Home's Speed dial:
+* Swiping now goes round: a swipe right on the first page slides to the
+  last one (and on from the last back to the first), instead of nothing
+  happening
+* Pages shrink and fade a little as they slide, the current page's dot
+  stretches into a pill, and each page change gives a light tick
+
+Private session:
+* Like Spotify's Private session (YouTube Music's Pause history):
+  Settings › Private session, and for 6 hours (or until you switch it
+  off) what you play isn't added to Recently played, your stats and
+  Rewind, the taste your mixes learn from, the Library's Recently played
+  order or ListenBrainz. The setting shows when it ends; it also ends
+  on time if the app was closed
+
+ListenBrainz:
+* Listens made offline aren't lost any more, as with Spotify's Last.fm
+  scrobbling and Pano Scrobbler: when one can't be sent (no connection,
+  or ListenBrainz down), Riff keeps it and sends it with the next one
+  that goes. And your ListenBrainz profile shows the song playing now
+  (songs only, and not in a private session)
+
+Last.fm:
+* Scrobble to Last.fm, as Spotify, Metrolist and InnerTune do: Settings
+  › Library & sync › Last.fm scrobbling. Sign in with your Last.fm
+  username and password (sent to Last.fm once; only the session it
+  gives is kept, in secure storage). Songs you listen to go to your
+  profile once they've played half way or 4 minutes, as of when they
+  started, by their first artist as Spotify scrobbles them, and the song
+  playing shows there as scrobbling now. Scrobbles that can't go
+  (offline, Last.fm down) are kept and sent 50 at a time with the next
+  that goes; ones older than Last.fm takes (14 days) are let go. Not in
+  a private session, not podcasts or audiobooks, and not playlists left
+  out of your taste profile. Access taken back on last.fm disconnects
+  Riff; Disconnect stops it and drops what was kept. Last.fm wants an
+  API account for each app: builds made with LASTFM_API_KEY and
+  LASTFM_SECRET use theirs, others ask for yours (free, linked from the
+  dialog)
+
+Fade between songs:
+* Like Spotify's and Apple Music's Crossfade: Settings › Fade between
+  songs (off, 3, 5, 8 or 12 seconds) fades the end of a song out and the
+  next one in, instead of a hard cut. The fade follows the song, so
+  seeking back, pausing or skipping during it puts the volume straight
+  back. Music only: podcasts, audiobooks, repeat-one, the last song of
+  the queue, songs shorter than three fades and playlist Mixes (which
+  have their own transitions) play as they are. Off by default
+* An album playing in order runs on without the fade, as Apple Music
+  doesn't crossfade a gapless album: from one track to the album's next
+  one (YouTube Music albums, your music server's, the music files on
+  your phone), a live album, a DJ mix or a symphony's movements flow
+  into each other as recorded. Shuffled, skipping about, or into
+  another album, songs fade as before
+* Loudness normalization has a volume level, like Spotify's: Settings ›
+  Volume level (under Loudness normalization, Android): Quiet, Normal (as
+  before) or Loud, which keeps more of each song's volume. Changing it
+  applies to the song playing straight away
+* Loudness normalization covers your own music too, as Poweramp,
+  Symfonium and foobar2000 play it: the music files on your phone by the
+  ReplayGain in their tags (an MP3's REPLAYGAIN_TRACK_GAIN, as
+  foobar2000, MusicBrainz Picard, beets and Mp3tag write it, or Quod
+  Libet's RVA2; a FLAC's), and your music server's songs by what it
+  measured (Navidrome and the other OpenSubsonic servers), the song's
+  own gain else its album's. They used to play at full volume between
+  normalized songs, as loud as an unnormalized master. A file's tags are
+  read once (with its lyrics) and the next song's ahead of time; songs
+  without ReplayGain play as before
+
+Autoplay:
+* Like Spotify's, YouTube Music's and Apple Music's: when an album,
+  playlist or the songs you picked run out, songs like the last one play
+  on, as its radio does, instead of stopping. Turn it on with ∞ in the
+  queue (next to Loop) or Settings › Autoplay similar songs; next works
+  on the last song then too. Not for podcasts or audiobooks; offline the
+  queue ends as before. Off by default
+
+Explicit content:
+* Allow explicit content, like Spotify's (Apple Music's clean-only
+  setting, YouTube Music's Restricted mode): turn off Settings › Allow
+  explicit content and songs marked E don't play. Their rows are dimmed
+  and a tap on one says why; the player skips them, whatever starts it
+  (Next, the queue running on, Android Auto), and radio, Autoplay, Smart
+  shuffle and Recommended songs leave them out. One playing when you
+  turn it off stops for the next. On by default, so nothing changes until
+  you turn it off
+
+Equalizer:
+* Riff's own, like Spotify's, for phones without one (Pixels among
+  them, where Settings › Equalizer used to land on the sound settings):
+  Settings › Equalizer opens it. Turn it on, pick a preset (Bass booster,
+  Vocal booster, Rock, Spoken word, Small speakers and more) or move each
+  of the phone's bands yourself (Custom). It's kept, and works with Bass
+  boost, Volume boost and the rest. Your phone's own equalizer is a tap
+  away in it. Off by default; Android
+
+Streaming quality:
+* Auto, as in Metrolist (YouTube Music and Spotify set Wi-Fi and mobile
+  data apart too): Settings › Streaming quality › Auto plays songs in
+  high quality on Wi-Fi and low on mobile data, going by the connection
+  each song starts on (high on desktop). Data saver still means low
+  everywhere; video mode's audio and the song info follow the same rule
+
+Downloads:
+* Downloads go on after a restart, as Spotify's and YouTube Music's do:
+  the songs still to download were only kept while Riff ran, so Android
+  closing it in the background, a crash or the phone restarting in the
+  middle of a playlist's download dropped the rest without a word. Riff
+  now keeps them and, at its next start, downloads what's left (a
+  playlist or album shows as downloading again); one you cancelled stays
+  cancelled. Where downloading would first have to ask for storage
+  access, it waits for your next download instead of asking at start
+* Downloads wait for a connection, as Spotify's and YouTube Music's wait
+  for the network: losing it in the middle of a playlist's download used
+  to fail every song left in turn, each with its own "download failed",
+  and drop them. Now, on phones, the songs wait (the playlist shows its
+  hourglass, "Waiting for a connection", and so does the downloads
+  notification) and go on by themselves once it's back, the song that
+  was cut off first. A song cut off while the connection is there
+  (Wi-Fi handing over to mobile data) is tried again a little later,
+  twice, before Riff says it failed; songs that can't be downloaded are
+  passed over at once, as before
+* Download on Wi-Fi only, as with Spotify, YouTube Music and Apple Music:
+  turn it on in Settings › Download and, on mobile data, song downloads
+  (songs, albums and playlists) wait for Wi-Fi, then start by themselves.
+  A playlist waiting shows its hourglass, "Waiting for Wi-Fi"; you can
+  still cancel it. Off by default; phones only
+* Download quality, like Spotify's and YouTube Music's: Settings ›
+  Download › Download quality, High (as before) or Low, which takes about
+  a third of the space (Opus about 50 kb/s, AAC 48 kb/s). Songs downloaded
+  before keep theirs
+* Offline, as with Spotify and YouTube Music: with no connection at all
+  (Android), songs that aren't downloaded or in the song cache are dimmed
+  and skipped, so a playlist goes on with its downloaded songs instead of
+  stopping after two that wouldn't load. Tap a dimmed one and Riff says
+  you're offline. Podcasts, books and your own server's songs play as
+  before
+* Offline mode, as Spotify has it: a switch in Settings › Listening
+  plays only songs that are downloaded or in the song cache, as with no
+  connection, on any network: the others are dimmed and passed over, so
+  they don't use your data. It stays on until you turn it off, and Riff
+  says Offline mode is on when you tap a song it passes over. Podcasts,
+  books and your own server's songs play as before
+* Stream on Wi-Fi only, as YouTube Music has it: a switch in Settings ›
+  Listening, under Offline mode, that makes mobile data (or a hotspot
+  that counts your data) like Offline mode: songs that are downloaded or
+  in the song cache play, the others are dimmed and passed over, and
+  everything plays again as soon as you're on Wi-Fi. Tapping one it
+  passes over says streaming is on Wi-Fi only. Off by default; podcasts,
+  books and your own server's songs stream as before (phones)
+* Back online, it plays on, as Spotify and YouTube Music do: when the
+  connection goes (a tunnel, a lift) and a song stops for want of it,
+  or the next one can't start, Riff now waits, says you're offline, and
+  goes on from where it stopped once the connection is back, within ten
+  minutes. It used to try again, pass the songs after over and stop
+  there for you to press Play. Pressing play, pause or anything else
+  meanwhile, Offline mode and Stream on Wi-Fi only leave it be; podcasts
+  that lose the connection wait too, rather than skipping to the next
+  episode (phones)
+* Downloads keep going after you leave Riff, as with YouTube Music,
+  Spotify and AntennaPod: while songs or episodes download, a
+  notification shows how far they've got ("Downloading 3 of 25" and the
+  song), and Android keeps Riff running until they're done. It used to
+  stop them a little while after you switched apps, unless music was
+  playing. Waiting for Wi-Fi, it says so and starts by itself once
+  there's Wi-Fi. On Android 13 and later, Riff asks once, at your first
+  download, to show the notification
+* Smart downloads, like YouTube Music's: switch it on in Settings ›
+  Download and the songs you play most stay downloaded, so there's always
+  music to play offline. Once a day, on Wi-Fi only, Riff downloads the
+  ones it hasn't got (songs you've heard through at least twice in the
+  last three months, most heard first; 25, 50 or 100 of them) and
+  removes the ones it downloaded that you've stopped playing, unless
+  you've liked them or put them in a playlist. A song you delete isn't
+  downloaded again. Off by default; turning it off keeps what's there
+* A song downloaded after playing is listed once in Library › Songs, as a
+  download; it used to show twice (its download and its song cache
+  copy), and the cached copy now makes room
+* Remove downloaded songs, like Spotify's Remove all downloads and
+  YouTube Music's Delete downloads: Settings › Remove downloaded songs
+  (under the song cache, while there are downloads) asks first, saying
+  how many and how much space, then frees it all; the songs play online
+  again. Podcast episodes keep their downloads. With Smart downloads on,
+  it says they'll download the songs you play most again on Wi-Fi
+* Downloaded episodes and audiobook chapters keep their cover while they
+  play: the mini player and the queue showed an empty square for them
+  (they looked for a saved song thumbnail, which only songs have), and
+  now show the cover. A downloaded book keeps its cover with it, as
+  Audible does, so the book, its player, Saved › Downloaded and its page
+  show it with no connection too
+
+Search:
+* Search by voice, as with YouTube Music, Spotify and Apple Music: tap
+  the mic in the empty search field and say a song, an artist or an
+  album, and Riff searches what your phone heard as Enter does (the
+  top song plays, or the results open). On Android phones with speech
+  recognition (Google's, on most)
+* When a search can't reach YouTube Music, the results page says so
+  ("You're offline", or that it couldn't search) with Retry, as Spotify
+  and YouTube Music do; it used to say nothing matched
+* Offline, search finds what your library has, as Spotify's and YouTube
+  Music's search finds your downloads: when YouTube Music can't be
+  reached, the songs from your downloads, the song cache and your
+  phone's music that have every word you typed (title, artist or album)
+  are listed under From your library, below the message and Retry. Tap
+  one to play it, with the others found after it
+* Recent searches show what you opened, as in Spotify and Apple Music:
+  the songs you played and the artists, albums, playlists and podcasts
+  you opened from search results (your last ten) are listed with their
+  covers on the search page before you type, above the words you
+  searched for. Tap one to play it or open it again; ✕ forgets it, and
+  Clear forgets them all with the words
+* Pause search history, as YouTube Music and Metrolist have it: with the
+  switch on (Settings, under Private session), what you search for and
+  what you open from search isn't kept in Recent searches; what was
+  kept before stays until you clear it
+* Spotify links open in Riff: share a Spotify song to Riff (or paste its
+  link into the search) and its YouTube Music match plays, found as
+  Import from Spotify finds songs (exactly by its ISRC when you're
+  signed in to Spotify); a Spotify album or playlist opens Import from
+  Spotify with its link, to make it a Riff playlist. spotify.link short
+  links and spotify: links work too; when nothing matches it says so
+* Apple Music links open in Riff too: an Apple Music (or iTunes) song
+  plays its YouTube Music match, and an album or an artist opens the
+  same album or artist on YouTube Music, found from what Apple's public
+  directory says of it
+* YouTube links shared to Riff open in all their forms: youtu.be links
+  with a moment in them (?t=42), /live/ and /embed/ ones, YouTube
+  Music's album, artist and podcast pages (/browse/…), and a channel's
+  @handle (or /c/, /user/ name), whose artist page opens, else a search
+  for it. Links Riff can't open now say so instead of doing nothing.
+  A link shared from a moment (YouTube's Share at 1:23: ?t=83,
+  ?t=1m23s, ?start=83) plays from that moment, as on YouTube
+* Links from other music apps open in Riff: a song or album shared
+  from Tidal, Deezer, Amazon Music, SoundCloud, Pandora, Napster,
+  Audiomack, Anghami, Boomplay or Yandex Music, or a song.link /
+  album.link page, plays or opens its YouTube Music page, found by
+  Odesli (song.link). Spotify's and Apple Music's songs and albums ask
+  it first too, for the exact match, before Riff's own search
+* Spelling help, as YouTube Music, Spotify and Apple Music give it: when
+  YouTube Music corrects what you typed, the results say so ("Showing
+  results for beyoncé") with Search instead for "beyonse", which looks
+  for your words exactly, in every tab; when it only has a suggestion,
+  "Did you mean beyoncé" searches it with a tap, above the results or
+  in place of "No match". Riff used to drop both, so a misspelled
+  search showed what YouTube Music guessed without a word, or nothing
+* Top result first, as YouTube Music's and Spotify's search show it: the
+  best match for what you typed (the artist, song, album, playlist or
+  podcast YouTube Music puts on top) leads the results, one row under
+  "Top result" as those of its kind below, and isn't listed again under
+  them. Riff used to drop it, so searching an artist's name could leave
+  that artist out of the results' Artists
+* Suggested results as you type, as YouTube Music's search box (and
+  Spotify's, Apple Music's, Metrolist's) shows them: under the suggested
+  searches, the songs, artists, albums and playlists YouTube Music would
+  open for what you typed, with their covers. Tap a song to play it, or
+  an artist, album or playlist to open it, without searching first; it's
+  kept in Recent searches as anything opened from the results is
+  (explicit songs are left out when explicit content is off). Riff used
+  to drop them and only suggest searches
+
+Language:
+* System default, as in Spotify, YouTube Music and AntennaPod: Settings ›
+  Language › System default shows Riff in the first of your phone's
+  languages it has (else English), and follows when you change the
+  phone's. Riff still starts in English until you pick a language
+* Chinese picked in older versions (Simplified or Traditional) shows
+  again from the start; it used to open in English
+
+Stats:
+* Play your top songs, like Spotify's: in Stats, tap a song in Top songs
+  to play it with the rest of the list after it, or Play to start from
+  the top. Songs come as Riff keeps them (Favorites, downloads, Recently
+  played); podcast episodes in the list stay as they are
+* Top songs and Top artists of the last 4 weeks, the last 6 months or
+  all time, as Spotify ranks yours: pick one above Top songs. The first
+  two count your plays of music in that time (podcasts and books left
+  out); Play plays that list. All time is as before
+
+App icon shortcuts (Android 7.1+):
+* Long-press Riff's icon for Search, Favorites and Downloads, as with
+  Spotify and YouTube Music, or drag one to the home screen. They're in
+  the app's language and follow it when you change it
+
+Home screen widget (Android):
+* A Riff widget for the home screen, like Spotify's, YouTube Music's and
+  AntennaPod's: the song or episode playing with its cover, title and
+  artist, and previous, play / pause (in your accent colour) and next.
+  It follows the music in the background too, and its buttons do what
+  the notification's do. Tap the cover or the title to open Riff; while
+  Riff isn't running, the buttons open it. Black like the app, 4 × 1 and
+  resizable in width
+
+Keyboard (Linux PCs, and tablets with a keyboard):
+* Spotify's desktop shortcuts work on every screen: Space play / pause,
+  Ctrl + → / ← next / previous, Shift + → / ← forward / back 10 seconds,
+  Ctrl + ↑ / ↓ volume, Ctrl + S shuffle, Ctrl + R repeat, Ctrl + F
+  search, and Ctrl + / lists them all. Not while you type in a text
+  field, which keeps its keys
+
+# 1.7.152
+
+* Riff now runs on Linux PCs. Every release ships a Linux build next to
+  the APKs:
+  * Arch Linux: `riff-mobile-bin-*.pkg.tar.zst`, install with
+    `sudo pacman -U riff-mobile-bin-*.pkg.tar.zst` (the matching
+    `PKGBUILD` is attached too)
+  * Any other distro: `riff-mobile-*-linux-x64.tar.gz`, unpack and run
+    `./install.sh` (needs mpv, GTK 3, libsecret and libayatana-appindicator)
+* On Linux, media keys and desktop media widgets see Riff, closing the
+  window can keep music playing in the tray (Settings, Background play),
+  and opening Riff again brings back the running window
+* Signing in to YouTube or Spotify needs the Android app for now; the
+  desktop app says so instead of opening an empty page
+
 # 1.7.151
 
 * The Up Next tab at the bottom of the player now runs edge to edge with

@@ -1,14 +1,18 @@
 // ignore_for_file: constant_identifier_names
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/ui/screens/Library/library_controller.dart';
+import 'package:hive/hive.dart';
 
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import 'additional_operation_dialog.dart';
 import 'modified_text_field.dart';
 import 'spotify_import_dialog.dart';
+import 'total_length.dart';
 
 enum OperationMode { arrange, delete, addToPlaylist, none }
 
@@ -17,6 +21,48 @@ enum SortType {
   Date,
   Duration,
   RecentlyPlayed,
+  Artist,
+  Album,
+}
+
+/// Song lists also sort by artist and by album, as in Spotify and Apple
+/// Music.
+const songOrderSortTypes = {SortType.Artist, SortType.Album};
+
+/// The Library tabs' sort widgets: what they're sorted by is remembered
+/// across restarts ([SortChoice]), as Spotify keeps Your Library's sort.
+abstract final class LibrarySortTags {
+  static const songs = 'LibSongSort';
+  static const albums = 'LibAlbumSort';
+  static const playlists = 'LibPlaylistSort';
+  static const artists = 'LibArtistSort';
+  static const all = {songs, albums, playlists, artists};
+}
+
+/// A list's sort as you last chose it, kept in AppPrefs.
+class SortChoice {
+  const SortChoice(this.type, this.ascending);
+
+  final SortType type;
+  final bool ascending;
+
+  static String _key(String tag) => 'sort:$tag';
+
+  static Box? get _prefs =>
+      Hive.isBoxOpen('AppPrefs') ? Hive.box('AppPrefs') : null;
+
+  /// Null until one was chosen for [tag].
+  static SortChoice? load(String tag) {
+    final raw = _prefs?.get(_key(tag));
+    if (raw is! Map) return null;
+    final type = SortType.values.asNameMap()[raw['type']];
+    if (type == null) return null;
+    return SortChoice(type, raw['ascending'] != false);
+  }
+
+  static Future<void> save(String tag, SortType type, bool ascending) async {
+    await _prefs?.put(_key(tag), {'type': type.name, 'ascending': ascending});
+  }
 }
 
 Set<SortType> buildSortTypeSet(
@@ -42,6 +88,7 @@ class SortWidget extends StatelessWidget {
     super.key,
     required this.tag,
     this.itemCountTitle = '',
+    this.totalLength,
     this.titleLeftPadding = 12,
     this.isAdditionalOperationRequired = true,
     this.requiredSortTypes = const <SortType>{SortType.Name},
@@ -61,12 +108,22 @@ class SortWidget extends StatelessWidget {
     this.isCloudFeatureRequired = false,
     this.isCloudModeActive,
     this.onCloudToggle,
+    this.isDeviceFeatureRequired = false,
+    this.isDeviceModeActive,
+    this.onDeviceToggle,
+    this.isDownloadedFilterRequired = false,
+    this.isDownloadedOnly,
+    this.onDownloadedToggle,
     required this.onSort,
   });
 
   /// unique identifier for each sortwidget
   final String tag;
   final String itemCountTitle;
+
+  /// How long the songs counted play together, given after their count
+  /// ("14 songs · 52 min"), as Spotify and Apple Music give it.
+  final Duration? totalLength;
   final IconData? itemIcon;
   final bool isAdditionalOperationRequired;
   final double titleLeftPadding;
@@ -91,6 +148,17 @@ class SortWidget extends StatelessWidget {
   /// When non-null, drives the selected state of the cloud icon (use with Obx).
   final bool? isCloudModeActive;
   final VoidCallback? onCloudToggle;
+
+  /// Library Songs: the phone's own music files (On this phone), next to
+  /// the cloud icon.
+  final bool isDeviceFeatureRequired;
+  final bool? isDeviceModeActive;
+  final VoidCallback? onDeviceToggle;
+
+  /// Library Songs: show only downloaded songs.
+  final bool isDownloadedFilterRequired;
+  final bool? isDownloadedOnly;
+  final VoidCallback? onDownloadedToggle;
 
   void _showImportDialog(BuildContext context) {
     showDialog(
@@ -173,7 +241,10 @@ class SortWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.isRegistered<SortWidgetController>(tag: tag)
         ? Get.find<SortWidgetController>(tag: tag)
-        : Get.put(SortWidgetController(), tag: tag);
+        : Get.put(
+            SortWidgetController(
+                rememberAs: LibrarySortTags.all.contains(tag) ? tag : null),
+            tag: tag);
     final theme = Theme.of(context);
     final muted = theme.textTheme.titleSmall?.color;
     return Padding(
@@ -199,6 +270,16 @@ class SortWidget extends StatelessWidget {
                 ),
               ),
               _sortMenu(context, controller),
+              if (isDownloadedFilterRequired)
+                _iconButton(
+                  context,
+                  selected: isDownloadedOnly == true,
+                  icon: isDownloadedOnly == true
+                      ? Icons.download_done_rounded
+                      : Icons.download_for_offline_outlined,
+                  tooltip: "downloadedOnly".tr,
+                  onPressed: () => onDownloadedToggle?.call(),
+                ),
               if (isCloudFeatureRequired)
                 _iconButton(
                   context,
@@ -208,6 +289,16 @@ class SortWidget extends StatelessWidget {
                       : Icons.cloud_outlined,
                   tooltip: "cloud".tr,
                   onPressed: () => onCloudToggle?.call(),
+                ),
+              if (isDeviceFeatureRequired)
+                _iconButton(
+                  context,
+                  selected: isDeviceModeActive == true,
+                  icon: isDeviceModeActive == true
+                      ? Icons.phone_android_rounded
+                      : Icons.phone_android_outlined,
+                  tooltip: "onThisPhone".tr,
+                  onPressed: () => onDeviceToggle?.call(),
                 ),
               if (isImportFeatureRequired)
                 _iconButton(
@@ -272,11 +363,15 @@ class SortWidget extends StatelessWidget {
     );
   }
 
-  /// Song lists pass a bare number with [itemIcon]: show "14 songs".
+  /// Song lists pass a bare number with [itemIcon]: show "14 songs", and
+  /// their length when it's given ("14 songs · 52 min").
   String get _countLabel {
     final n = int.tryParse(itemCountTitle.trim());
     if (itemIcon == null || n == null) return itemCountTitle;
-    return n == 1 ? "songCountOne".tr : "songCount".trParams({'count': '$n'});
+    final count =
+        n == 1 ? "songCountOne".tr : "songCount".trParams({'count': '$n'});
+    final length = totalLength;
+    return length == null ? count : '$count · ${lengthLabel(length)}';
   }
 
   static String _sortLabel(SortType type) => switch (type) {
@@ -284,6 +379,8 @@ class SortWidget extends StatelessWidget {
         SortType.Date => "sortDate".tr,
         SortType.Duration => "duration".tr,
         SortType.RecentlyPlayed => "recentlyPlayed".tr,
+        SortType.Artist => "sortArtist".tr,
+        SortType.Album => "sortAlbum".tr,
       };
 
   /// "Name ↑" chip: one menu for the sort key and the direction instead of
@@ -311,7 +408,11 @@ class SortWidget extends StatelessWidget {
           case SortType.Duration:
             controller.onSortByDuration(onSort);
           case SortType.RecentlyPlayed:
-            break;
+            controller.onSortByRecentlyPlayed(onSort);
+          case SortType.Artist:
+            controller.onSortByArtist(onSort);
+          case SortType.Album:
+            controller.onSortByAlbum(onSort);
         }
       },
       itemBuilder: (context) => [
@@ -434,6 +535,18 @@ class SortWidget extends StatelessWidget {
 }
 
 class SortWidgetController extends GetxController {
+  SortWidgetController({this.rememberAs}) {
+    final saved = rememberAs == null ? null : SortChoice.load(rememberAs!);
+    if (saved != null) {
+      sortType.value = saved.type;
+      isAscending.value = saved.ascending;
+    }
+  }
+
+  /// A Library tab's ([LibrarySortTags]): the sort chosen comes back after
+  /// a restart.
+  final String? rememberAs;
+
   final Rx<SortType> sortType = SortType.Name.obs;
   final isAscending = true.obs;
   final isSearchingEnabled = false.obs;
@@ -455,22 +568,50 @@ class SortWidgetController extends GetxController {
 
   void onSortByName(Function onSort) {
     sortType.value = SortType.Name;
+    _keep();
     onSort(sortType.value, isAscending.value);
   }
 
   void onSortByDuration(Function onSort) {
     sortType.value = SortType.Duration;
+    _keep();
     onSort(sortType.value, isAscending.value);
   }
 
   void onSortByDate(Function onSort) {
     sortType.value = SortType.Date;
+    _keep();
+    onSort(sortType.value, isAscending.value);
+  }
+
+  void onSortByRecentlyPlayed(Function onSort) {
+    sortType.value = SortType.RecentlyPlayed;
+    _keep();
+    onSort(sortType.value, isAscending.value);
+  }
+
+  void onSortByArtist(Function onSort) {
+    sortType.value = SortType.Artist;
+    _keep();
+    onSort(sortType.value, isAscending.value);
+  }
+
+  void onSortByAlbum(Function onSort) {
+    sortType.value = SortType.Album;
+    _keep();
     onSort(sortType.value, isAscending.value);
   }
 
   void onAscendNDescend(Function onSort) {
     isAscending.value = !isAscending.value;
+    _keep();
     onSort(sortType.value, isAscending.value);
+  }
+
+  void _keep() {
+    final tag = rememberAs;
+    if (tag == null) return;
+    unawaited(SortChoice.save(tag, sortType.value, isAscending.value));
   }
 
   void toggleSearch() {

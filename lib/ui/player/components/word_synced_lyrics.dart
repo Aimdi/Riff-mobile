@@ -1,10 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/services/better_lyrics_service.dart';
+import '/services/lyrics_romanization.dart';
+import '/services/lyrics_timing.dart';
+import '/services/lyrics_translation.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import 'lyric_seek_line.dart';
 
 /// Word-level synced lyrics from Better Lyrics TTML.
 class WordSyncedLyricsWidget extends StatefulWidget {
@@ -33,8 +39,23 @@ int wordSyncedActiveLine(List<TtmlLine> lines, double posSec) {
 class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
   late final List<TtmlLine> _lines =
       BetterLyricsService.parseTimedLines(widget.ttml);
+
+  /// Each line's romanization (null: none), worked out once.
+  late final List<String?> _romanized = [
+    for (final line in _lines) LyricsRomanization.lineFor(line.text),
+  ];
+  late final List<String> _texts = [for (final line in _lines) line.text];
   final _scroll = ScrollController();
   final _player = Get.find<PlayerController>();
+
+  /// While the user scrolls the lyrics (and [_browseLinger] after): the
+  /// list stops following the song and the line in the middle gets
+  /// [LyricSeekLine] to play from it.
+  final _browsing = ValueNotifier<bool>(false);
+  final _centerLine = ValueNotifier<int>(0);
+  final _listKey = GlobalKey();
+  Timer? _browseEnd;
+  static const _browseLinger = Duration(seconds: 3);
 
   /// Active line, derived from the 10 Hz progress tick but only notifying
   /// when the line actually changes — rows rebuild per line, not per tick.
@@ -42,27 +63,83 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
   final _activeLine = ValueNotifier<int>(0);
   final _rowKeys = <int, GlobalKey>{};
   Worker? _progressWorker;
+  Worker? _timingWorker;
 
+  /// This song's lyrics timing (how much later they show), in ms.
+  int get _delayMs => LyricsTiming.delayMs(_player.currentSong.value?.id);
+
+  /// Where the lyrics are: the song's position, moved by their timing.
   double get _posSec =>
-      _player.progressBarStatus.value.current.inMilliseconds / 1000.0;
+      lyricsPositionMs(
+          _player.progressBarStatus.value.current.inMilliseconds, _delayMs) /
+      1000.0;
+
+  /// Where the song plays from for line [i].
+  int _lineSongMs(int i) =>
+      songPositionForLyricMs((_lines[i].beginSec * 1000).round(), _delayMs);
 
   @override
   void initState() {
     super.initState();
     _activeLine.value = wordSyncedActiveLine(_lines, _posSec);
-    _progressWorker = ever(_player.progressBarStatus, (_) {
-      _activeLine.value = wordSyncedActiveLine(_lines, _posSec);
-    });
+    void follow(_) => _activeLine.value = wordSyncedActiveLine(_lines, _posSec);
+    _progressWorker = ever(_player.progressBarStatus, follow);
+    _timingWorker = ever(LyricsTiming.rev, follow);
     _activeLine.addListener(_scheduleScroll);
     _scheduleScroll();
   }
 
   @override
   void dispose() {
+    _browseEnd?.cancel();
     _progressWorker?.dispose();
+    _timingWorker?.dispose();
     _activeLine.dispose();
+    _browsing.dispose();
+    _centerLine.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  bool _onScroll(ScrollNotification n) {
+    if (n is ScrollStartNotification && n.dragDetails != null) {
+      _browseEnd?.cancel();
+      _browsing.value = true;
+    }
+    if (!_browsing.value) return false;
+    _centerLine.value = _lineAtCenter() ?? _centerLine.value;
+    if (n is ScrollEndNotification) {
+      _browseEnd?.cancel();
+      _browseEnd = Timer(_browseLinger, _stopBrowsing);
+    }
+    return false;
+  }
+
+  void _stopBrowsing() {
+    _browseEnd?.cancel();
+    if (!mounted) return;
+    _browsing.value = false;
+    _scheduleScroll();
+  }
+
+  /// The built row nearest the middle of the list.
+  int? _lineAtCenter() {
+    final list = _listKey.currentContext?.findRenderObject();
+    if (list is! RenderBox || !list.hasSize) return null;
+    final middle = list.size.height / 2;
+    int? best;
+    var bestDistance = double.infinity;
+    _rowKeys.forEach((i, key) {
+      final row = key.currentContext?.findRenderObject();
+      if (row is! RenderBox || !row.attached || !row.hasSize) return;
+      final top = row.localToGlobal(Offset.zero, ancestor: list).dy;
+      final distance = (top + row.size.height / 2 - middle).abs();
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = i;
+      }
+    });
+    return best;
   }
 
   void _scheduleScroll() {
@@ -74,7 +151,7 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
   /// Keeps the active line ~2 rows below the top, like before, but without a
   /// fixed item extent (which clipped wrapped / enlarged active lines).
   void _scrollToActive({required bool estimateIfUnbuilt}) {
-    if (!_scroll.hasClients || _lines.isEmpty) return;
+    if (!_scroll.hasClients || _lines.isEmpty || _browsing.value) return;
     final position = _scroll.position;
     final viewport = position.viewportDimension;
     final alignment = viewport <= 0 ? 0.0 : (104 / viewport).clamp(0.0, 0.5);
@@ -115,6 +192,39 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
     }
     final accent = Theme.of(context).colorScheme.secondary;
 
+    return Stack(
+      children: [
+        NotificationListener<ScrollNotification>(
+          onNotification: _onScroll,
+          // Rebuilt when translations are switched on or arrive.
+          child: KeyedSubtree(
+              key: _listKey,
+              child:
+                  Obx(() => _list(accent, LyricsTranslation.linesFor(_texts)))),
+        ),
+        // Only ▶ takes touches: drags anywhere else still scroll.
+        Center(
+          child: ValueListenableBuilder<bool>(
+            valueListenable: _browsing,
+            builder: (context, browsing, _) => !browsing
+                ? const SizedBox.shrink()
+                : ValueListenableBuilder<int>(
+                    valueListenable: _centerLine,
+                    builder: (context, i, _) => LyricSeekLine(
+                      positionMs: _lineSongMs(i),
+                      onSeek: () {
+                        _player.seek(Duration(milliseconds: _lineSongMs(i)));
+                        _stopBrowsing();
+                      },
+                    ),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _list(Color accent, List<String?>? translations) {
     return ListView.builder(
       physics: const BouncingScrollPhysics(),
       padding: widget.padding
@@ -132,22 +242,43 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
               final line = _lines[i];
               final isActive = i == activeLine;
               final isPast = i < activeLine;
+              final Widget row;
               if (line.hasWords) {
-                if (isActive) {
-                  return Obx(() => _wordLine(context, accent, line,
-                      posSec: _posSec, isActive: true, isPast: false));
-                }
-                return _wordLine(context, accent, line,
-                    posSec: 0, isActive: false, isPast: isPast);
+                row = isActive
+                    ? Obx(() => _wordLine(context, accent, line,
+                        posSec: _posSec, isActive: true, isPast: false))
+                    : _wordLine(context, accent, line,
+                        posSec: 0, isActive: false, isPast: isPast);
+              } else {
+                row = Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Text(
+                    line.text,
+                    textAlign: TextAlign.center,
+                    style: _lineStyle(context, accent,
+                        isActive: isActive, isPast: isPast),
+                  ),
+                );
               }
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Text(
-                  line.text,
-                  textAlign: TextAlign.center,
-                  style: _lineStyle(context, accent,
-                      isActive: isActive, isPast: isPast),
-                ),
+              final roman = lyricsSecondLine(
+                  _romanized[i],
+                  translations != null && i < translations.length
+                      ? translations[i]
+                      : null);
+              if (roman == null) return row;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  row,
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: RiffSpacing.xs),
+                    child: Text(
+                      roman,
+                      textAlign: TextAlign.center,
+                      style: _romanStyle(context, isActive: isActive),
+                    ),
+                  ),
+                ],
               );
             },
           ),
@@ -204,6 +335,16 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
     return base.copyWith(
       color: theme.colorScheme.onSurfaceVariant
           .withOpacity(RiffPalette.lyricsDimOpacity),
+    );
+  }
+
+  /// A line's romanization: `bodyMedium` in the secondary colour, dimmed
+  /// off the current line, as the line-synced lyrics' second lines.
+  TextStyle _romanStyle(BuildContext context, {required bool isActive}) {
+    final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
+    return theme.textTheme.bodyMedium!.copyWith(
+      color: isActive ? muted : muted.withOpacity(RiffPalette.lyricsDimOpacity),
     );
   }
 

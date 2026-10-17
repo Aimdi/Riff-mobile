@@ -41,7 +41,8 @@ class MediaItemBuilder {
         duration: json['duration'] != null
             ? Duration(seconds: json['duration'])
             : toDuration(json['length']),
-        album: album != null ? album['name'] : null,
+        // An album known by name only (the phone's, a server's): kept too.
+        album: album != null ? album['name'] : json['albumName']?.toString(),
         artist: artistName,
         artUri: art.isNotEmpty ? Uri.parse(art) : null,
         extras: {
@@ -52,8 +53,10 @@ class MediaItemBuilder {
           'date': json['date'],
           'pubDateMs': json['pubDateMs'] ?? _pubDateMsFromDate(json['date']),
           'trackDetails': json['trackDetails'],
+          if (json['albumId'] != null) 'albumId': json['albumId'],
           'year': json['year'],
           'isPodcast': isPodcast,
+          if (json['isExplicit'] == true) 'isExplicit': true,
           'description': json['description'],
           'videoType': json['videoType'],
           'resultType': json['resultType'],
@@ -81,6 +84,8 @@ class MediaItemBuilder {
           if (json['dailyMixId'] != null) 'dailyMixId': json['dailyMixId'],
           if (json['dailyMixTitle'] != null)
             'dailyMixTitle': json['dailyMixTitle'],
+          // A server song's loudness, for normalization.
+          if (json['replayGain'] != null) 'replayGain': json['replayGain'],
         });
   }
 
@@ -121,6 +126,11 @@ class MediaItemBuilder {
     } catch (_) {
       return null;
     }
+  }
+
+  static Object? _albumIdOf(MediaItem mediaItem) {
+    final album = mediaItem.extras?['album'];
+    return album is Map ? album['id'] : null;
   }
 
   static String _fallbackThumbUrl(dynamic json) {
@@ -185,10 +195,18 @@ class MediaItemBuilder {
         ],
         'url': mediaItem.extras?['url'],
         'trackDetails': mediaItem.extras?['trackDetails'],
+        // An album without an id to open it by (the phone's music files,
+        // a server's): its name, and the phone's album, so playlists and
+        // the saved queue keep it.
+        if (mediaItem.album != null && _albumIdOf(mediaItem) == null)
+          'albumName': mediaItem.album,
+        if (mediaItem.extras?['albumId'] != null)
+          'albumId': mediaItem.extras?['albumId'],
         'year': mediaItem.extras?['year'],
         'videoType': mediaItem.extras?['videoType'],
         'resultType': mediaItem.extras?['resultType'],
         'isPodcast': mediaItem.extras?['isPodcast'],
+        if (mediaItem.extras?['isExplicit'] == true) 'isExplicit': true,
         'description': mediaItem.extras?['description'],
         'showVideo': mediaItem.extras?['showVideo'],
         'podcastSource': mediaItem.extras?['podcastSource'],
@@ -211,5 +229,7 @@ class MediaItemBuilder {
         'discoverySource': mediaItem.extras?['discoverySource'],
         'dailyMixId': mediaItem.extras?['dailyMixId'],
         'dailyMixTitle': mediaItem.extras?['dailyMixTitle'],
+        if (mediaItem.extras?['replayGain'] != null)
+          'replayGain': mediaItem.extras?['replayGain'],
       };
 }

@@ -11,6 +11,34 @@ import 'music_service.dart';
 import 'spotify_match_store.dart';
 import 'spotify_match.dart';
 
+/// A track as Spotify's embed page describes it (its name or title, its
+/// artists or the line under it, its length), or null when [entity] isn't
+/// one.
+SpotifyTrackRef? spotifyEmbedTrack(Object? entity, {required String id}) {
+  if (entity is! Map) return null;
+  final title = '${entity['name'] ?? entity['title'] ?? ''}'.trim();
+  if (title.isEmpty) return null;
+  final list = entity['artists'];
+  var artists = list is List
+      ? list
+          .map((a) => a is Map ? '${a['name'] ?? ''}'.trim() : '')
+          .where((a) => a.isNotEmpty)
+          .join(', ')
+      : '';
+  if (artists.isEmpty) artists = '${entity['subtitle'] ?? ''}'.trim();
+  final length = entity['duration'];
+  final ms = length is num
+      ? length.toInt()
+      : (length is Map && length['totalMilliseconds'] is num
+          ? (length['totalMilliseconds'] as num).toInt()
+          : null);
+  return SpotifyTrackRef(
+      id: id,
+      title: title,
+      artists: artists,
+      durationMs: ms != null && ms > 0 ? ms : null);
+}
+
 /// One track as listed on a public Spotify playlist / album page.
 class SpotifyTrackRef {
   const SpotifyTrackRef({
@@ -21,12 +49,17 @@ class SpotifyTrackRef {
     this.isrc,
     this.album,
     this.artUrl,
+    this.youtubeId,
   });
 
   final String id;
   final String title;
   final String artists;
   final int? durationMs;
+
+  /// The YouTube video a playlist file links to (an M3U of YouTube links,
+  /// as Metrolist saves): that very track, taken before any search.
+  final String? youtubeId;
 
   /// Album name and cover, when the source has them (Web API).
   final String? album;
@@ -180,6 +213,16 @@ class SpotifyImportService extends GetxService {
     );
   }
 
+  /// A public track's title, artists and length from its embed page (no
+  /// sign-in), for a shared track link; null when the page has none.
+  Future<SpotifyTrackRef?> fetchPublicTrack(String id) async {
+    final res = await _dio.get('https://open.spotify.com/embed/track/$id');
+    final data = _extractNextData(res.data.toString());
+    return spotifyEmbedTrack(
+        data?['props']?['pageProps']?['state']?['data']?['entity'],
+        id: id);
+  }
+
   Map<String, dynamic>? _extractNextData(String html) {
     const marker = 'id="__NEXT_DATA__"';
     final i = html.indexOf(marker);
@@ -251,9 +294,12 @@ class SpotifyImportService extends GetxService {
     return results;
   }
 
-  /// One track's YouTube Music match: stored match first, then search
-  /// (ISRC, then title and artist). Null when nothing is close enough.
+  /// One track's YouTube Music match: the track a playlist file links to,
+  /// else the stored match, then search (ISRC, then title and artist).
+  /// Null when nothing is close enough.
   Future<MediaItem?> resolveTrack(SpotifyTrackRef t) async {
+    final linked = t.youtubeId == null ? null : await linkedTrack(t.youtubeId!);
+    if (linked != null) return linked;
     // Playback calls this directly, often before anything opened the
     // store; reading it closed missed the stored match (even one the
     // listener picked) and searched again.
@@ -269,6 +315,26 @@ class SpotifyImportService extends GetxService {
     }
     await SpotifyMatchStore.putAuto(t.id, best.item, best.score);
     return best.item;
+  }
+
+  /// The YouTube video [id] as a track (its own entry in its watch queue),
+  /// or null when it's no song or can't be reached; a search for the
+  /// entry's title follows then.
+  Future<MediaItem?> linkedTrack(String id) async {
+    try {
+      final found = await Get.find<MusicServices>().getSongWithId(id);
+      if (found.length < 2 || found[0] != true || found[1] is! List) {
+        return null;
+      }
+      final tracks = (found[1] as List).whereType<MediaItem>().toList();
+      for (final t in tracks) {
+        if (t.id == id) return t;
+      }
+      return tracks.isEmpty ? null : tracks.first;
+    } catch (e) {
+      printERROR('Linked track $id: $e');
+      return null;
+    }
   }
 
   /// YouTube Music candidates for [t], best first, each with its score:

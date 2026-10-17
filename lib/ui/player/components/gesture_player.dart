@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
@@ -29,27 +30,38 @@ class GesturePlayer extends StatelessWidget {
     final page = theme.colorScheme.surface;
     final riff = RiffColors.of(context);
     final bottomInset = Get.mediaQuery.padding.bottom;
+    void songOptions() {
+      HapticFeedback.mediumImpact();
+      showCurrentSongSheet(
+        song: pc.currentSong.value,
+        context: pc.homeScaffoldkey.currentContext,
+      );
+    }
+
     return Stack(
       children: [
-        GestureDetector(
-          onHorizontalDragEnd: (details) {
-            final v = details.primaryVelocity ?? 0;
-            if (v < 0) {
-              pc.next();
-            } else if (v > 0) {
-              pc.prev();
-            }
-          },
-          onDoubleTap: pc.playPause,
-          onLongPress: () {
-            HapticFeedback.mediumImpact();
-            showCurrentSongSheet(
-              song: pc.currentSong.value,
-              context: pc.homeScaffoldkey.currentContext,
-            );
-          },
-          child: const BackgroudImage(),
-        ),
+        Obx(() => GestureCoverSemantics(
+              playing: pc.buttonState.value == PlayButtonState.playing,
+              onNext: pc.next,
+              onPrevious: pc.prev,
+              onPlayPause: pc.playPause,
+              onOptions: songOptions,
+              child: GestureDetector(
+                // Its gestures are in GestureCoverSemantics' actions.
+                excludeFromSemantics: true,
+                onHorizontalDragEnd: (details) {
+                  final v = details.primaryVelocity ?? 0;
+                  if (v < 0) {
+                    pc.next();
+                  } else if (v > 0) {
+                    pc.prev();
+                  }
+                },
+                onDoubleTap: pc.playPause,
+                onLongPress: songOptions,
+                child: const BackgroudImage(),
+              ),
+            )),
         // Readable bottom: fade the cover into the page colour.
         IgnorePointer(
           child: DecoratedBox(
@@ -171,6 +183,45 @@ class GesturePlayer extends StatelessWidget {
         ),
         const PlayerTopBar(),
       ],
+    );
+  }
+}
+
+/// The cover's swipes and double-tap as screen reader actions (TalkBack
+/// can't swipe or double-tap it: a swipe moves between items), and its
+/// long press, under a "Cover art" label.
+class GestureCoverSemantics extends StatelessWidget {
+  const GestureCoverSemantics({
+    super.key,
+    required this.playing,
+    required this.onNext,
+    required this.onPrevious,
+    required this.onPlayPause,
+    required this.onOptions,
+    required this.child,
+  });
+
+  final bool playing;
+  final VoidCallback onNext;
+  final VoidCallback onPrevious;
+  final VoidCallback onPlayPause;
+  final VoidCallback onOptions;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      label: 'coverArt'.tr,
+      image: true,
+      onLongPress: onOptions,
+      customSemanticsActions: {
+        CustomSemanticsAction(label: (playing ? 'pause' : 'play').tr):
+            onPlayPause,
+        CustomSemanticsAction(label: 'next'.tr): onNext,
+        CustomSemanticsAction(label: 'previous'.tr): onPrevious,
+      },
+      child: child,
     );
   }
 }

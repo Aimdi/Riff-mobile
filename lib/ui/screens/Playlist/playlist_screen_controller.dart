@@ -7,22 +7,31 @@ import 'package:get/get.dart';
 import 'package:harmonymusic/models/thumbnail.dart';
 import 'package:harmonymusic/services/permission_service.dart';
 import 'package:harmonymusic/ui/screens/Settings/settings_screen_controller.dart';
+import 'package:harmonymusic/ui/widgets/add_to_playlist.dart'
+    show isSongDownloaded, keepPlaylistDownloaded, songsToKeepDownloaded;
 import 'package:harmonymusic/ui/widgets/snackbar.dart';
 import 'package:harmonymusic/utils/helper.dart';
 import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
+import 'package:share_plus/share_plus.dart';
 
 import '../../../base_class/playlist_album_screen_con_base.dart';
 import '../../../mixins/additional_opeartion_mixin.dart';
 import '../../../models/album.dart' show Album;
 import '../../../models/media_Item_builder.dart';
 import '../../../models/playlist.dart';
+import '../../../utils/content_filters.dart';
 import '../../../utils/hive_boxes.dart';
 import '../../../services/music_service.dart';
 import '../../../services/piped_service.dart';
+import '../../../services/m3u_playlist_import.dart';
+import '../../../services/server_login.dart';
+import '../../../services/playlist_covers.dart';
 import '../../../services/playlist_mix_service.dart';
 import '../../../services/track_analysis_service.dart';
 import '../Library/library_controller.dart';
+import '../Library/library_pins.dart';
+import '/services/playlist_folders.dart';
 import '../Podcasts/podcasts_library_controller.dart';
 
 ///PlaylistScreenController handles playlist screen
@@ -391,7 +400,9 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
           final json = content is Playlist
               ? {...content.toJson(), 'kind': kind}
               : content.toJson();
-          await box.put(id, json);
+          // When you followed it, for Subscriptions' Recently followed.
+          await box.put(
+              id, {...json, 'addedAt': DateTime.now().millisecondsSinceEpoch});
         } else {
           await box.delete(id);
         }
@@ -405,6 +416,10 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
         //remove piped playlist from lib
         final res =
             await Get.find<PipedServices>().deletePlaylist(content.playlistId);
+        if (res.code == 1) {
+          await LibraryPins.forget(content.playlistId);
+          await PlaylistFolders.forget(content.playlistId);
+        }
         Get.find<LibraryPlaylistsController>().syncPipedPlaylist();
         return (res.code == 1);
       } else {
@@ -415,6 +430,9 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
           await updateSongsIntoDb();
         } else {
           await box.delete(id);
+          await LibraryPins.forget(id);
+          await PlaylistFolders.forget(id);
+          await PlaylistCovers.remove(id);
           final songsBox = await Hive.openBox(id);
           await songsBox.deleteFromDisk();
         }
@@ -443,6 +461,22 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
 
     // Update the playlist thumbnail based on the first song's thumbnail
     _updatePlaylistThumbSongBased();
+  }
+
+  /// Adds [song] at the end of this (local) playlist, as the add-to-playlist
+  /// sheet does. False when it's in the playlist already.
+  Future<bool> appendSong(MediaItem song) async {
+    final all = tempListContainer.isNotEmpty ? tempListContainer : songList;
+    if (all.any((s) => s.id == song.id)) return false;
+    final box = await Hive.openBox(playlist.value.playlistId);
+    final before = box.values.toList();
+    await box.add(MediaItemBuilder.toJson(song));
+    addNRemoveItemsinList(song, action: 'add');
+    _updatePlaylistThumbSongBased();
+    // A downloaded playlist stays whole.
+    keepPlaylistDownloaded(
+        songsToKeepDownloaded(before, [song], isDownloaded: isSongDownloaded));
+    return true;
   }
 
   @override
@@ -539,101 +573,48 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     super.onClose();
   }
 
-  Future<void> exportPlaylistToJson(BuildContext context) async {
-    if (!await PermissionService.getExtStoragePermission()) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(snackbar(
-            context, "permissionDenied".tr,
-            size: SanckBarSize.MEDIUM));
-      }
-      return;
-    }
+  /// The playlist and its songs as JSON, which Riff's import reads back;
+  /// links to your own music server go without its login.
+  Future<void> exportPlaylistToJson(BuildContext context) => _exportText(
+      context,
+      'json',
+      () => jsonEncode(withoutServerLogins({
+            "playlistInfo": playlist.value.toJson(),
+            "songs":
+                songList.map((song) => MediaItemBuilder.toJson(song)).toList(),
+            "exportDate": DateTime.now().toIso8601String(),
+            "appVersion": Get.find<SettingsScreenController>().currentVersion,
+          })));
 
-    try {
-      exportProgress.value = 0.1;
+  /// The songs as CSV rows: their titles, artists, lengths and YouTube ids
+  /// (which Riff's import takes as the very tracks).
+  Future<void> exportPlaylistToCsv(BuildContext context) =>
+      _exportText(context, 'csv', _generateCsvContent);
 
-      // Show progress dialog
-      if (context.mounted) {
-        _showProgressDialog(context, "exportingPlaylist".tr);
-      }
+  /// The songs as an M3U8 playlist ([playlistM3u]): other players and apps
+  /// (Metrolist, VLC, foobar2000) open it, and Riff's import brings it
+  /// back song for song.
+  Future<void> exportPlaylistToM3u(BuildContext context) => _exportText(
+      context, 'm3u8', () => playlistM3u(playlist.value.title, songList));
 
-      // Get appropriate directory based on platform
-      final Directory exportDir = await _getExportDirectory();
-      exportProgress.value = 0.2;
-
-      // Create playlist data map
-      final playlistData = {
-        "playlistInfo": playlist.value.toJson(),
-        "songs": songList.map((song) => MediaItemBuilder.toJson(song)).toList(),
-        "exportDate": DateTime.now().toIso8601String(),
-        "appVersion": Get.find<SettingsScreenController>().currentVersion,
-      };
-      exportProgress.value = 0.5;
-
-      // Generate filename with playlist name
-      final sanitizedName =
-          playlist.value.title.replaceAll(RegExp(r'[^\w\s]+'), '_');
-
-      // Find available filename with incremental suffix if needed
-      String filename = "$sanitizedName.json";
-      String filePath = "${exportDir.path}/$filename";
-      File file = File(filePath);
-
-      int counter = 1;
-      while (await file.exists()) {
-        filename = "${sanitizedName}_$counter.json";
-        filePath = "${exportDir.path}/$filename";
-        file = File(filePath);
-        counter++;
-      }
-
-      exportProgress.value = 0.7;
-
-      // Write JSON to file
-      await file.writeAsString(jsonEncode(playlistData));
-      exportProgress.value = 1.0;
-
-      // Close progress dialog if it's still open
-      if (Get.isDialogOpen ?? false) {
-        Get.back();
-      }
-
-      // Show success message with platform-specific path info
-      String locationMsg = _getLocationMessage(exportDir.path);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(snackbar(
-            context, "${"playlistExportedMsg".tr}: $locationMsg",
-            size: SanckBarSize.MEDIUM));
-      }
-    } catch (e) {
-      // Close progress dialog if it's still open
-      if (Get.isDialogOpen ?? false) {
-        Get.back();
-      }
-
-      printERROR("Error exporting playlist: $e");
-      
-      String errorMsg = "exportError".tr;
-      if (e is FileSystemException) {
-        if (e.osError?.errorCode == 13) {
-          errorMsg = "exportErrorPermission".tr;
-        } else if (e.osError?.errorCode == 28) {
-          errorMsg = "exportErrorStorage".tr;
-        }
-      } else if (e is FormatException) {
-        errorMsg = "exportErrorFormat".tr;
-      }
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            snackbar(context, errorMsg, size: SanckBarSize.MEDIUM));
-      }
-    } finally {
-      exportProgress.value = 0.0;
-    }
+  /// Shares one of your playlists as Spotify shares one: its name with a
+  /// link anyone can open (YouTube plays its first 50 songs) and its M3U
+  /// file, which Riff, Metrolist or VLC take whole.
+  Future<void> sharePlaylist() async {
+    final name = playlist.value.title;
+    final dir = await path_provider.getTemporaryDirectory();
+    final safe = name.replaceAll(RegExp(r'[^\w\s]+'), '_').trim();
+    final file = File('${dir.path}/${safe.isEmpty ? 'Playlist' : safe}.m3u8');
+    await file.writeAsString(playlistM3u(name, songList));
+    await Share.shareXFiles([XFile(file.path, mimeType: 'audio/x-mpegurl')],
+        subject: name, text: SongLinkShare.playlistText(name, songList));
   }
 
-  Future<void> exportPlaylistToCsv(BuildContext context) async {
+  /// Writes what [content] makes as "<playlist name>.<extension>" (name_1,
+  /// name_2 ... when taken) in the export folder under a progress dialog,
+  /// then says where it went, or why it couldn't.
+  Future<void> _exportText(
+      BuildContext context, String extension, String Function() content) async {
     if (!await PermissionService.getExtStoragePermission()) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(snackbar(
@@ -645,49 +626,40 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
 
     try {
       exportProgress.value = 0.1;
-
-      // Show progress dialog
       if (context.mounted) {
         _showProgressDialog(context, "exportingPlaylist".tr);
       }
 
-      // Get appropriate directory based on platform
+      // The folder for each platform.
       final Directory exportDir = await _getExportDirectory();
       exportProgress.value = 0.2;
 
-      // Build CSV content
-      final csvContent = _generateCsvContent();
+      final text = content();
       exportProgress.value = 0.5;
 
-      // Generate filename with playlist name
+      // Named for the playlist, with a number when that's taken.
       final sanitizedName =
           playlist.value.title.replaceAll(RegExp(r'[^\w\s]+'), '_');
-
-      // Find available filename with incremental suffix if needed
-      String filename = "$sanitizedName.csv";
+      String filename = "$sanitizedName.$extension";
       String filePath = "${exportDir.path}/$filename";
       File file = File(filePath);
-
       int counter = 1;
       while (await file.exists()) {
-        filename = "${sanitizedName}_$counter.csv";
+        filename = "${sanitizedName}_$counter.$extension";
         filePath = "${exportDir.path}/$filename";
         file = File(filePath);
         counter++;
       }
-
       exportProgress.value = 0.7;
 
-      // Write CSV to file
-      await file.writeAsString(csvContent);
+      await file.writeAsString(text);
       exportProgress.value = 1.0;
 
-      // Close progress dialog if it's still open
       if (Get.isDialogOpen ?? false) {
         Get.back();
       }
 
-      // Show success message with platform-specific path info
+      // Where it went, as each platform says it.
       String locationMsg = _getLocationMessage(exportDir.path);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(snackbar(
@@ -695,13 +667,12 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
             size: SanckBarSize.MEDIUM));
       }
     } catch (e) {
-      // Close progress dialog if it's still open
       if (Get.isDialogOpen ?? false) {
         Get.back();
       }
 
-      printERROR("Error exporting playlist to CSV: $e");
-      
+      printERROR("Error exporting playlist ($extension): $e");
+
       String errorMsg = "exportError".tr;
       if (e is FileSystemException) {
         if (e.osError?.errorCode == 13) {
@@ -749,7 +720,8 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
           ? _formatDuration(song.duration!)
           : '';
       
-      final thumbnailUrl = _escapeCsvField(song.artUri.toString());
+      final thumbnailUrl =
+          _escapeCsvField(withoutServerLogin(song.artUri.toString()));
       
       // Extract album information
       final albumData = song.extras?['album'] as Map?;

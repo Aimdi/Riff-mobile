@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,17 +11,29 @@ import '../../models/playling_from.dart';
 import '../../models/playlist.dart';
 import '/services/ban_service.dart';
 import '/services/discovery/discovery_types.dart';
+import '/services/search_recents.dart';
 import '../navigator.dart';
 import '../player/player_controller.dart';
 import 'collection_play.dart';
 import 'empty_play_hint.dart';
 import 'image_widget.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_text_metrics.dart';
 import '/ui/theme/riff_tokens.dart';
 import '../screens/Home/home_layout.dart';
 import 'snackbar.dart';
 import 'song_list_tile.dart';
 import 'songinfo_bottom_sheet.dart';
+
+/// An album / playlist row's height: 96 dp, grown with the system text
+/// size so its two-line title and meta line stay inside it.
+double wideRowExtentOf(BuildContext context) => math.max(
+    RiffComponentSizes.wideRowExtent,
+    riffLineHeight(context, homeCardTitleStyle(context)) * 2 +
+        RiffSpacing.xxs +
+        riffLineHeight(context, homeCardSubtitleStyle(context)) +
+        RiffComponentSizes.wideRowExtent -
+        RiffComponentSizes.wideRowArt);
 
 /// Search overview rows and Songs/Videos/Episodes lists play as a queue.
 /// Playlist/album/artist complete lists keep their own play-from path.
@@ -106,9 +120,24 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
                   maxItems: _overviewPreviewCount),
             );
     } else if (title.contains("playlists") || title == "Podcasts") {
-      return listViewPlaylists(items, sc: scrollController);
+      return isCompleteList
+          ? listViewPlaylists(context, items, sc: scrollController)
+          // A preview (the search's top result): its rows, in place.
+          : Column(children: [
+              for (final p in items)
+                SizedBox(
+                    height: wideRowExtentOf(context),
+                    child: _playlistRow(context, p)),
+            ]);
     } else if (title == "Albums" || title == "Singles") {
-      return listViewAlbums(items, sc: scrollController);
+      return isCompleteList
+          ? listViewAlbums(context, items, sc: scrollController)
+          : Column(children: [
+              for (final a in items)
+                SizedBox(
+                    height: wideRowExtentOf(context),
+                    child: _albumRow(context, a)),
+            ]);
     } else if (title.contains('Artists')) {
       return isCompleteList
           ? Expanded(child: listViewArtists(items, sc: scrollController))
@@ -158,6 +187,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           isPlaylistOrAlbum: isPlaylistOrAlbum,
           fullWidthHairline: searchContext,
           onTap: () async {
+            noteSearchOpen(context, song);
             final bool ok;
             if (isArtistSongs) {
               ok = await playerController.playPlayListSong(
@@ -192,7 +222,8 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
     );
   }
 
-  Widget listViewPlaylists(List<dynamic> playlists, {ScrollController? sc}) {
+  Widget listViewPlaylists(BuildContext context, List<dynamic> playlists,
+      {ScrollController? sc}) {
     return Expanded(
       child: ListView.builder(
           padding: const EdgeInsets.only(
@@ -201,17 +232,22 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           ),
           controller: sc,
           itemCount: playlists.length,
-          itemExtent: RiffComponentSizes.wideRowExtent,
+          itemExtent: wideRowExtentOf(context),
           physics: const BouncingScrollPhysics(),
-          itemBuilder: (context, index) => wideListTile(context,
-              playlist: playlists[index],
-              title: playlists[index].title,
-              subtitle: playlists[index]?.description ?? "NA",
-              subtitle2: "")),
+          itemBuilder: (context, index) =>
+              _playlistRow(context, playlists[index])),
     );
   }
 
-  Widget listViewAlbums(List<dynamic> albums, {ScrollController? sc}) {
+  Widget _playlistRow(BuildContext context, dynamic playlist) =>
+      wideListTile(context,
+          playlist: playlist,
+          title: playlist.title,
+          subtitle: playlist?.description ?? "NA",
+          subtitle2: "");
+
+  Widget listViewAlbums(BuildContext context, List<dynamic> albums,
+      {ScrollController? sc}) {
     return Expanded(
       child: ListView.builder(
           padding: const EdgeInsets.only(
@@ -220,28 +256,29 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           ),
           controller: sc,
           itemCount: albums.length,
-          itemExtent: RiffComponentSizes.wideRowExtent,
+          itemExtent: wideRowExtentOf(context),
           physics: const BouncingScrollPhysics(),
-          itemBuilder: (context, index) {
-            String artistName = "";
-            try {
-              for (dynamic items in (albums[index].artists).sublist(1)) {
-                artistName = "${artistName + items['name']},";
-              }
-              // ignore: empty_catches
-            } catch (e) {}
-            artistName = artistName.length > 16
-                ? artistName.substring(0, 16)
-                : artistName;
-            return wideListTile(context,
-                album: albums[index],
-                title: albums[index].title,
-                subtitle: artistName,
-                subtitle2: albums[index].artists.isEmpty
-                    ? "${albums[index].year}"
-                    : "${(albums[index].artists[0]['name'])} • ${albums[index].year}");
-          }),
+          itemBuilder: (context, index) => _albumRow(context, albums[index])),
     );
+  }
+
+  Widget _albumRow(BuildContext context, dynamic album) {
+    String artistName = "";
+    try {
+      for (dynamic items in (album.artists).sublist(1)) {
+        artistName = "${artistName + items['name']},";
+      }
+      // ignore: empty_catches
+    } catch (e) {}
+    artistName =
+        artistName.length > 16 ? artistName.substring(0, 16) : artistName;
+    return wideListTile(context,
+        album: album,
+        title: album.title,
+        subtitle: artistName,
+        subtitle2: album.artists.isEmpty
+            ? "${album.year}"
+            : "${(album.artists[0]['name'])} • ${album.year}");
   }
 
   Widget listViewArtists(List<dynamic> artists,
@@ -267,9 +304,12 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
             ListTile(
               // Theme gives 16h padding, titleMedium / bodyMedium (§5.2).
               horizontalTitleGap: RiffSpacing.md,
-              onTap: () => shouldPlayCollectionOnTap()
-                  ? _playArtistRow(artist)
-                  : _openArtist(artist),
+              onTap: () {
+                noteSearchOpen(context, artist);
+                shouldPlayCollectionOnTap()
+                    ? _playArtistRow(artist)
+                    : _openArtist(artist);
+              },
               onLongPress: () => _showArtistActions(context, artist),
               leading: SizedBox(
                 width: RiffComponentSizes.rowArt,
@@ -284,7 +324,10 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
                       right: 0,
                       bottom: 0,
                       child: _ArtPlayBadge(
-                        onTap: () => _playArtistRow(artist),
+                        onTap: () {
+                          noteSearchOpen(context, artist);
+                          _playArtistRow(artist);
+                        },
                       ),
                     ),
                   ],
@@ -550,12 +593,12 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
         );
       },
       child: SizedBox(
-        height: RiffComponentSizes.wideRowExtent,
+        height: wideRowExtentOf(context),
         child: Stack(
           children: [
             Padding(
               // Gutter like every row; the vertical inset keeps the 76dp
-              // cover exactly inside the 96dp row.
+              // cover exactly inside the 96dp row (taller with larger text).
               padding: const EdgeInsets.symmetric(
                   horizontal: RiffSpacing.lg,
                   vertical: (RiffComponentSizes.wideRowExtent -

@@ -2,6 +2,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/services/device_music.dart';
 import 'package:harmonymusic/services/downloader.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:hive/hive.dart';
@@ -34,16 +35,24 @@ class SongDownloadButton extends StatelessWidget {
         isDownloadingDoneCallback!(isDownloadingDone);
       }
 
+      // A music file on the phone (On this phone) is there already.
       return (isDownloadingDone ||
-              Hive.box("SongDownloads").containsKey(song!.id))
+              Hive.box("SongDownloads").containsKey(song!.id) ||
+              DeviceMusic.isDeviceSong(song))
           ? Icon(
               Icons.download_done,
               color: Theme.of(context).textTheme.titleMedium!.color,
+              semanticLabel: 'downloaded'.tr,
             )
           : downloader.songQueue.contains(song) &&
                   downloader.isJobRunning.isTrue &&
                   downloader.currentSong == song
-              ? Obx(() => Stack(
+              ? Obx(() => Semantics(
+                  label: 'downloadingProgress'.trParams({
+                    'percent': '${downloader.songDownloadingProgress.value}'
+                  }),
+                  excludeSemantics: true,
+                  child: Stack(
                     alignment: Alignment.center,
                     children: [
                       Align(
@@ -66,10 +75,11 @@ class SongDownloadButton extends StatelessWidget {
                         value: (downloader.songDownloadingProgress.value) / 100,
                       )
                     ],
-                  ))
+                  )))
               : downloader.songQueue.contains(song)
                   ? const LoadingIndicator()
                   : IconButton(
+                      tooltip: 'download'.tr,
                       icon: Icon(
                         Icons.download,
                         color: Theme.of(context).textTheme.titleMedium!.color,

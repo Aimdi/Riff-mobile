@@ -9,6 +9,7 @@ import 'package:hive/hive.dart';
 import '/services/podcast_bookmarks.dart';
 import '/services/podcast_segments.dart';
 import '/services/podcast_service.dart';
+import '/services/podcast_starred.dart';
 import '/ui/screens/Library/library_controller.dart';
 import '/utils/hive_boxes.dart';
 import 'sync_merge.dart';
@@ -245,6 +246,51 @@ class PodcastBookmarksSync extends SyncCollection {
   }
 }
 
+// ── Starred episodes ──────────────────────────────────────────────────
+
+class PodcastStarredSync extends SyncCollection {
+  const PodcastStarredSync();
+
+  @override
+  String get name => 'podcast.starred';
+  @override
+  String get path => 'podcasts/starred.json';
+
+  @override
+  Map<String, SyncRecord>? adopt(
+          Map<String, SyncRecord> remote, String device) =>
+      adoptForeignEpisodeIds(remote, device);
+
+  @override
+  Future<Map<String, LocalItem>> readLocal() async {
+    final box = _box(StarredEpisodes.box);
+    if (box == null) return {};
+    return {
+      for (final v in box.values)
+        if (StarredEpisode.fromJson(v) case final s?)
+          s.id: LocalItem(starredData(s.toJson()), editedAt: s.starredAt)
+    };
+  }
+
+  @override
+  Future<void> apply(Map<String, SyncRecord> changes) async {
+    final box = _box(StarredEpisodes.box);
+    if (box == null) return;
+    for (final e in changes.entries) {
+      if (e.key.startsWith('url:')) continue; // adopted under our id
+      if (e.value.deleted) {
+        await box.delete(e.key);
+        continue;
+      }
+      await box.put(
+          e.key,
+          starredFromData(e.key, Map<String, dynamic>.from(e.value.data ?? {}),
+              e.value.updatedAt));
+    }
+    if (changes.isNotEmpty) StarredEpisodes.rev.value++;
+  }
+}
+
 // ── Manual segment marks ──────────────────────────────────────────────
 
 class PodcastSegmentsSync extends SyncCollection {
@@ -426,6 +472,7 @@ const syncCollections = <SyncCollection>[
   PodcastSubscriptionsSync(),
   PodcastEpisodesSync(),
   PodcastBookmarksSync(),
+  PodcastStarredSync(),
   PodcastSegmentsSync(),
   PlaylistsSync(),
   FavoritesSync(),

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:widget_marquee/widget_marquee.dart';
 
 import '/ui/widgets/sort_widget.dart' show OperationMode;
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import 'image_widget.dart';
+import 'riff_marquee.dart';
 
 class ModificationList extends StatelessWidget {
   const ModificationList(
@@ -31,7 +31,7 @@ class ModificationList extends StatelessWidget {
                     size: RiffComponentSizes.rowArt,
                     song: items[index],
                   ),
-                  title: Marquee(
+                  title: RiffMarquee(
                     delay: const Duration(milliseconds: 300),
                     duration: const Duration(seconds: 5),
                     id: items[index].title.hashCode.toString(),
@@ -105,7 +105,7 @@ class ModificationList extends StatelessWidget {
                 ],
               ),
             ),
-            title: Marquee(
+            title: RiffMarquee(
               delay: const Duration(milliseconds: 300),
               duration: const Duration(seconds: 5),
               id: items[index].title.hashCode.toString(),

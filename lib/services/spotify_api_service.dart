@@ -652,6 +652,11 @@ class SpotifyApiService {
     return parseSearch(await _get(uri.toString()));
   }
 
+  /// One track by its id (a shared link's), as the public import gives
+  /// tracks (with its ISRC); null when Spotify has none to play.
+  Future<SpotifyTrackRef?> fetchTrack(String id) async => parseTrackItem(
+      _tryDecode(await _get('$base/tracks/$id', ttl: libraryTtl)));
+
   /// Songs only, for finding a Spotify track for a Riff song.
   Future<List<SpotifyTrackRef>> searchTracks(String query,
       {int limit = 5}) async {

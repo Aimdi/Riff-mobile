@@ -10,12 +10,16 @@ import 'package:path_provider/path_provider.dart';
 import 'package:terminate_restart/terminate_restart.dart';
 
 import '/ui/player/video_mode_controller.dart';
+import '/ui/theme/riff_text_metrics.dart';
 import '/ui/screens/Search/search_screen_controller.dart';
 import '/utils/get_localization.dart';
 import '/services/downloader.dart';
+import '/services/pending_downloads.dart';
+import '/services/podcast_service.dart';
 import '/services/piped_service.dart';
 import '/services/sponsorblock_service.dart';
 import '/services/spotify_import_service.dart';
+import '/services/audiobook_downloads.dart';
 import '/services/audiobookshelf_service.dart';
 import '/services/cloud_music_service.dart';
 import '/services/plugin_service.dart';
@@ -28,12 +32,17 @@ import '/services/diag_log.dart';
 import '/services/client_config_service.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/music_service.dart';
+import '/services/new_episode_alerts.dart';
+import '/services/now_playing_widget.dart';
+import '/services/offline_playback.dart';
 import '/services/playback_rules_service.dart';
 import '/services/playlist_mix_service.dart';
+import '/services/smart_downloads.dart';
 import '/services/smart_queue_service.dart';
 import '/services/track_analysis_service.dart';
 import '/ui/home.dart';
 import '/ui/player/player_controller.dart';
+import '/ui/widgets/player_shortcuts.dart';
 import 'ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/utils/theme_controller.dart';
 import 'ui/screens/Home/home_screen_controller.dart';
@@ -42,14 +51,17 @@ import 'ui/screens/Podcasts/podcasts_library_controller.dart';
 import 'ui/screens/Podcasts/podcast_queue_controller.dart';
 import 'ui/screens/Podcasts/podcast_folder_controller.dart';
 import 'ui/screens/Audiobooks/audiobook_library_controller.dart';
+import 'utils/app_language.dart';
 import 'utils/system_tray.dart';
 import 'utils/update_check_flag_file.dart';
 import 'utils/helper.dart';
 import 'utils/hive_safe_open.dart';
 import 'utils/house_keeping.dart';
 import 'utils/secure_credentials.dart';
+import 'services/sync/gpodder_sync.dart';
 import 'services/sync/webdav_sync_service.dart';
 import 'services/spotify_like_sync.dart';
+import 'services/yt_like_sync.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -80,6 +92,8 @@ Future<void> main() async {
   // Load cached remote client config synchronously; refresh in background.
   unawaited(ClientConfigService.init());
   startApplicationServices();
+  // Offline, songs that need a connection are passed over (Android).
+  OfflinePlayback.watch();
   WidgetsBinding.instance.addObserver(LifecycleHandler());
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   TerminateRestart.instance.initialize();
@@ -118,10 +132,20 @@ Future<void> _initAudioAndWarm(Future<void> deferredBoxes) async {
       Get.put<AudioHandler>(handler, permanent: true);
     }
   });
+  // The home screen widget follows the player.
+  if (GetPlatform.isAndroid) {
+    await _warmUp('Home screen widget',
+        () async => NowPlayingWidget.start(Get.find<AudioHandler>()));
+  }
   await deferredBoxes;
   // Each step on its own: one shared try used to let a failing step (e.g.
   // discovery on a damaged box) skip playback rules, the smart queue,
   // auto-sync and the Spotify flush for the whole session.
+  // Downloads left when Riff last stopped go on.
+  await _warmUp('Pending downloads', () async {
+    if (PendingDownloads.isEmpty) return;
+    await Get.find<Downloader>().resumePending();
+  });
   await _warmUp('Discovery', () async {
     if (!Get.isRegistered<DiscoveryService>()) {
       await Get.putAsync(() => DiscoveryService().init(), permanent: true);
@@ -148,11 +172,21 @@ Future<void> _initAudioAndWarm(Future<void> deferredBoxes) async {
       }
     }
   });
+  // New-episode notifications (when switched on): the shows followed.
+  await _warmUp('New episode alerts', NewEpisodeAlerts.start);
+  // Smart downloads (when switched on): the songs played most, on Wi-Fi.
+  SmartDownloads.start();
   // WebDAV sync (when switched on), after the first screen settles.
   Future<void>.delayed(
       const Duration(seconds: 10), WebDavSyncService.maybeAutoSync);
+  // gpodder sync (when switched on), as with WebDAV.
+  Future<void>.delayed(const Duration(seconds: 12), GpodderSync.maybeAutoSync);
   // Spotify like changes left over from last time.
   SpotifyLikeSync.flushSoon(delay: const Duration(seconds: 20));
+  YtLikeSync.flushSoon(delay: const Duration(seconds: 20));
+  // Likes made in YouTube Music since come into Favorites (once a day).
+  Future.delayed(
+      const Duration(seconds: 30), () => YtLikeSync.importLikesDaily());
 }
 
 /// Runs one background start-up step; a failure is logged, never thrown.
@@ -177,13 +211,14 @@ class MyApp extends StatelessWidget {
         home: const Home(),
         debugShowCheckedModeBanner: false,
         translations: Languages(),
-        locale:
-            Locale(Hive.box("AppPrefs").get('currentAppLanguageCode') ?? "en"),
+        locale: Locale(appLanguageCode(
+            Hive.box("AppPrefs").get('currentAppLanguageCode'),
+            WidgetsBinding.instance.platformDispatcher.locales)),
         fallbackLocale: const Locale("en"),
         builder: (context, child) {
           final mQuery = MediaQuery.of(context);
-          final scale =
-              mQuery.textScaler.clamp(minScaleFactor: 1.0, maxScaleFactor: 1.1);
+          // The phone's font size, up to Android's Largest (1.3x).
+          final scale = riffTextScaler(mQuery.textScaler);
           return Stack(
             children: [
               GetX<ThemeController>(
@@ -198,7 +233,8 @@ class MyApp extends StatelessWidget {
                             canvasColor: Colors.black,
                             scaffoldBackgroundColor: Colors.black,
                           ),
-                      child: child!),
+                      // Playback keys work on every screen.
+                      child: PlayerShortcuts(child: child!)),
                 ),
               ),
               GestureDetector(
@@ -250,15 +286,13 @@ Future<void> startApplicationServices() async {
 }
 
 initHiveCritical() async {
-  String applicationDataDirectoryPath;
   if (GetPlatform.isDesktop) {
-    applicationDataDirectoryPath =
-        "${(await getApplicationSupportDirectory()).path}/db";
+    // Hive.init, not initFlutter: initFlutter looks up the Documents folder
+    // first, which throws on Linux without xdg-user-dirs and stops start-up.
+    Hive.init("${(await getApplicationSupportDirectory()).path}/db");
   } else {
-    applicationDataDirectoryPath =
-        (await getApplicationDocumentsDirectory()).path;
+    await Hive.initFlutter((await getApplicationDocumentsDirectory()).path);
   }
-  await Hive.initFlutter(applicationDataDirectoryPath);
   // Needed before first paint / first play. Open in parallel.
   // Use safeOpenBox so a corrupt .hive cannot brick cold start.
   await Future.wait([
@@ -276,6 +310,7 @@ initHiveCritical() async {
     safeOpenBox("BannedSongs"),
     safeOpenBox("BannedArtists"),
     safeOpenBox("BannedCollections"),
+    safeOpenBox("NotInterested"),
     // Home's Riff Wave hero reads play stats on its first build.
     safeOpenBox("SongStats"),
   ]);
@@ -285,6 +320,8 @@ initHiveCritical() async {
 Future<void> initHiveDeferred() async {
   await Future.wait([
     safeOpenBox("PodcastSubs"),
+    safeOpenBox(PendingDownloads.boxName),
+    safeOpenBox(PodcastService.feedMemoBox),
     safeOpenBox("DailyStats"),
     safeOpenBox("SquareCovers"),
     safeOpenBox("PodcastQueue"),
@@ -294,6 +331,7 @@ Future<void> initHiveDeferred() async {
     safeOpenBox("PodcastDownloads"),
     safeOpenBox("PodcastProgress"),
     safeOpenBox("AudiobookProgress"),
+    safeOpenBox(AudiobookDownloads.boxName),
     safeOpenBox("PodcastPlayed"),
     safeOpenBox("PodcastShowPrefs"),
     safeOpenBox("PodcastSegmentCache"),
@@ -301,6 +339,9 @@ Future<void> initHiveDeferred() async {
     safeOpenBox("PodcastStats"),
     safeOpenBox("PodcastTranscripts"),
     safeOpenBox("PodcastBookmarks"),
+    safeOpenBox("PodcastHistory"),
+    safeOpenBox("PodcastStarred"),
+    safeOpenBox("AudiobookBookmarks"),
     safeOpenBox("PodcastShowLibrary"),
     safeOpenBox("PodcastArchived"),
     safeOpenBox("PodcastInboxCache"),
@@ -346,6 +387,14 @@ void _setAppInitPrefs() {
 }
 
 class LifecycleHandler extends WidgetsBindingObserver {
+  /// The phone's language changed: on System default, Riff's follows.
+  @override
+  void didChangeLocales(List<Locale>? locales) {
+    if (Get.isRegistered<SettingsScreenController>()) {
+      Get.find<SettingsScreenController>().followPhoneLanguage(locales);
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) async {
     if (state == AppLifecycleState.resumed) {
@@ -366,10 +415,12 @@ class LifecycleHandler extends WidgetsBindingObserver {
         unawaited(evictSongCacheInBackground());
       });
       WebDavSyncService.maybeAutoSync();
+      GpodderSync.maybeAutoSync();
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       // Hand this session's changes to the other devices.
       WebDavSyncService.maybeAutoSync(leaving: true);
+      GpodderSync.maybeAutoSync(leaving: true);
       if (Get.isRegistered<AudioHandler>()) {
         await Get.find<AudioHandler>().customAction("saveSession");
       }

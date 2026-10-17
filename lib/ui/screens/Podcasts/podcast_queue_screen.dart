@@ -3,6 +3,8 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '/models/thumbnail.dart';
 import '/ui/theme/riff_spacing.dart';
@@ -10,15 +12,20 @@ import '/ui/theme/riff_tokens.dart';
 import '/services/podcast_download_service.dart';
 import '/services/podcast_library.dart';
 import '/services/podcast_progress_service.dart';
+import '/services/podcast_share.dart';
+import '/services/podcast_starred.dart';
 import '/services/wizestream_service.dart';
 import '../Home/home_layout.dart';
 import 'podcast_empty_state.dart';
 import 'podcast_layout.dart';
+import '/ui/player/components/show_notes_text.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/utils/sheet_insets.dart';
 import '/ui/widgets/podcast_play.dart';
 import '/ui/widgets/snackbar.dart';
+import 'podcast_download_undo.dart';
 import 'podcast_queue_controller.dart';
+import 'podcast_starred_screen.dart' show toggleStarredEpisode;
 import 'podcasts_screen.dart';
 
 /// Long-press action sheet for a podcast episode: queue, download, play next,
@@ -26,9 +33,10 @@ import 'podcasts_screen.dart';
 /// resolved inside the builder so the sheet never waits on disk I/O.
 ///
 /// [onChanged] runs after an action that changes the episode's state
-/// (played, queued, downloaded) so the list behind can refresh.
+/// (played, queued, downloaded) so the list behind can refresh. With
+/// [onRemoveFromInbox] (the Inbox's own rows) it offers Remove from Inbox.
 void showAddToQueueSheet(BuildContext context, MediaItem episode,
-    {VoidCallback? onChanged}) {
+    {VoidCallback? onChanged, VoidCallback? onRemoveFromInbox}) {
   HapticFeedback.mediumImpact();
   showModalBottomSheet(
     context: context,
@@ -44,6 +52,7 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode,
           (episode.extras?['url'] as String?)?.isNotEmpty ?? false;
       final notes = episodeNotes(episode).trim();
       final feedUrl = (episode.extras?['feedUrl'] ?? '').toString().trim();
+      final starred = StarredEpisodes.isStarred(episode.id);
       void snack(String msg) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -141,9 +150,8 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode,
                       onTap: () async {
                         Navigator.of(ctx).pop();
                         if (downloaded) {
-                          await PodcastDownloadService.delete(episode.id);
-                          snack("downloadRemoved".tr);
-                          onChanged?.call();
+                          await removePodcastDownloadWithUndo(episode.id,
+                              context: context, onChanged: onChanged);
                           return;
                         }
                         HapticFeedback.lightImpact();
@@ -152,6 +160,17 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode,
                             await PodcastDownloadService.download(episode);
                         snack(ok ? "downloadComplete".tr : "downloadFailed".tr);
                         onChanged?.call();
+                      },
+                    ),
+                  // Out of the Inbox, unplayed (AntennaPod's Remove from
+                  // inbox, Pocket Casts' Archive).
+                  if (onRemoveFromInbox != null)
+                    ListTile(
+                      leading: const Icon(Icons.inbox_outlined),
+                      title: Text("removeFromInbox".tr),
+                      onTap: () {
+                        Navigator.of(ctx).pop();
+                        onRemoveFromInbox();
                       },
                     ),
                   ListTile(
@@ -177,6 +196,18 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode,
                       }
                       Navigator.of(ctx).pop();
                       onChanged?.call();
+                    },
+                  ),
+                  // Pocket Casts' star: kept in Podcasts › Starred.
+                  ListTile(
+                    leading: Icon(starred
+                        ? Icons.star_rounded
+                        : Icons.star_outline_rounded),
+                    title:
+                        Text(starred ? "unstarEpisode".tr : "starEpisode".tr),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      toggleStarredEpisode(context, episode);
                     },
                   ),
                   ListTile(
@@ -212,15 +243,39 @@ void showAddToQueueSheet(BuildContext context, MediaItem episode,
                                           Theme.of(sctx).textTheme.titleSmall),
                                 ],
                                 const Divider(height: RiffSpacing.xxl),
-                                Text(
-                                  notes.isEmpty ? "noShownotes".tr : notes,
-                                  style: Theme.of(sctx).textTheme.bodyLarge,
-                                ),
+                                if (notes.isEmpty)
+                                  Text("noShownotes".tr,
+                                      style: Theme.of(sctx).textTheme.bodyLarge)
+                                else
+                                  // A timestamp plays the episode from
+                                  // there; a link opens.
+                                  ShowNotesText(
+                                    notes: notes,
+                                    length: episode.duration,
+                                    style: Theme.of(sctx).textTheme.bodyLarge,
+                                    onTime: (seconds) {
+                                      Navigator.of(sctx).pop();
+                                      Get.find<PlayerController>()
+                                          .playPodcastAt(episode,
+                                              Duration(seconds: seconds));
+                                    },
+                                    onLink: (url) => launchUrl(Uri.parse(url),
+                                        mode: LaunchMode.externalApplication),
+                                  ),
                               ],
                             ),
                           ),
                         ),
                       );
+                    },
+                  ),
+                  // As from the player's ⋮ (Pocket Casts' episode menu).
+                  ListTile(
+                    leading: const Icon(Icons.ios_share_rounded),
+                    title: Text("shareEpisode".tr),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      Share.share(podcastEpisodeShareText(episode));
                     },
                   ),
                   if (feedUrl.isNotEmpty)
@@ -302,11 +357,18 @@ class PodcastQueueScreen extends StatelessWidget {
                           ?.copyWith(color: homeMutedColor(context)),
                     ),
                   ),
+                  _QueueSortButton(controller),
                   IconButton(
                     tooltip: "clear".tr,
                     icon: const Icon(Icons.delete_sweep_outlined,
                         size: RiffComponentSizes.headerIcon),
-                    onPressed: controller.clear,
+                    // With Undo, as the music queue's Clear.
+                    onPressed: () {
+                      final target = undoSnackbarTarget(context);
+                      final undo = controller.clearUndoable();
+                      if (undo == null) return;
+                      showUndoSnackbar(target, 'queueCleared'.tr, onUndo: undo);
+                    },
                   ),
                 ],
               ),
@@ -341,20 +403,7 @@ class PodcastQueueScreen extends StatelessWidget {
         child: Icon(Icons.playlist_remove_rounded,
             color: Theme.of(context).colorScheme.error),
       ),
-      onDismissed: (_) {
-        final index = controller.queue.indexWhere((q) => q.id == e.id);
-        controller.removeById(e.id);
-        ScaffoldMessenger.maybeOf(context)
-          ?..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(
-            behavior: SnackBarBehavior.floating,
-            content: Text("removedFromQueue".tr),
-            action: SnackBarAction(
-              label: "undo".tr,
-              onPressed: () => controller.insertAt(index, e),
-            ),
-          ));
-      },
+      onDismissed: (_) => _removeWithUndo(context, controller, e),
       child: PodcastEpisodeTile(
         artUrl: art,
         title: e.title,
@@ -391,11 +440,63 @@ class PodcastQueueScreen extends StatelessWidget {
           icon: Icon(Icons.remove_circle_outline_rounded,
               size: RiffComponentSizes.trailingIcon,
               color: Theme.of(context).colorScheme.onSurfaceVariant),
-          onPressed: () => controller.removeAt(i),
+          onPressed: () => _removeWithUndo(context, controller, e),
         ),
       ),
     );
   }
 
+  /// Takes [e] out of the queue with Undo (swipe or ✕ alike).
+  void _removeWithUndo(
+      BuildContext context, PodcastQueueController controller, MediaItem e) {
+    final target = undoSnackbarTarget(context);
+    final index = controller.queue.indexWhere((q) => q.id == e.id);
+    if (index < 0) return;
+    controller.removeById(e.id);
+    showUndoSnackbar(target, "removedFromQueue".tr,
+        onUndo: () => controller.insertAt(index, e));
+  }
+
   List<MediaItem> items(PodcastQueueController c) => c.queue.toList();
+}
+
+/// "Newest first", "By show", … for [sort].
+String podcastQueueSortLabel(PodcastQueueSort sort) => switch (sort) {
+      PodcastQueueSort.newest => 'newestFirst'.tr,
+      PodcastQueueSort.oldest => 'oldestFirst'.tr,
+      PodcastQueueSort.shortest => 'shortestFirst'.tr,
+      PodcastQueueSort.longest => 'longestFirst'.tr,
+      PodcastQueueSort.show => 'byShow'.tr,
+      PodcastQueueSort.shuffle => 'shuffle'.tr,
+    };
+
+/// The queue header's sort menu, as AntennaPod sorts its queue: once, with
+/// Undo, as the header's Clear.
+class _QueueSortButton extends StatelessWidget {
+  const _QueueSortButton(this.controller);
+
+  final PodcastQueueController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<PodcastQueueSort>(
+      tooltip: 'sortBy'.tr,
+      position: PopupMenuPosition.under,
+      icon: const Icon(Icons.sort_rounded, size: RiffComponentSizes.headerIcon),
+      onSelected: (sort) {
+        final target = undoSnackbarTarget(context);
+        final undo = controller.sortUndoable(sort);
+        if (undo == null) return;
+        showUndoSnackbar(target, 'queueSorted'.tr, onUndo: undo);
+      },
+      itemBuilder: (_) => [
+        for (final sort in PodcastQueueSort.values)
+          PopupMenuItem<PodcastQueueSort>(
+            height: RiffComponentSizes.sheetRow,
+            value: sort,
+            child: Text(podcastQueueSortLabel(sort)),
+          ),
+      ],
+    );
+  }
 }

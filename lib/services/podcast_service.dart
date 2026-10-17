@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
@@ -9,6 +10,8 @@ import 'package:hive/hive.dart';
 import 'package:xml/xml.dart';
 
 import '/models/thumbnail.dart';
+import '/services/podcast_feed_url.dart';
+import '/utils/app_version.dart';
 import '/utils/helper.dart';
 
 /// Podcast support modelled on AntennaPod: discovery via Apple's public
@@ -49,35 +52,105 @@ class PodcastService {
 
   // --- Discovery (Apple / iTunes Search API) ---
 
-  /// Returns [{title, author, artwork, feedUrl}].
+  /// Where [search] asks; tests point it at a local server.
+  @visibleForTesting
+  static String directoryBase = 'https://itunes.apple.com';
+
+  /// Shows in Apple's directory for [term], in the phone's store, as
+  /// [{title, author, artwork, feedUrl}]; [] when it can't be reached.
   static Future<List<Map<String, dynamic>>> search(String term) async {
     try {
-      final res = await _dio.get('https://itunes.apple.com/search',
-          queryParameters: {
-            'media': 'podcast',
-            'term': term,
-            'limit': 40,
-          });
+      final res = await _dio.get('$directoryBase/search', queryParameters: {
+        'media': 'podcast',
+        'term': term,
+        'limit': 40,
+        'country': _storefront(),
+      });
       final results = _asMap(res.data)?['results'] as List?;
       if (results == null) return [];
       return results
           .where((r) => (r['feedUrl'] ?? '').toString().isNotEmpty)
-          .map((r) {
-            // Prefer 600px, then upscale mzstatic path to 3000×3000 for sharp player art.
-            final raw = (r['artworkUrl600'] ??
-                    r['artworkUrl100'] ??
-                    r['artworkUrl60'] ??
-                    '')
-                .toString();
-            return {
-              'title': r['collectionName'] ?? r['trackName'] ?? '',
-              'author': r['artistName'] ?? '',
-              'artwork': Thumbnail(raw).extraHigh,
-              'feedUrl': r['feedUrl'],
-            };
-          }).toList();
+          .map((r) => _directoryShow(r as Map))
+          .toList();
     } catch (e) {
       printERROR("Podcast search failed: $e");
+      return [];
+    }
+  }
+
+  /// A show in Apple's directory as Riff keeps one.
+  static Map<String, dynamic> _directoryShow(Map r) {
+    // Prefer 600px, then upscale mzstatic path to 3000×3000 for sharp player art.
+    final raw =
+        (r['artworkUrl600'] ?? r['artworkUrl100'] ?? r['artworkUrl60'] ?? '')
+            .toString();
+    return {
+      'title': r['collectionName'] ?? r['trackName'] ?? '',
+      'author': r['artistName'] ?? '',
+      'artwork': Thumbnail(raw).extraHigh,
+      'feedUrl': r['feedUrl'],
+    };
+  }
+
+  /// What Apple's directory says of [id] (a song, an album or an artist
+  /// in Apple Music's links): its first result, or null.
+  static Future<Map<String, dynamic>?> directoryLookup(String id) async {
+    try {
+      final res =
+          await _dio.get('$directoryBase/lookup', queryParameters: {'id': id});
+      final results = _asMap(res.data)?['results'] as List?;
+      final first = results?.whereType<Map>().firstOrNull;
+      return first == null ? null : Map<String, dynamic>.from(first);
+    } catch (e) {
+      printERROR("Apple lookup failed ($id): $e");
+      return null;
+    }
+  }
+
+  /// The show with [id] in Apple's directory (an Apple Podcasts or
+  /// Overcast link's), as [search] gives shows; null when there's none
+  /// with a feed, or it can't be reached.
+  static Future<Map<String, dynamic>?> directoryShow(String id) async {
+    try {
+      final res = await _dio.get('$directoryBase/lookup',
+          queryParameters: {'id': id, 'entity': 'podcast'});
+      final results = _asMap(res.data)?['results'] as List?;
+      final show = results
+          ?.whereType<Map>()
+          .where((r) => (r['feedUrl'] ?? '').toString().isNotEmpty)
+          .firstOrNull;
+      return show == null ? null : _directoryShow(show);
+    } catch (e) {
+      printERROR("Podcast lookup failed ($id): $e");
+      return null;
+    }
+  }
+
+  /// Episodes in Apple's directory for [term], in the phone's store, as
+  /// Pocket Casts, Apple Podcasts and Spotify find episodes by what they're
+  /// about: the first [limit] of them, as [directoryEpisode] keeps them.
+  /// [] when it can't be reached.
+  static Future<List<Map<String, dynamic>>> searchEpisodes(String term,
+      {int limit = 10}) async {
+    try {
+      final res = await _dio.get('$directoryBase/search', queryParameters: {
+        'media': 'podcast',
+        'entity': 'podcastEpisode',
+        'term': term,
+        // A few spare, for any without their audio or their show's feed.
+        'limit': limit + 5,
+        'country': _storefront(),
+      });
+      final results = _asMap(res.data)?['results'] as List?;
+      if (results == null) return [];
+      return results
+          .whereType<Map>()
+          .map((r) => directoryEpisode(Map<String, dynamic>.from(r)))
+          .whereType<Map<String, dynamic>>()
+          .take(limit)
+          .toList();
+    } catch (e) {
+      printERROR("Episode search failed: $e");
       return [];
     }
   }
@@ -109,22 +182,17 @@ class PodcastService {
     if (url.isEmpty) return [];
     final cached = _chaptersCache[url];
     if (cached != null) return cached;
+    // Chapters the feed itself gave (Podlove Simple Chapters), carried as
+    // a data: URL: nothing to fetch.
+    if (url.startsWith('data:')) {
+      final data = Uri.tryParse(url)?.data;
+      return _chaptersCache[url] = data == null
+          ? const []
+          : parsePodcastChapters(_asMap(data.contentAsString()));
+    }
     try {
       final res = await _dio.get(url);
-      final list = _asMap(res.data)?['chapters'];
-      if (list is! List) return [];
-      final out = <PodcastChapter>[];
-      for (final c in list) {
-        if (c is! Map) continue;
-        final st = c['startTime'];
-        if (st is! num) continue;
-        out.add(PodcastChapter(
-          startSec: st.toDouble(),
-          endSec: c['endTime'] is num ? (c['endTime'] as num).toDouble() : null,
-          title: '${c['title'] ?? ''}',
-        ));
-      }
-      out.sort((a, b) => a.startSec.compareTo(b.startSec));
+      final out = parsePodcastChapters(_asMap(res.data));
       _chaptersCache[url] = out;
       return out;
     } catch (e) {
@@ -570,8 +638,20 @@ class PodcastService {
     subsRev.value++;
   }
 
-  static Future<void> unsubscribe(String feedUrl) async {
+  /// Unfollows [feedUrl]; returns what was stored, for
+  /// [restoreSubscription] (Undo).
+  static Future<Map<String, dynamic>?> unsubscribe(String feedUrl) async {
+    final stored = _subs.get(feedUrl);
     await _subs.delete(feedUrl);
+    subsRev.value++;
+    return stored is Map ? Map<String, dynamic>.from(stored) : null;
+  }
+
+  /// Undo for [unsubscribe]: the subscription as it was, date included.
+  static Future<void> restoreSubscription(Map<String, dynamic> stored) async {
+    final feed = stored['feedUrl'];
+    if (feed is! String || feed.isEmpty) return;
+    await _subs.put(feed, stored);
     subsRev.value++;
   }
 
@@ -606,6 +686,30 @@ class PodcastService {
     if (changed) subsRev.value++;
   }
 
+  /// The show at a feed address ({title, author, artwork, feedUrl}), for
+  /// following a show by its feed ([podcastFeedUrlFrom]); null when it
+  /// can't be read or isn't a podcast feed.
+  static Future<Map<String, dynamic>?> feedInfo(String feedUrl,
+      {bool followMove = true}) async {
+    try {
+      final res = await _dio.get(feedUrl,
+          options: Options(responseType: ResponseType.plain));
+      final body = res.data as String;
+      // A show that moved is followed at its new feed, so that's the one
+      // kept.
+      final moved = followMove ? feedMovedTo(body) : null;
+      if (moved != null && moved != feedUrl) {
+        final there = await feedInfo(moved, followMove: false);
+        if (there != null) return there;
+      }
+      final info = await Isolate.run(() => parsePodcastFeedInfo(body));
+      return info == null ? null : {...info, 'feedUrl': feedUrl};
+    } catch (e) {
+      printERROR("Feed info failed ($feedUrl): $e");
+      return null;
+    }
+  }
+
   // --- Feed parsing ---
 
   /// Fetches a podcast RSS feed and returns its episodes:
@@ -615,29 +719,206 @@ class PodcastService {
   /// and a DOM walk plus HTML strip on the UI isolate janks scrolling. With
   /// [maxItems] only the first (feed-order, normally newest) episodes are
   /// built.
+  ///
+  /// A show that moved hosts (its old feed's itunes:new-feed-url) is read at
+  /// its new feed, as Apple Podcasts and AntennaPod follow it, so it keeps
+  /// its new episodes; at the old one still if the new can't be read.
   static Future<List<Map<String, dynamic>>> episodes(
+          String feedUrl, String podcastTitle, String fallbackArt,
+          {int? maxItems}) async =>
+      (await feed(feedUrl, podcastTitle, fallbackArt, maxItems: maxItems))
+          .episodes;
+
+  /// A show's feed, as [episodes] reads it: its episodes, and what it says
+  /// about itself (for the show's page).
+  static Future<PodcastFeed> feed(
       String feedUrl, String podcastTitle, String fallbackArt,
       {int? maxItems}) async {
     try {
-      final res = await _dio.get(feedUrl,
-          options: Options(responseType: ResponseType.plain));
-      return await _parseFeedInBackground(
-          res.data as String, podcastTitle, fallbackArt, maxItems);
+      final old =
+          await _fetchFeed(feedUrl, podcastTitle, fallbackArt, maxItems);
+      final moved = old.movedTo;
+      if (moved == null || moved == feedUrl) return old.feed;
+      try {
+        final now =
+            await _fetchFeed(moved, podcastTitle, fallbackArt, maxItems);
+        if (now.feed.episodes.isNotEmpty) return now.feed;
+      } catch (e) {
+        printERROR("Moved feed failed ($moved): $e");
+      }
+      return old.feed;
     } catch (e) {
       printERROR("Feed parse failed ($feedUrl): $e");
-      return [];
+      return (episodes: <Map<String, dynamic>>[], about: '');
     }
   }
 
-  /// Kept apart from [episodes] so the isolate closure captures only these
-  /// sendable arguments.
-  static Future<List<Map<String, dynamic>>> _parseFeedInBackground(String body,
-          String podcastTitle, String fallbackArt, int? maxItems) =>
-      Isolate.run(() => parsePodcastFeed(body, podcastTitle, fallbackArt,
-          maxItems: maxItems));
+  static Future<({PodcastFeed feed, String? movedTo})> _fetchFeed(String url,
+      String podcastTitle, String fallbackArt, int? maxItems) async {
+    final key = [url, podcastTitle, fallbackArt, maxItems ?? ''].join('\u0000');
+    // The Inbox's reads (a few episodes each) are kept across starts.
+    final keep = maxItems != null;
+    final memo = _feedMemoFor(key, kept: keep);
+    final res = await _dio.get(url,
+        options: Options(
+          responseType: ResponseType.plain,
+          headers: {
+            if (memo?.etag != null) 'if-none-match': memo!.etag,
+            if (memo?.lastModified != null)
+              'if-modified-since': memo!.lastModified,
+          },
+          validateStatus: (status) =>
+              status != null &&
+              (status >= 200 && status < 300 || status == 304 && memo != null),
+        ));
+    if (res.statusCode == 304 && memo != null) {
+      // Unchanged: its episodes as they were read, each a copy.
+      return (
+        feed: (
+          episodes: [
+            for (final e in memo.episodes) {...e}
+          ],
+          about: memo.about,
+        ),
+        movedTo: memo.movedTo,
+      );
+    }
+    final read = await _parseFeedInBackground(
+        res.data as String, podcastTitle, fallbackArt, maxItems);
+    final etag = res.headers.value('etag');
+    final lastModified = res.headers.value('last-modified');
+    if (etag != null || lastModified != null) {
+      _rememberFeed(
+          key,
+          _FeedMemo(
+            etag: etag,
+            lastModified: lastModified,
+            // Its own copies: what callers do to theirs stays theirs.
+            episodes: [
+              for (final e in read.feed.episodes) {...e}
+            ],
+            about: read.feed.about,
+            movedTo: read.movedTo,
+            at: now(),
+            version: kPubspecAppVersion,
+          ),
+          keep: keep);
+    }
+    return read;
+  }
 
-  /// Pure RSS body → episode maps. See [parsePodcastFeed].
-  static List<Map<String, dynamic>> _parseFeed(
+  // --- Asking a feed only whether it changed ---
+
+  /// Feeds remembered across starts ([_FeedMemo]): the Inbox's.
+  static const feedMemoBox = 'PodcastFeedMemo';
+
+  /// A feed remembered this long is read in full again whatever its server
+  /// says, so a new version of Riff's feed reading reaches every show.
+  static const feedMemoMaxAge = Duration(days: 7);
+
+  static const _feedMemoLimit = 200;
+
+  @visibleForTesting
+  static DateTime Function() now = DateTime.now;
+
+  /// What each feed's server said of it when it was last read (its ETag,
+  /// Last-Modified) and what it held, so the next read asks only whether
+  /// it changed (If-None-Match, If-Modified-Since), as AntennaPod does: an
+  /// unchanged feed answers 304 in a few bytes instead of sending all of
+  /// it again (often megabytes, for every show, at every Inbox refresh).
+  static final _feedMemos = <String, _FeedMemo>{};
+
+  @visibleForTesting
+  static void forgetFeedsInMemory() => _feedMemos.clear();
+
+  static _FeedMemo? _feedMemoFor(String key, {required bool kept}) {
+    var memo = _feedMemos[key];
+    if (memo == null && kept && Hive.isBoxOpen(feedMemoBox)) {
+      memo = _FeedMemo.fromJson(Hive.box(feedMemoBox).get(key));
+      if (memo != null) _feedMemos[key] = memo;
+    }
+    if (memo == null ||
+        memo.version != kPubspecAppVersion ||
+        now().difference(memo.at) >= feedMemoMaxAge) {
+      return null;
+    }
+    return memo;
+  }
+
+  static void _rememberFeed(String key, _FeedMemo memo, {required bool keep}) {
+    _feedMemos
+      ..remove(key)
+      ..[key] = memo;
+    if (_feedMemos.length > _feedMemoLimit) {
+      _feedMemos.remove(_feedMemos.keys.first);
+    }
+    if (!keep || !Hive.isBoxOpen(feedMemoBox)) return;
+    final box = Hive.box(feedMemoBox);
+    unawaited(() async {
+      try {
+        await box.put(key, memo.toJson());
+        if (box.length <= _feedMemoLimit) return;
+        // The longest unread go first.
+        int at(dynamic key) {
+          final kept = box.get(key);
+          return kept is Map && kept['at'] is int ? kept['at'] as int : 0;
+        }
+
+        final keys = box.keys.toList()..sort((a, b) => at(a).compareTo(at(b)));
+        await box.deleteAll(keys.take(box.length - _feedMemoLimit));
+      } catch (e) {
+        printERROR('Feed memo: $e');
+      }
+    }());
+  }
+
+  /// Kept apart from [feed] so the isolate closure captures only these
+  /// sendable arguments.
+  static Future<({PodcastFeed feed, String? movedTo})> _parseFeedInBackground(
+          String body,
+          String podcastTitle,
+          String fallbackArt,
+          int? maxItems) =>
+      Isolate.run(() => (
+            feed: parsePodcastShow(body, podcastTitle, fallbackArt,
+                maxItems: maxItems),
+            movedTo: feedMovedTo(body),
+          ));
+
+  /// What a show's feed says about it (the channel's description or
+  /// itunes:summary, the fuller one), as show notes read.
+  static String _channelAbout(XmlDocument doc) {
+    final channel = doc.findAllElements('channel').firstOrNull;
+    String read(String name) =>
+        channel?.getElement(name)?.innerText.trim() ?? '';
+    final description = read('description');
+    final summary = read('itunes:summary');
+    final about = showNotesText(
+        summary.length > description.length ? summary : description);
+    // Where to support the show (Podcasting 2.0 funding, as AntennaPod
+    // shows it): links after what it says about itself.
+    final support = [
+      for (final f
+          in channel?.findElements('podcast:funding') ?? <XmlElement>[])
+        if (_notesWebRe.hasMatch(f.getAttribute('url')?.trim() ?? ''))
+          _supportLink(f),
+    ];
+    return [about, support.join('\n')]
+        .where((part) => part.isNotEmpty)
+        .join('\n\n');
+  }
+
+  /// A funding element as a show-notes link: its words, else the site's
+  /// name.
+  static String _supportLink(XmlElement funding) {
+    final url = funding.getAttribute('url')!.trim();
+    final words = funding.innerText.replaceAll(_notesSpaceRe, ' ').trim();
+    return _notesLink(words.isNotEmpty ? words : Uri.parse(url).host, url);
+  }
+
+  /// Pure RSS body → the show's episodes and description. See
+  /// [parsePodcastShow].
+  static PodcastFeed _parseFeed(
       String body, String podcastTitle, String fallbackArt, int? maxItems) {
     final doc = XmlDocument.parse(body);
     final channelArtRaw = doc
@@ -656,6 +937,14 @@ class PodcastService {
     final channelFallback =
         (rssImage != null && rssImage.isNotEmpty) ? rssImage : channelArtRaw;
 
+    // A serial show (heard in order): its page lists it from the start.
+    final serial = doc
+            .findAllElements('itunes:type')
+            .firstOrNull
+            ?.innerText
+            .trim()
+            .toLowerCase() ==
+        'serial';
     final items = doc.findAllElements('item');
     final episodes = <Map<String, dynamic>>[];
     for (final item in items) {
@@ -688,11 +977,13 @@ class PodcastService {
                               u.contains('image')),
                       orElse: () => null) ??
               channelFallback;
-      // Podcasting 2.0 chapters (used for ad auto-skip when present).
+      // Podcasting 2.0 chapters (used for ad auto-skip when present), else
+      // Podlove Simple Chapters in the feed itself.
       final chaptersUrl = item
-          .findElements('podcast:chapters')
-          .firstOrNull
-          ?.getAttribute('url');
+              .findElements('podcast:chapters')
+              .firstOrNull
+              ?.getAttribute('url') ??
+          _podloveChaptersUrl(item);
       // Podcasting 2.0 transcript (Spotify-style transcript view). A feed
       // can list several formats; keep the one we parse best.
       String? transcriptUrl;
@@ -710,11 +1001,23 @@ class PodcastService {
         }
       }
       final pubRaw = item.getElement('pubDate')?.innerText.trim();
+      // The episode's own web page, for sharing it.
+      final link = item.getElement('link')?.innerText.trim();
+      // Season and episode numbers, trailers and bonus episodes, as Apple
+      // Podcasts and Pocket Casts label them.
+      int? number(String name) {
+        final n = int.tryParse(item.getElement(name)?.innerText.trim() ?? '');
+        return n != null && n > 0 ? n : null;
+      }
+
+      final season = number('itunes:season');
+      final episodeNumber = number('itunes:episode');
+      final episodeType =
+          item.getElement('itunes:episodeType')?.innerText.trim().toLowerCase();
       episodes.add({
         'id': 'podcast_${guid.hashCode}',
         'title': title,
-        'description':
-            stripHtml(item.getElement('description')?.innerText ?? ""),
+        'description': showNotesText(_episodeNotesHtml(item)),
         'url': url,
         'artwork': Thumbnail(epArtRaw).extraHigh,
         'date': formatPubDate(pubRaw),
@@ -727,19 +1030,54 @@ class PodcastService {
           'chaptersUrl': chaptersUrl,
         if (transcriptUrl != null) 'transcriptUrl': transcriptUrl,
         if (transcriptUrl != null) 'transcriptType': transcriptType ?? '',
+        if (link != null && link.isNotEmpty) 'link': link,
+        if (season != null) 'season': season,
+        if (episodeNumber != null) 'episode': episodeNumber,
+        if (episodeType == 'trailer' || episodeType == 'bonus')
+          'episodeType': episodeType,
+        if (serial) 'serial': true,
       });
     }
-    return episodes;
+    return (episodes: episodes, about: _channelAbout(doc));
   }
 
-  static int _parseDuration(String? raw) {
-    if (raw == null || raw.isEmpty) return 0;
-    final t = raw.trim();
-    if (!t.contains(':')) return int.tryParse(t) ?? 0;
-    final parts = t.split(':').map((p) => int.tryParse(p) ?? 0).toList();
-    if (parts.length == 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-    if (parts.length == 2) return parts[0] * 60 + parts[1];
-    return 0;
+  /// itunes:duration in whole seconds ("1:02:03", "3045", "3045.04"); 0
+  /// when there's none or it isn't a time.
+  static int _parseDuration(String? raw) => (parseFeedTime(raw) ?? 0).round();
+
+  /// Podlove Simple Chapters in [item] (<psc:chapters>, as Podlove Publisher
+  /// and Auphonic write them; AntennaPod reads them), as a data: URL of the
+  /// Podcasting 2.0 JSON [chapters] reads: it rides in chaptersUrl, which
+  /// every copy of an episode already carries. Null when there are none.
+  static String? _podloveChaptersUrl(XmlElement item) {
+    bool podlove(XmlElement e) =>
+        e.name.prefix == 'psc' ||
+        (e.name.namespaceUri ?? '').contains('podlove.org/simple-chapters');
+    final list = item.childElements
+        .where((e) => e.name.local == 'chapters' && podlove(e))
+        .firstOrNull;
+    if (list == null) return null;
+    final chapters = <Map<String, dynamic>>[];
+    for (final c in list.childElements) {
+      if (c.name.local != 'chapter') continue;
+      final start = parseFeedTime(c.getAttribute('start'));
+      if (start == null) continue;
+      final href = c.getAttribute('href')?.trim() ?? '';
+      final image = c.getAttribute('image')?.trim() ?? '';
+      chapters.add({
+        'startTime': start,
+        'title': (c.getAttribute('title') ?? '').trim(),
+        if (href.isNotEmpty) 'url': href,
+        if (image.isNotEmpty) 'img': image,
+      });
+    }
+    if (chapters.isEmpty) return null;
+    return Uri.dataFromString(
+            jsonEncode({'version': '1.2.0', 'chapters': chapters}),
+            mimeType: 'application/json',
+            encoding: utf8,
+            base64: true)
+        .toString();
   }
 
   static const Map<String, String> _namedEntities = {
@@ -799,10 +1137,191 @@ class PodcastService {
   static String stripHtml(String s) =>
       decodeHtmlEntities(s.replaceAll(RegExp(r'<[^>]*>'), '')).trim();
 
+  /// Feed show notes (HTML, or plain text) as text that reads as the feed's
+  /// page does, as Pocket Casts, AntennaPod and Apple Podcasts show them:
+  /// paragraphs and line breaks kept, list items on lines of their own
+  /// ("• ", or "1. " in a numbered list), and a link's words kept with
+  /// where it goes as "[words](https://…)", which ShowNotesText shows as a
+  /// link (show_notes_links.dart). [stripHtml] ran paragraphs together
+  /// ("OneTwo") and lost where links went.
+  static String showNotesText(String notes) {
+    if (notes.trim().isEmpty) return '';
+    // Notes with no blocks or breaks of their own are plain text: their
+    // line breaks are the breaks, as AntennaPod reads them.
+    final html = _notesBlockRe.hasMatch(notes)
+        ? notes
+        : notes.replaceAll(_notesNewlineRe, '<br>');
+    final out = StringBuffer();
+    StringBuffer? words; // the open link's
+    String? href;
+    final lists = <int?>[]; // per open list, its next number (null: bullets)
+    var breaks = 0; // line breaks [out] ends with
+    var started = false;
+    var bulleted = false; // the line has only its bullet so far
+    var hidden = 0; // inside <script> / <style>
+
+    void emit(String t) {
+      final w = words;
+      if (w != null) {
+        w.write(t);
+      } else if (t.trim().isEmpty) {
+        // Space between words; none at a line's start.
+        if (started && breaks == 0 && !bulleted) out.write(' ');
+      } else {
+        out.write(breaks > 0 || !started || bulleted ? t.trimLeft() : t);
+        started = true;
+        breaks = 0;
+        bulleted = false;
+      }
+    }
+
+    void lineBreaks(int atLeast, {bool add = false}) {
+      if (words != null) {
+        words!.write(' ');
+        return;
+      }
+      if (!started || bulleted) return;
+      final n = add ? 1 : atLeast - breaks;
+      for (var i = 0; i < n; i++) {
+        out.write('\n');
+      }
+      if (n > 0) breaks += n;
+    }
+
+    void closeLink() {
+      final w = words;
+      if (w == null) return;
+      words = null;
+      final raw = w.toString();
+      final label = raw.replaceAll(_notesSpaceRe, ' ').trim();
+      if (label.isNotEmpty) {
+        if (raw.startsWith(' ')) emit(' ');
+        emit(_notesLink(label, href));
+        if (raw.endsWith(' ')) emit(' ');
+      }
+      href = null;
+    }
+
+    var at = 0;
+    for (final m in _notesTagRe.allMatches(html)) {
+      if (hidden == 0) {
+        emit(decodeHtmlEntities(
+            html.substring(at, m.start).replaceAll(_notesSpaceRe, ' ')));
+      }
+      at = m.end;
+      final name = m.group(2)?.toLowerCase();
+      if (name == null) continue; // a comment
+      final closing = m.group(1) == '/';
+      if (name == 'script' || name == 'style') {
+        hidden = closing ? (hidden > 0 ? hidden - 1 : 0) : hidden + 1;
+        continue;
+      }
+      if (hidden > 0) continue;
+      switch (name) {
+        case 'br':
+          lineBreaks(1, add: true);
+        case 'a':
+          closeLink();
+          if (!closing) {
+            final h = _notesHrefRe.firstMatch(m.group(3) ?? '');
+            final raw = h?.group(1) ?? h?.group(2) ?? h?.group(3);
+            href = raw == null ? null : decodeHtmlEntities(raw.trim());
+            words = StringBuffer();
+          }
+        case 'ul' || 'ol':
+          // A list stands apart; one inside a list item doesn't.
+          if (closing && lists.isNotEmpty) lists.removeLast();
+          lineBreaks(lists.isEmpty ? 2 : 1);
+          if (!closing) lists.add(name == 'ol' ? 1 : null);
+        case 'li':
+          lineBreaks(1);
+          if (!closing && words == null) {
+            final n = lists.isEmpty ? null : lists.last;
+            if (n != null) lists[lists.length - 1] = n + 1;
+            out.write(n == null ? '• ' : '$n. ');
+            started = true;
+            breaks = 0;
+            bulleted = true;
+          }
+        case 'td' || 'th':
+          if (closing) emit(' ');
+        default:
+          if (_notesParagraphTags.contains(name)) {
+            // Within a list item, a paragraph is only a line.
+            lineBreaks(lists.isEmpty ? 2 : 1);
+          } else if (_notesLineTags.contains(name)) {
+            lineBreaks(1);
+          }
+      }
+    }
+    if (hidden == 0) {
+      emit(decodeHtmlEntities(
+          html.substring(at).replaceAll(_notesSpaceRe, ' ')));
+    }
+    closeLink();
+    return out
+        .toString()
+        .split('\n')
+        .map((line) => line.trimRight())
+        .join('\n')
+        .replaceAll(_notesBlankLinesRe, '\n\n')
+        .trim();
+  }
+
+  /// A link's words as [showNotesText] keeps them: "[words](address)" for a
+  /// web address; a timestamp or an address written out stays as it is
+  /// (ShowNotesText plays the one and opens the other).
+  static String _notesLink(String label, String? url) {
+    if (url == null || !_notesWebRe.hasMatch(url)) return label;
+    if (label.startsWith('http://') || label.startsWith('https://')) {
+      return label;
+    }
+    if (_notesTimeRe.hasMatch(label)) return label;
+    final words = label.replaceAll('[', '(').replaceAll(']', ')');
+    final to = url.replaceAll('(', '%28').replaceAll(')', '%29');
+    return '[$words]($to)';
+  }
+
+  static final _notesSpaceRe = RegExp(r'\s+');
+  static final _notesNewlineRe = RegExp(r'\r\n?|\n');
+  static final _notesBlankLinesRe = RegExp(r'\n{3,}');
+  static final _notesWebRe = RegExp(r'^https?://\S+$');
+  static final _notesTimeRe =
+      RegExp(r'^[(\[]?(?:\d{1,2}:)?\d{1,2}:\d{2}[)\]]?$');
+  static final _notesBlockRe = RegExp(
+      r'<(?:p|br|div|li|ul|ol|h[1-6]|blockquote|table)\b',
+      caseSensitive: false);
+  static final _notesTagRe = RegExp(
+      r'''<!--[\s\S]*?-->|<(/?)([a-zA-Z][a-zA-Z0-9]*)((?:"[^"]*"|'[^']*'|[^'">])*)>''');
+  static final _notesHrefRe = RegExp(
+      r'''\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))''',
+      caseSensitive: false);
+  static const _notesParagraphTags = {
+    'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'table', 'pre', //
+    'hr', 'figure',
+  };
+  static const _notesLineTags = {
+    'div', 'tr', 'section', 'article', 'header', 'footer', 'dt', 'dd', //
+  };
+
+  /// The fuller of an item's show notes: content:encoded usually carries
+  /// them all (links, timestamps), description often only a summary.
+  static String _episodeNotesHtml(XmlElement item) {
+    String read(String name) => item.getElement(name)?.innerText.trim() ?? '';
+    final encoded = read('content:encoded');
+    final description = read('description');
+    final notes = encoded.length > description.length ? encoded : description;
+    return notes.isNotEmpty ? notes : read('itunes:summary');
+  }
+
   static const _monthAbbr = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ];
+
+  /// [d] as episode dates show it: "19 Jul 2026".
+  static String formatDay(DateTime d) =>
+      "${d.day} ${_monthAbbr[d.month - 1]} ${d.year}";
 
   /// RSS pubDate → "19 Jul 2026" (drops weekday and time for a compact row).
   /// Shows the calendar date as the feed wrote it, not the UTC-shifted one,
@@ -931,12 +1450,80 @@ class PodcastService {
   }
 }
 
+final _newFeedUrlRe = RegExp(
+    r'<itunes:new-feed-url>\s*(?:<!\[CDATA\[)?\s*([^<\s\]]+)',
+    caseSensitive: false);
+final _webAddressRe = RegExp(r'^https?://\S+$');
+
+/// Where a show that moved hosts says its feed is now (the old feed's
+/// itunes:new-feed-url); null when it hasn't moved.
+String? feedMovedTo(String body) {
+  final m = _newFeedUrlRe.firstMatch(body);
+  if (m == null) return null;
+  final url = PodcastService.decodeHtmlEntities(m.group(1)!.trim());
+  return _webAddressRe.hasMatch(url) ? url : null;
+}
+
+/// A feed episode's season, number and type, and whether its show is
+/// serial (from [parsePodcastFeed]'s map), as MediaItem extras.
+Map<String, Object> episodeNumbering(Map<dynamic, dynamic> episode) => {
+      for (final key in const ['season', 'episode', 'episodeType', 'serial'])
+        if (episode[key] != null) key: episode[key] as Object,
+    };
+
+/// A show's feed: its episodes (maps holding only primitives) and its
+/// description, as show notes read.
+typedef PodcastFeed = ({List<Map<String, dynamic>> episodes, String about});
+
 /// Pure RSS body → episode maps holding only primitives, so it can run on a
 /// background isolate (no GetX translations, no Hive). Throws on bad XML.
 List<Map<String, dynamic>> parsePodcastFeed(
         String body, String podcastTitle, String fallbackArt,
         {int? maxItems}) =>
+    parsePodcastShow(body, podcastTitle, fallbackArt, maxItems: maxItems)
+        .episodes;
+
+/// [parsePodcastFeed]'s episodes and the show's description.
+PodcastFeed parsePodcastShow(
+        String body, String podcastTitle, String fallbackArt,
+        {int? maxItems}) =>
     PodcastService._parseFeed(body, podcastTitle, fallbackArt, maxItems);
+
+/// One of Apple's episode search results ([PodcastService.searchEpisodes])
+/// as a feed's episode is kept, with the id it has in its show's feed (its
+/// guid, else its audio's address), so its progress, played state and
+/// download are the same wherever it's played from; [show] and [feedUrl]
+/// say whose it is. Null without its audio or its show's feed.
+Map<String, dynamic>? directoryEpisode(Map<String, dynamic> result) {
+  String text(String key) => '${result[key] ?? ''}'.trim();
+  final url = text('episodeUrl');
+  final feed = text('feedUrl');
+  bool web(String a) => a.startsWith('https://') || a.startsWith('http://');
+  if (!web(url) || !web(feed)) return null;
+  final guid = text('episodeGuid');
+  final released = DateTime.tryParse(text('releaseDate'));
+  final ms = result['trackTimeMillis'];
+  final art = [
+    text('artworkUrl600'),
+    text('artworkUrl160'),
+    text('artworkUrl60'),
+  ].firstWhere((a) => a.isNotEmpty, orElse: () => '');
+  final notes = text('description');
+  final title = text('trackName');
+  return {
+    'id': 'podcast_${(guid.isNotEmpty ? guid : url).hashCode}',
+    'title': title.isEmpty ? 'Episode' : title,
+    'show': text('collectionName'),
+    'feedUrl': feed,
+    'url': url,
+    'artwork': Thumbnail(art).extraHigh,
+    'description': PodcastService.showNotesText(
+        notes.isNotEmpty ? notes : text('shortDescription')),
+    'date': released == null ? '' : PodcastService.formatDay(released),
+    'pubDateMs': released?.millisecondsSinceEpoch ?? 0,
+    'durationSec': ms is num && ms > 0 ? (ms / 1000).round() : 0,
+  };
+}
 
 /// Apple storefront (lowercase country code) from a platform locale name
 /// such as `en_US`, `de-DE`, `en_US.UTF-8`, `zh_Hans_CN` or `sr_Latn_RS`.
@@ -993,11 +1580,122 @@ class PodcastTranscriptCue {
 }
 
 /// One Podcasting 2.0 chapter.
+final _feedSecondsRe = RegExp(r'^\d+(?:\.\d+)?$');
+final _feedWholeRe = RegExp(r'^\d+$');
+
+/// Seconds in a time as feeds write one: "1:02:03", "02:03", "3045" or
+/// with a fraction of a second ("00:01:02.500", "3045.04"); null when
+/// [raw] isn't one.
+double? parseFeedTime(String? raw) {
+  final parts = (raw ?? '').trim().split(':');
+  if (parts.length > 3) return null;
+  var seconds = 0.0;
+  for (var i = 0; i < parts.length; i++) {
+    final part = parts[i].trim();
+    // Only the seconds may have a fraction.
+    final shape = i == parts.length - 1 ? _feedSecondsRe : _feedWholeRe;
+    if (!shape.hasMatch(part)) return null;
+    seconds = seconds * 60 + double.parse(part);
+  }
+  return seconds;
+}
+
+/// The chapters in a Podcasting 2.0 chapters file, by start time.
+List<PodcastChapter> parsePodcastChapters(Map? json) {
+  final list = json?['chapters'];
+  if (list is! List) return [];
+  final out = <PodcastChapter>[];
+  for (final c in list) {
+    if (c is! Map) continue;
+    final st = c['startTime'];
+    if (st is! num) continue;
+    out.add(PodcastChapter(
+      startSec: st.toDouble(),
+      endSec: c['endTime'] is num ? (c['endTime'] as num).toDouble() : null,
+      title: '${c['title'] ?? ''}',
+      imageUrl: _webAddress(c['img']),
+      linkUrl: _webAddress(c['url']),
+    ));
+  }
+  out.sort((a, b) => a.startSec.compareTo(b.startSec));
+  return out;
+}
+
+/// [raw] trimmed, when it's a web (http or https) address; else null.
+String? _webAddress(Object? raw) {
+  final text = '${raw ?? ''}'.trim();
+  final uri = Uri.tryParse(text);
+  final web = uri != null &&
+      (uri.isScheme('https') || uri.isScheme('http')) &&
+      uri.host.isNotEmpty;
+  return web ? text : null;
+}
+
+/// Index of the chapter playing at [sec] (-1 before the first).
+int chapterIndexAt(List<PodcastChapter> chapters, double sec) {
+  var index = -1;
+  for (var i = 0; i < chapters.length; i++) {
+    if (chapters[i].startSec > sec) break;
+    index = i;
+  }
+  return index;
+}
+
+/// How far into a chapter "previous chapter" still goes to the one before
+/// (after that it starts this one again), like a player's previous button.
+const chapterRestartWindowSec = 3.0;
+
+/// Where the previous / next chapter buttons go from [sec] (Pocket Casts,
+/// Audible): the next chapter's start; back, the start of the chapter
+/// playing, or of the one before in its first seconds. Null when there's
+/// nowhere to go.
+double? chapterSkipTarget(List<PodcastChapter> chapters, double sec,
+    {required bool forward}) {
+  final i = chapterIndexAt(chapters, sec);
+  if (forward) {
+    return i + 1 < chapters.length ? chapters[i + 1].startSec : null;
+  }
+  if (i < 0) return null;
+  if (sec - chapters[i].startSec > chapterRestartWindowSec) {
+    return chapters[i].startSec;
+  }
+  return i > 0 ? chapters[i - 1].startSec : null;
+}
+
+/// The art of the chapter playing at [sec] (Pocket Casts and AntennaPod
+/// show it on the cover); null where that chapter has none, so the
+/// episode's own art shows.
+String? chapterArtAt(List<PodcastChapter> chapters, double sec) {
+  String? art;
+  for (final c in chapters) {
+    if (c.startSec > sec) break;
+    art = c.imageUrl;
+  }
+  return art;
+}
+
 class PodcastChapter {
-  PodcastChapter({required this.startSec, required this.title, this.endSec});
+  PodcastChapter(
+      {required this.startSec,
+      required this.title,
+      this.endSec,
+      this.imageUrl,
+      this.linkUrl,
+      this.fromNotes = false});
   final double startSec;
   final double? endSec;
   final String title;
+
+  /// Read from the show notes' timestamps (showNotesChapters): ads put in
+  /// as the episode is fetched can move the audio away from them, so
+  /// nothing is skipped by them on its own.
+  final bool fromNotes;
+
+  /// The chapter's own art (its "img"), if it has one.
+  final String? imageUrl;
+
+  /// A web page the chapter points to (its "url"), if any.
+  final String? linkUrl;
 
   /// Whether this chapter looks like an ad / sponsor read (by title).
   bool get isAd {
@@ -1012,5 +1710,58 @@ class PodcastChapter {
     if (needles.any(t.contains)) return true;
     // Standalone "ad" / "ads" token.
     return RegExp(r'(^|\s)ads?(\s|:|$)').hasMatch(t);
+  }
+}
+
+/// A feed as it was last read ([PodcastService._fetchFeed]).
+class _FeedMemo {
+  const _FeedMemo({
+    this.etag,
+    this.lastModified,
+    required this.episodes,
+    required this.about,
+    this.movedTo,
+    required this.at,
+    required this.version,
+  });
+
+  final String? etag;
+  final String? lastModified;
+  final List<Map<String, dynamic>> episodes;
+  final String about;
+  final String? movedTo;
+
+  /// When it was read, and by which version of Riff.
+  final DateTime at;
+  final String version;
+
+  Map<String, dynamic> toJson() => {
+        if (etag != null) 'etag': etag,
+        if (lastModified != null) 'lastModified': lastModified,
+        'episodes': episodes,
+        'about': about,
+        if (movedTo != null) 'movedTo': movedTo,
+        'at': at.millisecondsSinceEpoch,
+        'version': version,
+      };
+
+  static _FeedMemo? fromJson(dynamic j) {
+    if (j is! Map) return null;
+    final episodes = j['episodes'];
+    final at = j['at'];
+    if (episodes is! List || at is! int) return null;
+    String? text(String key) => j[key] is String ? j[key] as String : null;
+    return _FeedMemo(
+      etag: text('etag'),
+      lastModified: text('lastModified'),
+      episodes: [
+        for (final e in episodes)
+          if (e is Map) Map<String, dynamic>.from(e)
+      ],
+      about: text('about') ?? '',
+      movedTo: text('movedTo'),
+      at: DateTime.fromMillisecondsSinceEpoch(at),
+      version: text('version') ?? '',
+    );
   }
 }

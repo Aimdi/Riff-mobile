@@ -1,6 +1,9 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 
+import '/models/media_item_extras.dart';
+import '/services/shuffle_order.dart';
+
 /// Copy [songs] into a playable queue. When [shuffle] is true the copy is
 /// shuffled in place so the original list (Hive / controller) stays stable.
 List<MediaItem> playQueueFrom(
@@ -8,10 +11,8 @@ List<MediaItem> playQueueFrom(
   required bool shuffle,
 }) {
   final list = List<MediaItem>.from(songs);
-  if (shuffle) {
-    list.shuffle();
-  }
-  return list;
+  // As Spotify shuffles: each artist's songs spread out.
+  return shuffle ? balancedShuffle(list, shuffleArtistOf) : list;
 }
 
 /// True when the offline Songs tab should show Play all / Shuffle.
@@ -28,6 +29,34 @@ bool shouldPlayDiscoveryShelfAsQueue(int shelfLength) => shelfLength > 1;
 /// current track (each insert sits immediately after now-playing).
 List<MediaItem> playNextBatchOrder(Iterable<MediaItem> songs) =>
     List<MediaItem>.from(songs).reversed.toList();
+
+/// Marks a song you queued yourself (Play next, Add to queue). As Spotify
+/// keeps its "Next in queue", one still to play when you start something
+/// else plays next in that.
+const kQueuedByYou = 'queuedByYou';
+
+/// Whether you queued [song] yourself ([kQueuedByYou]).
+bool isQueuedByYou(MediaItem song) => song.extras?[kQueuedByYou] == true;
+
+/// [song] marked as one you queued.
+MediaItem queuedByYou(MediaItem song) => isQueuedByYou(song)
+    ? song
+    : song.copyWith(extras: {...?song.extras, kQueuedByYou: true});
+
+/// The songs in [queue] you queued yourself that are still to play: after
+/// [currentIndex], and not [heard] already (shuffle, or going back, can
+/// put one that played after the song playing), in their order; music
+/// only, not episodes or chapters.
+List<MediaItem> stillQueuedByYou(List<MediaItem> queue, int currentIndex,
+        {Set<String> heard = const {}}) =>
+    [
+      for (var i = currentIndex + 1; i < queue.length; i++)
+        if (isQueuedByYou(queue[i]) &&
+            !heard.contains(queue[i].id) &&
+            !queue[i].isPodcastEpisode &&
+            !queue[i].isAudiobook)
+          queue[i],
+    ];
 
 /// Sleep-timer "stop after this track" copy — episode for long-form.
 String sleepEndLabelKey({required bool longForm}) =>

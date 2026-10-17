@@ -11,6 +11,7 @@ import '../ui/player/player.dart';
 import 'player/components/mini_player.dart';
 import 'player/player_controller.dart';
 import 'widgets/sliding_up_panel.dart';
+import 'widgets/queue_undo.dart';
 import 'widgets/snackbar.dart';
 import 'widgets/up_next_queue.dart';
 
@@ -155,11 +156,14 @@ class Home extends StatelessWidget {
                                               }
                                               playerController.shuffleQueue();
                                             },
+                                            tooltip: "shuffleQueue".tr,
                                             icon: const Icon(Icons.shuffle)),
                                         IconButton(
                                             onPressed: () {
-                                              playerController.clearQueue();
+                                              clearQueueWithUndo(
+                                                  context: context);
                                             },
+                                            tooltip: "clearQueue".tr,
                                             icon: const Icon(
                                                 Icons.playlist_remove)),
                                       ],
@@ -186,6 +190,10 @@ class Home extends StatelessWidget {
                   minHeight: playerController.playerPanelMinHeight.value,
                   maxHeight: size.height,
                   isDraggable: !isWideScreen,
+                  // Clear sheet: each player paints its own page, and the
+                  // music player fades it while minimising so the screen
+                  // behind shows through.
+                  color: Colors.transparent,
                   onSwipeUp: () {
                     playerController.queuePanelController.open();
                   },

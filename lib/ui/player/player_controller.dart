@@ -11,6 +11,8 @@ import '../../models/media_item_extras.dart';
 import '../../utils/hive_boxes.dart';
 import 'abs_session.dart';
 import 'long_form_queue.dart';
+import '/services/id3_chapters.dart';
+import '/services/show_notes_chapters.dart';
 import 'play_queue_order.dart';
 import 'video_handoff.dart';
 import '../../services/play_by_index_skip.dart';
@@ -22,10 +24,16 @@ import '../../services/discovery/discovery_types.dart';
 import '../../services/smart_queue_service.dart';
 import '../screens/Playlist/playlist_screen_controller.dart';
 import '../widgets/snackbar.dart';
+import '../widgets/sleep_timer_bottom_sheet.dart' show formatSleepMinutes;
+import '/services/last_fm_service.dart';
+import '/services/yt_history_sync.dart';
 import '/services/listenbrainz_service.dart';
 import '/services/audiobook_progress_service.dart';
 import '/services/scrobble_rules.dart';
 import '/services/stats_service.dart';
+import '/services/collection_recents.dart';
+import '/services/private_session.dart';
+import '/services/taste_exclusions.dart';
 import '/services/synced_lyrics_service.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -37,9 +45,23 @@ import '../screens/Home/home_screen_controller.dart';
 import '../widgets/sliding_up_panel.dart';
 import '/models/durationstate.dart';
 import '/services/music_service.dart';
+import '/services/music_autoplay.dart';
+import '/services/explicit_content.dart';
+import '/services/offline_playback.dart';
+import '/services/recently_played_days.dart';
+import '/services/riff_equalizer.dart';
 import '/services/sponsorblock_service.dart';
 import '/services/podcast_service.dart';
 import '/services/podcast_progress_service.dart';
+import '/services/podcast_history.dart';
+import '/services/sleep_shake.dart';
+import '/services/auto_sleep_timer.dart';
+import '/services/long_track_resume.dart';
+import '/services/chapter_now_playing.dart';
+import '/services/podcast_bookmarks.dart';
+import '/services/podcast_starred.dart';
+import '/ui/screens/Podcasts/podcast_bookmarks_ui.dart'
+    show showBookmarkSavedSnack;
 import '/services/audiobookshelf_service.dart';
 import '/ui/player/riff_wave.dart';
 import '/ui/player/play_log_gate.dart';
@@ -47,10 +69,14 @@ import '/ui/player/progress_ui_throttle.dart';
 import '/ui/player/radio_continuation.dart';
 import 'upcoming_queue.dart';
 import 'video_mode_controller.dart';
+import '/services/playlist_mix_service.dart';
+import '/services/audiobook_playback.dart';
 import '/services/podcast_playback_profile.dart';
 import '/services/podcast_library.dart';
 import '/services/audio_handler.dart' show MyAudioHandler, MediaLibrary;
+import 'library_list_source.dart';
 import '/services/spotify_like_sync.dart';
+import '/services/yt_like_sync.dart';
 import '/services/playback_hardening.dart';
 import '/services/podcast_segments.dart';
 import '/services/podcast_stats.dart';
@@ -92,14 +118,26 @@ class PlayerController extends GetxController
   final _musicServices = Get.find<MusicServices>();
   final currentQueue = <MediaItem>[].obs;
 
+  /// Songs you queued that have played ([stillQueuedByYou]).
+  final _heardQueued = <String>{};
+
   final playerPaneOpacity = (1.0).obs;
   final isPlayerpanelTopVisible = true.obs;
 
   /// True when the main player panel is nearly fully open. Muted in-player
   /// video pauses while this is false so decoding stops behind the mini player.
   final isPlayerPanelOpen = false.obs;
+
+  /// The player panel's exact position every frame (0 collapsed, 1 open),
+  /// for the cover's minimise / expand morph. A plain notifier so only the
+  /// morph layer repaints while the panel moves.
+  final playerPanelPosition = ValueNotifier<double>(0.0);
   final playerPanelMinHeight = 0.0.obs;
   bool initFlagForPlayer = true;
+
+  /// A session came back before Riff's screens were up (Play pressed on
+  /// Android's media controls): the mini player shows it once they are.
+  bool _panelOnReady = false;
   PanelController playerPanelController = PanelController();
   PanelController queuePanelController = PanelController();
   AnimationController? gesturePlayerStateAnimationController;
@@ -182,6 +220,11 @@ class PlayerController extends GetxController
   /// Podcasting 2.0 chapters for the current podcast episode (ad auto-skip).
   final chapters = <PodcastChapter>[].obs;
   String? _chaptersForSongId;
+
+  /// The podcast episode playing as it was announced, before a chapter
+  /// showed on it outside the app ([_showChapterOutside]).
+  MediaItem? _chapterBase;
+
   // True while playback is inside an ad chapter (drives the "Skip ad" chip).
   final inAdChapter = false.obs;
 
@@ -234,6 +277,12 @@ class PlayerController extends GetxController
   String? _pendingResumeId;
   int _pendingResumeMs = 0;
 
+  /// The long track whose kept place is being resumed (said once it is).
+  String? _longTrackResumeId;
+
+  /// When the playing long track's place was last kept ([LongTrackResume]).
+  int _lastLongTrackSaveMs = 0;
+
   /// Audio handler / keyboard subscriptions and workers, released in
   /// [onClose] (two workers watch app-wide observables and would otherwise
   /// keep a closed controller alive and running).
@@ -248,8 +297,52 @@ class PlayerController extends GetxController
       ever(chapters, (_) => _rebuildPodcastSegments()),
       ever(PodcastSegmentStore.rev, (_) => _rebuildPodcastSegments()),
       ever(PodcastPlaybackPrefs.rev, (_) => _rebuildPodcastSegments()),
+      // Full player open: fetch lyrics for the line under the title.
+      ever(currentSong, (_) => _scheduleLyricsPrefetch()),
+      ever(isPlayerPanelOpen, (_) => _scheduleLyricsPrefetch()),
+      // Lyrics missing for want of a connection: looked up again once
+      // it's back.
+      ever(OfflinePlayback.offline, (bool offline) {
+        if (!offline && lyrics['offline'] == true) _loadLyrics();
+      }),
+      // Shake to restart a timed sleep timer (Android).
+      everAll([
+        isSleepTimerActive,
+        isSleepEndOfSongActive,
+        isSleepEndOfChapterActive,
+        SleepShake.enabled,
+      ], (_) => _followShakes()),
+      // Playback starting at night: the automatic sleep timer.
+      ever(buttonState, (PlayButtonState state) {
+        if (state == PlayButtonState.playing) autoSleep();
+      }),
     ]);
     super.onInit();
+  }
+
+  void _followShakes() => SleepShake.follow(
+      wanted: isSleepTimerActive.isTrue &&
+          isSleepEndOfSongActive.isFalse &&
+          isSleepEndOfChapterActive.isFalse,
+      onShake: restartSleepTimer);
+
+  Timer? _lyricsPrefetchTimer;
+
+  /// Music in the standard player only, once the player has stayed open a
+  /// moment (not on every skip while it's closed).
+  void _scheduleLyricsPrefetch() {
+    _lyricsPrefetchTimer?.cancel();
+    if (!isPlayerPanelOpen.value) return;
+    _lyricsPrefetchTimer = Timer(const Duration(milliseconds: 800), () {
+      if (isClosed || !isPlayerPanelOpen.value || usesLongFormTransport) {
+        return;
+      }
+      if (Get.isRegistered<SettingsScreenController>() &&
+          Get.find<SettingsScreenController>().playerUi.value != 0) {
+        return;
+      }
+      prefetchLyrics();
+    });
   }
 
   @override
@@ -323,6 +416,10 @@ class PlayerController extends GetxController
   }
 
   void panellistener(double x) {
+    // The notifier is disposed with the controller; a panel still bound to
+    // a closed one must not write to it.
+    if (isClosed) return;
+    playerPanelPosition.value = x;
     // Only publish when values actually change — panel drag used to rewrite
     // opacity/visibility every frame and rebuild the mini player continuously.
     if (x >= 0 && x <= 0.2) {
@@ -406,6 +503,10 @@ class PlayerController extends GetxController
   final _progressUiThrottle = ProgressUiThrottle();
   final _playLogGate = PlayLogGate();
 
+  /// Whether the song playing started in a private session, or from a
+  /// playlist left out of your taste profile (not scrobbled).
+  bool _playIsPrivate = false;
+
   void _listenForChangesInPosition() {
     _subscriptions.add(AudioService.position.listen((position) {
       // While video mode's engine owns playback it feeds [onPlaybackPosition]
@@ -421,15 +522,20 @@ class PlayerController extends GetxController
   void onPlaybackPosition(Duration position) {
     final oldState = progressBarStatus.value;
     if (isSleepEndOfSongActive.isTrue) {
-      timerDurationLeft.value = oldState.total.inSeconds - position.inSeconds;
-      if (_maybeStartSleepFade(oldState.total - position)) {
+      final end = _playingItemEnd(oldState.total);
+      timerDurationLeft.value = end.inSeconds - position.inSeconds;
+      if (_maybeStartSleepFade(end - position)) {
         // The fade pauses when it is done.
       } else if (timerDurationLeft.value <= 1) {
         pause(source: PlaybackCommandSource.sleepTimer);
         cancelSleepTimer();
       }
     } else if (isSleepEndOfChapterActive.isTrue) {
-      final end = _sleepChapterEnd ?? oldState.total;
+      // The chapter's end, but never past where the episode ends (its
+      // skipped outro) once its length is known.
+      final episodeEnd = _playingItemEnd(oldState.total);
+      var end = _sleepChapterEnd ?? episodeEnd;
+      if (episodeEnd > Duration.zero && end > episodeEnd) end = episodeEnd;
       final remaining = end - position;
       timerDurationLeft.value = remaining.inSeconds.clamp(0, 1 << 30);
       if (_maybeStartSleepFade(remaining)) {
@@ -446,7 +552,10 @@ class PlayerController extends GetxController
     _maybeSkipSponsorBlock(position);
     _handlePodcastSegments(position);
     _handlePodcastProgress(position);
+    _showChapterOutside(position);
     _handleAbsProgress(position);
+    _handleSongStart(position);
+    _handleLongTrackProgress(position);
 
     // Progress widgets (mini player, lyrics, seek bar) only need ~10 Hz.
     if (!_progressUiThrottle.shouldUpdate(
@@ -460,6 +569,17 @@ class PlayerController extends GetxController
       val.buffered = oldState.buffered;
       val.total = oldState.total;
     });
+  }
+
+  /// Where the playing item ends: its length, or where the outro its show
+  /// skips begins (the handler ends the episode there).
+  Duration _playingItemEnd(Duration total) {
+    final song = currentSong.value;
+    if (song == null || !song.isPodcastEpisode) return total;
+    final cut = podcastOutroCutMs(
+        totalMs: total.inMilliseconds,
+        trim: PodcastPlaybackPrefs.trimForItem(song));
+    return cut == null ? total : Duration(milliseconds: cut);
   }
 
   void _handlePodcastProgress(Duration position) {
@@ -481,7 +601,80 @@ class PlayerController extends GetxController
     }
   }
 
-  void _maybeApplyPendingResume(
+  /// The lock screen, notification, Android Auto and the home screen
+  /// widget show the podcast chapter playing ([chapterNowPlaying]); again
+  /// when the handler announces the episode afresh (a queue edit, its
+  /// length found). Its art only online: it is fetched. Not over a
+  /// playback error (announcing the episode would clear it).
+  void _showChapterOutside(Duration position) {
+    final episode = currentSong.value;
+    if (episode == null ||
+        !episode.isPodcastEpisode ||
+        playbackError.value != null ||
+        !_audioReady) {
+      return;
+    }
+    final shown = _audioHandler.mediaItem.value;
+    if (shown == null || shown.id != episode.id) return;
+    if (_chapterBase?.id != episode.id) _chapterBase = episode;
+    final want = chapterNowPlaying(
+        _chapterBase!, chapters, position.inMilliseconds / 1000.0,
+        art: !OfflinePlayback.offline.value);
+    if (want.artist == shown.artist && want.artUri == shown.artUri) return;
+    unawaited(_audioHandler.customAction('showChapter', {
+      'id': episode.id,
+      'artist': want.artist,
+      'artUri': want.artUri?.toString(),
+    }));
+  }
+
+  /// Headphone buttons' chapters ([HeadphoneControls]): to the next
+  /// chapter's start, or back as the previous chapter button goes; false
+  /// when the episode playing has none to go to.
+  bool skipChapter({required bool forward}) {
+    final song = currentSong.value;
+    if (song == null || !song.isPodcastEpisode || chapters.isEmpty) {
+      return false;
+    }
+    final to = chapterSkipTarget(
+        chapters, progressBarStatus.value.current.inMilliseconds / 1000,
+        forward: forward);
+    if (to == null) return false;
+    seek(Duration(milliseconds: (to * 1000).round()));
+    return true;
+  }
+
+  /// Headphone buttons' bookmark ([HeadphoneControls]): the episode
+  /// playing, where it is, said as the player's Bookmark this moment says
+  /// it (when Riff is open).
+  Future<PodcastBookmark?> bookmarkHere() async {
+    final song = currentSong.value;
+    if (song == null || !song.isPodcastEpisode) return null;
+    final bookmark =
+        await PodcastBookmarkStore.add(song, progressBarStatus.value.current);
+    final context = Get.context;
+    if (bookmark != null && context != null && context.mounted) {
+      showBookmarkSavedSnack(context, bookmark);
+    }
+    return bookmark;
+  }
+
+  /// The star on the notification, the lock screen and Android Auto:
+  /// stars the episode playing (the player's own: the one announced may
+  /// show its chapter), or unstars it.
+  Future<void> toggleStarPlaying() async {
+    final song = currentSong.value;
+    if (song == null || !song.isPodcastEpisode) return;
+    if (StarredEpisodes.isStarred(song.id)) {
+      await StarredEpisodes.unstar(song.id);
+    } else {
+      await StarredEpisodes.star(song);
+    }
+  }
+
+  /// Seeks to the pending resume once [song] has just started; whether it
+  /// did.
+  bool _maybeApplyPendingResume(
       MediaItem song, Duration position, Duration total) {
     if (_pendingResumeId == song.id &&
         _pendingResumeMs > 1500 &&
@@ -491,11 +684,116 @@ class PlayerController extends GetxController
       if (total <= Duration.zero ||
           target < total - const Duration(seconds: 10)) {
         seek(target);
+        return true;
       }
     }
+    return false;
   }
 
   bool _isAbsItem(MediaItem? s) => s != null && s.isAudiobookshelf;
+
+  /// A song started at a moment ([playFromLink]) or a long track's kept
+  /// place: there once it plays (podcasts and audiobooks resume through
+  /// their own progress).
+  void _handleSongStart(Duration position) {
+    final song = currentSong.value;
+    if (song == null ||
+        _pendingResumeId != song.id ||
+        PodcastProgressService.isPodcastItem(song) ||
+        _isAbsItem(song) ||
+        song.isFreeAudiobook) {
+      return;
+    }
+    final place = Duration(milliseconds: _pendingResumeMs);
+    if (!_maybeApplyPendingResume(
+        song, position, progressBarStatus.value.total)) {
+      return;
+    }
+    // Its place is kept again once it has played a moment from there.
+    _lastLongTrackSaveMs = DateTime.now().millisecondsSinceEpoch;
+    if (_longTrackResumeId == song.id) {
+      _longTrackResumeId = null;
+      _sayLongTrackResumed(song.id, place);
+    }
+  }
+
+  /// A song (not a podcast episode or an audiobook) [total] long that
+  /// keeps its place ([LongTrackResume]).
+  bool _isLongTrack(MediaItem song, Duration total) =>
+      !song.isPodcastEpisode &&
+      !song.isAudiobook &&
+      LongTrackResume.keepsPlace(total);
+
+  /// A long track's place, kept every 5 s as it plays.
+  void _handleLongTrackProgress(Duration position) {
+    final song = currentSong.value;
+    final total = progressBarStatus.value.total;
+    if (song == null || !_isLongTrack(song, total)) return;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (nowMs - _lastLongTrackSaveMs < 5000) return;
+    if (_pendingResumeId == song.id) {
+      // Its place is yet to be resumed; playing on from elsewhere (a
+      // restored session), it won't be.
+      if (position < const Duration(seconds: 4)) return;
+      _pendingResumeId = null;
+    }
+    _lastLongTrackSaveMs = nowMs;
+    _keepLongTrackPlace(song, position, total, nowMs);
+  }
+
+  /// Keeps [song]'s place, [position] into it, when it's a long track;
+  /// not in a private session, nor while its kept place is yet to be
+  /// resumed.
+  void _keepLongTrackPlace(
+      MediaItem? song, Duration position, Duration total, int nowMs) {
+    if (song == null ||
+        !_isLongTrack(song, total) ||
+        _pendingResumeId == song.id ||
+        PrivateSession.isActive) {
+      return;
+    }
+    unawaited(LongTrackResume.save(song.id, position, total, nowMs: nowMs));
+  }
+
+  /// Says the long track [id] picked up at [place], with Start over.
+  void _sayLongTrackResumed(String id, Duration place) {
+    final target = undoSnackbarTarget(null);
+    if (target == null || !target.messenger.mounted) return;
+    target.messenger.hideCurrentSnackBar();
+    target.messenger.showSnackBar(themedSnackbar(target.theme,
+        'longTrackResumed'.trParams({'time': longTrackPlaceLabel(place)}),
+        actionLabel: 'startOver'.tr, onAction: () => startLongTrackOver(id)));
+  }
+
+  /// The long track [id], resumed, starts over: back to its start while
+  /// it's the one playing, its kept place forgotten.
+  void startLongTrackOver(String id) {
+    if (currentSong.value?.id == id) {
+      _lastLongTrackSaveMs = DateTime.now().millisecondsSinceEpoch;
+      seek(Duration.zero);
+    }
+    unawaited(LongTrackResume.forget(id));
+  }
+
+  /// Plays [songs] from the first, from [start] into it (a shared link's
+  /// moment, YouTube's ?t=).
+  Future<bool> playFromLink(List<MediaItem> songs,
+      {Duration start = Duration.zero}) async {
+    // The song playing now: there.
+    if (songs.isNotEmpty &&
+        start > Duration.zero &&
+        currentSong.value?.id == songs.first.id) {
+      seek(start);
+      if (buttonState.value == PlayButtonState.paused) play();
+      return true;
+    }
+    if (songs.isNotEmpty && start > Duration.zero) {
+      _explicitStartId = songs.first.id;
+      _explicitStartMs = start.inMilliseconds;
+    }
+    return playPlayListSong(songs, 0,
+        playfrom: PlaylingFrom(type: PlaylingFromType.SELECTION));
+  }
 
   String? _explicitStartId;
   int _explicitStartMs = 0;
@@ -518,6 +816,100 @@ class PlayerController extends GetxController
           type: PlaylingFromType.SELECTION, name: from ?? item.artist ?? ''),
       source: DiscoverySource.podcast,
     );
+  }
+
+  /// Play the queue's track at [index] from [position] (an audiobook
+  /// bookmark), or seek there if it's the track playing.
+  void playQueueItemAt(int index, Duration position) {
+    if (index < 0 || index >= currentQueue.length) return;
+    final item = currentQueue[index];
+    if (currentSong.value?.id == item.id) {
+      seek(position);
+      if (buttonState.value == PlayButtonState.paused) play();
+      return;
+    }
+    _explicitStartId = item.id;
+    _explicitStartMs = position.inMilliseconds;
+    seekByIndex(index);
+  }
+
+  /// The player's Mark as played: the playing podcast episode ends now, as
+  /// if it had played out (the next episode, or a pause when continuous
+  /// playback is off), and is marked played. Returns its Undo: unplayed
+  /// again, back in its place in the queue and playing from where it was.
+  /// Null when no episode is playing.
+  VoidCallback? markCurrentEpisodePlayed() {
+    final song = currentSong.value;
+    if (song == null || !song.isPodcastEpisode || !_audioReady) return null;
+    final at = progressBarStatus.value.current;
+    final snapshot = PodcastLibrary.listenedSnapshot([song]);
+    final finished = _finishEpisode();
+    return () async {
+      await finished;
+      await PodcastLibrary.undoMarkAll(snapshot);
+      final index = currentQueue.indexWhere((m) => m.id == song.id);
+      if (index >= 0) {
+        playQueueItemAt(index, at);
+      } else {
+        await playPodcastAt(song, at);
+      }
+    };
+  }
+
+  /// Ends the playing episode as if it had played out (the handler's
+  /// finishEpisode): marked played, then the next one or a pause.
+  Future<void> _finishEpisode() async {
+    // A position save meanwhile would read as listening on and unmark it.
+    _lastProgressSaveMs = DateTime.now().millisecondsSinceEpoch;
+    try {
+      // Video mode owns a paused audio pipeline: hand off first, as ⏭ does.
+      await _handoffVideoThen(() async {
+        await _audioHandler.customAction('finishEpisode');
+        return true;
+      });
+    } catch (e) {
+      printERROR('finishEpisode failed: $e');
+    }
+    PodcastLibrary.rev.value++;
+  }
+
+  /// Arms where [item], just started, plays from once it plays: a
+  /// bookmark's or a link's moment ([playPodcastAt], [playFromLink]), a
+  /// podcast episode's saved place (or past the intro its show skips), an
+  /// audiobook's ([armResume]), a long track's kept place.
+  @visibleForTesting
+  void armStart(MediaItem item) {
+    _longTrackResumeId = null;
+    // A new song's place is kept once it has played a moment.
+    _lastLongTrackSaveMs = DateTime.now().millisecondsSinceEpoch;
+    if (_explicitStartId == item.id) {
+      // Opened from a bookmark: start there, not at the saved position.
+      _pendingResumeId = item.id;
+      _pendingResumeMs = _explicitStartMs;
+      _explicitStartId = null;
+    } else if (PodcastProgressService.isPodcastItem(item)) {
+      _pendingResumeId = item.id;
+      // The saved position, or past the intro its show skips.
+      _pendingResumeMs = podcastStartMs(
+        savedMs: PodcastProgressService.positionMs(item.id) ?? 0,
+        trim: PodcastPlaybackPrefs.trimForItem(item),
+        totalMs: item.duration?.inMilliseconds ?? 0,
+      );
+    } else if (item.isAudiobook) {
+      // Keep armResume() from the book's page if it targets this chapter
+      // (a server's or a free one).
+      if (_pendingResumeId != item.id) {
+        _pendingResumeId = null;
+        _pendingResumeMs = 0;
+      }
+    } else {
+      // A long track plays on from the place it kept.
+      final place = LongTrackResume.placeOf(item.id, item.duration);
+      final resumes = place > Duration.zero;
+      _pendingResumeId = resumes ? item.id : null;
+      _pendingResumeMs = place.inMilliseconds;
+      if (resumes) _longTrackResumeId = item.id;
+    }
   }
 
   /// Arm a one-shot seek after playback starts (ABS resume / explicit offset).
@@ -638,9 +1030,15 @@ class PlayerController extends GetxController
     _chaptersForSongId = item.id;
     chapters.clear();
     inAdChapter.value = false;
-    final url = item.chaptersUrl;
-    if (url == null || url.isEmpty) return;
-    final chs = await PodcastService.chapters(url);
+    final url = episodeChaptersUrl(item);
+    var chs = url != null && url.isNotEmpty
+        ? await PodcastService.chapters(url)
+        // None in the feed: the episode's MP3 may carry its own (ID3).
+        : await Id3Chapters.forEpisode(item);
+    // None in either: its show notes may list its parts by their start.
+    if (chs.isEmpty && item.isPodcastEpisode) {
+      chs = showNotesChapters(episodeNotes(item), length: item.duration);
+    }
     if (_chaptersForSongId == item.id) chapters.assignAll(chs);
   }
 
@@ -745,7 +1143,8 @@ class PlayerController extends GetxController
 
   /// One position tick of a podcast episode: mute, the Skip pill, and the
   /// auto-skip (only when playback runs into a segment from before it,
-  /// never twice, never a segment the user undid).
+  /// never twice but for chapters ticked off, never a segment the user
+  /// undid).
   void _handlePodcastSegments(Duration position) {
     final item = currentSong.value;
     if (item == null || !item.isPodcastEpisode) return;
@@ -777,9 +1176,9 @@ class PlayerController extends GetxController
       return;
     }
     final skipped = _segmentsSkipped.putIfAbsent(item.id, () => <String>{});
-    if (skipped.contains(active.id) || !enteredFromBefore(active, prev, sec)) {
-      return;
-    }
+    final again = skipped.contains(active.id) &&
+        active.category != SegmentCategory.chapter;
+    if (again || !enteredFromBefore(active, prev, sec)) return;
     // A seek a person just made (app, notification, Android Auto) wins.
     if (!autoSkipAllowed(
         lastSeek: _tagged?.lastUserSeek,
@@ -788,13 +1187,14 @@ class PlayerController extends GetxController
         segEndSec: active.end)) {
       return;
     }
-    final total = progressBarStatus.value.total;
-    if (total > Duration.zero &&
-        Duration(milliseconds: (active.end * 1000).round()) >=
-            total - const Duration(milliseconds: 400)) {
+    final exit = SegmentSkip.of(active,
+        totalMs: progressBarStatus.value.total.inMilliseconds);
+    if (exit == SegmentSkip.none) return;
+    skipped.add(active.id);
+    if (exit == SegmentSkip.endEpisode) {
+      unawaited(_finishEpisode());
       return;
     }
-    skipped.add(active.id);
     _skipSegment(active, fromSec: sec, auto: true);
   }
 
@@ -1056,15 +1456,24 @@ class PlayerController extends GetxController
         // The handler re-emits the playing item after queue edits, shuffle
         // and stream retries; only a different id is a song change.
         final songChanged = outgoing?.id != mediaItem.id;
+        // The long track left keeps its place there.
+        if (songChanged) {
+          _keepLongTrackPlace(outgoing, Duration(milliseconds: posMs),
+              outgoingProgress.total, DateTime.now().millisecondsSinceEpoch);
+        }
         if (songChanged &&
             outgoing != null &&
+            !_playIsPrivate &&
             shouldScrobble(
                 item: outgoing,
                 listened: Duration(milliseconds: posMs),
                 total: outgoingProgress.total)) {
           ListenBrainzService.submitListen(outgoing);
+          LastFmService.scrobble(outgoing,
+              listened: Duration(milliseconds: posMs));
         }
         currentSong.value = mediaItem;
+        if (isQueuedByYou(mediaItem)) _heardQueued.add(mediaItem.id);
         if (songChanged) {
           // Reset per-song UI now, before the awaits below, so lyrics the
           // user opens for the new song aren't wiped when they finish.
@@ -1082,27 +1491,8 @@ class PlayerController extends GetxController
           showContinueListening.value = false;
         }
         clearPlaybackError();
-        // Arm auto-resume for the incoming podcast episode (either backend).
-        if (!songChanged) {
-          // Same item re-emitted: keep the resume state as it is.
-        } else if (_explicitStartId == mediaItem.id) {
-          // Opened from a bookmark: start there, not at the saved position.
-          _pendingResumeId = mediaItem.id;
-          _pendingResumeMs = _explicitStartMs;
-          _explicitStartId = null;
-        } else if (PodcastProgressService.isPodcastItem(mediaItem)) {
-          _pendingResumeId = mediaItem.id;
-          _pendingResumeMs =
-              PodcastProgressService.positionMs(mediaItem.id) ?? 0;
-        } else if (_isAbsItem(mediaItem)) {
-          // Keep armResume() from detail screen if it targets this item.
-          if (_pendingResumeId != mediaItem.id) {
-            _pendingResumeId = null;
-            _pendingResumeMs = 0;
-          }
-        } else {
-          _pendingResumeId = null;
-        }
+        // Where the new item plays from; the same one re-emitted keeps it.
+        if (songChanged) armStart(mediaItem);
         currentSongIndex.value = currentQueue
             .indexWhere((element) => element.id == currentSong.value!.id);
         // The handler re-emits the *currently playing* item on non-play events
@@ -1127,10 +1517,28 @@ class PlayerController extends GetxController
         }
         await _checkFav();
         if (isNewPlay) {
+          // A private session records nothing of what plays in it; a
+          // playlist left out of your taste profile, only its history.
+          final private = PrivateSession.isActive;
+          final untasted =
+              !private && TasteExclusions.excludesPlay(playinfrom.value);
+          _playIsPrivate = private || untasted;
           // Use this callback's item: currentSong may already be the next
           // song after the awaits.
-          await _addToRP(mediaItem);
-          StatsService.recordPlay(mediaItem);
+          if (!private) {
+            await _addToRP(mediaItem);
+            if (!untasted) StatsService.recordPlay(mediaItem);
+            unawaited(PodcastHistory.add(mediaItem));
+            // Songs only, as they're scrobbled.
+            if (!untasted &&
+                !mediaItem.isPodcastEpisode &&
+                !mediaItem.isAudiobook) {
+              unawaited(ListenBrainzService.playingNow(mediaItem));
+              unawaited(LastFmService.playingNow(mediaItem));
+            }
+            // Into the connected account's YouTube Music history too.
+            if (!untasted) unawaited(YtHistorySync.notePlay(mediaItem));
+          }
           if (Get.isRegistered<SettingsScreenController>()) {
             unawaited(Get.find<SettingsScreenController>()
                 .maybePromptBatteryOptimization());
@@ -1138,11 +1546,13 @@ class PlayerController extends GetxController
           if (Get.isRegistered<DiscoveryService>()) {
             // Taste bookkeeping doesn't gate playback, so don't hold up
             // radio continuation behind it; chain the calls so quick skips
-            // are still recorded in order.
+            // are still recorded in order. A private play isn't started
+            // (the song before it still ends as usual).
             final discovery = Get.find<DiscoveryService>();
+            final logged = private || untasted ? null : mediaItem;
             _discoveryChain = _discoveryChain
-                .then((_) =>
-                    discovery.onMediaChanged(mediaItem, positionMs: posMs))
+                .then(
+                    (_) => discovery.onMediaChanged(logged, positionMs: posMs))
                 .catchError((Object e) {
               printERROR('Discovery onMediaChanged failed: $e');
             });
@@ -1164,25 +1574,35 @@ class PlayerController extends GetxController
     }));
   }
 
+  /// Riff opening: the session saved last time comes back, paused at its
+  /// place, as Settings › Restore last playback session says (on until
+  /// switched off). The audio handler brings it back, once: Play pressed
+  /// outside Riff may have brought it back already.
   Future<void> _restorePrevSession() async {
-    final restrorePrevSessionEnabled =
-        _prefs.get("restrorePlaybackSession") ?? false;
-    if (restrorePrevSessionEnabled) {
-      final prevSessionData = await Hive.openBox("prevSessionData");
-      if (prevSessionData.keys.isNotEmpty) {
-        final songList = (prevSessionData.get("queue") as List)
-            .map((e) => MediaItemBuilder.fromJson(e))
-            .toList();
-        final int currentIndex = prevSessionData.get("index");
-        final int position = prevSessionData.get("position");
-        await _audioHandler.addQueueItems(songList);
-        _playerPanelCheck(restoreSession: true);
-        await _audioHandler.customAction("playByIndex", {
-          "index": currentIndex,
-          "position": position,
-          "restoreSession": true
-        });
+    if (_prefs.get("restrorePlaybackSession") ?? true) {
+      try {
+        await _audioHandler.customAction("restoreSession");
+      } catch (e) {
+        printERROR('Last session not restored: $e');
       }
+    }
+    if (_panelOnReady) {
+      _panelOnReady = false;
+      _playerPanelCheck(restoreSession: true);
+    }
+  }
+
+  /// The session saved last time came back into the player (Riff opening,
+  /// or Play pressed outside Riff with nothing loaded): it says again where
+  /// it came from, before it plays on, and the mini player shows it.
+  void sessionCameBack(Object? from) {
+    playinfrom.value = PlaylingFrom.fromJson(from);
+    showContinueListening.value = false;
+    try {
+      _playerPanelCheck(restoreSession: true);
+    } catch (_) {
+      // No screen yet to size it by.
+      _panelOnReady = true;
     }
   }
 
@@ -1239,6 +1659,8 @@ class PlayerController extends GetxController
       final int savedIndex = (prevSessionData.get("index") as int?) ?? 0;
       final int position = (prevSessionData.get("position") as int?) ?? 0;
       final index = savedIndex.clamp(0, songList.length - 1);
+      // Where it came from, before it plays on.
+      playinfrom.value = PlaylingFrom.fromJson(prevSessionData.get("from"));
       // Always load the saved queue — a leftover failed session must not
       // play at the saved index of the wrong list.
       await _audioHandler.updateQueue(songList);
@@ -1275,6 +1697,9 @@ class PlayerController extends GetxController
     _subscriptions.add(_audioHandler.customEvent.listen((event) {
       if (event['eventType'] == 'playFromMediaId') {
         unawaited(playViaAndroidAuto(event['songId'], event['libraryId']));
+      }
+      if (event['eventType'] == 'playFromSearch') {
+        unawaited(playFromVoiceSearch('${event['query'] ?? ''}'));
       }
     }));
   }
@@ -1336,6 +1761,14 @@ class PlayerController extends GetxController
       }
       if (tracks.isEmpty) return false;
 
+      // Songs you queued play next in the radio, as in [playPlayListSong].
+      final keep = stillQueuedByYou(currentQueue, currentSongIndex.value,
+          heard: _heardQueued);
+      _heardQueued.clear();
+      Future<void> keepQueued() async {
+        if (keep.isNotEmpty) await playNextList(keep);
+      }
+
       // Await the queue swap before play — the old fire-and-forget
       // updateQueue raced setSourceNPlay and could drop the first track.
       await _audioHandler.updateQueue(tracks);
@@ -1355,9 +1788,11 @@ class PlayerController extends GetxController
         _playerPanelCheck();
         final result =
             await _audioHandler.customAction("playByIndex", {"index": 0});
+        await keepQueued();
         return !playByIndexHardFailed(result);
       }
       if (radioOnCurrent) {
+        await keepQueued();
         return true;
       }
 
@@ -1368,6 +1803,7 @@ class PlayerController extends GetxController
       _playerPanelCheck();
       final result =
           await _audioHandler.customAction("playByIndex", {"index": 0});
+      await keepQueued();
 
       // disable queue loop mode when radio is started
       if (radio &&
@@ -1391,6 +1827,14 @@ class PlayerController extends GetxController
       return false;
     }
     if (index < 0 || index >= mediaItems.length) return false;
+    // Songs you queued and haven't heard yet play next in what starts now,
+    // as Spotify keeps its "Next in queue" (not into episodes or a book).
+    final keep =
+        mediaItems[index].isPodcastEpisode || mediaItems[index].isAudiobook
+            ? const <MediaItem>[]
+            : stillQueuedByYou(currentQueue, currentSongIndex.value,
+                heard: _heardQueued);
+    _heardQueued.clear();
     // Podcast shows can have thousands of episodes with long notes: send a
     // window, with shortened notes, so the media session can't overflow.
     if (mediaItems[index].isPodcastEpisode) {
@@ -1407,6 +1851,13 @@ class PlayerController extends GetxController
     /// update playing from value
     playinfrom.value =
         playfrom ?? PlaylingFrom(type: PlaylingFromType.SELECTION);
+    // For the Library's "Recently played" sort (not in a private session).
+    if (playfrom != null &&
+        !PrivateSession.isActive &&
+        (playfrom.type == PlaylingFromType.PLAYLIST ||
+            playfrom.type == PlaylingFromType.ALBUM)) {
+      unawaited(CollectionRecents.markPlayed(playfrom.id));
+    }
 
     //for changing home content based on last interation
     Future.delayed(const Duration(seconds: 3), () {
@@ -1425,6 +1876,7 @@ class PlayerController extends GetxController
     }
     final result =
         await _audioHandler.customAction("playByIndex", {"index": index});
+    if (keep.isNotEmpty) await playNextList(keep);
     return !playByIndexHardFailed(result);
   }
 
@@ -1613,13 +2065,16 @@ class PlayerController extends GetxController
     )) {
       return true;
     }
-    _audioHandler
-        .addQueueItem(ensureDiscoverySource(mediaItem, DiscoverySource.queue));
+    _audioHandler.addQueueItem(
+        queuedByYou(ensureDiscoverySource(mediaItem, DiscoverySource.queue)));
     return true;
   }
 
-  ///enqueueSongList method add song List to current queue
-  Future<bool> enqueueSongList(List<MediaItem> mediaItems) async {
+  ///enqueueSongList method add song List to current queue; [byYou] when you
+  /// queued them (an album's or a playlist's Add to queue), not radio or
+  /// Autoplay.
+  Future<bool> enqueueSongList(List<MediaItem> mediaItems,
+      {bool byYou = false}) async {
     if (mediaItems.isEmpty) return false;
     if (currentQueue.isEmpty) {
       final keepRadio = shouldKeepRadioWhenEnqueueing(
@@ -1644,8 +2099,9 @@ class PlayerController extends GetxController
       }
     }
     if (listToEnqueue.isEmpty) return true;
-    _audioHandler.addQueueItems(
-        ensureDiscoverySources(listToEnqueue, DiscoverySource.queue));
+    final tagged = ensureDiscoverySources(listToEnqueue, DiscoverySource.queue);
+    _audioHandler
+        .addQueueItems(byYou ? tagged.map(queuedByYou).toList() : tagged);
     return true;
   }
 
@@ -1657,6 +2113,11 @@ class PlayerController extends GetxController
       printERROR('Android Auto play: no list for $songId');
       return;
     }
+    // The song of the session saved last time: that session plays on.
+    if (libraryId == MediaLibrary.lastSessionId) {
+      await resumeSavedSession();
+      return;
+    }
     // Lists built for the car, not stored in a box named after them:
     // podcast lists (Continue listening, a followed show; from the browse
     // cache, the long-form queue window keeps them small) and discovery
@@ -1666,28 +2127,55 @@ class PlayerController extends GetxController
           await MediaLibrary().getByRootId(libraryId);
       if (list.isEmpty) return;
       final i = list.indexWhere((e) => e.id == songId);
+      // A mix is a playlist in your Library too (RIFF_<id>), once made.
+      final mix = libraryId.startsWith('riff_mix_')
+          ? await libraryListSource(
+              'RIFF_${libraryId.substring('riff_mix_'.length)}')
+          : null;
       await playPlayListSong(list, i < 0 ? 0 : i,
-          source: DiscoverySource.androidAuto);
+          playfrom: mix, source: DiscoverySource.androidAuto);
       return;
     }
     final box = await Hive.openBox(libraryId);
-    List<MediaItem> songList = [];
-    final songJson = box.values.toList();
-    int songIndex = 0;
-    for (int i = 0; i < box.length; i++) {
-      final song = MediaItemBuilder.fromJson(songJson[i]);
-      if (song.id == songId) {
-        songIndex = i;
-      }
-      songList.add(song);
-    }
+    var songList = [
+      for (final json in box.values.toList()) MediaItemBuilder.fromJson(json)
+    ];
+    // Recently played as the car lists it: the newest first.
+    if (libraryId == HiveBoxes.libRp) songList = songList.reversed.toList();
+    final songIndex = songList.indexWhere((song) => song.id == songId);
+    // Where it comes from, as when it's played on the phone: the player
+    // says so, and a playlist left out of your taste profile stays out.
     await playPlayListSong(
       songList,
-      songIndex,
+      songIndex < 0 ? 0 : songIndex,
+      playfrom: await libraryListSource(libraryId),
       source: DiscoverySource.androidAuto,
     );
     // Shared box (Hive hands every caller the same instance): never close
     // it here, or the player and other screens using it fail mid-write.
+  }
+
+  /// "Play … on Riff" (Android Auto, the Assistant): what
+  /// [MediaLibrary.voiceSearchList] finds, from the top. With nothing asked
+  /// for, what's in the queue plays on instead, or with nothing there, the
+  /// session saved last time, from its place.
+  Future<void> playFromVoiceSearch(String query) async {
+    if (query.trim().isEmpty) {
+      if (currentQueue.isNotEmpty) {
+        play();
+        return;
+      }
+      final back =
+          await _audioHandler.customAction("restoreSession", {"play": true});
+      if (back == true) return;
+    }
+    final list = await MediaLibrary().voiceSearchList(query);
+    if (list.isEmpty) return;
+    await playPlayListSong(list, 0,
+        playfrom: PlaylingFrom(
+            type: PlaylingFromType.SELECTION,
+            name: query.trim().isEmpty ? 'favorites'.tr : query.trim()),
+        source: DiscoverySource.androidAuto);
   }
 
   /// Insert [songs] after the current track, preserving list order.
@@ -1732,7 +2220,8 @@ class PlayerController extends GetxController
         return enqueueSong(song);
       }
       _audioHandler.customAction("addPlayNextItem", {
-        "mediaItem": ensureDiscoverySource(song, DiscoverySource.queue),
+        "mediaItem":
+            queuedByYou(ensureDiscoverySource(song, DiscoverySource.queue)),
       });
     }
     return true;
@@ -1740,27 +2229,64 @@ class PlayerController extends GetxController
 
   bool _extendingRadio = false;
 
+  /// A song after the one playing that may play (an explicit one doesn't
+  /// while explicit content is off, nor offline one that needs a
+  /// connection).
+  bool get _songAfterCurrent =>
+      currentQueue.skip(currentSongIndex.value + 1).any((song) =>
+          !ExplicitContent.blocks(song) && !OfflinePlayback.blocks(song));
+
   /// Last track ended while radio/Wave is on — fetch the next batch and play.
-  Future<bool> extendRadioThenPlayNext() async {
+  /// [quiet]: nothing to play on isn't reported (Autoplay's first batch).
+  Future<bool> extendRadioThenPlayNext({bool quiet = false}) async {
     if (_extendingRadio || !isRadioModeOn) return false;
     _extendingRadio = true;
     try {
-      if (currentQueue.length > currentSongIndex.value + 1) {
+      if (_songAfterCurrent) {
         return next();
       }
       if (radioInitiatorItem == null) {
-        notifyPlayError('radioContinuationFailed');
+        if (!quiet) notifyPlayError('radioContinuationFailed');
         return false;
       }
       await _fetchRadioContinuation();
-      if (currentQueue.length > currentSongIndex.value + 1) {
+      if (_songAfterCurrent) {
         return next();
       }
-      notifyPlayError('radioContinuationFailed');
+      if (!quiet) notifyPlayError('radioContinuationFailed');
       return false;
     } finally {
       _extendingRadio = false;
     }
+  }
+
+  /// Whether next goes on past the last song: radio is on, or Autoplay
+  /// starts it from the song playing. Reads [MusicAutoplay.enabled], so an
+  /// Obx using it follows the switch.
+  bool get playsOnPastEnd =>
+      isRadioModeOn || MusicAutoplay.after(currentSong.value);
+
+  /// The queue ran out: with Autoplay on, radio from its last song plays on
+  /// (Spotify, YouTube Music, Apple Music) and goes on as radio does. False
+  /// when it's off or nothing came (offline): the queue ends as before.
+  Future<bool> autoplayAfterQueue() async {
+    final last = currentSong.value;
+    if (isRadioModeOn || !MusicAutoplay.after(last)) return false;
+    radioInitiatorItem = last;
+    radioContinuationParam = null;
+    isRadioModeOn = true;
+    if (await extendRadioThenPlayNext(quiet: true)) {
+      playinfrom.value = PlaylingFrom(
+          type: PlaylingFromType.SELECTION, name: 'autoplayShort'.tr);
+      // The songs it adds aren't a playlist Mix's: no Mix transitions.
+      if (Get.isRegistered<PlaylistMixService>()) {
+        Get.find<PlaylistMixService>().deactivatePlayback();
+      }
+      return true;
+    }
+    isRadioModeOn = false;
+    radioInitiatorItem = null;
+    return false;
   }
 
   void _playerPanelCheck({bool restoreSession = false}) {
@@ -1788,6 +2314,39 @@ class PlayerController extends GetxController
   void clearQueue() {
     if (!_audioReady) return;
     _audioHandler.customAction("clearQueue");
+  }
+
+  /// Removes [song] from the queue and returns how to put it back in the
+  /// same place (null when nothing was removed).
+  Future<VoidCallback?> removeFromQueueUndoable(MediaItem song) async {
+    if (!canMutateQueue(_audioReady)) return null;
+    final where = await _audioHandler.customAction(
+        'removeQueueItemUndoable', {'mediaItem': song});
+    if (where is! Map) return null;
+    return () {
+      if (!_audioReady) return;
+      _audioHandler.customAction('restoreQueueItem', {
+        'mediaItem': song,
+        'index': where['index'],
+        'shuffleIndex': where['shuffleIndex'],
+      });
+    };
+  }
+
+  /// Clears the queue down to the playing song and returns how to bring
+  /// the rest back (null when there was nothing else to clear). Undo only
+  /// applies while the same song is still playing.
+  Future<VoidCallback?> clearQueueUndoable() async {
+    if (!_audioReady) return null;
+    final before = currentQueue.toList();
+    final playing = currentSong.value;
+    await _audioHandler.customAction("clearQueue");
+    if (playing == null || before.length <= 1) return null;
+    return () {
+      if (!_audioReady || currentSong.value?.id != playing.id) return;
+      _audioHandler.customAction(
+          'restoreQueue', {'queue': before, 'currentId': playing.id});
+    };
   }
 
   void shuffleQueue() {
@@ -1871,11 +2430,13 @@ class PlayerController extends GetxController
     return action();
   }
 
-  Future<bool> prev() async {
+  /// [restart] false skips the "restart when past 3 s" rule and always goes
+  /// to the previous track (the mini player's swipe).
+  Future<bool> prev({bool restart = true}) async {
     if (!_audioReady) return false;
     return _handoffVideoThen(() async {
-      final result = await _audioHandler
-          .customAction('skipToPrevious', {'source': 'user'});
+      final result = await _audioHandler.customAction(
+          'skipToPrevious', {'source': 'user', if (!restart) 'restart': false});
       return playByIndexDidStart(result);
     });
   }
@@ -1948,6 +2509,18 @@ class PlayerController extends GetxController
 
   void toggleSkipSilence(bool enable) {
     _audioHandler.customAction("toggleSkipSilence", {"enable": enable});
+  }
+
+  /// Music's speed and pitch from Settings: a podcast episode or audiobook
+  /// playing now keeps its own speed, so only the pitch reaches it.
+  void setMusicSpeedAndPitch({required double speed, required double pitch}) {
+    setSpeedAndPitch(
+        speed: isCurrentSongPodcast
+            ? currentPodcastProfile.speed
+            : isCurrentSongAudiobook
+                ? AudiobookPlayback.speed
+                : speed,
+        pitch: pitch);
   }
 
   void setSpeedAndPitch({required double speed, required double pitch}) {
@@ -2056,9 +2629,10 @@ class PlayerController extends GetxController
     final box = HiveBoxes.favSync();
     if (box != null) {
       isCurrentSongFav.value = box.containsKey(song.id);
-      return;
+    } else {
+      isCurrentSongFav.value = (await HiveBoxes.fav()).containsKey(song.id);
     }
-    isCurrentSongFav.value = (await HiveBoxes.fav()).containsKey(song.id);
+    _reportLikeToMediaSession(song.id, isCurrentSongFav.value);
   }
 
   Future<void> toggleFavourite() async {
@@ -2076,6 +2650,7 @@ class PlayerController extends GetxController
     if (isCurrent) {
       isCurrentSongFav.value = nextAdding;
       _favPersistSongId = song.id;
+      _reportLikeToMediaSession(song.id, nextAdding);
     }
     unawaited(_persistFavourite(song, nextAdding).whenComplete(() {
       if (_favPersistSongId == song.id) _favPersistSongId = null;
@@ -2085,12 +2660,21 @@ class PlayerController extends GetxController
     }
     // Mirror to Spotify's Liked Songs when like sync is on.
     unawaited(SpotifyLikeSync.onFavorite(song, add: nextAdding));
+    // And to YouTube Music's likes, when kept in step.
+    unawaited(YtLikeSync.onFavorite(song, add: nextAdding));
     if (nextAdding &&
         Get.find<SettingsScreenController>()
             .autoDownloadFavoriteSongEnabled
             .isTrue) {
       Get.find<Downloader>().download(song);
     }
+  }
+
+  /// Keeps the heart on the notification / lock screen in step with the
+  /// app (the save itself happens in the background).
+  void _reportLikeToMediaSession(String songId, bool liked) {
+    if (!_audioReady) return;
+    _audioHandler.customAction('setLiked', {'id': songId, 'liked': liked});
   }
 
   Future<void> _persistFavourite(MediaItem currMediaItem, bool adding) async {
@@ -2149,7 +2733,7 @@ class PlayerController extends GetxController
     if (recentItem != mediaItem) {
       final box = await HiveBoxes.open(HiveBoxes.libRp);
       String? removedSongId;
-      if (box.keys.length >= 30) {
+      if (box.keys.length >= recentlyPlayedMax) {
         removedSongId = box.getAt(0)['videoId'];
         box.deleteAt(0);
       }
@@ -2159,7 +2743,8 @@ class PlayerController extends GetxController
           box.deleteAt(i);
         }
       }
-      box.add(MediaItemBuilder.toJson(mediaItem));
+      // With when, for its day in the list.
+      box.add(recentlyPlayedEntry(mediaItem, DateTime.now()));
       try {
         final playlistController = Get.find<PlaylistScreenController>(
             tag: const Key("LIBRP").hashCode.toString());
@@ -2182,40 +2767,74 @@ class PlayerController extends GetxController
 
   Future<void> showLyrics() async {
     showLyricsflag.value = !showLyricsflag.value;
+    if (showLyricsflag.value) await _loadLyrics();
+  }
+
+  /// Fetches the current song's lyrics without opening them, for the lyric
+  /// line under the title in the full player.
+  Future<void> prefetchLyrics() => _loadLyrics();
+
+  /// One lookup per song: a prefetch and a tap on lyrics share it.
+  Future<void>? _lyricsLoad;
+  String? _lyricsLoadId;
+
+  Future<void> _loadLyrics() {
     final song = currentSong.value;
-    if (song != null &&
-        (lyrics["synced"].isEmpty && lyrics['plainLyrics'].isEmpty) &&
-        showLyricsflag.value) {
-      isLyricsLoading.value = true;
-      // A skip during the (sometimes slow) lookups must not put this
-      // song's lyrics on the next one.
-      bool stillCurrent() => currentSong.value?.id == song.id;
-      Map<String, dynamic> result;
-      try {
-        final Map<String, dynamic>? lyricsR =
-            await SyncedLyricsService.getSyncedLyrics(
-                song, progressBarStatus.value.total.inSeconds);
-        if (lyricsR != null) {
-          result = lyricsR;
-        } else {
-          if (!stillCurrent()) return;
-          final related = await _musicServices.getWatchPlaylist(
-              videoId: song.id, onlyRelated: true);
-          final relatedLyricsId = related['lyrics'];
-          if (relatedLyricsId != null) {
-            final lyrics_ = await _musicServices.getLyrics(relatedLyricsId);
-            result = {"synced": "", "plainLyrics": lyrics_};
-          } else {
-            result = {"synced": "", "plainLyrics": "NA"};
-          }
-        }
-      } catch (e) {
-        result = {"synced": "", "plainLyrics": "NA"};
-      }
-      if (!stillCurrent()) return;
-      lyrics.value = result;
-      isLyricsLoading.value = false;
+    // Missing only for want of a connection: not the song's last word.
+    if (song == null ||
+        (lyrics['offline'] != true &&
+            (lyrics["synced"].isNotEmpty ||
+                lyrics['plainLyrics'].isNotEmpty))) {
+      return Future.value();
     }
+    if (_lyricsLoadId == song.id && _lyricsLoad != null) return _lyricsLoad!;
+    _lyricsLoadId = song.id;
+    return _lyricsLoad = _fetchLyrics(song).whenComplete(() {
+      if (_lyricsLoadId == song.id) {
+        _lyricsLoad = null;
+        _lyricsLoadId = null;
+      }
+    });
+  }
+
+  Future<void> _fetchLyrics(MediaItem song) async {
+    isLyricsLoading.value = true;
+    // A skip during the (sometimes slow) lookups must not put this
+    // song's lyrics on the next one.
+    bool stillCurrent() => currentSong.value?.id == song.id;
+    Map<String, dynamic> result;
+    try {
+      final Map<String, dynamic>? lyricsR =
+          await SyncedLyricsService.getSyncedLyrics(
+              song, progressBarStatus.value.total.inSeconds);
+      if (lyricsR != null) {
+        result = lyricsR;
+      } else {
+        if (!stillCurrent()) return;
+        // Kept once fetched, so they show offline too.
+        final plain = await SyncedLyricsService.plainLyrics(
+            song.id, () => SyncedLyricsService.youTubeLyrics(song.id));
+        result = {"synced": "", "plainLyrics": plain ?? "NA"};
+      }
+    } catch (e) {
+      result = {"synced": "", "plainLyrics": "NA"};
+    }
+    if (!stillCurrent()) return;
+    // None found with no connection: that's why (the lyrics say so, and
+    // are looked up again once it's back).
+    if (lyricsMissing(result) && OfflinePlayback.offline.value) {
+      result = {...result, 'offline': true};
+    }
+    lyrics.value = result;
+    isLyricsLoading.value = false;
+  }
+
+  /// Search lyrics' pick for [song]: shown now when it's playing.
+  void useLyrics(MediaItem song, Map<String, dynamic> picked) {
+    if (currentSong.value?.id != song.id) return;
+    lyrics.value = Map<String, dynamic>.from(picked);
+    isLyricsLoading.value = false;
+    if (showLyricsflag.isFalse) showLyricsflag.value = true;
   }
 
   void changeLyricsMode(int? val) {
@@ -2239,12 +2858,18 @@ class PlayerController extends GetxController
     isSleepEndOfChapterActive.value = true;
   }
 
-  /// Podcasts (audio only): once less than [sleepFadeLength] of wall-clock
-  /// time is left, fade out and let the handler pause. True while a fade
-  /// owns the stop.
+  /// See [sleepFadeApplies].
+  bool get _sleepFades => sleepFadeApplies(
+        videoMode: _videoModeActive,
+        mixActive: Get.isRegistered<PlaylistMixService>() &&
+            Get.find<PlaylistMixService>().mixPlaybackActive.isTrue,
+      );
+
+  /// Once less than [sleepFadeLength] of wall-clock time is left, fade out
+  /// and let the handler pause. True while a fade owns the stop.
   bool _maybeStartSleepFade(Duration remainingContent) {
     if (_sleepFadeStarted) return true;
-    if (!isCurrentSongPodcast || _videoModeActive) return false;
+    if (!_sleepFades) return false;
     final speed = _audioHandler.playbackState.value.speed;
     // Stop a second before the end so the episode can't roll on to the
     // next one while fading.
@@ -2266,23 +2891,26 @@ class PlayerController extends GetxController
     });
   }
 
+  /// The length the running timer was started with, for [restartSleepTimer].
+  int _sleepTimerLength = 0;
+
   bool startSleepTimer(int minutes) {
     if (!canArmSleepTimer(minutes)) return false;
     timerDuration = minutes * 60;
+    _sleepTimerLength = timerDuration;
     isSleepTimerActive.value = true;
     if ((sleepTimer != null && !sleepTimer!.isActive) || sleepTimer == null) {
       sleepTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
         final left = timerDuration - timer.tick;
         if (left > 0 &&
             !_sleepFadeStarted &&
-            isCurrentSongPodcast &&
-            !_videoModeActive &&
+            _sleepFades &&
             left <= sleepFadeLength.inSeconds) {
           _startSleepFade(Duration(seconds: left));
         }
         if (timer.tick == timerDuration) {
           sleepTimer?.cancel();
-          // A podcast fade pauses by itself.
+          // A fade pauses by itself.
           if (!_sleepFadeStarted) {
             pause(source: PlaybackCommandSource.sleepTimer);
           }
@@ -2302,10 +2930,43 @@ class PlayerController extends GetxController
     _cancelSleepFade();
   }
 
+  /// Back to the length the timer was started with (a shake, see
+  /// [SleepShake]), fading in again if it had begun to fade out.
+  void restartSleepTimer() {
+    final timer = sleepTimer;
+    if (timer == null || !timer.isActive || _sleepTimerLength <= 0) return;
+    timerDuration = timer.tick + _sleepTimerLength;
+    timerDurationLeft.value = _sleepTimerLength;
+    _cancelSleepFade();
+  }
+
   void _cancelSleepFade() {
     if (!_sleepFadeStarted) return;
     _sleepFadeStarted = false;
     _audioHandler.customAction('cancelSleepFade');
+  }
+
+  /// AntennaPod's automatic sleep timer: playback starting within its
+  /// hours starts the sleep timer, none running, for the length picked
+  /// last, and says so with Undo. [now] is for tests.
+  @visibleForTesting
+  void autoSleep({DateTime? now}) {
+    final at = now ?? DateTime.now();
+    if (!AutoSleepTimer.startsAt(at, timerRunning: isSleepTimerActive.isTrue)) {
+      return;
+    }
+    final minutes = AutoSleepTimer.minutes;
+    if (!startSleepTimer(minutes)) return;
+    showUndoSnackbar(undoSnackbarTarget(null),
+        'autoSleepTimerOn'.trParams({'time': formatSleepMinutes(minutes)}),
+        onUndo: turnOffSleepTimer);
+  }
+
+  /// You turned the sleep timer off: the automatic one doesn't start
+  /// again until its hours are over.
+  void turnOffSleepTimer() {
+    cancelSleepTimer();
+    AutoSleepTimer.decline(DateTime.now());
   }
 
   void cancelSleepTimer() {
@@ -2325,6 +2986,14 @@ class PlayerController extends GetxController
 
   Future<void> openEqualizer() async {
     await _audioHandler.customAction("openEqualizer");
+  }
+
+  /// The phone's equalizer bands for Riff's equalizer (null: it has none,
+  /// or nothing has played yet).
+  Future<EqualizerLayout?> equalizerLayout() async {
+    if (!_audioReady) return null;
+    return EqualizerLayout.fromMap(
+        await _audioHandler.customAction('equalizerLayout'));
   }
 
   /// Called from audio handler when audio is not playable, a stream resolve
@@ -2347,6 +3016,33 @@ class PlayerController extends GetxController
 
   void clearPlaybackError() {
     if (playbackError.value != null) playbackError.value = null;
+  }
+
+  /// An explicit song didn't play: explicit content is off (Settings).
+  void notifyExplicitOff() {
+    final context = Get.context;
+    if (context == null || !context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+        snackbar(context, "explicitOffMsg".tr, size: SanckBarSize.MEDIUM));
+  }
+
+  /// A song that needs a connection didn't play: there's none, Offline
+  /// mode is on, or it's mobile data with Stream on Wi-Fi only.
+  void notifyOffline() {
+    final context = Get.context;
+    if (context == null || !context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(snackbar(
+        context, OfflinePlayback.songMessageKey.tr,
+        size: SanckBarSize.MEDIUM));
+  }
+
+  /// Explicit content was turned off: an explicit song playing stops there
+  /// and the next one that may play starts (paused, the next Play skips it).
+  Future<void> skipIfExplicit() async {
+    if (ExplicitContent.blocks(currentSong.value) &&
+        buttonState.value == PlayButtonState.playing) {
+      await next();
+    }
   }
 
   /// Skip a dead stream and try the next queue item.
@@ -2456,12 +3152,21 @@ class PlayerController extends GetxController
     gesturePlayerStateAnimationController?.dispose();
     gesturePlayerStateAnimationController = null;
     sleepTimer?.cancel();
+    SleepShake.stop();
+    _lyricsPrefetchTimer?.cancel();
     if (GetPlatform.isWindows) {
       Get.delete<WindowsAudioService>();
     }
     _setWakelock(false);
+    playerPanelPosition.dispose();
     super.onClose();
   }
 }
 
 enum PlayButtonState { paused, playing, loading }
+
+/// Whether a lyrics lookup's [result] has no lyrics at all.
+bool lyricsMissing(Map<String, dynamic> result) =>
+    result['plainLyrics'] == 'NA' &&
+    '${result['synced'] ?? ''}'.isEmpty &&
+    '${result['ttml'] ?? ''}'.isEmpty;

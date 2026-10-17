@@ -10,6 +10,7 @@ import '/ui/player/player_controller.dart';
 import '/ui/widgets/snackbar.dart';
 import 'podcast_queue_screen.dart';
 import 'podcast_show_view.dart';
+import 'podcast_unsubscribe.dart';
 
 /// Episode list for one podcast; tap an episode to play it.
 class PodcastEpisodesScreen extends StatefulWidget {
@@ -24,6 +25,10 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
   List<Map<String, dynamic>> _episodes = [];
   bool _loading = true;
 
+  /// What the feed says about the show: its About, when the show came
+  /// without one (Apple's directory gives none).
+  String _about = '';
+
   @override
   void initState() {
     super.initState();
@@ -31,11 +36,12 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
   }
 
   Future<void> _load() async {
-    final eps = await PodcastService.episodes(widget.podcast['feedUrl'],
+    final feed = await PodcastService.feed(widget.podcast['feedUrl'],
         widget.podcast['title'] ?? '', widget.podcast['artwork'] ?? '');
     if (mounted) {
       setState(() {
-        _episodes = eps;
+        _episodes = feed.episodes;
+        _about = feed.about;
         _items = null;
         _loading = false;
       });
@@ -67,6 +73,8 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
           if (e['chaptersUrl'] != null) 'chaptersUrl': e['chaptersUrl'],
           if (e['transcriptUrl'] != null) 'transcriptUrl': e['transcriptUrl'],
           if (e['transcriptUrl'] != null) 'transcriptType': e['transcriptType'],
+          if (e['link'] != null) 'link': e['link'],
+          ...episodeNumbering(e),
         },
       );
 
@@ -92,6 +100,8 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
           if (e['chaptersUrl'] != null) 'chaptersUrl': e['chaptersUrl'],
           if (e['transcriptUrl'] != null) 'transcriptUrl': e['transcriptUrl'],
           if (e['transcriptUrl'] != null) 'transcriptType': e['transcriptType'],
+          if (e['link'] != null) 'link': e['link'],
+          ...episodeNumbering(e),
         },
       );
 
@@ -105,7 +115,8 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
   Future<void> _toggleSubscribe() async {
     final feed = widget.podcast['feedUrl'] ?? '';
     if (PodcastService.isSubscribed(feed)) {
-      await PodcastService.unsubscribe(feed);
+      await unsubscribeWithUndo(feed, '${widget.podcast['title'] ?? ''}',
+          context: context);
     } else {
       await PodcastService.subscribe(widget.podcast);
     }
@@ -127,7 +138,8 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
         title: (widget.podcast['title'] ?? '').toString(),
         author: (widget.podcast['author'] ?? '').toString(),
         artUrl: (widget.podcast['artwork'] ?? '').toString(),
-        description: (widget.podcast['description'] ?? '').toString(),
+        description: [widget.podcast['description']?.toString() ?? '', _about]
+            .firstWhere((d) => d.trim().isNotEmpty, orElse: () => ''),
         episodes: _loading ? const [] : _mediaItems,
         loading: _loading,
         subscribed: PodcastService.isSubscribed(feed),

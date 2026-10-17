@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -11,6 +12,8 @@ import '../player_controller.dart';
 import '../player_media_nav.dart';
 import 'albumart_lyrics.dart';
 import 'backgroud_image.dart';
+import 'cover_palette.dart';
+import 'hero_art_morph.dart';
 import 'long_form_player.dart' show openLongFormMenu;
 import 'lyrics_switch.dart';
 import 'lyrics_widget.dart';
@@ -40,135 +43,199 @@ class StandardPlayer extends StatelessWidget {
           Get.find<SettingsScreenController>().playerCanvas.isTrue;
 
       final bg = Theme.of(context).colorScheme.surface;
+      // Dark themes: the page takes the cover's colours. The light theme's
+      // dark text needs its light page, so it keeps the black-tint look.
+      final coverLook = Theme.of(context).brightness == Brightness.dark;
+      final palette = coverLook && !showVideo
+          ? PlayerCoverColors.of(playerController.currentSong.value) ??
+              CoverPalette(fill: bg, deep: bg, glow: bg)
+          : null;
+      // Portrait phone: the cover morphs into the mini player's art when
+      // the player is minimised. Wide screens keep their own mini player.
+      final heroArt = !context.isLandscape && !showVideo;
+      final morph = heroArt && size.width <= _morphMaxWidth;
+      final thumb = _miniArtRect(context,
+          playerController.playerPanelMinHeight.value);
+      final full = Rect.fromLTWH(0, 0, size.width, _heroArtHeight(size));
+      final position = playerController.playerPanelPosition;
+
       return Stack(
         children: [
-          // Skip HQ album-art decode + blur under live video — solid scrim only.
-          if (showVideo) ...[
-            Positioned.fill(
-              child: ColoredBox(color: bg),
-            ),
-          ] else ...[
-            Positioned.fill(child: ColoredBox(color: bg)),
-            const BackgroudImage(),
-            // Lighter than BackdropFilter blur — the page colour over the
-            // art lets at most 20% of it through at the top, none lower
-            // down, without per-frame save-layer cost while the panel
-            // animates.
-            Stack(
+          // Page: fades out on the way down so the screen behind shows
+          // through, like a sheet being lowered.
+          _PanelFade(
+            position: position,
+            enabled: morph,
+            opacity: HeroArtMorph.pageOpacity,
+            child: showVideo
+                // Skip HQ album-art decode + blur under live video.
+                ? ColoredBox(color: bg)
+                : palette != null
+                    ? CoverBackdrop(palette: palette, drift: canvasOn)
+                    : _ClassicBackdrop(canvasOn: canvasOn),
+          ),
+          // Portrait: the cover fills the top of the screen and fades into
+          // the page where the controls start.
+          if (heroArt)
+            morph
+                ? ValueListenableBuilder<double>(
+                    valueListenable: position,
+                    builder: (context, p, child) => _MorphingArt(
+                        progress: p, thumb: thumb, full: full, child: child!),
+                    child: const BackgroudImage(),
+                  )
+                : _MorphingArt(
+                    progress: 1,
+                    thumb: full,
+                    full: full,
+                    child: const BackgroudImage()),
+          _PanelFade(
+            position: position,
+            enabled: morph,
+            opacity: HeroArtMorph.controlsOpacity,
+            child: Stack(
               children: [
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          bg.withOpacity(1 - RiffPalette.playerTintOpacity),
-                          bg,
-                        ],
-                        stops: const [0, 0.6],
-                      ),
-                    ),
-                  ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.xxl),
+                  child: (context.isLandscape)
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: size.width * .45,
+                              child: Padding(
+                                padding: const EdgeInsets.only(
+                                    bottom: 90.0, top: RiffSpacing.unit * 10),
+                                child: Center(
+                                  child: AlbumArtNLyrics(
+                                    playerArtImageSize: size.width * .29,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(
+                              width: size.width * .48,
+                              child: Padding(
+                                padding: EdgeInsets.only(
+                                    left: 10.0,
+                                    right: 10,
+                                    bottom: RiffSpacing.unit * 20 +
+                                        Get.mediaQuery.padding.bottom),
+                                child: const PlayerControlWidget(),
+                              ),
+                            )
+                          ],
+                        )
+                      : Column(
+                          children: [
+                            SizedBox(
+                                height:
+                                    Get.mediaQuery.padding.top + PlayerTopBar.height),
+                            // The cover itself is the backdrop; this layer takes
+                            // the taps and swipes and hosts lyrics / video.
+                            Expanded(
+                              child: _HeroArtRegion(
+                                  isVideo: isVideo,
+                                  showVideo: showVideo,
+                                  veil: palette?.fill),
+                            ),
+                            const SizedBox(height: RiffSpacing.sm),
+                            Padding(
+                              padding: EdgeInsets.only(
+                                  bottom: RiffSpacing.unit * 20 +
+                                      Get.mediaQuery.padding.bottom),
+                              child: Container(
+                                constraints: const BoxConstraints(maxWidth: 500),
+                                child: const PlayerControlWidget(),
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
-                if (canvasOn)
-                  const Positioned.fill(
-                    child: RepaintBoundary(child: PlayerCanvasBackdrop()),
-                  ),
-                // Portrait: the cover fills the top of the screen and fades
-                // into the tinted backdrop where the controls start.
-                if (!context.isLandscape)
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: _heroArtHeight(size),
-                    child: const _HeroArtBackdrop(),
-                  ),
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Container(
-                    height: 65 + Get.mediaQuery.padding.bottom + 120,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          bg,
-                          bg,
-                          bg.withOpacity(0.4),
-                          bg.withOpacity(0),
-                        ],
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        stops: const [0, 0.5, 0.8, 1],
-                      ),
-                    ),
-                  ),
-                ),
+
+                if (!(context.isLandscape && GetPlatform.isMobile))
+                  const PlayerTopBar(),
               ],
             ),
-          ],
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.xxl),
-            child: (context.isLandscape)
-                ? Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: size.width * .45,
-                        child: Padding(
-                          padding: const EdgeInsets.only(
-                              bottom: 90.0, top: RiffSpacing.unit * 10),
-                          child: Center(
-                            child: AlbumArtNLyrics(
-                              playerArtImageSize: size.width * .29,
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        width: size.width * .48,
-                        child: Padding(
-                          padding: EdgeInsets.only(
-                              left: 10.0,
-                              right: 10,
-                              bottom: RiffSpacing.unit * 20 +
-                                  Get.mediaQuery.padding.bottom),
-                          child: const PlayerControlWidget(),
-                        ),
-                      )
-                    ],
-                  )
-                : Column(
-                    children: [
-                      SizedBox(
-                          height:
-                              Get.mediaQuery.padding.top + PlayerTopBar.height),
-                      // The cover itself is the backdrop; this layer takes
-                      // the taps and swipes and hosts lyrics / video.
-                      Expanded(
-                        child: _HeroArtRegion(
-                            isVideo: isVideo, showVideo: showVideo),
-                      ),
-                      const SizedBox(height: RiffSpacing.sm),
-                      Padding(
-                        padding: EdgeInsets.only(
-                            bottom: RiffSpacing.unit * 20 +
-                                Get.mediaQuery.padding.bottom),
-                        child: Container(
-                          constraints: const BoxConstraints(maxWidth: 500),
-                          child: const PlayerControlWidget(),
-                        ),
-                      ),
-                    ],
-                  ),
           ),
-
-          if (!(context.isLandscape && GetPlatform.isMobile))
-            const PlayerTopBar(),
         ],
       );
     });
+  }
+
+  /// Wider screens have the desktop mini player, laid out differently.
+  static const double _morphMaxWidth = 800;
+}
+
+/// Where the mini player draws its art, in the player panel's own
+/// coordinates (the panel's top edge is the mini player's top edge):
+/// mirrors MiniPlayer's card insets and row padding.
+Rect _miniArtRect(BuildContext context, double miniPlayerHeight) {
+  final bottom = MediaQuery.viewPaddingOf(context).bottom;
+  final cardHeight = miniPlayerHeight - bottom - RiffSpacing.sm;
+  const size = RiffComponentSizes.miniArt;
+  return Rect.fromLTWH(
+      RiffSpacing.md * 2, (cardHeight - size) / 2, size, size);
+}
+
+/// Fades [child] with the panel [position] through [opacity]; a plain
+/// pass-through when [enabled] is false or the panel is fully open.
+class _PanelFade extends StatelessWidget {
+  const _PanelFade({
+    required this.position,
+    required this.enabled,
+    required this.opacity,
+    required this.child,
+  });
+  final ValueListenable<double> position;
+  final bool enabled;
+  final double Function(double) opacity;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!enabled) return Positioned.fill(child: child);
+    return Positioned.fill(
+      child: ValueListenableBuilder<double>(
+        valueListenable: position,
+        // Opacity 0 skips painting but keeps the player mounted, so video,
+        // lyrics and scroll state survive a minimise.
+        builder: (context, p, child) =>
+            Opacity(opacity: opacity(p), child: child),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// The cover at its place in the minimise / expand morph: a rounded card
+/// between the mini player's art and the full-bleed top of the player.
+class _MorphingArt extends StatelessWidget {
+  const _MorphingArt({
+    required this.progress,
+    required this.thumb,
+    required this.full,
+    required this.child,
+  });
+  final double progress;
+  final Rect thumb;
+  final Rect full;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = HeroArtMorph.radius(progress, thumbRadius: thumb.width / 2);
+    final fade = HeroArtMorph.fade(progress);
+    return Positioned.fromRect(
+      rect: HeroArtMorph.rect(progress, thumb: thumb, full: full),
+      child: IgnorePointer(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(radius),
+          clipBehavior: radius > 0 ? Clip.antiAlias : Clip.none,
+          child: _HeroArtFade(fade: fade, child: child),
+        ),
+      ),
+    );
   }
 }
 
@@ -263,10 +330,14 @@ class PlayerTopBar extends StatelessWidget {
 double _heroArtHeight(Size size) =>
     size.width > size.height * 0.58 ? size.width : size.height * 0.58;
 
-/// Sharp cover across the top that fades out towards the controls, over
-/// the tinted ambience the rest of the player uses.
-class _HeroArtBackdrop extends StatelessWidget {
-  const _HeroArtBackdrop();
+/// The cover: sharp across the top, fading out towards the controls by
+/// [fade] (1 when the player is open, 0 while it's a small card), with a
+/// scrim at the top that keeps the "playing from" header readable on
+/// bright covers.
+class _HeroArtFade extends StatelessWidget {
+  const _HeroArtFade({required this.fade, required this.child});
+  final double fade;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
@@ -275,31 +346,93 @@ class _HeroArtBackdrop extends StatelessWidget {
       shaderCallback: (rect) => LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [riff.onImage, riff.onImage, Colors.transparent],
-        stops: const [0, 0.5, 1],
+        colors: [
+          riff.onImage,
+          riff.onImage,
+          riff.onImage.withOpacity(1 - fade),
+        ],
+        stops: const [0, 0.62, 1],
       ).createShader(Rect.fromLTWH(0, 0, rect.width, rect.height)),
       blendMode: BlendMode.dstIn,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          const BackgroudImage(),
-          // Keeps the "playing from" header readable on bright covers.
-          DecoratedBox(
+          child,
+          if (fade > 0)
+            Opacity(
+              opacity: fade,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      riff.scrim.withOpacity(RiffPalette.playerHeaderScrim),
+                      riff.scrim
+                          .withOpacity(RiffPalette.playerHeaderScrimMid),
+                      Colors.transparent,
+                    ],
+                    stops: const [0, 0.22, 0.42],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The light theme's page (and the look before cover colours): black with
+/// at most a 20% album-art tint at the top, optional ambient canvas.
+class _ClassicBackdrop extends StatelessWidget {
+  const _ClassicBackdrop({required this.canvasOn});
+  final bool canvasOn;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = Theme.of(context).colorScheme.surface;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ColoredBox(color: bg),
+        const BackgroudImage(),
+        // Lighter than BackdropFilter blur — the page colour over the art
+        // lets at most 20% of it through at the top, none lower down.
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                bg.withOpacity(1 - RiffPalette.playerTintOpacity),
+                bg,
+              ],
+              stops: const [0, 0.6],
+            ),
+          ),
+        ),
+        if (canvasOn) const RepaintBoundary(child: PlayerCanvasBackdrop()),
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: Container(
+            height: 65 + Get.mediaQuery.padding.bottom + 120,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
                 colors: [
-                  riff.scrim.withOpacity(RiffPalette.playerHeaderScrim),
-                  riff.scrim.withOpacity(RiffPalette.playerHeaderScrimMid),
-                  Colors.transparent,
+                  bg,
+                  bg,
+                  bg.withOpacity(0.4),
+                  bg.withOpacity(0),
                 ],
-                stops: const [0, 0.22, 0.42],
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                stops: const [0, 0.5, 0.8, 1],
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -308,9 +441,14 @@ class _HeroArtBackdrop extends StatelessWidget {
 /// video), swipe to skip, long-press for the song menu. Hosts the lyrics
 /// overlay, the video surface and the show-video button.
 class _HeroArtRegion extends StatelessWidget {
-  const _HeroArtRegion({required this.isVideo, required this.showVideo});
+  const _HeroArtRegion(
+      {required this.isVideo, required this.showVideo, this.veil});
   final bool isVideo;
   final bool showVideo;
+
+  /// Colour the lyrics dim the cover with: the cover-coloured page's fill,
+  /// else the page colour.
+  final Color? veil;
 
   @override
   Widget build(BuildContext context) {
@@ -321,16 +459,18 @@ class _HeroArtRegion extends StatelessWidget {
       if (song == null) return const SizedBox.shrink();
       // Lyrics dim the cover with the page colour, so their text reads in
       // the page's text colours.
-      final page = Theme.of(context).colorScheme.surface;
+      final page = veil ?? Theme.of(context).colorScheme.surface;
+      void onTap() {
+        if (showVideo) {
+          playerController.playPause();
+        } else {
+          playerController.showLyrics();
+        }
+      }
+
       return GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () {
-          if (showVideo) {
-            playerController.playPause();
-          } else {
-            playerController.showLyrics();
-          }
-        },
+        onTap: onTap,
         onLongPress: () {
           HapticFeedback.mediumImpact();
           openNowPlayingSheet(playerController);
@@ -368,7 +508,8 @@ class _HeroArtRegion extends StatelessWidget {
                     children: [
                       LyricsWidget(
                           padding: EdgeInsets.symmetric(
-                              vertical: box.maxHeight / 4)),
+                              vertical: box.maxHeight / 4),
+                          onTap: onTap),
                       IgnorePointer(
                         child: DecoratedBox(
                           decoration: BoxDecoration(

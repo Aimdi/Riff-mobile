@@ -347,7 +347,7 @@ MediaItem parseSongFlat(Map<String, dynamic> data) {
             noneIfAbsent: true, funName: "parseSongFlat"),
     'artists': parseSongArtists(data, 1),
     'thumbnails': nav(data, thumbnails),
-    //'isExplicit': nav(data, badge_label, noneIfAbsent: true) != null
+    'isExplicit': hasExplicitBadge(data),
   };
 //checkpoint .contains
   if (columns.length > 2 && columns[2].isNotEmpty) {
@@ -437,6 +437,7 @@ Map<String, dynamic> parseWatchTrack(Map<String, dynamic> data) {
     'length': nav(data, ['lengthText', 'runs', 0, 'text']),
     'thumbnails': nav(data, thumbnail),
     'videoType': nav(data, ['navigationEndpoint'] + navigation_video_type),
+    'isExplicit': hasExplicitBadge(data),
   };
   track.addAll(songInfo);
   return track;
@@ -562,7 +563,8 @@ List<dynamic> parsePlaylistItems(List<dynamic> results,
       'artists': artists ?? artistsM,
       'thumbnails': isAlbum ? thumbnailsM : thumbnails_ ?? thumbnailsM,
       'isAvailable': isAvailable,
-      'trackDetails': trackDetails
+      'trackDetails': trackDetails,
+      'isExplicit': hasExplicitBadge(data),
     };
 
     if (duration != null) {
@@ -600,6 +602,10 @@ String? getBrowseId(Map<String, dynamic> item, int index) {
   }
   return null;
 }
+
+/// Whether a YouTube Music row carries the explicit ("E") badge, read as
+/// ytmusicapi reads it.
+bool hasExplicitBadge(dynamic data) => nav(data, badge_label) != null;
 
 dynamic nav(dynamic root, List items,
     {bool noneIfAbsent = false, String funName = "d"}) {
@@ -867,7 +873,7 @@ dynamic parseSearchResult(Map<String, dynamic> data,
   }
 
   if ((['song', 'album']).contains(resultType)) {
-    searchResult['isExplicit'] = nav(data, badge_label);
+    searchResult['isExplicit'] = hasExplicitBadge(data);
   }
 
   searchResult['thumbnails'] = nav(data, thumbnails);
@@ -1258,7 +1264,9 @@ Map<String, dynamic> parseArtistContents(List results) {
         content = contentList
             .map((album) => parseAlbum(album['musicTwoRowItemRenderer']))
             .toList();
-      } else if (title == "Singles") {
+      } else if (title == "Singles" || title == "Singles & EPs") {
+        // YouTube Music's shelf is "Singles & EPs" now (the artist screen
+        // reads it as Singles).
         content = contentList
             .map((single) => parseSingle(single['musicTwoRowItemRenderer']))
             .toList();

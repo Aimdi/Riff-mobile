@@ -1,19 +1,49 @@
+import 'dart:math' as math;
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/services/smart_shuffle.dart';
+import 'package:harmonymusic/ui/player/play_queue_order.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:harmonymusic/ui/theme/riff_spacing.dart';
+import 'package:harmonymusic/ui/theme/riff_text_metrics.dart';
 import 'package:harmonymusic/ui/theme/riff_tokens.dart';
-import 'package:widget_marquee/widget_marquee.dart';
 
 import 'image_widget.dart';
+import 'queue_undo.dart';
 import 'snackbar.dart';
+import 'now_playing_bars.dart';
 import 'song_list_tile.dart' show RiffRowHairline;
 import 'songinfo_bottom_sheet.dart';
+import 'riff_marquee.dart';
 
 const double _kQueueRowExtent = 64;
 const double _kSectionLabelExtent = 34;
+
+/// Room around the label's line, above the row it names.
+const double _kSectionLabelInsets = RiffSpacing.md + RiffSpacing.xs;
+
+/// A row's height: [_kQueueRowExtent] as designed, or as tall as its two
+/// lines need once a larger font size makes them taller.
+double _queueRowExtent(BuildContext context) {
+  final text = Theme.of(context).textTheme;
+  return math.max(
+      _kQueueRowExtent,
+      riffLineHeight(context, text.titleMedium) +
+          RiffSpacing.xxs +
+          riffLineHeight(context, text.bodyMedium) +
+          2 * RiffSpacing.sm);
+}
+
+/// The Now playing / Next up label's height: [_kSectionLabelExtent] as
+/// designed, or as tall as its line needs at a larger font size.
+double _sectionLabelExtent(BuildContext context) =>
+    riffLineBox(context, Theme.of(context).textTheme.labelSmall,
+        _kSectionLabelExtent - _kSectionLabelInsets) +
+    _kSectionLabelInsets;
 
 String _queueTr(String key, String fallback) {
   final translated = key.tr;
@@ -38,6 +68,8 @@ class UpNextQueue extends StatelessWidget {
   Widget build(BuildContext context) {
     final playerController = Get.find<PlayerController>();
     final accent = Theme.of(context).colorScheme.secondary;
+    final rowExtent = _queueRowExtent(context);
+    final labelExtent = _sectionLabelExtent(context);
     return Container(
       color: Theme.of(context).bottomSheetTheme.backgroundColor,
       child: Obx(() {
@@ -65,12 +97,12 @@ class UpNextQueue extends StatelessWidget {
           // Extra height only on the Now playing / Next up section rows.
           itemExtentBuilder: (index, _) {
             if (index == currentIndex) {
-              return _kQueueRowExtent + _kSectionLabelExtent;
+              return rowExtent + labelExtent;
             }
             if (index == currentIndex + 1) {
-              return _kQueueRowExtent + _kSectionLabelExtent;
+              return rowExtent + labelExtent;
             }
-            return _kQueueRowExtent;
+            return rowExtent;
           },
           padding: EdgeInsets.only(
               top: isQueueInSlidePanel ? topPadding : 0,
@@ -160,7 +192,7 @@ class _QueueSongRow extends StatelessWidget {
       children: [
         if (sectionLabel != null)
           Container(
-            height: _kSectionLabelExtent,
+            height: _sectionLabelExtent(context),
             color:
                 Theme.of(homeScaffoldContext).bottomSheetTheme.backgroundColor,
             child: Padding(
@@ -185,127 +217,199 @@ class _QueueSongRow extends StatelessWidget {
             opacity: isPlayed ? _playedOpacity : kAlwaysCompleteAnimation,
             child: Dismissible(
               key: ValueKey('dismiss_${song.id}'),
-              direction: DismissDirection.horizontal,
+              // The playing song can't be removed, so it doesn't swipe.
+              direction: isCurrent
+                  ? DismissDirection.none
+                  : DismissDirection.horizontal,
               confirmDismiss: (direction) async => !isCurrent,
               onDismissed: (direction) {
-                playerController.removeFromQueue(song);
+                removeFromQueueWithUndo(song, context: context);
               },
-              child: Stack(
-                // Expand so the row still fills the fixed queue extent.
-                fit: StackFit.expand,
-                children: [
-                  Material(
-                    // Now playing: flat accentMuted tint (§5.2).
-                    color: isCurrent
-                        ? RiffColors.of(context).accentMuted
-                        : Theme.of(homeScaffoldContext)
-                            .bottomSheetTheme
-                            .backgroundColor,
-                    child: InkWell(
-                      onTap: () => playerController.seekByIndex(index),
-                      onLongPress: () {
-                        HapticFeedback.mediumImpact();
-                        openMenu();
-                      },
-                      child: Padding(
-                        // 16h like every row; the drag handle brings its own
-                        // trailing room. Vertical padding comes from the fixed
-                        // 64dp queue extent (48 art centred).
-                        padding: const EdgeInsets.only(
-                            left: RiffSpacing.lg, right: RiffSpacing.xs),
-                        child: Row(
-                          children: [
-                            if (GetPlatform.isDesktop)
-                              IconButton(
-                                  tooltip: 'removeFromQueue'.tr,
-                                  onPressed: () {
-                                    if (isCurrent) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(snackbar(context,
-                                              "songRemovedfromQueueCurrSong".tr,
-                                              size: SanckBarSize.BIG));
-                                    } else {
-                                      playerController.removeFromQueue(song);
-                                    }
-                                  },
-                                  icon: const Icon(Icons.close)),
-                            ImageWidget(
-                              size: RiffComponentSizes.rowArt,
-                              song: song,
-                              borderRadius: RiffRadii.xs,
-                            ),
-                            const SizedBox(width: RiffSpacing.md),
-                            Expanded(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Marquee(
-                                    delay: const Duration(milliseconds: 300),
-                                    duration: const Duration(seconds: 5),
-                                    id: "queue${song.title.hashCode}",
-                                    child: Text(
-                                      song.title,
-                                      maxLines: 1,
-                                      style: text.titleMedium?.copyWith(
-                                        color: isCurrent ? accent : fg,
+              // What the swipe does, on the side it uncovers.
+              background:
+                  const _QueueRemoveBackground(alignment: Alignment.centerLeft),
+              secondaryBackground: const _QueueRemoveBackground(
+                  alignment: Alignment.centerRight),
+              // The swipe, for screen readers (TalkBack's row actions).
+              child: Semantics(
+                customSemanticsActions: {
+                  if (!isCurrent)
+                    CustomSemanticsAction(label: 'removeFromQueue'.tr): () =>
+                        removeFromQueueWithUndo(song, context: context),
+                },
+                child: Stack(
+                  // Expand so the row still fills the fixed queue extent.
+                  fit: StackFit.expand,
+                  children: [
+                    Material(
+                      // Now playing: flat accentMuted tint (§5.2).
+                      color: isCurrent
+                          ? RiffColors.of(context).accentMuted
+                          : Theme.of(homeScaffoldContext)
+                              .bottomSheetTheme
+                              .backgroundColor,
+                      child: InkWell(
+                        onTap: () => playerController.seekByIndex(index),
+                        onLongPress: () {
+                          HapticFeedback.mediumImpact();
+                          openMenu();
+                        },
+                        child: Padding(
+                          // 16h like every row; the drag handle brings its own
+                          // trailing room. Vertical padding comes from the fixed
+                          // 64dp queue extent (48 art centred).
+                          padding: const EdgeInsets.only(
+                              left: RiffSpacing.lg, right: RiffSpacing.xs),
+                          child: Row(
+                            children: [
+                              if (GetPlatform.isDesktop)
+                                IconButton(
+                                    tooltip: 'removeFromQueue'.tr,
+                                    onPressed: () {
+                                      if (isCurrent) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(snackbar(
+                                                context,
+                                                "songRemovedfromQueueCurrSong"
+                                                    .tr,
+                                                size: SanckBarSize.BIG));
+                                      } else {
+                                        removeFromQueueWithUndo(song,
+                                            context: context);
+                                      }
+                                    },
+                                    icon: const Icon(Icons.close)),
+                              ImageWidget(
+                                size: RiffComponentSizes.rowArt,
+                                song: song,
+                                borderRadius: RiffRadii.xs,
+                              ),
+                              const SizedBox(width: RiffSpacing.md),
+                              Expanded(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    RiffMarquee(
+                                      delay: const Duration(milliseconds: 300),
+                                      duration: const Duration(seconds: 5),
+                                      id: "queue${song.title.hashCode}",
+                                      child: Text(
+                                        song.title,
+                                        maxLines: 1,
+                                        style: text.titleMedium?.copyWith(
+                                          color: isCurrent ? accent : fg,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(height: RiffSpacing.xxs),
-                                  Text(
-                                    song.artist ?? '',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: text.bodyMedium?.copyWith(
-                                      color: muted,
+                                    const SizedBox(height: RiffSpacing.xxs),
+                                    Row(
+                                      children: [
+                                        // Mixed in by Smart shuffle.
+                                        if (isSmartShufflePick(song)) ...[
+                                          Semantics(
+                                            label: 'smartShufflePick'.tr,
+                                            child: Icon(
+                                                Icons.auto_awesome_rounded,
+                                                size: RiffSizes.chipGlyph,
+                                                color: muted),
+                                          ),
+                                          const SizedBox(width: RiffSpacing.xs),
+                                        ],
+                                        // One you queued, still to come:
+                                        // kept when something else starts.
+                                        if (!isCurrent &&
+                                            !isPlayed &&
+                                            isQueuedByYou(song)) ...[
+                                          Semantics(
+                                            label: 'queuedByYou'.tr,
+                                            child: Icon(
+                                                Icons.queue_music_rounded,
+                                                size: RiffSizes.chipGlyph,
+                                                color: muted),
+                                          ),
+                                          const SizedBox(width: RiffSpacing.xs),
+                                        ],
+                                        Expanded(
+                                          child: Text(
+                                            song.artist ?? '',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: text.bodyMedium?.copyWith(
+                                              color: muted,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: RiffSpacing.sm),
-                            if (isCurrent)
-                              Icon(Icons.equalizer_rounded,
-                                  color: accent,
-                                  size: RiffComponentSizes.trailingIcon)
-                            else
-                              Text(
-                                '${song.extras?['length'] ?? ''}',
-                                style: text.bodyMedium?.copyWith(color: muted),
-                              ),
-                            if (!GetPlatform.isDesktop)
-                              ReorderableDragStartListener(
-                                index: index,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: RiffSpacing.md,
-                                      vertical: RiffSpacing.lg),
-                                  child: Icon(Icons.drag_handle_rounded,
-                                      color: muted,
-                                      size: RiffComponentSizes.trailingIcon),
+                                  ],
                                 ),
-                              )
-                            else
-                              const SizedBox(width: RiffSpacing.lg),
-                          ],
+                              ),
+                              const SizedBox(width: RiffSpacing.sm),
+                              if (isCurrent)
+                                const NowPlayingBars()
+                              else
+                                Text(
+                                  '${song.extras?['length'] ?? ''}',
+                                  style:
+                                      text.bodyMedium?.copyWith(color: muted),
+                                ),
+                              if (!GetPlatform.isDesktop)
+                                ReorderableDragStartListener(
+                                  index: index,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: RiffSpacing.md,
+                                        vertical: RiffSpacing.lg),
+                                    child: Icon(Icons.drag_handle_rounded,
+                                        color: muted,
+                                        size: RiffComponentSizes.trailingIcon),
+                                  ),
+                                )
+                              else
+                                const SizedBox(width: RiffSpacing.lg),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  // Inset hairline from the text column, inside the row's
-                  // bottom edge (desktop rows lead with a remove button, so
-                  // theirs runs full width).
-                  RiffRowHairline(
-                      inset: GetPlatform.isDesktop
-                          ? 0
-                          : RiffRowHairline.textInset),
-                ],
+                    // Inset hairline from the text column, inside the row's
+                    // bottom edge (desktop rows lead with a remove button, so
+                    // theirs runs full width).
+                    RiffRowHairline(
+                        inset: GetPlatform.isDesktop
+                            ? 0
+                            : RiffRowHairline.textInset),
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Uncovered by swiping a queued song away: a remove glyph on the danger
+/// tint, on the side the row is leaving from.
+class _QueueRemoveBackground extends StatelessWidget {
+  const _QueueRemoveBackground({required this.alignment});
+  final Alignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    final danger = Theme.of(context).colorScheme.error;
+    return ColoredBox(
+      color: danger.withOpacity(RiffPalette.accentMutedOpacity),
+      child: Align(
+        alignment: alignment,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.xl),
+          child: Icon(Icons.remove_circle_outline_rounded,
+              color: danger, size: RiffComponentSizes.headerIcon),
+        ),
+      ),
     );
   }
 }

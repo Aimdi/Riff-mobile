@@ -166,7 +166,31 @@ enum DiscoverySource {
         return false;
     }
   }
+
+  /// Picked for you, by Riff or YouTube Music (radio, Autoplay, the mixes,
+  /// Smart shuffle, similar songs): what "Not interested" is for.
+  bool get isPickedForYou => switch (this) {
+        DiscoverySource.radio ||
+        DiscoverySource.dailyMix ||
+        DiscoverySource.freshFinds ||
+        DiscoverySource.discover ||
+        DiscoverySource.related ||
+        DiscoverySource.similar ||
+        DiscoverySource.smartShuffle =>
+          true,
+        _ => false,
+      };
+
+  /// Played from podcasts or audiobooks: not music (see [isLongFormId]).
+  bool get isLongForm =>
+      this == DiscoverySource.podcast || this == DiscoverySource.audiobook;
 }
+
+/// A podcast episode's (RSS) or an audiobook chapter's id (LibriVox,
+/// Audiobookshelf). They aren't music, so they stay out of your taste, as
+/// Spotify keeps podcasts out of its music mixes.
+bool isLongFormId(String id) =>
+    id.startsWith('podcast_') || id.startsWith('lv_') || id.startsWith('abs_');
 
 /// Logged event kinds.
 enum DiscoveryEventKind {
@@ -275,12 +299,47 @@ class DiscoverySurface {
   static const String fansAlsoLike = 'fans_also_like';
 }
 
+/// The parts of a day the daylist follows, as Spotify's daylist changes
+/// through the day: morning from 5, afternoon from 12, evening from 17 and
+/// night from 21 to 5 the next morning (local time).
+enum DayPart {
+  morning(5),
+  afternoon(12),
+  evening(17),
+  night(21);
+
+  const DayPart(this.startHour);
+
+  /// The hour this part of the day begins.
+  final int startHour;
+
+  static DayPart of(DateTime t) {
+    final h = t.hour;
+    if (h >= night.startHour || h < morning.startHour) return night;
+    if (h >= evening.startHour) return evening;
+    if (h >= afternoon.startHour) return afternoon;
+    return morning;
+  }
+
+  /// When the part of the day [t] is in began; a night's small hours
+  /// belong to the evening before.
+  static DateTime startOf(DateTime t) {
+    final part = of(t);
+    final day = part == night && t.hour < morning.startHour
+        ? DateTime(t.year, t.month, t.day - 1)
+        : t;
+    return DateTime(day.year, day.month, day.day, part.startHour);
+  }
+}
+
 /// Playlist kind flags for system-generated mixes.
 class MixKind {
   static const String dailyMix = 'daily_mix';
   static const String freshFinds = 'fresh_finds';
   static const String releaseRadar = 'release_radar';
   static const String rediscover = 'rediscover';
+  static const String onRepeat = 'on_repeat';
+  static const String daylist = 'daylist';
 }
 
 /// Per-track listen stats stored in `riff_track_stats`.

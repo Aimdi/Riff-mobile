@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
 import '/services/folder_cover.dart';
+import '/services/podcast_playback_profile.dart';
 import '/ui/theme/palettes/podcast_folders.dart';
 
 export '/ui/theme/palettes/podcast_folders.dart' show PodcastFolderColors;
@@ -14,6 +15,19 @@ String podcastFolderIdForFeed(String feedUrl) => 'rss:$feedUrl';
 /// The feed URL in a folder entry, or null for a YouTube show.
 String? feedUrlFromFolderId(String id) =>
     id.startsWith('rss:') ? id.substring(4) : null;
+
+/// The [podcastShowKey]s of a folder's shows ([PodcastFolder.podcastIds]).
+Set<String> podcastFolderShowKeys(Iterable<String> podcastIds) {
+  final keys = <String>{};
+  for (final id in podcastIds) {
+    final feed = feedUrlFromFolderId(id);
+    final key = feed != null
+        ? podcastShowKeyForFeed(feed)
+        : podcastShowKeyForYoutube(id);
+    if (key != null) keys.add(key);
+  }
+  return keys;
+}
 
 /// Move an item in a list the way ReorderableListView reports it.
 List<T> reorderList<T>(List<T> list, int oldIndex, int newIndex) {
@@ -161,11 +175,32 @@ class PodcastFolderController extends GetxController {
     _persist();
   }
 
-  /// Remove a podcast from every folder (e.g. when unsubscribed).
-  void removeEverywhere(String podcastId) {
-    var changed = false;
+  /// Remove a podcast from every folder (e.g. when unsubscribed). Returns
+  /// where it was (folder id → position), for [putBack].
+  Map<String, int> removeEverywhere(String podcastId) {
+    final places = <String, int>{};
     for (final f in folders) {
-      if (f.podcastIds.remove(podcastId)) changed = true;
+      final i = f.podcastIds.indexOf(podcastId);
+      if (i < 0) continue;
+      f.podcastIds.removeAt(i);
+      places[f.id] = i;
+    }
+    if (places.isNotEmpty) {
+      folders.refresh();
+      _persist();
+    }
+    return places;
+  }
+
+  /// Undo for [removeEverywhere]: back into the folders that still exist,
+  /// at the same positions.
+  void putBack(String podcastId, Map<String, int> places) {
+    var changed = false;
+    for (final MapEntry(key: folderId, value: index) in places.entries) {
+      final f = findById(folderId);
+      if (f == null || f.podcastIds.contains(podcastId)) continue;
+      f.podcastIds.insert(index.clamp(0, f.podcastIds.length), podcastId);
+      changed = true;
     }
     if (changed) {
       folders.refresh();

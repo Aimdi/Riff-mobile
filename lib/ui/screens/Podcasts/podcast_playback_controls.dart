@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/services/audiobook_playback.dart';
 import '/services/podcast_playback_profile.dart';
 import '/ui/player/player_controller.dart';
 import '../../widgets/cust_switch.dart';
@@ -89,8 +90,8 @@ class LongFormSkipButton extends StatelessWidget {
       final podcast = pc.isCurrentSongPodcast;
       final profile = podcast ? pc.currentPodcastProfile : null;
       final secs = forward
-          ? (profile?.skipForwardSec ?? 30)
-          : (profile?.skipBackSec ?? 10);
+          ? (profile?.skipForwardSec ?? AudiobookPlayback.skipForwardSec)
+          : (profile?.skipBackSec ?? AudiobookPlayback.skipBackSec);
       return IconButton(
         tooltip: forward ? '+${secs}s' : '−${secs}s',
         iconSize: size,
@@ -357,6 +358,88 @@ class PodcastPlaybackEditor extends StatelessWidget {
       );
 }
 
+/// A show's skip intro / skip outro steppers. Show page only: intros
+/// differ per show, so there is no global default.
+class PodcastShowTrimEditor extends StatelessWidget {
+  const PodcastShowTrimEditor(
+      {super.key, required this.trim, required this.onChanged});
+  final PodcastShowTrim trim;
+  final ValueChanged<PodcastShowTrim> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(
+              top: RiffSpacing.xl, bottom: RiffSpacing.sm),
+          child: Text('skipIntroOutro'.tr.toUpperCase(),
+              style: homeSectionLabelStyle(context)),
+        ),
+        Text('skipIntroOutroDes'.tr, style: homeCardSubtitleStyle(context)),
+        _stepper(context,
+            title: 'skipIntro'.tr,
+            sec: trim.introSec,
+            onChanged: (v) => onChanged(trim.copyWith(introSec: v))),
+        _stepper(context,
+            title: 'skipOutro'.tr,
+            sec: trim.outroSec,
+            onChanged: (v) => onChanged(trim.copyWith(outroSec: v))),
+      ],
+    );
+  }
+
+  static String _value(int sec) => sec == 0 ? 'off'.tr : '$sec s';
+
+  Widget _stepper(BuildContext context,
+      {required String title,
+      required int sec,
+      required ValueChanged<int> onChanged}) {
+    final down = PodcastShowTrim.step(sec, up: false);
+    final up = PodcastShowTrim.step(sec, up: true);
+    return Padding(
+      padding: const EdgeInsets.only(top: RiffSpacing.md),
+      child: Row(
+        children: [
+          Expanded(
+            // One adjustable control for screen readers: swipe up / down.
+            child: Semantics(
+              container: true,
+              label: title,
+              value: _value(sec),
+              increasedValue: up == sec ? null : _value(up),
+              decreasedValue: down == sec ? null : _value(down),
+              onIncrease: up == sec ? null : () => onChanged(up),
+              onDecrease: down == sec ? null : () => onChanged(down),
+              child: ExcludeSemantics(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: RiffSpacing.xxs),
+                    Text(_value(sec), style: homeCardSubtitleStyle(context)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'shorter'.tr,
+            onPressed: down == sec ? null : () => onChanged(down),
+            icon: const Icon(Icons.remove_rounded),
+          ),
+          IconButton(
+            tooltip: 'longer'.tr,
+            onPressed: up == sec ? null : () => onChanged(up),
+            icon: const Icon(Icons.add_rounded),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Applies settings to what is playing when it belongs to podcasts.
 void _refreshIfPodcastPlaying() {
   if (!Get.isRegistered<PlayerController>()) return;
@@ -430,6 +513,13 @@ Future<void> showPodcastShowPlaybackSheet(BuildContext context,
                   await PodcastPlaybackPrefs.setShowOverride(showKey, p);
                   _refreshIfPodcastPlaying();
                 },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.xl),
+              child: PodcastShowTrimEditor(
+                trim: PodcastPlaybackPrefs.showTrim(showKey),
+                onChanged: (t) => PodcastPlaybackPrefs.setShowTrim(showKey, t),
               ),
             ),
           ],

@@ -16,9 +16,20 @@ enum SegmentCategory {
   outro('outro', Color(0xFF6F8BFF)),
   preview('preview', Color(0xFF3FA7A0)),
   filler('filler', Color(0xFFA486FF)),
-  musicOfftopic('music_offtopic', Color(0xFFFF8A4C));
+  musicOfftopic('music_offtopic', Color(0xFFFF8A4C)),
+
+  /// A chapter ticked off in the chapter list (Pocket Casts' skip
+  /// chapters): always skipped. Not SponsorBlock's, nor one the settings
+  /// set an action for or a segment marked by hand can be.
+  chapter('chapter', Color(0xFF9AA0A6));
 
   const SegmentCategory(this.apiName, this.color);
+
+  /// SponsorBlock's categories: all but [chapter].
+  static final sponsorBlock = [
+    for (final c in values)
+      if (c != chapter) c
+  ];
 
   /// SponsorBlock's name for the category.
   final String apiName;
@@ -167,7 +178,8 @@ Map<String, String> segmentActionsToJson(
 /// Gives every segment its action, drops the ignored ones, merges
 /// overlapping (or touching) segments and sorts by start. With
 /// [skippingOn] false (the show turned segment skipping off) nothing is
-/// skipped or muted automatically; segments are only pointed out.
+/// skipped or muted automatically; segments are only pointed out. A
+/// chapter ticked off is skipped either way: that was asked for.
 List<PodcastSegment> resolveSegments(
   Iterable<PodcastSegment> segments,
   Map<SegmentCategory, SegmentAction> actions, {
@@ -175,6 +187,10 @@ List<PodcastSegment> resolveSegments(
 }) {
   final resolved = <PodcastSegment>[];
   for (final s in segments) {
+    if (s.category == SegmentCategory.chapter) {
+      if (s.length >= 0.2) resolved.add(s.withAction(SegmentAction.autoSkip));
+      continue;
+    }
     var a = actions[s.category] ?? SegmentAction.ignore;
     if (!skippingOn && (a == SegmentAction.autoSkip || a == SegmentAction.mute)) {
       a = SegmentAction.pill;
@@ -219,6 +235,27 @@ PodcastSegment? segmentAt(List<PodcastSegment> segments, double sec) {
   return null;
 }
 
+/// What auto-skipping a segment does.
+enum SegmentSkip {
+  /// Jumps to its end.
+  jump,
+
+  /// Ends the episode there, as if it had played out: a last chapter
+  /// ticked off.
+  endEpisode,
+
+  /// Nothing: other segments running to the very end play out.
+  none;
+
+  /// For [segment] in an episode [totalMs] long (0 while unknown).
+  static SegmentSkip of(PodcastSegment segment, {required int totalMs}) {
+    final toTheEnd =
+        totalMs > 0 && (segment.end * 1000).round() >= totalMs - 400;
+    if (!toTheEnd) return jump;
+    return segment.category == SegmentCategory.chapter ? endEpisode : none;
+  }
+}
+
 /// Most a position tick can advance during normal playback (ticks are
 /// ~0.2 s apart; 3× speed and a slow frame still stay well under this).
 const segmentEntryWindowSec = 3.0;
@@ -260,7 +297,8 @@ List<PodcastSegment> segmentsFromChapters(
     final c = sorted[i];
     final end = c.endSec ??
         (i + 1 < sorted.length ? sorted[i + 1].startSec : durationSec);
-    if (end <= c.startSec) continue;
+    // Not from the notes' timestamps: they may not match the audio.
+    if (end <= c.startSec || c.fromNotes) continue;
     final SegmentCategory? cat = c.isAd
         ? SegmentCategory.sponsor
         : _promoRe.hasMatch(c.title)
@@ -282,6 +320,30 @@ List<PodcastSegment> segmentsFromChapters(
     ));
   }
   return out;
+}
+
+/// What a ticked-off chapter is known by: its start, to the hundredth.
+String chapterSkipKey(double startSec) => startSec.toStringAsFixed(2);
+
+/// The segment, [id], that skips chapter [index] of [chapters] (sorted by
+/// start): to its end, else the next chapter's start, else the episode's
+/// end ([durationSec]). Null while that end isn't known.
+PodcastSegment? chapterSkipSegment(
+    List<PodcastChapter> chapters, int index, double durationSec,
+    {required String id}) {
+  final c = chapters[index];
+  final end = c.endSec ??
+      (index + 1 < chapters.length
+          ? chapters[index + 1].startSec
+          : durationSec);
+  if (end <= c.startSec) return null;
+  return PodcastSegment(
+    id: id,
+    start: c.startSec,
+    end: end,
+    category: SegmentCategory.chapter,
+    source: SegmentSource.manual,
+  );
 }
 
 /// SponsorBlock's privacy-preserving lookup: the first four hex digits of
@@ -426,6 +488,37 @@ class PodcastSegmentStore {
     final list = manual(episodeId).where((s) => s.id != segmentId).toList();
     await box.put(episodeId, [for (final x in list) x.toJson()]);
     rev.value++;
+  }
+
+  /// The chapters ticked off in [episodeId], by [chapterSkipKey].
+  static Set<String> skippedChapters(String episodeId) => {
+        for (final s in manual(episodeId))
+          if (s.category == SegmentCategory.chapter) chapterSkipKey(s.start)
+      };
+
+  /// Ticks chapter [index] of [chapters] off ([skipped]: playback jumps
+  /// over it) or back on. Kept with the segments marked by hand, so it
+  /// syncs with them. False when the chapter's end isn't known yet.
+  static Future<bool> setChapterSkipped(
+      String episodeId, List<PodcastChapter> chapters, int index,
+      {required bool skipped, required double durationSec}) async {
+    final key = chapterSkipKey(chapters[index].startSec);
+    final list = [
+      for (final s in manual(episodeId))
+        if (s.category != SegmentCategory.chapter ||
+            chapterSkipKey(s.start) != key)
+          s
+    ];
+    if (skipped) {
+      final seg = chapterSkipSegment(chapters, index, durationSec,
+          id: 'm_${DateTime.now().millisecondsSinceEpoch}');
+      if (seg == null) return false;
+      list.add(seg);
+    }
+    final box = _box(manualBox) ?? await Hive.openBox(manualBox);
+    await box.put(episodeId, [for (final x in list) x.toJson()]);
+    rev.value++;
+    return true;
   }
 
   /// Total listening time saved by skipped segments.

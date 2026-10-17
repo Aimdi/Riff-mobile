@@ -1,9 +1,14 @@
+import 'dart:io';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/screens/Audiobooks/audiobook_bookmarks_ui.dart';
 import '/ui/screens/Podcasts/podcast_segment_ui.dart';
+import '/ui/screens/Podcasts/podcast_starred_screen.dart'
+    show toggleStarredEpisode;
 
 import '/ui/screens/Podcasts/podcast_playback_controls.dart';
 
@@ -18,15 +23,22 @@ import 'albumart_lyrics.dart';
 import 'animated_play_button.dart';
 import 'backgroud_image.dart';
 import 'player_control.dart';
+import '/services/audiobook_playback.dart';
 import '/services/podcast_playback_profile.dart';
+import '/services/podcast_starred.dart';
+import '/services/podcast_service.dart' show chapterArtAt, chapterSkipTarget;
 import '/services/podcast_transcripts.dart';
+import '/ui/widgets/collection_header.dart' show collectionLength;
+import '/ui/widgets/audio_output_tile.dart';
 import '/ui/widgets/riff_sheet.dart';
+import '/ui/widgets/snackbar.dart';
 import 'podcast_player_tint.dart';
 import 'podcast_transcript_sheet.dart';
 import 'standard_player.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_theme.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/now_playing_bars.dart';
 
 /// Now-playing screen for podcasts and audiobooks: the episode or chapter
 /// is what matters, so the layout is built around position and pacing
@@ -150,34 +162,70 @@ class _Art extends StatelessWidget {
         return Center(child: AlbumArtNLyrics(playerArtImageSize: w));
       }
       final side = maxW < box.maxHeight ? maxW : box.maxHeight;
-      final url = Thumbnail(song?.artUri?.toString() ?? '').extraHigh;
+      final cacheWidth =
+          (side * MediaQuery.devicePixelRatioOf(context)).round();
       return Center(
         child: SizedBox(
           width: side,
           height: side,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(RiffRadii.sm),
-            child: url.isEmpty
-                ? _fallback(context)
-                : CachedNetworkImage(
-                    imageUrl: url,
-                    fit: BoxFit.cover,
-                    memCacheWidth:
-                        (side * MediaQuery.devicePixelRatioOf(context)).round(),
-                    placeholder: (_, __) =>
-                        ColoredBox(color: homeTileColor(context)),
-                    errorWidget: (_, __, ___) => CachedNetworkImage(
-                      imageUrl: song?.artUri?.toString() ?? '',
-                      placeholder: (_, __) =>
-                          ColoredBox(color: homeTileColor(context)),
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => _fallback(context),
+            child: song?.isPodcastEpisode == true
+                // A chapter with its own art shows it while it plays.
+                ? _ChapterArt(
+                    builder: (chapterArt) => AnimatedSwitcher(
+                      duration: RiffDurations.sheet,
+                      // Both images fill the square while they cross.
+                      layoutBuilder: (current, previous) => Stack(
+                        fit: StackFit.expand,
+                        children: [...previous, if (current != null) current],
+                      ),
+                      child: chapterArt == null
+                          ? KeyedSubtree(
+                              key: const ValueKey<String?>(null),
+                              child: _episodeArt(context, cacheWidth))
+                          : CachedNetworkImage(
+                              key: ValueKey<String?>(chapterArt),
+                              imageUrl: chapterArt,
+                              fit: BoxFit.cover,
+                              memCacheWidth: cacheWidth,
+                              placeholder: (_, __) =>
+                                  _episodeArt(context, cacheWidth),
+                              errorWidget: (_, __, ___) =>
+                                  _episodeArt(context, cacheWidth),
+                            ),
                     ),
-                  ),
+                  )
+                : _episodeArt(context, cacheWidth),
           ),
         ),
       );
     });
+  }
+
+  Widget _episodeArt(BuildContext context, int cacheWidth) {
+    // A downloaded book's cover, kept on the phone.
+    final art = song?.artUri;
+    if (art != null && art.isScheme('file')) {
+      return Image.file(File(art.toFilePath()),
+          fit: BoxFit.cover,
+          cacheWidth: cacheWidth,
+          errorBuilder: (_, __, ___) => _fallback(context));
+    }
+    final url = Thumbnail(song?.artUri?.toString() ?? '').extraHigh;
+    if (url.isEmpty) return _fallback(context);
+    return CachedNetworkImage(
+      imageUrl: url,
+      fit: BoxFit.cover,
+      memCacheWidth: cacheWidth,
+      placeholder: (_, __) => ColoredBox(color: homeTileColor(context)),
+      errorWidget: (_, __, ___) => CachedNetworkImage(
+        imageUrl: song?.artUri?.toString() ?? '',
+        placeholder: (_, __) => ColoredBox(color: homeTileColor(context)),
+        fit: BoxFit.cover,
+        errorWidget: (_, __, ___) => _fallback(context),
+      ),
+    );
   }
 
   Widget _fallback(BuildContext context) => ColoredBox(
@@ -189,6 +237,51 @@ class _Art extends StatelessWidget {
           size: RiffComponentSizes.longFormFallbackIcon,
           color: homeMutedColor(context),
         ),
+      );
+}
+
+/// The art of the podcast chapter playing ([chapterArtAt]) for [builder];
+/// rebuilds when it changes, not on every position tick.
+class _ChapterArt extends StatefulWidget {
+  const _ChapterArt({required this.builder});
+
+  final Widget Function(String? chapterArt) builder;
+
+  @override
+  State<_ChapterArt> createState() => _ChapterArtState();
+}
+
+class _ChapterArtState extends State<_ChapterArt> {
+  final _pc = Get.find<PlayerController>();
+  final _workers = <Worker>[];
+  late final ValueNotifier<String?> _art;
+
+  String? _current() => chapterArtAt(_pc.chapters,
+      _pc.progressBarStatus.value.current.inMilliseconds / 1000.0);
+
+  @override
+  void initState() {
+    super.initState();
+    _art = ValueNotifier(_current());
+    void follow(_) => _art.value = _current();
+    _workers
+      ..add(ever(_pc.progressBarStatus, follow))
+      ..add(ever(_pc.chapters, follow));
+  }
+
+  @override
+  void dispose() {
+    for (final worker in _workers) {
+      worker.dispose();
+    }
+    _art.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<String?>(
+        valueListenable: _art,
+        builder: (context, art, _) => widget.builder(art),
       );
 }
 
@@ -253,7 +346,7 @@ class _Controls extends StatelessWidget {
           );
         }),
         const SizedBox(height: 10),
-        const _ChapterLine(),
+        const LongFormChapterLine(),
         const SizedBox(height: 10),
         const PlaybackErrorBanner(),
         // Skip-ad pill while inside a detected ad chapter.
@@ -302,9 +395,11 @@ class _Controls extends StatelessWidget {
 }
 
 /// "Chapter 3 · Title" (podcast chapters) or "Chapter 4 of 12" (audiobook
-/// tracks), tappable for the full list. Hidden when there is neither.
-class _ChapterLine extends StatelessWidget {
-  const _ChapterLine();
+/// tracks), tappable for the full list, with previous / next chapter
+/// beside chapters within the episode or book. Hidden when there is
+/// neither.
+class LongFormChapterLine extends StatelessWidget {
+  const LongFormChapterLine({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -315,6 +410,10 @@ class _ChapterLine extends StatelessWidget {
       final song = pc.currentSong.value;
       String label = '';
       VoidCallback? onTap;
+      // Where previous / next chapter go (chapters within the episode or
+      // book; a book's tracks have the player's own previous / next).
+      double? back;
+      double? next;
       if (pc.chapters.isNotEmpty) {
         final pos = pc.progressBarStatus.value.current.inMilliseconds / 1000;
         var idx = 0;
@@ -323,56 +422,94 @@ class _ChapterLine extends StatelessWidget {
         }
         label = '${idx + 1}/${pc.chapters.length} · ${pc.chapters[idx].title}';
         onTap = () => openChaptersSheet(pc, context);
+        back = chapterSkipTarget(pc.chapters, pos, forward: false);
+        next = chapterSkipTarget(pc.chapters, pos, forward: true);
       } else if (song != null && song.isAudiobook) {
         final queue = pc.currentQueue;
         final i = queue.indexWhere((m) => m.id == song.id);
         if (queue.length > 1 && i >= 0) {
           label = 'chapterOf'
               .trParams({'n': '${i + 1}', 'total': '${queue.length}'});
+          // And the time left in the book at its speed, as Audible shows.
+          AudiobookPlayback.rev.value;
+          final status = pc.progressBarStatus.value;
+          final left = bookTimeLeft(queue, i, status.current,
+              trackLength: status.total, speed: AudiobookPlayback.speed);
+          if (left != null && left >= const Duration(minutes: 1)) {
+            label = '$label · ${'bookTimeLeft'.trParams({
+                  'time': collectionLength(left.inSeconds)
+                })}';
+          }
           onTap = () => openQueueChaptersSheet(context);
         }
       }
       if (label.isEmpty) return const SizedBox(height: 0);
       // §5.6 unselected chip: transparent, hairline divider border.
-      return Center(
-        child: Material(
-          color: Colors.transparent,
-          shape: StadiumBorder(
-              side: BorderSide(color: theme.dividerColor, width: 0)),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.only(
-                  left: RiffSpacing.md,
-                  top: RiffSpacing.sm,
-                  right: RiffSpacing.sm,
-                  bottom: RiffSpacing.sm),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.format_list_bulleted_rounded,
-                      size: RiffComponentSizes.chipLeadingIcon,
-                      color: scheme.onSurfaceVariant),
-                  const SizedBox(width: RiffSpacing.sm),
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                        maxWidth: MediaQuery.sizeOf(context).width * 0.6),
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelMedium
-                          ?.copyWith(color: scheme.onSurface),
-                    ),
+      final chip = Material(
+        color: Colors.transparent,
+        shape: StadiumBorder(
+            side: BorderSide(color: theme.dividerColor, width: 0)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.only(
+                left: RiffSpacing.md,
+                top: RiffSpacing.sm,
+                right: RiffSpacing.sm,
+                bottom: RiffSpacing.sm),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.format_list_bulleted_rounded,
+                    size: RiffComponentSizes.chipLeadingIcon,
+                    color: scheme.onSurfaceVariant),
+                const SizedBox(width: RiffSpacing.sm),
+                ConstrainedBox(
+                  // Wider when no chapter buttons sit beside it (a book's
+                  // chapter and time left).
+                  constraints: BoxConstraints(
+                      maxWidth: MediaQuery.sizeOf(context).width *
+                          (pc.chapters.length < 2 ? 0.8 : 0.6)),
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelMedium
+                        ?.copyWith(color: scheme.onSurface),
                   ),
-                  Icon(Icons.chevron_right_rounded,
-                      size: RiffComponentSizes.chipChevron,
-                      color: scheme.onSurfaceVariant),
-                ],
-              ),
+                ),
+                Icon(Icons.chevron_right_rounded,
+                    size: RiffComponentSizes.chipChevron,
+                    color: scheme.onSurfaceVariant),
+              ],
             ),
           ),
+        ),
+      );
+      if (pc.chapters.length < 2) return Center(child: chip);
+      // Compact, so the line keeps the chip's height.
+      Widget skip(double? to, {required bool forward}) => IconButton(
+            tooltip: (forward ? 'nextChapter' : 'previousChapter').tr,
+            visualDensity: VisualDensity.compact,
+            style: IconButton.styleFrom(
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+            color: scheme.onSurfaceVariant,
+            onPressed: to == null
+                ? null
+                : () => pc.seek(Duration(milliseconds: (to * 1000).round())),
+            icon: Icon(
+                forward ? Icons.skip_next_rounded : Icons.skip_previous_rounded,
+                size: RiffComponentSizes.chipChevron),
+          );
+      return Center(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            skip(back, forward: false),
+            Flexible(child: chip),
+            skip(next, forward: true),
+          ],
         ),
       );
     });
@@ -380,8 +517,8 @@ class _ChapterLine extends StatelessWidget {
 }
 
 /// The long-form player's ⋮ (top right): speed, sleep timer, shownotes or
-/// chapters, transcript, video and autoplay; podcasts add bookmarks and
-/// segments below.
+/// chapters, transcript, video and autoplay; podcasts add Mark as played,
+/// then bookmarks and segments below.
 void openLongFormMenu(BuildContext context) {
   final pc = Get.find<PlayerController>();
   if (pc.isCurrentSongPodcast) {
@@ -401,6 +538,8 @@ void openLongFormMenu(BuildContext context) {
         children: [
           RiffSheetHandle(),
           LongFormToolTiles(),
+          // Books: bookmarks (Audible).
+          AudiobookBookmarkTiles(),
           SizedBox(height: RiffSpacing.sm),
         ],
       ),
@@ -409,8 +548,9 @@ void openLongFormMenu(BuildContext context) {
 }
 
 /// Speed · sleep timer · shownotes / chapters · transcript · video ·
-/// autoplay, as rows of the ⋮ sheet. Toggles and the audiobook speed stay
-/// in the sheet; the rest close it and open their own.
+/// autoplay · mark as played and star (podcasts) · play on another device,
+/// as rows of the ⋮ sheet. Toggles and the audiobook speed stay in the
+/// sheet; the rest close it.
 class LongFormToolTiles extends StatelessWidget {
   const LongFormToolTiles({super.key});
 
@@ -431,9 +571,12 @@ class LongFormToolTiles extends StatelessWidget {
       final sleepOn = pc.isSleepTimerActive.isTrue;
       final left = sleepTimerBadge(pc.timerDurationLeft.value);
       PodcastPlaybackPrefs.rev.value;
+      AudiobookPlayback.rev.value;
+      StarredEpisodes.rev.value;
+      final starred = song != null && StarredEpisodes.isStarred(song.id);
       final speed = isPodcast
           ? podcastSpeedLabel(pc.currentPodcastProfile.speed)
-          : speedLabel(settings.playbackSpeed.value);
+          : speedLabel(AudiobookPlayback.speed);
 
       /// Closes this sheet; the next one opens from the player's scaffold.
       BuildContext closeSheet() {
@@ -457,7 +600,7 @@ class LongFormToolTiles extends StatelessWidget {
             trailing: Text(speed, style: theme.textTheme.labelMedium),
             onTap: isPodcast
                 ? () => showPodcastSpeedSheet(closeSheet())
-                : cyclePlayerSpeed,
+                : cycleAudiobookSpeed,
           ),
           RiffSheetTile(
             icon: sleepOn ? Icons.bedtime : Icons.bedtime_outlined,
@@ -499,10 +642,32 @@ class LongFormToolTiles extends StatelessWidget {
                   onChanged: settings.togglePodcastContinuousPlayback),
               onTap: () => settings.togglePodcastContinuousPlayback(!autoOn),
             ),
+          if (isPodcast)
+            RiffSheetTile(
+              icon: Icons.done_all_rounded,
+              title: 'markAsPlayed'.tr,
+              onTap: () => markPlayingEpisodePlayed(closeSheet()),
+            ),
+          if (isPodcast && song != null)
+            RiffSheetTile(
+              icon: starred ? Icons.star_rounded : Icons.star_outline_rounded,
+              title: starred ? 'unstarEpisode'.tr : 'starEpisode'.tr,
+              onTap: () => toggleStarredEpisode(closeSheet(), song),
+            ),
+          const AudioOutputTile(),
         ],
       );
     });
   }
+}
+
+/// The player's Mark as played (Pocket Casts): the episode ends now as if
+/// it had played out, with Undo shown from [context].
+void markPlayingEpisodePlayed(BuildContext context) {
+  final target = undoSnackbarTarget(context);
+  final undo = Get.find<PlayerController>().markCurrentEpisodePlayed();
+  if (undo == null) return;
+  showUndoSnackbar(target, 'markedAsPlayed'.tr, onUndo: undo);
 }
 
 /// Audiobook chapters are the tracks in the queue: list them, mark the
@@ -546,7 +711,7 @@ void openQueueChaptersSheet(BuildContext context) {
               leading: SizedBox(
                 width: RiffComponentSizes.chapterNumber,
                 child: playing
-                    ? Icon(Icons.graphic_eq_rounded, color: accent)
+                    ? const Center(child: NowPlayingBars())
                     : Text('$i',
                         textAlign: TextAlign.center,
                         style: homeCardSubtitleStyle(ctx)),

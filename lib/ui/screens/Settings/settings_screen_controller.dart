@@ -10,9 +10,15 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../services/cache_eviction.dart';
 import '../../../services/song_cache_service.dart';
+import '../../../services/song_downloads_removal.dart';
+import '../../../utils/app_language.dart';
 import '../../../utils/app_version.dart';
 import '../../../utils/update_check_flag_file.dart';
 import '/services/wizestream_service.dart';
+import '/services/app_shortcuts.dart';
+import '/services/new_episode_alerts.dart';
+import '/services/now_playing_widget.dart';
+import '/services/normalization_level.dart';
 import '/services/piped_service.dart';
 import '../Library/library_controller.dart';
 import '../../widgets/snackbar.dart';
@@ -76,6 +82,10 @@ class SettingsScreenController extends GetxController {
   final pauseOnHeadsetDisconnect = true.obs;
   /// Resume when Bluetooth headphones reconnect after a noisy pause.
   final resumeOnBluetooth = true.obs;
+
+  /// Settings › Resume on headphones (wired or USB), as AntennaPod's
+  /// Headphones reconnect.
+  final resumeOnHeadphones = true.obs;
   /// Inject similar tracks when the queue runs low (Echo Brain–lite).
   final smartQueueInjection = true.obs;
   /// Ambient canvas motion behind album art.
@@ -90,7 +100,13 @@ class SettingsScreenController extends GetxController {
   final isNewVersionAvailable = false.obs;
   final isLinkedWithPiped = false.obs;
   final stopPlyabackOnSwipeAway = false.obs;
+
+  /// The language Riff shows (see [appLanguageChoice]).
   final currentAppLanguageCode = "en".obs;
+
+  /// Settings › Language's value: a language, or [systemLanguage] to follow
+  /// the phone's.
+  final appLanguageChoice = "en".obs;
   final downloadLocationPath = "".obs;
   final exportLocationPath = "".obs;
   final downloadingFormat = "".obs;
@@ -151,12 +167,12 @@ class SettingsScreenController extends GetxController {
 
   Future<void> _setInitValue() async {
     final isDesktop = GetPlatform.isDesktop;
-    final appLang = setBox.get('currentAppLanguageCode') ?? "en";
-    currentAppLanguageCode.value = appLang == "zh_Hant"
-        ? "zh-TW"
-        : appLang == "zh_Hans"
-            ? "zh-CN"
-            : appLang;
+    final String? appLang = setBox.get('currentAppLanguageCode');
+    appLanguageChoice.value = appLang == systemLanguage
+        ? systemLanguage
+        : appLanguageCode(appLang, const []);
+    currentAppLanguageCode.value = appLanguageCode(
+        appLang, WidgetsBinding.instance.platformDispatcher.locales);
     // Bottom nav option removed — clear any leftover preference.
     if (setBox.get("isBottomNavBarEnabled") == true) {
       setBox.put("isBottomNavBarEnabled", false);
@@ -243,6 +259,7 @@ class SettingsScreenController extends GetxController {
     pauseOnHeadsetDisconnect.value =
         setBox.get('pauseOnHeadsetDisconnect') ?? true;
     resumeOnBluetooth.value = setBox.get('resumeOnBluetooth') ?? true;
+    resumeOnHeadphones.value = setBox.get('resumeOnHeadphones') ?? true;
     smartQueueInjection.value = setBox.get('smartQueueInjection') ?? true;
     playerCanvas.value = setBox.get('playerCanvas') ?? true;
     playerUi.value = isDesktop ? 0 : _asInt(setBox.get('playerUi'), 0);
@@ -285,11 +302,36 @@ class SettingsScreenController extends GetxController {
   }
 
   void setAppLanguage(String? val) {
-    Get.updateLocale(Locale(val!));
-    Get.find<MusicServices>().hlCode = val;
-    Get.find<HomeScreenController>().loadContentFromNetwork(silent: true);
-    currentAppLanguageCode.value = val;
+    if (val == null) return;
+    appLanguageChoice.value = val;
     setBox.put('currentAppLanguageCode', val);
+    _showLanguage(appLanguageCode(
+        val, WidgetsBinding.instance.platformDispatcher.locales));
+  }
+
+  /// The phone's language changed ([locales]): on System default, Riff's
+  /// follows it.
+  void followPhoneLanguage(List<Locale>? locales) {
+    if (appLanguageChoice.value != systemLanguage || locales == null) return;
+    final code = languageForLocales(locales);
+    if (code != currentAppLanguageCode.value) _showLanguage(code);
+  }
+
+  void _showLanguage(String code) {
+    Get.updateLocale(Locale(code));
+    // The app icon's shortcuts, the home screen widget's buttons and the
+    // new-episode notifications, in the new language.
+    AppShortcuts.publish();
+    NowPlayingWidget.refresh();
+    NewEpisodeAlerts.sync();
+    // A change of the phone's can come before these are up.
+    if (Get.isRegistered<MusicServices>()) {
+      Get.find<MusicServices>().hlCode = code;
+    }
+    if (Get.isRegistered<HomeScreenController>()) {
+      Get.find<HomeScreenController>().loadContentFromNetwork(silent: true);
+    }
+    currentAppLanguageCode.value = code;
   }
 
   void setContentNumber(int? no) {
@@ -364,6 +406,11 @@ class SettingsScreenController extends GetxController {
   void toggleResumeOnBluetooth(bool val) {
     setBox.put('resumeOnBluetooth', val);
     resumeOnBluetooth.value = val;
+  }
+
+  void toggleResumeOnHeadphones(bool val) {
+    setBox.put('resumeOnHeadphones', val);
+    resumeOnHeadphones.value = val;
   }
 
   void toggleSmartQueueInjection(bool val) {
@@ -486,6 +533,25 @@ class SettingsScreenController extends GetxController {
     }
   }
 
+  /// Settings › Remove downloaded songs: how many were removed (null when
+  /// it failed).
+  Future<int?> removeAllDownloads() async {
+    try {
+      final removed = await removeAllSongDownloads(supportDir: supportDirPath);
+      if (removed.isNotEmpty && Get.isRegistered<LibrarySongsController>()) {
+        final ids = removed.toSet();
+        Get.find<LibrarySongsController>()
+            .librarySongsList
+            .removeWhere((s) => ids.contains(s.id));
+      }
+      await refreshCacheSizes();
+      return removed.length;
+    } catch (e) {
+      printERROR('removeAllDownloads: $e');
+      return null;
+    }
+  }
+
   Future<bool> clearImagesCache() async {
     final tempImgDirPath =
         "${(await getApplicationCacheDirectory()).path}/libCachedImageData";
@@ -569,6 +635,15 @@ class SettingsScreenController extends GetxController {
     Get.find<PlayerController>().toggleLoudnessNormalization(val);
     setBox.put("loudnessNormalizationEnabled", val);
     loudnessNormalizationEnabled.value = val;
+  }
+
+  /// Normalization's volume level; the song playing takes it at once.
+  Future<void> setNormalizationLevel(NormalizationLevel? level) async {
+    if (level == null) return;
+    await NormalizationLevel.set(level);
+    if (loudnessNormalizationEnabled.isTrue) {
+      Get.find<PlayerController>().toggleLoudnessNormalization(true);
+    }
   }
 
   void toggleRestorePlaybackSession(bool val) {

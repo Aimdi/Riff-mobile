@@ -116,6 +116,7 @@ class _SoulSyncLoginFormState extends State<_SoulSyncLoginForm> {
             labelText: 'soulSyncApiKey'.tr,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
             suffixIcon: IconButton(
+              tooltip: (_obscure ? 'showPassword' : 'hidePassword').tr,
               icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
               onPressed: () => setState(() => _obscure = !_obscure),
             ),
@@ -272,6 +273,7 @@ class _SoulSyncConnectedViewState extends State<_SoulSyncConnectedView> {
             hintText: 'soulSyncSearchHint'.tr,
             prefixIcon: const Icon(Icons.search),
             suffixIcon: IconButton(
+              tooltip: 'search'.tr,
               icon: const Icon(Icons.arrow_forward),
               onPressed: _loading ? null : _search,
             ),

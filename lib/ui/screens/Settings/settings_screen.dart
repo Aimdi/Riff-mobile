@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:harmonymusic/utils/helper.dart';
+import 'package:harmonymusic/utils/app_language.dart';
 import 'package:harmonymusic/utils/lang_mapping.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -16,12 +16,31 @@ import '/ui/widgets/link_piped.dart';
 import '/services/wizestream_service.dart';
 import '/services/crash_report.dart';
 import '/services/better_lyrics_service.dart';
+import '/services/lyrics_romanization.dart';
+import '/services/lyrics_text_size.dart';
+import '/services/lyrics_translation.dart';
+import '/services/normalization_level.dart';
+import '/services/private_session.dart';
+import '/services/search_recents.dart';
+import '/services/song_fade.dart';
+import '/services/music_autoplay.dart';
+import '/services/explicit_content.dart';
+import '/services/wifi_only_downloads.dart';
+import '/services/download_quality.dart';
+import '/ui/widgets/equalizer_sheet.dart';
 import '/services/discovery/discovery_service.dart';
+import '/services/last_fm_service.dart';
 import '/services/listenbrainz_service.dart';
 import '/services/music_service.dart';
 import '/services/video_stream_service.dart';
 import '/ui/player/video_mode_controller.dart';
 import '/services/yt_auth_service.dart';
+import '/services/yt_like_sync.dart';
+import '/services/offline_playback.dart';
+import 'last_fm_dialog.dart';
+import 'yt_like_sync_tile.dart';
+import 'yt_history_sync_tile.dart';
+import 'yt_library_import_tile.dart';
 import 'yt_login_screen.dart';
 import '../Home/home_screen_controller.dart';
 import '../../navigator.dart';
@@ -29,6 +48,8 @@ import '/services/cache_eviction.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/utils/theme_controller.dart';
 import 'components/custom_expansion_tile.dart';
+import 'components/smart_downloads_setting.dart';
+import 'components/remove_downloads.dart';
 import '../Home/home_layout.dart';
 import 'settings_screen_controller.dart';
 import '/ui/widgets/riff_header_bar.dart';
@@ -170,21 +191,26 @@ class SettingsScreen extends StatelessWidget {
                         dropdownColor: Theme.of(context).colorScheme.surfaceContainerLow,
                         underline: const SizedBox.shrink(),
                         style: Theme.of(context).textTheme.titleSmall,
-                        value: settingsController.currentAppLanguageCode.value,
-                        items: langMap.entries
-                            .map((lang) => DropdownMenuItem(
-                                  value: lang.key,
-                                  child: Text(lang.value),
-                                ))
-                            .whereType<DropdownMenuItem<String>>()
-                            .toList(),
+                        value: settingsController.appLanguageChoice.value,
+                        // The phone's language first, then Riff's.
+                        items: [
+                          DropdownMenuItem(
+                            value: systemLanguage,
+                            child: Text("systemDefault".tr),
+                          ),
+                          ...langMap.entries.map((lang) => DropdownMenuItem(
+                                value: lang.key,
+                                child: Text(lang.value),
+                              )),
+                        ],
                         selectedItemBuilder: (context) =>
-                            langMap.entries.map<Widget>((item) {
+                            ["systemDefault".tr, ...langMap.values]
+                                .map<Widget>((label) {
                           return Container(
                             alignment: Alignment.centerRight,
                             constraints: const BoxConstraints(minWidth: 50),
                             child: Text(
-                              item.value,
+                              label,
                             ),
                           );
                         }).toList(),
@@ -264,9 +290,39 @@ class SettingsScreen extends StatelessWidget {
                             value: AudioQuality.High,
                             child: Text("high".tr),
                           ),
+                          // High on Wi-Fi, Low on mobile data (Metrolist).
+                          DropdownMenuItem(
+                            value: AudioQuality.Auto,
+                            child: Text("auto".tr),
+                          ),
                         ],
                         onChanged: settingsController.setStreamingQuality,
                       ),
+                    ),
+                  ),
+                  // Spotify's Offline mode: only songs kept play.
+                  ListTile(
+                    contentPadding: settingsTilePadding,
+                    title: Text("offlineMode".tr),
+                    subtitle: Text("offlineModeDes".tr,
+                        style: settingsSubtitleStyle(context)),
+                    trailing: Obx(
+                      () => CustSwitch(
+                          value: OfflinePlayback.mode.value,
+                          onChanged: OfflinePlayback.setMode),
+                    ),
+                  ),
+                  // YouTube Music's Stream via Wi-Fi only: on mobile data,
+                  // as Offline mode.
+                  ListTile(
+                    contentPadding: settingsTilePadding,
+                    title: Text("streamOnWifiOnly".tr),
+                    subtitle: Text("streamOnWifiOnlyDes".tr,
+                        style: settingsSubtitleStyle(context)),
+                    trailing: Obx(
+                      () => CustSwitch(
+                          value: OfflinePlayback.wifiOnly.value,
+                          onChanged: OfflinePlayback.setWifiOnly),
                     ),
                   ),
                   ListTile(
@@ -350,6 +406,61 @@ class SettingsScreen extends StatelessWidget {
                           ),
                         ],
                         onChanged: settingsController.setLyricsSource,
+                      ),
+                    ),
+                  ),
+                  SettingsSearchable(
+                    title: 'romanizeLyrics'.tr,
+                    subtitle: 'romanizeLyricsDes'.tr,
+                    child: Obx(() {
+                      return ListTile(
+                        contentPadding: settingsTilePadding,
+                        title: Text('romanizeLyrics'.tr),
+                        subtitle: Text('romanizeLyricsDes'.tr,
+                            style: settingsSubtitleStyle(context)),
+                        trailing: CustSwitch(
+                          value: LyricsRomanization.enabled.isTrue,
+                          onChanged: LyricsRomanization.setEnabled,
+                        ),
+                      );
+                    }),
+                  ),
+                  SettingsSearchable(
+                    title: 'translateLyrics'.tr,
+                    subtitle: 'translateLyricsDes'.tr,
+                    child: Obx(() {
+                      return ListTile(
+                        contentPadding: settingsTilePadding,
+                        title: Text('translateLyrics'.tr),
+                        subtitle: Text('translateLyricsDes'.tr,
+                            style: settingsSubtitleStyle(context)),
+                        trailing: CustSwitch(
+                          value: LyricsTranslation.enabled.isTrue,
+                          onChanged: LyricsTranslation.setEnabled,
+                        ),
+                      );
+                    }),
+                  ),
+                  ListTile(
+                    contentPadding: settingsTilePadding,
+                    title: Text('lyricsTextSize'.tr),
+                    subtitle: Text('lyricsTextSizeDes'.tr,
+                        style: settingsSubtitleStyle(context)),
+                    trailing: Obx(
+                      () => DropdownButton<LyricsTextSize>(
+                        dropdownColor:
+                            Theme.of(context).colorScheme.surfaceContainerLow,
+                        underline: const SizedBox.shrink(),
+                        value: LyricsTextSize.selected.value,
+                        items: LyricsTextSize.values
+                            .map((size) => DropdownMenuItem(
+                                  value: size,
+                                  child: Text(size.labelKey.tr),
+                                ))
+                            .toList(),
+                        onChanged: (size) {
+                          if (size != null) LyricsTextSize.set(size);
+                        },
                       ),
                     ),
                   ),
@@ -441,6 +552,24 @@ class SettingsScreen extends StatelessWidget {
                     }),
                   ),
                   SettingsSearchable(
+                    title: 'resumeOnHeadphones'.tr,
+                    subtitle: 'resumeOnHeadphonesDes'.tr,
+                    child: Obx(() {
+                      return ListTile(
+                        contentPadding:
+                            settingsTilePadding,
+                        title: Text('resumeOnHeadphones'.tr),
+                        subtitle: Text('resumeOnHeadphonesDes'.tr,
+                            style: settingsSubtitleStyle(context)),
+                        trailing: CustSwitch(
+                          value: settingsController.resumeOnHeadphones.isTrue,
+                          onChanged:
+                              settingsController.toggleResumeOnHeadphones,
+                        ),
+                      );
+                    }),
+                  ),
+                  SettingsSearchable(
                     title: 'smartQueueInjection'.tr,
                     subtitle: 'smartQueueInjectionDes'.tr,
                     child: Obx(() {
@@ -489,6 +618,32 @@ class SettingsScreen extends StatelessWidget {
                               onChanged: settingsController
                                   .toggleLoudnessNormalization),
                         )),
+                  // How loud normalized songs are (Spotify's volume level).
+                  if (GetPlatform.isAndroid)
+                    Obx(() => settingsController
+                            .loudnessNormalizationEnabled.isFalse
+                        ? const SizedBox.shrink()
+                        : ListTile(
+                            contentPadding: settingsTilePadding,
+                            title: Text('normalizationLevel'.tr),
+                            subtitle: Text('normalizationLevelDes'.tr,
+                                style: settingsSubtitleStyle(context)),
+                            trailing: DropdownButton<NormalizationLevel>(
+                              dropdownColor: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerLow,
+                              underline: const SizedBox.shrink(),
+                              value: NormalizationLevel.selected.value,
+                              items: NormalizationLevel.values
+                                  .map((level) => DropdownMenuItem(
+                                        value: level,
+                                        child: Text(level.labelKey.tr),
+                                      ))
+                                  .toList(),
+                              onChanged:
+                                  settingsController.setNormalizationLevel,
+                            ),
+                          )),
                   if (!isDesktop)
                     ListTile(
                         contentPadding:
@@ -571,6 +726,16 @@ class SettingsScreen extends StatelessWidget {
                                 });
                               },
                             ),
+                            // Spotify's Remove all downloads.
+                            if (settingsController.downloadsBytes.value > 0)
+                              ListTile(
+                                contentPadding: settingsTilePadding,
+                                title: Text('removeAllDownloads'.tr),
+                                subtitle: Text('removeAllDownloadsDes'.tr,
+                                    style: settingsSubtitleStyle(context)),
+                                isThreeLine: true,
+                                onTap: () => removeAllDownloadsAsked(context),
+                              ),
                           ],
                         );
                       }),
@@ -588,6 +753,57 @@ class SettingsScreen extends StatelessWidget {
                                   settingsController.skipSilenceEnabled.value,
                               onChanged: settingsController.toggleSkipSilence),
                         )),
+                  ListTile(
+                    contentPadding: settingsTilePadding,
+                    title: Text('songFade'.tr),
+                    subtitle: Text('songFadeDes'.tr,
+                        style: settingsSubtitleStyle(context)),
+                    trailing: Obx(
+                      () => DropdownButton<int>(
+                        dropdownColor:
+                            Theme.of(context).colorScheme.surfaceContainerLow,
+                        underline: const SizedBox.shrink(),
+                        value: SongFade.selected.value,
+                        items: SongFade.choices
+                            .map((seconds) => DropdownMenuItem(
+                                  value: seconds,
+                                  child: Text(
+                                      seconds == 0 ? 'off'.tr : '${seconds}s'),
+                                ))
+                            .toList(),
+                        onChanged: (seconds) {
+                          if (seconds != null) SongFade.set(seconds);
+                        },
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                      contentPadding: settingsTilePadding,
+                      title: Text('musicAutoplay'.tr),
+                      subtitle: Text('musicAutoplayDes'.tr,
+                          style: settingsSubtitleStyle(context)),
+                      trailing: Obx(
+                        () => CustSwitch(
+                            value: MusicAutoplay.enabled.value,
+                            onChanged: MusicAutoplay.set),
+                      )),
+                  ListTile(
+                      contentPadding: settingsTilePadding,
+                      title: Text('allowExplicit'.tr),
+                      subtitle: Text('allowExplicitDes'.tr,
+                          style: settingsSubtitleStyle(context)),
+                      trailing: Obx(
+                        () => CustSwitch(
+                            value: ExplicitContent.allowed.value,
+                            onChanged: (allow) async {
+                              await ExplicitContent.set(allow);
+                              // An explicit song playing stops there.
+                              if (!allow) {
+                                await Get.find<PlayerController>()
+                                    .skipIfExplicit();
+                              }
+                            }),
+                      )),
                   ListTile(
                       contentPadding: settingsTilePadding,
                       title: Text("sponsorBlock".tr),
@@ -614,13 +830,8 @@ class SettingsScreen extends StatelessWidget {
                       title: Text("equalizer".tr),
                       subtitle: Text("equalizerDes".tr,
                           style: settingsSubtitleStyle(context)),
-                      onTap: () async {
-                        try {
-                          await Get.find<PlayerController>().openEqualizer();
-                        } catch (e) {
-                          printERROR(e);
-                        }
-                      },
+                      // Riff's own (Spotify's), with the phone's one tap on.
+                      onTap: () => showEqualizerSheet(context),
                     ),
                   if (isDesktop)
                     ListTile(
@@ -765,9 +976,15 @@ class SettingsScreen extends StatelessWidget {
                         onTap: () async {
                           if (connected) {
                             await YtAuthService.disconnect();
+                            await YtLikeSync.forgetAccount();
                             settingsController.ytConnected.value = false;
                             Get.find<HomeScreenController>()
                                 .loadContentFromNetwork();
+                          } else if (GetPlatform.isDesktop) {
+                            // The login runs in a WebView, which Linux lacks.
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                snackbar(context, "desktopSignInUnavailable".tr,
+                                    size: SanckBarSize.MEDIUM));
                           } else {
                             final ok =
                                 await Get.to(() => const YtLoginScreen());
@@ -784,6 +1001,12 @@ class SettingsScreen extends StatelessWidget {
                         },
                       );
                     }),
+                    // Metrolist's like sync with the connected account.
+                    const YtLikeSyncTile(),
+                    // And what's played into its YouTube Music history.
+                    const YtHistorySyncTile(),
+                    // And its playlists and artists into the Library.
+                    const YtLibraryImportTile(),
                     ListTile(
                       contentPadding:
                           settingsTilePadding,
@@ -830,6 +1053,48 @@ class SettingsScreen extends StatelessWidget {
                                 }),
                           )
                         : const SizedBox.shrink()),
+                    SettingsSearchable(
+                      title: 'privateSession'.tr,
+                      subtitle: 'privateSessionDes'.tr,
+                      child: Obx(() {
+                        final end = PrivateSession.active.isTrue
+                            ? PrivateSession.endsAt
+                            : null;
+                        return ListTile(
+                          contentPadding: settingsTilePadding,
+                          title: Text('privateSession'.tr),
+                          subtitle: Text(
+                              end == null
+                                  ? 'privateSessionDes'.tr
+                                  : 'privateSessionUntil'.trParams({
+                                      'time': TimeOfDay.fromDateTime(end)
+                                          .format(context)
+                                    }),
+                              style: settingsSubtitleStyle(context)),
+                          trailing: CustSwitch(
+                            value: end != null,
+                            onChanged: (on) => on
+                                ? PrivateSession.start()
+                                : PrivateSession.stop(),
+                          ),
+                        );
+                      }),
+                    ),
+                    // YouTube Music's and Metrolist's Pause search history.
+                    SettingsSearchable(
+                      title: 'pauseSearchHistory'.tr,
+                      subtitle: 'pauseSearchHistoryDes'.tr,
+                      child: Obx(() => ListTile(
+                            contentPadding: settingsTilePadding,
+                            title: Text('pauseSearchHistory'.tr),
+                            subtitle: Text('pauseSearchHistoryDes'.tr,
+                                style: settingsSubtitleStyle(context)),
+                            trailing: CustSwitch(
+                              value: SearchRecents.paused.value,
+                              onChanged: SearchRecents.setPaused,
+                            ),
+                          )),
+                    ),
                     ListTile(
                       contentPadding: settingsTilePadding,
                       title: Text("listenBrainz".tr),
@@ -839,6 +1104,23 @@ class SettingsScreen extends StatelessWidget {
                           context: context,
                           builder: (context) => const ListenBrainzDialog()),
                     ),
+                    Obx(() {
+                      LastFmService.rev.value;
+                      final user = LastFmService.user;
+                      return ListTile(
+                        contentPadding: settingsTilePadding,
+                        title: Text("lastFm".tr),
+                        subtitle: Text(
+                            user.isEmpty
+                                ? "lastFmDes".tr
+                                : "lastFmConnectedAs"
+                                    .trParams({'user': user}),
+                            style: settingsSubtitleStyle(context)),
+                        onTap: () => showDialog(
+                            context: context,
+                            builder: (context) => const LastFmDialog()),
+                      );
+                    }),
                     ListTile(
                       contentPadding: settingsTilePadding,
                       title: Text("blacklistTitle".tr),
@@ -1038,6 +1320,20 @@ class SettingsScreen extends StatelessWidget {
                               .toggleAutoDownloadFavoriteSong),
                     ),
                   ),
+                  // Phones only: on a computer it's never mobile data.
+                  if (!isDesktop)
+                    ListTile(
+                      contentPadding: settingsTilePadding,
+                      title: Text("downloadOnWifiOnly".tr),
+                      subtitle: Text("downloadOnWifiOnlyDes".tr,
+                          style: settingsSubtitleStyle(context)),
+                      trailing: Obx(
+                        () => CustSwitch(
+                            value: WifiOnlyDownloads.enabled.value,
+                            onChanged: WifiOnlyDownloads.set),
+                      ),
+                    ),
+                  const SmartDownloadsSetting(),
                   ListTile(
                     contentPadding: settingsTilePadding,
                     title: Text("downloadingFormat".tr),
@@ -1057,6 +1353,28 @@ class SettingsScreen extends StatelessWidget {
                           ),
                         ],
                         onChanged: settingsController.changeDownloadingFormat,
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    contentPadding: settingsTilePadding,
+                    title: Text("downloadQuality".tr),
+                    subtitle: Text("downloadQualityDes".tr,
+                        style: settingsSubtitleStyle(context)),
+                    trailing: Obx(
+                      () => DropdownButton<bool>(
+                        dropdownColor:
+                            Theme.of(context).colorScheme.surfaceContainerLow,
+                        underline: const SizedBox.shrink(),
+                        value: DownloadQuality.low.value,
+                        items: [
+                          DropdownMenuItem(
+                              value: false, child: Text("high".tr)),
+                          DropdownMenuItem(value: true, child: Text("low".tr)),
+                        ],
+                        onChanged: (isLow) {
+                          if (isLow != null) DownloadQuality.set(isLow);
+                        },
                       ),
                     ),
                   ),
@@ -1123,6 +1441,16 @@ class SettingsScreen extends StatelessWidget {
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => Get.toNamed(
                           ScreenNavigationSetup.webDavSyncScreen,
+                          id: ScreenNavigationSetup.id),
+                    ),
+                    ListTile(
+                      contentPadding: settingsTilePadding,
+                      title: Text("gpodderSync".tr),
+                      subtitle: Text("gpodderSyncSettingDes".tr,
+                          style: settingsSubtitleStyle(context)),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Get.toNamed(
+                          ScreenNavigationSetup.gpodderSyncScreen,
                           id: ScreenNavigationSetup.id),
                     ),
                     ListTile(
@@ -1388,14 +1716,19 @@ class ThemeSelectorDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final settingsController = Get.find<SettingsScreenController>();
     return CommonDialog(
+      // As tall as its content (the accents and Cancel spilled out of a
+      // fixed height on phones, more so with larger text), scrolling when
+      // the screen is shorter.
       child: _dialogBody(context, Container(
-        height: RiffComponentSizes.choiceDialog,
+        constraints:
+            const BoxConstraints(minHeight: RiffComponentSizes.choiceDialog),
         padding: const EdgeInsets.only(
             top: RiffSpacing.xxl,
             left: RiffSpacing.xs,
             right: RiffSpacing.xxl,
             bottom: RiffSpacing.sm),
-        child: Column(children: [
+        child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
           Padding(
             padding: const EdgeInsets.only(
                 left: RiffSpacing.xl, bottom: RiffSpacing.xs),
@@ -1431,7 +1764,7 @@ class ThemeSelectorDialog extends StatelessWidget {
                 bottom: RiffSpacing.xs),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text("Accent",
+              child: Text("accent".tr,
                   style: Theme.of(context).textTheme.titleMedium),
             ),
           ),
@@ -1441,35 +1774,46 @@ class ThemeSelectorDialog extends StatelessWidget {
             child: Obx(() {
               final themeController = Get.find<ThemeController>();
               final current = themeController.accentColor.value;
-              return Row(
-                children: ThemeController.riffAccents.entries
-                    .map((entry) => Padding(
-                          padding:
-                              const EdgeInsets.only(right: RiffSpacing.md),
-                          child: InkWell(
-                            customBorder: const CircleBorder(),
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              themeController.changeAccentColor(entry.value);
-                            },
-                            child: Container(
-                              width: RiffComponentSizes.accentSwatch,
-                              height: RiffComponentSizes.accentSwatch,
-                              decoration: BoxDecoration(
-                                color: entry.value,
-                                shape: BoxShape.circle,
+              // A second line on a small phone, where the six don't fit;
+              // from the left edge, as the row was.
+              return Align(
+                alignment: Alignment.centerLeft,
+                child: Wrap(
+                  spacing: RiffSpacing.md,
+                  runSpacing: RiffSpacing.md,
+                  children: ThemeController.riffAccents.entries
+                      .map((entry) => Semantics(
+                            // TalkBack says each accent's name, and which
+                            // is picked.
+                            container: true,
+                            button: true,
+                            selected: current.value == entry.value.value,
+                            label: 'color${entry.key}'.tr,
+                            child: InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                themeController.changeAccentColor(entry.value);
+                              },
+                              child: Container(
+                                width: RiffComponentSizes.accentSwatch,
+                                height: RiffComponentSizes.accentSwatch,
+                                decoration: BoxDecoration(
+                                  color: entry.value,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: current.value == entry.value.value
+                                    ? Icon(Icons.check,
+                                        size: RiffComponentSizes.inlineIcon,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onPrimary)
+                                    : null,
                               ),
-                              child: current.value == entry.value.value
-                                  ? Icon(Icons.check,
-                                      size: RiffComponentSizes.inlineIcon,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onPrimary)
-                                  : null,
                             ),
-                          ),
-                        ))
-                    .toList(),
+                          ))
+                      .toList(),
+                ),
               );
             }),
           ),
@@ -1483,7 +1827,7 @@ class ThemeSelectorDialog extends StatelessWidget {
                 ),
                 onTap: () => Navigator.of(context).pop(),
               ))
-        ]),
+        ])),
       )),
     );
   }
@@ -1496,62 +1840,76 @@ class DiscoverContentSelectorDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final settingsController = Get.find<SettingsScreenController>();
     return CommonDialog(
+      // As tall as before, Cancel at the bottom; taller with larger text
+      // (it spilled out of its fixed height), scrolling when the screen is
+      // shorter.
       child: _dialogBody(context, Container(
-        height: RiffComponentSizes.choiceDialog,
         padding: const EdgeInsets.only(
             top: RiffSpacing.xxl,
             left: RiffSpacing.xs,
             right: RiffSpacing.xxl,
             bottom: RiffSpacing.sm),
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.only(
-                left: RiffSpacing.xl, bottom: RiffSpacing.xs),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "setDiscoverContent".tr,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+                minHeight: RiffComponentSizes.choiceDialog -
+                    RiffSpacing.xxl -
+                    RiffSpacing.sm),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(mainAxisSize: MainAxisSize.min, children: [
+                  Padding(
+                    padding: const EdgeInsets.only(
+                        left: RiffSpacing.xl, bottom: RiffSpacing.xs),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        "setDiscoverContent".tr,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    height: RiffComponentSizes.choiceDialogList,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          radioWidget(
+                              label: "quickpicks".tr,
+                              controller: settingsController,
+                              value: "QP"),
+                          radioWidget(
+                              label: "topmusicvideos".tr,
+                              controller: settingsController,
+                              value: "TMV"),
+                          radioWidget(
+                              label: "trending".tr,
+                              controller: settingsController,
+                              value: "TR"),
+                          radioWidget(
+                              label: "basedOnLast".tr,
+                              controller: settingsController,
+                              value: "BOLI"),
+                        ],
+                      ),
+                    ),
+                  ),
+                ]),
+                Align(
+                    alignment: Alignment.centerRight,
+                    child: InkWell(
+                      child: Padding(
+                        padding: const EdgeInsets.all(RiffSpacing.sm),
+                        child: Text("cancel".tr,
+                            style: _dialogActionStyle(context)),
+                      ),
+                      onTap: () => Navigator.of(context).pop(),
+                    )),
+              ],
             ),
           ),
-          SizedBox(
-            height: RiffComponentSizes.choiceDialogList,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  radioWidget(
-                      label: "quickpicks".tr,
-                      controller: settingsController,
-                      value: "QP"),
-                  radioWidget(
-                      label: "topmusicvideos".tr,
-                      controller: settingsController,
-                      value: "TMV"),
-                  radioWidget(
-                      label: "trending".tr,
-                      controller: settingsController,
-                      value: "TR"),
-                  radioWidget(
-                      label: "basedOnLast".tr,
-                      controller: settingsController,
-                      value: "BOLI"),
-                ],
-              ),
-            ),
-          ),
-          const Expanded(child: SizedBox()),
-          Align(
-              alignment: Alignment.centerRight,
-              child: InkWell(
-                child: Padding(
-                  padding: const EdgeInsets.all(RiffSpacing.sm),
-                  child: Text("cancel".tr,
-                      style: _dialogActionStyle(context)),
-                ),
-                onTap: () => Navigator.of(context).pop(),
-              ))
-        ]),
+        ),
       )),
     );
   }
@@ -1703,95 +2061,114 @@ class _DiscoverySettingsDialogState extends State<DiscoverySettingsDialog> {
   @override
   Widget build(BuildContext context) {
     return CommonDialog(
+      // As tall as before, the buttons at the bottom; taller with larger
+      // text (it spilled out of its fixed height), scrolling when the
+      // screen is shorter.
       child: _dialogBody(context, Container(
-        height: RiffComponentSizes.discoveryDialog,
         padding: const EdgeInsets.only(
             top: RiffSpacing.xl,
             bottom: RiffSpacing.sm,
             left: RiffSpacing.xl,
             right: RiffSpacing.xl),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("discoverySettings".tr,
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: RiffSpacing.md),
-            Text(
-                "${"exploration".tr}: ${exploration < 0.33 ? "familiar".tr : exploration > 0.66 ? "adventurous".tr : "balanced".tr}"),
-            Slider(
-              value: exploration,
-              onChanged: (v) => setState(() => exploration = v),
-              min: 0,
-              max: 1,
-              divisions: 10,
-            ),
-            Row(
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+                minHeight: RiffComponentSizes.discoveryDialog -
+                    RiffSpacing.xl -
+                    RiffSpacing.sm),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("mixCount".tr),
-                DropdownButton<int>(
-                  value: mixCount,
-                  items: [3, 4, 5]
-                      .map((e) => DropdownMenuItem(value: e, child: Text("$e")))
-                      .toList(),
-                  onChanged: (v) {
-                    if (v != null) setState(() => mixCount = v);
-                  },
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text("discoverySettings".tr,
+                        style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: RiffSpacing.md),
+                    Text(
+                        "${"exploration".tr}: ${exploration < 0.33 ? "familiar".tr : exploration > 0.66 ? "adventurous".tr : "balanced".tr}"),
+                    Slider(
+                      value: exploration,
+                      onChanged: (v) => setState(() => exploration = v),
+                      min: 0,
+                      max: 1,
+                      divisions: 10,
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(child: Text("mixCount".tr)),
+                        DropdownButton<int>(
+                          value: mixCount,
+                          items: [3, 4, 5]
+                              .map((e) =>
+                                  DropdownMenuItem(value: e, child: Text("$e")))
+                              .toList(),
+                          onChanged: (v) {
+                            if (v != null) setState(() => mixCount = v);
+                          },
+                        ),
+                      ],
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text("wifiOnlyGeneration".tr),
+                      value: wifiOnly,
+                      onChanged: (v) => setState(() => wifiOnly = v),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text("unheardOnly".tr),
+                      value: unheardOnly,
+                      onChanged: (v) => setState(() => unheardOnly = v),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text("listenBrainzRecs".tr),
+                      value: lbRecs,
+                      onChanged: (v) => setState(() => lbRecs = v),
+                    ),
+                  ],
+                ),
+                // Side by side, one over the other when they don't fit.
+                OverflowBar(
+                  alignment: MainAxisAlignment.spaceBetween,
+                  overflowAlignment: OverflowBarAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () async {
+                        if (Get.isRegistered<DiscoveryService>()) {
+                          await Get.find<DiscoveryService>().resetTasteModel();
+                        }
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(snackbar(
+                              context, "tasteModelReset".tr,
+                              size: SanckBarSize.MEDIUM));
+                        }
+                      },
+                      child: Text("resetTasteModel".tr),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        if (Get.isRegistered<DiscoveryService>()) {
+                          final d = Get.find<DiscoveryService>();
+                          d.exploration = exploration;
+                          d.wifiOnlyGeneration = wifiOnly;
+                          d.mixCount = mixCount;
+                          d.unheardOnlyDefault = unheardOnly;
+                          d.listenBrainzRecs = lbRecs;
+                        }
+                        Navigator.of(context).pop();
+                      },
+                      child: Text("confirm".tr),
+                    ),
+                  ],
                 ),
               ],
             ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text("wifiOnlyGeneration".tr),
-              value: wifiOnly,
-              onChanged: (v) => setState(() => wifiOnly = v),
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text("unheardOnly".tr),
-              value: unheardOnly,
-              onChanged: (v) => setState(() => unheardOnly = v),
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text("listenBrainzRecs".tr),
-              value: lbRecs,
-              onChanged: (v) => setState(() => lbRecs = v),
-            ),
-            const Spacer(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: () async {
-                    if (Get.isRegistered<DiscoveryService>()) {
-                      await Get.find<DiscoveryService>().resetTasteModel();
-                    }
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(snackbar(
-                          context, "tasteModelReset".tr,
-                          size: SanckBarSize.MEDIUM));
-                    }
-                  },
-                  child: Text("resetTasteModel".tr),
-                ),
-                TextButton(
-                  onPressed: () {
-                    if (Get.isRegistered<DiscoveryService>()) {
-                      final d = Get.find<DiscoveryService>();
-                      d.exploration = exploration;
-                      d.wifiOnlyGeneration = wifiOnly;
-                      d.mixCount = mixCount;
-                      d.unheardOnlyDefault = unheardOnly;
-                      d.listenBrainzRecs = lbRecs;
-                    }
-                    Navigator.of(context).pop();
-                  },
-                  child: Text("confirm".tr),
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       )),
     );
@@ -1891,7 +2268,8 @@ class _SpeedPitchDialogState extends State<SpeedPitchDialog> {
     settings.setBox.put("playbackPitch", pitch);
     settings.playbackSpeed.value = speed;
     settings.playbackPitch.value = pitch;
-    Get.find<PlayerController>().setSpeedAndPitch(speed: speed, pitch: pitch);
+    Get.find<PlayerController>()
+        .setMusicSpeedAndPitch(speed: speed, pitch: pitch);
   }
 
   void _applyFx() {

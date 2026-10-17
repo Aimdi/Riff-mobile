@@ -7,7 +7,9 @@ import 'package:get/get.dart';
 
 import '/models/playlist.dart';
 import '/services/folder_cover.dart';
+import '/services/podcast_playback_profile.dart';
 import '/services/podcast_service.dart';
+import '/services/podcast_subs_sort.dart';
 import '/services/wizestream_service.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
@@ -19,6 +21,7 @@ import 'podcast_folder_cover.dart';
 import 'podcast_folder_controller.dart';
 import 'podcast_folder_screen.dart';
 import 'podcast_layout.dart';
+import 'podcast_unsubscribe.dart';
 import 'podcasts_library_controller.dart';
 
 /// Long-press a podcast show anywhere it's listed to file it into folders.
@@ -49,11 +52,10 @@ void showRssPodcastSheet(BuildContext context, Map<String, dynamic> rss) {
           textColor: Theme.of(ctx).colorScheme.error,
           leading: const Icon(Icons.remove_circle_outline),
           title: Text('unsubscribe'.tr),
-          onTap: () async {
-            Get.find<PodcastFolderController>()
-                .removeEverywhere(podcastFolderIdForFeed(feed));
-            await PodcastService.unsubscribe(feed);
-            if (ctx.mounted) Navigator.of(ctx).pop();
+          onTap: () {
+            Navigator.of(ctx).pop();
+            unsubscribeWithUndo(feed, '${rss['title'] ?? ''}',
+                context: context);
           },
         ),
   ]);
@@ -205,7 +207,7 @@ void showNewPodcastFolderDialog(BuildContext context,
               const SizedBox(height: RiffSpacing.md),
               Text("folderColor".tr, style: Theme.of(ctx).textTheme.titleSmall),
               const SizedBox(height: RiffSpacing.sm),
-              _FolderColorPicker(
+              PodcastFolderColorPicker(
                 selected: colorIndex,
                 onChanged: (i) => setLocal(() => colorIndex = i),
               ),
@@ -235,8 +237,10 @@ void showNewPodcastFolderDialog(BuildContext context,
   );
 }
 
-class _FolderColorPicker extends StatelessWidget {
-  const _FolderColorPicker({required this.selected, required this.onChanged});
+/// A folder's colour: TalkBack says each one's name, and which is picked.
+class PodcastFolderColorPicker extends StatelessWidget {
+  const PodcastFolderColorPicker(
+      {super.key, required this.selected, required this.onChanged});
   final int selected;
   final ValueChanged<int> onChanged;
 
@@ -247,25 +251,31 @@ class _FolderColorPicker extends StatelessWidget {
       runSpacing: RiffSpacing.sm,
       children: [
         for (var i = 0; i < PodcastFolderColors.swatches.length; i++)
-          GestureDetector(
-            onTap: () => onChanged(i),
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: PodcastFolderColors.swatches[i],
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: selected == i
-                      ? Theme.of(context).colorScheme.onSurface
-                      : Colors.transparent,
-                  width: 2.5,
+          Semantics(
+            container: true,
+            button: true,
+            selected: selected == i,
+            label: PodcastFolderColors.names[i].tr,
+            child: GestureDetector(
+              onTap: () => onChanged(i),
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: PodcastFolderColors.swatches[i],
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: selected == i
+                        ? Theme.of(context).colorScheme.onSurface
+                        : Colors.transparent,
+                    width: 2.5,
+                  ),
                 ),
+                child: selected == i
+                    ? Icon(Icons.check,
+                        size: 16, color: RiffColors.of(context).onImage)
+                    : null,
               ),
-              child: selected == i
-                  ? Icon(Icons.check,
-                      size: 16, color: RiffColors.of(context).onImage)
-                  : null,
             ),
           ),
       ],
@@ -301,8 +311,9 @@ class PodcastSubsScreen extends StatelessWidget {
           onAction: onDiscover,
         );
       }
+      final shows = sortedSubsShows(subs, rssSubs);
       return LayoutBuilder(builder: (context, constraints) {
-        final total = folderList.length + subs.length + rssSubs.length;
+        final total = folderList.length + shows.length;
         return GridView.builder(
           padding: kPodcastSubsGridPadding,
           gridDelegate: podcastSubsGridDelegate(constraints.maxWidth,
@@ -312,9 +323,9 @@ class PodcastSubsScreen extends StatelessWidget {
             if (index < folderList.length) {
               return _folderTile(context, folders, folderList[index]);
             }
-            final subIndex = index - folderList.length;
-            if (subIndex < subs.length) {
-              final podcast = subs[subIndex];
+            final show = shows[index - folderList.length];
+            final podcast = show.library;
+            if (podcast != null) {
               return PodcastCoverTile(
                 title: podcast.title,
                 subtitle: libraryPodcastSubtitle(podcast),
@@ -323,12 +334,14 @@ class PodcastSubsScreen extends StatelessWidget {
                 badge: isYoutubeChannelPodcast(podcast)
                     ? youtubeChannelBadge(context)
                     : null,
+                count: podcastShowCountBadge(
+                    podcastShowKeyForYoutube(podcast.playlistId)),
                 onTap: () => openLibraryPodcast(podcast),
                 onPlay: () => playLibraryPodcast(podcast),
                 onLongPress: () => showPodcastFolderSheet(context, podcast),
               );
             }
-            final rss = rssSubs[subIndex - subs.length];
+            final rss = show.feed!;
             return rssPodcastTile(rss,
                 onLongPress: () => showRssPodcastSheet(context, rss));
           },
@@ -367,6 +380,7 @@ class PodcastSubsScreen extends StatelessWidget {
                           ?.copyWith(color: homeMutedColor(context)),
                     ),
                   ),
+                  if (shows > 1) const PodcastSubsSortButton(),
                   if (folders.folders.length > 1)
                     IconButton(
                       tooltip: 'reorderFolders'.tr,
@@ -397,6 +411,8 @@ class PodcastSubsScreen extends StatelessWidget {
       title: folder.name,
       subtitle: podcastShowCount(folder.podcastIds.length),
       showPlay: false,
+      count: PodcastInboxCountBadge(
+          shows: podcastFolderShowKeys(folder.podcastIds)),
       cover: PodcastFolderCover(folder: folder),
       onTap: () => Get.to(() => PodcastFolderScreen(folderId: folder.id)),
       onLongPress: () => _folderOptions(context, fc, folder),
@@ -428,7 +444,7 @@ class PodcastSubsScreen extends StatelessWidget {
                 Text("folderColor".tr,
                     style: Theme.of(ctx).textTheme.titleSmall),
                 const SizedBox(height: RiffSpacing.sm),
-                _FolderColorPicker(
+                PodcastFolderColorPicker(
                   selected: current.colorIndex,
                   onChanged: (i) => fc.setColor(current.id, i),
                 ),
@@ -501,4 +517,44 @@ Future<void> pickPodcastFolderPhoto(
     return;
   }
   Get.find<PodcastFolderController>().setImage(folderId, saved);
+}
+
+/// "Default", "Name", … for [s].
+String podcastSubsSortLabel(PodcastSubsSort s) => switch (s) {
+      PodcastSubsSort.standard => 'sortDefault'.tr,
+      PodcastSubsSort.name => 'sortName'.tr,
+      PodcastSubsSort.latestEpisode => 'latestEpisode'.tr,
+      PodcastSubsSort.recentlyFollowed => 'recentlyFollowed'.tr,
+    };
+
+/// The Subscriptions header's sort menu (the song lists' checked items);
+/// its icon is in the accent while a sort other than the default is on.
+class PodcastSubsSortButton extends StatelessWidget {
+  const PodcastSubsSortButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final current = PodcastSubsOrder.sort.value;
+      return PopupMenuButton<PodcastSubsSort>(
+        tooltip: 'sortBy'.tr,
+        position: PopupMenuPosition.under,
+        icon: Icon(Icons.sort_rounded,
+            size: RiffComponentSizes.headerIcon,
+            color: current == PodcastSubsSort.standard
+                ? null
+                : Theme.of(context).colorScheme.primary),
+        onSelected: PodcastSubsOrder.set,
+        itemBuilder: (_) => [
+          for (final s in PodcastSubsSort.values)
+            CheckedPopupMenuItem<PodcastSubsSort>(
+              height: RiffComponentSizes.sheetRow,
+              value: s,
+              checked: s == current,
+              child: Text(podcastSubsSortLabel(s)),
+            ),
+        ],
+      );
+    });
+  }
 }

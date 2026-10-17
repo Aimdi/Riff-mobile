@@ -328,7 +328,9 @@ class DiscoveryRepository {
     final candidates = <({String id, double score})>[];
     for (final k in _trackStats.keys) {
       final v = _trackStats.get(k);
-      if (v is! Map) continue;
+      if (v is! Map || _isLongFormPlay(k.toString(), v['lastSource'])) {
+        continue;
+      }
       final last = v['lastPlayedTs'] as int? ?? 0;
       final life = (v['lifetimePlays'] as int? ?? 0).toDouble();
       if (last > 0 && last < cutoff && life >= minLifetimePlays) {
@@ -337,6 +339,100 @@ class DiscoveryRepository {
     }
     candidates.sort((a, b) => b.score.compareTo(a.score));
     return candidates.take(limit).map((e) => e.id).toList();
+  }
+
+  /// The songs you've played most in the last [days], as Spotify's On
+  /// Repeat has them: played through (not skipped) at least [minPlays]
+  /// times, the most played first and the latest among equals.
+  List<String> onRepeatIds(
+      {int days = 30, int minPlays = 2, int limit = 30, DateTime? now}) {
+    final cutoff = (now ?? DateTime.now())
+        .subtract(Duration(days: days))
+        .millisecondsSinceEpoch;
+    final plays = <String, int>{};
+    final latest = <String, int>{};
+    // Kept in the order played: back from the newest to the cutoff.
+    for (var i = _events.length - 1; i >= 0; i--) {
+      final v = _events.getAt(i);
+      if (v is! Map) continue;
+      final ts = v['ts'] as int? ?? 0;
+      if (ts < cutoff) break;
+      if (v['event'] != DiscoveryEventKind.playEnded.wireName) continue;
+      final id = '${v['videoId'] ?? ''}';
+      if (id.isEmpty || isLongFormId(id)) continue;
+      plays[id] = (plays[id] ?? 0) + 1;
+      latest[id] ??= ts;
+    }
+    final ids = [
+      for (final e in plays.entries)
+        if (e.value >= minPlays) e.key,
+    ]..sort((a, b) {
+        final byPlays = plays[b]!.compareTo(plays[a]!);
+        return byPlays != 0 ? byPlays : latest[b]!.compareTo(latest[a]!);
+      });
+    return ids.take(limit).toList();
+  }
+
+  /// The songs played since [since] as Stats keeps them, id → {title,
+  /// artist, plays}: play starts counted, as Stats counts plays, with the
+  /// latest title and artist; music only. Stats' last 4 weeks and last 6
+  /// months, as Spotify ranks your top songs and artists.
+  Map<String, Map<String, dynamic>> playRowsSince(DateTime since) {
+    final cutoff = since.millisecondsSinceEpoch;
+    final rows = <String, Map<String, dynamic>>{};
+    for (var i = _events.length - 1; i >= 0; i--) {
+      final v = _events.getAt(i);
+      if (v is! Map) continue;
+      final ts = v['ts'] as int? ?? 0;
+      if (ts < cutoff) break;
+      if (v['event'] != DiscoveryEventKind.playStarted.wireName) continue;
+      final id = '${v['videoId'] ?? ''}';
+      if (id.isEmpty || isLongFormId(id)) continue;
+      final row = rows[id] ??= {
+        'title': '${v['title'] ?? ''}',
+        'artist': '${v['artist'] ?? ''}',
+        'plays': 0,
+      };
+      row['plays'] = (row['plays'] as int) + 1;
+    }
+    return rows;
+  }
+
+  /// The songs you play at this time of day, for the daylist: played
+  /// through at least [minPlays] times in the last [days] during the part
+  /// of the day [now] is in, those you play then more than at other times
+  /// first (plays then × the share of their plays that are then), the
+  /// latest among equals.
+  List<String> daylistIds(
+      {int days = 30, int minPlays = 2, int limit = 30, DateTime? now}) {
+    final at = now ?? DateTime.now();
+    final part = DayPart.of(at);
+    final cutoff = at.subtract(Duration(days: days)).millisecondsSinceEpoch;
+    final then = <String, int>{};
+    final all = <String, int>{};
+    final latest = <String, int>{};
+    for (var i = _events.length - 1; i >= 0; i--) {
+      final v = _events.getAt(i);
+      if (v is! Map) continue;
+      final ts = v['ts'] as int? ?? 0;
+      if (ts < cutoff) break;
+      if (v['event'] != DiscoveryEventKind.playEnded.wireName) continue;
+      final id = '${v['videoId'] ?? ''}';
+      if (id.isEmpty || isLongFormId(id)) continue;
+      all[id] = (all[id] ?? 0) + 1;
+      if (DayPart.of(DateTime.fromMillisecondsSinceEpoch(ts)) != part) continue;
+      then[id] = (then[id] ?? 0) + 1;
+      latest[id] ??= ts;
+    }
+    double score(String id) => then[id]! * then[id]! / all[id]!;
+    final ids = [
+      for (final e in then.entries)
+        if (e.value >= minPlays) e.key,
+    ]..sort((a, b) {
+        final byScore = score(b).compareTo(score(a));
+        return byScore != 0 ? byScore : latest[b]!.compareTo(latest[a]!);
+      });
+    return ids.take(limit).toList();
   }
 
   // ─── Co-occurrence graph ──────────────────────────────────────────────
@@ -542,6 +638,99 @@ class DiscoveryRepository {
     await _mixes.clear();
   }
 
+  // ─── Podcasts and audiobooks ──────────────────────────────────────────
+
+  static const _longFormForgottenKey = 'longFormForgotten';
+
+  /// A play of a podcast episode or an audiobook chapter: by its id, or by
+  /// where it was played from ([source], a wire name).
+  static bool _isLongFormPlay(String id, Object? source) =>
+      isLongFormId(id) ||
+      (source is String && DiscoverySource.fromWire(source).isLongForm);
+
+  static Object? _lastSourceOf(Object? stat) =>
+      stat is Map ? stat['lastSource'] : null;
+
+  /// A Stats (`SongStats`) entry of one: Stats keeps their kind.
+  static bool _isLongFormStat(String id, Map stat) =>
+      isLongFormId(id) ||
+      stat['kind'] == 'podcast' ||
+      stat['kind'] == 'audiobook';
+
+  /// Once: takes out what podcast episodes and audiobook chapters put into
+  /// your taste before they were kept out of it. Their plays, their stats
+  /// and pairings go, as do the shows and authors only they made "artists"
+  /// you like; saved mixes drop their tracks. [songStats] (Stats' box)
+  /// tells the ones the first backfill took from it. Returns how many plays
+  /// went.
+  Future<int> forgetLongForm({Box? songStats}) async {
+    if (getPref(_longFormForgottenKey) == true) return 0;
+    final ids = <String>{};
+    final longArtists = <String>{};
+    final musicArtists = <String>{};
+    // Stats first: it knows a YouTube episode played from search results.
+    if (songStats != null) {
+      for (final k in songStats.keys) {
+        final v = songStats.get(k);
+        if (v is! Map) continue;
+        final artistKey = normalizeArtistKey(v['artist'] as String?);
+        if (_isLongFormStat(k.toString(), v)) {
+          ids.add(k.toString());
+          if (artistKey.isNotEmpty) longArtists.add(artistKey);
+        } else if (artistKey.isNotEmpty) {
+          musicArtists.add(artistKey);
+        }
+      }
+    }
+    final plays = <dynamic>[];
+    for (final k in _events.keys) {
+      final v = _events.get(k);
+      if (v is! Map) continue;
+      final id = '${v['videoId'] ?? ''}';
+      final artistKey = '${v['artistKey'] ?? ''}';
+      if (ids.contains(id) || _isLongFormPlay(id, v['source'])) {
+        plays.add(k);
+        if (id.isNotEmpty) ids.add(id);
+        if (artistKey.isNotEmpty) longArtists.add(artistKey);
+      } else if (artistKey.isNotEmpty) {
+        musicArtists.add(artistKey);
+      }
+    }
+    bool longForm(String id) => isLongFormId(id) || ids.contains(id);
+
+    await _deleteInBatches(_events, plays);
+    await _deleteInBatches(_trackStats, [
+      for (final k in _trackStats.keys)
+        if (longForm(k.toString()) ||
+            _isLongFormPlay(k.toString(), _lastSourceOf(_trackStats.get(k))))
+          k,
+    ]);
+    await _deleteInBatches(_cooc, [
+      for (final k in _cooc.keys)
+        if (k.toString().split('|').any(longForm)) k,
+    ]);
+    _adj = null;
+    await _deleteInBatches(
+        _affinity, longArtists.difference(musicArtists).toList());
+    for (final mix in allMixes()) {
+      final tracks = [
+        for (final t in mix.tracks)
+          if (!longForm('${t['videoId'] ?? ''}')) t,
+      ];
+      if (tracks.length == mix.tracks.length) continue;
+      await saveMix(GeneratedMix(
+        id: mix.id,
+        title: mix.title,
+        reason: mix.reason,
+        kind: mix.kind,
+        tracks: tracks,
+        generatedTs: mix.generatedTs,
+      ));
+    }
+    await setPref(_longFormForgottenKey, true);
+    return plays.length;
+  }
+
   // ─── Backfill from existing SongStats / history ───────────────────────
 
   /// Seed familiarity + affinity from existing `SongStats` box entries.
@@ -555,7 +744,7 @@ class DiscoveryRepository {
       final plays = v['plays'] as int? ?? 0;
       final artist = v['artist'] as String? ?? '';
       final lastPlayed = v['lastPlayed'] as int? ?? now.millisecondsSinceEpoch;
-      if (plays <= 0) continue;
+      if (plays <= 0 || _isLongFormStat(videoId, v)) continue;
 
       // Don't overwrite richer existing data
       if (!_trackStats.containsKey(videoId)) {

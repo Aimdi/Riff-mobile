@@ -142,6 +142,61 @@ Map<String, dynamic> bookmarkData(Map<String, dynamic> json) {
   return compactData(data);
 }
 
+// ── Starred episodes ──────────────────────────────────────────────────
+
+/// `podcast.starred` data for a starred episode (its `toJson`): when it was
+/// starred, what to show it by, the fields to find it by in other apps and
+/// the snapshot Riff Mobile plays it from (local file paths left out).
+Map<String, dynamic> starredData(Map<String, dynamic> json) {
+  final ep = json['episode'];
+  final episode =
+      ep is Map ? Map<String, dynamic>.from(ep) : <String, dynamic>{};
+  final extras = episode['extras'] is Map
+      ? Map<String, dynamic>.from(episode['extras'] as Map)
+      : <String, dynamic>{};
+  final url = extras['remoteUrl'] ?? extras['url'];
+  final remote = url is String && url.isNotEmpty && !_isLocalUrl(url);
+  if (_isLocalUrl(extras['url']?.toString())) extras.remove('url');
+  extras.remove('localPath');
+  final id = '${episode['id'] ?? ''}';
+  return compactData({
+    'starredAt': json['starredAt'],
+    'title': episode['title'],
+    'show': episode['artist'],
+    'artUri': episode['artUri'],
+    'feedUrl': extras['feedUrl'],
+    if (remote) 'enclosureUrl': url,
+    'guid': extras['guid'],
+    if (id.isNotEmpty && !isRssEpisodeId(id)) 'videoId': id,
+    'episode': {...episode, 'extras': extras},
+  });
+}
+
+/// The stored starred episode for record [id] and its [data]: the snapshot
+/// when there is one, else one built from the fields other apps write.
+Map<String, dynamic> starredFromData(
+    String id, Map<String, dynamic> data, int updatedAt) {
+  final ep = data['episode'];
+  final episode = ep is Map
+      ? Map<String, dynamic>.from(ep)
+      : compactData({
+          'title': data['title'],
+          'artist': data['show'],
+          'artUri': data['artUri'],
+          'extras': compactData({
+            'url': data['enclosureUrl'],
+            'feedUrl': data['feedUrl'],
+            'guid': data['guid'],
+            'isPodcast': true,
+          }),
+        });
+  final at = data['starredAt'];
+  return {
+    'starredAt': at is int && at > 0 ? at : updatedAt,
+    'episode': {...episode, 'id': id},
+  };
+}
+
 // ── Manual segments ───────────────────────────────────────────────────
 
 String segmentRecordId(String episodeId, String segmentId) =>

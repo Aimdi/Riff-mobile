@@ -21,5 +21,21 @@ class PodcastFolderColors {
     Color(0xFF795548), // brown
   ];
 
+  /// Each swatch's name (a translation key), for TalkBack.
+  static const List<String> names = [
+    'colorGreen',
+    'colorBlue',
+    'colorPurple',
+    'colorRed',
+    'colorAmber',
+    'colorTeal',
+    'colorPink',
+    'colorCyan',
+    'colorOrange',
+    'colorLightGreen',
+    'colorBlueGrey',
+    'colorBrown',
+  ];
+
   static Color of(int index) => swatches[index.clamp(0, swatches.length - 1)];
 }

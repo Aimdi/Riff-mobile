@@ -1,14 +1,16 @@
-import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/models/album.dart';
 import 'package:harmonymusic/models/playling_from.dart';
 import 'package:harmonymusic/models/thumbnail.dart';
 import 'package:harmonymusic/ui/widgets/playlist_album_scroll_behaviour.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../player/player_controller.dart';
+import '../../widgets/add_to_playlist.dart' show showAddToPlaylistSheet;
 import '../../widgets/collection_header.dart';
+import '../../widgets/content_list_widget.dart';
 import '../../widgets/header_hero_fade.dart';
 import '../../navigator.dart';
 import '../../widgets/image_widget.dart';
@@ -16,7 +18,10 @@ import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/song_list_tile.dart';
 import '../../widgets/sort_widget.dart';
+import '../../theme/riff_spacing.dart';
 import 'album_screen_controller.dart';
+import '/ui/player/play_queue_order.dart' show playQueueFrom;
+import '/ui/widgets/total_length.dart';
 
 class AlbumScreen extends StatelessWidget {
   const AlbumScreen({super.key});
@@ -154,11 +159,16 @@ class AlbumScreen extends StatelessWidget {
                             // isContentFetched is read first (|| would skip
                             // it while the list is empty), so an album that
                             // loads empty or fails leaves the shimmer.
-                            itemCount: albumController
-                                        .isContentFetched.isFalse ||
-                                    albumController.songList.isEmpty
-                                ? 4
-                                : albumController.songList.length + 3,
+                            itemCount:
+                                albumController.isContentFetched.isFalse ||
+                                        albumController.songList.isEmpty
+                                    ? 4
+                                    : albumController.songList.length +
+                                        3 +
+                                        (_showOtherVersions(albumController)
+                                            ? 1
+                                            : 0) +
+                                        (_showMoreBy(albumController) ? 1 : 0),
                             itemBuilder: (_, index) {
                               if (index == 0) {
                                 return FadeTransition(
@@ -183,6 +193,8 @@ class AlbumScreen extends StatelessWidget {
                                         isSearchFeatureRequired: true,
                                         itemCountTitle:
                                             "${albumController.songList.length}",
+                                        totalLength: totalLength(
+                                            albumController.songList),
                                         itemIcon: Icons.music_note,
                                         requiredSortTypes:
                                             buildSortTypeSet(false, true),
@@ -226,6 +238,42 @@ class AlbumScreen extends StatelessWidget {
                                 );
                               }
 
+                              // After the songs: its other versions, then
+                              // More by the artist.
+                              final after =
+                                  index - 3 - albumController.songList.length;
+                              if (after == 0 &&
+                                  _showOtherVersions(albumController)) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(
+                                      top: RiffSpacing.lg),
+                                  child: ContentListWidget(
+                                    content: AlbumContent(
+                                        title: albumController
+                                                .otherVersionsTitle.isEmpty
+                                            ? 'otherVersions'.tr
+                                            : albumController
+                                                .otherVersionsTitle,
+                                        albumList: albumController.otherVersions
+                                            .toList()),
+                                  ),
+                                );
+                              }
+                              if (after >= 0) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(
+                                      top: RiffSpacing.lg),
+                                  child: ContentListWidget(
+                                    content: AlbumContent(
+                                        title: 'moreByArtist'.trParams({
+                                          'artist':
+                                              albumController.moreByArtistName
+                                        }),
+                                        albumList:
+                                            albumController.moreByArtistShown),
+                                  ),
+                                );
+                              }
                               return Padding(
                                 padding:
                                     const EdgeInsets.only(left: 4, right: 4),
@@ -256,6 +304,18 @@ class AlbumScreen extends StatelessWidget {
       ),
     );
   }
+
+  /// More by the artist shows once it's loaded (without the other
+  /// versions above it), and not while the album's songs are searched.
+  bool _showMoreBy(AlbumScreenController albumController) =>
+      albumController.moreByArtistShown.isNotEmpty &&
+      albumController.isSearchingOn.isFalse;
+
+  /// The album's other versions, as its page lists them; not while its
+  /// songs are searched.
+  bool _showOtherVersions(AlbumScreenController albumController) =>
+      albumController.otherVersions.isNotEmpty &&
+      albumController.isSearchingOn.isFalse;
 
   Widget _header(BuildContext context, AlbumScreenController albumController) {
     final album = albumController.album.value;
@@ -339,8 +399,15 @@ class AlbumScreen extends StatelessWidget {
         CollectionMenuItem(Icons.queue_music_rounded, "enqueueAlbumSongs".tr,
             () async {
           final ok = await playerController
-              .enqueueSongList(albumController.songList.toList());
+              .enqueueSongList(albumController.songList.toList(), byYou: true);
           snack(ok ? "songEnqueueAlert" : "operationFailed");
+        }),
+        // Spotify's, Apple Music's and YouTube Music's Add to playlist:
+        // the whole album at once.
+        CollectionMenuItem(Icons.playlist_add_rounded, 'addToPlaylist'.tr, () {
+          final list = albumController.songList.toList();
+          if (list.isEmpty) return snack('operationFailed');
+          showAddToPlaylistSheet(context, list);
         }),
         CollectionMenuItem(Icons.sensors, "startRadio".tr, () async {
           final list = albumController.songList.toList();
@@ -364,8 +431,7 @@ Future<void> _playAlbumFrom(
   int index, {
   bool shuffle = false,
 }) async {
-  final songs = List<MediaItem>.from(albumController.songList);
-  if (shuffle) songs.shuffle();
+  final songs = playQueueFrom(albumController.songList, shuffle: shuffle);
   final ok = await playerController.playPlayListSong(
     songs,
     index,

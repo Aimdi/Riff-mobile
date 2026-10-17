@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hive/hive.dart';
 
+import '/services/auto_sleep_timer.dart';
+import '/services/sleep_shake.dart';
 import '/ui/player/play_queue_order.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/theme/riff_spacing.dart';
+import 'cust_switch.dart';
 import 'riff_sheet.dart';
 import 'snackbar.dart';
 
@@ -103,7 +107,7 @@ class SleepTimerBottomSheet extends StatelessWidget {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () {
-                          playerController.cancelSleepTimer();
+                          playerController.turnOffSleepTimer();
                           _done(context, 'cancelTimerAlert'.tr);
                         },
                         style: OutlinedButton.styleFrom(
@@ -116,6 +120,23 @@ class SleepTimerBottomSheet extends StatelessWidget {
                   ],
                 ),
               ),
+              // A timed timer: shake to start it over (Pocket Casts,
+              // AntennaPod).
+              if (!endOfSong && GetPlatform.isAndroid) ...[
+                const SizedBox(height: RiffSpacing.sm),
+                RiffSheetTile(
+                  icon: Icons.vibration_rounded,
+                  title: 'shakeToRestart'.tr,
+                  subtitle: 'shakeToRestartDes'.tr,
+                  onTap: () =>
+                      SleepShake.setEnabled(SleepShake.enabled.isFalse),
+                  trailing: CustSwitch(
+                    value: SleepShake.enabled.isTrue,
+                    onChanged: SleepShake.setEnabled,
+                  ),
+                ),
+              ],
+              const AutoSleepTimerTile(),
             ] else ...[
               Padding(
                 padding: const EdgeInsets.only(
@@ -136,6 +157,7 @@ class SleepTimerBottomSheet extends StatelessWidget {
                         minutes: dur,
                         onTap: () {
                           final ok = playerController.startSleepTimer(dur);
+                          AutoSleepTimer.rememberMinutes(dur);
                           _done(
                               context,
                               ok
@@ -145,6 +167,19 @@ class SleepTimerBottomSheet extends StatelessWidget {
                       ),
                   ],
                 ),
+              ),
+              // A length of your own, as in Pocket Casts and AntennaPod.
+              RiffSheetTile(
+                icon: Icons.more_time_rounded,
+                title: 'customSleepTimer'.tr,
+                onTap: () async {
+                  final minutes = await showCustomSleepTimerDialog(context);
+                  if (minutes == null || !context.mounted) return;
+                  final ok = playerController.startSleepTimer(minutes);
+                  AutoSleepTimer.rememberMinutes(minutes);
+                  _done(context,
+                      ok ? 'sleepTimeSetAlert'.tr : 'operationFailed'.tr);
+                },
               ),
               RiffSheetTile(
                 icon: Icons.music_off_outlined,
@@ -166,6 +201,7 @@ class SleepTimerBottomSheet extends StatelessWidget {
                     playerController.sleepEndOfChapter();
                   },
                 ),
+              const AutoSleepTimerTile(),
               if (playerController.isCurrentSongPodcast)
                 Padding(
                   padding: const EdgeInsets.only(
@@ -180,6 +216,211 @@ class SleepTimerBottomSheet extends StatelessWidget {
           ],
         );
       }),
+    );
+  }
+}
+
+/// The automatic sleep timer (AntennaPod's): the switch, saying for how
+/// long and between which hours, and while it's on, those hours to change.
+class AutoSleepTimerTile extends StatelessWidget {
+  const AutoSleepTimerTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final labelStyle = theme.textTheme.bodyMedium
+        ?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    return Obx(() {
+      final on = AutoSleepTimer.enabled.value;
+      final from = AutoSleepTimer.from.value;
+      final to = AutoSleepTimer.to.value;
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          RiffSheetTile(
+            icon: Icons.schedule_rounded,
+            title: 'autoSleepTimer'.tr,
+            subtitle:
+                (from == to ? 'autoSleepTimerAllDay' : 'autoSleepTimerDes')
+                    .trParams({
+              'time': formatSleepMinutes(AutoSleepTimer.minutes),
+              'from': sleepHourLabel(context, from),
+              'to': sleepHourLabel(context, to),
+            }),
+            onTap: () => AutoSleepTimer.setEnabled(!on),
+            trailing: CustSwitch(
+              value: on,
+              onChanged: AutoSleepTimer.setEnabled,
+            ),
+          ),
+          if (on)
+            Padding(
+              // Under the tile's text.
+              padding: const EdgeInsets.only(
+                  left: RiffSpacing.lg +
+                      RiffComponentSizes.sheetIcon +
+                      RiffSpacing.lg,
+                  right: RiffSpacing.lg),
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: RiffSpacing.lg,
+                children: [
+                  _HourDropdown(
+                    label: 'autoSleepTimerFrom'.tr,
+                    labelStyle: labelStyle,
+                    hour: from,
+                    onChanged: (h) => AutoSleepTimer.setHours(fromHour: h),
+                  ),
+                  _HourDropdown(
+                    label: 'autoSleepTimerTo'.tr,
+                    labelStyle: labelStyle,
+                    hour: to,
+                    onChanged: (h) => AutoSleepTimer.setHours(toHour: h),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      );
+    });
+  }
+}
+
+/// [hour] o'clock as the phone tells the time ("22:00", "10:00 PM").
+String sleepHourLabel(BuildContext context, int hour) =>
+    MaterialLocalizations.of(context).formatTimeOfDay(
+        TimeOfDay(hour: hour, minute: 0),
+        alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context));
+
+/// One of the automatic sleep timer's hours ([label]: From, Until), to
+/// pick from the 24; read out with its label.
+class _HourDropdown extends StatelessWidget {
+  const _HourDropdown(
+      {required this.label,
+      required this.labelStyle,
+      required this.hour,
+      required this.onChanged});
+
+  final String label;
+  final TextStyle? labelStyle;
+  final int hour;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return MergeSemantics(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Wraps rather than pushing the hour off the edge under a
+          // larger font size.
+          Flexible(child: Text(label, style: labelStyle)),
+          const SizedBox(width: RiffSpacing.sm),
+          DropdownButton<int>(
+            dropdownColor: Theme.of(context).colorScheme.surfaceContainerLow,
+            underline: const SizedBox.shrink(),
+            value: hour,
+            items: [
+              for (var h = 0; h < Duration.hoursPerDay; h++)
+                DropdownMenuItem(
+                    value: h, child: Text(sleepHourLabel(context, h))),
+            ],
+            onChanged: (h) {
+              if (h != null) onChanged(h);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "1 h 30 min".
+String formatSleepMinutes(int minutes) {
+  final h = minutes ~/ 60;
+  final m = minutes % 60;
+  if (h == 0) return '$m ${'minShort'.tr}';
+  if (m == 0) return '$h ${'hourShort'.tr}';
+  return '$h ${'hourShort'.tr} $m ${'minShort'.tr}';
+}
+
+/// AppPrefs key of the last custom sleep timer length, in minutes.
+const customSleepMinutesKey = 'sleepTimerCustomMinutes';
+
+/// Asks for a sleep timer length of your own: minutes, or null.
+Future<int?> showCustomSleepTimerDialog(BuildContext context) =>
+    showDialog<int>(
+      context: context,
+      builder: (_) => const CustomSleepTimerDialog(),
+    );
+
+/// A slider from 5 minutes to 4 hours in 5-minute steps, starting at the
+/// length picked last time.
+class CustomSleepTimerDialog extends StatefulWidget {
+  const CustomSleepTimerDialog({super.key});
+
+  static const int minMinutes = 5;
+  static const int maxMinutes = 240;
+  static const int step = 5;
+  static const int fallback = 20;
+
+  @override
+  State<CustomSleepTimerDialog> createState() => _CustomSleepTimerDialogState();
+}
+
+class _CustomSleepTimerDialogState extends State<CustomSleepTimerDialog> {
+  static Box? get _prefs =>
+      Hive.isBoxOpen('AppPrefs') ? Hive.box('AppPrefs') : null;
+
+  late int _minutes = () {
+    final saved = _prefs?.get(customSleepMinutesKey);
+    return saved is int
+        ? saved.clamp(CustomSleepTimerDialog.minMinutes,
+            CustomSleepTimerDialog.maxMinutes)
+        : CustomSleepTimerDialog.fallback;
+  }();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    const min = CustomSleepTimerDialog.minMinutes;
+    const max = CustomSleepTimerDialog.maxMinutes;
+    return AlertDialog(
+      title: Text('sleepTimer'.tr),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            formatSleepMinutes(_minutes),
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          const SizedBox(height: RiffSpacing.sm),
+          Slider(
+            value: _minutes.toDouble(),
+            min: min.toDouble(),
+            max: max.toDouble(),
+            divisions: (max - min) ~/ CustomSleepTimerDialog.step,
+            label: formatSleepMinutes(_minutes),
+            onChanged: (v) => setState(() => _minutes = v.round()),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text('cancel'.tr),
+        ),
+        FilledButton(
+          onPressed: () {
+            _prefs?.put(customSleepMinutesKey, _minutes);
+            Navigator.of(context).pop(_minutes);
+          },
+          child: Text('startSleepTimer'.tr),
+        ),
+      ],
     );
   }
 }

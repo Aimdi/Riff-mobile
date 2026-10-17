@@ -9,30 +9,43 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '/services/wizestream_service.dart';
 
+import '../../models/media_Item_builder.dart';
 import '../../models/media_item_extras.dart';
 import '../../services/ban_service.dart';
 import '../../services/discovery/discovery_service.dart';
+import '../../services/discovery/discovery_tag.dart';
 import '../../utils/hive_boxes.dart';
 import '../screens/Playlist/playlist_screen_controller.dart';
 import '/utils/helper.dart';
 import '/services/piped_service.dart';
 import '/ui/widgets/sleep_timer_bottom_sheet.dart';
 import '/ui/player/components/player_control.dart' show sleepTimerBadge;
+import '/ui/player/components/lyrics_share.dart';
+import '/ui/player/components/lyrics_timing_sheet.dart';
+import '/ui/player/components/lyrics_search_sheet.dart';
+import '/services/lyrics_timing.dart';
+import '/services/lyrics_translation.dart';
+import 'cust_switch.dart';
 import '/ui/player/player_controller.dart';
 import '../screens/Library/library_controller.dart';
 import '/ui/widgets/add_to_playlist.dart';
 import '/ui/widgets/favorite_heart_button.dart';
+import '/ui/widgets/not_interested_action.dart';
+import '/ui/widgets/queue_undo.dart';
 import '/ui/widgets/snackbar.dart';
 import '/ui/utils/sheet_insets.dart';
 import '/utils/content_filters.dart';
 import '../../models/playlist.dart';
+import '../../models/playling_from.dart';
 import '../navigator.dart';
 import 'discovery/similar_songs_sheet.dart';
 import 'song_download_btn.dart';
 import 'image_widget.dart';
+import 'audio_output_tile.dart';
 import 'riff_sheet.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import 'song_credits_dialog.dart';
 import 'song_info_dialog.dart';
 
 /// Player / mini-player long-press — same sheet as the full player.
@@ -295,6 +308,15 @@ class SongInfoBottomSheet extends StatelessWidget {
                 },
               ),
             ...artistWidgetList(song, context),
+            // Spotify's View credits (YouTube Music's View song credits).
+            RiffSheetTile(
+              icon: Icons.groups_outlined,
+              title: "credits".tr,
+              onTap: () => showDialog(
+                context: context,
+                builder: (context) => SongCreditsDialog(song: song),
+              ),
+            ),
             const RiffSheetDivider(),
             if (inEditablePlaylist)
               RiffSheetTile(
@@ -302,15 +324,28 @@ class SongInfoBottomSheet extends StatelessWidget {
                 title: playlist!.title == "Library Songs"
                     ? "removeFromLib".tr
                     : "removeFromPlaylist".tr,
-                onTap: () async {
+                onTap: () {
                   Navigator.of(context).pop();
-                  final ok = await songInfoController.removeSongFromPlaylist(
-                      song, playlist!);
-                  snack(ok
-                      ? "${"songRemovedAlert".tr} ${playlist!.title}"
-                      : "operationFailed".tr);
+                  removeFromPlaylistWithUndo(song, playlist!);
                 },
               ),
+            // The player's and Up Next's: the playlist playing, when it's
+            // one of yours with this song (Spotify's Remove from this
+            // playlist).
+            if (playlist == null && (calledFromPlayer || calledFromQueue))
+              Obx(() {
+                final playing = songInfoController.playingPlaylist.value;
+                if (playing == null) return const SizedBox.shrink();
+                return RiffSheetTile(
+                  icon: Icons.remove_circle_outline_rounded,
+                  title: "removeFromPlaylist".tr,
+                  subtitle: playing.title,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    removeFromPlaylistWithUndo(song, playing);
+                  },
+                );
+              }),
             if (calledFromQueue)
               RiffSheetTile(
                 icon: Icons.remove_circle_outline_rounded,
@@ -321,9 +356,7 @@ class SongInfoBottomSheet extends StatelessWidget {
                     snack("songRemovedfromQueueCurrSong".tr,
                         size: SanckBarSize.BIG);
                   } else {
-                    final ok = playerController.removeFromQueue(song);
-                    snack(
-                        ok ? "songRemovedfromQueue".tr : "operationFailed".tr);
+                    removeFromQueueWithUndo(song);
                   }
                 },
               ),
@@ -419,6 +452,18 @@ class SongInfoBottomSheet extends StatelessWidget {
               ),
             ),
             const RiffSheetDivider(),
+            // YouTube Music's and Spotify's "Not interested", for a song
+            // picked for you (radio, Autoplay, a mix, Smart shuffle).
+            if ((calledFromPlayer || calledFromQueue) &&
+                sourceFromMediaItem(song).isPickedForYou)
+              RiffSheetTile(
+                icon: Icons.thumb_down_off_alt_rounded,
+                title: "notInterested".tr,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  markNotInterested(song);
+                },
+              ),
             RiffSheetTile(
               icon: Icons.block_rounded,
               title: "neverPlayThis".tr,
@@ -503,8 +548,9 @@ class SongInfoBottomSheet extends StatelessWidget {
   }
 }
 
-/// Lyrics on/off and the sleep timer (with the time left while it runs),
-/// for the full player's ⋮ sheet. Both close the sheet.
+/// Lyrics, the sleep timer (with the time left while it runs) and the
+/// output switcher, for the full player's ⋮ sheet. All but the translation
+/// switch close the sheet.
 class PlayerToolTiles extends StatelessWidget {
   const PlayerToolTiles({super.key, this.onLyrics});
 
@@ -519,6 +565,12 @@ class PlayerToolTiles extends StatelessWidget {
       final lyricsOn = playerController.showLyricsflag.isTrue;
       final sleepOn = playerController.isSleepTimerActive.isTrue;
       final left = sleepTimerBadge(playerController.timerDurationLeft.value);
+      // Only synced lyrics have a timing to move.
+      final lyrics = playerController.lyrics;
+      final synced = '${lyrics['synced'] ?? ''}'.isNotEmpty ||
+          '${lyrics['ttml'] ?? ''}'.isNotEmpty;
+      final delay =
+          LyricsTiming.delayMs(playerController.currentSong.value?.id);
       return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -534,6 +586,49 @@ class PlayerToolTiles extends StatelessWidget {
             },
           ),
           RiffSheetTile(
+            icon: Icons.format_quote_rounded,
+            title: "shareLyrics".tr,
+            onTap: () {
+              Navigator.of(context).pop();
+              showLyricsShareSheet(
+                  playerController.homeScaffoldkey.currentContext ??
+                      Get.context);
+            },
+          ),
+          RiffSheetTile(
+            icon: Icons.translate_rounded,
+            title: "translateLyrics".tr,
+            onTap: () =>
+                LyricsTranslation.setEnabled(LyricsTranslation.enabled.isFalse),
+            trailing: CustSwitch(
+              value: LyricsTranslation.enabled.isTrue,
+              onChanged: LyricsTranslation.setEnabled,
+            ),
+          ),
+          if (synced)
+            RiffSheetTile(
+              icon: Icons.av_timer_rounded,
+              title: "lyricsTiming".tr,
+              subtitle: delay == 0 ? null : lyricsTimingLabel(delay),
+              onTap: () {
+                Navigator.of(context).pop();
+                showLyricsTimingSheet(
+                    playerController.homeScaffoldkey.currentContext ??
+                        Get.context);
+              },
+            ),
+          // Wrong lyrics, or none: find them (Metrolist's lyrics search).
+          RiffSheetTile(
+            icon: Icons.manage_search_rounded,
+            title: "searchLyrics".tr,
+            onTap: () {
+              Navigator.of(context).pop();
+              showLyricsSearchSheet(
+                  playerController.homeScaffoldkey.currentContext ??
+                      Get.context);
+            },
+          ),
+          RiffSheetTile(
             icon: sleepOn ? Icons.bedtime : Icons.bedtime_outlined,
             title: "sleepTimer".tr,
             subtitle: sleepOn && left.isNotEmpty ? '$left ${"left".tr}' : null,
@@ -544,6 +639,7 @@ class PlayerToolTiles extends StatelessWidget {
                       Get.context);
             },
           ),
+          const AudioOutputTile(),
         ],
       );
     });
@@ -557,9 +653,23 @@ class SongInfoController extends GetxController
   final bool calledFromPlayer;
   List artistList = [].obs;
   final isDownloaded = false.obs;
+
+  /// The playlist playing, when it's one of yours with this song in it
+  /// ([yourPlaylistPlaying]): the player's and Up Next's ⋮ can take the
+  /// song out of it.
+  final playingPlaylist = Rxn<Playlist>();
   SongInfoController(this.song, this.calledFromPlayer) {
     _setInitStatus(song);
+    _findPlayingPlaylist();
   }
+
+  Future<void> _findPlayingPlaylist() async {
+    if (!Get.isRegistered<PlayerController>()) return;
+    final found = await yourPlaylistPlaying(
+        Get.find<PlayerController>().playinfrom.value, song);
+    if (!isClosed) playingPlaylist.value = found;
+  }
+
   _setInitStatus(MediaItem song) async {
     isDownloaded.value =
         HiveBoxes.songDownloadsSync()?.containsKey(song.id) ?? false;
@@ -585,7 +695,10 @@ class SongInfoController extends GetxController
 }
 
 mixin RemoveSongFromPlaylistMixin {
-  Future<bool> removeSongFromPlaylist(MediaItem item, Playlist playlist) async {
+  /// [onRemovedAt] gets the song's position when it came out of a local
+  /// playlist, so [restoreSongToPlaylist] can put it back (Undo).
+  Future<bool> removeSongFromPlaylist(MediaItem item, Playlist playlist,
+      {void Function(int index)? onRemovedAt}) async {
     final box = await Hive.openBox(playlist.playlistId);
     //Library songs case
     if (playlist.playlistId == "SongsCache") {
@@ -604,7 +717,10 @@ mixin RemoveSongFromPlaylistMixin {
       final index = box.values
           .toList()
           .indexWhere((ele) => ele is Map && ele['videoId'] == item.id);
-      if (index >= 0) await box.deleteAt(index);
+      if (index >= 0) {
+        await box.deleteAt(index);
+        onRemovedAt?.call(index);
+      }
     }
 
     // this try catch block is to handle the case when song is removed from libsongs sections
@@ -642,6 +758,134 @@ mixin RemoveSongFromPlaylistMixin {
     // it here, or the player and other screens using it fail mid-write.
     return true;
   }
+
+  /// Undo for [removeSongFromPlaylist] on a local playlist: puts [item]
+  /// back at [index] (clamped), in storage and on the open screen.
+  Future<void> restoreSongToPlaylist(
+      MediaItem item, Playlist playlist, int index) async {
+    final box = await Hive.openBox(playlist.playlistId);
+    final values = box.values.toList();
+    if (values.any((v) => v is Map && v['videoId'] == item.id)) return;
+    final at = index.clamp(0, values.length);
+    values.insert(at, MediaItemBuilder.toJson(item));
+    // Positions are the order: rewrite them 0..n-1 in one batch.
+    await box.clear();
+    await box.putAll({for (var i = 0; i < values.length; i++) i: values[i]});
+    try {
+      final screen = Get.find<PlaylistScreenController>(
+          tag: Key(playlist.playlistId).hashCode.toString());
+      final shown = screen.songList.length;
+      screen.addNRemoveItemsinList(item,
+          action: 'add', index: at.clamp(0, shown));
+    } catch (_) {
+      // The playlist isn't open; storage is enough.
+    }
+  }
+}
+
+/// Removes [song] from [playlist] and says so; for local playlists and
+/// the library the snackbar has Undo, which puts the song back where it
+/// was.
+Future<void> removeFromPlaylistWithUndo(MediaItem song, Playlist playlist,
+    {BuildContext? context}) async {
+  // Before any await: a swiped row is gone once the list updates.
+  final target = undoSnackbarTarget(context);
+  if (playlist.playlistId == "SongDownloads" ||
+      playlist.playlistId == "SongsCache") {
+    return _removeFromLibraryWithUndo(song, playlist, target);
+  }
+  final remover = _PlaylistSongRemover();
+  int? removedAt;
+  final ok = await remover.removeSongFromPlaylist(song, playlist,
+      onRemovedAt: (i) => removedAt = i);
+  final at = removedAt;
+  showUndoSnackbar(
+    target,
+    ok
+        ? "removedFromPlaylist".trParams({'name': playlist.title})
+        : "operationFailed".tr,
+    onUndo: ok && at != null
+        ? () => remover.restoreSongToPlaylist(song, playlist, at)
+        : null,
+  );
+}
+
+class _PlaylistSongRemover with RemoveSongFromPlaylistMixin {}
+
+/// Whether you can take songs out of [playlist] from the player: it's one
+/// you made or imported in Riff, not a Library list (Favorites has the
+/// heart), a mix Riff makes, or one on YouTube Music or Piped.
+bool isYourPlaylist(Playlist playlist) =>
+    !playlist.isCloudPlaylist &&
+    !playlist.isPipedPlaylist &&
+    !playlist.playlistId.startsWith('RIFF_') &&
+    !const {
+      HiveBoxes.libRp,
+      HiveBoxes.libFav,
+      HiveBoxes.songsCache,
+      HiveBoxes.songDownloads,
+    }.contains(playlist.playlistId);
+
+/// The playlist playing ([from]), as the Library has it now (renamed, or
+/// gone), when it's one of yours with [song] in it: the player's and Up
+/// Next's ⋮ offer to take the song out of it, as Spotify's Now Playing
+/// does (Remove from this playlist).
+Future<Playlist?> yourPlaylistPlaying(PlaylingFrom from, MediaItem song) async {
+  if (from.type != PlaylingFromType.PLAYLIST || from.id.isEmpty) return null;
+  try {
+    final saved = (await HiveBoxes.open('LibraryPlaylists')).get(from.id);
+    if (saved is! Map) return null;
+    final playlist = Playlist.fromJson(saved);
+    if (playlist.playlistId != from.id || !isYourPlaylist(playlist)) {
+      return null;
+    }
+    final songs = await HiveBoxes.open(from.id);
+    return songs.values.any((s) => s is Map && s['videoId'] == song.id)
+        ? playlist
+        : null;
+  } catch (_) {
+    // Storage that won't open: nothing to offer.
+    return null;
+  }
+}
+
+/// The library's version: the song leaves the Songs list (and an open
+/// Downloads / Cached screen) at once, its download or cached copy is
+/// deleted only when the snackbar goes without Undo.
+Future<void> _removeFromLibraryWithUndo(
+    MediaItem song, Playlist playlist, UndoSnackbarTarget? target) async {
+  final library = Get.find<LibrarySongsController>();
+  final tag = Key(playlist.playlistId).hashCode.toString();
+  final screen = Get.isRegistered<PlaylistScreenController>(tag: tag)
+      ? Get.find<PlaylistScreenController>(tag: tag)
+      : null;
+  final screenIndex = screen?.songList.indexWhere((s) => s.id == song.id) ?? -1;
+  if (screenIndex >= 0) screen!.addNRemoveItemsinList(song, action: 'remove');
+  final removal = await library.takeOutOfLibrary(song);
+  if (removal == null) return;
+  final shown = showUndoSnackbar(
+    target,
+    "removedFromLibrary".tr,
+    onUndo: () async {
+      await library.undoRemoval(removal);
+      if (screen != null &&
+          !screen.isClosed &&
+          screenIndex >= 0 &&
+          screen.songList.every((s) => s.id != song.id)) {
+        screen.addNRemoveItemsinList(song,
+            action: 'add', index: screenIndex.clamp(0, screen.songList.length));
+      }
+    },
+  );
+  if (shown == null) {
+    // Nowhere to offer Undo.
+    await library.commitRemoval(removal);
+    return;
+  }
+  // Closed any other way (timed out, swiped, replaced): no Undo now.
+  shown.closed.then((reason) {
+    if (reason != SnackBarClosedReason.action) library.commitRemoval(removal);
+  });
 }
 
 /// The song's album (browse id + name), when it has one.

@@ -20,15 +20,20 @@ class _FakePlayer extends GetxController implements PlayerController {
   final GlobalKey<ScaffoldState> homeScaffoldkey = GlobalKey<ScaffoldState>();
   @override
   final isCurrentSongFav = false.obs;
+  // The playing row's now-playing bars follow it.
+  @override
+  final buttonState = PlayButtonState.paused.obs;
 
   List<MediaItem>? playedList;
   int? playedIndex;
+  PlaylingFrom? playedFrom;
 
   @override
   Future<bool> playPlayListSong(List<MediaItem> mediaItems, int index,
       {PlaylingFrom? playfrom, DiscoverySource? source}) async {
     playedList = mediaItems;
     playedIndex = index;
+    playedFrom = playfrom;
     currentSong.value = mediaItems[index];
     return true;
   }
@@ -102,6 +107,9 @@ void main() {
     expect(player.playedList!.map((s) => s.id), ['a-sim0', 'a-sim1', 'a-sim2']);
     expect(player.playedList![1].extras?[kDiscoverySourceExtra],
         DiscoverySource.similar.wireName);
+    // "Playing from" says similar songs (it said Random selection).
+    expect(player.playedFrom?.type, PlaylingFromType.SELECTION);
+    expect(player.playedFrom?.nameString, 'similarSongs');
     // No reload for the song just picked.
     expect(discovery.seeds, ['a']);
     expect(find.text('Song a-sim0'), findsOneWidget);

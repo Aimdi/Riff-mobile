@@ -10,7 +10,7 @@ import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/services/podcast_segments.dart' show formatSegmentLength;
 import '/ui/player/player_controller.dart';
-import '../../widgets/common_dialog_widget.dart';
+import '../../widgets/bookmark_note_dialog.dart';
 import '../../widgets/riff_sheet.dart';
 import '../../widgets/snackbar.dart';
 import '../Home/home_layout.dart';
@@ -48,75 +48,9 @@ void showBookmarkSavedSnack(BuildContext context, PodcastBookmark bm) {
 }
 
 Future<void> editBookmarkNote(BuildContext context, PodcastBookmark bm) async {
-  final note = await showDialog<String>(
-    context: context,
-    useRootNavigator: true,
-    builder: (_) => _BookmarkNoteDialog(bm),
-  );
+  final note = await askBookmarkNote(context,
+      note: bm.note, subtitle: bm.quote.isEmpty ? null : '“${bm.quote}”');
   if (note != null) await PodcastBookmarkStore.setNote(bm, note);
-}
-
-/// The note editor. Owns its text controller: disposing it as soon as
-/// showDialog returned (the dialog is still animating out, its field still
-/// focused) threw "A TextEditingController was used after being disposed".
-/// Pops with the text on Save, null on Cancel.
-class _BookmarkNoteDialog extends StatefulWidget {
-  const _BookmarkNoteDialog(this.bm);
-  final PodcastBookmark bm;
-
-  @override
-  State<_BookmarkNoteDialog> createState() => _BookmarkNoteDialogState();
-}
-
-class _BookmarkNoteDialogState extends State<_BookmarkNoteDialog> {
-  late final _ctrl = TextEditingController(text: widget.bm.note ?? '');
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext d) {
-    final bm = widget.bm;
-    return CommonDialog(
-      child: Padding(
-        padding: const EdgeInsets.only(
-            left: RiffSpacing.xl,
-            top: RiffSpacing.xxl,
-            right: RiffSpacing.xl,
-            bottom: RiffSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            RiffDialogTitle(
-                bm.note == null ? 'bookmarkAddNote'.tr : 'bookmarkEditNote'.tr,
-                icon: Icons.edit_note_rounded,
-                subtitle: bm.quote.isEmpty ? null : '“${bm.quote}”'),
-            const SizedBox(height: RiffSpacing.md),
-            TextField(
-              controller: _ctrl,
-              autofocus: true,
-              minLines: 2,
-              maxLines: 5,
-              maxLength: 500,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(
-                hintText: 'bookmarkNoteHint'.tr,
-              ),
-            ),
-            const SizedBox(height: RiffSpacing.sm),
-            RiffDialogButton('save'.tr,
-                onPressed: () => Navigator.of(d).pop(_ctrl.text)),
-            RiffDialogButton('cancel'.tr,
-                primary: false, onPressed: () => Navigator.of(d).pop()),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 Future<void> _removeWithUndo(BuildContext context, PodcastBookmark bm) async {

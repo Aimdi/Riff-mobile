@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/theme/riff_theme.dart';
 import '/services/podcast_bookmarks.dart';
 import '/services/podcast_segments.dart';
+import '/services/podcast_share.dart';
 import '/ui/navigator.dart';
 import '/ui/player/player_controller.dart';
 import '../../widgets/riff_sheet.dart';
@@ -137,6 +139,30 @@ Future<void> showPodcastSegmentsSheet(BuildContext context, {Widget? header}) {
                   showEpisodeBookmarksSheet(context);
                 },
               ),
+              // Share it, or from the moment playing (Pocket Casts).
+              if (item != null) ...[
+                RiffSheetTile(
+                  icon: Icons.ios_share_rounded,
+                  title: 'shareEpisode'.tr,
+                  onTap: () {
+                    Navigator.of(sheet).pop();
+                    Share.share(podcastEpisodeShareText(item));
+                  },
+                ),
+                RiffSheetTile(
+                  icon: Icons.share_arrival_time_outlined,
+                  title: 'shareFromTime'.trParams({
+                    'time': _clock(
+                        pc.progressBarStatus.value.current.inMilliseconds /
+                            1000)
+                  }),
+                  onTap: () {
+                    Navigator.of(sheet).pop();
+                    Share.share(podcastEpisodeShareText(item,
+                        at: pc.progressBarStatus.value.current));
+                  },
+                ),
+              ],
               const RiffSheetDivider(),
               RiffSheetTitle('segmentsTitle'.tr,
                   subtitle: 'segmentsSubtitle'.tr),
@@ -238,7 +264,7 @@ Future<SegmentCategory?> _pickCategory(BuildContext context) {
           children: [
             const RiffSheetHandle(),
             RiffSheetTitle('segmentWhatIsIt'.tr),
-            for (final c in SegmentCategory.values)
+            for (final c in SegmentCategory.sponsorBlock)
               ListTile(
                 leading: _Dot(color: c.color),
                 titleTextStyle: Theme.of(sheet).textTheme.bodyLarge,
@@ -324,7 +350,7 @@ class PodcastSegmentSettings extends StatelessWidget {
                   ?.copyWith(color: Theme.of(context).colorScheme.secondary),
             ),
           ],
-          for (final c in SegmentCategory.values) ...[
+          for (final c in SegmentCategory.sponsorBlock) ...[
             const SizedBox(height: 16),
             Row(
               children: [

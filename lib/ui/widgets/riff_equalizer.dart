@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 import '/ui/theme/riff_tokens.dart';
 
 /// Small bar equalizer. Moves while [animate] is true, rests as a static
-/// waveform otherwise (no ticking on an idle Home).
+/// waveform otherwise (no ticking on an idle Home), and with the phone's
+/// Remove animations on (accessibility).
 class RiffEqualizer extends StatefulWidget {
   const RiffEqualizer({
     super.key,
@@ -29,18 +30,27 @@ class _RiffEqualizerState extends State<RiffEqualizer>
   late final AnimationController _c = AnimationController(
       vsync: this, duration: const Duration(milliseconds: 1100));
 
+  bool _reducedMotion = false;
+
+  bool get _moving => widget.animate && !_reducedMotion;
+
   @override
-  void initState() {
-    super.initState();
-    if (widget.animate) _c.repeat();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reducedMotion = MediaQuery.disableAnimationsOf(context);
+    _sync();
   }
 
   @override
   void didUpdateWidget(covariant RiffEqualizer old) {
     super.didUpdateWidget(old);
-    if (widget.animate && !_c.isAnimating) {
+    _sync();
+  }
+
+  void _sync() {
+    if (_moving && !_c.isAnimating) {
       _c.repeat();
-    } else if (!widget.animate && _c.isAnimating) {
+    } else if (!_moving && _c.isAnimating) {
       _c.stop();
     }
   }
@@ -61,7 +71,7 @@ class _RiffEqualizerState extends State<RiffEqualizer>
           builder: (context, _) => CustomPaint(
             painter: _BarsPainter(
               t: _c.value,
-              moving: widget.animate,
+              moving: _moving,
               color: widget.color,
               bars: widget.bars,
             ),

@@ -59,6 +59,54 @@
                 <data android:scheme="https" android:host="youtu.be" />
                 <data android:scheme="https" android:host="youtube.com"/>  
             </intent-filter>
+
+            <!-- Podcast links, as podcast apps (AntennaPod, Pocket Casts)
+                 take them: subscribe links, a show's page on Apple Podcasts
+                 or Overcast, Subscribe on Android's and AntennaPod's pages.
+                 Dart opens the show (podcast_links.dart). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="feed" />
+                <data android:scheme="pcast" />
+                <data android:scheme="itpc" />
+                <data android:scheme="podcast" />
+                <data android:scheme="antennapod-subscribe" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="https" />
+                <data android:scheme="http" />
+                <data android:host="podcasts.apple.com" />
+                <data android:host="subscribeonandroid.com" />
+                <data android:host="www.subscribeonandroid.com" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="https" />
+                <data android:host="overcast.fm" />
+                <data android:pathPrefix="/itunes" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="https" />
+                <data android:host="antennapod.org" />
+                <data android:pathPrefix="/deeplink/subscribe" />
+            </intent-filter>
+
+            <!-- "Play … on Riff" from the Assistant: MainActivity hands it
+                 to Dart as a riff://voice link. -->
+            <intent-filter>
+                <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
@@ -80,6 +128,20 @@
         </intent-filter>
         </service>
 
+        <!-- Keeps Riff running while songs or episodes download, with their
+             progress in a notification (DownloadChannel.kt). -->
+        <service
+            android:name=".DownloadService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
+
+        <!-- New-episode notifications: a look at the followed shows' feeds
+             every few hours (EpisodeAlerts.kt). -->
+        <service
+            android:name=".NewEpisodesJob"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="false" />
+
         <receiver 
             android:name="com.ryanheise.audioservice.MediaButtonReceiver"
             android:exported="true" 
@@ -89,23 +151,58 @@
         </intent-filter>
         </receiver>
 
+        <!-- Home screen widget: what's playing, with previous, play/pause
+             and next (NowPlayingWidget.kt). -->
+        <receiver
+            android:name=".NowPlayingWidget"
+            android:exported="false"
+            android:label="@string/widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_now_playing_info" />
+        </receiver>
+
     </application>
     <!-- Android 11+ package visibility: detect WizeStream for YouTube podcasts. -->
     <queries>
         <package android:name="org.wisso.newpipematerial" />
         <package android:name="org.wisso.newpipematerial.nightly" />
         <package android:name="org.wisso.newpipematerial.debug" />
+        <!-- In-app voice search: the phone's speech recognition. -->
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+        <!-- The player's "Play on another device": the phone's own output
+             switcher (SystemUI's media output dialog, the Settings panel). -->
+        <package android:name="com.android.systemui" />
+        <intent>
+            <action android:name="com.android.settings.panel.action.MEDIA_OUTPUT" />
+        </intent>
     </queries>
     <!-- Storage permissions are only requested below API 30 (see
          permission_service.dart); API 30+ uses MANAGE_EXTERNAL_STORAGE. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- Songs › On this phone: the music files on the phone (Android 13+). -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!-- The short buzz when a shake restarts the sleep timer. -->
+    <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+    <!-- Downloads in the background (DownloadService), and their notification. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- New-episode notifications keep their schedule after a restart. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Whether the connection is metered, for downloads that wait for Wi-Fi. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <!-- Song recognition ("What's playing?") listens through the mic. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>

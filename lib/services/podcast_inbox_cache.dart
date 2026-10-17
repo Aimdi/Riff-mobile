@@ -63,10 +63,13 @@ class PodcastInboxCache {
 
   static Box? get _box => Hive.isBoxOpen(box) ? Hive.box(box) : null;
 
-  /// The stored Inbox when it was built from [subsKey], with its age.
-  static ({List<MediaItem> items, DateTime at})? load(String subsKey) {
+  /// The stored Inbox when it was built from [subsKey] (null: whatever it
+  /// was built from), with its age.
+  static ({List<MediaItem> items, DateTime at})? load(String? subsKey) {
     final raw = _box?.get(_key);
-    if (raw is! Map || raw['subs'] != subsKey) return null;
+    if (raw is! Map || (subsKey != null && raw['subs'] != subsKey)) {
+      return null;
+    }
     final list = raw['items'];
     final at = raw['at'];
     if (list is! List || at is! int) return null;

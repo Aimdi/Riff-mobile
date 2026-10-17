@@ -122,7 +122,12 @@ class _AnimatedPlayButtonState extends State<AnimatedPlayButton>
         _controller.reverse();
       }
 
-      final button = Material(
+      // Said aloud by TalkBack / VoiceOver: what a tap does now.
+      final button = Semantics(
+        container: true,
+        button: true,
+        label: isPlaying ? 'pause'.tr : 'play'.tr,
+        child: Material(
         color: accent,
         shape: const CircleBorder(),
         child: InkWell(
@@ -156,6 +161,7 @@ class _AnimatedPlayButtonState extends State<AnimatedPlayButton>
             ),
           ),
         ),
+      ),
       );
       if (!widget.holdToSeek) return button;
       final seek = _seek;

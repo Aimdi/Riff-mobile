@@ -2,10 +2,12 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../screens/Search/components/search_spelling_line.dart';
 import '../screens/Search/search_result_screen_controller.dart';
 import '/models/album.dart';
 import '/models/artist.dart';
 import '/models/playlist.dart';
+import '/services/search_top_result.dart';
 import '/ui/widgets/content_list_widget.dart';
 import 'separate_tab_item_widget.dart';
 import '/ui/theme/riff_spacing.dart';
@@ -38,6 +40,18 @@ class ResultWidget extends StatelessWidget {
   List<Widget> generateWidgetList(
       SearchResultScreenController searchResScrController) {
     List<Widget> list = [];
+    // YouTube Music's best match first, as its search page (and Spotify's)
+    // shows it: one row, as those of its kind below.
+    final top = searchResScrController.topResult;
+    if (top != null) {
+      list.add(SeparateTabItemWidget(
+        items: [top],
+        title: SearchTopResult.kindOf(top),
+        heading: 'topResult'.tr,
+        isCompleteList: false,
+        topPadding: RiffSpacing.xs,
+      ));
+    }
     // Stable overview order (skip empty stub sections).
     final orderedKeys = [
       ...SearchResultScreenController.preferredRailOrder,
@@ -49,8 +63,14 @@ class ResultWidget extends StatelessWidget {
     final seen = <String>{};
     for (final key in orderedKeys) {
       if (!seen.add(key)) continue;
-      final value = searchResScrController.resultContent[key];
-      if (value is! List || value.isEmpty) continue;
+      final all = searchResScrController.resultContent[key];
+      if (all is! List) continue;
+      // The top result, if YouTube Music lists it again, once.
+      final value = [
+        for (final item in all)
+          if (!SearchTopResult.same(item, top)) item
+      ];
+      if (value.isEmpty) continue;
 
       if (key == 'Songs' || key == 'Videos' || key == 'Episodes') {
         list.add(SeparateTabItemWidget(
@@ -82,6 +102,17 @@ class ResultWidget extends StatelessWidget {
       }
     }
 
-    return list;
+    // "Showing results for … / Did you mean …" above them.
+    final spelling = searchResScrController.spelling;
+    return [
+      if (spelling != null)
+        SearchSpellingLine(
+          spelling: spelling,
+          searched: searchResScrController.queryString.value,
+          onCorrected: searchResScrController.searchCorrected,
+          onOriginal: searchResScrController.searchOriginal,
+        ),
+      ...list,
+    ];
   }
 }

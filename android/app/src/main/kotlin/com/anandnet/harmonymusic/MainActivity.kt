@@ -2,13 +2,25 @@ package com.anandnet.harmonymusic
 
 import android.app.ActivityManager
 import android.app.ApplicationExitInfo
+import android.app.SearchManager
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.content.pm.ResolveInfo
+import android.content.pm.ShortcutInfo
+import android.content.pm.ShortcutManager
+import android.graphics.drawable.Icon
+import android.media.MediaRouter2
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
+import android.provider.MediaStore
+import android.provider.Settings
+import android.speech.RecognizerIntent
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.lang.ref.WeakReference
 
@@ -23,6 +35,21 @@ class MainActivity : AudioServiceActivity() {
     /** `riff/apps`: needs this activity (startActivity, packageManager). */
     private var appsChannel: MethodChannel? = null
 
+    /** In-app voice search: the open `listen` call, answered with what was said. */
+    private var speechResult: MethodChannel.Result? = null
+
+    /** The phone's speech recognition ("Speak now"), one result. */
+    private fun speechIntent(prompt: String?) =
+        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+            )
+            .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            .apply {
+                if (!prompt.isNullOrEmpty()) putExtra(RecognizerIntent.EXTRA_PROMPT, prompt)
+            }
+
     // Deprecated on API 33 but still works everywhere; visible thanks to
     // the <queries> entries in the manifest.
     @Suppress("DEPRECATION")
@@ -31,6 +58,31 @@ class MainActivity : AudioServiceActivity() {
         true
     } catch (_: PackageManager.NameNotFoundException) {
         false
+    }
+
+    // "Play … on Riff" from the Assistant arrives as MEDIA_PLAY_FROM_SEARCH
+    // with the request in its extras. Given a riff://voice?q=… link
+    // instead, app_links hands it to Dart like the icon's shortcuts, and
+    // Dart plays it as Android Auto's voice search does.
+    override fun onCreate(savedInstanceState: Bundle?) {
+        voiceSearchAsLink(intent)
+        super.onCreate(savedInstanceState)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        voiceSearchAsLink(intent)
+        super.onNewIntent(intent)
+    }
+
+    private fun voiceSearchAsLink(intent: Intent?) {
+        if (intent == null ||
+            intent.action != MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH
+        ) return
+        intent.data = Uri.Builder()
+            .scheme("riff")
+            .authority("voice")
+            .appendQueryParameter("q", intent.getStringExtra(SearchManager.QUERY) ?: "")
+            .build()
     }
 
     // audio_service hands every activity the same cached engine, which
@@ -81,6 +133,38 @@ class MainActivity : AudioServiceActivity() {
                 // Why the previous run ended (crash, native crash, ANR …),
                 // so a crash on a user's phone can be reported without adb.
                 "lastExitInfo" -> result.success(lastExitInfo())
+                // The app icon's long-press shortcuts, labelled in the
+                // app's own language.
+                "setShortcuts" -> result.success(
+                    setShortcuts(
+                        call.argument<List<Map<String, String>>>("shortcuts")
+                            ?: emptyList()
+                    )
+                )
+                // In-app voice search (the search field's mic): whether the
+                // phone can listen, and what it heard (null: cancelled).
+                "canListen" -> result.success(
+                    speechIntent(null).resolveActivity(packageManager) != null
+                )
+                "listen" -> {
+                    // One at a time: one still open hears nothing.
+                    speechResult?.success(null)
+                    speechResult = null
+                    try {
+                        startActivityForResult(
+                            speechIntent(call.argument<String>("prompt")),
+                            SPEECH_REQUEST
+                        )
+                        speechResult = result
+                    } catch (_: ActivityNotFoundException) {
+                        result.success(null)
+                    } catch (_: SecurityException) {
+                        result.success(null)
+                    }
+                }
+                // The player's "Play on another device": the phone's own
+                // output switcher (headphones, speakers, this phone).
+                "showOutputSwitcher" -> result.success(showOutputSwitcher())
                 else -> result.notImplemented()
             }
         }
@@ -93,6 +177,147 @@ class MainActivity : AudioServiceActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             "riff/newpipe"
         ).setMethodCallHandler(NewPipeChannel)
+        // The home screen widget's channel: like riff/newpipe it stays after
+        // this activity goes, so the widget follows the music in the
+        // background.
+        NowPlayingWidget.appContext = applicationContext
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "riff/widget"
+        ).setMethodCallHandler(NowPlayingWidget.channel)
+        // Shakes for "Shake to restart" the sleep timer: also stays, as the
+        // timer runs on with the screen off.
+        ShakeChannel.appContext = applicationContext
+        EventChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "riff/shake"
+        ).setStreamHandler(ShakeChannel)
+        // Metered or not, for downloads that wait for Wi-Fi: also stays, as
+        // the Inbox can refresh in the background.
+        NetworkChannel.appContext = applicationContext
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "riff/network"
+        ).setMethodCallHandler(NetworkChannel)
+        // Online or not, for passing over songs that need a connection
+        // while there's none: also stays, as play goes on in the background.
+        ConnectionChannel.appContext = applicationContext
+        EventChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "riff/network/online"
+        ).setStreamHandler(ConnectionChannel)
+        // The downloads' notification, keeping Riff running while they go:
+        // also stays, as they go on in the background.
+        DownloadChannel.appContext = applicationContext
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "riff/downloads"
+        ).setMethodCallHandler(DownloadChannel)
+        // New-episode notifications for the shows followed: also stays, as
+        // the shows followed can change with the app in the background
+        // (sync).
+        EpisodeAlerts.appContext = applicationContext
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "riff/episode_alerts"
+        ).setMethodCallHandler(EpisodeAlerts)
+        // The music files on the phone (Songs › On this phone).
+        DeviceMusic.appContext = applicationContext
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "riff/device_music"
+        ).setMethodCallHandler(DeviceMusic)
+    }
+
+    /**
+     * Long-press shortcuts on the app icon (Android 7.1+): [items] are
+     * {id, label, uri}; each opens [MainActivity] with its uri, which
+     * app_links hands to Dart like a shared link. Ids without an icon are
+     * left out. False when they couldn't be set.
+     */
+    private fun setShortcuts(items: List<Map<String, String>>): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) return false
+        val manager = getSystemService(ShortcutManager::class.java) ?: return false
+        val shortcuts = items.mapNotNull { item ->
+            val id = item["id"] ?: return@mapNotNull null
+            val label = item["label"]
+            val uri = item["uri"]
+            val icon = SHORTCUT_ICONS[id]
+            if (label.isNullOrEmpty() || uri.isNullOrEmpty() || icon == null) {
+                return@mapNotNull null
+            }
+            ShortcutInfo.Builder(this, id)
+                .setShortLabel(label)
+                .setIcon(Icon.createWithResource(this, icon))
+                .setIntent(
+                    Intent(Intent.ACTION_VIEW, Uri.parse(uri), this, MainActivity::class.java)
+                )
+                .build()
+        }
+        return try {
+            manager.setDynamicShortcuts(shortcuts)
+        } catch (_: IllegalStateException) {
+            // Rate limited: only happens while the app is in the background.
+            false
+        } catch (_: IllegalArgumentException) {
+            false
+        }
+    }
+
+    /**
+     * The phone's own output switcher for Riff's media (Bluetooth
+     * headphones, speakers, this phone), as Spotify's and YouTube Music's
+     * devices button opens one: Android 14's, SystemUI's media output
+     * dialog on 12 and 13, the Settings panel on 11 (androidx.mediarouter's
+     * SystemOutputSwitcherDialogController does the same), and Bluetooth
+     * settings before. False when none opened.
+     */
+    // queryBroadcastReceivers / queryIntentActivities (Int flags):
+    // deprecated on API 33, still fine everywhere.
+    @Suppress("DEPRECATION")
+    private fun showOutputSwitcher(): Boolean {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
+                MediaRouter2.getInstance(this).showSystemOutputSwitcher()
+            ) {
+                return true
+            }
+            // Only the system's own receiver and panel (another app could
+            // claim the actions); visible thanks to the <queries> entries
+            // in the manifest.
+            val dialog = Intent("com.android.systemui.action.LAUNCH_MEDIA_OUTPUT_DIALOG")
+                .setPackage("com.android.systemui")
+                .putExtra("package_name", packageName)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                packageManager.queryBroadcastReceivers(dialog, 0).any { isSystemApp(it) }
+            ) {
+                sendBroadcast(dialog)
+                return true
+            }
+            val panel = Intent("com.android.settings.panel.action.MEDIA_OUTPUT")
+                .putExtra("com.android.settings.panel.extra.PACKAGE_NAME", packageName)
+            val settings = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                packageManager.queryIntentActivities(panel, 0)
+                    .firstOrNull { isSystemApp(it) }?.activityInfo?.packageName
+            } else {
+                null
+            }
+            startActivity(
+                if (settings != null) panel.setPackage(settings)
+                else Intent(Settings.ACTION_BLUETOOTH_SETTINGS)
+            )
+            return true
+        } catch (_: ActivityNotFoundException) {
+            return false
+        } catch (_: SecurityException) {
+            return false
+        }
+    }
+
+    private fun isSystemApp(info: ResolveInfo): Boolean {
+        val flags = info.activityInfo?.applicationInfo?.flags ?: return false
+        return (flags and (ApplicationInfo.FLAG_SYSTEM or
+            ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0
     }
 
     private fun lastExitInfo(): Map<String, Any?>? =
@@ -178,6 +403,20 @@ class MainActivity : AudioServiceActivity() {
         null
     }
 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode == SPEECH_REQUEST) {
+            val heard = if (resultCode == RESULT_OK) {
+                data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+            } else {
+                null
+            }
+            speechResult?.success(heard)
+            speechResult = null
+            return
+        }
+        super.onActivityResult(requestCode, resultCode, data)
+    }
+
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         // A newer activity may already have attached to the same engine and
         // taken over the channels; don't clear its handlers.
@@ -186,6 +425,9 @@ class MainActivity : AudioServiceActivity() {
         videoPlayer = null
         micRecorder?.stop()
         micRecorder = null
+        // A listen still open when the activity goes hears nothing.
+        speechResult?.success(null)
+        speechResult = null
         if (owner) {
             appsChannel?.setMethodCallHandler(null)
             channelOwner = null
@@ -201,7 +443,17 @@ class MainActivity : AudioServiceActivity() {
 }
 
 private const val CRASH_FILE = "last_crash.txt"
+
+/** startActivityForResult code of in-app voice search. */
+private const val SPEECH_REQUEST = 7301
 private var crashHandlerInstalled = false
+
+/** App icon shortcut ids (lib/services/app_shortcuts.dart) and their icons. */
+private val SHORTCUT_ICONS = mapOf(
+    "search" to R.drawable.ic_shortcut_search,
+    "liked" to R.drawable.ic_shortcut_liked,
+    "downloads" to R.drawable.ic_shortcut_downloads,
+)
 
 /**
  * Writes the stack trace of an uncaught Java/Kotlin exception (any thread:

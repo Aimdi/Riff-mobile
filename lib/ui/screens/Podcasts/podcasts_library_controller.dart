@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
@@ -6,6 +8,11 @@ import '/models/artist.dart';
 import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/music_service.dart';
+import '/services/podcast_feed_url.dart';
+import '/services/podcast_inbox_counts.dart';
+import '/services/podcast_library.dart';
+import '/services/podcast_links.dart';
+import '/services/podcast_queue_downloads.dart';
 import '/services/podcast_service.dart';
 import '/services/youtube_podcast_service.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
@@ -54,6 +61,22 @@ class LibraryPodcastsController extends GetxController {
 
   /// YouTube channels found while searching (subscribe-as-podcast).
   final channelSearchResults = <Playlist>[].obs;
+
+  /// The show at a feed address pasted into the search ([podcastFeedUrlFrom]),
+  /// as {title, author, artwork, feedUrl}.
+  final feedSearchResult = Rxn<Map<String, dynamic>>();
+
+  /// Shows in the podcast directory (Apple's) for the search, the first
+  /// [directoryShown], as {title, author, artwork, feedUrl}: followed by
+  /// their own feeds, as Apple Podcasts, Pocket Casts and AntennaPod find
+  /// them.
+  final directoryResults = <Map<String, dynamic>>[].obs;
+  static const directoryShown = 10;
+
+  /// Episodes in the directory for the search ([directoryEpisode]), as
+  /// Pocket Casts, Apple Podcasts and Spotify find episodes by what
+  /// they're about.
+  final episodeResults = <Map<String, dynamic>>[].obs;
   final isSearching = false.obs;
   final hasSearched = false.obs;
 
@@ -82,6 +105,11 @@ class LibraryPodcastsController extends GetxController {
     inboxEpisodes = episodes;
     inboxSubsKey = subsKey;
     inboxFetchedAt = DateTime.now();
+    PodcastInboxCounts.setInbox(episodes);
+    PodcastLibrary.queueNewEpisodes(episodes);
+    unawaited(PodcastLibrary.downloadNewEpisodes(episodes));
+    // Back on Wi-Fi since: what's queued and still to download.
+    unawaited(PodcastQueueDownloads.run());
   }
 
   @override
@@ -176,6 +204,26 @@ class LibraryPodcastsController extends GetxController {
     }
     isSearching.value = true;
     hasSearched.value = true;
+    feedSearchResult.value = null;
+    // A pasted podcast link (Apple Podcasts', Overcast's, a subscribe
+    // link) or feed address: that show, nothing to search for.
+    final feedUrl = podcastFeedUrlFrom(term);
+    final link = podcastLinkFrom(term) ??
+        (feedUrl == null ? null : PodcastLink.feed(feedUrl));
+    if (link != null) {
+      final show = await podcastShowFor(link);
+      if (gen != _searchGen) return;
+      searchResults.clear();
+      channelSearchResults.clear();
+      directoryResults.clear();
+      episodeResults.clear();
+      feedSearchResult.value = show;
+      isSearching.value = false;
+      return;
+    }
+    // The directory's shows and episodes, asked for while YouTube is.
+    final directory = PodcastService.search(term);
+    final episodes = PodcastService.searchEpisodes(term);
     final ms = Get.find<MusicServices>();
     final list = <Playlist>[];
     final channels = <Playlist>[];
@@ -230,7 +278,14 @@ class LibraryPodcastsController extends GetxController {
       searchResults.clear();
       channelSearchResults.clear();
     } finally {
-      if (gen == _searchGen) isSearching.value = false;
+      // Whatever YouTube answered (never throw: [] when unreachable).
+      final shows = await directory;
+      final found = await episodes;
+      if (gen == _searchGen) {
+        directoryResults.assignAll(shows.take(directoryShown));
+        episodeResults.assignAll(found);
+        isSearching.value = false;
+      }
     }
   }
 
@@ -311,6 +366,9 @@ class LibraryPodcastsController extends GetxController {
     searchQuery.value = '';
     searchResults.clear();
     channelSearchResults.clear();
+    directoryResults.clear();
+    episodeResults.clear();
+    feedSearchResult.value = null;
     hasSearched.value = false;
     isSearching.value = false;
   }
@@ -325,6 +383,8 @@ class LibraryPodcastsController extends GetxController {
       'kind': kind,
       'description': podcast.description ??
           (kind == 'yt_channel' ? 'YouTube channel' : 'Podcast'),
+      // When you followed it, for Subscriptions' Recently followed.
+      'addedAt': DateTime.now().millisecondsSinceEpoch,
     });
     await refreshLib();
   }

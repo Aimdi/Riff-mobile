@@ -54,8 +54,8 @@ void main() {
     expect(e3['durationSec'], 3723);
     expect(e3['podcast'], 'Show');
     expect(e3['date'], '21 Jul 2026');
-    expect(e3['pubDateMs'],
-        DateTime.utc(2026, 7, 21, 10).millisecondsSinceEpoch);
+    expect(
+        e3['pubDateMs'], DateTime.utc(2026, 7, 21, 10).millisecondsSinceEpoch);
     expect(e3['chaptersUrl'], 'https://example.com/3.json');
     expect(e3['transcriptUrl'], 'https://example.com/3.srt');
     expect(e3['transcriptType'], 'application/srt');
@@ -63,6 +63,31 @@ void main() {
     expect(e3['description'], isNot(contains('<')));
     expect(eps[1]['pubDateMs'],
         DateTime.utc(2026, 7, 20, 10).millisecondsSinceEpoch);
+  });
+
+  test('the fuller notes: content:encoded over a short description', () {
+    const feed = '''<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/">
+<channel>
+  <title>Show</title>
+  <item>
+    <title>Full</title>
+    <description>A short summary.</description>
+    <content:encoded><![CDATA[<p>A short summary.</p><p>Links: <a href="https://ex.com/a">Guest</a></p>]]></content:encoded>
+    <enclosure url="https://example.com/a.mp3"/>
+  </item>
+  <item>
+    <title>Summary only</title>
+    <itunes:summary>Just the summary</itunes:summary>
+    <enclosure url="https://example.com/b.mp3"/>
+  </item>
+</channel>
+</rss>''';
+    final eps = parsePodcastFeed(feed, 'Show', '');
+    expect(eps[0]['description'],
+        'A short summary.\n\nLinks: [Guest](https://ex.com/a)');
+    expect(eps[1]['description'], 'Just the summary');
   });
 
   test('maxItems limits the built episodes', () {
@@ -106,7 +131,7 @@ void main() {
   });
 
   test('malformed XML throws', () {
-    expect(() => parsePodcastFeed('<rss><channel>', 'S', ''),
-        throwsA(anything));
+    expect(
+        () => parsePodcastFeed('<rss><channel>', 'S', ''), throwsA(anything));
   });
 }

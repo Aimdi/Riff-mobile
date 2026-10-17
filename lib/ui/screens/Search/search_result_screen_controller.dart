@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import '../../../utils/helper.dart';
 import '/services/music_service.dart';
 import '/services/plugin_service.dart';
+import '/services/search_spelling.dart';
+import '/services/search_top_result.dart';
 import '/ui/player/play_queue_order.dart';
 import '/ui/widgets/sort_widget.dart';
 
@@ -64,6 +66,15 @@ class SearchResultScreenController extends GetxController {
   /// Tabs whose scroll controller already pages in more results.
   final Set<String> _pagedTabs = {};
 
+  /// The words searched exactly as typed ("Search instead for …"):
+  /// YouTube Music leaves their spelling alone, in every tab too.
+  bool _exact = false;
+  String? _exactParams;
+
+  /// Bumped for each new search: a tab still loading for the one before
+  /// doesn't put its results under this one.
+  int _searchGen = 0;
+
   Future<void> onDestinationSelected(int value) async {
     if (railItems.isEmpty) {
       return;
@@ -84,10 +95,13 @@ class SearchResultScreenController extends GetxController {
       if (!separatedResultContent.containsKey(tabName) ||
           separatedResultContent[tabName].isEmpty) {
         // Block body: `=> _tabLoads.remove(..)` would hand whenComplete
-        // this very future to wait on, and it would never complete.
-        await (_tabLoads[tabName] ??= _loadTab(tabName).whenComplete(() {
-          _tabLoads.remove(tabName);
-        }));
+        // this very future to wait on, and it would never complete. Only
+        // its own entry: one for other words may have taken its place.
+        late final Future<void> load;
+        load = _tabLoads[tabName] ??= _loadTab(tabName).whenComplete(() {
+          if (identical(_tabLoads[tabName], load)) _tabLoads.remove(tabName);
+        });
+        await load;
       }
     }
     // A slower load for a tab the user has already left must not mark the
@@ -105,6 +119,7 @@ class SearchResultScreenController extends GetxController {
         (tabName == 'Songs' || tabName == 'Videos' || tabName == 'Episodes')
             ? 25
             : 10;
+    final gen = _searchGen;
     try {
       final endpoints =
           (resultContent['searchEndpoint'] as Map?)?.cast<String, dynamic>() ??
@@ -112,14 +127,16 @@ class SearchResultScreenController extends GetxController {
       final x = await musicServices.search(queryString.value,
           filter: tabName.replaceAll(' ', '_').toLowerCase(),
           limit: itemCount,
-          filterParams: endpoints[tabName]);
-      if (isClosed) return;
+          // Searched as typed: Riff's own filter, spelling left alone.
+          filterParams: _exact ? null : endpoints[tabName],
+          ignoreSpelling: _exact);
+      if (isClosed || gen != _searchGen) return;
       separatedResultContent[tabName] = _listFromSearchResponse(x, tabName);
       additionalParamNext[tabName] = x['params'];
       _pageOnScroll(tabName);
     } catch (e) {
       printERROR('Search filter "$tabName" failed: $e');
-      if (isClosed) return;
+      if (isClosed || gen != _searchGen) return;
       separatedResultContent[tabName] =
           searchTabFallback(overview: resultContent[tabName]);
     }
@@ -191,54 +208,105 @@ class SearchResultScreenController extends GetxController {
     onDestinationSelected(railItems.indexOf(text) + 1);
   }
 
+  /// The search itself failed (offline, YouTube Music out of reach), not
+  /// that it found nothing: the page says so and offers to try again, as
+  /// Spotify's and YouTube Music's do.
+  final searchFailed = false.obs;
+
+  /// Searches the same words again, after [searchFailed].
+  Future<void> retrySearch() => _search(queryString.value);
+
+  /// YouTube Music's best match for this search ("Top result"), if any.
+  Object? get topResult => resultContent[SearchTopResult.key];
+
+  /// YouTube Music's spelling help for this search, if it gave any.
+  SearchSpelling? get spelling {
+    final s = resultContent[SearchSpelling.key];
+    return s is SearchSpelling ? s : null;
+  }
+
+  /// "Did you mean …": its words searched instead.
+  Future<void> searchCorrected() async {
+    final s = spelling;
+    if (s == null) return;
+    await _searchInstead(s.corrected);
+  }
+
+  /// "Search instead for …": the words as typed, searched exactly.
+  Future<void> searchOriginal() async {
+    final s = spelling;
+    if (s == null) return;
+    await _searchInstead(s.original ?? queryString.value,
+        exact: true, params: s.originalParams);
+  }
+
+  /// [query] searched in place of the one on screen, from All.
+  Future<void> _searchInstead(String query,
+      {bool exact = false, String? params}) async {
+    _exact = exact;
+    _exactParams = params;
+    _searchGen++;
+    _tabLoads.clear();
+    separatedResultContent.clear();
+    additionalParamNext.clear();
+    navigationRailCurrentIndex.value = 0;
+    await _search(query);
+  }
+
   Future<void> _getInitSearchResult() async {
-    isResultContentFetced.value = false;
     final args = Get.arguments;
-    if (args != null) {
-      queryString.value = args;
-      try {
-        resultContent.value = await musicServices.search(args);
-      } catch (e) {
-        printERROR('Search failed: $e');
-        resultContent.value = {};
-        railItems.clear();
-        _ensureSoulseekRail();
-        isResultContentFetced.value = true;
-        return;
-      }
+    if (args != null) await _search(args);
+  }
 
-      final endpoints =
-          (resultContent['searchEndpoint'] as Map?)?.cast<String, dynamic>() ??
-              {};
-      final available = <String>{};
-      for (final key in preferredRailOrder) {
-        if (resultContent.containsKey(key) || endpoints.containsKey(key)) {
-          available.add(key);
-          resultContent.putIfAbsent(key, () => []);
-        }
-      }
-      // Preserve any unexpected but useful keys from the response.
-      for (final key in resultContent.keys) {
-        if (key == 'searchEndpoint' || key == 'params') continue;
-        if (preferredRailOrder.contains(key)) continue;
-        if (isSoulseekRail(key)) continue;
-        if (resultContent[key] is List &&
-            (resultContent[key] as List).isNotEmpty) {
-          available.add(key);
-        }
-      }
-
-      railItems.value = [
-        ...preferredRailOrder.where(available.contains),
-        ...available.where((k) => !preferredRailOrder.contains(k)),
-      ];
+  Future<void> _search(String query) async {
+    isResultContentFetced.value = false;
+    searchFailed.value = false;
+    queryString.value = query;
+    try {
+      resultContent.value = await musicServices.search(query,
+          ignoreSpelling: _exact && _exactParams == null,
+          filterParams: _exact ? _exactParams : null);
+    } catch (e) {
+      printERROR('Search failed: $e');
+      resultContent.value = {};
+      railItems.clear();
       _ensureSoulseekRail();
-
-      for (String item in railItems) {
-        scrollControllers.putIfAbsent(item, () => ScrollController());
-      }
+      searchFailed.value = true;
       isResultContentFetced.value = true;
+      return;
     }
+
+    final endpoints =
+        (resultContent['searchEndpoint'] as Map?)?.cast<String, dynamic>() ??
+            {};
+    final available = <String>{};
+    for (final key in preferredRailOrder) {
+      if (resultContent.containsKey(key) || endpoints.containsKey(key)) {
+        available.add(key);
+        resultContent.putIfAbsent(key, () => []);
+      }
+    }
+    // Preserve any unexpected but useful keys from the response.
+    for (final key in resultContent.keys) {
+      if (key == 'searchEndpoint' || key == 'params') continue;
+      if (preferredRailOrder.contains(key)) continue;
+      if (isSoulseekRail(key)) continue;
+      if (resultContent[key] is List &&
+          (resultContent[key] as List).isNotEmpty) {
+        available.add(key);
+      }
+    }
+
+    railItems.value = [
+      ...preferredRailOrder.where(available.contains),
+      ...available.where((k) => !preferredRailOrder.contains(k)),
+    ];
+    _ensureSoulseekRail();
+
+    for (String item in railItems) {
+      scrollControllers.putIfAbsent(item, () => ScrollController());
+    }
+    isResultContentFetced.value = true;
   }
 
   void onSort(SortType sortType, bool isAscending, String title) {

@@ -151,6 +151,7 @@ class _SoulseekLoginFormState extends State<_SoulseekLoginForm> {
             labelText: 'soulseekPassword'.tr,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
             suffixIcon: IconButton(
+              tooltip: (_obscure ? 'showPassword' : 'hidePassword').tr,
               icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
               onPressed: () => setState(() => _obscure = !_obscure),
             ),
@@ -426,6 +427,7 @@ class _SoulseekSearchViewState extends State<_SoulseekSearchView> {
                 : 'soulseekSearchHintAlbum'.tr,
             prefixIcon: const Icon(Icons.search),
             suffixIcon: IconButton(
+              tooltip: 'search'.tr,
               icon: const Icon(Icons.arrow_forward),
               onPressed: _loading ? null : _search,
             ),

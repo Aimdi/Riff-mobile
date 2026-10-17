@@ -18,6 +18,7 @@ import 'home_feed_builder.dart';
 import 'home_feed_data.dart';
 import '/ui/theme/riff_tokens.dart';
 import 'home_metrics.dart';
+import '/ui/player/play_queue_order.dart' show playQueueFrom;
 
 /// Speed dial: pages of a 3×3 cover grid, no labels and no play glyphs.
 /// Tap plays in place (pinned artists open), long-press opens the menu.
@@ -55,14 +56,43 @@ class HomeSpeedDial extends StatefulWidget {
   State<HomeSpeedDial> createState() => _HomeSpeedDialState();
 }
 
+/// The looping speed dial starts this many pages in, so it can be swiped
+/// either way from the first page (divisible by 1, 2 and 3 pages, so the
+/// start is always page 0).
+const speedDialLoopStart = 6000;
+
+/// Speed dial page shown at PageView index [index] when it loops over
+/// [pages] pages.
+int speedDialPageAt(int index, int pages) => pages <= 0 ? 0 : index % pages;
+
+/// Scale and opacity of a speed dial page [distance] pages away from the
+/// centre of the screen while swiping (0 = settled in place).
+({double scale, double opacity}) speedDialPageLook(double distance) {
+  final d = distance.abs().clamp(0.0, 1.0);
+  return (
+    scale: 1 - RiffSizes.speedDialPageShrink * d,
+    opacity: 1 - RiffSizes.speedDialPageFade * d,
+  );
+}
+
 class _HomeSpeedDialState extends State<HomeSpeedDial> {
-  final _page = PageController();
+  // One page: a plain pager. Several: an endless one, so a swipe right on
+  // the first page slides round to the last instead of doing nothing.
+  final _single = PageController();
+  final _loop = PageController(initialPage: speedDialLoopStart);
   int _current = 0;
 
   @override
   void dispose() {
-    _page.dispose();
+    _single.dispose();
+    _loop.dispose();
     super.dispose();
+  }
+
+  /// Where the pager is, in pages (fractional while swiping).
+  double _position(PageController c) {
+    if (c.hasClients && c.position.haveDimensions) return c.page ?? 0;
+    return c.initialPage.toDouble();
   }
 
   List<MediaItem> get _songs => [
@@ -95,7 +125,7 @@ class _HomeSpeedDialState extends State<HomeSpeedDial> {
   }
 
   Future<void> _shuffle() async {
-    final shuffled = List<MediaItem>.of(_songs)..shuffle();
+    final shuffled = playQueueFrom(_songs, shuffle: true);
     if (shuffled.isEmpty) return;
     final ok = await Get.find<PlayerController>()
         .playPlayListSong(shuffled, 0, source: widget.source);
@@ -149,6 +179,11 @@ class _HomeSpeedDialState extends State<HomeSpeedDial> {
         : (slots.length / HomeSpeedDial.columns).ceil();
     final height = tile * rowsShown + gap * (rowsShown - 1);
     final theme = Theme.of(context);
+    // From the pager itself, so the dot stays right when the number of
+    // pages changes under it.
+    final current = pages > 1 && _loop.hasClients
+        ? speedDialPageAt(_position(_loop).round(), pages)
+        : _current.clamp(0, pages - 1);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -157,14 +192,19 @@ class _HomeSpeedDialState extends State<HomeSpeedDial> {
         SizedBox(
           height: height,
           child: PageView.builder(
-            controller: _page,
-            itemCount: pages,
-            onPageChanged: (i) => setState(() => _current = i),
-            itemBuilder: (context, p) {
+            controller: pages > 1 ? _loop : _single,
+            itemCount: pages > 1 ? null : 1,
+            onPageChanged: (i) {
+              HapticFeedback.selectionClick();
+              setState(() => _current = speedDialPageAt(i, pages));
+            },
+            itemBuilder: (context, index) {
+              final p = speedDialPageAt(index, pages);
               final start = p * HomeSpeedDial.perPage;
               final slice = slots.sublist(start,
                   (start + HomeSpeedDial.perPage).clamp(0, slots.length));
-              return Padding(
+              final controller = pages > 1 ? _loop : _single;
+              final page = Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: RiffSpacing.gutter),
                 child: Wrap(
@@ -197,6 +237,20 @@ class _HomeSpeedDialState extends State<HomeSpeedDial> {
                   ],
                 ),
               );
+              // Depth while swiping: the page leaving shrinks and fades a
+              // little, the one arriving grows into place.
+              return AnimatedBuilder(
+                animation: controller,
+                builder: (context, child) {
+                  final look =
+                      speedDialPageLook(_position(controller) - index);
+                  return Opacity(
+                    opacity: look.opacity,
+                    child: Transform.scale(scale: look.scale, child: child),
+                  );
+                },
+                child: page,
+              );
             },
           ),
         ),
@@ -207,13 +261,15 @@ class _HomeSpeedDialState extends State<HomeSpeedDial> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 for (var i = 0; i < pages; i++)
-                  Container(
-                    width: RiffSizes.dot,
+                  AnimatedContainer(
+                    duration: RiffDurations.select,
+                    curve: RiffDurations.selectCurve,
+                    width: i == current ? RiffSizes.dotActive : RiffSizes.dot,
                     height: RiffSizes.dot,
                     margin: const EdgeInsets.symmetric(horizontal: 3),
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: i == _current
+                      borderRadius: BorderRadius.circular(RiffRadii.pill),
+                      color: i == current
                           ? theme.colorScheme.onSurface
                           : theme.colorScheme.onSurface.withOpacity(0.28),
                     ),
@@ -233,16 +289,17 @@ class _PinArt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (pin.type == 'playlist') {
+      // The same cover the playlist shows everywhere else: a photo of its
+      // own, its art, or the generated cover.
+      return ImageWidget(
+        playlist: Playlist(
+            title: pin.title, playlistId: pin.id, thumbnailUrl: pin.art),
+        size: size,
+        borderRadius: 0,
+      );
+    }
     if (pin.art.isEmpty) {
-      if (pin.type == 'playlist') {
-        // The same generated cover the playlist shows everywhere else.
-        return ImageWidget(
-          playlist:
-              Playlist(title: pin.title, playlistId: pin.id, thumbnailUrl: ''),
-          size: size,
-          borderRadius: 0,
-        );
-      }
       return LetterArt(
           title: pin.title, size: size, circle: pin.type == 'artist');
     }

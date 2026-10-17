@@ -12,6 +12,7 @@ import '../../services/discovery/discovery_service.dart';
 import '../../services/downloader.dart';
 import '../../services/piped_service.dart';
 import '../../services/spotify_like_sync.dart';
+import '../../services/yt_like_sync.dart';
 import '/models/media_Item_builder.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/screens/Library/library_controller.dart';
@@ -83,23 +84,77 @@ Future<void> showAddToPlaylistSheet(
 /// What happened when songs were written to a playlist.
 enum PlaylistAddOutcome { added, alreadyIn, failed }
 
-String playlistAddMessageKey(PlaylistAddOutcome outcome) {
+/// What to say when [songs] songs were written to a playlist (several:
+/// a whole album or playlist, the queue).
+String playlistAddMessageKey(PlaylistAddOutcome outcome, {int songs = 1}) {
   switch (outcome) {
     case PlaylistAddOutcome.added:
-      return 'songAddedToPlaylistAlert';
+      return songs > 1
+          ? 'songsAddedToPlaylistAlert'
+          : 'songAddedToPlaylistAlert';
     case PlaylistAddOutcome.alreadyIn:
-      return 'songAlreadyExists';
+      return songs > 1 ? 'songsAlreadyInPlaylist' : 'songAlreadyExists';
     case PlaylistAddOutcome.failed:
       return 'operationFailed';
   }
 }
 
-int countNewPlaylistSongs({
-  required Iterable<String> existingIds,
-  required Iterable<String> incomingIds,
-}) {
-  final have = existingIds.toSet();
-  return incomingIds.where((id) => !have.contains(id)).length;
+/// Whether a playlist's stored songs ([entries], as its box keeps them)
+/// include every one of [ids].
+bool playlistHasAll(Iterable<dynamic> entries, Set<String> ids) {
+  if (ids.isEmpty) return false;
+  final have = {
+    for (final e in entries)
+      if (e is Map) '${e['videoId']}',
+  };
+  return have.containsAll(ids);
+}
+
+/// Of [added], the songs to download now that they're in a playlist whose
+/// songs were [before] (its box's entries): when every song already in it
+/// was downloaded, a downloaded playlist stays whole, as Spotify keeps
+/// one, so the new ones not downloaded yet; else none.
+List<MediaItem> songsToKeepDownloaded(
+    Iterable<dynamic> before, Iterable<MediaItem> added,
+    {required bool Function(String id) isDownloaded}) {
+  final ids = [
+    for (final e in before)
+      if (e is Map) '${e['videoId']}',
+  ];
+  if (ids.isEmpty || !ids.every(isDownloaded)) return const [];
+  return [
+    for (final s in added)
+      if (!isDownloaded(s.id)) s
+  ];
+}
+
+/// Downloads [songs] for [songsToKeepDownloaded].
+void keepPlaylistDownloaded(List<MediaItem> songs) {
+  if (songs.isEmpty || !Get.isRegistered<Downloader>()) return;
+  unawaited(Get.find<Downloader>().download(null, songList: songs));
+}
+
+/// Whether [id] is downloaded (in the SongDownloads box).
+bool isSongDownloaded(String id) =>
+    Hive.isBoxOpen('SongDownloads') &&
+    Hive.box('SongDownloads').containsKey(id);
+
+/// Writes to your playlist's [box] those of [songs] it hasn't got, each
+/// once (a song twice among them goes in once), in their order; the ones
+/// it took.
+Future<List<MediaItem>> addNewSongsToPlaylistBox(
+    Box box, List<MediaItem> songs) async {
+  final have = {
+    for (final e in box.values)
+      if (e is Map) '${e['videoId']}',
+  };
+  final added = <MediaItem>[];
+  for (final song in songs) {
+    if (!have.add(song.id)) continue;
+    await box.add(MediaItemBuilder.toJson(song));
+    added.add(song);
+  }
+  return added;
 }
 
 Future<bool> addSongsToLikedSongs(List<MediaItem> songs) async {
@@ -115,6 +170,7 @@ Future<bool> addSongsToLikedSongs(List<MediaItem> songs) async {
       Get.find<DiscoveryService>().onFavorite(song, add: true);
     }
     unawaited(SpotifyLikeSync.onFavorite(song, add: true));
+    unawaited(YtLikeSync.onFavorite(song, add: true));
     if (Get.isRegistered<SettingsScreenController>() &&
         Get.find<SettingsScreenController>()
             .autoDownloadFavoriteSongEnabled
@@ -155,6 +211,38 @@ class AddToPlaylistSheet extends StatefulWidget {
 class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
   bool _busy = false;
 
+  /// Your playlists that already have every song being added, and whether
+  /// your Favorites do: marked with a check, as Spotify and YouTube show
+  /// where a song is saved.
+  Set<String> _savedIn = const {};
+  bool _inFavorites = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final ids = {for (final s in widget.songItems) s.id};
+    _inFavorites = Hive.isBoxOpen('LIBFAV') &&
+        ids.every((id) => Hive.box('LIBFAV').containsKey(id));
+    WidgetsBinding.instance.addPostFrameCallback((_) => _findSavedIn(ids));
+  }
+
+  /// Looks through your own playlists (not YouTube or Piped ones) after
+  /// the sheet is up; the checks show once that's done.
+  Future<void> _findSavedIn(Set<String> ids) async {
+    final found = <String>{};
+    for (final p
+        in userPlaylistsForAddSheet(fromLibrary: widget.playlistsOverride)) {
+      if (p.isCloudPlaylist || p.isPipedPlaylist) continue;
+      try {
+        final box = Hive.isBoxOpen(p.playlistId)
+            ? Hive.box(p.playlistId)
+            : await Hive.openBox(p.playlistId);
+        if (playlistHasAll(box.values, ids)) found.add(p.playlistId);
+      } catch (_) {}
+    }
+    if (mounted && found.isNotEmpty) setState(() => _savedIn = found);
+  }
+
   AddToPlaylistController _controller() {
     if (Get.isRegistered<AddToPlaylistController>()) {
       return Get.find<AddToPlaylistController>();
@@ -173,7 +261,7 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
   Future<void> _finish(PlaylistAddOutcome outcome) async {
     if (!mounted) return;
     Navigator.of(context).pop();
-    _snack(playlistAddMessageKey(outcome).tr);
+    _snack(playlistAddMessageKey(outcome, songs: widget.songItems.length).tr);
     if (outcome == PlaylistAddOutcome.added &&
         Get.isRegistered<DiscoveryService>()) {
       for (final song in widget.songItems) {
@@ -246,6 +334,7 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
               color: theme.colorScheme.onSurface,
             ),
             title: 'favorites'.tr,
+            saved: _inFavorites,
             onTap: _addToLiked,
           ),
           _SheetRow(
@@ -320,6 +409,7 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
             color: Theme.of(context).colorScheme.onSurface,
           ),
           title: playlist.title,
+          saved: _savedIn.contains(playlist.playlistId),
           onTap: () => _addToPlaylist(playlist),
         );
       },
@@ -334,11 +424,15 @@ class _SheetRow extends StatelessWidget {
     required this.leading,
     required this.title,
     required this.onTap,
+    this.saved = false,
   });
 
   final Widget leading;
   final String title;
   final VoidCallback onTap;
+
+  /// Already holds the songs: a check in the accent (toggled on, §2.5).
+  final bool saved;
 
   @override
   Widget build(BuildContext context) {
@@ -353,6 +447,12 @@ class _SheetRow extends StatelessWidget {
         style: theme.textTheme.bodyLarge
             ?.copyWith(color: theme.colorScheme.onSurface),
       ),
+      trailing: saved
+          ? Icon(Icons.check_circle_rounded,
+              size: RiffComponentSizes.trailingIcon,
+              color: theme.colorScheme.primary,
+              semanticLabel: 'alreadyInPlaylist'.tr)
+          : null,
       onTap: onTap,
     );
   }
@@ -423,22 +523,14 @@ class AddToPlaylistController extends GetxController {
     additionInProgress.value = true;
     if (playlistType.value == "local") {
       final plstBox = await Hive.openBox(playlistId);
-      final playlistSongIds =
-          plstBox.values.map((item) => '${item['videoId']}').toList();
-      final incoming = songs.map((e) => e.id);
-      final newCount = countNewPlaylistSongs(
-        existingIds: playlistSongIds,
-        incomingIds: incoming,
-      );
-      for (MediaItem element in songs) {
-        if (!playlistSongIds.contains(element.id)) {
-          await plstBox.add(MediaItemBuilder.toJson(element));
-        }
-      }
+      final before = plstBox.values.toList();
+      final added = await addNewSongsToPlaylistBox(plstBox, songs);
+      keepPlaylistDownloaded(
+          songsToKeepDownloaded(before, added, isDownloaded: isSongDownloaded));
       // Shared box (Hive hands every caller the same instance): never close
       // it here, or the player and other screens using it fail mid-write.
       additionInProgress.value = false;
-      return newCount > 0
+      return added.isNotEmpty
           ? PlaylistAddOutcome.added
           : PlaylistAddOutcome.alreadyIn;
     } else {

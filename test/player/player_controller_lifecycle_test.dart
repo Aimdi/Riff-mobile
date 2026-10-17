@@ -44,7 +44,8 @@ void main() {
     // reachable (and rebuilding segments) for the rest of the process.
     expect(_listeners(PodcastSegmentStore.rev), segments + 1);
     expect(_listeners(PodcastPlaybackPrefs.rev), prefs + 1);
-    expect(_listeners(player.currentSong), 1);
+    // Two workers watch the song; one is the lyric-line prefetch.
+    expect(_listeners(player.currentSong), 2);
     expect(player.startSleepTimer(5), isTrue);
 
     // GetX calls onClose on delete; the old cleanup lived in dispose(),

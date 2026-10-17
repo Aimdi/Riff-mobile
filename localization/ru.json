@@ -270,7 +270,6 @@
     "exportPlaylistCsv": "Экспортировать плейлист как CSV",
     "exportPlaylistJson": "Экспортировать плейлист в JSON",
     "exportPlaylistJsonSubtitle": "Этот формат можно импортировать",
-    "exportPlaylistCsvSubtitle": "Импорт здесь недоступен",
     "exportToYouTubeMusic": "Экспортировать в YouTube Music",
     "exportToYouTubeMusicSubtitle": "Ваш плейлист (до 50 песен) будет добавлен в текущую очередь. Не забудьте добавить его в плейлист или сохранить после открытия в YtMusic",
     "linkCopied": "Ссылка скопирована в буфер обмена",

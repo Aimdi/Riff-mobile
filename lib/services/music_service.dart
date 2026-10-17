@@ -14,6 +14,13 @@ import '/models/media_Item_builder.dart';
 import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/ban_service.dart';
+import '/services/explicit_content.dart';
+import '/services/not_interested.dart';
+import '/services/search_spelling.dart';
+import '/services/album_versions.dart';
+import '/services/search_suggestions.dart';
+import '/services/search_top_result.dart';
+import '/services/yt_playback_tracking.dart';
 import '/services/utils.dart';
 import '/services/yt_auth_service.dart';
 import '../utils/helper.dart';
@@ -21,10 +28,15 @@ import 'constant.dart';
 import 'continuations.dart';
 import 'nav_parser.dart';
 import 'network_policy.dart';
+import 'yt_library_parser.dart';
 
 enum AudioQuality {
   Low,
   High,
+
+  /// High on Wi-Fi, Low on mobile data (stream_service's
+  /// autoStreamingQuality).
+  Auto,
 }
 
 /// Parses the track count out of a playlist header run such as
@@ -176,6 +188,129 @@ class MusicServices extends getx.GetxService {
     );
     if (response == null) throw NetworkError();
     return response;
+  }
+
+  /// Rates [videoId] on the connected YouTube account, as YouTube Music's
+  /// own like button does: [endpoint] 'like/like' or 'like/removelike'.
+  /// Whether YouTube took it (false without an account).
+  Future<bool> rateSong(String endpoint, String videoId) async {
+    if (!YtAuthService.isConnected) return false;
+    try {
+      final data = _ctx();
+      data['target'] = {'videoId': videoId};
+      final response = await _sendRequest(endpoint, data, retries: 1);
+      return (response.statusCode ?? 0) ~/ 100 == 2;
+    } catch (e) {
+      printERROR('Rating $videoId ($endpoint) failed: $e');
+      return false;
+    }
+  }
+
+  /// Counts a play of [videoId] in the connected account's YouTube Music
+  /// history, as YouTube Music's web player does when a song starts: the
+  /// player's playback tracking address (videostatsPlaybackUrl), asked
+  /// with the account, then fetched (ytPlaybackUrl). Whether YouTube took
+  /// it; false without an account or a tracking address.
+  Future<bool> registerPlayback(String videoId) async {
+    if (!YtAuthService.isConnected) return false;
+    final data = _ctx();
+    data['videoId'] = videoId;
+    final player = (await _sendRequest('player', data, retries: 1)).data;
+    final base =
+        nav(player, ['playbackTracking', 'videostatsPlaybackUrl', 'baseUrl']);
+    if (base is! String || base.isEmpty) return false;
+    final response = await dio.getUri(
+      ytPlaybackUrl(base, cpn: ytCpn()),
+      options: Options(
+        headers: {
+          'user-agent': userAgent,
+          'accept': '*/*',
+          'origin': 'https://music.youtube.com',
+          ...YtAuthService.authHeaders(),
+        },
+        validateStatus: (_) => true,
+      ),
+    );
+    return (response.statusCode ?? 0) ~/ 100 == 2;
+  }
+
+  /// The playlists in the connected account's YouTube Music library (its
+  /// Library › Playlists, as ytmusicapi's get_library_playlists reads
+  /// them): yours and the ones you saved, at most [limit]. Empty without
+  /// an account; throws when YouTube can't be reached.
+  Future<List<Playlist>> getLibraryPlaylists({int limit = 2000}) async {
+    if (!YtAuthService.isConnected) return const [];
+    return _libraryItems(
+        'FEmusic_liked_playlists', parseLibraryPlaylists, limit);
+  }
+
+  /// The albums saved in the connected account's YouTube Music library
+  /// (its Library › Albums, ytmusicapi's get_library_albums), at most
+  /// [limit]. Empty without an account; throws when YouTube can't be
+  /// reached.
+  Future<List<Album>> getLibraryAlbums({int limit = 2000}) async {
+    if (!YtAuthService.isConnected) return const [];
+    return _libraryItems('FEmusic_liked_albums', parseLibraryAlbums, limit);
+  }
+
+  /// The podcasts the connected account follows in YouTube Music (its
+  /// Library › Podcasts, ytmusicapi's get_library_podcasts), at most
+  /// [limit]. Empty without an account; throws when YouTube can't be
+  /// reached.
+  Future<List<Playlist>> getLibraryPodcasts({int limit = 2000}) async {
+    if (!YtAuthService.isConnected) return const [];
+    return _libraryItems(
+        'FEmusic_library_non_music_audio_list', parseLibraryPodcasts, limit);
+  }
+
+  /// The artists the connected account subscribes to in YouTube Music
+  /// (ytmusicapi's get_library_subscriptions), at most [limit]. Empty
+  /// without an account; throws when YouTube can't be reached.
+  Future<List<Artist>> getLibrarySubscriptions({int limit = 2000}) async {
+    if (!YtAuthService.isConnected) return const [];
+    return _libraryItems(
+        'FEmusic_library_corpus_artists', parseLibraryArtists, limit);
+  }
+
+  /// A library list of the account, page after page (either continuation
+  /// form), read by [parse]. A refused first answer (signed out) is a
+  /// failure, not an empty library; a later page refused ends the list.
+  Future<List<T>> _libraryItems<T>(String browseId,
+      List<T> Function(List<dynamic> items) parse, int limit) async {
+    final data = _ctx();
+    data['browseId'] = browseId;
+    final first = await _sendRequest('browse', data);
+    if ((first.statusCode ?? 0) ~/ 100 != 2 || first.data is! Map) {
+      throw NetworkError();
+    }
+    var page = libraryFirstPage(Map<String, dynamic>.from(first.data));
+    final items = parse(page.items);
+    final seen = <String>{};
+    while (page.next != null && items.length < limit && seen.add(page.next!)) {
+      final token = page.next;
+      final next = await _sendRequest('browse', data,
+          additionalParams: '&ctoken=$token&continuation=$token');
+      if ((next.statusCode ?? 0) ~/ 100 != 2 || next.data is! Map) break;
+      page = libraryNextPage(Map<String, dynamic>.from(next.data));
+      if (page.items.isEmpty) break;
+      items.addAll(parse(page.items));
+    }
+    return items.take(limit).toList();
+  }
+
+  /// The page YouTube resolves a web address to ([url], e.g. a channel's
+  /// @handle): its browse id (UC… for a channel), or null.
+  Future<String?> resolveUrl(String url) async {
+    try {
+      final data = _ctx();
+      data['url'] = url;
+      final response = await _sendRequest('navigation/resolve_url', data);
+      final id = nav(response.data, ['endpoint', 'browseEndpoint', 'browseId']);
+      return id is String && id.isNotEmpty ? id : null;
+    } catch (e) {
+      printERROR('Resolving $url failed: $e');
+      return null;
+    }
   }
 
   /// Chips YouTube Music showed over the last unfiltered home feed.
@@ -387,8 +522,13 @@ class MusicServices extends getx.GetxService {
 
     return {
       // "Never Play This": banned songs never enter radio / up-next,
-      // but an explicitly requested seed song is kept.
-      'tracks': BanService.filterTracks(tracks, keepVideoId: videoId),
+      // but an explicitly requested seed song is kept. Nor do explicit
+      // songs while they're off (the seed stays all the same).
+      'tracks': ExplicitContent.filter(
+          NotInterested.filter(
+              BanService.filterTracks(tracks, keepVideoId: videoId),
+              keepId: videoId),
+          keepId: videoId),
       'playlistId': playlist,
       'lyrics': lyricsBrowseId,
       'related': relatedBrowseId,
@@ -607,14 +747,18 @@ class MusicServices extends getx.GetxService {
     if (albumRows is! List) {
       throw FormatException('Unrecognised album page for $browseId');
     }
-    // (An "other versions" carousel used to be parsed here too. Nothing read
-    // it, and a carousel in an unexpected shape threw away the whole album.)
     album['tracks'] = parsePlaylistItems(albumRows,
         artistsM: album['artists'],
         thumbnailsM: album["thumbnails"],
         albumIdName: {"id": albumId, 'name': album['title']},
         albumYear: album['year'],
         isAlbum: true);
+    // Its other versions (a deluxe edition, a remaster), as the page lists
+    // them; read apart, so an odd carousel can't cost the album its tracks
+    // (as it once did, when they were read along with them).
+    final versions =
+        AlbumVersions.fromAlbumPage(response, currentBrowseId: browseId);
+    if (versions != null) album['otherVersions'] = versions;
 
     return album;
   }
@@ -947,27 +1091,18 @@ class MusicServices extends getx.GetxService {
     return result;
   }
 
-  Future<List<String>> getSearchSuggestion(String queryStr) async {
+  Future<List<String>> getSearchSuggestion(String queryStr) async =>
+      (await getSearchSuggestions(queryStr)).queries;
+
+  /// What YouTube Music suggests as you type: searches, and the songs,
+  /// artists, albums and playlists to open straight away. Non-query rows
+  /// (history, "did you mean" cards) are no searches; their missing query
+  /// used to be suggested as the literal text "null".
+  Future<SearchSuggestions> getSearchSuggestions(String queryStr) async {
     final data = _ctx();
     data['input'] = queryStr;
-    final res = nav(
-            (await _sendRequest("music/get_search_suggestions", data)).data,
-            ['contents', 0, 'searchSuggestionsSectionRenderer', 'contents']) ??
-        [];
-    // Non-query rows (history, "did you mean" cards) have no query; calling
-    // toString() on that null used to suggest the literal text "null".
-    return res
-        .map<String?>((item) {
-          final query = nav(item, [
-            'searchSuggestionRenderer',
-            'navigationEndpoint',
-            'searchEndpoint',
-            'query'
-          ]);
-          return query is String ? query : null;
-        })
-        .whereType<String>()
-        .toList();
+    return SearchSuggestions.fromResponse(
+        (await _sendRequest("music/get_search_suggestions", data)).data);
   }
 
   ///Specially created for deep-links
@@ -1146,6 +1281,12 @@ class MusicServices extends getx.GetxService {
       return searchResults;
     }
 
+    // "Showing results for … / Did you mean …", for the overview.
+    if (filter == null) {
+      final spelling = SearchSpelling.fromSections(results);
+      if (spelling != null) searchResults[SearchSpelling.key] = spelling;
+    }
+
     // Flatten itemSectionRenderer wrappers (some payloads nest shelves).
     final List<dynamic> flatResults = [];
     for (final res in results) {
@@ -1168,6 +1309,14 @@ class MusicServices extends getx.GetxService {
 
     for (var res in results) {
       if (res is! Map) continue;
+      // "Top result", first on the overview (its own; not a tab).
+      if (res['musicCardShelfRenderer'] case final Map card) {
+        if (filter == null && !searchResults.containsKey(SearchTopResult.key)) {
+          final top = SearchTopResult.parse(card);
+          if (top != null) searchResults[SearchTopResult.key] = top;
+        }
+        continue;
+      }
       String category;
       if (res['musicShelfRenderer'] != null) {
         dynamic itemResults = res['musicShelfRenderer']['contents'];

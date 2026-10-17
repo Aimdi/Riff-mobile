@@ -40,13 +40,20 @@ class BackgroudImage extends StatelessWidget {
             child: SizedBox.expand(
               child: song == null
                   ? const SizedBox.shrink()
-                  : (song.extras!['url'] ?? '').toString().contains('file')
-                      ? _LocalArt(songId: song.id, cacheHeight: cacheHeight)
-                      : _NetworkArt(
+                  // A cover on the phone itself (a music file's album cover).
+                  : song.artUri?.isScheme('file') == true
+                      ? _LocalArt(
                           songId: song.id,
-                          artUri: song.artUri?.toString() ?? '',
+                          path: song.artUri!.toFilePath(),
                           cacheHeight: cacheHeight,
-                        ),
+                        )
+                      : (song.extras!['url'] ?? '').toString().contains('file')
+                          ? _LocalArt(songId: song.id, cacheHeight: cacheHeight)
+                          : _NetworkArt(
+                              songId: song.id,
+                              artUri: song.artUri?.toString() ?? '',
+                              cacheHeight: cacheHeight,
+                            ),
             ),
           ),
         );
@@ -56,8 +63,11 @@ class BackgroudImage extends StatelessWidget {
 }
 
 class _LocalArt extends StatefulWidget {
-  const _LocalArt({required this.songId, this.cacheHeight});
+  const _LocalArt({required this.songId, this.path, this.cacheHeight});
   final String songId;
+
+  /// The cover's file; a download's saved thumbnail when not given.
+  final String? path;
   final int? cacheHeight;
 
   @override
@@ -79,11 +89,13 @@ class _LocalArtState extends State<_LocalArt> {
   @override
   void didUpdateWidget(covariant _LocalArt oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.songId != widget.songId) _resolve();
+    if (oldWidget.songId != widget.songId || oldWidget.path != widget.path) {
+      _resolve();
+    }
   }
 
   void _resolve() {
-    _imgFile = File(
+    _imgFile = File(widget.path ??
         "${Get.find<SettingsScreenController>().supportDirPath}/thumbnails/${widget.songId}.png");
     _exists = _imgFile.exists();
   }

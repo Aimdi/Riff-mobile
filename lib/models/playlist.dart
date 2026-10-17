@@ -88,12 +88,26 @@ class Playlist {
         if (kind != null) "kind": kind,
       };
 
-  Playlist copyWith({String? title, String? thumbnailUrl, String? kind}) {
+  /// Its own words, not the default each kind of playlist is given
+  /// ("Library Playlist", "Piped Playlist", "Playlist"); empty without.
+  String get ownDescription {
+    final words = (description ?? '').trim();
+    return const {'Playlist', 'Library Playlist', 'Piped Playlist'}
+            .contains(words)
+        ? ''
+        : words;
+  }
+
+  Playlist copyWith(
+      {String? title,
+      String? thumbnailUrl,
+      String? kind,
+      String? description}) {
     return Playlist(
         title: title ?? this.title,
         playlistId: playlistId,
         thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
-        description: description,
+        description: description ?? this.description,
         songCount: songCount,
         isPipedPlaylist: isPipedPlaylist,
         isCloudPlaylist: isCloudPlaylist,

@@ -22,6 +22,7 @@ Riff/
     subscriptions.opml
     episodes.json
     bookmarks.json
+    starred.json
     segments.json
   library/
     playlists.json
@@ -201,6 +202,31 @@ Mobile uses `<episodeId>_<createdAt>`).
 
 `episode` is a snapshot that lets Riff Mobile play the episode again;
 other clients can ignore it (but keep it, see "Unknown fields").
+
+### `podcasts/starred.json`: `podcast.starred`
+
+Episodes the listener starred to come back to (Pocket Casts' Starred,
+Spotify's Your Episodes). Id: the episode id (see "Podcast episode ids";
+`url:` ids are adopted as for `podcast.episodes`). A tombstone means
+unstarred.
+
+```json
+{
+  "starredAt": 1767225600000,
+  "title": "Episode title",
+  "show": "Show name",
+  "artUri": "https://…/cover.jpg",
+  "feedUrl": "https://example.com/feed.xml",
+  "enclosureUrl": "https://example.com/ep1.mp3",
+  "guid": "…",
+  "videoId": "…",
+  "episode": { "id": "…", "title": "…", "artist": "…", "artUri": "…", "durationMs": 3600000, "extras": { … } }
+}
+```
+
+`episode` is the snapshot Riff Mobile plays the episode from, show notes
+included; a client that writes a record without one gives the other fields,
+and Riff Mobile builds the snapshot from them.
 
 ### `podcasts/segments.json`: `podcast.segments`
 

@@ -120,7 +120,8 @@ void main() {
 
     var out = await WebDavSyncService.syncNow();
     expect(out.ok, isTrue, reason: '${out.error}');
-    expect(out.sent, 6);
+    // Every collection's file, starred episodes' (none yet) too.
+    expect(out.sent, 7);
     expect(
         dav.files.keys,
         containsAll([
@@ -128,6 +129,7 @@ void main() {
           '/dav/Riff/podcasts/subscriptions.opml',
           '/dav/Riff/podcasts/episodes.json',
           '/dav/Riff/podcasts/bookmarks.json',
+          '/dav/Riff/podcasts/starred.json',
           '/dav/Riff/podcasts/segments.json',
           '/dav/Riff/library/playlists.json',
           '/dav/Riff/library/favorites.json',

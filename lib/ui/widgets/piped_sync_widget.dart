@@ -20,6 +20,7 @@ class PipedSyncWidget extends StatelessWidget {
             splashRadius: 20,
             iconSize: 20,
             visualDensity: const VisualDensity(vertical: -4),
+            tooltip: 'syncPipedPlaylists'.tr,
             icon: const Icon(
               Icons.sync,
             ), // <-- Icon

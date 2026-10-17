@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
 import '/models/media_item_extras.dart';
+import '/services/podcast_playback_profile.dart';
 import '/ui/screens/Podcasts/podcast_queue_controller.dart';
 
 /// Tracks per-episode playback position for podcasts so episodes can be resumed
@@ -51,8 +52,13 @@ class PodcastProgressService {
         ? total!.inMilliseconds
         : (episode.duration?.inMilliseconds ?? 0);
     if (totMs <= 0) return;
-    // Finished (last 20s or ≥98%) → mark played + drop in-progress.
-    if (posMs >= totMs - 20000 || posMs >= totMs * 0.98) {
+    // Finished (last 20s, ≥98%, or into the outro its show skips) → mark
+    // played + drop in-progress.
+    final outroCut = podcastOutroCutMs(
+        totalMs: totMs, trim: PodcastPlaybackPrefs.trimForItem(episode));
+    if (posMs >= totMs - 20000 ||
+        posMs >= totMs * 0.98 ||
+        (outroCut != null && posMs >= outroCut)) {
       markPlayed(episode.id);
       return;
     }
@@ -72,7 +78,7 @@ class PodcastProgressService {
       ),
       'feedUrl': episode.extras?['feedUrl'],
       'description': episodeNotes(episode),
-      'chaptersUrl': episode.extras?['chaptersUrl'],
+      'chaptersUrl': episodeChaptersUrl(episode),
       'transcriptUrl': episode.extras?['transcriptUrl'],
       'transcriptType': episode.extras?['transcriptType'],
       'positionMs': posMs,

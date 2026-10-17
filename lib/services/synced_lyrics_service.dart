@@ -6,8 +6,10 @@ import 'package:harmonymusic/utils/helper.dart';
 import 'package:hive/hive.dart';
 
 import '/services/better_lyrics_service.dart';
+import '/services/embedded_lyrics.dart';
 import '/services/kugou_lyrics_service.dart';
 import '/services/lrclib_query.dart';
+import '/services/music_service.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 
 class SyncedLyricsService {
@@ -44,15 +46,83 @@ class SyncedLyricsService {
     return LyricsSource.auto;
   }
 
+  // Opened once and left open: closing it raced overlapping lookups (one
+  // call closed the box under another's put → HiveError).
+  static Future<Box> _lyricsBox() async => Hive.isBoxOpen("lyrics")
+      ? Hive.box("lyrics")
+      : await Hive.openBox("lyrics");
+
+  /// Keeps [entry] as [songId]'s lyrics in place of what the lookup found
+  /// (Search lyrics' pick); the lookup then gives it back as its own.
+  static Future<void> keep(String songId, Map<String, dynamic> entry) async =>
+      (await _lyricsBox()).put(songId, entry);
+
+  /// Where a song's plain lyrics are kept, next to synced ones by song id.
+  @visibleForTesting
+  static String plainKey(String songId) => 'plain:$songId';
+
+  /// The plain lyrics [fetch] gets (YouTube Music's, for a song without
+  /// synced ones), kept once fetched; when [fetch] fails (offline), the
+  /// ones kept from before. Null when there are none.
+  static Future<String?> plainLyrics(
+      String songId, Future<String?> Function() fetch) async {
+    final box = await _lyricsBox();
+    try {
+      final text = await fetch();
+      if (text != null && text.isNotEmpty) {
+        await box.put(plainKey(songId), text);
+        return text;
+      }
+      return null;
+    } catch (e) {
+      final kept = box.get(plainKey(songId));
+      return kept is String && kept.isNotEmpty ? kept : null;
+    }
+  }
+
+  /// YouTube Music's own (plain) lyrics for [songId], if it has some.
+  static Future<String?> youTubeLyrics(String songId) async {
+    final music = Get.find<MusicServices>();
+    final related =
+        await music.getWatchPlaylist(videoId: songId, onlyRelated: true);
+    final browseId = related['lyrics'];
+    if (browseId == null) return null;
+    final text = await music.getLyrics(browseId);
+    return text is String && text.isNotEmpty ? text : null;
+  }
+
+  /// Fetches [song]'s lyrics now and keeps them (a download), so they show
+  /// offline as well: synced ones, else YouTube Music's plain ones.
+  static Future<void> keepForOffline(MediaItem song) async {
+    try {
+      if (await getSyncedLyrics(song, song.duration?.inSeconds ?? 0) != null) {
+        return;
+      }
+      await plainLyrics(song.id, () => youTubeLyrics(song.id));
+    } catch (e) {
+      printINFO("Lyrics for offline: $e");
+    }
+  }
+
   static Future<Map<String, dynamic>?> getSyncedLyrics(
       MediaItem song, int durInSec) async {
-    // Opened once and left open: closing it here raced overlapping lookups
-    // (one call closed the box under another's put → HiveError).
-    final lyricsBox = Hive.isBoxOpen("lyrics")
-        ? Hive.box("lyrics")
-        : await Hive.openBox("lyrics");
+    final lyricsBox = await _lyricsBox();
     if (lyricsBox.containsKey(song.id)) {
       return Map<String, dynamic>.from(await lyricsBox.get(song.id));
+    }
+
+    // A file on the phone may carry its own (Musicolet, Poweramp and
+    // Samsung Music show them): synced ones before any found online, the
+    // text after them.
+    final embedded = await EmbeddedLyrics.forSong(song);
+    if (embedded?.synced case final lrc?) {
+      final hit = {
+        "synced": lrc,
+        "plainLyrics": embedded!.plain,
+        "source": "embedded",
+      };
+      await lyricsBox.put(song.id, hit);
+      return hit;
     }
 
     final dur = song.duration?.inSeconds ?? durInSec;
@@ -134,6 +204,11 @@ class SyncedLyricsService {
         await lyricsBox.put(song.id, hit);
         return hit;
       }
+    }
+    if (embedded?.plain case final text?) {
+      final hit = {"synced": "", "plainLyrics": text, "source": "embedded"};
+      await lyricsBox.put(song.id, hit);
+      return hit;
     }
     return null;
   }

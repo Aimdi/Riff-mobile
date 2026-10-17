@@ -68,7 +68,39 @@ MediaItem podcastEpisodeToMediaItem(
         'transcriptUrl': episode['transcriptUrl'],
       if (episode['transcriptUrl'] != null)
         'transcriptType': episode['transcriptType'],
+      if (episode['link'] != null) 'link': episode['link'],
+      ...episodeNumbering(episode),
     },
+  );
+}
+
+/// Plays an episode found in the directory ([directoryEpisode]) as its
+/// show's page plays it: from the show's feed, with its chapters,
+/// transcript and notes whole and the show's other episodes after it; just
+/// as found when the feed doesn't have it (or can't be read).
+Future<bool> playDirectoryEpisode(Map<String, dynamic> episode) async {
+  if (!Get.isRegistered<PlayerController>()) return false;
+  final show = {
+    'title': episode['show'],
+    'artwork': episode['artwork'],
+    'feedUrl': episode['feedUrl'],
+  };
+  final feed = await PodcastService.episodes(
+      '${show['feedUrl']}', '${show['title']}', '${show['artwork']}');
+  var items = feed.map((e) => podcastEpisodeToMediaItem(e, show)).toList();
+  var index = items.indexWhere((item) => item.id == episode['id']);
+  if (index < 0) {
+    items = [podcastEpisodeToMediaItem(episode, show)];
+    index = 0;
+  }
+  return Get.find<PlayerController>().playPlayListSong(
+    items,
+    index,
+    playfrom: PlaylingFrom(
+      type: PlaylingFromType.SELECTION,
+      name: '${show['title']}',
+    ),
+    source: DiscoverySource.podcast,
   );
 }
 

@@ -9,13 +9,19 @@ import '/ui/screens/Podcasts/podcast_segment_ui.dart';
 
 import '/ui/screens/Podcasts/podcast_playback_controls.dart';
 import 'package:ionicons/ionicons.dart';
-import 'package:widget_marquee/widget_marquee.dart';
 
 import '/ui/player/components/animated_play_button.dart';
+import '/services/audiobook_playback.dart';
 import '/services/podcast_transcripts.dart';
 import '/ui/player/components/podcast_transcript_sheet.dart';
 import '/ui/utils/theme_controller.dart';
-import '/services/podcast_service.dart' show PodcastChapter;
+import 'package:url_launcher/url_launcher.dart';
+
+import '/services/podcast_segments.dart'
+    show PodcastSegmentStore, chapterSkipKey;
+import '/services/podcast_service.dart' show PodcastChapter, chapterIndexAt;
+import '/services/seek_time_label.dart';
+import '/ui/widgets/now_playing_bars.dart';
 import '../../screens/Settings/settings_screen_controller.dart';
 import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/sleep_timer_bottom_sheet.dart';
@@ -23,11 +29,14 @@ import '../chapter_marks.dart';
 import '../player_controller.dart';
 import '../radio_continuation.dart';
 import '../player_media_nav.dart';
+import 'lyric_line_preview.dart';
 import 'playback_error_actions.dart';
+import 'show_notes_text.dart';
 import 'standard_player.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_theme.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/riff_marquee.dart';
 
 class PlayerControlWidget extends StatelessWidget {
   const PlayerControlWidget({super.key});
@@ -73,6 +82,8 @@ class PlayerControlWidget extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
+          // The line being sung now, as in the reference player.
+          const LyricLinePreview(),
           // Visible reason when a song won't start — snackbar alone is easy to miss.
           const PlaybackErrorBanner(),
           // Spotify-style straight seek bar. Podcasts with chapters split
@@ -215,7 +226,7 @@ class PlayerControlWidget extends StatelessWidget {
           children: [
             playerController.isCurrentSongPodcast
                 ? PodcastSpeedButton(color: color)
-                : PlayerSpeedButton(color: color),
+                : AudiobookSpeedButton(color: color),
             LongFormSkipButton(forward: false, color: color, size: 34),
             const AnimatedPlayButton(
                 key: Key('podcastPlayButton'), size: 68, holdToSeek: true),
@@ -233,7 +244,6 @@ class PlayerControlWidget extends StatelessWidget {
 
 void openChaptersSheet(
     PlayerController playerController, BuildContext context) {
-  final chapters = playerController.chapters;
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -242,58 +252,180 @@ void openChaptersSheet(
       expand: false,
       initialChildSize: 0.55,
       maxChildSize: 0.9,
-      builder: (ctx, scrollCtrl) {
-        String fmt(double sec) {
-          final d = Duration(milliseconds: (sec * 1000).round());
-          final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-          final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-          final h = d.inHours;
-          return h > 0 ? '$h:$m:$s' : '$m:$s';
-        }
-
-        return ListView.builder(
-          controller: scrollCtrl,
-          padding: const EdgeInsets.only(
-              left: RiffSpacing.sm,
-              right: RiffSpacing.sm,
-              bottom: RiffSpacing.xxl),
-          itemCount: chapters.length + 1,
-          itemBuilder: (ctx, i) {
-            if (i == 0) {
-              return Padding(
-                padding: const EdgeInsets.only(
-                    left: RiffSpacing.md,
-                    top: RiffSpacing.xs,
-                    right: RiffSpacing.md,
-                    bottom: RiffSpacing.md),
-                child: Text('chapters'.tr,
-                    style: Theme.of(ctx).textTheme.titleLarge),
-              );
-            }
-            final c = chapters[i - 1];
-            return ListTile(
-              leading: Icon(
-                c.isAd ? Icons.campaign_outlined : Icons.play_arrow_rounded,
-                size: RiffComponentSizes.headerIcon,
-                color: c.isAd
-                    ? Theme.of(ctx).colorScheme.error
-                    : Theme.of(ctx).colorScheme.onSurface,
-              ),
-              title:
-                  Text(c.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-              subtitle: Text(fmt(c.startSec)),
-              onTap: () {
-                Navigator.pop(ctx);
-                playerController.seek(
-                  Duration(milliseconds: (c.startSec * 1000).round()),
-                );
-              },
-            );
-          },
-        );
-      },
+      builder: (ctx, scrollCtrl) => ChapterList(
+          playerController: playerController, scrollController: scrollCtrl),
     ),
   );
+}
+
+/// An episode's chapters: tap one to play from it. The one playing shows
+/// the now-playing bars (Pocket Casts marks it too), following the
+/// episode; chapters that link to a web page get a button to open it.
+/// Skip chapters ticks them off, as in Pocket Casts: playback then jumps
+/// over the ones unticked.
+class ChapterList extends StatefulWidget {
+  const ChapterList(
+      {super.key, required this.playerController, this.scrollController});
+
+  final PlayerController playerController;
+  final ScrollController? scrollController;
+
+  @override
+  State<ChapterList> createState() => _ChapterListState();
+}
+
+class _ChapterListState extends State<ChapterList> {
+  late final ValueNotifier<int> _playing;
+  Worker? _follow;
+
+  /// Ticking chapters off (to skip) or back on.
+  bool _choosing = false;
+
+  int _playingNow() {
+    final pc = widget.playerController;
+    return chapterIndexAt(pc.chapters,
+        pc.progressBarStatus.value.current.inMilliseconds / 1000.0);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _playing = ValueNotifier(_playingNow());
+    // Rows rebuild when the chapter changes, not on every tick.
+    _follow = ever(widget.playerController.progressBarStatus,
+        (_) => _playing.value = _playingNow());
+  }
+
+  @override
+  void dispose() {
+    _follow?.dispose();
+    _playing.dispose();
+    super.dispose();
+  }
+
+  static String _fmt(double sec) {
+    final d = Duration(milliseconds: (sec * 1000).round());
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    final h = d.inHours;
+    return h > 0 ? '$h:$m:$s' : '$m:$s';
+  }
+
+  /// Ticks chapter [index] off ([skipped]) or back on, for this episode.
+  Future<void> _setSkipped(int index, bool skipped) async {
+    final pc = widget.playerController;
+    final song = pc.currentSong.value;
+    if (song == null) return;
+    final total = pc.progressBarStatus.value.total;
+    final length = total > Duration.zero ? total : song.duration;
+    await PodcastSegmentStore.setChapterSkipped(song.id, pc.chapters, index,
+        skipped: skipped, durationSec: (length?.inMilliseconds ?? 0) / 1000.0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pc = widget.playerController;
+    final scheme = Theme.of(context).colorScheme;
+    return Obx(() {
+      PodcastSegmentStore.rev.value;
+      final chapters = pc.chapters.toList();
+      final id = pc.currentSong.value?.id;
+      final skipped = id == null
+          ? const <String>{}
+          : PodcastSegmentStore.skippedChapters(id);
+      return ListView.builder(
+        controller: widget.scrollController,
+        padding: const EdgeInsets.only(
+            left: RiffSpacing.sm,
+            right: RiffSpacing.sm,
+            bottom: RiffSpacing.xxl),
+        itemCount: chapters.length + 1,
+        itemBuilder: (ctx, i) {
+          if (i == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(
+                  left: RiffSpacing.md,
+                  top: RiffSpacing.xs,
+                  right: RiffSpacing.md,
+                  bottom: RiffSpacing.md),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text('chapters'.tr,
+                        style: Theme.of(ctx).textTheme.titleLarge),
+                  ),
+                  TextButton(
+                    onPressed: () => setState(() => _choosing = !_choosing),
+                    style: TextButton.styleFrom(
+                      minimumSize: Size.zero,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: RiffSpacing.md),
+                    ),
+                    child: Text(_choosing ? 'done'.tr : 'skipChapters'.tr),
+                  ),
+                ],
+              ),
+            );
+          }
+          final index = i - 1;
+          final c = chapters[index];
+          final link = c.linkUrl;
+          final skip = skipped.contains(chapterSkipKey(c.startSec));
+          final time = _fmt(c.startSec);
+          return ValueListenableBuilder<int>(
+            valueListenable: _playing,
+            builder: (ctx, playing, _) => ListTile(
+              leading: SizedBox.square(
+                dimension: RiffComponentSizes.headerIcon,
+                child: _choosing
+                    ? Checkbox(
+                        value: !skip,
+                        onChanged: (on) => _setSkipped(index, on == false),
+                      )
+                    : playing == index
+                        ? const NowPlayingBars(
+                            size: RiffComponentSizes.headerIcon)
+                        : Icon(
+                            skip
+                                ? Icons.redo_rounded
+                                : c.isAd
+                                    ? Icons.campaign_outlined
+                                    : Icons.play_arrow_rounded,
+                            size: RiffComponentSizes.headerIcon,
+                            color: skip
+                                ? scheme.onSurfaceVariant
+                                : c.isAd
+                                    ? scheme.error
+                                    : scheme.onSurface,
+                          ),
+              ),
+              // A chapter ticked off reads dimmed.
+              textColor: skip ? scheme.onSurfaceVariant : null,
+              title:
+                  Text(c.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+              subtitle: Text(skip ? '$time · ${'chapterSkipped'.tr}' : time),
+              trailing: link == null
+                  ? null
+                  : IconButton(
+                      tooltip: 'openChapterLink'.tr,
+                      icon: const Icon(Icons.open_in_new_rounded),
+                      onPressed: () => launchUrl(Uri.parse(link),
+                          mode: LaunchMode.externalApplication),
+                    ),
+              onTap: _choosing
+                  ? () => _setSkipped(index, !skip)
+                  : () {
+                      Navigator.pop(ctx);
+                      pc.seek(
+                        Duration(milliseconds: (c.startSec * 1000).round()),
+                      );
+                    },
+            ),
+          );
+        },
+      );
+    });
+  }
 }
 
 void openShownotesSheet(
@@ -322,10 +454,24 @@ void openShownotesSheet(
             const SizedBox(height: RiffSpacing.xs),
             Text(song?.artist ?? '', style: Theme.of(ctx).textTheme.titleSmall),
             const Divider(height: RiffSpacing.xxl),
-            Text(
-              notes.isEmpty ? "noShownotes".tr : notes,
-              style: Theme.of(ctx).textTheme.bodyLarge,
-            ),
+            if (notes.isEmpty)
+              Text("noShownotes".tr, style: Theme.of(ctx).textTheme.bodyLarge)
+            else
+              // A timestamp plays from there; a link opens.
+              ShowNotesText(
+                notes: notes,
+                length: playerController.progressBarStatus.value.total >
+                        Duration.zero
+                    ? playerController.progressBarStatus.value.total
+                    : song?.duration,
+                style: Theme.of(ctx).textTheme.bodyLarge,
+                onTime: (seconds) {
+                  Navigator.of(ctx).pop();
+                  playerController.seek(Duration(seconds: seconds));
+                },
+                onLink: (url) => launchUrl(Uri.parse(url),
+                    mode: LaunchMode.externalApplication),
+              ),
           ],
         ),
       ),
@@ -399,22 +545,18 @@ class PlaybackErrorBanner extends StatelessWidget {
   }
 }
 
-/// Podcast playback-speed control: shows the current speed, tap cycles through
-/// common podcast speeds. Persists via SettingsScreenController like the
-/// speed/pitch dialog.
-class PlayerSpeedButton extends StatelessWidget {
-  const PlayerSpeedButton({super.key, required this.color});
+/// Audiobook speed pill: shows the books' own speed, a tap steps through
+/// common speeds ([cycleAudiobookSpeed]). Music's speed is left alone.
+class AudiobookSpeedButton extends StatelessWidget {
+  const AudiobookSpeedButton({super.key, required this.color});
   final Color? color;
-
-  void _cycle() => cyclePlayerSpeed();
 
   @override
   Widget build(BuildContext context) {
-    final settings = Get.find<SettingsScreenController>();
     return Tooltip(
       message: 'speed'.tr,
       child: InkWell(
-        onTap: _cycle,
+        onTap: cycleAudiobookSpeed,
         customBorder: const StadiumBorder(),
         child: Container(
           width: 52,
@@ -427,7 +569,7 @@ class PlayerSpeedButton extends StatelessWidget {
             ),
           ),
           child: Obx(() => Text(
-                speedLabel(settings.playbackSpeed.value),
+                speedLabel(_audiobookSpeed()),
                 style: Theme.of(context)
                     .textTheme
                     .labelMedium
@@ -439,19 +581,20 @@ class PlayerSpeedButton extends StatelessWidget {
   }
 }
 
-const _playerSpeeds = [0.8, 1.0, 1.2, 1.5, 1.75, 2.0];
+/// The audiobook speed, read so an Obx rebuilds when it changes.
+double _audiobookSpeed() {
+  AudiobookPlayback.rev.value;
+  return AudiobookPlayback.speed;
+}
 
-/// Next common speed (0.8× … 2×, then round again), saved like the
-/// speed/pitch dialog.
-void cyclePlayerSpeed() {
-  final settings = Get.find<SettingsScreenController>();
-  final cur = settings.playbackSpeed.value;
-  final idx = _playerSpeeds.indexWhere((s) => (s - cur).abs() < 0.01);
-  final next = _playerSpeeds[(idx + 1) % _playerSpeeds.length];
-  settings.setBox.put("playbackSpeed", next);
-  settings.playbackSpeed.value = next;
-  Get.find<PlayerController>()
-      .setSpeedAndPitch(speed: next, pitch: settings.playbackPitch.value);
+/// Next common speed for the playing audiobook (0.8× … 2×, then round
+/// again), saved as the books' own speed and applied right away.
+Future<void> cycleAudiobookSpeed() async {
+  final next = nextAudiobookSpeed(AudiobookPlayback.speed);
+  await AudiobookPlayback.setSpeed(next);
+  Get.find<PlayerController>().setSpeedAndPitch(
+      speed: next,
+      pitch: Get.find<SettingsScreenController>().playbackPitch.value);
 }
 
 /// 1.0 → "1×", 1.25 → "1.25×", 1.5 → "1.5×".
@@ -546,8 +689,11 @@ class _RoundAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Translucent white: reads on the cover-coloured page and on black.
     return Material(
-      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      color: RiffColors.of(context)
+          .onImage
+          .withOpacity(RiffPalette.playerButtonVeil),
       shape: const CircleBorder(),
       clipBehavior: Clip.antiAlias,
       child: child,
@@ -642,7 +788,7 @@ class _TitleBlock extends StatelessWidget {
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () => openCurrentAlbum(playerController),
-                  child: Marquee(
+                  child: RiffMarquee(
                     delay: const Duration(milliseconds: 1500),
                     duration: const Duration(seconds: 10),
                     id: '${song?.id}_title',
@@ -657,7 +803,7 @@ class _TitleBlock extends StatelessWidget {
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () => openCurrentArtist(playerController),
-                  child: Marquee(
+                  child: RiffMarquee(
                     delay: const Duration(milliseconds: 1500),
                     duration: const Duration(seconds: 10),
                     id: '${song?.id}_subtitle',
@@ -686,7 +832,7 @@ Widget _nextButton(PlayerController playerController, BuildContext context) {
               playerController.currentSong.value?.id,
       shuffleOn: playerController.isShuffleModeEnabled.isTrue,
       queueLoopOn: playerController.isQueueLoopModeEnabled.isTrue,
-      radioOn: playerController.isRadioModeOn,
+      radioOn: playerController.playsOnPastEnd,
     );
     return IconButton(
         tooltip: 'next'.tr,
@@ -711,6 +857,18 @@ String _fmtDuration(Duration d, {bool allowZero = true}) {
   final ss = s.toString().padLeft(2, '0');
   if (h > 0) return '$h:${m.toString().padLeft(2, '0')}:$ss';
   return '$m:$ss';
+}
+
+/// The time at the seek bar's right end: the length, or the time left
+/// from [position] ("−2:31") when [timeLeft]. An unknown length shows an
+/// em dash either way.
+String seekBarEndLabel(Duration position, Duration total,
+    {required bool timeLeft}) {
+  if (!timeLeft || total <= Duration.zero) {
+    return _fmtDuration(total, allowZero: false);
+  }
+  final left = total - position;
+  return '−${_fmtDuration(left.isNegative ? Duration.zero : left)}';
 }
 
 /// Straight seek bar (Spotify). Podcast chapters split the line into
@@ -832,9 +990,26 @@ class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
       final timeStyle = theme.textTheme.labelSmall!
           .copyWith(color: theme.colorScheme.onSurfaceVariant);
       final currentLabel = _fmtDuration(_dragPosition ?? status.current);
-      final totalLabel = _fmtDuration(status.total, allowZero: false);
+      final timeLeft = SeekTimeLabel.showsTimeLeft.value;
+      final totalLabel = seekBarEndLabel(
+          _dragPosition ?? status.current, status.total,
+          timeLeft: timeLeft);
       final played = theme.colorScheme.secondary;
       final rest = theme.colorScheme.outlineVariant;
+      // For TalkBack: a slider, "1:23 of 3:45", that swipe up / down moves.
+      final shown = _dragPosition ?? status.current;
+      final canSeek = status.total > Duration.zero;
+      String spoken(Duration at) => canSeek
+          ? 'positionOfTotal'.trParams({
+              'position': _fmtDuration(at),
+              'total': _fmtDuration(status.total),
+            })
+          : _fmtDuration(at);
+      Duration within(Duration at) => at < Duration.zero
+          ? Duration.zero
+          : at > status.total
+              ? status.total
+              : at;
 
       return Padding(
         padding: EdgeInsets.zero,
@@ -842,30 +1017,50 @@ class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
           children: [
             LayoutBuilder(builder: (context, constraints) {
               final width = constraints.maxWidth;
-              return GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTapDown: (d) =>
-                    _scrubTo(d.localPosition.dx, width, status.total),
-                onTapUp: (_) => _commitScrub(controller),
-                onTapCancel: _endScrub,
-                onHorizontalDragStart: (d) =>
-                    _scrubTo(d.localPosition.dx, width, status.total),
-                onHorizontalDragUpdate: (d) =>
-                    _scrubTo(d.localPosition.dx, width, status.total),
-                onHorizontalDragEnd: (_) => _commitScrub(controller),
-                onHorizontalDragCancel: _endScrub,
-                child: SizedBox(
-                  height: 36,
-                  width: double.infinity,
-                  child: CustomPaint(
-                    painter: _SectionTrackPainter(
-                      progress: frac,
-                      marks: marks,
-                      spans: spans,
-                      playedColor: played,
-                      restColor: rest,
-                      thumbColor: played,
-                      showThumb: _dragging,
+              return Semantics(
+                slider: true,
+                label: 'seekBar'.tr,
+                value: spoken(shown),
+                increasedValue: canSeek
+                    ? spoken(within(shown + RiffDurations.seekStep))
+                    : null,
+                decreasedValue: canSeek
+                    ? spoken(within(shown - RiffDurations.seekStep))
+                    : null,
+                onIncrease: canSeek
+                    ? () => controller.seekBy(RiffDurations.seekStep)
+                    : null,
+                onDecrease: canSeek
+                    ? () => controller.seekBy(-RiffDurations.seekStep)
+                    : null,
+                child: GestureDetector(
+                  // Its tap and drag would be TalkBack's swipe on a slider
+                  // too (a drag to the middle): the steps above stand in.
+                  excludeFromSemantics: true,
+                  behavior: HitTestBehavior.opaque,
+                  onTapDown: (d) =>
+                      _scrubTo(d.localPosition.dx, width, status.total),
+                  onTapUp: (_) => _commitScrub(controller),
+                  onTapCancel: _endScrub,
+                  onHorizontalDragStart: (d) =>
+                      _scrubTo(d.localPosition.dx, width, status.total),
+                  onHorizontalDragUpdate: (d) =>
+                      _scrubTo(d.localPosition.dx, width, status.total),
+                  onHorizontalDragEnd: (_) => _commitScrub(controller),
+                  onHorizontalDragCancel: _endScrub,
+                  child: SizedBox(
+                    height: 36,
+                    width: double.infinity,
+                    child: CustomPaint(
+                      painter: _SectionTrackPainter(
+                        progress: frac,
+                        marks: marks,
+                        spans: spans,
+                        playedColor: played,
+                        restColor: rest,
+                        thumbColor: played,
+                        showThumb: _dragging,
+                      ),
                     ),
                   ),
                 ),
@@ -876,7 +1071,21 @@ class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(currentLabel, style: timeStyle),
-                Text(totalLabel, style: timeStyle),
+                // A tap swaps the length for the time left, and back.
+                Semantics(
+                  container: true,
+                  button: true,
+                  label: totalLabel,
+                  onTap: SeekTimeLabel.toggle,
+                  onTapHint: (timeLeft ? 'showLength' : 'showTimeLeft').tr,
+                  child: ExcludeSemantics(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: SeekTimeLabel.toggle,
+                      child: Text(totalLabel, style: timeStyle),
+                    ),
+                  ),
+                ),
               ],
             ),
           ],

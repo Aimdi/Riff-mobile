@@ -14,6 +14,7 @@ import 'podcast_play.dart' show isPodcastCollection;
 import '/models/artist.dart';
 import '/models/thumbnail.dart';
 import '/services/cover_resolver.dart';
+import '/services/playlist_covers.dart';
 import '../../models/album.dart';
 import '../../models/playlist.dart';
 
@@ -105,17 +106,103 @@ class ImageWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final pl = playlist;
+    if (song == null && pl != null) {
+      // A photo of its own, when one was given, wins over any other art.
+      return Obx(() {
+        PlaylistCovers.rev.value;
+        final photo = PlaylistCovers.pathFor(pl.playlistId);
+        return photo == null ? _art(context) : _photo(context, photo);
+      });
+    }
+    return _art(context);
+  }
+
+  /// A playlist's own photo; the cover it would have had when the file is
+  /// gone.
+  Widget _photo(BuildContext context, String path) {
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    return Container(
+      height: size,
+      width: size,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(_radius),
+      ),
+      child: Image.file(
+        File(path),
+        height: size,
+        width: size,
+        cacheWidth: (size * dpr).round().clamp(64, 1600),
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (context, __, ___) => _art(context),
+      ),
+    );
+  }
+
+  Widget _art(BuildContext context) {
     // The shared "no playlist art" image counts as no art.
     final raw = _rawUrl == Playlist.thumbPlaceholderUrl ? '' : _rawUrl;
     final imageUrl = _scaled(raw);
 
     final bool offlineAvailable =
         song != null && (song?.extras?["url"] ?? "").contains("file");
+    // A cover on the phone itself (a music file's album cover).
+    final localCover = song?.artUri?.isScheme('file') == true
+        ? song!.artUri!.toFilePath()
+        : null;
 
     // Only constrain the longer edge so landscape video frames stay cropped
     // (BoxFit.cover) instead of stretched into a square.
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final decodeSide = (size * dpr).round().clamp(64, 1600);
+
+    Widget network() => (imageUrl.isEmpty)
+        ? _placeholder(context)
+        // A song whose only art is a 16:9 video frame: show the frame,
+        // then swap to the resolved square audio-track cover (cached).
+        : (song != null &&
+                Thumbnail.isVideoFrameUrl(raw) &&
+                !song!.id.startsWith('podcast_') &&
+                song!.extras?['isPodcast'] != true)
+            ? _SongCoverImage(
+                song: song!,
+                size: size,
+                decodeSide: decodeSide,
+                placeholder: _placeholder(context),
+                shimmer: _shimmer(context),
+              )
+            : CachedNetworkImage(
+                height: size,
+                width: size,
+                // One dimension only — setting both forces a square decode and
+                // elongates 16:9 YouTube frames.
+                memCacheWidth: decodeSide,
+                filterQuality: FilterQuality.medium,
+                imageUrl: imageUrl,
+                httpHeaders: kCoverImageHeaders,
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+                errorWidget: (context, url, error) {
+                  if (raw.isNotEmpty && raw != imageUrl) {
+                    return CachedNetworkImage(
+                      height: size,
+                      width: size,
+                      memCacheWidth: decodeSide,
+                      imageUrl: raw,
+                      httpHeaders: kCoverImageHeaders,
+                      fit: BoxFit.cover,
+                      alignment: Alignment.center,
+                      errorWidget: (_, __, ___) => _placeholder(context),
+                      progressIndicatorBuilder: (_, __, ___) =>
+                          _shimmer(context),
+                    );
+                  }
+                  return _placeholder(context);
+                },
+                progressIndicatorBuilder: ((_, __, ___) => _shimmer(context)),
+              );
 
     return Container(
       height: size,
@@ -125,10 +212,9 @@ class ImageWidget extends StatelessWidget {
         shape: artist != null ? BoxShape.circle : BoxShape.rectangle,
         borderRadius: artist != null ? null : BorderRadius.circular(_radius),
       ),
-      child: offlineAvailable
+      child: localCover != null
           ? Image.file(
-              File(
-                  "${Get.find<SettingsScreenController>().supportDirPath}/thumbnails/${song!.id}.png"),
+              File(localCover),
               height: size,
               width: size,
               cacheWidth: decodeSide,
@@ -136,52 +222,20 @@ class ImageWidget extends StatelessWidget {
               filterQuality: FilterQuality.medium,
               errorBuilder: (_, __, ___) => _placeholder(context),
             )
-          : (imageUrl.isEmpty)
-              ? _placeholder(context)
-              // A song whose only art is a 16:9 video frame: show the frame,
-              // then swap to the resolved square audio-track cover (cached).
-              : (song != null &&
-                      Thumbnail.isVideoFrameUrl(raw) &&
-                      !song!.id.startsWith('podcast_') &&
-                      song!.extras?['isPodcast'] != true)
-                  ? _SongCoverImage(
-                      song: song!,
-                      size: size,
-                      decodeSide: decodeSide,
-                      placeholder: _placeholder(context),
-                      shimmer: _shimmer(context),
-                    )
-                  : CachedNetworkImage(
-                      height: size,
-                      width: size,
-                      // One dimension only — setting both forces a square decode and
-                      // elongates 16:9 YouTube frames.
-                      memCacheWidth: decodeSide,
-                      filterQuality: FilterQuality.medium,
-                      imageUrl: imageUrl,
-                      httpHeaders: kCoverImageHeaders,
-                      fit: BoxFit.cover,
-                      alignment: Alignment.center,
-                      errorWidget: (context, url, error) {
-                        if (raw.isNotEmpty && raw != imageUrl) {
-                          return CachedNetworkImage(
-                            height: size,
-                            width: size,
-                            memCacheWidth: decodeSide,
-                            imageUrl: raw,
-                            httpHeaders: kCoverImageHeaders,
-                            fit: BoxFit.cover,
-                            alignment: Alignment.center,
-                            errorWidget: (_, __, ___) => _placeholder(context),
-                            progressIndicatorBuilder: (_, __, ___) =>
-                                _shimmer(context),
-                          );
-                        }
-                        return _placeholder(context);
-                      },
-                      progressIndicatorBuilder: ((_, __, ___) =>
-                          _shimmer(context)),
-                    ),
+          : offlineAvailable
+              ? Image.file(
+                  File(
+                      "${Get.find<SettingsScreenController>().supportDirPath}/thumbnails/${song!.id}.png"),
+                  height: size,
+                  width: size,
+                  cacheWidth: decodeSide,
+                  fit: BoxFit.cover,
+                  filterQuality: FilterQuality.medium,
+                  // Not saved (an episode or a book's chapter playing from the
+                  // phone): its cover from the network.
+                  errorBuilder: (_, __, ___) => network(),
+                )
+              : network(),
     );
   }
 

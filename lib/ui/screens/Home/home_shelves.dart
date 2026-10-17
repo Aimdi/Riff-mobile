@@ -8,6 +8,7 @@ import '/models/album.dart';
 import '/models/artist.dart';
 import '/models/media_Item_builder.dart';
 import '/models/media_item_extras.dart';
+import '/models/playling_from.dart';
 import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/discovery/discovery_service.dart';
@@ -32,6 +33,7 @@ import 'home_feed_builder.dart';
 import 'home_feed_data.dart';
 import 'home_metrics.dart';
 import '/ui/theme/riff_text_metrics.dart';
+import '/ui/player/play_queue_order.dart' show playQueueFrom;
 
 /// Card sizes per item type on a shelf of pane width [m].
 class ShelfCardSize {
@@ -429,28 +431,37 @@ List<MediaItem> _mixTracks(GeneratedMix mix) {
 Future<void> _playMix(GeneratedMix mix, {bool shuffle = true}) async {
   final tracks = _mixTracks(mix);
   if (tracks.isEmpty) return;
-  if (shuffle) tracks.shuffle();
-  final tagged = DiscoveryService.tagAll(tracks, DiscoverySource.dailyMix);
-  final ok = await Get.find<PlayerController>().playPlayListSong(tagged, 0);
+  final tagged = DiscoveryService.tagAll(
+      shuffle ? playQueueFrom(tracks, shuffle: true) : tracks,
+      DiscoverySource.dailyMix);
+  // It plays as the playlist it opens as: the player says so and opens it,
+  // and one left out of your taste profile stays out.
+  final ok = await Get.find<PlayerController>().playPlayListSong(tagged, 0,
+      playfrom: PlaylingFrom(
+          type: PlaylingFromType.PLAYLIST,
+          name: mix.title,
+          id: _mixPlaylistId(mix),
+          item: _mixPlaylist(mix, tracks)));
   if (!ok) snackOperationFailed();
 }
 
 /// The playlist a mix opens as.
 String _mixPlaylistId(GeneratedMix mix) => 'RIFF_${mix.id}';
 
+/// [mix] as the playlist it opens as, its cover from [tracks].
+Playlist _mixPlaylist(GeneratedMix mix, List<MediaItem> tracks) => Playlist(
+      title: mix.title,
+      playlistId: _mixPlaylistId(mix),
+      thumbnailUrl: tracks.isNotEmpty
+          ? tracks.first.artUri?.toString() ?? Playlist.thumbPlaceholderUrl
+          : Playlist.thumbPlaceholderUrl,
+      isCloudPlaylist: false,
+    );
+
 Future<void> _openMix(GeneratedMix mix) async {
   if (!Get.isRegistered<DiscoveryService>()) return;
   await Get.find<DiscoveryService>().materializeMixPlaylists();
-  final id = _mixPlaylistId(mix);
-  final tracks = _mixTracks(mix);
-  _openPlaylist(Playlist(
-    title: mix.title,
-    playlistId: id,
-    thumbnailUrl: tracks.isNotEmpty
-        ? tracks.first.artUri?.toString() ?? Playlist.thumbPlaceholderUrl
-        : Playlist.thumbPlaceholderUrl,
-    isCloudPlaylist: false,
-  ));
+  _openPlaylist(_mixPlaylist(mix, _mixTracks(mix)));
 }
 
 Widget _sheet(BuildContext context, String title,

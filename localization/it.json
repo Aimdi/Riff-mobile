@@ -267,7 +267,6 @@
     "exportPlaylistCsv": "Esporta playlist come CSV",
     "exportPlaylistJson": "Esporta playlist come JSON",
     "exportPlaylistJsonSubtitle": "Questo formato non può essere importato",
-    "exportPlaylistCsvSubtitle": "Impossibile importare qui",
     "exportToYouTubeMusic": "Esporta verso Youtube Music",
     "exportToYouTubeMusicSubtitle": "Sposterà la tua playlist (meno di 50 brani) nella coda corrente, non dimenticare di aggiungere alla playlist/salvare dopo aver aperto YTMusic",
     "linkCopied": "Link copiato negli appunti",

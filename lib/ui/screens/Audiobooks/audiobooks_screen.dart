@@ -3,9 +3,11 @@ import 'package:get/get.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '/services/audiobook_catalog_service.dart';
+import '/services/audiobook_downloads.dart';
 import '/services/audiobook_progress_service.dart';
 import '/services/audiobookshelf_service.dart';
 import '/services/free_audiobook_service.dart';
+import '/services/offline_playback.dart';
 import '/services/plugin_service.dart';
 import '/ui/navigator.dart';
 import '/ui/theme/riff_spacing.dart';
@@ -37,12 +39,18 @@ Future<void> _playOrOpenAudiobook(String bookId) async {
 
 /// Resume a free book from its "Continue listening" card (here and on
 /// Home); opens the book when the chapter list can't be loaded. False only
-/// when the record names no book.
+/// when the record names no book. Downloaded, it plays from the phone when
+/// there's no connection or the Archive can't be reached.
 Future<bool> resumeFreeAudiobook(Map<String, dynamic> record) async {
   final id = '${record['bookId'] ?? ''}';
   if (id.isEmpty) return false;
+  if (OfflinePlayback.noConnection.isTrue &&
+      await playDownloadedAudiobook(id)) {
+    return true;
+  }
   final detail = await FreeAudiobookService.detail(id);
   if (detail != null && await playFreeAudiobook(detail)) return true;
+  if (await playDownloadedAudiobook(id)) return true;
   openFreeAudiobook(FreeAudiobook(
     id: id,
     title: '${record['album'] ?? ''}',
@@ -605,7 +613,9 @@ class _SavedView extends StatelessWidget {
     return Obx(() {
       final free = lib.savedFree.toList();
       final store = lib.saved.toList();
-      if (free.isEmpty && store.isEmpty) {
+      AudiobookDownloads.rev.value;
+      final downloaded = AudiobookDownloads.books();
+      if (free.isEmpty && store.isEmpty && downloaded.isEmpty) {
         return PodcastEmptyState(
           icon: Icons.bookmark_border_rounded,
           message: 'noSavedAudiobooks'.tr,
@@ -624,10 +634,31 @@ class _SavedView extends StatelessWidget {
             );
         return CustomScrollView(
           slivers: [
+            // On the phone, to listen with no connection (Audible's
+            // Downloaded).
+            if (downloaded.isNotEmpty) ...[
+              SliverToBoxAdapter(
+                  child:
+                      HomeSectionHeader('downloaded'.tr, top: RiffSpacing.md)),
+              SliverPadding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
+                sliver: SliverGrid(
+                  gridDelegate: delegate(),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, i) => _DownloadedBookCard(
+                        book: downloaded[i], size: grid.cover),
+                    childCount: downloaded.length,
+                  ),
+                ),
+              ),
+            ],
             if (free.isNotEmpty) ...[
               SliverToBoxAdapter(
                   child: HomeSectionHeader('freeToListen'.tr,
-                      top: RiffSpacing.md)),
+                      top: downloaded.isEmpty
+                          ? RiffSpacing.md
+                          : HomeLayout.sectionTop)),
               SliverPadding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
@@ -645,7 +676,9 @@ class _SavedView extends StatelessWidget {
               SliverToBoxAdapter(
                 child: HomeSectionHeader(
                   'inStores'.tr,
-                  top: free.isEmpty ? RiffSpacing.md : HomeLayout.sectionTop,
+                  top: free.isEmpty && downloaded.isEmpty
+                      ? RiffSpacing.md
+                      : HomeLayout.sectionTop,
                   trailing: Padding(
                     padding: const EdgeInsets.only(right: HomeLayout.gutter),
                     child: Text('storeBookNote'.tr,
@@ -673,6 +706,27 @@ class _SavedView extends StatelessWidget {
       });
     });
   }
+}
+
+/// A book downloaded to the phone: a LibriVox book opens its page, one from
+/// your Audiobookshelf server plays as in Library; with no connection, both
+/// from the phone.
+class _DownloadedBookCard extends StatelessWidget {
+  const _DownloadedBookCard({required this.book, required this.size});
+  final DownloadedBook book;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => HomeShelfCard(
+        size: size,
+        art: AudiobookCover(url: book.art, size: size, radius: 0),
+        title: book.title,
+        subtitle: book.author,
+        onTap: () => book.free
+            ? openFreeAudiobook(FreeAudiobook(
+                id: book.id, title: book.title, author: book.author))
+            : _playOrOpenAudiobook(book.id),
+      );
 }
 
 // ──────────────────────────────────────────────── Library (Audiobookshelf) ──
@@ -779,6 +833,7 @@ class _AbsLoginFormState extends State<_AbsLoginForm> {
             context,
             'password'.tr,
             suffix: IconButton(
+              tooltip: (_obscure ? 'showPassword' : 'hidePassword').tr,
               icon: Icon(_obscure
                   ? Icons.visibility_rounded
                   : Icons.visibility_off_rounded),

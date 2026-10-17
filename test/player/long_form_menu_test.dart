@@ -25,6 +25,15 @@ class _FakePlayer extends GetxController implements PlayerController {
       const PodcastPlaybackProfile(
           speed: 1.25, skipBackSec: 15, skipForwardSec: 30);
 
+  int marked = 0;
+  int undone = 0;
+
+  @override
+  VoidCallback? markCurrentEpisodePlayed() {
+    marked++;
+    return () => undone++;
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -78,6 +87,9 @@ void main() {
     expect(find.text('chapters'), findsOneWidget);
     expect(find.text('shownotes'), findsNothing);
     expect(find.text('autoplayEpisodes'), findsNothing);
+    expect(find.text('markAsPlayed'), findsNothing);
+    // As in the music player's ⋮: the phone's output switcher.
+    expect(find.text('playOn'), findsOneWidget);
   });
 
   testWidgets('a podcast gets shownotes and an autoplay switch',
@@ -89,11 +101,46 @@ void main() {
     expect(find.text('1.25×'), findsOneWidget);
     expect(find.text('shownotes'), findsOneWidget);
     expect(find.text('chapters'), findsNothing);
+    expect(find.text('playOn'), findsOneWidget);
 
     await tester.tap(find.text('autoplayEpisodes'));
     await tester.pump();
     expect(settings.podcastContinuousPlaybackEnabled.value, isTrue);
     expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+  });
+
+  testWidgets("a podcast's Mark as played closes the menu, with Undo",
+      (tester) async {
+    player.currentSong.value = const MediaItem(
+        id: 'podcast_ep1', title: 'Episode', extras: {'isPodcast': true});
+    await tester.pumpWidget(MaterialApp(
+      theme: RiffTheme.dark(const Color(0xFF1DB954)),
+      home: Scaffold(
+        key: player.homeScaffoldkey,
+        body: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              builder: (_) =>
+                  const SingleChildScrollView(child: LongFormToolTiles()),
+            ),
+            child: const Text('menu'),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('menu'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('markAsPlayed'));
+    await tester.pumpAndSettle();
+    expect(player.marked, 1);
+    expect(find.text('speed'), findsNothing);
+    expect(find.text('markedAsPlayed'), findsOneWidget);
+
+    await tester.tap(find.text('undo'));
+    expect(player.undone, 1);
   });
 
   testWidgets('the sleep timer shows the time left', (tester) async {

@@ -37,6 +37,10 @@ class SecureCredentials {
     'listenBrainzToken',
     'spotifyAccessToken',
     'spotifyRefreshToken',
+    'lastFmSession',
+    'lastFmUser',
+    'lastFmApiKey',
+    'lastFmSecret',
   ];
 
   /// Nested map fields stored as `mapKey.field` in secure storage.
@@ -44,6 +48,7 @@ class SecureCredentials {
     'cloudMusic': 'password',
     'audiobookshelf': 'token',
     'webdavSync': 'password',
+    'gpodderSync': 'password',
   };
 
   static Future<void> init() async {

@@ -4,6 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/services/opml.dart';
 import 'package:harmonymusic/services/podcast_library.dart';
+import 'package:harmonymusic/services/podcast_progress_service.dart';
 import 'package:harmonymusic/ui/screens/Podcasts/podcast_folder_controller.dart';
 import 'package:hive/hive.dart';
 
@@ -218,6 +219,31 @@ void main() {
       expect(PodcastLibrary.applyKeepLatest(merged), hasLength(5));
     });
 
+    test('removed from the Inbox by hand: unplayed, and out for good',
+        () async {
+      // AntennaPod's Remove from inbox, Pocket Casts' Archive.
+      const feedA = 'https://a/feed';
+      final merged = [
+        ep('a2', feed: feedA, pub: 20),
+        ep('a1', feed: feedA, pub: 10),
+      ];
+      await PodcastLibrary.removeFromInbox(merged.first);
+      expect(PodcastLibrary.isArchived('a2'), isTrue);
+      expect(PodcastProgressService.isPlayed('a2'), isFalse);
+      expect(PodcastLibrary.applyKeepLatest(merged).map((e) => e.id), ['a1']);
+
+      // A Keep latest change brings back what it archived, not this.
+      await PodcastLibrary.setShowKeepLatest(feedA, 1);
+      await PodcastLibrary.setShowKeepLatest(feedA, null);
+      await PodcastLibrary.setDefaultKeepLatest(5);
+      expect(PodcastLibrary.isArchived('a2'), isTrue);
+
+      // Undo: back in the Inbox.
+      await PodcastLibrary.backToInbox('a2');
+      expect(PodcastLibrary.isArchived('a2'), isFalse);
+      expect(PodcastLibrary.applyKeepLatest(merged), hasLength(2));
+    });
+
     test('mark all as listened and undo', () async {
       await Hive.box('PodcastProgress')
           .put('e1', {'id': 'e1', 'positionMs': 60000, 'durationMs': 600000});
@@ -229,6 +255,21 @@ void main() {
       await PodcastLibrary.undoMarkAll(snap);
       expect(Hive.box('PodcastPlayed').keys.toSet(), {'e3'});
       expect((Hive.box('PodcastProgress').get('e1') as Map)['positionMs'], 60000);
+    });
+
+    test('a snapshot alone marks nothing; Undo puts back what it saw',
+        () async {
+      await Hive.box('PodcastProgress')
+          .put('e1', {'id': 'e1', 'positionMs': 60000, 'durationMs': 600000});
+      final snap = PodcastLibrary.listenedSnapshot([ep('e1')]);
+      expect(snap.ids, ['e1']);
+      expect(PodcastProgressService.isPlayed('e1'), isFalse);
+      expect(PodcastProgressService.positionMs('e1'), 60000);
+      // Marked once the episode has ended, as the player does.
+      PodcastProgressService.markPlayed('e1');
+      await PodcastLibrary.undoMarkAll(snap);
+      expect(PodcastProgressService.isPlayed('e1'), isFalse);
+      expect(PodcastProgressService.positionMs('e1'), 60000);
     });
   });
 }

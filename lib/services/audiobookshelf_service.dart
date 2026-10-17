@@ -880,6 +880,25 @@ class AudiobookshelfService extends GetxService {
     }
   }
 
+  /// Marks the book [libraryItemId] finished on the server (PATCH
+  /// /api/me/progress/{id}), so it leaves Continue listening there and in
+  /// its other apps; whether the server took it.
+  Future<bool> markFinished(String libraryItemId) async {
+    if (!isConnected.value || libraryItemId.isEmpty) return false;
+    try {
+      await _dio.patch(
+        '${host.value}/api/me/progress/$libraryItemId',
+        data: {'isFinished': true},
+        options: _authOptions,
+      );
+      await fetchInProgress();
+      return true;
+    } catch (e) {
+      printERROR('ABS mark finished failed: $e');
+      return false;
+    }
+  }
+
   /// Close a listening session (Lissen: POST /api/session/{id}/close).
   Future<void> closeSession(
     String sessionId, {

@@ -255,7 +255,13 @@ class RiffChoiceChip extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: RiffSizes.chipHeight),
+          constraints: BoxConstraints(
+            minHeight: RiffSizes.chipHeight,
+            // Never wider than the screen: a label too long for its line
+            // (a larger font size, a long translation) wraps inside the
+            // chip instead of running off past the sheet's edge.
+            maxWidth: MediaQuery.sizeOf(context).width,
+          ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
             child: Row(
@@ -266,8 +272,10 @@ class RiffChoiceChip extends StatelessWidget {
                       size: RiffComponentSizes.chipLeadingIcon, color: fg),
                   const SizedBox(width: RiffSpacing.xs),
                 ],
-                Text(label,
-                    style: theme.textTheme.labelMedium?.copyWith(color: fg)),
+                Flexible(
+                  child: Text(label,
+                      style: theme.textTheme.labelMedium?.copyWith(color: fg)),
+                ),
               ],
             ),
           ),

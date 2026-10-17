@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/discovery/discovery_types.dart';
+import '/services/podcast_progress_service.dart';
 import '/services/podcast_service.dart';
 import '/services/wizestream_service.dart';
 import '/ui/player/player_controller.dart';
@@ -22,14 +23,18 @@ import '/ui/widgets/snackbar.dart';
 import '/ui/navigator.dart';
 import '../Home/home_layout.dart';
 import 'podcast_category_screen.dart';
+import 'podcast_cover_tile.dart';
 import 'podcast_downloads_screen.dart';
 import 'podcast_layout.dart';
 import '/services/podcast_library.dart';
 import 'podcast_bookmarks_ui.dart';
+import 'podcast_history_screen.dart';
+import 'podcast_starred_screen.dart';
 import 'podcast_inbox_screen.dart';
 import 'podcast_queue_controller.dart';
 import 'podcast_queue_screen.dart';
 import 'podcast_subs_screen.dart';
+import 'podcast_unsubscribe.dart';
 import 'podcasts_library_controller.dart';
 import 'podcasts_screen.dart';
 import '/ui/theme/riff_text_metrics.dart';
@@ -161,7 +166,9 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               if (_section == 6) {
                 return const PodcastBookmarksScreen(embedded: true);
               }
-              // Section 5: Downloads (the tabs offer only 1–6).
+              if (_section == 7) return const PodcastHistoryScreen();
+              if (_section == 8) return const PodcastStarredScreen();
+              // Section 5: Downloads (the tabs offer only 1–8).
               return PodcastDownloadsScreen(
                 onDiscover: () {
                   _loadDiscoveryRows();
@@ -239,8 +246,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
         ));
   }
 
-  /// Inbox · Queue · Subscriptions · Discover · Downloads · Bookmarks as
-  /// pill tabs.
+  /// Inbox · Queue · Subscriptions · Discover · Downloads · Starred ·
+  /// Bookmarks · History as pill tabs.
   Widget _tabs(BuildContext context) {
     final tabs = <(int, String)>[
       (1, 'podcastInbox'.tr),
@@ -248,7 +255,9 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
       (3, 'subscriptions'.tr),
       (4, 'discover'.tr),
       (5, 'downloads'.tr),
+      (8, 'starred'.tr),
       (6, 'bookmarks'.tr),
+      (7, 'listeningHistory'.tr),
     ];
     return SizedBox(
       height: RiffComponentSizes.buttonCompact,
@@ -392,6 +401,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                       controller.searchQuery.isNotEmpty;
                   if (!active) return const SizedBox.shrink();
                   return IconButton(
+                    tooltip: 'clear'.tr,
                     icon: Icon(Icons.close,
                         size: RiffComponentSizes.trailingIcon,
                         color: hintColor),
@@ -412,9 +422,16 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
             }
             final items = controller.searchResults;
             final channels = controller.channelSearchResults;
+            final feed = controller.feedSearchResult.value;
+            final directory = controller.directoryResults;
+            final episodes = controller.episodeResults;
             final query = controller.searchQuery.value.trim();
             if (controller.hasSearched.isTrue && query.isNotEmpty) {
-              if (items.isEmpty && channels.isEmpty) {
+              if (items.isEmpty &&
+                  channels.isEmpty &&
+                  feed == null &&
+                  directory.isEmpty &&
+                  episodes.isEmpty) {
                 return Center(
                   child: Text(
                     'noResults'.tr,
@@ -425,6 +442,76 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               return CustomScrollView(
                 physics: const BouncingScrollPhysics(),
                 slivers: [
+                  if (feed != null)
+                    SliverPadding(
+                      padding: const EdgeInsets.only(top: RiffSpacing.xs),
+                      sliver: SliverToBoxAdapter(
+                          child: PodcastFeedResultRow(show: feed)),
+                    ),
+                  // Shows in the podcast directory, followed by their own
+                  // feeds; the same rows as a pasted feed's.
+                  if (directory.isNotEmpty) ...[
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                            left: HomeLayout.gutter,
+                            top: RiffSpacing.md,
+                            right: HomeLayout.gutter,
+                            bottom: RiffSpacing.xxs),
+                        child: Text(
+                          'podcastFeeds'.tr,
+                          style: homeSectionTitleStyle(context),
+                        ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                            left: HomeLayout.gutter,
+                            right: HomeLayout.gutter,
+                            bottom: RiffSpacing.xs),
+                        child: Text(
+                          'podcastFeedsDes'.tr,
+                          style: homeCardSubtitleStyle(context),
+                        ),
+                      ),
+                    ),
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => PodcastFeedResultRow(
+                          key: ValueKey(directory[index]['feedUrl']),
+                          show: directory[index],
+                        ),
+                        childCount: directory.length,
+                      ),
+                    ),
+                  ],
+                  // Episodes in the directory for the search: a tap plays
+                  // one as its show's page would.
+                  if (episodes.isNotEmpty) ...[
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                            left: HomeLayout.gutter,
+                            top: RiffSpacing.md,
+                            right: HomeLayout.gutter,
+                            bottom: RiffSpacing.xxs),
+                        child: Text(
+                          'showEpisodes'.tr,
+                          style: homeSectionTitleStyle(context),
+                        ),
+                      ),
+                    ),
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => _EpisodeResultRow(
+                          key: ValueKey(episodes[index]['id']),
+                          episode: episodes[index],
+                        ),
+                        childCount: episodes.length,
+                      ),
+                    ),
+                  ],
                   if (channels.isNotEmpty) ...[
                     SliverToBoxAdapter(
                       child: Padding(
@@ -1012,6 +1099,133 @@ class _ShowResultRow extends StatelessWidget {
           ),
         ),
         // Full-width hairline between search results (§5.2).
+        const RiffRowHairline(),
+      ],
+    );
+  }
+}
+
+/// An episode the directory found: its art, title, "show · date · length"
+/// and progress. A tap plays it ([playDirectoryEpisode]); its play pill
+/// spins while its show's feed is fetched.
+class _EpisodeResultRow extends StatefulWidget {
+  const _EpisodeResultRow({super.key, required this.episode});
+
+  /// As [directoryEpisode] keeps it.
+  final Map<String, dynamic> episode;
+
+  @override
+  State<_EpisodeResultRow> createState() => _EpisodeResultRowState();
+}
+
+class _EpisodeResultRowState extends State<_EpisodeResultRow> {
+  bool _loading = false;
+
+  Future<void> _play() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    final ok = await playDirectoryEpisode(widget.episode);
+    if (!mounted) return;
+    setState(() => _loading = false);
+    if (!ok) snackOperationFailed(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final e = widget.episode;
+    final seconds = e['durationSec'];
+    return PodcastEpisodeTile(
+      artUrl: '${e['artwork'] ?? ''}',
+      title: '${e['title'] ?? ''}',
+      meta: episodeMetaLine([
+        '${e['show'] ?? ''}',
+        '${e['date'] ?? ''}',
+        compactEpisodeLength(seconds is int ? seconds : 0),
+      ]),
+      progress: PodcastProgressService.progress('${e['id']}'),
+      onTap: _play,
+      trailing: PodcastPlayButton(onPressed: _play, loading: _loading),
+    );
+  }
+}
+
+/// The show at a pasted feed address, as the search results' rows: cover,
+/// title, host and follow; tapping opens the show's page.
+class PodcastFeedResultRow extends StatelessWidget {
+  const PodcastFeedResultRow({super.key, required this.show});
+
+  /// {title, author, artwork, feedUrl}.
+  final Map<String, dynamic> show;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final feed = '${show['feedUrl']}';
+    final title = '${show['title'] ?? ''}';
+    final author = '${show['author'] ?? ''}'.trim();
+    return Stack(
+      children: [
+        InkWell(
+          onTap: () => openRssPodcast(show),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: HomeLayout.gutter, vertical: RiffSpacing.sm),
+            child: Row(
+              children: [
+                PodcastArt(
+                    url: '${show['artwork'] ?? ''}',
+                    size: RiffComponentSizes.showRowArt),
+                const SizedBox(width: RiffSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      if (author.isNotEmpty) ...[
+                        const SizedBox(height: RiffSpacing.xxs),
+                        Text(
+                          author,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: RiffSpacing.sm),
+                Obx(() {
+                  PodcastService.subsRev.value;
+                  final following = PodcastService.isSubscribed(feed);
+                  // As the other results: outline + to follow, accent
+                  // check once followed.
+                  return IconButton(
+                    tooltip: following ? 'subscribed'.tr : 'subscribe'.tr,
+                    onPressed: () => following
+                        ? unsubscribeWithUndo(feed, title, context: context)
+                        : PodcastService.subscribe(show),
+                    icon: Icon(
+                      following
+                          ? Icons.check_circle_rounded
+                          : Icons.add_circle_outline_rounded,
+                      size: RiffComponentSizes.headerIcon,
+                      color: following
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        ),
         const RiffRowHairline(),
       ],
     );
