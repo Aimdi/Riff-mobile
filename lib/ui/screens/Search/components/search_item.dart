@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '/ui/screens/Search/search_play_top.dart';
 import '/ui/screens/Search/search_screen_controller.dart';
 
 import '/ui/theme/riff_spacing.dart';
@@ -37,25 +36,7 @@ class SearchItem extends StatelessWidget {
       icon: isHistoryString ? Icons.history_rounded : Icons.search_rounded,
       label: queryString,
       typed: typed,
-      onTap: () {
-        if (!shouldPlaySearchItemOnTap()) {
-          _openResults(searchScreenController, queryString);
-          return;
-        }
-        submitSearchQuery(
-          queryString,
-          onLink: (_) {
-            Get.toNamed(ScreenNavigationSetup.searchResultScreen,
-                id: ScreenNavigationSetup.id, arguments: queryString);
-          },
-          onRemember: searchScreenController.addToHistryQueryList,
-          onOpenResults: (q) {
-            Get.toNamed(ScreenNavigationSetup.searchResultScreen,
-                id: ScreenNavigationSetup.id, arguments: q);
-          },
-          onPlayFailed: () => showSearchPlayFailed(context),
-        );
-      },
+      onTap: () => _openResults(searchScreenController, queryString),
       onLongPress: () => _openResults(searchScreenController, queryString),
       trailing: IconButton(
         tooltip: isHistoryString ? 'clear'.tr : null,

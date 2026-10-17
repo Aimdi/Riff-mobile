@@ -134,7 +134,7 @@ void main() {
     // Labels show their keys: no translations loaded here.
     final mic = find.byTooltip('voiceSearch');
 
-    testWidgets('what was heard is searched as Enter does: its top song plays',
+    testWidgets('what was heard is searched as Enter does: its results open',
         (tester) async {
       heard = 'daft punk';
       await tester.pumpWidget(app());
@@ -146,16 +146,13 @@ void main() {
       expect(calls.last.method, 'listen');
       expect(calls.last.arguments, {'prompt': 'voiceSearchPrompt'});
 
-      music.searches['songs']!.single.complete({
-        'Songs': [const MediaItem(id: 'x', title: 'One More Time')]
-      });
-      await tester.pump();
-      expect(player.played, ['daft punk: One More Time']);
-      final c = Get.find<SearchScreenController>();
-      expect(c.historyQuerylist.first, 'daft punk');
-      // As after Enter: the field empties, and the mic is back.
-      expect(c.textInputController.text, isEmpty);
-      expect(mic, findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(find.text('results: daft punk'), findsOneWidget);
+      // Nothing plays until a result is picked.
+      expect(player.played, isEmpty);
+      expect(music.searches['songs'], isNull);
+      expect(Get.find<SearchScreenController>().historyQuerylist.first,
+          'daft punk');
     });
 
     testWidgets('cancelled: nothing searched', (tester) async {

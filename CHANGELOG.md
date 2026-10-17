@@ -1,3 +1,9 @@
+# 1.7.154
+
+* Search: pressing Enter (or the mic, or tapping a search or history
+  suggestion) opens the results again instead of playing the first song
+  that matched. Nothing plays until you pick something
+
 # 1.7.153
 
 The music player takes its look from the cover, like BitChord:

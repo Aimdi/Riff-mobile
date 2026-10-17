@@ -4963,7 +4963,7 @@ Map<String, Map<String, String>> get keys => {
     "noLibPlaylist": "You don't have any lib playlist!",
     "noLibAlbums": "No saved albums yet",
     "noLibArtists": "No followed artists yet",
-    "searchPlayFailed": "Couldn't start playback — showing results",
+    "searchPlayFailed": "Couldn't start playback",
     "addToQueue": "Add to queue",
     "addedToQueue": "Added to queue",
     "downloadStarted": "Download started",
