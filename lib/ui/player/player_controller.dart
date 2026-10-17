@@ -48,6 +48,7 @@ import '/services/music_service.dart';
 import '/services/music_autoplay.dart';
 import '/services/explicit_content.dart';
 import '/services/offline_playback.dart';
+import '/services/not_interested.dart';
 import '/services/recently_played_days.dart';
 import '/services/riff_equalizer.dart';
 import '/services/sponsorblock_service.dart';
@@ -312,6 +313,14 @@ class PlayerController extends GetxController
         isSleepEndOfChapterActive,
         SleepShake.enabled,
       ], (_) => _followShakes()),
+      // Autoplay switched off while its radio plays: the queue ends where
+      // it is instead of growing for ever.
+      ever(MusicAutoplay.enabled, (bool on) {
+        if (on || !_radioFromAutoplay) return;
+        _radioFromAutoplay = false;
+        isRadioModeOn = false;
+        radioInitiatorItem = null;
+      }),
       // Playback starting at night: the automatic sleep timer.
       ever(buttonState, (PlayButtonState state) {
         if (state == PlayButtonState.playing) autoSleep();
@@ -1827,6 +1836,19 @@ class PlayerController extends GetxController
       return false;
     }
     if (index < 0 || index >= mediaItems.length) return false;
+    // The song tapped can't play now (offline, explicit off) and nothing
+    // after it can: say why and leave what's playing alone, rather than
+    // replace the queue with songs that won't play.
+    bool passedOver(MediaItem s) =>
+        ExplicitContent.blocks(s) || OfflinePlayback.blocks(s);
+    if (currentQueue.isNotEmpty &&
+        passedOver(mediaItems[index]) &&
+        mediaItems.skip(index + 1).every(passedOver)) {
+      OfflinePlayback.blocks(mediaItems[index])
+          ? notifyOffline()
+          : notifyExplicitOff();
+      return false;
+    }
     // Songs you queued and haven't heard yet play next in what starts now,
     // as Spotify keeps its "Next in queue" (not into episodes or a book).
     final keep =
@@ -1846,6 +1868,7 @@ class PlayerController extends GetxController
     }
 
     isRadioModeOn = false;
+    _radioFromAutoplay = false;
     //open player pane,set current song and push first song into playing list,
 
     /// update playing from value
@@ -1881,6 +1904,7 @@ class PlayerController extends GetxController
   }
 
   Future<bool> startRadio(MediaItem? mediaItem, {String? playlistid}) async {
+    _radioFromAutoplay = false;
     radioInitiatorItem = mediaItem ?? playlistid;
     return pushSongToQueue(mediaItem, playlistid: playlistid, radio: true);
   }
@@ -2160,6 +2184,9 @@ class PlayerController extends GetxController
   /// for, what's in the queue plays on instead, or with nothing there, the
   /// session saved last time, from its place.
   Future<void> playFromVoiceSearch(String query) async {
+    // Asked with Riff closed: the player may not be up yet.
+    await _waitForAudioHandler();
+    if (!_audioReady) return;
     if (query.trim().isEmpty) {
       if (currentQueue.isNotEmpty) {
         play();
@@ -2272,9 +2299,12 @@ class PlayerController extends GetxController
   Future<bool> autoplayAfterQueue() async {
     final last = currentSong.value;
     if (isRadioModeOn || !MusicAutoplay.after(last)) return false;
+    // Not from a song just marked Not interested.
+    if (last != null && NotInterested.has(last.id)) return false;
     radioInitiatorItem = last;
     radioContinuationParam = null;
     isRadioModeOn = true;
+    _radioFromAutoplay = true;
     if (await extendRadioThenPlayNext(quiet: true)) {
       playinfrom.value = PlaylingFrom(
           type: PlaylingFromType.SELECTION, name: 'autoplayShort'.tr);
@@ -2285,9 +2315,14 @@ class PlayerController extends GetxController
       return true;
     }
     isRadioModeOn = false;
+    _radioFromAutoplay = false;
     radioInitiatorItem = null;
     return false;
   }
+
+  /// Radio that Autoplay started (not one you started): Autoplay switched
+  /// off stops it.
+  bool _radioFromAutoplay = false;
 
   void _playerPanelCheck({bool restoreSession = false}) {
     final isWideScreen = Get.size.width > 800;
@@ -2369,6 +2404,9 @@ class PlayerController extends GetxController
       isQueueLoopModeEnabled.value =
           _prefs.get("queueLoopModeEnabled", defaultValue: false);
     }
+    // The player's repeat as the notification and the car show it.
+    await _audioHandler.customAction(
+        'toggleQueueLoopMode', {'enable': isQueueLoopModeEnabled.value});
   }
 
   void onReorder(int oldIndex, int newIndex) {

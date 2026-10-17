@@ -32,6 +32,22 @@
   feed memos no longer get thrown away at each start
 * Home screen widget: ⏭ and ⏮ go to the next or previous episode or
   book chapter instead of skipping 30 seconds
+* Playback:
+  * Music no longer starts again by itself when a call ends after you'd
+    stopped it (swiped the notification away) during the call
+  * Waiting for the connection to come back, playback no longer resumes
+    after the headphones were pulled out or during a call
+  * Tapping a song that can't play now (offline, explicit off) says why
+    and leaves what's playing alone, instead of emptying the queue
+  * With Fade between songs on, a SponsorBlock skip at the start of a
+    song no longer leaves the volume low for the rest of the session
+  * Turning Autoplay off stops the songs it was adding
+  * Shuffle no longer stops (or hands over to Autoplay) at the end of a
+    round when the reshuffle put the song just played first
+  * Autoplay doesn't start from a song you just marked Not interested
+  * "Play music on Riff" with Riff closed plays instead of doing nothing
+  * The notification's and the car's repeat icon matches the player's
+    when shuffle is turned on
 
 # 1.7.153
 
