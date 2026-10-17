@@ -81,6 +81,7 @@ class SearchResultScreenController extends GetxController {
     }
 
     isTabTransitionReversed = value > navigationRailCurrentIndex.value;
+    final gen = _searchGen;
 
     isSeparatedResultContentFetced.value = false;
     navigationRailCurrentIndex.value = value;
@@ -107,7 +108,14 @@ class SearchResultScreenController extends GetxController {
     // A slower load for a tab the user has already left must not mark the
     // tab now on screen as loaded: its list isn't there yet, and the list
     // widget would be handed null.
-    if (!isClosed && navigationRailCurrentIndex.value == value) {
+    // A load for the words searched before ("Did you mean" since) wrote
+    // nothing: the tab waits for its own.
+    if (!isClosed &&
+        navigationRailCurrentIndex.value == value &&
+        gen == _searchGen &&
+        (value == 0 ||
+            isSoulseekRail(railItems[value - 1]) ||
+            separatedResultContent[railItems[value - 1]] != null)) {
       isSeparatedResultContentFetced.value = true;
     }
   }
@@ -191,7 +199,10 @@ class SearchResultScreenController extends GetxController {
         continuationInProgress = false;
         return;
       }
+      final gen = _searchGen;
       final x = await musicServices.getSearchContinuation(next);
+      // The next page of the words searched before: not for these.
+      if (isClosed || gen != _searchGen) return;
       final more = _listFromSearchResponse(x, tabName);
       (separatedResultContent[tabName] as List?)?.addAll(more);
       additionalParamNext[tabName] = x['params'];

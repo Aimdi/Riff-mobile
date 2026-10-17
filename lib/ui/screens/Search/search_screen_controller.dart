@@ -85,12 +85,13 @@ class SearchScreenController extends GetxController with ProcessLink {
   }
 
   Future<void> addToHistryQueryList(String txt) async {
-    // Search history paused: nothing kept.
-    if (SearchRecents.paused.value) return;
-    // Only a new query makes room: searching one already in the history
-    // used to drop the oldest entry anyway, shrinking the list.
-    if (!historyQuerylist.contains(txt)) {
-      if (historyQuerylist.length > 9) {
+    // Search history paused: nothing kept (the field still resets).
+    if (!SearchRecents.paused.value) {
+      // Searched again: back to the top, not kept twice.
+      final i = queryBox.values.toList().lastIndexOf(txt);
+      if (i >= 0) await queryBox.deleteAt(i);
+      historyQuerylist.remove(txt);
+      if (queryBox.length > 9) {
         final queryForRemoval = queryBox.getAt(0);
         await queryBox.deleteAt(0);
         historyQuerylist.removeWhere((element) => element == queryForRemoval);

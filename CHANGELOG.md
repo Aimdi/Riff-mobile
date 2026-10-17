@@ -3,6 +3,12 @@
 * Search: pressing Enter (or the mic, or tapping a search or history
   suggestion) opens the results again instead of playing the first song
   that matched. Nothing plays until you pick something
+* Search: a new search no longer shows the results of the one before
+  (from the app shortcut, Ctrl+F or a link while results were open);
+  "Did you mean" can't leave a tab broken or mix in the old words' next
+  page; searching again moves the search to the top of Recent searches
+  instead of leaving it where it was; and the hint under them says what
+  a tap does
 
 # 1.7.153
 

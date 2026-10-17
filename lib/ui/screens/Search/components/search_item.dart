@@ -7,9 +7,9 @@ import '/ui/theme/riff_tokens.dart';
 import '../../../navigator.dart';
 import '../../Home/home_layout.dart';
 
-/// A recent search or a suggestion. Tap plays the top song (same as Enter),
-/// long-press opens the full results; the trailing button removes a recent
-/// search or copies a suggestion into the field.
+/// A recent search or a suggestion. Tap (or long-press) opens its results,
+/// as Enter does; the trailing button removes a recent search or copies a
+/// suggestion into the field.
 class SearchItem extends StatelessWidget {
   final String queryString;
   final bool isHistoryString;

@@ -5887,7 +5887,7 @@ Map<String, Map<String, String>> get keys => {
     "unsubscribePodcast": "Unsubscribe podcast",
     "allResults": "All",
     "recentSearches": "Recent searches",
-    "searchOpenResultsHint": "Tap plays the top song · long-press for all results",
+    "searchOpenResultsHint": "Tap a search to see its results",
     "readMore": "More",
     "browseByGenre": "Browse by genre",
     "storeBestsellers": "Store bestsellers",

@@ -28,6 +28,14 @@ class SearchResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // One left registered by an earlier results page (searched for other
+    // words) would show that search's results instead of this one's.
+    final args = Get.arguments;
+    if (Get.isRegistered<SearchResultScreenController>() &&
+        args is String &&
+        Get.find<SearchResultScreenController>().queryString.value != args) {
+      Get.delete<SearchResultScreenController>(force: true);
+    }
     final searchResScrController =
         Get.isRegistered<SearchResultScreenController>()
             ? Get.find<SearchResultScreenController>()
