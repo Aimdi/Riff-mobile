@@ -122,6 +122,9 @@ dependencies {
     // already bundles, so the APK does not grow.
     implementation 'androidx.media3:media3-exoplayer:1.4.1'
     implementation 'androidx.annotation:annotation-experimental:1.4.1'
+    // The home screen widget's next / previous reach the media session (the
+    // version audio_service uses).
+    implementation 'androidx.media:media:1.6.0'
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
     testImplementation 'junit:junit:4.13.2'
 }

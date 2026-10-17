@@ -15,6 +15,10 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Shader
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.support.v4.media.MediaBrowserCompat
+import android.support.v4.media.session.MediaControllerCompat
 import android.view.KeyEvent
 import android.view.View
 import android.widget.RemoteViews
@@ -48,6 +52,13 @@ class NowPlayingWidget : AppWidgetProvider() {
             super.onReceive(context, intent)
             return
         }
+        if (dartRunning && (intent.action == ACTION_NEXT || intent.action == ACTION_PREVIOUS)) {
+            // Not as a media key: Riff takes the headset's next / previous
+            // as skip forward / back in an episode or a book. The session's
+            // own skip goes to the next or previous item.
+            skipVia(context, intent.action == ACTION_NEXT, key)
+            return
+        }
         if (dartRunning) {
             context.sendBroadcast(
                 Intent(Intent.ACTION_MEDIA_BUTTON)
@@ -65,7 +76,63 @@ class NowPlayingWidget : AppWidgetProvider() {
         refresh(context)
     }
 
+    /**
+     * Skips to the next (or previous) item through the player's media
+     * session; when it can't be reached in a few seconds, sends [key] as
+     * before.
+     */
+    private fun skipVia(context: Context, next: Boolean, key: Int) {
+        val pending = goAsync()
+        val handler = Handler(Looper.getMainLooper())
+        var done = false
+        var browser: MediaBrowserCompat? = null
+        fun finish(fallback: Boolean) {
+            if (done) return
+            done = true
+            if (fallback) {
+                context.sendBroadcast(
+                    Intent(Intent.ACTION_MEDIA_BUTTON)
+                        .setComponent(ComponentName(context, MEDIA_BUTTON_RECEIVER))
+                        .putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(KeyEvent.ACTION_DOWN, key))
+                )
+            }
+            try {
+                browser?.disconnect()
+            } catch (_: Exception) {
+            }
+            pending.finish()
+        }
+        try {
+            browser = MediaBrowserCompat(
+                context,
+                ComponentName(context, AUDIO_SERVICE),
+                object : MediaBrowserCompat.ConnectionCallback() {
+                    override fun onConnected() {
+                        try {
+                            val controls =
+                                MediaControllerCompat(context, browser!!.sessionToken).transportControls
+                            if (next) controls.skipToNext() else controls.skipToPrevious()
+                            finish(false)
+                        } catch (_: Exception) {
+                            finish(true)
+                        }
+                    }
+
+                    override fun onConnectionFailed() = finish(true)
+                    override fun onConnectionSuspended() = finish(true)
+                },
+                null,
+            )
+            browser.connect()
+            handler.postDelayed({ finish(true) }, 4000)
+        } catch (_: Exception) {
+            finish(true)
+        }
+    }
+
     companion object {
+        private const val AUDIO_SERVICE = "com.ryanheise.audioservice.AudioService"
+
         /** Set by MainActivity: the channel needs no activity. */
         var appContext: Context? = null
 

@@ -30,6 +30,8 @@
   ad) is skipped like the others; gpodder sync sends every episode you
   mark played, not only the ones whose length it knows; and the Inbox's
   feed memos no longer get thrown away at each start
+* Home screen widget: ⏭ and ⏮ go to the next or previous episode or
+  book chapter instead of skipping 30 seconds
 
 # 1.7.153
 
