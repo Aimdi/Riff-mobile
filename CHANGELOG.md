@@ -24,6 +24,12 @@
   on YouTube; unliking while the like was still being sent isn't lost
 * Remove downloaded songs also stops the downloads still waiting, which
   used to fill the space again
+* Podcasts: Keep latest no longer takes an episode you queued (or the one
+  playing) out of Up Next; episodes taken out of the Inbox by hand don't
+  use up its places; a chapter you untick at 0:00 (often the intro or an
+  ad) is skipped like the others; gpodder sync sends every episode you
+  mark played, not only the ones whose length it knows; and the Inbox's
+  feed memos no longer get thrown away at each start
 
 # 1.7.153
 

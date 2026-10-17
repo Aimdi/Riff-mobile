@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:get/get.dart';
@@ -755,7 +756,11 @@ class PodcastService {
 
   static Future<({PodcastFeed feed, String? movedTo})> _fetchFeed(String url,
       String podcastTitle, String fallbackArt, int? maxItems) async {
-    final key = [url, podcastTitle, fallbackArt, maxItems ?? ''].join('\u0000');
+    // Hashed: Hive keys stop at 255 characters, and art URLs run long.
+    final key = sha1
+        .convert(utf8.encode(
+            [url, podcastTitle, fallbackArt, maxItems ?? ''].join('\u0000')))
+        .toString();
     // The Inbox's reads (a few episodes each) are kept across starts.
     final keep = maxItems != null;
     final memo = _feedMemoFor(key, kept: keep);

@@ -407,6 +407,56 @@ void main() {
       await GpodderSync.syncNow();
       expect(fake.uploadedActions(), isEmpty);
     });
+
+    test(
+        'finished episodes without a length still go up, and one not known '
+        'here yet waits for a later sync', () async {
+      MediaItem noLength(String id, String url) => MediaItem(
+            id: id,
+            title: 'Episode',
+            artist: 'Show',
+            extras: {'url': url, 'feedUrl': _a, 'isPodcast': true},
+          );
+      await follow(_a);
+      await PodcastHistory.add(noLength(id2, u2));
+      await PodcastHistory.add(noLength(id3, u3));
+      // The feed knows episode 2's length, not episode 3's.
+      GpodderSync.feedEpisodes = (feed, title, art) async => [
+            {'id': id2, 'title': 'Ep 2', 'url': u2, 'durationSec': 1500},
+          ];
+      await signIn();
+      final before = noon.subtract(const Duration(minutes: 30));
+      await played().put(id2, before.millisecondsSinceEpoch);
+      await played().put(id3, before.millisecondsSinceEpoch);
+      // Played, but nothing here says where it's from.
+      await played().put(id1, before.millisecondsSinceEpoch);
+
+      await GpodderSync.syncNow();
+      final sent = fake.uploadedActions();
+      expect(sent, hasLength(2));
+      final ep2 = sent.firstWhere((a) => a['episode'] == u2);
+      expect(ep2['position'], 1500);
+      expect(ep2['total'], 1500);
+      final ep3 = sent.firstWhere((a) => a['episode'] == u3);
+      expect(ep3['position'], 1);
+      expect(ep3['total'], 1);
+      expect(GpodderAction.fromJson(ep3)!.finished, isTrue);
+
+      // Episode 1 turns up later: it goes then, though sentAt has passed it.
+      fake.requests.clear();
+      await PodcastInboxCache.save([_episode(id1, _a, u1)], 'subs');
+      GpodderSync.clock = () => noon.add(const Duration(hours: 1));
+      await GpodderSync.syncNow();
+      final later = fake.uploadedActions();
+      expect(later, hasLength(1));
+      expect(later.single['episode'], u1);
+      expect(later.single['total'], 3600);
+
+      fake.requests.clear();
+      GpodderSync.clock = () => noon.add(const Duration(hours: 2));
+      await GpodderSync.syncNow();
+      expect(fake.uploadedActions(), isEmpty);
+    });
   });
 
   test('the wrong password, no gpodder sync there, no connection', () async {

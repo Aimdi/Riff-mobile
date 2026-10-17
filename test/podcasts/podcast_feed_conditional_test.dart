@@ -136,6 +136,21 @@ void main() {
     expect(asked.last['if-none-match'], isNull);
   });
 
+  test('a show with a long title and art address is remembered too', () async {
+    final art = 'https://cdn.example.com/art/${'a' * 300}.jpg';
+    Future<void> read() =>
+        PodcastService.episodes(url, 'Show ' * 40, art, maxItems: 12);
+    await read();
+    final box = Hive.box(PodcastService.feedMemoBox);
+    await pumpEventQueue();
+    expect(box.keys, isNotEmpty);
+    expect(box.keys.every((k) => '$k'.length <= 255), isTrue);
+    PodcastService.forgetFeedsInMemory();
+    await read();
+    expect(sent, 1);
+    expect(asked.last['if-none-match'], '"v1"');
+  });
+
   test('read in full again a week on, whatever the server says', () async {
     await inbox();
     final weekOn = DateTime.now().add(PodcastService.feedMemoMaxAge);

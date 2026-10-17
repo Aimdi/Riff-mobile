@@ -260,10 +260,20 @@ enum SegmentSkip {
 /// ~0.2 s apart; 3× speed and a slow frame still stay well under this).
 const segmentEntryWindowSec = 3.0;
 
+/// A segment starting this near 0:00 has no "before" to run in from.
+const segmentEpisodeStartSec = 1.0;
+
 /// True when playback ran into [segment] from before its start, i.e. not
 /// a seek into the middle of it. Only then is a segment auto-skipped.
 bool enteredFromBefore(PodcastSegment segment, double prevSec, double sec) {
   if (!segment.contains(sec)) return false;
+  // One at the very start: the episode just starting runs into it (its
+  // first tick has no earlier one, so prev is that same second).
+  if (segment.start <= segmentEpisodeStartSec &&
+      prevSec <= sec &&
+      sec - segment.start <= segmentEntryWindowSec) {
+    return true;
+  }
   if (prevSec >= segment.start) return false;
   return sec - prevSec <= segmentEntryWindowSec;
 }

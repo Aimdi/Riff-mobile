@@ -442,6 +442,7 @@ class GpodderSync {
         'followed': null,
         'pendingFollow': <String>[],
         'sentAt': 0,
+        'pendingPlayed': <String>[],
       };
 
   static Future<void> setAutoSync(bool on) => _putConfig({'auto': on});
@@ -683,16 +684,37 @@ class GpodderSync {
         if (action != null) actions.add(action);
       }
     }
+    // Played ones this phone can't place yet (not known here) wait for a
+    // later sync instead of being passed by sentAt.
+    final before = c['pendingPlayed'];
+    final pending = {if (before is List) ...before.map((e) => '$e')};
+    final waiting = <String>[];
     final played = _box('PodcastPlayed');
     if (played != null) {
       for (final key in played.keys) {
         final id = '$key';
         final at = _int(played.get(key)) ?? 0;
-        if (at <= sentAt || applied.contains(id)) continue;
-        final meta = known[id];
-        final total = (_int(meta?['durationMs']) ?? 0) ~/ 1000;
-        // Played to its end needs its length.
-        if (meta == null || total <= 0) continue;
+        if (applied.contains(id)) continue;
+        if (at <= sentAt && !pending.contains(id)) continue;
+        var meta = known[id];
+        if (meta == null) {
+          waiting.add(id);
+          continue;
+        }
+        var total = (_int(meta['durationMs']) ?? 0) ~/ 1000;
+        final feed = '${meta['feedUrl'] ?? ''}';
+        if (total <= 0 && feed.startsWith('http')) {
+          // Its length from the show's feed (each feed read once a sync).
+          final fromFeed = await _fromFeed(feed, id, feeds);
+          final ms = _int(fromFeed?['durationMs']) ?? 0;
+          if (ms > 0) {
+            meta = {...meta, 'durationMs': ms};
+            total = ms ~/ 1000;
+          }
+        }
+        // Played to its end; with no length known, 1 of 1 still reads as
+        // played (position ≥ total) on the other side.
+        if (total <= 0) total = 1;
         final action = _action(meta, at: at, position: total, total: total);
         if (action != null) actions.add(action);
       }
@@ -705,6 +727,7 @@ class GpodderSync {
     await _putConfig({
       'actionsSince': timestamp,
       'sentAt': started.millisecondsSinceEpoch,
+      'pendingPlayed': waiting,
     });
     return (applied: applied.length, sent: actions.length);
   }
