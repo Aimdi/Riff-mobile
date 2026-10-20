@@ -28,10 +28,16 @@ void main() {
     expect(mid, lessThan(1));
 
     await tester.pumpAndSettle();
-    // Done: no Opacity layer left over it.
-    expect(
-        find.ancestor(of: find.text('content'), matching: find.byType(Opacity)),
-        findsNothing);
+    // Done: fully shown, in place.
+    expect(_opacityOf(tester, find.text('content')), 1);
+  });
+
+  testWidgets('RiffFadeIn keeps its child\'s state when the fade ends',
+      (tester) async {
+    var inits = 0;
+    await tester.pumpWidget(_app(RiffFadeIn(child: _Probe(() => inits++))));
+    await tester.pumpAndSettle();
+    expect(inits, 1);
   });
 
   testWidgets('RiffFadeIn doesn\'t move content with Remove animations on',
@@ -93,4 +99,23 @@ void main() {
     expect(tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity,
         0);
   });
+}
+
+class _Probe extends StatefulWidget {
+  const _Probe(this.onInit);
+  final VoidCallback onInit;
+
+  @override
+  State<_Probe> createState() => _ProbeState();
+}
+
+class _ProbeState extends State<_Probe> {
+  @override
+  void initState() {
+    super.initState();
+    widget.onInit();
+  }
+
+  @override
+  Widget build(BuildContext context) => const Text('probe');
 }
