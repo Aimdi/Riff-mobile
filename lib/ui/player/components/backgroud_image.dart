@@ -11,6 +11,7 @@ import '../../utils/theme_controller.dart';
 import '../player_controller.dart';
 import 'track_crossfade.dart';
 import 'track_swipe.dart' show upNextTrack;
+import '/ui/widgets/image_widget.dart' show RiffNetworkImage;
 
 /// The playing song's cover, filling its box. A new song's cover fades in
 /// over the last one once it's decoded ([TrackCrossfade]), and the next
@@ -191,7 +192,7 @@ class _NetworkArt extends StatelessWidget {
     final decodeH = decodeHeight(context, cacheHeight);
     final artUrl = _url(artUri);
     final playerController = Get.find<PlayerController>();
-    return CachedNetworkImage(
+    return RiffNetworkImage(
       memCacheHeight: decodeH,
       filterQuality: FilterQuality.high,
       imageBuilder: (context, imageProvider) {

@@ -206,6 +206,8 @@ class ThemeController extends GetxController {
 
       final baseTheme = ThemeData(
           useMaterial3: false,
+          // Settings groups open and close as in the dark theme.
+          expansionTileTheme: riffExpansionTileTheme(),
           // Without this, FilledButtons fall back to Material's default blue.
           filledButtonTheme: FilledButtonThemeData(
               style: FilledButton.styleFrom(
@@ -303,6 +305,8 @@ class ThemeController extends GetxController {
       );
       final baseTheme = ThemeData(
           useMaterial3: false,
+          // Settings groups open and close as in the dark theme.
+          expansionTileTheme: riffExpansionTileTheme(),
           // Without this, FilledButtons fall back to Material's default blue.
           filledButtonTheme: FilledButtonThemeData(
               style: FilledButton.styleFrom(

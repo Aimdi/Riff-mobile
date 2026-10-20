@@ -1,5 +1,4 @@
 import 'package:audio_service/audio_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -33,7 +32,6 @@ import 'home_feed_builder.dart';
 import 'home_feed_data.dart';
 import 'home_metrics.dart';
 import '/ui/theme/riff_text_metrics.dart';
-import '/ui/theme/riff_tokens.dart';
 import '/ui/player/play_queue_order.dart' show playQueueFrom;
 
 /// Card sizes per item type on a shelf of pane width [m].
@@ -654,18 +652,13 @@ class _VideoArt extends StatelessWidget {
     if (raw.isEmpty) {
       return ClipRect(child: OverflowBox(maxHeight: width, child: fallback()));
     }
-    return CachedNetworkImage(
+    return RiffNetworkImage(
       imageUrl: Thumbnail(raw).high,
       httpHeaders: kCoverImageHeaders,
       width: width,
       height: height,
       fit: BoxFit.cover,
       memCacheWidth: (width * MediaQuery.devicePixelRatioOf(context)).round(),
-      // As the covers elsewhere: in quickly, the placeholder out as fast.
-      fadeInDuration: RiffDurations.image,
-      fadeInCurve: RiffDurations.enterCurve,
-      fadeOutDuration: RiffDurations.image,
-      fadeOutCurve: RiffDurations.enterCurve,
       errorWidget: (_, __, ___) =>
           ClipRect(child: OverflowBox(maxHeight: width, child: fallback())),
       placeholder: (_, __) =>

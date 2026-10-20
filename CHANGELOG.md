@@ -98,6 +98,9 @@ Motion: smoother everywhere
   slides open instead of popping
 * The album-colour theme eases between covers' colours on the colour
   timing; dialogs open on the same timing as the rest
+* Library's Albums and Artists no longer flash "nothing here" for a
+  moment before your albums and artists appear; the light and
+  album-colour themes open Settings groups as smoothly as the dark one
 
 # 1.7.153
 

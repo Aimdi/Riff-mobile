@@ -49,6 +49,7 @@ class RiffNetworkImage extends StatelessWidget {
     this.memCacheHeight,
     this.filterQuality = FilterQuality.low,
     this.httpHeaders,
+    this.cacheKey,
     this.placeholder,
     this.progressIndicatorBuilder,
     this.errorWidget,
@@ -68,6 +69,9 @@ class RiffNetworkImage extends StatelessWidget {
   final int? memCacheHeight;
   final FilterQuality filterQuality;
   final Map<String, String>? httpHeaders;
+
+  /// The cache entry to use instead of the URL (as CachedNetworkImage's).
+  final String? cacheKey;
   final PlaceholderWidgetBuilder? placeholder;
   final ProgressIndicatorBuilder? progressIndicatorBuilder;
   final LoadingErrorWidgetBuilder? errorWidget;
@@ -96,6 +100,7 @@ class RiffNetworkImage extends StatelessWidget {
       memCacheHeight: memCacheHeight,
       filterQuality: filterQuality,
       httpHeaders: httpHeaders,
+      cacheKey: cacheKey,
       placeholder: placeholder,
       progressIndicatorBuilder: progressIndicatorBuilder,
       imageBuilder: imageBuilder,

@@ -150,12 +150,7 @@ class RiffTheme {
       ),
       // Settings groups open and close like the rest of a selection
       // change (§4.7), not the default ease-in.
-      expansionTileTheme: ExpansionTileThemeData(
-        expansionAnimationStyle: AnimationStyle(
-          duration: RiffDurations.select,
-          curve: RiffDurations.selectCurve,
-        ),
-      ),
+      expansionTileTheme: riffExpansionTileTheme(),
       listTileTheme: ListTileThemeData(
         // Material 2 geometry (16 both sides), Lights-out type.
         contentPadding: const EdgeInsets.symmetric(horizontal: 16),
@@ -479,3 +474,13 @@ class RiffTextStyles extends ThemeExtension<RiffTextStyles> {
     );
   }
 }
+
+/// Settings groups open and close like the rest of a selection change
+/// (§4.7), not the default ease-in: shared by the dark, light and
+/// album-colour themes.
+ExpansionTileThemeData riffExpansionTileTheme() => ExpansionTileThemeData(
+      expansionAnimationStyle: AnimationStyle(
+        duration: RiffDurations.select,
+        curve: RiffDurations.selectCurve,
+      ),
+    );

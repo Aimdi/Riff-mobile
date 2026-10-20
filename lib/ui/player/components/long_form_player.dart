@@ -41,6 +41,7 @@ import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/riff_motion.dart';
 import 'track_crossfade.dart';
 import '/ui/widgets/now_playing_bars.dart';
+import '/ui/widgets/image_widget.dart' show RiffNetworkImage;
 
 /// Now-playing screen for podcasts and audiobooks: the episode or chapter
 /// is what matters, so the layout is built around position and pacing
@@ -217,7 +218,7 @@ class _Art extends StatelessWidget {
                             ? KeyedSubtree(
                                 key: const ValueKey<String?>(null),
                                 child: _episodeArt(context, cacheWidth))
-                            : CachedNetworkImage(
+                            : RiffNetworkImage(
                                 key: ValueKey<String?>(chapterArt),
                                 imageUrl: chapterArt,
                                 fit: BoxFit.cover,
@@ -262,12 +263,14 @@ class _Art extends StatelessWidget {
     }
     final url = Thumbnail(song?.artUri?.toString() ?? '').extraHigh;
     if (url.isEmpty) return _fallback(context);
-    return CachedNetworkImage(
+    return RiffNetworkImage(
       imageUrl: url,
       fit: BoxFit.cover,
       memCacheWidth: cacheWidth,
       placeholder: (_, __) => ColoredBox(color: homeTileColor(context)),
-      errorWidget: (_, __, ___) => CachedNetworkImage(
+      // The smaller cover behind the same placeholder: no second fade.
+      errorFadesIn: false,
+      errorWidget: (_, __, ___) => RiffNetworkImage(
         imageUrl: song?.artUri?.toString() ?? '',
         placeholder: (_, __) => ColoredBox(color: homeTileColor(context)),
         fit: BoxFit.cover,

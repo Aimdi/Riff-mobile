@@ -620,6 +620,12 @@ class _PlaylistNAlbumLibraryWidgetState
               // Folders change what the playlists are listed with (read
               // here: the grid's builder runs outside this Obx).
               PlaylistFolders.rev.value;
+              // Still reading the library: neither the albums nor "no
+              // albums" yet (the empty message used to flash first).
+              if (isAlbumContent &&
+                  libralbumCntrller.isContentFetched.isFalse) {
+                return const SizedBox.shrink();
+              }
               final asList = LibraryViewMode.list.isTrue;
               final switched = _shownAsList != null && _shownAsList != asList;
               _shownAsList = asList;
@@ -703,7 +709,10 @@ class LibraryArtistWidget extends StatelessWidget {
           ),
           Expanded(
             child: RiffScrollUnder(
-                child: Obx(() => cntrller.libraryArtists.isEmpty
+                child: Obx(() => cntrller.isContentFetched.isFalse
+                    // Still reading the library: no "no artists" flash.
+                    ? const SizedBox.shrink()
+                    : cntrller.libraryArtists.isEmpty
                     ? EmptyPlayHint(message: "noLibArtists".tr)
                     : LayoutBuilder(builder: (context, constraints) {
                         final grid = libraryGridMetrics(constraints.maxWidth);
