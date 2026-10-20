@@ -28,7 +28,10 @@ import '../../widgets/empty_play_hint.dart';
 import '../../widgets/collection_play.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/list_widget.dart';
+import '../../widgets/riff_motion.dart';
 import '../../widgets/riff_sheet.dart';
+import '../../widgets/shimmer_widgets/reveal.dart';
+import '../../widgets/shimmer_widgets/skeleton_fade.dart';
 import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/song_list_tile.dart';
@@ -143,49 +146,63 @@ class SongsLibraryWidget extends StatelessWidget {
           }),
           Expanded(
             child: RiffScrollUnder(child: Obx(() {
+              // The library's songs, the phone's and the cloud's crossfade
+              // as the toolbar switches between them.
+              final String pane;
+              final Widget child;
               if (libSongsController.showDeviceSongs.value) {
-                return const _DeviceSongsPane();
+                pane = 'device';
+                child = const _DeviceSongsPane();
+              } else if (libSongsController.showCloudSongs.value) {
+                pane = 'cloud';
+                child = const _CloudSongsPane();
+              } else {
+                pane = 'library';
+                child = GetX<LibrarySongsController>(builder: (controller) {
+                  final songs = controller.visibleSongs;
+                  if (controller.downloadedOnly.isTrue &&
+                      songs.isEmpty &&
+                      controller.librarySongsList.isNotEmpty) {
+                    return EmptyPlayHint(message: "noDownloadedSongs".tr);
+                  }
+                  // The list and its selection mode crossfade.
+                  return songs.isNotEmpty
+                      ? RiffPaneSwitcher(
+                          child: controller.additionalOperationMode.value ==
+                                  OperationMode.none
+                              // ListWidget returns an Expanded, so it needs a
+                              // Flex parent (it sat directly in this Expanded
+                              // before: "Incorrect use of ParentDataWidget").
+                              ? Padding(
+                                  key: const ValueKey('list'),
+                                  padding: const EdgeInsets.only(left: 4),
+                                  child: Column(
+                                    children: [
+                                      ListWidget(
+                                        songs,
+                                        "library Songs",
+                                        true,
+                                        isPlaylistOrAlbum: true,
+                                        playlist: Playlist(
+                                            title: "Library Songs",
+                                            playlistId: "SongDownloads",
+                                            thumbnailUrl: "",
+                                            isCloudPlaylist: false),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : ModificationList(
+                                  key: const ValueKey('selecting'),
+                                  mode:
+                                      controller.additionalOperationMode.value,
+                                  screenController: controller,
+                                ))
+                      : EmptyPlayHint(message: "noOfflineSong".tr);
+                });
               }
-              if (libSongsController.showCloudSongs.value) {
-                return const _CloudSongsPane();
-              }
-              return GetX<LibrarySongsController>(builder: (controller) {
-                final songs = controller.visibleSongs;
-                if (controller.downloadedOnly.isTrue &&
-                    songs.isEmpty &&
-                    controller.librarySongsList.isNotEmpty) {
-                  return EmptyPlayHint(message: "noDownloadedSongs".tr);
-                }
-                return songs.isNotEmpty
-                    ? (controller.additionalOperationMode.value ==
-                            OperationMode.none
-                        // ListWidget returns an Expanded, so it needs a Flex
-                        // parent (it sat directly in this Expanded before:
-                        // "Incorrect use of ParentDataWidget").
-                        ? Padding(
-                            padding: const EdgeInsets.only(left: 4),
-                            child: Column(
-                              children: [
-                                ListWidget(
-                                  songs,
-                                  "library Songs",
-                                  true,
-                                  isPlaylistOrAlbum: true,
-                                  playlist: Playlist(
-                                      title: "Library Songs",
-                                      playlistId: "SongDownloads",
-                                      thumbnailUrl: "",
-                                      isCloudPlaylist: false),
-                                ),
-                              ],
-                            ),
-                          )
-                        : ModificationList(
-                            mode: controller.additionalOperationMode.value,
-                            screenController: controller,
-                          ))
-                    : EmptyPlayHint(message: "noOfflineSong".tr);
-              });
+              return RiffPaneSwitcher(
+                  child: KeyedSubtree(key: ValueKey(pane), child: child));
             })),
           ),
         ],
@@ -245,32 +262,39 @@ class _DeviceSongsPane extends StatelessWidget {
     final controller = Get.find<LibrarySongsController>();
     return Obx(() {
       final songs = controller.deviceSongs.toList();
+      final Widget? content;
       if (controller.deviceAccess.value == false) {
-        return PodcastEmptyState(
+        content = PodcastEmptyState(
           icon: Icons.phone_android_outlined,
           message: 'deviceMusicAccess'.tr,
           actionLabel: 'allowAccess'.tr,
           actionIcon: Icons.lock_open_rounded,
           onAction: () => controller.loadDeviceSongs(settings: true),
         );
-      }
-      if (songs.isEmpty) {
-        return controller.deviceLoading.isTrue
-            ? const SongListShimmer(itemCount: 8, topPadding: RiffSpacing.md)
+      } else if (songs.isEmpty) {
+        content = controller.deviceLoading.isTrue
+            ? null
             : PodcastEmptyState(
                 icon: Icons.phone_android_outlined,
                 message: 'noDeviceSongs'.tr,
               );
+      } else {
+        content = ListView.builder(
+          padding: const EdgeInsets.only(bottom: RiffSpacing.listEnd),
+          itemExtent: RiffComponentSizes.songRowExtent,
+          itemCount: songs.length,
+          itemBuilder: (context, i) => SongListTile(
+            key: ValueKey(songs[i].id),
+            song: songs[i],
+            onTap: () => _playDeviceSongs(from: i),
+          ),
+        );
       }
-      return ListView.builder(
-        padding: const EdgeInsets.only(bottom: RiffSpacing.listEnd),
-        itemExtent: RiffComponentSizes.songRowExtent,
-        itemCount: songs.length,
-        itemBuilder: (context, i) => SongListTile(
-          key: ValueKey(songs[i].id),
-          song: songs[i],
-          onTap: () => _playDeviceSongs(from: i),
-        ),
+      // The songs fade in where the skeleton was.
+      return SkeletonFadeIn(
+        skeleton:
+            const SongListShimmer(itemCount: 8, topPadding: RiffSpacing.md),
+        child: content,
       );
     });
   }
@@ -371,69 +395,76 @@ class _CloudSongsPane extends StatelessWidget {
       if (cloud.isConnected.isFalse) {
         return const CloudLoginForm();
       }
-      if (cloud.isLoading.value && cloud.songs.isEmpty) {
-        return const SongListShimmer(itemCount: 8, topPadding: 12);
-      }
-      if (cloud.songs.isEmpty) {
-        return Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('cloudNoSongs'.tr,
-                  style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 12),
-              TextButton.icon(
-                onPressed: () => fetchAndPlayCloudRandomMix(cloud),
-                icon: const Icon(Icons.casino_outlined),
-                label: Text('cloudRandomMix'.tr),
-              ),
-            ],
-          ),
-        );
-      }
-      final list = cloud.songs.toList();
-      return ListView.builder(
-        padding: const EdgeInsets.only(bottom: 200, right: 8),
-        itemCount: list.length + 1,
-        itemBuilder: (context, i) {
-          if (i == 0) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text('cloudRandomMix'.tr,
-                        style: Theme.of(context).textTheme.titleSmall),
-                  ),
-                  if (shouldShowCloudSongsPlayBar(
-                    connected: cloud.isConnected.isTrue,
-                    songCount: list.length,
-                  ))
-                    IconButton(
-                      tooltip: 'playAll'.tr,
-                      icon: const Icon(Icons.play_arrow_rounded, size: 22),
-                      onPressed: () => playCloudSongsOrNotify(
-                        cloud.toMediaItems(list),
-                        shuffle: false,
-                      ),
-                    ),
-                  IconButton(
-                    tooltip: 'shuffle'.tr,
-                    icon: const Icon(Icons.casino_outlined, size: 20),
-                    onPressed: () => fetchAndPlayCloudRandomMix(cloud),
-                  ),
-                  TextButton(
-                    onPressed: () => cloud.logout(),
-                    child: Text('disconnect'.tr),
-                  ),
-                ],
-              ),
-            );
-          }
-          return CloudSongTile(songs: list, index: i - 1);
-        },
+      // The songs fade in where the skeleton was.
+      return SkeletonFadeIn(
+        skeleton: const SongListShimmer(itemCount: 8, topPadding: 12),
+        child: cloud.isLoading.value && cloud.songs.isEmpty
+            ? null
+            : _songs(context, cloud),
       );
     });
+  }
+
+  Widget _songs(BuildContext context, CloudMusicService cloud) {
+    if (cloud.songs.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('cloudNoSongs'.tr,
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: () => fetchAndPlayCloudRandomMix(cloud),
+              icon: const Icon(Icons.casino_outlined),
+              label: Text('cloudRandomMix'.tr),
+            ),
+          ],
+        ),
+      );
+    }
+    final list = cloud.songs.toList();
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 200, right: 8),
+      itemCount: list.length + 1,
+      itemBuilder: (context, i) {
+        if (i == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text('cloudRandomMix'.tr,
+                      style: Theme.of(context).textTheme.titleSmall),
+                ),
+                if (shouldShowCloudSongsPlayBar(
+                  connected: cloud.isConnected.isTrue,
+                  songCount: list.length,
+                ))
+                  IconButton(
+                    tooltip: 'playAll'.tr,
+                    icon: const Icon(Icons.play_arrow_rounded, size: 22),
+                    onPressed: () => playCloudSongsOrNotify(
+                      cloud.toMediaItems(list),
+                      shuffle: false,
+                    ),
+                  ),
+                IconButton(
+                  tooltip: 'shuffle'.tr,
+                  icon: const Icon(Icons.casino_outlined, size: 20),
+                  onPressed: () => fetchAndPlayCloudRandomMix(cloud),
+                ),
+                TextButton(
+                  onPressed: () => cloud.logout(),
+                  child: Text('disconnect'.tr),
+                ),
+              ],
+            ),
+          );
+        }
+        return CloudSongTile(songs: list, index: i - 1);
+      },
+    );
   }
 }
 
@@ -451,6 +482,10 @@ class _PlaylistNAlbumLibraryWidgetState
   // One controller for the grid's lifetime — it used to be created inside
   // build (Obx/LayoutBuilder), leaking a controller on every rebuild.
   final _gridScroll = ScrollController(keepScrollOffset: false);
+
+  /// The layout last shown (list or grid), so switching it fades the new
+  /// one in, but opening the tab doesn't.
+  bool? _shownAsList;
 
   bool get isAlbumContent => widget.isAlbumContent;
 
@@ -531,8 +566,13 @@ class _PlaylistNAlbumLibraryWidgetState
                 final list = LibraryViewMode.list.isTrue;
                 return IconButton(
                   tooltip: (list ? 'showAsGrid' : 'showAsList').tr,
-                  icon: Icon(
-                      list ? Icons.grid_view_rounded : Icons.view_list_rounded),
+                  icon: RiffSwitcher(
+                    child: Icon(
+                        list
+                            ? Icons.grid_view_rounded
+                            : Icons.view_list_rounded,
+                        key: ValueKey(list)),
+                  ),
                   onPressed: () => LibraryViewMode.setList(!list),
                 );
               }),
@@ -580,36 +620,48 @@ class _PlaylistNAlbumLibraryWidgetState
               // Folders change what the playlists are listed with (read
               // here: the grid's builder runs outside this Obx).
               PlaylistFolders.rev.value;
+              final asList = LibraryViewMode.list.isTrue;
+              final switched = _shownAsList != null && _shownAsList != asList;
+              _shownAsList = asList;
               return (isAlbumContent
                       ? libralbumCntrller.libraryAlbums.isNotEmpty
                       : librplstCntrller.libraryPlaylists.isNotEmpty)
-                  ? LibraryViewMode.list.isTrue
-                      ? _list(libralbumCntrller, librplstCntrller)
-                      : LayoutBuilder(builder: (context, constraints) {
-                          final grid = libraryGridMetrics(constraints.maxWidth);
-                          final items =
-                              _items(libralbumCntrller, librplstCntrller);
-                          return GridView.builder(
-                              physics: const BouncingScrollPhysics(),
-                              padding: const EdgeInsets.only(
-                                  left: HomeLayout.gutter,
-                                  top: RiffSpacing.sm,
-                                  right: HomeLayout.gutter,
-                                  bottom: RiffSpacing.listEnd),
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: grid.columns,
-                                crossAxisSpacing: HomeLayout.cardGap,
-                                mainAxisSpacing: 14,
-                                mainAxisExtent: ContentListItem.heightFor(
-                                    context, grid.cover),
-                              ),
-                              controller: _gridScroll,
-                              itemCount: items.length,
-                              itemBuilder: (BuildContext context, int index) =>
-                                  _item(items[index], librplstCntrller,
-                                      size: grid.cover));
-                        })
+                  // Grid and list share the scroll controller, so the new
+                  // layout fades in in place of the old (no crossfade).
+                  ? RiffFadeIn(
+                      key: ValueKey(asList),
+                      duration:
+                          switched ? RiffDurations.content : Duration.zero,
+                      rise: 0,
+                      child: asList
+                          ? _list(libralbumCntrller, librplstCntrller)
+                          : LayoutBuilder(builder: (context, constraints) {
+                              final grid =
+                                  libraryGridMetrics(constraints.maxWidth);
+                              final items =
+                                  _items(libralbumCntrller, librplstCntrller);
+                              return GridView.builder(
+                                  physics: const BouncingScrollPhysics(),
+                                  padding: const EdgeInsets.only(
+                                      left: HomeLayout.gutter,
+                                      top: RiffSpacing.sm,
+                                      right: HomeLayout.gutter,
+                                      bottom: RiffSpacing.listEnd),
+                                  gridDelegate:
+                                      SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: grid.columns,
+                                    crossAxisSpacing: HomeLayout.cardGap,
+                                    mainAxisSpacing: 14,
+                                    mainAxisExtent: ContentListItem.heightFor(
+                                        context, grid.cover),
+                                  ),
+                                  controller: _gridScroll,
+                                  itemCount: items.length,
+                                  itemBuilder:
+                                      (BuildContext context, int index) =>
+                                          _item(items[index], librplstCntrller,
+                                              size: grid.cover));
+                            }))
                   : EmptyPlayHint(
                       message: isAlbumContent
                           ? "noLibAlbums".tr

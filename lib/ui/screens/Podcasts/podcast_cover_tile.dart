@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -16,6 +15,8 @@ import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/collection_play.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/podcast_play.dart';
+import '/ui/widgets/shimmer_widgets/basic_container.dart'
+    show RiffSkeletonPulse;
 import '/ui/widgets/snackbar.dart';
 import 'podcasts_screen.dart';
 
@@ -187,7 +188,9 @@ class PodcastCoverTile extends StatelessWidget {
       });
     }
     if (urls.isEmpty) return fallback;
-    final waiting = ColoredBox(color: theme.colorScheme.surfaceContainerLow);
+    // The loading skeleton's pulse (§5.13) while a cover loads.
+    final waiting = RiffSkeletonPulse(
+        child: ColoredBox(color: theme.colorScheme.surfaceContainerLow));
     final dpr = MediaQuery.devicePixelRatioOf(context);
 
     return LayoutBuilder(builder: (context, constraints) {
@@ -197,7 +200,7 @@ class PodcastCoverTile extends StatelessWidget {
           .clamp(64, 1600);
 
       Widget layer(int i) {
-        return CachedNetworkImage(
+        return RiffNetworkImage(
           imageUrl: urls[i],
           httpHeaders: kCoverImageHeaders,
           fit: BoxFit.cover,
@@ -207,6 +210,9 @@ class PodcastCoverTile extends StatelessWidget {
           filterQuality: FilterQuality.medium,
           alignment: Alignment.center,
           placeholder: (_, __) => waiting,
+          // The next cover tries behind the same placeholder; only the
+          // fallback at the end fades in.
+          errorFadesIn: i + 1 >= urls.length,
           errorWidget: (_, __, ___) =>
               i + 1 < urls.length ? layer(i + 1) : fallback,
         );

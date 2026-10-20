@@ -148,6 +148,14 @@ class RiffTheme {
             color: RiffPalette.textPrimary,
             size: RiffComponentSizes.headerIcon),
       ),
+      // Settings groups open and close like the rest of a selection
+      // change (§4.7), not the default ease-in.
+      expansionTileTheme: ExpansionTileThemeData(
+        expansionAnimationStyle: AnimationStyle(
+          duration: RiffDurations.select,
+          curve: RiffDurations.selectCurve,
+        ),
+      ),
       listTileTheme: ListTileThemeData(
         // Material 2 geometry (16 both sides), Lights-out type.
         contentPadding: const EdgeInsets.symmetric(horizontal: 16),

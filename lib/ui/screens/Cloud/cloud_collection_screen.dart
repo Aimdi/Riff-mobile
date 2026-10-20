@@ -1,8 +1,9 @@
 import '../Home/home_layout.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/widgets/image_widget.dart' show RiffNetworkImage;
+import '/ui/widgets/shimmer_widgets/skeleton_fade.dart';
 import '/services/cloud_music_service.dart';
 import '/services/discovery/discovery_types.dart';
 import '/ui/player/player_controller.dart';
@@ -86,24 +87,28 @@ class _CloudCollectionScreenState extends State<CloudCollectionScreen> {
       body: Column(children: [
         RiffPageHeader(_detail?.name ?? widget.title),
         Expanded(
-            child: _loading
-                ? const SongListShimmer(itemCount: 8, topPadding: 12)
-                : _error != null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(_error!, textAlign: TextAlign.center),
-                              const SizedBox(height: 12),
-                              TextButton(
-                                  onPressed: _load, child: Text('retry'.tr)),
-                            ],
-                          ),
-                        ),
-                      )
-                    : _buildBody(theme)),
+            // What loaded fades in where the skeleton was.
+            child: SkeletonFadeIn(
+                skeleton: const SongListShimmer(itemCount: 8, topPadding: 12),
+                child: _loading
+                    ? null
+                    : _error != null
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(_error!, textAlign: TextAlign.center),
+                                  const SizedBox(height: 12),
+                                  TextButton(
+                                      onPressed: _load,
+                                      child: Text('retry'.tr)),
+                                ],
+                              ),
+                            ),
+                          )
+                        : _buildBody(theme))),
       ]),
     );
   }
@@ -144,7 +149,7 @@ class _CloudCollectionScreenState extends State<CloudCollectionScreen> {
                 borderRadius: BorderRadius.circular(10),
                 child: cover.isEmpty
                     ? _missingCover(theme, d)
-                    : CachedNetworkImage(
+                    : RiffNetworkImage(
                         imageUrl: cover,
                         width: _coverSide,
                         height: _coverSide,

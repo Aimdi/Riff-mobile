@@ -48,6 +48,7 @@ import '/services/cache_eviction.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/utils/theme_controller.dart';
 import 'components/custom_expansion_tile.dart';
+import '/ui/widgets/shimmer_widgets/reveal.dart';
 import 'components/smart_downloads_setting.dart';
 import 'components/remove_downloads.dart';
 import '../Home/home_layout.dart';
@@ -125,32 +126,36 @@ class SettingsScreen extends StatelessWidget {
             padding: const EdgeInsets.only(
                 bottom: RiffSpacing.listEnd, top: RiffSpacing.md),
             children: [
+              // Shows (growing open) once a newer version is found.
               Obx(
-                () => settingsController.isNewVersionAvailable.value
-                    ? Padding(
-                        padding:
-                            const EdgeInsets.only(bottom: RiffSpacing.md),
-                        child: ListTile(
-                          onTap: () {
-                            launchUrl(
-                              Uri.parse(
-                                'https://github.com/Aimdi/Riff-mobile/releases/latest',
-                              ),
-                              mode: LaunchMode.externalApplication,
-                            );
-                          },
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: RiffSpacing.xs),
-                          leading: Icon(Icons.system_update_alt, color: accent),
-                          title: Text("newVersionAvailable".tr),
-                          subtitle: Text(
-                            "goToDownloadPage".tr,
-                            style: theme.textTheme.bodyMedium,
+                () => RiffReveal(
+                  child: settingsController.isNewVersionAvailable.value
+                      ? Padding(
+                          padding:
+                              const EdgeInsets.only(bottom: RiffSpacing.md),
+                          child: ListTile(
+                            onTap: () {
+                              launchUrl(
+                                Uri.parse(
+                                  'https://github.com/Aimdi/Riff-mobile/releases/latest',
+                                ),
+                                mode: LaunchMode.externalApplication,
+                              );
+                            },
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: RiffSpacing.xs),
+                            leading:
+                                Icon(Icons.system_update_alt, color: accent),
+                            title: Text("newVersionAvailable".tr),
+                            subtitle: Text(
+                              "goToDownloadPage".tr,
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                            trailing: Icon(Icons.chevron_right, color: accent),
                           ),
-                          trailing: Icon(Icons.chevron_right, color: accent),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
+                        )
+                      : null,
+                ),
               ),
               // Appearance — look & feel
               CustomExpansionTile(
@@ -620,30 +625,32 @@ class SettingsScreen extends StatelessWidget {
                         )),
                   // How loud normalized songs are (Spotify's volume level).
                   if (GetPlatform.isAndroid)
-                    Obx(() => settingsController
-                            .loudnessNormalizationEnabled.isFalse
-                        ? const SizedBox.shrink()
-                        : ListTile(
-                            contentPadding: settingsTilePadding,
-                            title: Text('normalizationLevel'.tr),
-                            subtitle: Text('normalizationLevelDes'.tr,
-                                style: settingsSubtitleStyle(context)),
-                            trailing: DropdownButton<NormalizationLevel>(
-                              dropdownColor: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerLow,
-                              underline: const SizedBox.shrink(),
-                              value: NormalizationLevel.selected.value,
-                              items: NormalizationLevel.values
-                                  .map((level) => DropdownMenuItem(
-                                        value: level,
-                                        child: Text(level.labelKey.tr),
-                                      ))
-                                  .toList(),
-                              onChanged:
-                                  settingsController.setNormalizationLevel,
-                            ),
-                          )),
+                    Obx(() => RiffReveal(
+                          child: settingsController
+                                  .loudnessNormalizationEnabled.isFalse
+                              ? null
+                              : ListTile(
+                                  contentPadding: settingsTilePadding,
+                                  title: Text('normalizationLevel'.tr),
+                                  subtitle: Text('normalizationLevelDes'.tr,
+                                      style: settingsSubtitleStyle(context)),
+                                  trailing: DropdownButton<NormalizationLevel>(
+                                    dropdownColor: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerLow,
+                                    underline: const SizedBox.shrink(),
+                                    value: NormalizationLevel.selected.value,
+                                    items: NormalizationLevel.values
+                                        .map((level) => DropdownMenuItem(
+                                              value: level,
+                                              child: Text(level.labelKey.tr),
+                                            ))
+                                        .toList(),
+                                    onChanged: settingsController
+                                        .setNormalizationLevel,
+                                  ),
+                                ),
+                        )),
                   if (!isDesktop)
                     ListTile(
                         contentPadding:
@@ -1031,28 +1038,32 @@ class SettingsScreen extends StatelessWidget {
                             }
                           }),
                     ),
-                    Obx(() => (settingsController.isLinkedWithPiped.isTrue)
-                        ? ListTile(
-                            contentPadding: settingsTilePadding,
-                            title: Text("resetblacklistedplaylist".tr),
-                            subtitle: Text("resetblacklistedplaylistDes".tr,
-                                style: settingsSubtitleStyle(context)),
-                            trailing: TextButton(
-                                child: Text("reset".tr),
-                                onPressed: () async {
-                                  final ok = await Get.find<
-                                          LibraryPlaylistsController>()
-                                      .resetBlacklistedPlaylist();
-                                  ScaffoldMessenger.of(Get.context!)
-                                      .showSnackBar(snackbar(
-                                          Get.context!,
-                                          ok
-                                              ? "blacklistPlstResetAlert".tr
-                                              : "operationFailed".tr,
-                                          size: SanckBarSize.MEDIUM));
-                                }),
-                          )
-                        : const SizedBox.shrink()),
+                    Obx(() => RiffReveal(
+                          child: (settingsController.isLinkedWithPiped.isTrue)
+                              ? ListTile(
+                                  contentPadding: settingsTilePadding,
+                                  title: Text("resetblacklistedplaylist".tr),
+                                  subtitle: Text(
+                                      "resetblacklistedplaylistDes".tr,
+                                      style: settingsSubtitleStyle(context)),
+                                  trailing: TextButton(
+                                      child: Text("reset".tr),
+                                      onPressed: () async {
+                                        final ok = await Get.find<
+                                                LibraryPlaylistsController>()
+                                            .resetBlacklistedPlaylist();
+                                        ScaffoldMessenger.of(Get.context!)
+                                            .showSnackBar(snackbar(
+                                                Get.context!,
+                                                ok
+                                                    ? "blacklistPlstResetAlert"
+                                                        .tr
+                                                    : "operationFailed".tr,
+                                                size: SanckBarSize.MEDIUM));
+                                      }),
+                                )
+                              : null,
+                        )),
                     SettingsSearchable(
                       title: 'privateSession'.tr,
                       subtitle: 'privateSessionDes'.tr,
@@ -1553,37 +1564,41 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     Obx(() {
                       if (!settingsController.developerMode.value) {
-                        return const SizedBox.shrink();
+                        return const RiffReveal();
                       }
-                      return ListTile(
-                        contentPadding:
-                            settingsTilePadding,
-                        title: Text("tasteModelDebug".tr),
-                        subtitle: Text("tasteModelDebugDes".tr,
-                            style: settingsSubtitleStyle(context)),
-                        onTap: () => showDialog(
-                            context: context,
-                            builder: (context) =>
-                                const TasteModelDebugDialog()),
+                      return RiffReveal(
+                        child: ListTile(
+                          contentPadding:
+                              settingsTilePadding,
+                          title: Text("tasteModelDebug".tr),
+                          subtitle: Text("tasteModelDebugDes".tr,
+                              style: settingsSubtitleStyle(context)),
+                          onTap: () => showDialog(
+                              context: context,
+                              builder: (context) =>
+                                  const TasteModelDebugDialog()),
+                        ),
                       );
                     }),
                     Obx(() {
                       if (!settingsController.developerMode.value) {
-                        return const SizedBox.shrink();
+                        return const RiffReveal();
                       }
-                      return ListTile(
-                        contentPadding:
-                            settingsTilePadding,
-                        title: Text("developerMode".tr),
-                        subtitle: Text("developerModeDes".tr,
-                            style: settingsSubtitleStyle(context)),
-                        trailing: CustSwitch(
-                          value: true,
-                          onChanged: (v) {
-                            if (!v) {
-                              settingsController.setDeveloperMode(false);
-                            }
-                          },
+                      return RiffReveal(
+                        child: ListTile(
+                          contentPadding:
+                              settingsTilePadding,
+                          title: Text("developerMode".tr),
+                          subtitle: Text("developerModeDes".tr,
+                              style: settingsSubtitleStyle(context)),
+                          trailing: CustSwitch(
+                            value: true,
+                            onChanged: (v) {
+                              if (!v) {
+                                settingsController.setDeveloperMode(false);
+                              }
+                            },
+                          ),
                         ),
                       );
                     }),

@@ -7,6 +7,8 @@ import '/services/free_audiobook_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/riff_motion.dart';
+import '/ui/widgets/shimmer_widgets/skeleton_fade.dart';
 import '/ui/widgets/song_list_tile.dart' show RiffRowHairline;
 import '../Home/home_layout.dart';
 import '../Podcasts/podcast_layout.dart';
@@ -30,6 +32,9 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
   FreeAudiobookDetail? _detail;
   bool _loading = true;
   bool _expanded = false;
+
+  /// The book's details and chapters fading in as they replace the spinner.
+  final _loadedFade = LoadedRowsFade();
 
   @override
   void initState() {
@@ -80,6 +85,7 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
   Widget build(BuildContext context) {
     final book = _detail?.book ?? widget.book;
     final lib = Get.find<AudiobookLibraryController>();
+    if (_loading) _loadedFade.skeleton();
     return Scaffold(
       appBar: RiffAppBar(AppBar(
         backgroundColor: Colors.transparent,
@@ -95,9 +101,16 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
             final saved = lib.isFreeSaved(widget.book.id);
             return IconButton(
               tooltip: saved ? 'saved'.tr : 'save'.tr,
-              icon: Icon(
-                saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
-                color: saved ? Theme.of(context).colorScheme.secondary : null,
+              // Saving pops the filled bookmark in.
+              icon: RiffSwitcher(
+                pop: saved,
+                child: Icon(
+                  saved
+                      ? Icons.bookmark_rounded
+                      : Icons.bookmark_border_rounded,
+                  key: ValueKey(saved),
+                  color: saved ? Theme.of(context).colorScheme.secondary : null,
+                ),
               ),
               onPressed: () => lib.toggleFree(_detail?.book ?? widget.book),
             );
@@ -120,14 +133,16 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
               ),
             )
           else if (_detail == null || _detail!.chapters.isEmpty)
-            SliverToBoxAdapter(child: _error(context))
+            SliverToBoxAdapter(child: RiffFadeIn(child: _error(context)))
           else ...[
             if (_detail!.description.isNotEmpty)
-              SliverToBoxAdapter(child: _about(context, _detail!)),
-            SliverToBoxAdapter(child: HomeSectionHeader('chapters'.tr)),
+              SliverToBoxAdapter(
+                  child: _loadedFade.row(_about(context, _detail!))),
+            SliverToBoxAdapter(
+                child: _loadedFade.row(HomeSectionHeader('chapters'.tr))),
             _chapters(context, _detail!),
             SliverToBoxAdapter(
-              child: Padding(
+              child: _loadedFade.row(Padding(
                 padding: const EdgeInsets.only(
                     left: HomeLayout.gutter,
                     top: RiffSpacing.xl,
@@ -136,7 +151,7 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
                   'publicDomainNote'.tr,
                   style: homeCardSubtitleStyle(context),
                 ),
-              ),
+              )),
             ),
           ],
           const SliverToBoxAdapter(
@@ -235,12 +250,19 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  d.description,
-                  maxLines: _expanded ? null : 4,
-                  overflow:
-                      _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
-                  style: style,
+                // Read more unfolds the rest (and Show less folds it).
+                AnimatedSize(
+                  duration: RiffDurations.select,
+                  curve: RiffDurations.selectCurve,
+                  alignment: Alignment.topCenter,
+                  child: Text(
+                    d.description,
+                    maxLines: _expanded ? null : 4,
+                    overflow: _expanded
+                        ? TextOverflow.visible
+                        : TextOverflow.ellipsis,
+                    style: style,
+                  ),
                 ),
                 const SizedBox(height: RiffSpacing.xs),
                 // A text button look: 15/700 in the accent (§5.5).
@@ -376,8 +398,9 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
             );
           }
 
-          if (player == null) return row(false);
-          return Obx(() => row(player.currentSong.value?.id == id));
+          if (player == null) return _loadedFade.row(row(false));
+          return _loadedFade
+              .row(Obx(() => row(player.currentSong.value?.id == id)));
         },
         childCount: d.chapters.length,
       ),

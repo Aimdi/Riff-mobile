@@ -1,8 +1,8 @@
 import 'package:audio_service/audio_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/widgets/image_widget.dart' show RiffNetworkImage;
 import '/models/thumbnail.dart';
 import '/services/podcast_download_service.dart';
 import '/services/podcast_service.dart';
@@ -73,7 +73,7 @@ class _PodcastDownloadsScreenState extends State<PodcastDownloadsScreen> {
                 leading: ClipRRect(
                   borderRadius: BorderRadius.circular(RiffRadii.sm),
                   child: art.isNotEmpty
-                      ? CachedNetworkImage(
+                      ? RiffNetworkImage(
                           imageUrl: art,
                           width: RiffComponentSizes.rowArt,
                           height: RiffComponentSizes.rowArt,

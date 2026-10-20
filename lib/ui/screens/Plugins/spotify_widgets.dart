@@ -1,9 +1,10 @@
 import 'package:audio_service/audio_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
+import '/ui/widgets/image_widget.dart' show RiffNetworkImage;
+import '/ui/widgets/shimmer_widgets/skeleton_fade.dart';
 import '/services/spotify_api_service.dart';
 import '/services/spotify_auth_service.dart';
 import '/services/spotify_connect.dart';
@@ -79,7 +80,7 @@ class SpotifyArt extends StatelessWidget {
         : GeneratedCover(seed: pl.id, title: pl.name, size: size);
     final img = url == null || url!.isEmpty
         ? missing
-        : CachedNetworkImage(
+        : RiffNetworkImage(
             imageUrl: url!,
             width: size,
             height: size,
@@ -129,31 +130,36 @@ class _SpotifyAsyncState<T> extends State<SpotifyAsync<T>> {
   Widget build(BuildContext context) {
     return FutureBuilder<T>(
       future: _future,
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return const Padding(
-            padding: EdgeInsets.all(32),
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
-        if (snap.hasError) {
-          return _Message(
-            icon: Icons.cloud_off_rounded,
-            text: spotifyErrorText(snap.error!),
-            action: TextButton(onPressed: _reload, child: Text('retry'.tr)),
-          );
-        }
-        final data = snap.data as T;
-        if (widget.isEmpty?.call(data) ?? false) {
-          return _Message(
-            icon: Icons.inbox_outlined,
-            text: widget.emptyText ?? 'spotifyEmpty'.tr,
-            action: TextButton(onPressed: _reload, child: Text('refresh'.tr)),
-          );
-        }
-        return widget.builder(context, data, _reload);
-      },
+      // What loads fades in where the spinner was.
+      builder: (context, snap) => SkeletonFadeIn(
+        skeleton: const Padding(
+          padding: EdgeInsets.all(32),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        child: snap.connectionState != ConnectionState.done
+            ? null
+            : _loaded(context, snap),
+      ),
     );
+  }
+
+  Widget _loaded(BuildContext context, AsyncSnapshot<T> snap) {
+    if (snap.hasError) {
+      return _Message(
+        icon: Icons.cloud_off_rounded,
+        text: spotifyErrorText(snap.error!),
+        action: TextButton(onPressed: _reload, child: Text('retry'.tr)),
+      );
+    }
+    final data = snap.data as T;
+    if (widget.isEmpty?.call(data) ?? false) {
+      return _Message(
+        icon: Icons.inbox_outlined,
+        text: widget.emptyText ?? 'spotifyEmpty'.tr,
+        action: TextButton(onPressed: _reload, child: Text('refresh'.tr)),
+      );
+    }
+    return widget.builder(context, data, _reload);
   }
 }
 

@@ -1,8 +1,9 @@
 import '../Home/home_layout.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/widgets/image_widget.dart' show RiffNetworkImage;
+import '/ui/widgets/shimmer_widgets/skeleton_fade.dart';
 import '/services/audiobookshelf_service.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import '/ui/theme/riff_spacing.dart';
@@ -86,30 +87,34 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
           ],
         ),
         Expanded(
-            child: _loading
-                ? const SongListShimmer(itemCount: 8, topPadding: 12)
-                : _error != null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(RiffSpacing.xxl),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.cloud_off_outlined,
-                                  size: RiffComponentSizes.rowArt,
-                                  color: theme.colorScheme.error),
-                              const SizedBox(height: RiffSpacing.md),
-                              Text(_error!,
-                                  textAlign: TextAlign.center,
-                                  style: theme.textTheme.bodyLarge),
-                              const SizedBox(height: RiffSpacing.md),
-                              TextButton(
-                                  onPressed: _load, child: Text('retry'.tr)),
-                            ],
-                          ),
-                        ),
-                      )
-                    : _buildBody(theme, abs)),
+            // What loaded fades in where the skeleton was.
+            child: SkeletonFadeIn(
+                skeleton: const SongListShimmer(itemCount: 8, topPadding: 12),
+                child: _loading
+                    ? null
+                    : _error != null
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(RiffSpacing.xxl),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.cloud_off_outlined,
+                                      size: RiffComponentSizes.rowArt,
+                                      color: theme.colorScheme.error),
+                                  const SizedBox(height: RiffSpacing.md),
+                                  Text(_error!,
+                                      textAlign: TextAlign.center,
+                                      style: theme.textTheme.bodyLarge),
+                                  const SizedBox(height: RiffSpacing.md),
+                                  TextButton(
+                                      onPressed: _load,
+                                      child: Text('retry'.tr)),
+                                ],
+                              ),
+                            ),
+                          )
+                        : _buildBody(theme, abs))),
       ]),
     );
   }
@@ -133,7 +138,7 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(RiffRadii.sm),
-              child: CachedNetworkImage(
+              child: RiffNetworkImage(
                 imageUrl: cover,
                 // Decode at display size, not full resolution.
                 memCacheHeight: (RiffComponentSizes.bookCoverHeight *

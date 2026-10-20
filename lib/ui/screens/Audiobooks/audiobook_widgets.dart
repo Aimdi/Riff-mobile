@@ -1,9 +1,12 @@
 import 'dart:io';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/widgets/image_widget.dart' show RiffNetworkImage;
+import '/ui/widgets/riff_motion.dart';
+import '/ui/widgets/shimmer_widgets/basic_container.dart'
+    show RiffSkeletonPulse;
 import '/services/audiobook_catalog_service.dart';
 import '/services/audiobook_progress_service.dart';
 import '/services/free_audiobook_service.dart';
@@ -63,16 +66,19 @@ class AudiobookCover extends StatelessWidget {
                 fit: BoxFit.cover,
                 cacheWidth:
                     (size * MediaQuery.devicePixelRatioOf(context)).round(),
-                errorBuilder: (_, __, ___) => fallback,
+                frameBuilder: riffFadeInFrame,
+                errorBuilder: (_, __, ___) => RiffFadeIn(
+                    duration: RiffDurations.image, rise: 0, child: fallback),
               )
             else
-              CachedNetworkImage(
+              RiffNetworkImage(
                 imageUrl: url,
                 fit: BoxFit.cover,
                 memCacheWidth:
                     (size * MediaQuery.devicePixelRatioOf(context)).round(),
-                placeholder: (_, __) =>
-                    ColoredBox(color: homeTileColor(context)),
+                // The loading skeleton's pulse (§5.13).
+                placeholder: (_, __) => RiffSkeletonPulse(
+                    child: ColoredBox(color: homeTileColor(context))),
                 errorWidget: (_, __, ___) => fallback,
               ),
             if (p != null && p > 0.02 && p < 0.98)

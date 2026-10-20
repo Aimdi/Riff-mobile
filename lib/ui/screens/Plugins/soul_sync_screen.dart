@@ -1,9 +1,9 @@
 import '../Home/home_layout.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '/ui/widgets/image_widget.dart' show RiffNetworkImage;
 import '/services/soul_sync_service.dart';
 import '/ui/navigator.dart';
 import '/ui/theme/riff_spacing.dart';
@@ -314,7 +314,7 @@ class _SoulSyncConnectedViewState extends State<_SoulSyncConnectedView> {
                                       ? ClipRRect(
                                           borderRadius:
                                               BorderRadius.circular(6),
-                                          child: CachedNetworkImage(
+                                          child: RiffNetworkImage(
                                             imageUrl: t.imageUrl!,
                                             // Decode at display size, not full resolution.
                                             memCacheWidth: (48 *

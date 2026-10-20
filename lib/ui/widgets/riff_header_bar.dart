@@ -171,6 +171,7 @@ class _Hairline extends StatelessWidget {
       child: AnimatedOpacity(
         opacity: visible ? 1 : 0,
         duration: RiffDurations.headerHairline,
+        curve: RiffDurations.selectCurve,
         child: const Divider(height: 0),
       ),
     );

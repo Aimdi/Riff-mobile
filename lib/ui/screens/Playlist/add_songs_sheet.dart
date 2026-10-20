@@ -10,6 +10,7 @@ import '/ui/screens/Audiobooks/audiobook_widgets.dart'
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/image_widget.dart';
+import '/ui/widgets/riff_motion.dart';
 import '/ui/widgets/riff_sheet.dart';
 import 'playlist_screen_controller.dart';
 
@@ -154,15 +155,18 @@ class _AddSongsSheetState extends State<AddSongsSheet> {
                         if (found.isEmpty) {
                           return _message(context, 'noSongsFound'.tr);
                         }
-                        return ListView.builder(
-                          controller: scroll,
-                          padding: const EdgeInsets.only(
-                              bottom: RiffSpacing.listEnd),
-                          itemCount: found.length,
-                          itemBuilder: (_, i) => _SongToAdd(
-                            song: found[i],
-                            added: _inPlaylist.contains(found[i].id),
-                            onAdd: () => _add(found[i]),
+                        // Results fade in where the spinner was.
+                        return RiffFadeIn(
+                          child: ListView.builder(
+                            controller: scroll,
+                            padding: const EdgeInsets.only(
+                                bottom: RiffSpacing.listEnd),
+                            itemCount: found.length,
+                            itemBuilder: (_, i) => _SongToAdd(
+                              song: found[i],
+                              added: _inPlaylist.contains(found[i].id),
+                              onAdd: () => _add(found[i]),
+                            ),
                           ),
                         );
                       },
@@ -196,20 +200,26 @@ class _SongToAdd extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.bodyMedium?.copyWith(color: muted)),
-      trailing: added
-          ? Padding(
-              padding: const EdgeInsets.all(RiffSpacing.md),
-              child: Icon(Icons.check_circle_rounded,
-                  size: RiffComponentSizes.trailingIcon,
-                  color: theme.colorScheme.primary,
-                  semanticLabel: 'alreadyInPlaylist'.tr),
-            )
-          : IconButton(
-              tooltip: 'addToPlaylist'.tr,
-              onPressed: onAdd,
-              icon: Icon(Icons.add_circle_outline_rounded,
-                  size: RiffComponentSizes.trailingIcon, color: muted),
-            ),
+      // Adding it pops the check in.
+      trailing: RiffSwitcher(
+        pop: added,
+        child: added
+            ? Padding(
+                key: const ValueKey(true),
+                padding: const EdgeInsets.all(RiffSpacing.md),
+                child: Icon(Icons.check_circle_rounded,
+                    size: RiffComponentSizes.trailingIcon,
+                    color: theme.colorScheme.primary,
+                    semanticLabel: 'alreadyInPlaylist'.tr),
+              )
+            : IconButton(
+                key: const ValueKey(false),
+                tooltip: 'addToPlaylist'.tr,
+                onPressed: onAdd,
+                icon: Icon(Icons.add_circle_outline_rounded,
+                    size: RiffComponentSizes.trailingIcon, color: muted),
+              ),
+      ),
     );
   }
 }

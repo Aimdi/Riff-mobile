@@ -1,9 +1,10 @@
 import '../Home/home_layout.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '/ui/widgets/image_widget.dart' show RiffNetworkImage;
+import '/ui/widgets/shimmer_widgets/skeleton_fade.dart';
 import '/services/audiobook_catalog_service.dart';
 import '/services/plugin_service.dart';
 import '/ui/screens/Plugins/torrent_search_screen.dart';
@@ -101,7 +102,7 @@ class _AudiobookCatalogDetailScreenState
             Center(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(RiffRadii.sm),
-                child: CachedNetworkImage(
+                child: RiffNetworkImage(
                   imageUrl: book.cover,
                   // Decode at display size, not full resolution.
                   // Store audiobook art is square.
@@ -268,7 +269,7 @@ class _AudiobookCatalogDetailScreenState
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(RiffRadii.sm),
-                        child: CachedNetworkImage(
+                        child: RiffNetworkImage(
                           imageUrl: b.cover,
                           // Decode at display size, not full resolution.
                           memCacheHeight: (RiffComponentSizes.bookCoverHeight *
@@ -434,72 +435,78 @@ class _AudiobookBrowseScreenState extends State<AudiobookBrowseScreen> {
       body: Column(children: [
         RiffPageHeader(widget.title),
         Expanded(
-            child: _loading
-                ? const SongListShimmer(itemCount: 8, topPadding: 12)
-                : _books.isEmpty
-                    ? Center(child: Text('noResults'.tr))
-                    : GridView.builder(
-                        padding: const EdgeInsets.only(
-                            left: RiffSpacing.md,
-                            top: RiffSpacing.md,
-                            right: RiffSpacing.md,
-                            bottom: RiffSpacing.unit * 10),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.56,
-                          crossAxisSpacing: RiffSpacing.md,
-                          mainAxisSpacing: RiffSpacing.md,
-                        ),
-                        itemCount: _books.length,
-                        itemBuilder: (context, i) {
-                          final book = _books[i];
-                          // §5.3 card: no background, art radius 8,
-                          // titleMedium / bodyMedium, art → title gap 8.
-                          return InkWell(
-                            borderRadius: BorderRadius.circular(RiffRadii.sm),
-                            onTap: () => Get.to(
-                              () => AudiobookCatalogDetailScreen(book: book),
-                              preventDuplicates: false,
-                              transition: Transition.rightToLeft,
+            // What loaded fades in where the skeleton was.
+            child: SkeletonFadeIn(
+                skeleton: const SongListShimmer(itemCount: 8, topPadding: 12),
+                child: _loading
+                    ? null
+                    : _books.isEmpty
+                        ? Center(child: Text('noResults'.tr))
+                        : GridView.builder(
+                            padding: const EdgeInsets.only(
+                                left: RiffSpacing.md,
+                                top: RiffSpacing.md,
+                                right: RiffSpacing.md,
+                                bottom: RiffSpacing.unit * 10),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 0.56,
+                              crossAxisSpacing: RiffSpacing.md,
+                              mainAxisSpacing: RiffSpacing.md,
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: ClipRRect(
-                                    borderRadius:
-                                        BorderRadius.circular(RiffRadii.sm),
-                                    child: CachedNetworkImage(
-                                      imageUrl: book.cover,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                      errorWidget: (_, __, ___) => Container(
-                                        color: theme
-                                            .colorScheme.surfaceContainerLow,
-                                        child: Icon(Icons.menu_book,
-                                            size: RiffComponentSizes.rowArt,
-                                            color: theme
-                                                .colorScheme.onSurfaceVariant),
+                            itemCount: _books.length,
+                            itemBuilder: (context, i) {
+                              final book = _books[i];
+                              // §5.3 card: no background, art radius 8,
+                              // titleMedium / bodyMedium, art → title gap 8.
+                              return InkWell(
+                                borderRadius:
+                                    BorderRadius.circular(RiffRadii.sm),
+                                onTap: () => Get.to(
+                                  () =>
+                                      AudiobookCatalogDetailScreen(book: book),
+                                  preventDuplicates: false,
+                                  transition: Transition.rightToLeft,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: ClipRRect(
+                                        borderRadius:
+                                            BorderRadius.circular(RiffRadii.sm),
+                                        child: RiffNetworkImage(
+                                          imageUrl: book.cover,
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                          errorWidget: (_, __, ___) =>
+                                              Container(
+                                            color: theme.colorScheme
+                                                .surfaceContainerLow,
+                                            child: Icon(Icons.menu_book,
+                                                size: RiffComponentSizes.rowArt,
+                                                color: theme.colorScheme
+                                                    .onSurfaceVariant),
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
+                                    const SizedBox(height: RiffSpacing.sm),
+                                    Text(book.title,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.textTheme.titleMedium),
+                                    if (book.author.isNotEmpty)
+                                      Text(book.author,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: theme.textTheme.bodyMedium),
+                                  ],
                                 ),
-                                const SizedBox(height: RiffSpacing.sm),
-                                Text(book.title,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.titleMedium),
-                                if (book.author.isNotEmpty)
-                                  Text(book.author,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: theme.textTheme.bodyMedium),
-                              ],
-                            ),
-                          );
-                        },
-                      )),
+                              );
+                            },
+                          ))),
       ]),
     );
   }

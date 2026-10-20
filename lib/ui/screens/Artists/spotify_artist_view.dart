@@ -1,5 +1,4 @@
 import 'package:audio_service/audio_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -15,6 +14,10 @@ import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/collection_play.dart';
 import '/ui/widgets/generated_cover.dart';
+import '/ui/widgets/image_widget.dart' show RiffNetworkImage;
+import '/ui/widgets/riff_motion.dart';
+import '/ui/widgets/shimmer_widgets/reveal.dart';
+import '/ui/widgets/shimmer_widgets/skeleton_fade.dart';
 import '/ui/screens/Podcasts/podcasts_library_controller.dart';
 import '/ui/widgets/songinfo_bottom_sheet.dart';
 import '../../navigator.dart';
@@ -121,19 +124,22 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
   Widget build(BuildContext context) {
     return Obx(() {
       if (c.artistLoadFailed.isTrue) {
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('networkError'.tr, textAlign: TextAlign.center),
-                const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: c.retryArtistContent,
-                  child: Text('retry'.tr),
-                ),
-              ],
+        return RiffFadeIn(
+          key: const ValueKey('failed'),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('networkError'.tr, textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: c.retryArtistContent,
+                    child: Text('retry'.tr),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -152,11 +158,10 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
           .whereType<Artist>()
           .toList();
       final description = '${c.artistData['description'] ?? ''}'.trim();
-      final popularCount = _popularExpanded
-          ? songs.length
-          : (songs.length > 5 ? 5 : songs.length);
+      // The first five always; the rest unfold under them with See more.
+      final popularCount = songs.length > 5 ? 5 : songs.length;
 
-      return CustomScrollView(
+      final page = CustomScrollView(
         slivers: [
           _heroHeader(context),
           SliverToBoxAdapter(child: _actionRow(context, songs)),
@@ -171,6 +176,20 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
               childCount: popularCount,
             ),
           ),
+          if (songs.length > 5)
+            SliverToBoxAdapter(
+              child: RiffReveal(
+                child: _popularExpanded
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (var i = popularCount; i < songs.length; i++)
+                            _songRow(context, songs, i),
+                        ],
+                      )
+                    : null,
+              ),
+            ),
           if (songs.length > 5)
             SliverToBoxAdapter(
               child: Padding(
@@ -209,6 +228,8 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
           const SliverToBoxAdapter(child: SizedBox(height: 200)),
         ],
       );
+      // The page fades in where its skeleton was.
+      return RiffFadeIn(key: const ValueKey('content'), child: page);
     });
   }
 
@@ -274,7 +295,7 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
           background: Stack(
             fit: StackFit.expand,
             children: [
-              CachedNetworkImage(
+              RiffNetworkImage(
                 imageUrl: img,
                 fit: BoxFit.cover,
                 alignment: Alignment.topCenter,
@@ -512,7 +533,7 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
             const SizedBox(width: 6),
             ClipRRect(
               borderRadius: BorderRadius.circular(6),
-              child: CachedNetworkImage(
+              child: RiffNetworkImage(
                 imageUrl: art,
                 memCacheWidth:
                     (48 * MediaQuery.devicePixelRatioOf(context)).round(),
@@ -597,7 +618,7 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: CachedNetworkImage(
+                        child: RiffNetworkImage(
                           imageUrl: Thumbnail(v.artUri?.toString() ?? '').high,
                           width: w,
                           height: h,
@@ -632,7 +653,7 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
 
   Widget _cover(BuildContext context, String url, IconData fallback,
           {Widget? missing}) =>
-      CachedNetworkImage(
+      RiffNetworkImage(
         imageUrl: Thumbnail(url).high,
         fit: BoxFit.cover,
         memCacheWidth:
@@ -777,16 +798,20 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  description,
-                  maxLines: _aboutExpanded ? null : 4,
-                  overflow: _aboutExpanded
-                      ? TextOverflow.visible
-                      : TextOverflow.ellipsis,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(height: 1.45, color: homeMutedColor(context)),
+                // Read more unfolds the rest (and Show less folds it).
+                AnimatedSize(
+                  duration: RiffDurations.select,
+                  curve: RiffDurations.selectCurve,
+                  alignment: Alignment.topCenter,
+                  child: Text(
+                    description,
+                    maxLines: _aboutExpanded ? null : 4,
+                    overflow: _aboutExpanded
+                        ? TextOverflow.visible
+                        : TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        height: 1.45, color: homeMutedColor(context)),
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -931,16 +956,21 @@ class _ArtistSectionPage extends StatelessWidget {
             maxLines: 1, overflow: TextOverflow.ellipsis),
       )),
       body: Obx(() {
-        if (controller.isSeparatedArtistContentFetced.isFalse ||
-            !controller.sepataredContent.containsKey(tabName)) {
-          return const SongListShimmer(itemCount: 8, topPadding: 12);
-        }
-        return SeparateTabItemWidget(
-          artistControllerTag: tag,
-          isResultWidget: false,
-          items: controller.sepataredContent[tabName]['results'] ?? const [],
-          title: tabName,
-          scrollController: _scroll,
+        final loading = controller.isSeparatedArtistContentFetced.isFalse ||
+            !controller.sepataredContent.containsKey(tabName);
+        // The list fades in where its skeleton was.
+        return SkeletonFadeIn(
+          skeleton: const SongListShimmer(itemCount: 8, topPadding: 12),
+          child: loading
+              ? null
+              : SeparateTabItemWidget(
+                  artistControllerTag: tag,
+                  isResultWidget: false,
+                  items: controller.sepataredContent[tabName]['results'] ??
+                      const [],
+                  title: tabName,
+                  scrollController: _scroll,
+                ),
         );
       }),
     );

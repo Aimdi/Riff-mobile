@@ -1,9 +1,9 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '/ui/widgets/image_widget.dart' show RiffNetworkImage;
 import '/models/thumbnail.dart';
 import '/services/podcast_bookmarks.dart';
 import '/ui/theme/riff_spacing.dart';
@@ -115,7 +115,7 @@ class PodcastBookmarkTile extends StatelessWidget {
                     width: RiffComponentSizes.rowArt,
                     height: RiffComponentSizes.rowArt,
                     child: art.isNotEmpty
-                        ? CachedNetworkImage(
+                        ? RiffNetworkImage(
                             imageUrl: art,
                             fit: BoxFit.cover,
                             errorWidget: (_, __, ___) =>

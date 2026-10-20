@@ -4,13 +4,15 @@ import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shimmer/shimmer.dart';
 
 import '../screens/Settings/settings_screen_controller.dart';
 import '../utils/riff_tokens.dart';
 import 'generated_cover.dart';
 import 'letter_art.dart';
 import 'podcast_play.dart' show isPodcastCollection;
+import 'riff_motion.dart';
+import 'shimmer_widgets/basic_container.dart' show RiffSkeletonPulse;
+import '/ui/theme/riff_tokens.dart' show RiffDurations;
 import '/models/artist.dart';
 import '/models/thumbnail.dart';
 import '/services/cover_resolver.dart';
@@ -29,6 +31,91 @@ const kCoverImageHeaders = {
       'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
   'Accept': 'image/webp,image/jpeg,image/png,image/*,*/*;q=0.8',
 };
+
+/// A network cover with Riff's timing: once loaded it fades in over
+/// [RiffDurations.image] and its placeholder clears as fast (front-loaded,
+/// so the cover shows through early), and the fallback shown when it
+/// fails fades in rather than cutting in. Otherwise a [CachedNetworkImage]
+/// with the same parameters.
+class RiffNetworkImage extends StatelessWidget {
+  const RiffNetworkImage({
+    super.key,
+    required this.imageUrl,
+    this.width,
+    this.height,
+    this.fit,
+    this.alignment = Alignment.center,
+    this.memCacheWidth,
+    this.memCacheHeight,
+    this.filterQuality = FilterQuality.low,
+    this.httpHeaders,
+    this.placeholder,
+    this.progressIndicatorBuilder,
+    this.errorWidget,
+    this.imageBuilder,
+    this.color,
+    this.colorBlendMode,
+    this.useOldImageOnUrlChange = false,
+    this.errorFadesIn = true,
+  });
+
+  final String imageUrl;
+  final double? width;
+  final double? height;
+  final BoxFit? fit;
+  final Alignment alignment;
+  final int? memCacheWidth;
+  final int? memCacheHeight;
+  final FilterQuality filterQuality;
+  final Map<String, String>? httpHeaders;
+  final PlaceholderWidgetBuilder? placeholder;
+  final ProgressIndicatorBuilder? progressIndicatorBuilder;
+  final LoadingErrorWidgetBuilder? errorWidget;
+  final ImageWidgetBuilder? imageBuilder;
+  final Color? color;
+  final BlendMode? colorBlendMode;
+
+  /// Keeps the image shown while a new [imageUrl] loads, then crossfades
+  /// to it (no placeholder in between).
+  final bool useOldImageOnUrlChange;
+
+  /// Whether [errorWidget] fades in. Off where it's another image trying a
+  /// second URL behind the same placeholder (it fades its own fallback).
+  final bool errorFadesIn;
+
+  @override
+  Widget build(BuildContext context) {
+    final error = errorWidget;
+    return CachedNetworkImage(
+      imageUrl: imageUrl,
+      width: width,
+      height: height,
+      fit: fit,
+      alignment: alignment,
+      memCacheWidth: memCacheWidth,
+      memCacheHeight: memCacheHeight,
+      filterQuality: filterQuality,
+      httpHeaders: httpHeaders,
+      placeholder: placeholder,
+      progressIndicatorBuilder: progressIndicatorBuilder,
+      imageBuilder: imageBuilder,
+      color: color,
+      colorBlendMode: colorBlendMode,
+      useOldImageOnUrlChange: useOldImageOnUrlChange,
+      fadeInDuration: RiffDurations.image,
+      fadeInCurve: RiffDurations.enterCurve,
+      fadeOutDuration: RiffDurations.image,
+      fadeOutCurve: RiffDurations.enterCurve,
+      errorWidget: error == null || !errorFadesIn
+          ? error
+          : (context, url, e) => RiffFadeIn(
+                duration: RiffDurations.image,
+                rise: 0,
+                child: error(context, url, e),
+              ),
+    );
+  }
+}
 
 class ImageWidget extends StatelessWidget {
   const ImageWidget({
@@ -104,6 +191,23 @@ class ImageWidget extends StatelessWidget {
     );
   }
 
+  /// [_placeholder] for a cover that failed to load: it fades in where the
+  /// loading pulse was instead of cutting in.
+  Widget _fallback(BuildContext context) => RiffFadeIn(
+        duration: RiffDurations.image,
+        rise: 0,
+        child: _placeholder(context),
+      );
+
+  /// What this cover is of: a new URL for the same thing (a better cover
+  /// found, the page's own art arriving) crossfades from the old image,
+  /// while a different thing starts afresh.
+  Key get _subjectKey => ValueKey(song?.id ??
+      playlist?.playlistId ??
+      album?.browseId ??
+      artist?.browseId ??
+      '');
+
   @override
   Widget build(BuildContext context) {
     final pl = playlist;
@@ -136,6 +240,7 @@ class ImageWidget extends StatelessWidget {
         cacheWidth: (size * dpr).round().clamp(64, 1600),
         fit: BoxFit.cover,
         filterQuality: FilterQuality.medium,
+        frameBuilder: riffFadeInFrame,
         errorBuilder: (context, __, ___) => _art(context),
       ),
     );
@@ -173,7 +278,8 @@ class ImageWidget extends StatelessWidget {
                 placeholder: _placeholder(context),
                 shimmer: _shimmer(context),
               )
-            : CachedNetworkImage(
+            : RiffNetworkImage(
+                key: _subjectKey,
                 height: size,
                 width: size,
                 // One dimension only — setting both forces a square decode and
@@ -184,6 +290,11 @@ class ImageWidget extends StatelessWidget {
                 httpHeaders: kCoverImageHeaders,
                 fit: BoxFit.cover,
                 alignment: Alignment.center,
+                useOldImageOnUrlChange: true,
+                // The full-size URL failed: the original one (its loading
+                // pulse looks the same, so nothing flashes), else the
+                // fallback art (which fades in itself).
+                errorFadesIn: false,
                 errorWidget: (context, url, error) {
                   if (raw.isNotEmpty && raw != imageUrl) {
                     return CachedNetworkImage(
@@ -194,12 +305,16 @@ class ImageWidget extends StatelessWidget {
                       httpHeaders: kCoverImageHeaders,
                       fit: BoxFit.cover,
                       alignment: Alignment.center,
-                      errorWidget: (_, __, ___) => _placeholder(context),
+                      fadeInDuration: RiffDurations.image,
+                      fadeInCurve: RiffDurations.enterCurve,
+                      fadeOutDuration: RiffDurations.image,
+                      fadeOutCurve: RiffDurations.enterCurve,
+                      errorWidget: (_, __, ___) => _fallback(context),
                       progressIndicatorBuilder: (_, __, ___) =>
                           _shimmer(context),
                     );
                   }
-                  return _placeholder(context);
+                  return _fallback(context);
                 },
                 progressIndicatorBuilder: ((_, __, ___) => _shimmer(context)),
               );
@@ -220,7 +335,8 @@ class ImageWidget extends StatelessWidget {
               cacheWidth: decodeSide,
               fit: BoxFit.cover,
               filterQuality: FilterQuality.medium,
-              errorBuilder: (_, __, ___) => _placeholder(context),
+              frameBuilder: riffFadeInFrame,
+              errorBuilder: (_, __, ___) => _fallback(context),
             )
           : offlineAvailable
               ? Image.file(
@@ -231,6 +347,7 @@ class ImageWidget extends StatelessWidget {
                   cacheWidth: decodeSide,
                   fit: BoxFit.cover,
                   filterQuality: FilterQuality.medium,
+                  frameBuilder: riffFadeInFrame,
                   // Not saved (an episode or a book's chapter playing from the
                   // phone): its cover from the network.
                   errorBuilder: (_, __, ___) => network(),
@@ -239,28 +356,25 @@ class ImageWidget extends StatelessWidget {
     );
   }
 
+  /// While the cover loads: a skeleton box pulsing like the rest of the
+  /// app's loading skeletons (§5.13), held still under Remove animations.
   Widget _shimmer(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final base = scheme.surfaceContainerLow;
-    final highlight = scheme.surfaceContainerHigh;
-    return Shimmer.fromColors(
-      baseColor: base,
-      highlightColor: highlight,
-      enabled: true,
-      direction: ShimmerDirection.ltr,
-      child: Container(
+    return RiffSkeletonPulse(
+      child: DecoratedBox(
         decoration: BoxDecoration(
           shape: artist != null ? BoxShape.circle : BoxShape.rectangle,
           borderRadius: artist != null ? null : BorderRadius.circular(_radius),
-          color: scheme.surfaceContainerHigh,
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
         ),
+        child: SizedBox.square(dimension: size),
       ),
     );
   }
 }
 
-/// Shows a song's 16:9 video frame immediately, then swaps to the square
-/// audio-track cover once [CoverResolver] finds it (instant when cached).
+/// Shows a song's 16:9 video frame immediately, then crossfades to the
+/// square audio-track cover once [CoverResolver] finds it (instant when
+/// cached); the frame stays up while the cover loads.
 class _SongCoverImage extends StatefulWidget {
   const _SongCoverImage({
     required this.song,
@@ -330,7 +444,9 @@ class _SongCoverImageState extends State<_SongCoverImage> {
 
   @override
   Widget build(BuildContext context) {
-    return CachedNetworkImage(
+    return RiffNetworkImage(
+      // Another song starts afresh; its own better cover crossfades in.
+      key: ValueKey(widget.song.id),
       height: widget.size,
       width: widget.size,
       memCacheWidth: widget.decodeSide,
@@ -339,6 +455,7 @@ class _SongCoverImageState extends State<_SongCoverImage> {
       httpHeaders: kCoverImageHeaders,
       fit: BoxFit.cover,
       alignment: Alignment.center,
+      useOldImageOnUrlChange: true,
       errorWidget: (_, __, ___) => widget.placeholder,
       progressIndicatorBuilder: (_, __, ___) => widget.shimmer,
     );

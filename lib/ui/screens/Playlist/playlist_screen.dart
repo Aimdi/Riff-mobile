@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
@@ -34,6 +33,8 @@ import '../../widgets/collection_header.dart';
 import '../../widgets/header_hero_fade.dart';
 import '../Home/home_layout.dart';
 import '../../widgets/image_widget.dart';
+import '../../widgets/riff_motion.dart';
+import '../../widgets/shimmer_widgets/skeleton_fade.dart';
 import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
 import '../../widgets/mix_transition_chip.dart';
 import '../../widgets/playlist_export_dialog.dart';
@@ -53,6 +54,9 @@ import '/ui/widgets/total_length.dart';
 /// YouTube channel id (`UC…`) — compiled once, not per list row.
 final _channelIdRe = RegExp(r'^UC[\w-]{20,}$');
 
+/// Each playlist page's rows fading in as they replace its skeleton.
+final _rowsFade = Expando<LoadedRowsFade>();
+
 class PlaylistScreen extends StatelessWidget {
   const PlaylistScreen({super.key});
 
@@ -66,6 +70,7 @@ class PlaylistScreen extends StatelessWidget {
     final size = MediaQuery.of(context).size;
     final playerController = Get.find<PlayerController>();
     final landscape = size.width > size.height;
+    final rowsFade = _rowsFade[playlistController] ??= LoadedRowsFade();
     // Podcasts and YouTube channels get the podcast show page; the Obx
     // always reads `playlist`, which an id-only open fills in later.
     return Obx(() {
@@ -103,80 +108,102 @@ class PlaylistScreen extends StatelessWidget {
                             ? 0
                             : -.25 * playlistController.scrollOffset.value,
                         right: landscape ? 0 : null,
-                        child: Obx(() {
-                          // A new photo shows straight away.
-                          PlaylistCovers.rev.value;
-                          final opacityValue = 1 -
-                              playlistController.scrollOffset.value /
-                                  (size.width - 100);
-                          return HeaderHeroFade(
-                            opacity: opacityValue < 0 ||
-                                    playlistController.isSearchingOn.isTrue &&
-                                        !landscape
-                                ? 0
-                                : opacityValue,
-                            color: Theme.of(context).canvasColor,
-                            leftShadowOffset: -size.height,
-                            bottomShadowOffset:
-                                landscape ? size.height : size.width + 80,
-                            // A photo of its own, else, with no art (or when
-                            // it fails to load), the generated cover without
-                            // the title (the header under it shows that).
-                            child: !playlistController.playlist.value.hasArt ||
-                                    _ownPhoto(playlistController.playlist.value)
-                                ? _heroCover(playlistController.playlist.value,
-                                    landscape ? size.height : size.width)
-                                : CachedNetworkImage(
-                                    imageUrl: Thumbnail(playlistController
-                                            .playlist.value.thumbnailUrl)
-                                        .extraHigh,
-                                    fit: landscape
-                                        ? BoxFit.fitHeight
-                                        : BoxFit.cover,
-                                    width: landscape ? null : size.width,
-                                    height:
-                                        landscape ? size.height : size.width,
-                                    memCacheWidth: landscape
-                                        ? null
-                                        : (size.width *
-                                                MediaQuery.devicePixelRatioOf(
-                                                    context))
-                                            .round(),
-                                    memCacheHeight: landscape
-                                        ? (size.height *
-                                                MediaQuery.devicePixelRatioOf(
-                                                    context))
-                                            .round()
-                                        : null,
-                                    errorWidget: (_, __, ___) =>
-                                        CachedNetworkImage(
-                                      imageUrl: playlistController
-                                          .playlist.value.thumbnailUrl,
-                                      fit: landscape
-                                          ? BoxFit.fitHeight
-                                          : BoxFit.cover,
-                                      width: landscape ? null : size.width,
-                                      height:
-                                          landscape ? size.height : size.width,
-                                      memCacheWidth: landscape
-                                          ? null
-                                          : (size.width *
-                                                  MediaQuery.devicePixelRatioOf(
-                                                      context))
-                                              .round(),
-                                      memCacheHeight: landscape
-                                          ? (size.height *
-                                                  MediaQuery.devicePixelRatioOf(
-                                                      context))
-                                              .round()
-                                          : null,
-                                      errorWidget: (_, __, ___) => _heroCover(
-                                          playlistController.playlist.value,
-                                          landscape ? size.height : size.width),
-                                    ),
-                                  ),
-                          );
-                        }))
+                        // Fades in as the page loads (a cover already in
+                        // memory would otherwise cut in).
+                        child: RiffFadeIn(
+                            rise: 0,
+                            child: Obx(() {
+                              // A new photo shows straight away.
+                              PlaylistCovers.rev.value;
+                              final opacityValue = 1 -
+                                  playlistController.scrollOffset.value /
+                                      (size.width - 100);
+                              return HeaderHeroFade(
+                                opacity: opacityValue < 0 ||
+                                        playlistController
+                                                .isSearchingOn.isTrue &&
+                                            !landscape
+                                    ? 0
+                                    : opacityValue,
+                                color: Theme.of(context).canvasColor,
+                                leftShadowOffset: -size.height,
+                                bottomShadowOffset:
+                                    landscape ? size.height : size.width + 80,
+                                // A photo of its own, else, with no art (or
+                                // when it fails to load), the generated cover
+                                // without the title (the header under it
+                                // shows that).
+                                child: !playlistController
+                                            .playlist.value.hasArt ||
+                                        _ownPhoto(
+                                            playlistController.playlist.value)
+                                    ? _heroCover(
+                                        playlistController.playlist.value,
+                                        landscape ? size.height : size.width)
+                                    : RiffNetworkImage(
+                                        imageUrl: Thumbnail(playlistController
+                                                .playlist.value.thumbnailUrl)
+                                            .extraHigh,
+                                        fit: landscape
+                                            ? BoxFit.fitHeight
+                                            : BoxFit.cover,
+                                        width: landscape ? null : size.width,
+                                        height: landscape
+                                            ? size.height
+                                            : size.width,
+                                        memCacheWidth: landscape
+                                            ? null
+                                            : (size.width *
+                                                    MediaQuery
+                                                        .devicePixelRatioOf(
+                                                            context))
+                                                .round(),
+                                        memCacheHeight: landscape
+                                            ? (size.height *
+                                                    MediaQuery
+                                                        .devicePixelRatioOf(
+                                                            context))
+                                                .round()
+                                            : null,
+                                        // The original URL tried next fades its
+                                        // own image or fallback in.
+                                        errorFadesIn: false,
+                                        errorWidget: (_, __, ___) =>
+                                            RiffNetworkImage(
+                                          imageUrl: playlistController
+                                              .playlist.value.thumbnailUrl,
+                                          fit: landscape
+                                              ? BoxFit.fitHeight
+                                              : BoxFit.cover,
+                                          width: landscape ? null : size.width,
+                                          height: landscape
+                                              ? size.height
+                                              : size.width,
+                                          memCacheWidth: landscape
+                                              ? null
+                                              : (size.width *
+                                                      MediaQuery
+                                                          .devicePixelRatioOf(
+                                                              context))
+                                                  .round(),
+                                          memCacheHeight: landscape
+                                              ? (size.height *
+                                                      MediaQuery
+                                                          .devicePixelRatioOf(
+                                                              context))
+                                                  .round()
+                                              : null,
+                                          errorWidget: (_, __, ___) =>
+                                              _heroCover(
+                                                  playlistController
+                                                      .playlist.value,
+                                                  landscape
+                                                      ? size.height
+                                                      : size.width),
+                                        ),
+                                      ),
+                              );
+                            })))
                     : SizedBox(
                         height: size.width,
                         width: size.width,
@@ -316,18 +343,24 @@ class PlaylistScreen extends StatelessWidget {
                                 } else if (playlistController
                                         .isContentFetched.isFalse ||
                                     playlistController.songList.isEmpty) {
+                                  if (playlistController
+                                      .isContentFetched.isFalse) {
+                                    rowsFade.skeleton();
+                                  }
                                   return SizedBox(
                                     height: 300,
                                     child: playlistController
                                             .isContentFetched.isFalse
                                         ? const SongListShimmer(
                                             itemCount: 6, topPadding: 8)
-                                        : Center(
-                                            child: Text(
-                                              "emptyPlaylist".tr,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .titleSmall,
+                                        : RiffFadeIn(
+                                            child: Center(
+                                              child: Text(
+                                                "emptyPlaylist".tr,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .titleSmall,
+                                              ),
                                             ),
                                           ),
                                   );
@@ -363,10 +396,10 @@ class PlaylistScreen extends StatelessWidget {
                                 // (date · 2-line title · duration), not the
                                 // scrolling music tile.
                                 if (isPodcastList) {
-                                  return _PodcastEpisodeTile(
-                                      song: song, onTap: playThis);
+                                  return rowsFade.row(_PodcastEpisodeTile(
+                                      song: song, onTap: playThis));
                                 }
-                                return Obx(() {
+                                return rowsFade.row(Obx(() {
                                   final mixOn =
                                       playlistController.isMixMode.isTrue;
                                   // Only subscribe to analyses in mix mode
@@ -424,7 +457,7 @@ class PlaylistScreen extends StatelessWidget {
                                       ],
                                     ),
                                   );
-                                });
+                                }));
                               },
                             ),
                           ),
@@ -556,6 +589,7 @@ Widget _heroCover(Playlist pl, double side) {
     width: side,
     height: side,
     fit: BoxFit.cover,
+    frameBuilder: riffFadeInFrame,
     errorBuilder: (_, __, ___) => generated,
   );
 }
@@ -911,7 +945,7 @@ class _PodcastEpisodeTile extends StatelessWidget {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(6),
-                        child: CachedNetworkImage(
+                        child: RiffNetworkImage(
                           imageUrl: art,
                           width: 56,
                           height: 56,
@@ -1050,7 +1084,8 @@ class _PodcastSimilarFooterState extends State<_PodcastSimilarFooter> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   )
-                : ListView.separated(
+                : RiffFadeIn(
+                    child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: _similar.length,
@@ -1076,7 +1111,7 @@ class _PodcastSimilarFooterState extends State<_PodcastSimilarFooter> {
                             children: [
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                child: CachedNetworkImage(
+                                child: RiffNetworkImage(
                                   imageUrl: art,
                                   width: tile,
                                   height: tile,
@@ -1107,7 +1142,7 @@ class _PodcastSimilarFooterState extends State<_PodcastSimilarFooter> {
                         ),
                       );
                     },
-                  ),
+                  )),
           ),
         ],
       ),

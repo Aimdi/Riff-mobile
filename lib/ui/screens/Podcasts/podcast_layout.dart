@@ -1,5 +1,4 @@
 import 'package:audio_service/audio_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -7,6 +6,8 @@ import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/song_list_tile.dart' show RiffRowHairline;
 import '/ui/widgets/image_widget.dart';
+import '/ui/widgets/shimmer_widgets/basic_container.dart'
+    show RiffSkeletonPulse;
 import '../Home/home_layout.dart';
 import '/ui/theme/riff_text_metrics.dart';
 
@@ -68,14 +69,16 @@ class PodcastArt extends StatelessWidget {
         dimension: size,
         child: url.isEmpty
             ? fallback
-            : CachedNetworkImage(
+            : RiffNetworkImage(
                 imageUrl: url,
                 httpHeaders: kCoverImageHeaders,
                 fit: BoxFit.cover,
                 memCacheWidth:
                     (size * MediaQuery.devicePixelRatioOf(context)).round(),
-                placeholder: (_, __) =>
-                    ColoredBox(color: theme.colorScheme.surfaceContainerLow),
+                // The loading skeleton's pulse (§5.13).
+                placeholder: (_, __) => RiffSkeletonPulse(
+                    child: ColoredBox(
+                        color: theme.colorScheme.surfaceContainerLow)),
                 errorWidget: (_, __, ___) => fallback,
               ),
       ),

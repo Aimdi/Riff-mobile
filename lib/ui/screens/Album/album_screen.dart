@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/models/album.dart';
@@ -14,6 +13,8 @@ import '../../widgets/content_list_widget.dart';
 import '../../widgets/header_hero_fade.dart';
 import '../../navigator.dart';
 import '../../widgets/image_widget.dart';
+import '../../widgets/riff_motion.dart';
+import '../../widgets/shimmer_widgets/skeleton_fade.dart';
 import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/song_list_tile.dart';
@@ -22,6 +23,9 @@ import '../../theme/riff_spacing.dart';
 import 'album_screen_controller.dart';
 import '/ui/player/play_queue_order.dart' show playQueueFrom;
 import '/ui/widgets/total_length.dart';
+
+/// Each album page's track rows fading in as they replace its skeleton.
+final _rowsFade = Expando<LoadedRowsFade>();
 
 class AlbumScreen extends StatelessWidget {
   const AlbumScreen({super.key});
@@ -35,6 +39,7 @@ class AlbumScreen extends StatelessWidget {
     final size = MediaQuery.of(context).size;
     final playerController = Get.find<PlayerController>();
     final landscape = size.width > size.height;
+    final rowsFade = _rowsFade[albumController] ??= LoadedRowsFade();
     return Scaffold(
       body: NotificationListener<ScrollNotification>(
         onNotification: (ScrollNotification scrollInfo) {
@@ -65,67 +70,75 @@ class AlbumScreen extends StatelessWidget {
                           ? 0
                           : -.25 * albumController.scrollOffset.value,
                       right: landscape ? 0 : null,
-                      child: Obx(() {
-                        final opacityValue = 1 -
-                            albumController.scrollOffset.value /
-                                (size.width - 100);
-                        return HeaderHeroFade(
-                            opacity: opacityValue < 0 ||
-                                    albumController.isSearchingOn.isTrue
-                                ? 0
-                                : opacityValue,
-                            color: Theme.of(context).canvasColor,
-                            leftShadowOffset: -size.height,
-                            bottomShadowOffset:
-                                landscape ? size.height : size.width + 80,
-                            child: CachedNetworkImage(
-                              imageUrl: Thumbnail(
-                                      albumController.album.value.thumbnailUrl)
-                                  .extraHigh,
-                              fit: landscape
-                                  ? BoxFit.fitHeight
-                                  : BoxFit.fitWidth,
-                              width: landscape ? null : size.width,
-                              height: landscape ? size.height : null,
-                              memCacheWidth: landscape
-                                  ? null
-                                  : (size.width *
-                                          MediaQuery.devicePixelRatioOf(
-                                              context))
-                                      .round(),
-                              memCacheHeight: landscape
-                                  ? (size.height *
-                                          MediaQuery.devicePixelRatioOf(
-                                              context))
-                                      .round()
-                                  : null,
-                              errorWidget: (_, __, ___) => CachedNetworkImage(
-                                imageUrl:
-                                    albumController.album.value.thumbnailUrl,
-                                fit: landscape
-                                    ? BoxFit.fitHeight
-                                    : BoxFit.fitWidth,
-                                width: landscape ? null : size.width,
-                                height: landscape ? size.height : null,
-                                memCacheWidth: landscape
-                                    ? null
-                                    : (size.width *
-                                            MediaQuery.devicePixelRatioOf(
-                                                context))
-                                        .round(),
-                                memCacheHeight: landscape
-                                    ? (size.height *
-                                            MediaQuery.devicePixelRatioOf(
-                                                context))
-                                        .round()
-                                    : null,
-                                errorWidget: (_, __, ___) => Container(
-                                  color:
-                                      Theme.of(context).colorScheme.secondary,
-                                ),
-                              ),
-                            ));
-                      }))
+                      // Fades in as the page loads (a cover already in
+                      // memory would otherwise cut in).
+                      child: RiffFadeIn(
+                          rise: 0,
+                          child: Obx(() {
+                            final opacityValue = 1 -
+                                albumController.scrollOffset.value /
+                                    (size.width - 100);
+                            return HeaderHeroFade(
+                                opacity: opacityValue < 0 ||
+                                        albumController.isSearchingOn.isTrue
+                                    ? 0
+                                    : opacityValue,
+                                color: Theme.of(context).canvasColor,
+                                leftShadowOffset: -size.height,
+                                bottomShadowOffset:
+                                    landscape ? size.height : size.width + 80,
+                                child: RiffNetworkImage(
+                                  imageUrl: Thumbnail(albumController
+                                          .album.value.thumbnailUrl)
+                                      .extraHigh,
+                                  fit: landscape
+                                      ? BoxFit.fitHeight
+                                      : BoxFit.fitWidth,
+                                  width: landscape ? null : size.width,
+                                  height: landscape ? size.height : null,
+                                  memCacheWidth: landscape
+                                      ? null
+                                      : (size.width *
+                                              MediaQuery.devicePixelRatioOf(
+                                                  context))
+                                          .round(),
+                                  memCacheHeight: landscape
+                                      ? (size.height *
+                                              MediaQuery.devicePixelRatioOf(
+                                                  context))
+                                          .round()
+                                      : null,
+                                  // The original URL tried next fades its
+                                  // own image or fallback in.
+                                  errorFadesIn: false,
+                                  errorWidget: (_, __, ___) => RiffNetworkImage(
+                                    imageUrl: albumController
+                                        .album.value.thumbnailUrl,
+                                    fit: landscape
+                                        ? BoxFit.fitHeight
+                                        : BoxFit.fitWidth,
+                                    width: landscape ? null : size.width,
+                                    height: landscape ? size.height : null,
+                                    memCacheWidth: landscape
+                                        ? null
+                                        : (size.width *
+                                                MediaQuery.devicePixelRatioOf(
+                                                    context))
+                                            .round(),
+                                    memCacheHeight: landscape
+                                        ? (size.height *
+                                                MediaQuery.devicePixelRatioOf(
+                                                    context))
+                                            .round()
+                                        : null,
+                                    errorWidget: (_, __, ___) => Container(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .secondary,
+                                    ),
+                                  ),
+                                ));
+                          })))
                   : SizedBox(
                       height: size.width,
                       width: size.width,
@@ -221,18 +234,23 @@ class AlbumScreen extends StatelessWidget {
                               } else if (albumController
                                       .isContentFetched.isFalse ||
                                   albumController.songList.isEmpty) {
+                                if (albumController.isContentFetched.isFalse) {
+                                  rowsFade.skeleton();
+                                }
                                 return SizedBox(
                                   height: 300,
                                   child:
                                       albumController.isContentFetched.isFalse
                                           ? const SongListShimmer(
                                               itemCount: 6, topPadding: 8)
-                                          : Center(
-                                              child: Text(
-                                                "emptyPlaylist".tr,
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .titleSmall,
+                                          : RiffFadeIn(
+                                              child: Center(
+                                                child: Text(
+                                                  "emptyPlaylist".tr,
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .titleSmall,
+                                                ),
                                               ),
                                             ),
                                 );
@@ -244,7 +262,7 @@ class AlbumScreen extends StatelessWidget {
                                   index - 3 - albumController.songList.length;
                               if (after == 0 &&
                                   _showOtherVersions(albumController)) {
-                                return Padding(
+                                return rowsFade.row(Padding(
                                   padding: const EdgeInsets.only(
                                       top: RiffSpacing.lg),
                                   child: ContentListWidget(
@@ -257,10 +275,10 @@ class AlbumScreen extends StatelessWidget {
                                         albumList: albumController.otherVersions
                                             .toList()),
                                   ),
-                                );
+                                ));
                               }
                               if (after >= 0) {
-                                return Padding(
+                                return rowsFade.row(Padding(
                                   padding: const EdgeInsets.only(
                                       top: RiffSpacing.lg),
                                   child: ContentListWidget(
@@ -272,9 +290,9 @@ class AlbumScreen extends StatelessWidget {
                                         albumList:
                                             albumController.moreByArtistShown),
                                   ),
-                                );
+                                ));
                               }
-                              return Padding(
+                              return rowsFade.row(Padding(
                                 padding:
                                     const EdgeInsets.only(left: 4, right: 4),
                                 child: SongListTile(
@@ -289,7 +307,7 @@ class AlbumScreen extends StatelessWidget {
                                     isPlaylistOrAlbum: true,
                                     thumbReplacementWithIndex: true,
                                     index: index - 2),
-                              );
+                              ));
                             },
                           ),
                         ),

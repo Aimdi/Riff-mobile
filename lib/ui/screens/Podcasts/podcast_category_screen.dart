@@ -1,8 +1,9 @@
 import '../Home/home_layout.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/widgets/image_widget.dart' show RiffNetworkImage;
+import '/ui/widgets/shimmer_widgets/skeleton_fade.dart';
 import '/models/thumbnail.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
@@ -50,89 +51,94 @@ class _PodcastCategoryScreenState extends State<PodcastCategoryScreen> {
       body: Column(children: [
         RiffPageHeader(widget.name),
         Expanded(
-          child: _loading
-              ? const SongListShimmer(itemCount: 8, topPadding: 8)
-              : _podcasts.isEmpty
-                  ? Center(child: Text('noResults'.tr))
-                  : GridView.builder(
-                      padding: const EdgeInsets.only(
-                          left: RiffSpacing.md,
-                          top: RiffSpacing.md,
-                          right: RiffSpacing.md,
-                          bottom: RiffSpacing.unit * 10),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.78,
-                        crossAxisSpacing: RiffSpacing.md,
-                        mainAxisSpacing: RiffSpacing.md,
-                      ),
-                      itemCount: _podcasts.length,
-                      itemBuilder: (context, i) {
-                        final p = _podcasts[i];
-                        final art =
-                            Thumbnail((p['artwork'] ?? '').toString()).high;
-                        // §5.3 card: no background, art radius 8,
-                        // titleMedium / bodyMedium, gap 8.
-                        return InkWell(
-                          borderRadius: BorderRadius.circular(RiffRadii.sm),
-                          onTap: () async {
-                            if (shouldPlayPodcastShowOnTap()) {
-                              final ok = await playPodcastShow(p);
-                              if (ok) return;
-                            }
-                            Get.to(() => PodcastEpisodesScreen(podcast: p));
-                          },
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: ClipRRect(
-                                  borderRadius:
-                                      BorderRadius.circular(RiffRadii.sm),
-                                  child: CachedNetworkImage(
-                                    imageUrl: art,
-                                    width: double.infinity,
-                                    memCacheWidth:
-                                        ((MediaQuery.sizeOf(context).width -
+          // What loaded fades in where the skeleton was.
+          child: SkeletonFadeIn(
+              skeleton: const SongListShimmer(itemCount: 8, topPadding: 8),
+              child: _loading
+                  ? null
+                  : _podcasts.isEmpty
+                      ? Center(child: Text('noResults'.tr))
+                      : GridView.builder(
+                          padding: const EdgeInsets.only(
+                              left: RiffSpacing.md,
+                              top: RiffSpacing.md,
+                              right: RiffSpacing.md,
+                              bottom: RiffSpacing.unit * 10),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.78,
+                            crossAxisSpacing: RiffSpacing.md,
+                            mainAxisSpacing: RiffSpacing.md,
+                          ),
+                          itemCount: _podcasts.length,
+                          itemBuilder: (context, i) {
+                            final p = _podcasts[i];
+                            final art =
+                                Thumbnail((p['artwork'] ?? '').toString()).high;
+                            // §5.3 card: no background, art radius 8,
+                            // titleMedium / bodyMedium, gap 8.
+                            return InkWell(
+                              borderRadius: BorderRadius.circular(RiffRadii.sm),
+                              onTap: () async {
+                                if (shouldPlayPodcastShowOnTap()) {
+                                  final ok = await playPodcastShow(p);
+                                  if (ok) return;
+                                }
+                                Get.to(() => PodcastEpisodesScreen(podcast: p));
+                              },
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: ClipRRect(
+                                      borderRadius:
+                                          BorderRadius.circular(RiffRadii.sm),
+                                      child: RiffNetworkImage(
+                                        imageUrl: art,
+                                        width: double.infinity,
+                                        memCacheWidth: ((MediaQuery.sizeOf(
+                                                            context)
+                                                        .width -
                                                     30) /
                                                 2 *
                                                 MediaQuery.devicePixelRatioOf(
                                                     context))
                                             .round(),
-                                    fit: BoxFit.cover,
-                                    errorWidget: (_, __, ___) => Container(
-                                      color:
-                                          theme.colorScheme.surfaceContainerLow,
-                                      child: Icon(Icons.podcasts,
-                                          size:
-                                              RiffComponentSizes.emptyStateIcon,
+                                        fit: BoxFit.cover,
+                                        errorWidget: (_, __, ___) => Container(
                                           color: theme
-                                              .colorScheme.onSurfaceVariant),
+                                              .colorScheme.surfaceContainerLow,
+                                          child: Icon(Icons.podcasts,
+                                              size: RiffComponentSizes
+                                                  .emptyStateIcon,
+                                              color: theme.colorScheme
+                                                  .onSurfaceVariant),
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
+                                  const SizedBox(height: RiffSpacing.sm),
+                                  Text((p['title'] ?? '').toString(),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: theme.textTheme.titleMedium),
+                                  if ((p['author'] ?? '')
+                                      .toString()
+                                      .trim()
+                                      .isNotEmpty)
+                                    Text((p['author'] ?? '').toString(),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(
+                                                color: theme.colorScheme
+                                                    .onSurfaceVariant)),
+                                ],
                               ),
-                              const SizedBox(height: RiffSpacing.sm),
-                              Text((p['title'] ?? '').toString(),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.titleMedium),
-                              if ((p['author'] ?? '')
-                                  .toString()
-                                  .trim()
-                                  .isNotEmpty)
-                                Text((p['author'] ?? '').toString(),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                        color: theme
-                                            .colorScheme.onSurfaceVariant)),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
+                            );
+                          },
+                        )),
         ),
       ]),
     );

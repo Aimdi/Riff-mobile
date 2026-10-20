@@ -72,6 +72,19 @@ Motion: smoother everywhere
   dropping and rising; the mini player's progress moves smoothly
   instead of in one-second steps; Up Next eases the playing song's tint
   and the played songs' dimming
+* Covers fade in quickly as they load (the placeholder pulses like the
+  rest of the loading skeletons, and stays still with Remove animations),
+  local covers fade in instead of popping, and a sharper cover for the
+  same song replaces the old one without a loading flash between
+* Album, playlist, artist, podcast show, Inbox, Library and Cloud pages:
+  loaded songs and episodes fade and rise in where their skeleton was;
+  the album/playlist header fades in on the page's timing; the top bar's
+  title and back button ease together as you scroll; Save and Download
+  crossfade (and pop when done)
+* Settings groups open and close smoothly, and settings that appear
+  when you turn another on (normalization level, developer rows) grow
+  in instead of popping; "Read more" and "See more" unfold
+* Library's panes, selection mode and grid / list switch crossfade
 
 # 1.7.153
 
