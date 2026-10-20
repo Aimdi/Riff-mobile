@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Shared layout / motion tokens for the Riff daily-loop UI.
+/// Shared layout tokens for the Riff daily-loop UI (motion lives in
+/// RiffDurations).
 /// Prefer these over one-off magic numbers in new surfaces.
 class RiffTokens {
   RiffTokens._();
@@ -9,9 +10,6 @@ class RiffTokens {
   static const double radiusMd = 14;
   static const double radiusLg = 18;
   static const double hairline = 0.5;
-
-  static const Duration quick = Duration(milliseconds: 180);
-  static const Duration medium = Duration(milliseconds: 260);
 
   static BorderSide hairlineBorder(BuildContext context) {
     final c = Theme.of(context).dividerColor;

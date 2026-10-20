@@ -119,6 +119,42 @@ class RiffDurations {
   /// the keyboard's Shift + → / ← (Spotify's step).
   static const Duration seekStep = Duration(seconds: 10);
   static const Curve selectCurve = Curves.easeOutCubic;
+
+  /// Loaded content fading in where its skeleton was, and one section's
+  /// content giving way to another's (a chip, a pill, a mode).
+  static const Duration content = Duration(milliseconds: 250);
+
+  /// A cover fading in once it has loaded (the placeholder goes as fast).
+  static const Duration image = Duration(milliseconds: 200);
+
+  /// A new song: the cover and the title / artist crossfading, in the
+  /// player and the mini player alike.
+  static const Duration trackChange = Duration(milliseconds: 300);
+
+  /// Colour following the cover (the player's background, the glow,
+  /// the album-colour theme): slower, so the whole screen eases over.
+  static const Duration colour = Duration(milliseconds: 600);
+
+  /// Curves: what comes in decelerates, what leaves accelerates, and a
+  /// toggle turning on (a like) overshoots a little.
+  static const Curve enterCurve = Curves.easeOutCubic;
+  static const Curve exitCurve = Curves.easeInCubic;
+  static const Curve popCurve = Curves.easeOutBack;
+}
+
+/// Distances things travel as they come in (dp).
+class RiffMotionDistances {
+  RiffMotionDistances._();
+
+  /// Loaded content rising into place as it fades in.
+  static const double contentRise = 8;
+
+  /// Shared-axis page swaps (rail tabs, search filters): how far the
+  /// incoming page slides as it fades through.
+  static const double sharedAxis = 30;
+
+  /// A toggle's new icon growing from this scale (a like, a download done).
+  static const double popFromScale = 0.6;
 }
 
 /// Component sizes from §4.4 that aren't Home-specific ([RiffSizes] in
