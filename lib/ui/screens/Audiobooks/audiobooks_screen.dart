@@ -12,8 +12,11 @@ import '/services/plugin_service.dart';
 import '/ui/navigator.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/riff_motion.dart';
+import '/ui/widgets/rows_reveal.dart';
 import '/ui/widgets/shimmer_widgets/basic_container.dart'
     show RiffSkeletonPulse;
+import '/ui/widgets/shimmer_widgets/skeleton_fade.dart';
 import '../Home/home_layout.dart';
 import '../Library/library.dart' show libraryGridMetrics;
 import '../Podcasts/podcast_empty_state.dart';
@@ -75,6 +78,12 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
   late int _mode;
   bool _searching = false;
 
+  /// The mode last built, and whether it has changed since the tab opened:
+  /// from then on each mode's content fades in as it's picked (the first
+  /// comes in with the tab).
+  int? _builtMode;
+  bool _switched = false;
+
   @override
   void initState() {
     super.initState();
@@ -101,6 +110,20 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
   Widget build(BuildContext context) {
     final abs = Get.find<AudiobookshelfService>();
     final topPadding = context.isLandscape ? 50.0 : 90.0;
+    if (_mode != _builtMode) {
+      _switched = _builtMode != null;
+      _builtMode = _mode;
+    }
+    final content = _mode == 0
+        ? _DiscoverView(
+            searching: _searching,
+            onCloseSearch: () => setState(() => _searching = false),
+          )
+        : _mode == 1
+            ? Obx(() => abs.isConnected.value
+                ? const _AbsLibraryView()
+                : const _AbsLoginForm())
+            : _SavedView(onDiscover: () => _select(0));
 
     return Padding(
       padding: widget.isBottomNavActive
@@ -114,16 +137,10 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
           const SizedBox(height: RiffSpacing.xs),
           Expanded(
             child: RiffScrollUnder(
-                child: _mode == 0
-                    ? _DiscoverView(
-                        searching: _searching,
-                        onCloseSearch: () => setState(() => _searching = false),
-                      )
-                    : _mode == 1
-                        ? Obx(() => abs.isConnected.value
-                            ? const _AbsLibraryView()
-                            : const _AbsLoginForm())
-                        : _SavedView(onDiscover: () => _select(0))),
+                // A mode's content fades in as it takes the last one's place.
+                child: _switched
+                    ? RiffFadeIn(key: ValueKey(_mode), child: content)
+                    : content),
           ),
         ],
       ),
@@ -189,34 +206,37 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
             final (mode, label) = tabs[i];
             final active = _mode == mode;
             final scheme = Theme.of(context).colorScheme;
+            final fill = RiffColors.of(context).accentMuted;
             return Center(
               child: SizedBox(
                 height: RiffComponentSizes.chip,
-                child: Material(
-                  color: active
-                      ? RiffColors.of(context).accentMuted
-                      : Colors.transparent,
-                  shape: StadiumBorder(
-                      side: BorderSide(
-                          color: active
-                              ? scheme.primary
-                              : Theme.of(context).dividerColor)),
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    onTap: () => _select(mode),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: RiffSpacing.md),
-                      child: Center(
-                        child: Text(
-                          label,
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelMedium
-                              ?.copyWith(
-                                  color: active
-                                      ? scheme.primary
-                                      : scheme.onSurface),
+                // The picked chip's fill, outline and label ease over.
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(end: active ? 1 : 0),
+                  duration: RiffDurations.select,
+                  curve: RiffDurations.selectCurve,
+                  builder: (context, t, _) => Material(
+                    color: Color.lerp(fill.withAlpha(0), fill, t),
+                    shape: StadiumBorder(
+                        side: BorderSide(
+                            color: Color.lerp(Theme.of(context).dividerColor,
+                                scheme.primary, t)!)),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: () => _select(mode),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: RiffSpacing.md),
+                        child: Center(
+                          child: Text(
+                            label,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelMedium
+                                ?.copyWith(
+                                    color: Color.lerp(
+                                        scheme.onSurface, scheme.primary, t)),
+                          ),
                         ),
                       ),
                     ),
@@ -242,10 +262,15 @@ class _DiscoverView extends StatefulWidget {
   State<_DiscoverView> createState() => _DiscoverViewState();
 }
 
-class _DiscoverViewState extends State<_DiscoverView> {
+class _DiscoverViewState extends State<_DiscoverView>
+    with SingleTickerProviderStateMixin {
   List<FreeAudiobook> _free = const [];
   List<AudiobookItem> _store = const [];
   bool _loading = true;
+
+  /// The shelves and genres taking the placeholder's place fade in (on
+  /// the first load: a refresh keeps the shelves on screen).
+  late final _reveal = RowsReveal(vsync: this);
 
   final _search = TextEditingController();
   String _query = '';
@@ -262,6 +287,7 @@ class _DiscoverViewState extends State<_DiscoverView> {
   @override
   void dispose() {
     _search.dispose();
+    _reveal.dispose();
     super.dispose();
   }
 
@@ -272,6 +298,7 @@ class _DiscoverViewState extends State<_DiscoverView> {
       AudiobookCatalogService.browse(),
     ]);
     if (!mounted) return;
+    if (_free.isEmpty && _store.isEmpty) _reveal.play();
     setState(() {
       _free = res[0] as List<FreeAudiobook>;
       _store = res[1] as List<AudiobookItem>;
@@ -337,7 +364,7 @@ class _DiscoverViewState extends State<_DiscoverView> {
             const SliverToBoxAdapter(child: _ShelfPlaceholder())
           else if (_free.isEmpty && _store.isEmpty)
             SliverToBoxAdapter(
-              child: Padding(
+              child: _reveal.row(Padding(
                 padding: const EdgeInsets.only(top: RiffSpacing.unit * 15),
                 child: PodcastEmptyState(
                   icon: Icons.wifi_off_rounded,
@@ -346,11 +373,11 @@ class _DiscoverViewState extends State<_DiscoverView> {
                   actionIcon: Icons.refresh_rounded,
                   onAction: _load,
                 ),
-              ),
+              )),
             ),
           if (_free.isNotEmpty) ...[
             SliverToBoxAdapter(
-              child: HomeSectionHeader(
+              child: _reveal.row(HomeSectionHeader(
                 'freeClassics'.tr,
                 badge: 'freeBadge'.tr,
                 trailing: _SeeAll(
@@ -362,39 +389,40 @@ class _DiscoverViewState extends State<_DiscoverView> {
                     transition: Transition.rightToLeft,
                   ),
                 ),
-              ),
+              )),
             ),
             SliverToBoxAdapter(
-              child: HomeShelf(
+              child: _reveal.row(HomeShelf(
                 cardSize: HomeLayout.shelfCard,
                 itemCount: _free.length,
                 itemBuilder: (context, i) => FreeAudiobookCard(
                     book: _free[i], size: HomeLayout.shelfCard),
-              ),
+              )),
             ),
           ],
           if (!_loading) ...[
-            SliverToBoxAdapter(child: HomeSectionHeader('browseByGenre'.tr)),
+            SliverToBoxAdapter(
+                child: _reveal.row(HomeSectionHeader('browseByGenre'.tr))),
             _genreGrid(context),
           ],
           if (_store.isNotEmpty) ...[
             SliverToBoxAdapter(
-              child: HomeSectionHeader(
+              child: _reveal.row(HomeSectionHeader(
                 'storeBestsellers'.tr,
                 trailing: Padding(
                   padding: const EdgeInsets.only(right: HomeLayout.gutter),
                   child: Text('storeBookNote'.tr,
                       style: homeCardSubtitleStyle(context)),
                 ),
-              ),
+              )),
             ),
             SliverToBoxAdapter(
-              child: HomeShelf(
+              child: _reveal.row(HomeShelf(
                 cardSize: HomeLayout.shelfCard,
                 itemCount: _store.length,
                 itemBuilder: (context, i) => StoreAudiobookCard(
                     book: _store[i], size: HomeLayout.shelfCard),
-              ),
+              )),
             ),
           ],
           const SliverToBoxAdapter(
@@ -417,11 +445,11 @@ class _DiscoverViewState extends State<_DiscoverView> {
               MediaQuery.textScalerOf(context).scale(HomeLayout.tileHeight),
         ),
         delegate: SliverChildBuilderDelegate(
-          (context, i) => AudiobookGenreTile(
+          (context, i) => _reveal.row(AudiobookGenreTile(
             label: genres[i].labelKey.tr,
             index: i,
             onTap: () => _openGenre(genres[i]),
-          ),
+          )),
           childCount: genres.length,
         ),
       ),
@@ -920,33 +948,42 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
         ),
         Expanded(
           child: Obx(() {
+            // What loads fades in where the spinner was.
+            const spinner = Center(
+                child: SizedBox.square(
+                    dimension: RiffComponentSizes.spinner,
+                    child: CircularProgressIndicator(
+                        strokeWidth: RiffComponentSizes.spinnerStroke)));
             if (abs.isLoading.value && abs.books.isEmpty) {
-              return const Center(
-                  child: SizedBox.square(
-                      dimension: RiffComponentSizes.spinner,
-                      child: CircularProgressIndicator(
-                          strokeWidth: RiffComponentSizes.spinnerStroke)));
+              return const SkeletonFadeIn(skeleton: spinner);
             }
             // A failed load is NOT an empty library. Saying "no books" when the
             // token expired or the server is unreachable sends the user
             // looking for a problem in Audiobookshelf that is not there.
             final loadErr = abs.loadError.value;
             if (loadErr != null && abs.books.isEmpty) {
-              return PodcastEmptyState(
-                icon: Icons.cloud_off_rounded,
-                message: loadErr,
-                actionLabel: 'retry'.tr,
-                actionIcon: Icons.refresh_rounded,
-                onAction: () => abs.fetchBooks(),
+              return SkeletonFadeIn(
+                skeleton: spinner,
+                child: PodcastEmptyState(
+                  icon: Icons.cloud_off_rounded,
+                  message: loadErr,
+                  actionLabel: 'retry'.tr,
+                  actionIcon: Icons.refresh_rounded,
+                  onAction: () => abs.fetchBooks(),
+                ),
               );
             }
             if (abs.books.isEmpty) {
-              return PodcastEmptyState(
-                  icon: Icons.auto_stories_outlined, message: 'absNoBooks'.tr);
+              return SkeletonFadeIn(
+                skeleton: spinner,
+                child: PodcastEmptyState(
+                    icon: Icons.auto_stories_outlined,
+                    message: 'absNoBooks'.tr),
+              );
             }
             final continueBooks = abs.inProgressBooks.take(12).toList();
             final token = abs.token ?? '';
-            return RefreshIndicator(
+            final books = RefreshIndicator(
               onRefresh: () async {
                 await abs.fetchBooks();
                 await abs.fetchInProgress();
@@ -1030,6 +1067,7 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                 );
               }),
             );
+            return SkeletonFadeIn(skeleton: spinner, child: books);
           }),
         ),
       ],

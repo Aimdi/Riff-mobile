@@ -10,6 +10,7 @@ import '/ui/screens/Home/home_screen_controller.dart';
 import '/ui/screens/Home/home_metrics.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/riff_equalizer.dart';
+import '/ui/widgets/riff_motion.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/snackbar.dart';
 import '/ui/theme/riff_theme.dart';
@@ -67,7 +68,9 @@ class _RiffWaveHeroState extends State<RiffWaveHero>
   Future<void> _playWave() async {
     if (_starting) return;
     setState(() => _starting = true);
-    _playPulse.repeat(reverse: true);
+    // Remove animations: the spinner without the pulse (a repeat isn't
+    // shortened as one-shot animations are).
+    if (!reduceMotion(context)) _playPulse.repeat(reverse: true);
     try {
       final ok = await Get.find<PlayerController>().startRiffWave();
       if (!mounted) return;
@@ -251,9 +254,11 @@ class _PlayButton extends StatelessWidget {
           child: Center(
             child: starting
                 ? ScaleTransition(
-                    scale: Tween<double>(begin: 0.88, end: 1.08).animate(
-                        CurvedAnimation(
-                            parent: pulse, curve: Curves.easeInOut)),
+                    // Chained, not a CurvedAnimation made on each build
+                    // (each one left a listener on the pulse).
+                    scale: Tween<double>(begin: 0.88, end: 1.08)
+                        .chain(CurveTween(curve: Curves.easeInOut))
+                        .animate(pulse),
                     child: SizedBox(
                       width: 20,
                       height: 20,

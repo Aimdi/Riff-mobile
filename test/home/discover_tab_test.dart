@@ -25,7 +25,9 @@ class _FakeHome extends GetxController implements HomeScreenController {
   @override
   final tabIndex = RailTab.home.obs;
   @override
-  void onSideBarTabSelected(int index) => tabIndex.value = index;
+  void onSideBarTabSelected(int index,
+          {List<int> railOrder = RailTab.phoneRailOrder}) =>
+      tabIndex.value = index;
 
   @override
   final quickPicks = QuickPicks([]).obs;

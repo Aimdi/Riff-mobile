@@ -85,6 +85,19 @@ Motion: smoother everywhere
   when you turn another on (normalization level, developer rows) grow
   in instead of popping; "Read more" and "See more" unfold
 * Library's panes, selection mode and grid / list switch crossfade
+* Pages open and close in 250 ms (were 300). Switching between rail
+  tabs slides a short way and fades through, in the direction you moved
+  on the rail (it used to slide whole screens for almost half a second,
+  sometimes the wrong way); search filters do the same sideways. The
+  Songs group in the rail folds away as smoothly as it opens, and the
+  Playlists + button grows in and out
+* Home, Explore, Search results, Audiobooks and Stats: loaded content
+  fades in where its skeleton was, and switching a section (Podcasts
+  pills, Audiobooks modes, Explore chips, Stats ranges, search filters)
+  crossfades with the chips easing their colour; the offline banner
+  slides open instead of popping
+* The album-colour theme eases between covers' colours on the colour
+  timing; dialogs open on the same timing as the rest
 
 # 1.7.153
 

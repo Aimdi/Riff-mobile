@@ -17,6 +17,7 @@ import '../../../utils/house_keeping.dart';
 import '../../widgets/add_to_playlist.dart';
 import '/ui/widgets/sort_widget.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart' show RiffDurations;
 import '../Settings/settings_screen_controller.dart';
 import '/services/piped_service.dart';
 import '/services/cloud_music_service.dart';
@@ -844,6 +845,10 @@ class LibraryPlaylistsController extends GetxController
       ),
       barrierDismissible: false,
       barrierColor: Theme.of(context).dialogTheme.barrierColor,
+      // Close to showDialog's fade (get's default is 300 ms). It stays a
+      // Get dialog: the import closes it through Get.isDialogOpen.
+      transitionDuration: RiffDurations.select,
+      transitionCurve: RiffDurations.enterCurve,
     );
   }
 }

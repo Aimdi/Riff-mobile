@@ -9,7 +9,9 @@ class _FakeHome extends GetxController implements HomeScreenController {
   final tabIndex = 0.obs;
 
   @override
-  void onSideBarTabSelected(int index) => tabIndex.value = index;
+  void onSideBarTabSelected(int index,
+          {List<int> railOrder = RailTab.phoneRailOrder}) =>
+      tabIndex.value = index;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

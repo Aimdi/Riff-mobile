@@ -8,6 +8,7 @@ import '/services/discovery/discovery_types.dart';
 import '/services/stats_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/riff_sheet.dart' show RiffChoiceChip;
+import '/ui/widgets/rows_reveal.dart';
 import '/ui/widgets/snackbar.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
@@ -24,8 +25,18 @@ class StatsScreen extends StatefulWidget {
   State<StatsScreen> createState() => _StatsScreenState();
 }
 
-class _StatsScreenState extends State<StatsScreen> {
+class _StatsScreenState extends State<StatsScreen>
+    with SingleTickerProviderStateMixin {
   StatsRange _range = StatsRange.allTime;
+
+  /// A new range's top songs and artists fade in in place of the last's.
+  late final _reveal = RowsReveal(vsync: this);
+
+  @override
+  void dispose() {
+    _reveal.dispose();
+    super.dispose();
+  }
 
   String _hoursLabel(int seconds) {
     final h = seconds / 3600.0;
@@ -171,7 +182,10 @@ class _StatsScreenState extends State<StatsScreen> {
                     RiffChoiceChip(
                       label: r.labelKey.tr,
                       selected: r == range,
-                      onTap: () => setState(() => _range = r),
+                      onTap: () {
+                        if (r != _range) _reveal.play();
+                        setState(() => _range = r);
+                      },
                     ),
                 ],
               ),
@@ -193,29 +207,35 @@ class _StatsScreenState extends State<StatsScreen> {
                   ),
           ),
           if (topSongs.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: HomeLayout.gutter, vertical: RiffSpacing.xs),
-              child:
-                  Text("statsEmpty".tr, style: homeCardSubtitleStyle(context)),
+            _reveal.row(
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: HomeLayout.gutter, vertical: RiffSpacing.xs),
+                child: Text("statsEmpty".tr,
+                    style: homeCardSubtitleStyle(context)),
+              ),
             ),
           for (final e in topSongs.asMap().entries)
-            _RankRow(
-              rank: e.key + 1,
-              title: '${e.value["title"]}',
-              subtitle: '${e.value["artist"]}',
-              count: '${e.value["plays"]}',
-              // Songs play from there, the rest of the list after them.
-              onTap: playable.any((m) => m.id == '${e.value["id"]}')
-                  ? () => _playFrom(playable, '${e.value["id"]}')
-                  : null,
+            _reveal.row(
+              _RankRow(
+                rank: e.key + 1,
+                title: '${e.value["title"]}',
+                subtitle: '${e.value["artist"]}',
+                count: '${e.value["plays"]}',
+                // Songs play from there, the rest of the list after them.
+                onTap: playable.any((m) => m.id == '${e.value["id"]}')
+                    ? () => _playFrom(playable, '${e.value["id"]}')
+                    : null,
+              ),
             ),
           HomeSectionHeader("topArtists".tr),
           for (final e in topArtists.asMap().entries)
-            _RankRow(
-              rank: e.key + 1,
-              title: '${e.value["artist"]}',
-              count: '${e.value["plays"]}',
+            _reveal.row(
+              _RankRow(
+                rank: e.key + 1,
+                title: '${e.value["artist"]}',
+                count: '${e.value["plays"]}',
+              ),
             ),
           if (rising.isNotEmpty) ...[
             HomeSectionHeader("topRisingArtists".tr),

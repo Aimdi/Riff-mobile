@@ -10,6 +10,7 @@ import '/services/explicit_content.dart';
 import '/services/music_service.dart';
 import '/services/search_recents.dart';
 import '/services/search_suggestions.dart';
+import '/ui/theme/riff_tokens.dart' show RiffDurations;
 
 class SearchScreenController extends GetxController with ProcessLink {
   final textInputController = TextEditingController();
@@ -50,7 +51,7 @@ class SearchScreenController extends GetxController with ProcessLink {
       suggestedItems.clear();
       return;
     }
-    _suggestionDebounce = Timer(const Duration(milliseconds: 350), () {
+    _suggestionDebounce = Timer(RiffDurations.typingPause, () {
       unawaited(_fetchSuggestions(text));
     });
   }
