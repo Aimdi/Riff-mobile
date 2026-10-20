@@ -56,7 +56,7 @@ class _RiffFadeInState extends State<RiffFadeIn>
   Widget build(BuildContext context) {
     final rise = reduceMotion(context) ? 0.0 : widget.rise;
     // The same widgets throughout, so the child keeps its state when the
-    // fade ends; at full opacity and no offset they paint it as is.
+    // fade ends (once done it's a plain opaque layer, no offset).
     return AnimatedBuilder(
       animation: _curve,
       builder: (context, child) => Opacity(
