@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/ui/theme/riff_spacing.dart';
 import 'package:harmonymusic/ui/theme/riff_theme.dart';
+import 'package:harmonymusic/ui/theme/riff_tokens.dart';
 import 'package:harmonymusic/ui/widgets/riff_sheet.dart';
 
 const _long = 'Download new episodes automatically, on Wi-Fi only';
@@ -49,5 +50,29 @@ void main() {
     expect(tester.getSize(find.byType(RiffChoiceChip).first).width,
         lessThanOrEqualTo(screen.width));
     expect(find.text('Off'), findsOneWidget);
+  });
+
+  testWidgets('selecting eases the fill in instead of switching at once',
+      (tester) async {
+    Widget chip(bool selected) => _app(RiffChoiceChip(
+        label: '4 weeks', onTap: () {}, selected: selected));
+    Color fill() => tester
+        .widget<Material>(find.descendant(
+            of: find.byType(RiffChoiceChip), matching: find.byType(Material)))
+        .color!;
+    await tester.pumpWidget(chip(false));
+    final off = fill();
+    await tester.pumpWidget(chip(true));
+    await tester.pumpAndSettle();
+    final on = fill();
+    expect(on, isNot(off));
+
+    await tester.pumpWidget(chip(false));
+    await tester.pump(RiffDurations.select ~/ 2);
+    final mid = fill();
+    expect(mid, isNot(on));
+    expect(mid, isNot(off));
+    await tester.pumpAndSettle();
+    expect(fill(), off);
   });
 }

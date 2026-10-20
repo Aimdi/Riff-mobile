@@ -246,11 +246,27 @@ class RiffChoiceChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.secondary;
-    final fg = selected ? accent : theme.colorScheme.onSurface;
+    final muted = RiffColors.of(context).accentMuted;
+    // Selecting eases the fill, outline and label in (and out) together.
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(end: selected ? 1 : 0),
+      duration: RiffDurations.select,
+      curve: RiffDurations.selectCurve,
+      builder: (context, t, _) => _chip(
+        context,
+        fill: Color.lerp(muted.withAlpha(0), muted, t)!,
+        outline: Color.lerp(theme.dividerColor, accent, t)!,
+        fg: Color.lerp(theme.colorScheme.onSurface, accent, t)!,
+      ),
+    );
+  }
+
+  Widget _chip(BuildContext context,
+      {required Color fill, required Color outline, required Color fg}) {
+    final theme = Theme.of(context);
     return Material(
-      color: selected ? RiffColors.of(context).accentMuted : Colors.transparent,
-      shape: StadiumBorder(
-          side: BorderSide(color: selected ? accent : theme.dividerColor)),
+      color: fill,
+      shape: StadiumBorder(side: BorderSide(color: outline)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
