@@ -31,27 +31,46 @@ class PodcastFollowButton extends StatelessWidget {
         ? RiffComponentSizes.chipLeadingIcon
         : RiffComponentSizes.chipChevron;
 
-    if (following) {
-      return OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(Icons.check, size: iconSize),
-        label: Text('subscribed'.tr),
-        style: OutlinedButton.styleFrom(
-          visualDensity: VisualDensity.compact,
-          padding: pad,
-          shape: const StadiumBorder(),
-        ),
-      );
-    }
+    final button = following
+        ? OutlinedButton.icon(
+            key: const ValueKey(true),
+            onPressed: onPressed,
+            icon: Icon(Icons.check, size: iconSize),
+            label: Text('subscribed'.tr),
+            style: OutlinedButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: pad,
+              shape: const StadiumBorder(),
+            ),
+          )
+        : FilledButton.icon(
+            key: const ValueKey(false),
+            onPressed: onPressed,
+            icon: Icon(Icons.add, size: iconSize),
+            label: Text('subscribe'.tr),
+            style: FilledButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: pad,
+              shape: const StadiumBorder(),
+            ),
+          );
 
-    return FilledButton.icon(
-      onPressed: onPressed,
-      icon: Icon(Icons.add, size: iconSize),
-      label: Text('subscribe'.tr),
-      style: FilledButton.styleFrom(
-        visualDensity: VisualDensity.compact,
-        padding: pad,
-        shape: const StadiumBorder(),
+    // Follow ↔ Following: the two pills crossfade while the width eases
+    // between them. The constraints pass straight through, so a pill
+    // stretched across its slot (Library's grid) stays stretched.
+    return AnimatedSize(
+      duration: RiffDurations.select,
+      curve: RiffDurations.selectCurve,
+      child: AnimatedSwitcher(
+        duration: RiffDurations.select,
+        switchInCurve: RiffDurations.enterCurve,
+        switchOutCurve: RiffDurations.exitCurve,
+        layoutBuilder: (current, previous) => Stack(
+          fit: StackFit.passthrough,
+          alignment: Alignment.center,
+          children: [...previous, if (current != null) current],
+        ),
+        child: button,
       ),
     );
   }

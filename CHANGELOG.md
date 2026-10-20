@@ -49,6 +49,17 @@
   * The notification's and the car's repeat icon matches the player's
     when shuffle is turned on
 
+Motion: smoother everywhere
+* Liking a song pops the heart in; unliking fades it. The playing song's
+  row eases its tint and title colour in and out, its bars fade in (the
+  length beside them glides instead of jumping) and settle to rest on
+  pause instead of snapping
+* Download buttons fade between waiting, progress and done (done pops
+  in), and the downloaded mark fades in as the artist name glides over;
+  Follow / Following, Home's play button, the playing veil on Speed dial
+  tiles, a station chip starting and the sort bar's search all crossfade
+  instead of switching at once
+
 # 1.7.153
 
 The music player takes its look from the cover, like BitChord:

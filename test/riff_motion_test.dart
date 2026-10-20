@@ -86,6 +86,34 @@ void main() {
         findsNothing);
   });
 
+  testWidgets('RiffSwitcher: the child leaving takes no taps', (tester) async {
+    var oldTaps = 0;
+    Widget button(bool done) => _app(RiffSwitcher(
+        child: done
+            ? const Text('done', key: ValueKey('done'))
+            : TextButton(
+                key: const ValueKey('get'),
+                onPressed: () => oldTaps++,
+                child: const Text('get'))));
+    await tester.pumpWidget(button(false));
+    await tester.pumpWidget(button(true));
+    await tester.pump(RiffDurations.select ~/ 4);
+    await tester.tap(find.text('get'), warnIfMissed: false);
+    expect(oldTaps, 0);
+  });
+
+  testWidgets('RiffSwitcher: a leaving child keeps its state', (tester) async {
+    var inits = 0;
+    Widget probe(bool next) => _app(RiffSwitcher(
+        child: next
+            ? const Text('next', key: ValueKey('next'))
+            : _Probe(() => inits++, key: const ValueKey('probe'))));
+    await tester.pumpWidget(probe(false));
+    await tester.pumpWidget(probe(true));
+    await tester.pumpAndSettle();
+    expect(inits, 1);
+  });
+
   testWidgets('riffFadeInFrame: shown at once when already in memory',
       (tester) async {
     await tester.pumpWidget(_app(Builder(
@@ -102,7 +130,7 @@ void main() {
 }
 
 class _Probe extends StatefulWidget {
-  const _Probe(this.onInit);
+  const _Probe(this.onInit, {super.key});
   final VoidCallback onInit;
 
   @override

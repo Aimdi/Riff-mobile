@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:harmonymusic/ui/screens/Settings/settings_screen_controller.dart';
 import 'package:harmonymusic/ui/theme/riff_theme.dart';
+import 'package:harmonymusic/ui/theme/riff_tokens.dart';
 import 'package:harmonymusic/ui/widgets/downloaded_mark.dart';
 import 'package:harmonymusic/ui/widgets/song_list_tile.dart';
 import 'package:hive/hive.dart';
@@ -89,6 +90,26 @@ void main() {
 
     await _downloads(tester, (box) => box.delete('a'));
     await tester.pump();
+    // It fades out, then its room closes.
+    await tester.pumpAndSettle();
     expect(_mark, findsNothing);
+  });
+
+  testWidgets('it fades in as the artist glides over to make room',
+      (tester) async {
+    await pumpRow(tester);
+    final before = tester.getTopLeft(find.text('Artist')).dx;
+
+    await _downloads(tester, (box) => box.put('a', {'videoId': 'a'}));
+    await tester.pump();
+    await tester.pump(RiffDurations.select ~/ 2);
+    final fade = tester.widget<FadeTransition>(
+        find.ancestor(of: _mark, matching: find.byType(FadeTransition)).first);
+    expect(fade.opacity.value, inExclusiveRange(0, 1));
+    final mid = tester.getTopLeft(find.text('Artist')).dx;
+    expect(mid, greaterThan(before));
+
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(find.text('Artist')).dx, greaterThan(mid));
   });
 }

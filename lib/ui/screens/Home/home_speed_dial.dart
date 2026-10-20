@@ -11,6 +11,7 @@ import '../../widgets/collection_play.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/letter_art.dart';
 import '../../widgets/riff_equalizer.dart';
+import '../../widgets/riff_motion.dart';
 import '../../widgets/riff_sheet.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
@@ -359,15 +360,23 @@ class _DialTile extends StatelessWidget {
                     final current = player.currentSong.value?.id == songId;
                     final playing =
                         player.buttonState.value == PlayButtonState.playing;
-                    if (!current) return const SizedBox.shrink();
-                    return ColoredBox(
-                      color: RiffColors.of(context).scrim.withOpacity(0.4),
-                      child: Center(
-                        child: RiffEqualizer(
-                            animate: playing,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: size * 0.3),
-                      ),
+                    // The now-playing veil fades over the tile as its song
+                    // starts, and away as another does.
+                    return RiffSwitcher(
+                      child: !current
+                          ? const SizedBox.shrink(key: ValueKey(false))
+                          : ColoredBox(
+                              key: const ValueKey(true),
+                              color:
+                                  RiffColors.of(context).scrim.withOpacity(0.4),
+                              child: Center(
+                                child: RiffEqualizer(
+                                    animate: playing,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    size: size * 0.3),
+                              ),
+                            ),
                     );
                   }),
               ],

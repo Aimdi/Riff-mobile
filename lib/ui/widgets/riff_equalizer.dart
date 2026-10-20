@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 
@@ -26,11 +27,19 @@ class RiffEqualizer extends StatefulWidget {
 }
 
 class _RiffEqualizerState extends State<RiffEqualizer>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 1100));
+      vsync: this, duration: RiffDurations.equalizerLoop);
+
+  /// 0 while the bars move, 1 standing still: stopping eases them down to
+  /// the resting waveform (and starting lifts them back) instead of
+  /// snapping.
+  late final AnimationController _rest = AnimationController(
+      vsync: this, duration: RiffDurations.select, value: 1);
+  late final Listenable _frame = Listenable.merge([_c, _rest]);
 
   bool _reducedMotion = false;
+  bool _synced = false;
 
   bool get _moving => widget.animate && !_reducedMotion;
 
@@ -53,11 +62,20 @@ class _RiffEqualizerState extends State<RiffEqualizer>
     } else if (!_moving && _c.isAnimating) {
       _c.stop();
     }
+    final rest = _moving ? 0.0 : 1.0;
+    if (!_synced || _reducedMotion) {
+      // As it first shows, or with Remove animations on: straight there.
+      _rest.value = rest;
+    } else if (_rest.value != rest) {
+      _rest.animateTo(rest, curve: RiffDurations.selectCurve);
+    }
+    _synced = true;
   }
 
   @override
   void dispose() {
     _c.dispose();
+    _rest.dispose();
     super.dispose();
   }
 
@@ -67,11 +85,11 @@ class _RiffEqualizerState extends State<RiffEqualizer>
       child: SizedBox.square(
         dimension: widget.size,
         child: AnimatedBuilder(
-          animation: _c,
+          animation: _frame,
           builder: (context, _) => CustomPaint(
             painter: _BarsPainter(
               t: _c.value,
-              moving: _moving,
+              rest: _rest.value,
               color: widget.color,
               bars: widget.bars,
             ),
@@ -85,11 +103,13 @@ class _RiffEqualizerState extends State<RiffEqualizer>
 class _BarsPainter extends CustomPainter {
   _BarsPainter(
       {required this.t,
-      required this.moving,
+      required this.rest,
       required this.color,
       required this.bars});
   final double t;
-  final bool moving;
+
+  /// 0 moving, 1 at rest; between, the bars settle from one to the other.
+  final double rest;
   final Color color;
   final int bars;
 
@@ -101,14 +121,18 @@ class _BarsPainter extends CustomPainter {
     final w = gap * 2;
     final paint = Paint()..color = color;
     for (var i = 0; i < bars; i++) {
-      final h = moving
-          ? 0.3 +
-              0.7 *
-                  (0.5 +
-                      0.5 *
-                          math.sin(
-                              (t * 2 * math.pi * (1 + i * 0.37)) + i * 1.7))
-          : _rest[i % _rest.length];
+      final still = _rest[i % _rest.length];
+      final h = rest >= 1
+          ? still
+          : lerpDouble(
+              0.3 +
+                  0.7 *
+                      (0.5 +
+                          0.5 *
+                              math.sin((t * 2 * math.pi * (1 + i * 0.37)) +
+                                  i * 1.7)),
+              still,
+              rest)!;
       final barH = size.height * h;
       final x = i * (w + gap);
       canvas.drawRRect(
@@ -123,5 +147,5 @@ class _BarsPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_BarsPainter old) =>
-      old.t != t || old.moving != moving || old.color != color;
+      old.t != t || old.rest != rest || old.color != color;
 }

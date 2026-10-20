@@ -74,7 +74,9 @@ class _RiffFadeInState extends State<RiffFadeIn>
 /// Crossfades between children as their key changes, with Riff's timing:
 /// a section's content giving way to another's, an icon to its next state.
 /// [pop]: the new child also grows from [RiffMotionDistances.popFromScale]
-/// with a slight overshoot (a like, a download done).
+/// with a slight overshoot (a like, a download done). A child on its way
+/// out no longer takes taps. [fit]: how the children are sized against
+/// each other (passthrough keeps a tight size, e.g. a stretched button).
 class RiffSwitcher extends StatelessWidget {
   const RiffSwitcher({
     super.key,
@@ -82,38 +84,54 @@ class RiffSwitcher extends StatelessWidget {
     this.duration = RiffDurations.select,
     this.pop = false,
     this.alignment = Alignment.center,
+    this.fit = StackFit.loose,
   });
 
   final Widget child;
   final Duration duration;
   final bool pop;
   final AlignmentGeometry alignment;
+  final StackFit fit;
 
   @override
   Widget build(BuildContext context) {
-    final grow = pop && !reduceMotion(context);
     return AnimatedSwitcher(
       duration: duration,
       switchInCurve: RiffDurations.enterCurve,
       switchOutCurve: RiffDurations.exitCurve,
       layoutBuilder: (current, previous) => Stack(
         alignment: alignment,
-        children: [...previous, if (current != null) current],
+        fit: fit,
+        children: [
+          // Same widget type for every entry, so one leaving keeps its
+          // state; it just stops taking taps.
+          for (final child in previous)
+            IgnorePointer(key: child.key, child: child),
+          if (current != null)
+            IgnorePointer(key: current.key, ignoring: false, child: current),
+        ],
       ),
-      transitionBuilder: (child, animation) {
-        final faded = FadeTransition(opacity: animation, child: child);
-        if (!grow) return faded;
-        return ScaleTransition(
-          scale: Tween<double>(begin: RiffMotionDistances.popFromScale, end: 1)
-              .animate(CurvedAnimation(
-                  parent: animation, curve: RiffDurations.popCurve)),
-          child: faded,
-        );
-      },
+      // Top-level functions: the same builder every build, so entries
+      // aren't wrapped again each time the switcher rebuilds.
+      transitionBuilder:
+          pop && !reduceMotion(context) ? _popTransition : _fadeTransition,
       child: child,
     );
   }
 }
+
+Widget _fadeTransition(Widget child, Animation<double> animation) =>
+    FadeTransition(opacity: animation, child: child);
+
+Widget _popTransition(Widget child, Animation<double> animation) =>
+    ScaleTransition(
+      // drive() listens to the animation only while the transition does
+      // (a CurvedAnimation would hold a listener for good).
+      scale: animation
+          .drive(CurveTween(curve: RiffDurations.popCurve))
+          .drive(Tween<double>(begin: RiffMotionDistances.popFromScale, end: 1)),
+      child: FadeTransition(opacity: animation, child: child),
+    );
 
 /// An Image's frameBuilder that fades the picture in once its first frame
 /// is ready (a file or network image that wasn't already in memory),

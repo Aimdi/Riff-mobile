@@ -22,6 +22,7 @@ import '/ui/player/components/show_notes_text.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/utils/sheet_insets.dart';
 import '/ui/widgets/podcast_play.dart';
+import '/ui/widgets/riff_motion.dart';
 import '/ui/widgets/snackbar.dart';
 import 'podcast_download_undo.dart';
 import 'podcast_queue_controller.dart';
@@ -404,43 +405,46 @@ class PodcastQueueScreen extends StatelessWidget {
             color: Theme.of(context).colorScheme.error),
       ),
       onDismissed: (_) => _removeWithUndo(context, controller, e),
-      child: PodcastEpisodeTile(
-        artUrl: art,
-        title: e.title,
-        meta: episodeMetaLine([
-          e.artist,
-          '${e.extras?['date'] ?? ''}',
-          compactEpisodeLength(e.duration?.inSeconds ?? 0),
-        ]),
-        progress: PodcastProgressService.progress(e.id),
-        onTap: () async {
-          if (await openInWizeStreamIfPreferred(e)) return;
-          final ok = await Get.find<PlayerController>()
-              .playPlayListSong(items(controller), i);
-          if (!ok) snackOperationFailed();
-        },
-        onLongPress: () => showAddToQueueSheet(context, e),
-        leading: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ReorderableDragStartListener(
-              index: i,
-              child: Padding(
-                padding: const EdgeInsets.only(right: RiffSpacing.sm),
-                child: Icon(Icons.drag_indicator_rounded,
-                    size: RiffComponentSizes.headerIcon,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+      child: _FadeInOnce(
+        fade: _restored.remove(e.id),
+        child: PodcastEpisodeTile(
+          artUrl: art,
+          title: e.title,
+          meta: episodeMetaLine([
+            e.artist,
+            '${e.extras?['date'] ?? ''}',
+            compactEpisodeLength(e.duration?.inSeconds ?? 0),
+          ]),
+          progress: PodcastProgressService.progress(e.id),
+          onTap: () async {
+            if (await openInWizeStreamIfPreferred(e)) return;
+            final ok = await Get.find<PlayerController>()
+                .playPlayListSong(items(controller), i);
+            if (!ok) snackOperationFailed();
+          },
+          onLongPress: () => showAddToQueueSheet(context, e),
+          leading: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ReorderableDragStartListener(
+                index: i,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: RiffSpacing.sm),
+                  child: Icon(Icons.drag_indicator_rounded,
+                      size: RiffComponentSizes.headerIcon,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
               ),
-            ),
-            PodcastArt(url: art, size: RiffComponentSizes.rowArt),
-          ],
-        ),
-        trailing: IconButton(
-          tooltip: "removeFromQueue".tr,
-          icon: Icon(Icons.remove_circle_outline_rounded,
-              size: RiffComponentSizes.trailingIcon,
-              color: Theme.of(context).colorScheme.onSurfaceVariant),
-          onPressed: () => _removeWithUndo(context, controller, e),
+              PodcastArt(url: art, size: RiffComponentSizes.rowArt),
+            ],
+          ),
+          trailing: IconButton(
+            tooltip: "removeFromQueue".tr,
+            icon: Icon(Icons.remove_circle_outline_rounded,
+                size: RiffComponentSizes.trailingIcon,
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
+            onPressed: () => _removeWithUndo(context, controller, e),
+          ),
         ),
       ),
     );
@@ -453,11 +457,37 @@ class PodcastQueueScreen extends StatelessWidget {
     final index = controller.queue.indexWhere((q) => q.id == e.id);
     if (index < 0) return;
     controller.removeById(e.id);
-    showUndoSnackbar(target, "removedFromQueue".tr,
-        onUndo: () => controller.insertAt(index, e));
+    showUndoSnackbar(target, "removedFromQueue".tr, onUndo: () {
+      _restored.add(e.id);
+      controller.insertAt(index, e);
+    });
   }
 
+  /// Episodes Undo just put back: each fades in where it returns, the first
+  /// time its row is built, rather than popping back.
+  static final _restored = <String>{};
+
   List<MediaItem> items(PodcastQueueController c) => c.queue.toList();
+}
+
+/// [child], faded in if [fade] was set as it first showed (a row Undo put
+/// back); otherwise just [child], as before.
+class _FadeInOnce extends StatefulWidget {
+  const _FadeInOnce({required this.fade, required this.child});
+
+  final bool fade;
+  final Widget child;
+
+  @override
+  State<_FadeInOnce> createState() => _FadeInOnceState();
+}
+
+class _FadeInOnceState extends State<_FadeInOnce> {
+  late final bool _fade = widget.fade;
+
+  @override
+  Widget build(BuildContext context) =>
+      _fade ? RiffFadeIn(child: widget.child) : widget.child;
 }
 
 /// "Newest first", "By show", … for [sort].

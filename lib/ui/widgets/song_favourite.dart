@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '/ui/player/player_controller.dart';
+import '/ui/widgets/riff_motion.dart';
 import '/utils/hive_boxes.dart';
 
 bool songIsInLibFav(String songId) => HiveBoxes.favContains(songId);
@@ -79,10 +80,17 @@ class _SongRowHeartButtonState extends State<SongRowHeartButton> {
         ),
         splashRadius: 18,
         onPressed: () => _toggle(player, isCurrent: isCurrent),
-        icon: Icon(
-          fav ? Icons.favorite : Icons.favorite_border,
-          color: fav ? scheme.secondary : widget.color,
-          size: widget.iconSize,
+        // A like pops the filled heart in; an unlike just crossfades.
+        // Keyed by the song, so a row showing another song doesn't animate.
+        icon: RiffSwitcher(
+          key: ValueKey(widget.song.id),
+          pop: fav,
+          child: Icon(
+            fav ? Icons.favorite : Icons.favorite_border,
+            key: ValueKey(fav),
+            color: fav ? scheme.secondary : widget.color,
+            size: widget.iconSize,
+          ),
         ),
       );
     });

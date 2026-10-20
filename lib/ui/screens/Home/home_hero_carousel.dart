@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import '/services/discovery/discovery_types.dart';
 import '/ui/player/player_controller.dart';
 import '../../widgets/image_widget.dart';
+import '../../widgets/riff_motion.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
 import '/ui/theme/riff_tokens.dart';
@@ -221,12 +222,17 @@ class _HeroCard extends StatelessWidget {
                         onTap: onPlay,
                         child: SizedBox.square(
                           dimension: RiffSizes.carouselPlay,
-                          child: Icon(
-                            playing
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                            color: theme.colorScheme.onPrimary,
-                            size: 26,
+                          // Play and pause crossfade, as the mini player's
+                          // glyph morphs between them.
+                          child: RiffSwitcher(
+                            child: Icon(
+                              playing
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
+                              key: ValueKey(playing),
+                              color: theme.colorScheme.onPrimary,
+                              size: 26,
+                            ),
                           ),
                         ),
                       ),
