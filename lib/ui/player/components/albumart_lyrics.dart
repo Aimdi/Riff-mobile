@@ -15,6 +15,7 @@ import '/utils/media_item_video.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/riff_motion.dart';
 
 class AlbumArtNLyrics extends StatelessWidget {
   const AlbumArtNLyrics({super.key, required this.playerArtImageSize});
@@ -63,9 +64,9 @@ class AlbumArtNLyrics extends StatelessWidget {
       final height = isVideo ? (width * 9 / 16) : playerArtImageSize;
 
       return AnimatedSwitcher(
-        duration: const Duration(milliseconds: 320),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
+        duration: RiffDurations.trackChange,
+        switchInCurve: RiffDurations.enterCurve,
+        switchOutCurve: RiffDurations.exitCurve,
         layoutBuilder: (currentChild, previousChildren) {
           return Stack(
             alignment: Alignment.center,
@@ -78,8 +79,8 @@ class AlbumArtNLyrics extends StatelessWidget {
         transitionBuilder: (child, animation) {
           final fade = CurvedAnimation(
             parent: animation,
-            curve: Curves.easeOutCubic,
-            reverseCurve: Curves.easeInCubic,
+            curve: RiffDurations.enterCurve,
+            reverseCurve: RiffDurations.exitCurve,
           );
           final scale = Tween<double>(begin: 0.97, end: 1).animate(fade);
           return FadeTransition(
@@ -166,49 +167,56 @@ class AlbumArtNLyrics extends StatelessWidget {
                       },
                     ),
                   ),
-                Obx(() => playerController.showLyricsflag.isTrue
-                    ? InkWell(
-                        onTap: () {
-                          playerController.showLyrics();
-                        },
-                        child: Container(
-                          height: height,
-                          width: width,
-                          decoration: BoxDecoration(
-                            color: page.withOpacity(0.82),
-                            borderRadius: BorderRadius.circular(RiffRadii.sm),
-                          ),
-                          child: Stack(
-                            children: [
-                              LyricsWidget(
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal: 0, vertical: height / 3.5),
-                                  onTap: playerController.showLyrics),
-                              IgnorePointer(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius:
-                                        BorderRadius.circular(RiffRadii.sm),
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        page.withOpacity(0.90),
-                                        Colors.transparent,
-                                        Colors.transparent,
-                                        Colors.transparent,
-                                        page.withOpacity(0.90)
-                                      ],
-                                      stops: const [0, 0.2, 0.5, 0.8, 1],
-                                    ),
-                                  ),
+                // The lyrics fade in over the cover, and out again.
+                Obx(() => RiffSwitcher(
+                      duration: RiffDurations.content,
+                      child: playerController.showLyricsflag.isTrue
+                          ? InkWell(
+                              key: const ValueKey<bool>(true),
+                              onTap: () {
+                                playerController.showLyrics();
+                              },
+                              child: Container(
+                                height: height,
+                                width: width,
+                                decoration: BoxDecoration(
+                                  color: page.withOpacity(0.82),
+                                  borderRadius:
+                                      BorderRadius.circular(RiffRadii.sm),
                                 ),
-                              )
-                            ],
-                          ),
-                        ),
-                      )
-                    : const SizedBox.shrink()),
+                                child: Stack(
+                                  children: [
+                                    LyricsWidget(
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal: 0,
+                                            vertical: height / 3.5),
+                                        onTap: playerController.showLyrics),
+                                    IgnorePointer(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(
+                                              RiffRadii.sm),
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              page.withOpacity(0.90),
+                                              Colors.transparent,
+                                              Colors.transparent,
+                                              Colors.transparent,
+                                              page.withOpacity(0.90)
+                                            ],
+                                            stops: const [0, 0.2, 0.5, 0.8, 1],
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  ],
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    )),
               ],
             ),
           ),

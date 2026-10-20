@@ -194,6 +194,10 @@ class Home extends StatelessWidget {
                   // music player fades it while minimising so the screen
                   // behind shows through.
                   color: Colors.transparent,
+                  // No shadow either: under a clear sheet it fills the
+                  // whole panel, a dark wash over the screen behind that
+                  // travels with the minimise / expand morph.
+                  boxShadow: const [],
                   onSwipeUp: () {
                     playerController.queuePanelController.open();
                   },

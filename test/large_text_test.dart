@@ -41,6 +41,8 @@ class _FakePlayer extends GetxController implements PlayerController {
   @override
   final playerPaneOpacity = 1.0.obs;
   @override
+  final playerPanelPosition = ValueNotifier<double>(0);
+  @override
   bool get playsOnPastEnd => false;
   @override
   ScrollController scrollController = ScrollController();

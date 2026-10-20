@@ -17,6 +17,7 @@ import '/ui/widgets/riff_sheet.dart';
 import '../player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/riff_motion.dart';
 
 /// Episode transcript (feed `<podcast:transcript>` or YouTube captions).
 /// The current line follows playback; tap a line to jump there, long-press
@@ -138,11 +139,17 @@ class _PodcastTranscriptSheetState extends State<PodcastTranscriptSheet> {
 
   void _scrollTo(int index) {
     if (!_scroll.isAttached) return;
+    final to = index < 0 ? 0 : index;
+    // Scrolling isn't shortened by Remove animations: jump then.
+    if (reduceMotion(context)) {
+      _scroll.jumpTo(index: to, alignment: 0.35);
+      return;
+    }
     _scroll.scrollTo(
-      index: index < 0 ? 0 : index,
+      index: to,
       alignment: 0.35,
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeInOut,
+      duration: RiffDurations.content,
+      curve: RiffDurations.enterCurve,
     );
   }
 

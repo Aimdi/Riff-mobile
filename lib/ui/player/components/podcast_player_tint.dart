@@ -45,6 +45,12 @@ class PodcastPlayerTint {
   static final colors = <String, Color>{}.obs;
   static final _pending = <String>{};
 
+  /// Episodes whose artwork gives no tint: nothing to wait for. Reactive.
+  static final _none = <String>{}.obs;
+
+  /// The tint last shown, held while the next episode's is worked out.
+  static Color? _lastShown;
+
   static bool get enabled {
     if (!Hive.isBoxOpen('AppPrefs')) return true;
     return Hive.box('AppPrefs').get(prefKey) != false;
@@ -68,6 +74,19 @@ class PodcastPlayerTint {
     return c;
   }
 
+  /// What the player shows for [item]: its tint once ready; while it's
+  /// worked out, the one shown before (so the page eases from one
+  /// episode's colour to the next instead of flashing the cover look in
+  /// between); null when [item] gets no tint. Reactive inside an Obx.
+  static Color? shown(MediaItem? item) {
+    final c = of(item);
+    if (c != null) return _lastShown = c;
+    if (item == null || !_isPodcast(item) || !enabled || _dynamicTheme) {
+      return null;
+    }
+    return _none.contains(item.id) ? null : _lastShown;
+  }
+
   static bool _isPodcast(MediaItem item) =>
       item.extras?['isPodcast'] == true || item.id.startsWith('podcast_');
 
@@ -77,7 +96,8 @@ class PodcastPlayerTint {
           ThemeType.dynamic;
 
   static Future<void> _compute(MediaItem item) async {
-    if (!_pending.add(item.id)) return;
+    if (_none.contains(item.id) || !_pending.add(item.id)) return;
+    var found = false;
     try {
       final ImageProvider? provider = _provider(item);
       if (provider == null) return;
@@ -90,11 +110,20 @@ class PodcastPlayerTint {
       // Keep a handful; the player only ever needs the current one.
       if (colors.length > 24) colors.remove(colors.keys.first);
       colors[item.id] = podcastPlayerTint(base);
+      found = true;
     } catch (e) {
       printERROR('Podcast tint failed: $e');
     } finally {
       _pending.remove(item.id);
+      // Not straight away: this can run inside a build (via [of]).
+      if (!found) Future.microtask(() => _markNone(item.id));
     }
+  }
+
+  static void _markNone(String id) {
+    if (_none.contains(id)) return;
+    if (_none.length > 24) _none.remove(_none.first);
+    _none.add(id);
   }
 
   static ImageProvider? _provider(MediaItem item) {

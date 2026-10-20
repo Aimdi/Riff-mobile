@@ -1,10 +1,16 @@
+import 'dart:io';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:ionicons/ionicons.dart';
 
+import '/models/thumbnail.dart';
+import '/services/cover_resolver.dart';
+import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/widgets/lyrics_dialog.dart';
 import '/ui/widgets/song_info_dialog.dart';
 import '/ui/player/player_controller.dart';
@@ -18,12 +24,15 @@ import '../../widgets/songinfo_bottom_sheet.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/mini_player_progress_bar.dart';
 import 'animated_play_button.dart';
+import 'hero_art_morph.dart';
 import 'playback_error_actions.dart';
+import 'track_crossfade.dart';
 import 'track_swipe.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_text_metrics.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/riff_marquee.dart';
+import '/ui/widgets/riff_motion.dart';
 
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
@@ -38,9 +47,9 @@ class MiniPlayer extends StatelessWidget {
     final isWideScreen = size.width > 800;
     final theme = Theme.of(context);
 
-    // Built outside the opacity Obx so the same child instance is reused when
-    // playerPaneOpacity / visibility / height tick — Flutter skips rebuilding
-    // identical child widget instances.
+    // Built outside the visibility Obx so the same child instance is reused
+    // when visibility / height change — Flutter skips rebuilding identical
+    // child widget instances.
     // Align top + bottom pad so the progress bar stays at the top of the
     // panel while the system nav/home inset is reserved below the content.
     final content = Column(
@@ -49,7 +58,8 @@ class MiniPlayer extends StatelessWidget {
         if (isWideScreen)
           // Own layer so 10 Hz progress ticks don't repaint the whole
           // mini player (art, title, transport).
-          const RepaintBoundary(child: _MiniPlayerWideProgress()),
+          const RepaintBoundary(
+              child: _WhileMiniShown(child: _MiniPlayerWideProgress())),
         Expanded(
           child: Stack(
             children: [
@@ -90,7 +100,8 @@ class MiniPlayer extends StatelessWidget {
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  child: RepaintBoundary(child: _MiniPlayerThinProgress()),
+                  child: RepaintBoundary(
+                      child: _WhileMiniShown(child: _MiniPlayerThinProgress())),
                 ),
             ],
           ),
@@ -98,12 +109,19 @@ class MiniPlayer extends StatelessWidget {
       ],
     );
 
+    // Fades as the player panel rises, following it every frame without
+    // rebuilding (only the layer's alpha changes).
+    final fade = PanelPositionAnimation(
+        playerController.playerPanelPosition, HeroArtMorph.miniPlayerOpacity);
     return Obx(() {
+      // Hidden once the player is a fifth of the way up, but kept (state,
+      // marquee, play / pause icon) with its animations paused, so a
+      // minimise doesn't rebuild it mid-way or replay them.
       return Visibility(
         visible: playerController.isPlayerpanelTopVisible.value,
-        child: AnimatedOpacity(
-          opacity: playerController.playerPaneOpacity.value,
-          duration: Duration.zero,
+        maintainState: true,
+        child: FadeTransition(
+          opacity: fade,
           // The strip is page-coloured; the player itself is a floating
           // pill inside it, with the system inset kept clear below.
           child: ColoredBox(
@@ -138,6 +156,60 @@ class MiniPlayer extends StatelessWidget {
   }
 }
 
+/// Keeps [child] (a progress bar, rebuilt with every position tick) out
+/// of the tree while the mini player is hidden behind the open player.
+class _WhileMiniShown extends StatelessWidget {
+  const _WhileMiniShown({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final playerController = Get.find<PlayerController>();
+    return Obx(() => playerController.isPlayerpanelTopVisible.isTrue
+        ? child
+        : const SizedBox.shrink());
+  }
+}
+
+/// The image [ImageWidget] decodes for [song]'s mini player art (same
+/// cache entry), so a new song's art can be decoded before it fades in;
+/// null when it has none to decode. A miss only means the art fades in
+/// from its loading pulse.
+ImageProvider? _miniArtImage(BuildContext context, MediaItem song) {
+  final decodeSide =
+      (RiffComponentSizes.miniArt * MediaQuery.devicePixelRatioOf(context))
+          .round()
+          .clamp(64, 1600);
+  final art = song.artUri;
+  if (art != null && art.isScheme('file')) {
+    return ResizeImage.resizeIfNeeded(
+        decodeSide, null, FileImage(File(art.toFilePath())));
+  }
+  if ((song.extras?['url'] ?? '').toString().contains('file')) {
+    if (!Get.isRegistered<SettingsScreenController>()) return null;
+    final dir = Get.find<SettingsScreenController>().supportDirPath;
+    return ResizeImage.resizeIfNeeded(
+        decodeSide, null, FileImage(File('$dir/thumbnails/${song.id}.png')));
+  }
+  var raw = art?.toString() ?? '';
+  if (raw.isEmpty) return null;
+  // A video frame: the square cover found for it, once known.
+  if (Thumbnail.isVideoFrameUrl(raw) &&
+      !song.id.startsWith('podcast_') &&
+      song.extras?['isPodcast'] != true) {
+    final square = CoverResolver.cached(song.id);
+    if (square != null && square.isNotEmpty) raw = square;
+  }
+  return ResizeImage.resizeIfNeeded(
+      decodeSide, null, CachedNetworkImageProvider(Thumbnail(raw).medium));
+}
+
+Future<void>? _precacheMiniArt(BuildContext context, MediaItem? song) {
+  final image = song == null ? null : _miniArtImage(context, song);
+  if (image == null) return null;
+  return precacheImage(image, context, onError: (_, __) {});
+}
+
 class _MiniPlayerArt extends StatelessWidget {
   const _MiniPlayerArt();
 
@@ -167,10 +239,20 @@ class _MiniPlayerArt extends StatelessWidget {
                       ),
                     ),
                     child: ClipOval(
-                      child: ImageWidget(
-                        size: RiffComponentSizes.miniArt,
-                        song: song,
-                        borderRadius: 0,
+                      // A new song's art fades in over the last one once
+                      // decoded, with its title; the next song's is
+                      // decoded ahead.
+                      child: TrackCrossfade(
+                        trackKey: song.id,
+                        fit: StackFit.loose,
+                        precache: (context) => _precacheMiniArt(context, song),
+                        onSettled: () => _precacheMiniArt(
+                            context, upNextTrack(playerController)),
+                        child: ImageWidget(
+                          size: RiffComponentSizes.miniArt,
+                          song: song,
+                          borderRadius: 0,
+                        ),
                       ),
                     ),
                   ),
@@ -337,21 +419,20 @@ class _MiniPlayerSongInfo extends StatelessWidget {
               SizedBox(
                 height: riffLineBox(context, theme.textTheme.titleMedium,
                     RiffComponentSizes.miniLine),
-                child: AnimatedSwitcher(
-                  duration: RiffDurations.select,
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  transitionBuilder: (child, animation) {
-                    return FadeTransition(
-                      opacity: animation,
-                      child: child,
-                    );
-                  },
-                  child: _miniTitleLine(
-                    playerController,
-                    song,
-                    songKey,
-                    theme,
+                // Keyed on the outside, so lines wrapped in a tap target
+                // cross-fade too; start-aligned, so a shorter title
+                // doesn't sit centred while it fades in.
+                child: RiffSwitcher(
+                  duration: RiffDurations.trackChange,
+                  alignment: AlignmentDirectional.centerStart,
+                  child: KeyedSubtree(
+                    key: ValueKey<String>('mini_title_line_$songKey'),
+                    child: _miniTitleLine(
+                      playerController,
+                      song,
+                      songKey,
+                      theme,
+                    ),
                   ),
                 ),
               ),
@@ -381,21 +462,17 @@ class _MiniPlayerSongInfo extends StatelessWidget {
                           ),
                         ],
                       )
-                    : AnimatedSwitcher(
-                        duration: RiffDurations.select,
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInCubic,
-                        transitionBuilder: (child, animation) {
-                          return FadeTransition(
-                            opacity: animation,
-                            child: child,
-                          );
-                        },
-                        child: _miniArtistLine(
-                          playerController,
-                          song,
-                          songKey,
-                          theme,
+                    : RiffSwitcher(
+                        duration: RiffDurations.trackChange,
+                        alignment: AlignmentDirectional.centerStart,
+                        child: KeyedSubtree(
+                          key: ValueKey<String>('mini_artist_line_$songKey'),
+                          child: _miniArtistLine(
+                            playerController,
+                            song,
+                            songKey,
+                            theme,
+                          ),
                         ),
                       ),
               ),

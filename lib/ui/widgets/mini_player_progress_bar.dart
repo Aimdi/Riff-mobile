@@ -36,10 +36,13 @@ class ProgressBarPainter extends CustomPainter {
     // A flat 2-px accent line filling the track's height.
     const y = RiffComponentSizes.miniProgress / 2;
     const p1 = Offset(0, y);
+    // Milliseconds, so the line creeps along with each position tick
+    // instead of jumping once a second.
+    final totalMs = total.inMilliseconds;
     final p2 = Offset(
-        total.inSeconds == 0
+        totalMs <= 0
             ? 0
-            : size.width * (current.inSeconds / total.inSeconds),
+            : size.width * (current.inMilliseconds / totalMs).clamp(0.0, 1.0),
         y);
     final paint = Paint()
       ..color = progressBarColor
@@ -50,10 +53,10 @@ class ProgressBarPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant ProgressBarPainter oldDelegate) {
-    // paint() only uses whole seconds, so sub-second ticks (10 Hz) are
-    // visually identical — don't repaint for them.
-    return oldDelegate.current.inSeconds != current.inSeconds ||
-        oldDelegate.total.inSeconds != total.inSeconds ||
+    // Repaints at most as often as the position is published (throttled
+    // to 10 Hz), and not at all for a tick that didn't move it.
+    return oldDelegate.current.inMilliseconds != current.inMilliseconds ||
+        oldDelegate.total.inMilliseconds != total.inMilliseconds ||
         oldDelegate.progressBarColor != progressBarColor;
   }
 }

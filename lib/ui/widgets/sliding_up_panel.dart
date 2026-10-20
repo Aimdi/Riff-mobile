@@ -12,6 +12,7 @@ import 'dart:math';
 import 'package:flutter/physics.dart';
 
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/riff_motion.dart';
 
 enum SlideDirection {
   UP,
@@ -238,7 +239,9 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
 
     _ac = AnimationController(
         vsync: this,
-        duration: const Duration(milliseconds: 300),
+        // animatePanelToPosition without a duration; open / close and
+        // drag-release snaps are springs (fling).
+        duration: RiffDurations.sheet,
         value: widget.defaultPanelState == PanelState.CLOSED
             ? 0.0
             : 1.0 //set the default panel state (i.e. set initial value of _ac)
@@ -587,12 +590,12 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
       } else if (widget.panelSnapping) {
         _ac.fling(velocity: visualVelocity);
 
-        // panel snapping disabled
+        // panel snapping disabled: coast on a little and settle
       } else {
         _ac.animateTo(
-          _ac.value + visualVelocity * 0.16,
-          duration: const Duration(milliseconds: 410),
-          curve: Curves.decelerate,
+          (_ac.value + visualVelocity * 0.16).clamp(0.0, 1.0),
+          duration: RiffDurations.sheet,
+          curve: RiffDurations.enterCurve,
         );
       }
 
@@ -612,6 +615,11 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
   }
 
   void _flingPanelToPosition(double targetPos, double velocity) {
+    // animateWith isn't shortened by Remove animations (fling is).
+    if (reduceMotion(context)) {
+      _ac.value = targetPos;
+      return;
+    }
     final Simulation simulation = SpringSimulation(
         SpringDescription.withDampingRatio(
           mass: 1.0,

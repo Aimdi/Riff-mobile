@@ -14,6 +14,7 @@ import 'standard_player.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_theme.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/riff_motion.dart';
 
 /// Full-bleed cover player: the artwork fills the screen and is the control
 /// surface (swipe for next / previous, double-tap to play or pause,
@@ -124,29 +125,50 @@ class GesturePlayer extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: Obx(() {
-                          final song = pc.currentSong.value;
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                (song?.title ?? '').isEmpty ? '—' : song!.title,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: RiffTextStyles.of(context).playerTitle,
-                              ),
-                              const SizedBox(height: RiffSpacing.xs),
-                              Text(
-                                song?.artist ?? '',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
+                        // A new song's title and artist cross-fade in with
+                        // its cover; a title taking another line eases the
+                        // rest up or down.
+                        child: AnimatedSize(
+                          duration: RiffDurations.trackChange,
+                          curve: RiffDurations.enterCurve,
+                          alignment: AlignmentDirectional.topStart,
+                          child: Obx(() {
+                            final song = pc.currentSong.value;
+                            return RiffSwitcher(
+                              duration: RiffDurations.trackChange,
+                              alignment: AlignmentDirectional.topStart,
+                              child: SizedBox(
+                                key: ValueKey<String?>(song?.id),
+                                width: double.infinity,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      (song?.title ?? '').isEmpty
+                                          ? '—'
+                                          : song!.title,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: RiffTextStyles.of(context)
+                                          .playerTitle,
+                                    ),
+                                    const SizedBox(height: RiffSpacing.xs),
+                                    Text(
+                                      song?.artist ?? '',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style:
+                                          theme.textTheme.bodyLarge?.copyWith(
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          );
-                        }),
+                            );
+                          }),
+                        ),
                       ),
                       const SizedBox(width: RiffSpacing.sm),
                       // Lyrics, sleep timer, radio, add to playlist and

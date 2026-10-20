@@ -1,9 +1,13 @@
 import 'dart:async';
 
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get/get.dart';
 
+import '/ui/player/player_controller.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/riff_motion.dart';
 
 /// The mini player's track block that follows a horizontal drag, like the
 /// Spotify / YouTube Music / Apple Music mini players: the playing track
@@ -52,8 +56,12 @@ class TrackSwipe extends StatefulWidget {
   /// How far a drag goes where there is nothing to skip to.
   static const double blockedGive = 0.12;
 
-  static const Duration slideOut = Duration(milliseconds: 220);
-  static const Duration springBack = Duration(milliseconds: 320);
+  static const Duration slideOut = RiffDurations.select;
+  static const Duration springBack = RiffDurations.sheet;
+
+  /// After the track changes, how long the block stays off screen while
+  /// the mini player's art and titles cross-fade to the new track.
+  static const Duration settle = RiffDurations.trackChange;
 
   /// Longest the block waits on the new track before settling anyway.
   static const Duration settleTimeout = Duration(milliseconds: 2500);
@@ -96,7 +104,7 @@ class _TrackSwipeState extends State<TrackSwipe>
       // New track is playing: let its title cross-fade in off screen, then
       // put the block back in the middle — both show the same track then.
       _settle?.cancel();
-      _settle = Timer(RiffDurations.select, _reset);
+      _settle = Timer(TrackSwipe.settle, _reset);
     }
   }
 
@@ -147,8 +155,18 @@ class _TrackSwipeState extends State<TrackSwipe>
 
   void _springBack() {
     // No overshoot: crossing the middle would flash the other neighbour.
-    _dx.animateTo(0,
-        duration: TrackSwipe.springBack, curve: RiffDurations.selectCurve);
+    _slideTo(0, TrackSwipe.springBack);
+  }
+
+  /// The unbounded controller isn't shortened by Remove animations (only
+  /// bounded ones are), so with it on the block jumps instead of sliding.
+  TickerFuture _slideTo(double dx, Duration duration) {
+    if (reduceMotion(context)) {
+      _dx.value = dx;
+      return TickerFuture.complete();
+    }
+    return _dx.animateTo(dx,
+        duration: duration, curve: RiffDurations.selectCurve);
   }
 
   Future<void> _commit(int direction) async {
@@ -159,8 +177,7 @@ class _TrackSwipeState extends State<TrackSwipe>
       _heldPeek = direction < 0 ? widget.peekNext : widget.peekPrevious;
     });
     // Slide the rest of the way while the skip starts.
-    final slide = _dx.animateTo(direction * _width,
-        duration: TrackSwipe.slideOut, curve: RiffDurations.selectCurve);
+    final slide = _slideTo(direction * _width, TrackSwipe.slideOut);
     final started =
         await (direction < 0 ? widget.onNext() : widget.onPrevious())
             .catchError((Object _) => false);
@@ -234,6 +251,28 @@ class _TrackSwipeState extends State<TrackSwipe>
 double blockedDragOffset(double drag, double give) {
   if (give <= 0 || drag == 0) return 0;
   return drag.sign * give * (1 - 1 / (1 + drag.abs() / give));
+}
+
+/// The track after the playing one, when the player knows it (not under
+/// shuffle, where it picks as it goes): worth getting ready (its cover,
+/// its colours) so the change to it is smooth.
+MediaItem? upNextTrack(PlayerController player) {
+  final queue = player.currentQueue;
+  final song = player.currentSong.value;
+  var index = player.currentSongIndex.value;
+  // The index can trail the song for a moment; trust the song.
+  if (song != null &&
+      (index < 0 || index >= queue.length || queue[index].id != song.id)) {
+    index = queue.indexWhere((s) => s.id == song.id);
+  }
+  final next = swipeNeighbours(
+    queueLength: queue.length,
+    index: index,
+    shuffleOn: player.isShuffleModeEnabled.isTrue,
+    queueLoopOn: player.isQueueLoopModeEnabled.isTrue,
+    radioOn: player.playsOnPastEnd,
+  ).next;
+  return next == null ? null : queue[next];
 }
 
 /// What the mini player can swipe to from where the queue is: whether

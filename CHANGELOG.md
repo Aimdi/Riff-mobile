@@ -59,6 +59,19 @@ Motion: smoother everywhere
   Follow / Following, Home's play button, the playing veil on Speed dial
   tiles, a station chip starting and the sort bar's search all crossfade
   instead of switching at once
+* The player: skipping no longer dips the page to black before the new
+  cover's colour; it eases straight from one colour to the next. The new
+  cover fades in over the old one once it's loaded (no blank, no pop),
+  and the next song's cover and colours are ready before you skip. The
+  title, artist and the mini player's cover change together. Closing the
+  player no longer replays the mini player's play/pause morph or
+  restarts its scrolling title, and the screen behind no longer darkens
+  while the player opens or closes. Lyrics, the hold-to-seek bubble and
+  the seek thumb fade in and out; the line under the title keeps its
+  place while the next song's lyrics load instead of the controls
+  dropping and rising; the mini player's progress moves smoothly
+  instead of in one-second steps; Up Next eases the playing song's tint
+  and the played songs' dimming
 
 # 1.7.153
 

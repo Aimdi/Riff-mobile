@@ -1,3 +1,5 @@
+import 'dart:ui' show PictureRecorder;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/services/better_lyrics_service.dart';
@@ -38,16 +40,31 @@ void main() {
     });
   });
 
-  test('mini player progress painter repaints only on whole seconds', () {
+  test('mini player progress painter moves with each tick, only then', () {
     ProgressBarPainter p(int ms, {int totalMs = 200000}) => ProgressBarPainter(
           current: Duration(milliseconds: ms),
           total: Duration(milliseconds: totalMs),
           progressBarColor: Colors.green,
         );
-    expect(p(10100).shouldRepaint(p(10000)), isFalse);
-    expect(p(10900).shouldRepaint(p(10000)), isFalse);
+    // Smooth: a sub-second tick moves the line (it used to wait for the
+    // next whole second).
+    expect(p(10100).shouldRepaint(p(10000)), isTrue);
     expect(p(11000).shouldRepaint(p(10900)), isTrue);
+    // A tick that didn't move it doesn't repaint.
+    expect(p(10000).shouldRepaint(p(10000)), isFalse);
     expect(p(10000, totalMs: 1000).shouldRepaint(p(10000)), isTrue);
+  });
+
+  test('mini player progress line is drawn to the millisecond', () {
+    final recorder = PictureRecorder();
+    final canvas = _LineCanvas(Canvas(recorder));
+    ProgressBarPainter(
+      current: const Duration(milliseconds: 1500),
+      total: const Duration(seconds: 3),
+      progressBarColor: Colors.green,
+    ).paint(canvas, const Size(300, 2));
+    recorder.endRecording();
+    expect(canvas.end?.dx, closeTo(150, 1e-9));
   });
 
   test('wordSyncedActiveLine picks the last started line', () {
@@ -107,4 +124,20 @@ void main() {
     expect(fade.opacity.value, closeTo(0.4, 1e-9));
     expect(tester.takeException(), isNull);
   });
+}
+
+/// Records where a painter's line ends.
+class _LineCanvas implements Canvas {
+  _LineCanvas(this._inner);
+  final Canvas _inner;
+  Offset? end;
+
+  @override
+  void drawLine(Offset p1, Offset p2, Paint paint) {
+    end = p2;
+    _inner.drawLine(p1, p2, paint);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

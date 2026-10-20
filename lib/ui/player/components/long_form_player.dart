@@ -38,6 +38,8 @@ import 'standard_player.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_theme.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/riff_motion.dart';
+import 'track_crossfade.dart';
 import '/ui/widgets/now_playing_bars.dart';
 
 /// Now-playing screen for podcasts and audiobooks: the episode or chapter
@@ -68,14 +70,26 @@ class LongFormPlayer extends StatelessWidget {
       // top gradient of at most 20%; otherwise the cover shows through at
       // most 20% at the top, as on the music player.
       final bg = theme.colorScheme.surface;
-      final tint = PodcastPlayerTint.of(song);
+      // Held across an episode change until the next one's is worked out.
+      final tint = PodcastPlayerTint.shown(song);
       return Stack(
         children: [
           Positioned.fill(child: ColoredBox(color: bg)),
           if (!showVideo) ...[
-            if (tint == null) const BackgroudImage(),
+            // The cover look and the tint ease into each other, and one
+            // episode's tint into the next's.
             Positioned.fill(
-              child: DecoratedBox(
+              child: RiffSwitcher(
+                duration: RiffDurations.colour,
+                child: tint == null
+                    ? const BackgroudImage(key: ValueKey<String>('cover'))
+                    : const SizedBox.shrink(),
+              ),
+            ),
+            Positioned.fill(
+              child: AnimatedContainer(
+                duration: RiffDurations.colour,
+                curve: RiffDurations.enterCurve,
                 decoration: BoxDecoration(
                   gradient: tint == null
                       ? LinearGradient(
@@ -164,43 +178,77 @@ class _Art extends StatelessWidget {
       final side = maxW < box.maxHeight ? maxW : box.maxHeight;
       final cacheWidth =
           (side * MediaQuery.devicePixelRatioOf(context)).round();
+      final song = this.song;
       return Center(
         child: SizedBox(
           width: side,
           height: side,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(RiffRadii.sm),
-            child: song?.isPodcastEpisode == true
-                // A chapter with its own art shows it while it plays.
-                ? _ChapterArt(
-                    builder: (chapterArt) => AnimatedSwitcher(
-                      duration: RiffDurations.sheet,
-                      // Both images fill the square while they cross.
-                      layoutBuilder: (current, previous) => Stack(
-                        fit: StackFit.expand,
-                        children: [...previous, if (current != null) current],
+            // The next episode's cover fades in over this one once
+            // decoded.
+            child: TrackCrossfade(
+              trackKey: song?.id,
+              precache: song == null
+                  ? null
+                  : (context) {
+                      final image = _episodeImage(song, cacheWidth);
+                      return image == null
+                          ? null
+                          : precacheImage(image, context,
+                              onError: (_, __) {});
+                    },
+              child: song?.isPodcastEpisode == true
+                  // A chapter with its own art shows it while it plays.
+                  ? _ChapterArt(
+                      builder: (chapterArt) => AnimatedSwitcher(
+                        duration: RiffDurations.trackChange,
+                        switchInCurve: RiffDurations.enterCurve,
+                        switchOutCurve: RiffDurations.exitCurve,
+                        // Both images fill the square while they cross.
+                        layoutBuilder: (current, previous) => Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            ...previous,
+                            if (current != null) current
+                          ],
+                        ),
+                        child: chapterArt == null
+                            ? KeyedSubtree(
+                                key: const ValueKey<String?>(null),
+                                child: _episodeArt(context, cacheWidth))
+                            : CachedNetworkImage(
+                                key: ValueKey<String?>(chapterArt),
+                                imageUrl: chapterArt,
+                                fit: BoxFit.cover,
+                                memCacheWidth: cacheWidth,
+                                placeholder: (_, __) =>
+                                    _episodeArt(context, cacheWidth),
+                                errorWidget: (_, __, ___) =>
+                                    _episodeArt(context, cacheWidth),
+                              ),
                       ),
-                      child: chapterArt == null
-                          ? KeyedSubtree(
-                              key: const ValueKey<String?>(null),
-                              child: _episodeArt(context, cacheWidth))
-                          : CachedNetworkImage(
-                              key: ValueKey<String?>(chapterArt),
-                              imageUrl: chapterArt,
-                              fit: BoxFit.cover,
-                              memCacheWidth: cacheWidth,
-                              placeholder: (_, __) =>
-                                  _episodeArt(context, cacheWidth),
-                              errorWidget: (_, __, ___) =>
-                                  _episodeArt(context, cacheWidth),
-                            ),
-                    ),
-                  )
-                : _episodeArt(context, cacheWidth),
+                    )
+                  : _episodeArt(context, cacheWidth),
+            ),
           ),
         ),
       );
     });
+  }
+
+  /// The image [_episodeArt] decodes for [song] (same cache entry), so the
+  /// next episode's cover can be decoded before it fades in.
+  static ImageProvider? _episodeImage(MediaItem song, int cacheWidth) {
+    final art = song.artUri;
+    if (art != null && art.isScheme('file')) {
+      return ResizeImage.resizeIfNeeded(
+          cacheWidth, null, FileImage(File(art.toFilePath())));
+    }
+    final url = Thumbnail(art?.toString() ?? '').extraHigh;
+    if (url.isEmpty) return null;
+    return ResizeImage.resizeIfNeeded(
+        cacheWidth, null, CachedNetworkImageProvider(url));
   }
 
   Widget _episodeArt(BuildContext context, int cacheWidth) {
@@ -324,24 +372,41 @@ class _Controls extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              Text(
-                song?.title ?? '',
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: RiffTextStyles.of(context).playerTitle,
-              ),
-              if (show.trim().isNotEmpty) ...[
-                const SizedBox(height: RiffSpacing.xs),
-                Text(
-                  show,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyLarge
-                      ?.copyWith(color: scheme.onSurfaceVariant),
+              // A new episode's title and show cross-fade in with its
+              // cover; a title taking another line eases the rest along.
+              AnimatedSize(
+                duration: RiffDurations.trackChange,
+                curve: RiffDurations.enterCurve,
+                alignment: Alignment.topCenter,
+                child: RiffSwitcher(
+                  duration: RiffDurations.trackChange,
+                  alignment: Alignment.topCenter,
+                  child: Column(
+                    key: ValueKey<String?>(song?.id),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        song?.title ?? '',
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: RiffTextStyles.of(context).playerTitle,
+                      ),
+                      if (show.trim().isNotEmpty) ...[
+                        const SizedBox(height: RiffSpacing.xs),
+                        Text(
+                          show,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyLarge
+                              ?.copyWith(color: scheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              ],
+              ),
             ],
           );
         }),

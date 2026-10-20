@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
 /// The minimise / expand animation of the music player: the full-bleed
@@ -44,4 +45,50 @@ class HeroArtMorph {
   static double controlsOpacity(double progress) =>
       const Interval(0.3, 0.85, curve: Curves.easeOut)
           .transform(progress.clamp(0.0, 1.0));
+
+  /// The mini player: gone by a fifth of the way up (as
+  /// PlayerController.playerPaneOpacity).
+  static double miniPlayerOpacity(double progress) =>
+      (1 - progress * 5).clamp(0.0, 1.0);
+}
+
+/// The player panel's [position] (0 collapsed, 1 open) seen through [map]
+/// as an animation, so a [FadeTransition] follows the panel every frame
+/// without rebuilding anything (only the layer's alpha changes).
+class PanelPositionAnimation extends Animation<double> {
+  const PanelPositionAnimation(this.position, this.map);
+
+  final ValueListenable<double> position;
+  final double Function(double progress) map;
+
+  @override
+  double get value => map(position.value);
+
+  @override
+  AnimationStatus get status => AnimationStatus.forward;
+
+  @override
+  void addListener(VoidCallback listener) => position.addListener(listener);
+
+  @override
+  void removeListener(VoidCallback listener) =>
+      position.removeListener(listener);
+
+  // The position has no status to report.
+  @override
+  void addStatusListener(AnimationStatusListener listener) {}
+
+  @override
+  void removeStatusListener(AnimationStatusListener listener) {}
+
+  // Equal for the same panel and mapping, so a rebuild doesn't re-attach
+  // the FadeTransition's listener.
+  @override
+  bool operator ==(Object other) =>
+      other is PanelPositionAnimation &&
+      other.position == position &&
+      other.map == map;
+
+  @override
+  int get hashCode => Object.hash(position, map);
 }

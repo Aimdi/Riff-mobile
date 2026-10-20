@@ -1,5 +1,6 @@
 import '/ui/player/long_form_queue.dart';
 import 'dart:async';
+import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -761,9 +762,10 @@ class _TitleBlock extends StatelessWidget {
             (song != null && song.title.isNotEmpty) ? song.title : '—';
         final artist = (song?.artist ?? '').isNotEmpty ? song!.artist! : '—';
         return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 280),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
+          // With the cover and the mini player's titles.
+          duration: RiffDurations.trackChange,
+          switchInCurve: RiffDurations.enterCurve,
+          switchOutCurve: RiffDurations.exitCurve,
           layoutBuilder: (current, previous) => Stack(
             alignment: Alignment.centerLeft,
             children: [...previous, if (current != null) current],
@@ -1051,15 +1053,22 @@ class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
                   child: SizedBox(
                     height: 36,
                     width: double.infinity,
-                    child: CustomPaint(
-                      painter: _SectionTrackPainter(
-                        progress: frac,
-                        marks: marks,
-                        spans: spans,
-                        playedColor: played,
-                        restColor: rest,
-                        thumbColor: played,
-                        showThumb: _dragging,
+                    // The thumb grows and fades in under the finger, and
+                    // out again on release.
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween<double>(end: _dragging ? 1 : 0),
+                      duration: RiffDurations.select,
+                      curve: RiffDurations.selectCurve,
+                      builder: (context, thumb, _) => CustomPaint(
+                        painter: _SectionTrackPainter(
+                          progress: frac,
+                          marks: marks,
+                          spans: spans,
+                          playedColor: played,
+                          restColor: rest,
+                          thumbColor: played,
+                          thumb: thumb,
+                        ),
                       ),
                     ),
                   ),
@@ -1097,7 +1106,8 @@ class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
 
 /// Spotify-style rounded track. [marks] are 0–1 chapter boundaries that
 /// punch a gap so each section reads as its own pill. The thumb is drawn
-/// only while [showThumb] (the user is dragging).
+/// only while the user drags: [thumb] is how far it has grown and faded in
+/// (0 hidden, 1 shown).
 class _SectionTrackPainter extends CustomPainter {
   _SectionTrackPainter({
     required this.progress,
@@ -1105,7 +1115,7 @@ class _SectionTrackPainter extends CustomPainter {
     required this.playedColor,
     required this.restColor,
     required this.thumbColor,
-    required this.showThumb,
+    required this.thumb,
     this.spans = const [],
   });
 
@@ -1117,7 +1127,7 @@ class _SectionTrackPainter extends CustomPainter {
   final Color playedColor;
   final Color restColor;
   final Color thumbColor;
-  final bool showThumb;
+  final double thumb;
 
   static const _gap = 3.0;
   static const _trackH = RiffComponentSizes.seekTrack;
@@ -1152,13 +1162,16 @@ class _SectionTrackPainter extends CustomPainter {
         Paint()..color = color.withOpacity(0.9),
       );
     }
-    if (!showThumb) return;
+    if (thumb <= 0) return;
     final tx =
         (size.width * progress).clamp(_thumb / 2, size.width - _thumb / 2);
+    final scale = lerpDouble(RiffMotionDistances.popFromScale, 1, thumb)!;
     canvas.drawCircle(
       Offset(tx, cy),
-      _thumb / 2,
-      Paint()..color = thumbColor,
+      _thumb / 2 * scale,
+      Paint()
+        ..color =
+            thumbColor.withOpacity(thumbColor.opacity * thumb.clamp(0.0, 1.0)),
     );
   }
 
@@ -1168,7 +1181,7 @@ class _SectionTrackPainter extends CustomPainter {
       old.playedColor != playedColor ||
       old.restColor != restColor ||
       old.thumbColor != thumbColor ||
-      old.showThumb != showThumb ||
+      old.thumb != thumb ||
       !_listEq(old.marks, marks) ||
       old.spans.length != spans.length ||
       !_spansEq(old.spans, spans);

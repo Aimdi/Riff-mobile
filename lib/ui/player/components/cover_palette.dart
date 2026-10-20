@@ -122,7 +122,15 @@ class PlayerCoverColors {
   static final palettes = <String, CoverPalette>{}.obs;
   static final _pending = <String>{};
 
-  /// Most covers kept; the player only ever needs the current one.
+  /// Songs whose cover gives no palette (none, or it failed): nothing to
+  /// wait for. Reactive, so a page holding the last palette lets go.
+  static final _none = <String>{}.obs;
+
+  /// The palette last painted, held while the next song's is computed.
+  static CoverPalette? _lastShown;
+
+  /// Most covers kept; the player only ever needs the current one (and
+  /// the next, computed ahead).
   static const _keep = 24;
 
   /// The palette for [item], or null while it's being computed (or the
@@ -134,8 +142,27 @@ class PlayerCoverColors {
     return p;
   }
 
+  /// What to paint the page for [item] with: its own palette once ready;
+  /// until then the one shown before, so a new song's page eases straight
+  /// from the old colours to its own (not through [fallback] first);
+  /// [fallback] when there's nothing to wait for. Reactive inside an Obx.
+  static CoverPalette shown(MediaItem? item, CoverPalette fallback) {
+    final p = of(item);
+    if (p != null) return _lastShown = p;
+    if (item == null || _none.contains(item.id)) return fallback;
+    return _lastShown ?? fallback;
+  }
+
+  /// Computes [item]'s palette ahead (the next song), so the page can
+  /// change colour together with the cover. Not reactive.
+  static void warm(MediaItem? item) {
+    if (item == null || palettes.containsKey(item.id)) return;
+    _compute(item);
+  }
+
   static Future<void> _compute(MediaItem item) async {
-    if (!_pending.add(item.id)) return;
+    if (_none.contains(item.id) || !_pending.add(item.id)) return;
+    var found = false;
     try {
       final provider = _provider(item);
       if (provider == null) return;
@@ -151,11 +178,20 @@ class PlayerCoverColors {
       if (palettes.length >= _keep) palettes.remove(palettes.keys.first);
       palettes[item.id] =
           coverPaletteFrom(dominant: dominant, secondary: secondary);
+      found = true;
     } catch (e) {
       printERROR('Cover palette failed: $e');
     } finally {
       _pending.remove(item.id);
+      // Not straight away: this can run inside a build (via [of]).
+      if (!found) Future.microtask(() => _markNone(item.id));
     }
+  }
+
+  static void _markNone(String id) {
+    if (_none.contains(id)) return;
+    if (_none.length >= _keep) _none.remove(_none.first);
+    _none.add(id);
   }
 
   /// Same art the player shows: the saved thumbnail for downloaded songs,
@@ -177,7 +213,8 @@ class PlayerCoverColors {
 
 /// The full player's page, painted from [palette]: the fill under the
 /// cover darkening to [CoverPalette.deep] at the bottom, with the glow
-/// behind the transport. Colours cross-fade when the song changes; with
+/// behind the transport. Colours ease over ([RiffDurations.colour]) when
+/// the song changes; with
 /// [drift] (the Player canvas setting) the glow wanders slowly, unless the
 /// phone's Remove animations is on.
 class CoverBackdrop extends StatefulWidget {
@@ -192,7 +229,6 @@ class CoverBackdrop extends StatefulWidget {
 
 class _CoverBackdropState extends State<CoverBackdrop>
     with TickerProviderStateMixin {
-  static const Duration _fade = Duration(milliseconds: 600);
   static const Duration _driftCycle = Duration(seconds: 18);
 
   AnimationController? _drift;
@@ -253,8 +289,8 @@ class _CoverBackdropState extends State<CoverBackdrop>
       fit: StackFit.expand,
       children: [
         AnimatedContainer(
-          duration: _fade,
-          curve: Curves.easeOut,
+          duration: RiffDurations.colour,
+          curve: RiffDurations.enterCurve,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
@@ -266,8 +302,8 @@ class _CoverBackdropState extends State<CoverBackdrop>
         ),
         TweenAnimationBuilder<Color?>(
           tween: ColorTween(end: palette.glow),
-          duration: _fade,
-          curve: Curves.easeOut,
+          duration: RiffDurations.colour,
+          curve: RiffDurations.enterCurve,
           builder: (context, glow, _) {
             final c = glow ?? palette.glow;
             final drift = _drift;
