@@ -205,8 +205,13 @@ class _NetworkArt extends StatelessWidget {
         }
         // Cheaper sampling while the player panel moves (the cover is
         // being resized every frame there); full quality once it's open.
+        // The imageBuilder gets the full-size provider: paint the decode
+        // size the precache (and memCacheHeight) used, so it's the entry
+        // already decoded, and only one decode per song.
+        final sized =
+            ResizeImage.resizeIfNeeded(null, decodeH, imageProvider);
         return Obx(() => Image(
-              image: imageProvider,
+              image: sized,
               fit: BoxFit.cover,
               filterQuality: playerController.isPlayerPanelOpen.isTrue
                   ? FilterQuality.high

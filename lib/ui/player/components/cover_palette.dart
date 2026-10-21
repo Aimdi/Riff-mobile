@@ -162,29 +162,36 @@ class PlayerCoverColors {
 
   static Future<void> _compute(MediaItem item) async {
     if (_none.contains(item.id) || !_pending.add(item.id)) return;
-    var found = false;
+    // Only a definite miss (no cover, no colour in it) is remembered: a
+    // failed load (offline, a timeout) is tried again later.
+    var miss = false;
     try {
       final provider = _provider(item);
-      if (provider == null) return;
+      if (provider == null) {
+        miss = true;
+        return;
+      }
       final g = await PaletteGenerator.fromImageProvider(
           ResizeImage(provider, width: 64, height: 64));
       final dominant = g.dominantColor?.color ??
           g.darkVibrantColor?.color ??
           g.darkMutedColor?.color;
-      if (dominant == null) return;
+      if (dominant == null) {
+        miss = true;
+        return;
+      }
       final secondary = g.vibrantColor?.color ??
           g.lightVibrantColor?.color ??
           g.mutedColor?.color;
       if (palettes.length >= _keep) palettes.remove(palettes.keys.first);
       palettes[item.id] =
           coverPaletteFrom(dominant: dominant, secondary: secondary);
-      found = true;
     } catch (e) {
       printERROR('Cover palette failed: $e');
     } finally {
       _pending.remove(item.id);
       // Not straight away: this can run inside a build (via [of]).
-      if (!found) Future.microtask(() => _markNone(item.id));
+      if (miss) Future.microtask(() => _markNone(item.id));
     }
   }
 

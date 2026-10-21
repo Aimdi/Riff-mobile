@@ -177,7 +177,10 @@ class _SideNavBarState extends State<SideNavBar> {
                         crossFadeState: _songsExpanded
                             ? CrossFadeState.showSecond
                             : CrossFadeState.showFirst,
-                        firstChild: const SizedBox.shrink(),
+                        // The rail's full width (no height), so the items
+                        // folding away keep their width instead of being
+                        // squeezed to nothing as they fade.
+                        firstChild: const SizedBox(width: kRailWidth),
                         secondChild: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [

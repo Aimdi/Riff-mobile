@@ -270,7 +270,9 @@ class _DiscoverViewState extends State<_DiscoverView>
 
   /// The shelves and genres taking the placeholder's place fade in (on
   /// the first load: a refresh keeps the shelves on screen).
-  late final _reveal = RowsReveal(vsync: this);
+  // Made in initState: made lazily, a screen closed before its content
+  // came would create it in dispose.
+  late final RowsReveal _reveal;
 
   final _search = TextEditingController();
   String _query = '';
@@ -281,6 +283,7 @@ class _DiscoverViewState extends State<_DiscoverView>
   @override
   void initState() {
     super.initState();
+    _reveal = RowsReveal(vsync: this);
     _load();
   }
 

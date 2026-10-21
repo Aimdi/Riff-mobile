@@ -111,6 +111,50 @@ void main() {
       expect(find.text('A'), findsNothing);
     });
 
+    testWidgets('moving back up: taps go to the new page, not the old one',
+        (tester) async {
+      final taps = <String>[];
+      Widget page(String name, {bool forward = true}) => MaterialApp(
+            home: Scaffold(
+              body: AnimatedScreenTransition(
+                forward: forward,
+                child: SizedBox.expand(
+                  key: ValueKey(name),
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => taps.add(name),
+                    child: Text(name),
+                  ),
+                ),
+              ),
+            ),
+          );
+      await tester.pumpWidget(page('A'));
+      await tester.pumpWidget(page('B', forward: false));
+      await tester.pump();
+      await tester.pump(RiffDurations.page * 0.5);
+      await tester.tapAt(const Offset(200, 300));
+      expect(taps, ['B']);
+    });
+
+    testWidgets('Remove animations turned on keeps the page as it is',
+        (tester) async {
+      var inits = 0;
+      Widget page({required bool reduce}) => MaterialApp(
+            home: MediaQuery(
+              data: MediaQueryData(disableAnimations: reduce),
+              child: Scaffold(
+                body: AnimatedScreenTransition(
+                    child: _Counted(key: const ValueKey('A'), () => inits++)),
+              ),
+            ),
+          );
+      await tester.pumpWidget(page(reduce: false));
+      await tester.pumpWidget(page(reduce: true));
+      await tester.pumpAndSettle();
+      expect(inits, 1);
+    });
+
     testWidgets('transition animation off in settings: at once',
         (tester) async {
       await tester.pumpWidget(_swap('A', enabled: false));
@@ -186,6 +230,9 @@ void main() {
     final folding = tester.getSize(find.byType(AnimatedCrossFade)).height;
     expect(folding, greaterThan(0));
     expect(folding, lessThan(open));
+    // Folding keeps the rail's width: the items aren't squeezed.
+    expect(tester.getSize(find.byType(AnimatedCrossFade)).width,
+        closeTo(kRailWidth, 1));
 
     await tester.pumpAndSettle();
     expect(tester.getSize(find.byType(AnimatedCrossFade)).height, 0);
@@ -204,4 +251,23 @@ void main() {
     }
     semantics.dispose();
   });
+}
+
+class _Counted extends StatefulWidget {
+  const _Counted(this.onInit, {super.key});
+  final VoidCallback onInit;
+
+  @override
+  State<_Counted> createState() => _CountedState();
+}
+
+class _CountedState extends State<_Counted> {
+  @override
+  void initState() {
+    super.initState();
+    widget.onInit();
+  }
+
+  @override
+  Widget build(BuildContext context) => const Text('A');
 }

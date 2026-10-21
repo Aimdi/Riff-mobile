@@ -66,6 +66,18 @@ class HomeScreen extends StatelessWidget {
             duration: RiffDurations.select,
             switchInCurve: RiffDurations.enterCurve,
             switchOutCurve: RiffDurations.exitCurve,
+            // The button fading out (Playlists left) takes no more taps;
+            // the same wrapper for both, so neither is rebuilt.
+            layoutBuilder: (current, previous) => Stack(
+              alignment: Alignment.center,
+              children: [
+                for (final child in previous)
+                  IgnorePointer(key: child.key, child: child),
+                if (current != null)
+                  IgnorePointer(
+                      key: current.key, ignoring: false, child: current),
+              ],
+            ),
             transitionBuilder: (child, animation) => FadeTransition(
               opacity: animation,
               child: ScaleTransition(
@@ -242,12 +254,15 @@ class _HomeFeedState extends State<_HomeFeed>
   List<MediaItem> _recent = const [];
 
   /// The sections replacing the loading skeleton fade in together.
-  late final _reveal = RowsReveal(vsync: this);
+  // Made in initState: made lazily, a screen closed before its content
+  // came would create it in dispose.
+  late final RowsReveal _reveal;
   bool _skeleton = false;
 
   @override
   void initState() {
     super.initState();
+    _reveal = RowsReveal(vsync: this);
     _loadRecent();
     // Cached Spotify shelves show at once; stale ones refresh behind them.
     SpotifyHome.refresh();

@@ -117,35 +117,41 @@ class MiniPlayer extends StatelessWidget {
       // Hidden once the player is a fifth of the way up, but kept (state,
       // marquee, play / pause icon) with its animations paused, so a
       // minimise doesn't rebuild it mid-way or replay them.
-      return Visibility(
-        visible: playerController.isPlayerpanelTopVisible.value,
-        maintainState: true,
-        child: FadeTransition(
-          opacity: fade,
-          // The strip is page-coloured; the player itself is a floating
-          // pill inside it, with the system inset kept clear below.
-          child: ColoredBox(
-            color: theme.colorScheme.surface,
-            child: SizedBox(
-              height: playerController.playerPanelMinHeight.value,
-              width: size.width,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: RiffSpacing.md,
-                  right: RiffSpacing.md,
-                  bottom:
-                      MediaQuery.viewPaddingOf(context).bottom + RiffSpacing.sm,
-                ),
-                // Floating surface1 card, hairline edge, no shadow.
-                child: Material(
-                  color: theme.colorScheme.surfaceContainerLow,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(RiffRadii.miniPlayer),
-                    side: BorderSide(color: theme.dividerColor, width: 0),
+      final visible = playerController.isPlayerpanelTopVisible.value;
+      // Kept offstage, it could still take focus (Tab / a D-pad on desktop
+      // or a Chromebook landing on invisible buttons): not while hidden.
+      return ExcludeFocus(
+        excluding: !visible,
+        child: Visibility(
+          visible: visible,
+          maintainState: true,
+          child: FadeTransition(
+            opacity: fade,
+            // The strip is page-coloured; the player itself is a floating
+            // pill inside it, with the system inset kept clear below.
+            child: ColoredBox(
+              color: theme.colorScheme.surface,
+              child: SizedBox(
+                height: playerController.playerPanelMinHeight.value,
+                width: size.width,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: RiffSpacing.md,
+                    right: RiffSpacing.md,
+                    bottom:
+                        MediaQuery.viewPaddingOf(context).bottom + RiffSpacing.sm,
                   ),
-                  clipBehavior: Clip.antiAlias,
-                  child: content,
+                  // Floating surface1 card, hairline edge, no shadow.
+                  child: Material(
+                    color: theme.colorScheme.surfaceContainerLow,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(RiffRadii.miniPlayer),
+                      side: BorderSide(color: theme.dividerColor, width: 0),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: content,
+                  ),
                 ),
               ),
             ),

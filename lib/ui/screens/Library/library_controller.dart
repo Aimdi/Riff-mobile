@@ -865,15 +865,20 @@ class LibraryAlbumsController extends GetxController {
   }
 
   void refreshLib() async {
-    // Shared box, kept open (closing it broke concurrent openers).
-    final box = await HiveBoxes.open("LibraryAlbums");
-    libraryAlbums.value = box.values
-        .map<Album?>((item) => Album.fromJson(item))
-        .whereType<Album>()
-        .toList();
-    _sortAsChosen(LibrarySortTags.albums, onSort);
-
-    isContentFetched.value = true;
+    // Done either way: the tab waits for this before showing "no albums".
+    try {
+      // Shared box, kept open (closing it broke concurrent openers).
+      final box = await HiveBoxes.open("LibraryAlbums");
+      libraryAlbums.value = box.values
+          .map<Album?>((item) => Album.fromJson(item))
+          .whereType<Album>()
+          .toList();
+      _sortAsChosen(LibrarySortTags.albums, onSort);
+    } catch (e) {
+      printERROR('Library albums: $e');
+    } finally {
+      isContentFetched.value = true;
+    }
   }
 
   void onSort(SortType sortType, bool isAscending) {
@@ -914,14 +919,20 @@ class LibraryArtistsController extends GetxController {
   }
 
   void refreshLib() async {
-    // Shared box, kept open (closing it broke concurrent openers).
-    final box = await HiveBoxes.open("LibraryArtists");
-    libraryArtists.value = box.values
-        .map<Artist?>((item) => Artist.fromJson(item))
-        .whereType<Artist>()
-        .toList();
-    _sortAsChosen(LibrarySortTags.artists, onSort);
-    isContentFetched.value = true;
+    // Done either way: the tab waits for this before showing "no artists".
+    try {
+      // Shared box, kept open (closing it broke concurrent openers).
+      final box = await HiveBoxes.open("LibraryArtists");
+      libraryArtists.value = box.values
+          .map<Artist?>((item) => Artist.fromJson(item))
+          .whereType<Artist>()
+          .toList();
+      _sortAsChosen(LibrarySortTags.artists, onSort);
+    } catch (e) {
+      printERROR('Library artists: $e');
+    } finally {
+      isContentFetched.value = true;
+    }
   }
 
   void onSort(SortType sortType, bool isAscending) {

@@ -97,26 +97,33 @@ class PodcastPlayerTint {
 
   static Future<void> _compute(MediaItem item) async {
     if (_none.contains(item.id) || !_pending.add(item.id)) return;
-    var found = false;
+    // Only a definite miss (no art, no colour in it) is remembered: a
+    // failed load (offline, a timeout) is tried again later.
+    var miss = false;
     try {
       final ImageProvider? provider = _provider(item);
-      if (provider == null) return;
+      if (provider == null) {
+        miss = true;
+        return;
+      }
       final g = await PaletteGenerator.fromImageProvider(
           ResizeImage(provider, width: 64, height: 64));
       final base = g.dominantColor?.color ??
           g.darkMutedColor?.color ??
           g.vibrantColor?.color;
-      if (base == null) return;
+      if (base == null) {
+        miss = true;
+        return;
+      }
       // Keep a handful; the player only ever needs the current one.
       if (colors.length > 24) colors.remove(colors.keys.first);
       colors[item.id] = podcastPlayerTint(base);
-      found = true;
     } catch (e) {
       printERROR('Podcast tint failed: $e');
     } finally {
       _pending.remove(item.id);
       // Not straight away: this can run inside a build (via [of]).
-      if (!found) Future.microtask(() => _markNone(item.id));
+      if (miss) Future.microtask(() => _markNone(item.id));
     }
   }
 
