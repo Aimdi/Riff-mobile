@@ -208,7 +208,15 @@ Future<void> openApp(WidgetTester tester, {int tab = RailTab.home}) async {
     RailTab.albums: 'albums',
     RailTab.artists: 'artists',
   };
-  final item = railText(labels[tab]!);
+  // Settings has no label on the rail: its gear.
+  final item = tab == RailTab.settings
+      ? find.descendant(
+          of: find.byType(SideNavBar),
+          matching: find.byWidgetPredicate((w) =>
+              w is Icon &&
+              (w.icon == Icons.settings_outlined ||
+                  w.icon == Icons.settings_rounded)))
+      : railText(labels[tab]!);
   // Playlists / Albums / Artists sit under Songs on the phone rail: open
   // it first, as reaching them does.
   final caret = find.descendant(
