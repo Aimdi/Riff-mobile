@@ -87,8 +87,17 @@ class RiffNetworkImage extends StatelessWidget {
   /// second URL behind the same placeholder (it fades its own fallback).
   final bool errorFadesIn;
 
+  /// Tests only (the screenshot harness in test_shots/): when set, every
+  /// network cover is this widget instead of a download, since widget
+  /// tests can't reach image hosts. Null in the app.
+  @visibleForTesting
+  static Widget Function(String url, double? width, double? height)?
+      debugImageOverride;
+
   @override
   Widget build(BuildContext context) {
+    final override = debugImageOverride;
+    if (override != null) return override(imageUrl, width, height);
     final error = errorWidget;
     return CachedNetworkImage(
       imageUrl: imageUrl,
