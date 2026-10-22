@@ -40,6 +40,7 @@ import 'podcasts_screen.dart';
 import '/ui/theme/riff_text_metrics.dart';
 import '/ui/widgets/riff_header_bar.dart';
 import '/ui/widgets/song_list_tile.dart' show RiffRowHairline;
+import '/ui/widgets/cover_hero.dart';
 
 class PodcastsLibraryWidget extends StatefulWidget {
   const PodcastsLibraryWidget({super.key, this.isBottomNavActive = false});
@@ -1017,24 +1018,33 @@ class _SimilarPodcastsRow extends StatelessWidget {
           itemCount: podcasts.length,
           itemBuilder: (context, i) {
             final podcast = podcasts[i];
-            return HomeShelfCard(
-              size: HomeLayout.shelfCard,
-              art: PodcastArt(
-                url: Thumbnail((podcast['artwork'] ?? '').toString()).medium,
-                size: HomeLayout.shelfCard,
-              ),
-              title: (podcast['title'] ?? '').toString(),
-              subtitle: (podcast['author'] ?? '').toString(),
-              onTap: () async {
-                if (shouldPlayPodcastShowOnTap()) {
-                  final ok = await playPodcastShow(podcast);
-                  if (ok) return;
-                }
+            // Each card's own context tags its cover (CoverHero).
+            return Builder(builder: (context) {
+              final Object hero = context;
+              void open() {
+                CoverHero.launch(hero);
                 Get.to(() => PodcastEpisodesScreen(podcast: podcast));
-              },
-              onLongPress: () =>
-                  Get.to(() => PodcastEpisodesScreen(podcast: podcast)),
-            );
+              }
+
+              return HomeShelfCard(
+                size: HomeLayout.shelfCard,
+                art: PodcastArt(
+                  url: Thumbnail((podcast['artwork'] ?? '').toString()).medium,
+                  size: HomeLayout.shelfCard,
+                ),
+                heroTag: hero,
+                title: (podcast['title'] ?? '').toString(),
+                subtitle: (podcast['author'] ?? '').toString(),
+                onTap: () async {
+                  if (shouldPlayPodcastShowOnTap()) {
+                    final ok = await playPodcastShow(podcast);
+                    if (ok) return;
+                  }
+                  open();
+                },
+                onLongPress: open,
+              );
+            });
           },
         ),
       ],

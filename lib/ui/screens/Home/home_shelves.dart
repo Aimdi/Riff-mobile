@@ -265,9 +265,13 @@ class HomeShelfItem extends StatelessWidget {
                 size: w,
                 borderRadius: 0),
         artHeight: h,
+        heroTag: context,
         title: v.title,
         subtitle: v.author,
-        onTap: () => Get.to(() => PodcastEpisodesScreen(podcast: v.data)),
+        onTap: () {
+          CoverHero.launch(context);
+          Get.to(() => PodcastEpisodesScreen(podcast: v.data));
+        },
       );
     }
     if (v is GeneratedMix) {

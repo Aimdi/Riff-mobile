@@ -33,6 +33,7 @@ import '/ui/widgets/snackbar.dart';
 import '../Home/home_layout.dart';
 import 'podcast_layout.dart';
 import 'podcast_queue_controller.dart';
+import '/ui/widgets/cover_hero.dart';
 
 /// "1 episode" / "12 episodes".
 String podcastEpisodeCount(int n) =>
@@ -80,6 +81,7 @@ class PodcastShowView extends StatefulWidget {
     this.onBack,
     this.footer,
     this.playbackKey,
+    this.coverHeroTag,
   });
 
   final String title;
@@ -102,6 +104,9 @@ class PodcastShowView extends StatefulWidget {
   /// Key this show's playback settings are stored under (feed URL or
   /// `yt:<playlist>`); null hides the Playback settings button.
   final String? playbackKey;
+
+  /// The tapped card's cover flying in ([CoverHero.take]); null: none.
+  final Object? coverHeroTag;
 
   @override
   State<PodcastShowView> createState() => _PodcastShowViewState();
@@ -672,10 +677,13 @@ class _PodcastShowViewState extends State<PodcastShowView> {
           child: Column(
             children: [
               // Flat cover, radius 8, no shadow.
-              SizedBox(
-                width: cover,
-                height: cover,
-                child: PodcastArt(url: widget.artUrl, size: cover),
+              CoverHero(
+                tag: widget.coverHeroTag,
+                child: SizedBox(
+                  width: cover,
+                  height: cover,
+                  child: PodcastArt(url: widget.artUrl, size: cover),
+                ),
               ),
               const SizedBox(height: RiffSpacing.lg),
               Text(

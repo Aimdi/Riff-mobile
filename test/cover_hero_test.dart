@@ -8,14 +8,17 @@ const _pageCover = ValueKey('pageCover');
 /// A card on a shelf: its cover tagged with the card itself; a tap hands
 /// the tag on and opens the page.
 class _Card extends StatelessWidget {
-  const _Card({required this.coverKey});
+  const _Card({required this.coverKey, this.root = false});
   final Key coverKey;
+
+  /// Opens the page on the app's own navigator, over the one it's in.
+  final bool root;
 
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: () {
           CoverHero.launch(context);
-          Navigator.of(context)
+          Navigator.of(context, rootNavigator: root)
               .push(MaterialPageRoute<void>(builder: (_) => const _Page()));
         },
         child: CoverHero(
@@ -84,6 +87,27 @@ void main() {
         landed.bottomRight, tester.getBottomRight(find.byType(Scaffold).last));
     // Taken once: a page opened later some other way gets no cover.
     expect(CoverHero.take(), isNull);
+  });
+
+  testWidgets('a cover in the page navigator flies to a page over it',
+      (tester) async {
+    // Shows and books open over the whole app (Get.to) from a tab that
+    // lives in the page navigator.
+    await tester.pumpWidget(MaterialApp(
+      home: Navigator(
+        onGenerateRoute: (_) => MaterialPageRoute<void>(
+          builder: (_) =>
+              const Scaffold(body: _Card(coverKey: _cardCover, root: true)),
+        ),
+      ),
+    ));
+    await tester.tap(find.byKey(_cardCover));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(tester.getRect(find.byKey(_pageCover)).width,
+        inExclusiveRange(96, 150));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(find.byKey(_pageCover)), const Size.square(96));
   });
 
   testWidgets('a page opened without a card has no flying cover',

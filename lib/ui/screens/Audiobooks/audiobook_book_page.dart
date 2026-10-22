@@ -8,6 +8,7 @@ import '/ui/widgets/song_list_tile.dart' show RiffRowHairline;
 import '../Home/home_layout.dart';
 import '../Podcasts/podcast_layout.dart';
 import 'audiobook_widgets.dart';
+import '/ui/widgets/cover_hero.dart';
 
 /// A book's page looks the same whether the book is a free one or on your
 /// Audiobookshelf server, the way Audible and Apple Books lay one out.
@@ -30,10 +31,14 @@ class AudiobookBookHeader extends StatelessWidget {
     this.lines = const [],
     required this.playLabel,
     this.onPlay,
+    this.coverHeroTag,
   });
 
   /// The cover's address (a file:// one when downloaded).
   final String cover;
+
+  /// The tapped card's cover flying in ([CoverHero.take]); null: none.
+  final Object? coverHeroTag;
   final String title;
   final String author;
   final List<String> lines;
@@ -54,7 +59,11 @@ class AudiobookBookHeader extends StatelessWidget {
         children: [
           // Show-page header (§ Phase 7): art radius 8, title
           // headlineSmall, author bodyMedium, Play as the primary pill.
-          AudiobookCover(url: cover, size: audiobookPageCover(context)),
+          CoverHero(
+            tag: coverHeroTag,
+            child:
+                AudiobookCover(url: cover, size: audiobookPageCover(context)),
+          ),
           const SizedBox(height: RiffSpacing.lg),
           Text(
             title,

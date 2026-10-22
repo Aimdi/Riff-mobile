@@ -13,6 +13,7 @@ import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import 'audiobook_library_controller.dart';
+import '/ui/widgets/cover_hero.dart';
 
 /// Details for a commercial audiobook. Browse-only: it can't play in Riff
 /// (Audible/DRM), so the actions open Audible / Apple Books to listen or buy.
@@ -27,6 +28,8 @@ class AudiobookCatalogDetailScreen extends StatefulWidget {
 
 class _AudiobookCatalogDetailScreenState
     extends State<AudiobookCatalogDetailScreen> {
+  /// The tapped card's cover, flying in.
+  final Object? _coverHero = CoverHero.take();
   AudiobookDetails? _details;
   List<AudiobookItem> _similar = [];
   AudiobookRating? _rating;
@@ -100,21 +103,24 @@ class _AudiobookCatalogDetailScreenState
             // Show-page header (§ Phase 7): art radius 8, title
             // headlineSmall, author bodyMedium (a link here, so the accent).
             Center(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(RiffRadii.sm),
-                child: RiffNetworkImage(
-                  imageUrl: book.cover,
-                  // Decode at display size, not full resolution.
-                  // Store audiobook art is square.
-                  memCacheHeight: (RiffComponentSizes.storeBookCover *
-                          MediaQuery.devicePixelRatioOf(context))
-                      .round(),
-                  width: RiffComponentSizes.storeBookCover,
-                  height: RiffComponentSizes.storeBookCover,
-                  fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => Icon(Icons.menu_book,
-                      size: RiffComponentSizes.storeBookCover * 0.6,
-                      color: theme.colorScheme.onSurfaceVariant),
+              child: CoverHero(
+                tag: _coverHero,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(RiffRadii.sm),
+                  child: RiffNetworkImage(
+                    imageUrl: book.cover,
+                    // Decode at display size, not full resolution.
+                    // Store audiobook art is square.
+                    memCacheHeight: (RiffComponentSizes.storeBookCover *
+                            MediaQuery.devicePixelRatioOf(context))
+                        .round(),
+                    width: RiffComponentSizes.storeBookCover,
+                    height: RiffComponentSizes.storeBookCover,
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => Icon(Icons.menu_book,
+                        size: RiffComponentSizes.storeBookCover * 0.6,
+                        color: theme.colorScheme.onSurfaceVariant),
+                  ),
                 ),
               ),
             ),

@@ -17,6 +17,7 @@ import 'audiobook_library_controller.dart';
 import 'audiobook_play.dart';
 import 'audiobook_widgets.dart';
 import '/ui/widgets/riff_header_bar.dart';
+import '/ui/widgets/cover_hero.dart';
 
 /// A free LibriVox book: cover, play / resume, about, and its chapters.
 class FreeAudiobookScreen extends StatefulWidget {
@@ -28,6 +29,8 @@ class FreeAudiobookScreen extends StatefulWidget {
 }
 
 class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
+  /// The tapped card's cover, flying in.
+  final Object? _coverHero = CoverHero.take();
   FreeAudiobookDetail? _detail;
   bool _loading = true;
 
@@ -166,6 +169,7 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
     final last = AudiobookProgressService.lastTrackForBook(book.id);
     final lastIdx = (last?['trackIndex'] as num?)?.toInt();
     return AudiobookBookHeader(
+      coverHeroTag: _coverHero,
       cover: AudiobookDownloads.coverOf(book.id) ?? book.cover,
       title: book.title,
       author: book.author,

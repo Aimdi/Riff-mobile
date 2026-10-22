@@ -18,6 +18,7 @@ import '../Home/home_layout.dart';
 import '../Podcasts/podcast_layout.dart';
 import 'audiobook_catalog_detail_screen.dart';
 import 'free_audiobook_screen.dart';
+import '/ui/widgets/cover_hero.dart';
 
 /// "1 chapter" / "12 chapters".
 String audiobookChapterCount(int n) =>
@@ -122,9 +123,14 @@ class FreeAudiobookCard extends StatelessWidget {
   Widget build(BuildContext context) => HomeShelfCard(
         size: size,
         art: AudiobookCover(url: book.cover, size: size, radius: 0),
+        // The cover flies to the book's page (CoverHero).
+        heroTag: context,
         title: book.title,
         subtitle: book.author,
-        onTap: () => openFreeAudiobook(book),
+        onTap: () {
+          CoverHero.launch(context);
+          openFreeAudiobook(book);
+        },
       );
 }
 
@@ -138,9 +144,13 @@ class StoreAudiobookCard extends StatelessWidget {
   Widget build(BuildContext context) => HomeShelfCard(
         size: size,
         art: AudiobookCover(url: book.cover, size: size, radius: 0),
+        heroTag: context,
         title: book.title,
         subtitle: book.author,
-        onTap: () => openStoreAudiobook(book),
+        onTap: () {
+          CoverHero.launch(context);
+          openStoreAudiobook(book);
+        },
       );
 }
 

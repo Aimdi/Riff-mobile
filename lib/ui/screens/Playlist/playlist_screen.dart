@@ -537,6 +537,7 @@ class _PodcastShow extends StatelessWidget {
       final episodes = c.songList.toList();
       return PodcastShowView(
         playbackKey: podcastShowKeyForYoutube(pl.playlistId),
+        coverHeroTag: c.coverHeroTag,
         title: pl.title,
         author: (pl.description ?? '').trim(),
         artUrl: pl.thumbnailUrl,

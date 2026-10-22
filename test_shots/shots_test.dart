@@ -36,6 +36,7 @@ import 'src/media_data.dart';
 import 'src/sample_data.dart';
 import 'package:harmonymusic/ui/theme/riff_tokens.dart';
 import 'package:harmonymusic/ui/screens/Home/home_layout.dart';
+import 'package:harmonymusic/ui/screens/Podcasts/podcast_cover_tile.dart';
 import 'package:harmonymusic/ui/screens/Home/home_shelves.dart';
 import 'package:harmonymusic/models/album.dart';
 import 'package:harmonymusic/ui/widgets/content_list_widget_item.dart';
@@ -103,6 +104,16 @@ final scenarios = <Scenario>[
     await push(t, ScreenNavigationSetup.playlistScreen,
         [show, show.playlistId, false]);
   }),
+  // From the Subscriptions grid: the show's cover flies to its page.
+  Scenario('podcast_show_from_subs', _all, (t, d) async {
+    await openApp(t, tab: RailTab.podcasts);
+    await tapPill(t, 'subscriptions'.tr);
+    // A show's tile (folders come first and open no cover page).
+    await _openFromCard(
+        t,
+        find.byWidgetPredicate(
+            (w) => w is PodcastCoverTile && w.cover == null));
+  }),
 
   // ── Audiobooks: Library (a server), Discover, Saved; book pages ──────
   Scenario('audiobooks_library', _all,
@@ -119,6 +130,14 @@ final scenarios = <Scenario>[
     await openApp(t, tab: RailTab.audiobooks);
     openFreeAudiobook(ShotBooks.free[0]);
     await settle(t);
+  }),
+  Scenario('audiobook_from_discover', _all, (t, d) async {
+    await openApp(t, tab: RailTab.audiobooks);
+    await tapPill(t, 'discover'.tr);
+    await _openFromCard(
+        t,
+        find.byWidgetPredicate(
+            (w) => w is FreeAudiobookCard || w is StoreAudiobookCard));
   }),
   Scenario('audiobook_server_book', _all, (t, d) async {
     await openApp(t, tab: RailTab.audiobooks);
@@ -430,10 +449,10 @@ Future<void> precacheAssetImages(WidgetTester tester) async {
   await tester.pump();
 }
 
-/// Taps the first album card in view and lets the page open, checking
-/// the cover is in flight halfway through.
-Future<void> _openFromCard(WidgetTester tester) async {
-  final card = find.byWidgetPredicate((w) =>
+/// Taps the first [card] in view (an album card by default) and lets the
+/// page open, checking the cover is in flight halfway through.
+Future<void> _openFromCard(WidgetTester tester, [Finder? card]) async {
+  card ??= find.byWidgetPredicate((w) =>
       (w is HomeShelfItem && w.value is Album) ||
       (w is ContentListItem && w.content is Album) ||
       // An artist's albums and singles.
@@ -441,7 +460,12 @@ Future<void> _openFromCard(WidgetTester tester) async {
   await tester.tap(card.first);
   await tester.pump();
   await tester.pump(RiffDurations.page * 0.5);
-  expect(find.byType(Hero), findsWidgets);
+  // In flight, the card's cover and the page's share a tag.
+  final tags = [
+    for (final h in tester.widgetList<Hero>(find.byType(Hero))) h.tag
+  ];
+  expect(tags.toSet().length, lessThan(tags.length),
+      reason: 'no cover in flight');
   await settle(tester);
 }
 

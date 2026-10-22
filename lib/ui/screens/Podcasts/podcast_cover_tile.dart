@@ -20,6 +20,7 @@ import '/ui/widgets/shimmer_widgets/basic_container.dart'
     show RiffSkeletonPulse;
 import '/ui/widgets/snackbar.dart';
 import 'podcasts_screen.dart';
+import '/ui/widgets/cover_hero.dart';
 
 /// Columns for the pane [width] (the screen less the rail): 3 on regular
 /// phones as Pocket Casts lays out its podcasts (2 on narrow ones), more
@@ -103,7 +104,13 @@ class PodcastCoverTile extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(RiffRadii.sm),
-        onTap: onTap,
+        // The cover flies to the show's page (CoverHero).
+        onTap: onTap == null
+            ? null
+            : () {
+                CoverHero.launch(context);
+                onTap!();
+              },
         onLongPress: onLongPress,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,9 +120,12 @@ class PodcastCoverTile extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(RiffRadii.sm),
-                    child: cover ?? _art(context),
+                  CoverHero(
+                    tag: onTap == null ? null : context,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(RiffRadii.sm),
+                      child: cover ?? _art(context),
+                    ),
                   ),
                   if (badge != null)
                     Positioned(
