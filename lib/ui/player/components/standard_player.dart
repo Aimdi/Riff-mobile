@@ -633,31 +633,34 @@ class _LyricsVeil extends StatelessWidget {
                   song, CoverPalette(fill: bg, deep: bg, glow: bg))
               .fill
           : bg;
-      return ColoredBox(
-        color: page.withOpacity(0.78),
-        child: Stack(
-          children: [
-            child,
-            IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      page.withOpacity(0.9),
-                      Colors.transparent,
-                      Colors.transparent,
-                      page.withOpacity(0.9),
-                    ],
-                    stops: const [0, 0.2, 0.8, 1],
+      // A card over the cover, rounded like the app's other cards.
+      return ClipRRect(
+          borderRadius: BorderRadius.circular(RiffRadii.lg),
+          child: ColoredBox(
+            color: page.withOpacity(0.78),
+            child: Stack(
+              children: [
+                child,
+                IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          page.withOpacity(0.9),
+                          Colors.transparent,
+                          Colors.transparent,
+                          page.withOpacity(0.9),
+                        ],
+                        stops: const [0, 0.2, 0.8, 1],
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      );
+          ));
     });
   }
 }

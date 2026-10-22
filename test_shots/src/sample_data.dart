@@ -206,6 +206,32 @@ class ShotData {
   /// The song playing in every shot.
   static MediaItem get nowPlaying => song(0);
 
+  /// Synced lyrics for [nowPlaying] (LRC); the line at 1:24, where the
+  /// shots' playhead rests, is the one sung.
+  static const nowPlayingLyrics = '''
+[00:12.00]Folded the map into a paper plane
+[00:18.40]Threw it from the window of the night train
+[00:25.10]Every city looks the same at two a.m.
+[00:31.70]Neon on the water, and you again
+[00:38.20]
+[00:41.00]We said we'd stay until the morning came
+[00:47.30]But Lisbon never learned to say your name
+[00:53.90]So I kept the ticket and I kept the flame
+[01:00.40]And let the wind decide which way it came
+[01:07.00]
+[01:10.00]Oh, paper planes over Lisbon
+[01:16.20]Drifting where the streetlights go
+[01:22.60]Every wish I never sent you
+[01:28.90]Landing somewhere down below
+[01:35.30]Oh, paper planes over Lisbon
+[01:41.70]Carry what I couldn't say
+[01:48.10]If you find one on the river
+[01:54.50]Let it float the other way
+[02:01.00]
+[02:05.20]Trams go humming up the hill alone
+[02:11.60]I can hear the ocean on the phone
+''';
+
   // ────────────────────────────────────────────────────────── albums ──
 
   static const _albums = <(String, String, String, String)>[

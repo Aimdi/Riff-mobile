@@ -149,6 +149,20 @@ final scenarios = <Scenario>[
     Get.find<PlayerController>().playerPanelController.open();
     await settle(t);
   }),
+  // Synced lyrics over the cover, the line at the playhead sung.
+  Scenario('player_lyrics', _all, (t, d) async {
+    await openApp(t);
+    final player = Get.find<PlayerController>();
+    player.playerPanelController.open();
+    await settle(t);
+    player.lyrics.value = {
+      'synced': ShotData.nowPlayingLyrics,
+      'plainLyrics': '',
+    };
+    player.isLyricsLoading.value = false;
+    player.showLyricsflag.value = true;
+    await settle(t);
+  }),
   Scenario('player_queue', _all, (t, d) async {
     await openApp(t);
     Get.find<PlayerController>().playerPanelController.open();
