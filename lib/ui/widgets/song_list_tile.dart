@@ -322,25 +322,38 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                                 ],
                               );
                             }),
-                            SongRowHeartButton(
-                              song: song,
-                              iconSize: RiffComponentSizes.trailingIcon,
-                              color: muted,
-                            ),
-                            IconButton(
-                              iconSize: RiffComponentSizes.trailingIcon,
-                              visualDensity: VisualDensity.compact,
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(
-                                minWidth: RiffComponentSizes.rowIconHit,
-                                minHeight: RiffComponentSizes.rowIconHit,
-                              ),
-                              splashRadius: RiffComponentSizes.rowIconHit / 2,
-                              tooltip: 'moreOptions'.tr,
-                              onPressed: () => _openSheet(playerController),
-                              icon: Icon(
-                                Icons.more_vert,
-                                color: muted,
+                            // Narrow, side by side, but the full 48 dp
+                            // tall to tap (the glyphs stay as they are).
+                            SizedBox(
+                              height: RiffSizes.touch,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  SongRowHeartButton(
+                                    song: song,
+                                    iconSize: RiffComponentSizes.trailingIcon,
+                                    color: muted,
+                                  ),
+                                  IconButton(
+                                    iconSize: RiffComponentSizes.trailingIcon,
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                      minWidth: RiffComponentSizes.rowIconHit,
+                                      minHeight: RiffComponentSizes.rowIconHit,
+                                    ),
+                                    splashRadius:
+                                        RiffComponentSizes.rowIconHit / 2,
+                                    tooltip: 'moreOptions'.tr,
+                                    onPressed: () =>
+                                        _openSheet(playerController),
+                                    icon: Icon(
+                                      Icons.more_vert,
+                                      color: muted,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
