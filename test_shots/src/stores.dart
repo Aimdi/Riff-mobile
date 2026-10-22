@@ -18,6 +18,7 @@ import 'package:hive/hive.dart';
 import 'env.dart';
 import 'media_data.dart';
 import 'sample_data.dart';
+import 'package:harmonymusic/ui/screens/Podcasts/podcast_folder_controller.dart' show podcastFolderIdForFeed;
 
 /// The accent the shots use: green (the default), or the one named by
 /// `--dart-define=SHOT_ACCENT=Blue` (Violet, Crimson, Amber, Cyan: see
@@ -143,6 +144,18 @@ Future<void> seedShotStores() async {
     },
     'segmentSavedMs': 47 * 60000,
   });
+  // A folder of two shows (Spotify's Your Library folders).
+  await Hive.box('PodcastFolders').put('folders', [
+    {
+      'id': 'shotFolder',
+      'name': 'Science & History',
+      'ids': [
+        for (final i in const [2, 3])
+          podcastFolderIdForFeed(ShotPods.shows[i].feedUrl),
+      ],
+      'color': 2,
+    },
+  ]);
   await Hive.box('PodcastSubs').putAll({
     for (final s in ShotPods.shows) s.feedUrl: s.subscription,
   });

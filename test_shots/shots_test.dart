@@ -22,7 +22,10 @@ import 'package:harmonymusic/ui/screens/Home/home_screen.dart';
 import 'package:harmonymusic/ui/screens/Home/home_screen_controller.dart';
 import 'package:harmonymusic/ui/screens/Settings/settings_screen.dart';
 import 'package:harmonymusic/ui/screens/Stats/stats_screen.dart';
+import 'package:harmonymusic/ui/screens/Podcasts/podcast_folder_screen.dart';
 import 'package:harmonymusic/ui/widgets/add_to_playlist.dart';
+import 'package:harmonymusic/ui/widgets/create_playlist_dialog.dart';
+import 'package:harmonymusic/ui/widgets/equalizer_sheet.dart';
 import 'package:harmonymusic/ui/widgets/side_nav_bar.dart';
 import 'package:harmonymusic/ui/widgets/sleep_timer_bottom_sheet.dart';
 import 'package:harmonymusic/ui/widgets/songinfo_bottom_sheet.dart';
@@ -234,6 +237,26 @@ final scenarios = <Scenario>[
   Scenario('sheet_sleep_timer', _all, (t, d) async {
     await openApp(t);
     unawaited(showSleepTimerSheet(null));
+    await settle(t);
+  }),
+
+  Scenario('sheet_equalizer', _all, (t, d) async {
+    await openApp(t);
+    unawaited(showEqualizerSheet(t.element(find.byType(SideNavBar).first)));
+    await settle(t);
+  }),
+  Scenario('dialog_create_playlist', _all, (t, d) async {
+    await openApp(t, tab: RailTab.playlists);
+    unawaited(showDialog(
+        context: t.element(find.byType(SideNavBar).first),
+        builder: (_) => const CreateNRenamePlaylistPopup()));
+    await settle(t);
+  }),
+
+  // ── A podcast folder ─────────────────────────────────────────────────
+  Scenario('podcast_folder', _all, (t, d) async {
+    await openApp(t, tab: RailTab.podcasts);
+    Get.to(() => const PodcastFolderScreen(folderId: 'shotFolder'));
     await settle(t);
   }),
 
