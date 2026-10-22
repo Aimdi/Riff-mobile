@@ -109,7 +109,7 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
   @override
   Widget build(BuildContext context) {
     final abs = Get.find<AudiobookshelfService>();
-    final topPadding = context.isLandscape ? 50.0 : 90.0;
+    final topPadding = riffTabTop(context);
     if (_mode != _builtMode) {
       _switched = _builtMode != null;
       _builtMode = _mode;

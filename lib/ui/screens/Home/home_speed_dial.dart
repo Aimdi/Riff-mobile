@@ -220,6 +220,7 @@ class _HomeSpeedDialState extends State<HomeSpeedDial> {
                           size: tile,
                           label:
                               '${v.title}${v.artist?.isNotEmpty == true ? ', ${v.artist}' : ''}',
+                          title: v.title,
                           songId: v.id,
                           art:
                               ImageWidget(song: v, size: tile, borderRadius: 0),
@@ -230,6 +231,7 @@ class _HomeSpeedDialState extends State<HomeSpeedDial> {
                         _DialTile(
                           size: tile,
                           label: v.title,
+                          title: v.title,
                           circle: v.type == 'artist',
                           art: _PinArt(pin: v, size: tile),
                           onTap: () => _playPin(v),
@@ -316,6 +318,7 @@ class _DialTile extends StatelessWidget {
   const _DialTile({
     required this.size,
     required this.label,
+    required this.title,
     required this.art,
     required this.onTap,
     required this.onLongPress,
@@ -324,6 +327,10 @@ class _DialTile extends StatelessWidget {
   });
   final double size;
   final String label;
+
+  /// Written on the cover, bottom left (centred on an artist's circle),
+  /// so a tile says what it plays, as YouTube Music's do.
+  final String title;
   final Widget art;
   final String? songId;
   final bool circle;
@@ -354,6 +361,11 @@ class _DialTile extends StatelessWidget {
               fit: StackFit.expand,
               children: [
                 art,
+                if (title.isNotEmpty)
+                  _TileTitle(
+                      title: title,
+                      circle: circle,
+                      compact: size < RiffSizes.compactDialTile),
                 if (songId != null && Get.isRegistered<PlayerController>())
                   Obx(() {
                     final player = Get.find<PlayerController>();
@@ -383,6 +395,55 @@ class _DialTile extends StatelessWidget {
             ),
           ),
         )),
+      ),
+    );
+  }
+}
+
+/// A Speed dial tile's title on a dark wash rising from the bottom of
+/// its cover.
+class _TileTitle extends StatelessWidget {
+  const _TileTitle(
+      {required this.title, required this.circle, required this.compact});
+  final String title;
+  final bool circle;
+
+  /// A small tile (small phones): the smaller label style.
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final riff = RiffColors.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          stops: const [RiffPalette.tileTitleScrimStart, 1],
+          colors: [
+            riff.scrim.withOpacity(0),
+            riff.scrim.withOpacity(RiffPalette.tileTitleScrim),
+          ],
+        ),
+      ),
+      child: Align(
+        alignment: circle ? Alignment.bottomCenter : Alignment.bottomLeft,
+        child: Padding(
+          padding: EdgeInsets.only(
+              left: circle ? RiffSpacing.lg : RiffSpacing.sm,
+              right: circle ? RiffSpacing.lg : RiffSpacing.sm,
+              bottom: circle ? RiffSpacing.md : RiffSpacing.sm),
+          child: Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: circle ? TextAlign.center : TextAlign.start,
+            style: (compact
+                    ? Theme.of(context).textTheme.labelSmall
+                    : Theme.of(context).textTheme.labelMedium)
+                ?.copyWith(color: riff.onImage),
+          ),
+        ),
       ),
     );
   }

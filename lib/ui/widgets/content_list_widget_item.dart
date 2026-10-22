@@ -12,6 +12,7 @@ import '/ui/theme/riff_tokens.dart';
 import '../utils/riff_tokens.dart';
 import '../utils/theme_controller.dart';
 import 'collection_play.dart';
+import 'generated_cover.dart';
 import 'image_widget.dart';
 import 'podcast_play.dart';
 import 'riff_motion.dart';
@@ -338,24 +339,38 @@ class ContentListItem extends StatelessWidget {
         coverTitleRightInset: _playReach,
       );
     } else {
-      child = Container(
-          height: size,
-          width: size,
-          decoration: BoxDecoration(
-              color: Theme.of(context).primaryColorLight,
-              borderRadius: BorderRadius.circular(RiffTokens.radiusSm)),
-          child: Center(
-              child: Icon(
-            content.playlistId == 'LIBRP'
-                ? Icons.history
-                : content.playlistId == 'LIBFAV'
-                    ? Icons.favorite
-                    : content.playlistId == 'SongsCache'
-                        ? Icons.flight
-                        : Icons.download,
-            color: Theme.of(context).colorScheme.onSurface,
-            size: size * 0.32,
-          )));
+      // Riff's own lists (Favorites, Recently played, Cached, Downloads):
+      // a generated colour cover with their glyph in white, as Spotify
+      // gives Liked Songs its own art, instead of a grey square.
+      child = ClipRRect(
+        borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+        child: SizedBox.square(
+          dimension: size,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              GeneratedCover(
+                  seed: content.playlistId,
+                  title: '',
+                  size: size,
+                  showTitle: false),
+              Center(
+                child: Icon(
+                  content.playlistId == 'LIBRP'
+                      ? Icons.history
+                      : content.playlistId == 'LIBFAV'
+                          ? Icons.favorite
+                          : content.playlistId == 'SongsCache'
+                              ? Icons.flight
+                              : Icons.download,
+                  color: RiffColors.of(context).onImage,
+                  size: size * RiffCoverArt.glyphShare,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
     return child;
   }

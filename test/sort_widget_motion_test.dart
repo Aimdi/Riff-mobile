@@ -59,18 +59,38 @@ void main() {
     expect(find.text('Songs'), findsOneWidget);
   });
 
-  testWidgets('a filter turning on crossfades to its other glyph',
+  testWidgets('filters are labelled chips over the bar (Spotify)',
       (tester) async {
-    await tester.pumpWidget(bar());
-    expect(find.byIcon(Icons.download_for_offline_outlined), findsOneWidget);
+    var toggles = 0;
+    Widget chips({bool on = false}) => MaterialApp(
+          home: Scaffold(
+            body: SortWidget(
+              tag: 'chips',
+              itemCountTitle: 'Songs',
+              screenController: _Screen(),
+              isDownloadedFilterRequired: true,
+              isDownloadedOnly: on,
+              onDownloadedToggle: () => toggles++,
+              isCloudFeatureRequired: true,
+              isCloudModeActive: false,
+              onCloudToggle: () {},
+              onSort: (_, __) {},
+            ),
+          ),
+        );
+    await tester.pumpWidget(chips());
+    final downloaded = find.widgetWithText(FilterChip, 'downloaded');
+    expect(downloaded, findsOneWidget);
+    expect(find.widgetWithText(FilterChip, 'cloud'), findsOneWidget);
+    expect(tester.widget<FilterChip>(downloaded).selected, isFalse);
+    // Not in the bar any more as bare icons.
+    expect(find.byTooltip('downloadedOnly'), findsNothing);
 
-    await tester.pumpWidget(bar(downloadedOnly: true));
-    await tester.pump(RiffDurations.select ~/ 2);
-    expect(find.byIcon(Icons.download_for_offline_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.download_done_rounded), findsOneWidget);
+    await tester.tap(downloaded);
+    expect(toggles, 1);
 
+    await tester.pumpWidget(chips(on: true));
     await tester.pumpAndSettle();
-    expect(find.byIcon(Icons.download_for_offline_outlined), findsNothing);
-    expect(find.byIcon(Icons.download_done_rounded), findsOneWidget);
+    expect(tester.widget<FilterChip>(downloaded).selected, isTrue);
   });
 }

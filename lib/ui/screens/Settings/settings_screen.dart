@@ -69,7 +69,7 @@ class SettingsScreen extends StatelessWidget {
     final pillBorder = OutlineInputBorder(
         borderRadius: BorderRadius.circular(RiffRadii.pill),
         borderSide: BorderSide.none);
-    final topPadding = context.isLandscape ? 50.0 : 90.0;
+    final topPadding = riffTabTop(context);
     final isDesktop = GetPlatform.isDesktop;
     return Padding(
       padding: EdgeInsets.only(

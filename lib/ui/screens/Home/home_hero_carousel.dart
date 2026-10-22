@@ -102,7 +102,7 @@ class _HomeHeroCarouselState extends State<HomeHeroCarousel> {
                 controller: _controller(),
                 padEnds: false,
                 clipBehavior: Clip.none,
-                physics: const _SnappingPhysics(),
+                physics: const HomeSnappingPhysics(),
                 itemCount: songs.length,
                 itemBuilder: (context, i) => Padding(
                   padding:
@@ -130,13 +130,13 @@ class _HomeHeroCarouselState extends State<HomeHeroCarousel> {
 }
 
 /// Page snapping with a little more drag than the default, so a flick
-/// moves one item, not three.
-class _SnappingPhysics extends PageScrollPhysics {
-  const _SnappingPhysics({super.parent});
+/// moves one item, not three (Quick picks, the song-row shelves).
+class HomeSnappingPhysics extends PageScrollPhysics {
+  const HomeSnappingPhysics({super.parent});
 
   @override
-  _SnappingPhysics applyTo(ScrollPhysics? ancestor) =>
-      _SnappingPhysics(parent: buildParent(ancestor));
+  HomeSnappingPhysics applyTo(ScrollPhysics? ancestor) =>
+      HomeSnappingPhysics(parent: buildParent(ancestor));
 
   @override
   double get dragStartDistanceMotionThreshold => 3.5;

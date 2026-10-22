@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+
+/// Where a rail tab's page begins: just under the status bar, as Home's
+/// greeting does (Spotify's and Apple Music's page titles sit there too).
+double riffTabTop(BuildContext context) =>
+    MediaQuery.paddingOf(context).top + RiffSpacing.sm;
 
 /// Page-header chrome (§ Phase 3): black background, 22 dp header icons in
 /// the primary text colour, and a one-physical-pixel hairline along the

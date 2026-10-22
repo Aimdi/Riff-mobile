@@ -54,7 +54,7 @@ class SongsLibraryWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final topPadding = context.isLandscape ? 50.0 : 90.0;
+    final topPadding = riffTabTop(context);
     final libSongsController = Get.find<LibrarySongsController>();
     return Padding(
       padding: EdgeInsets.only(top: topPadding),
@@ -300,7 +300,8 @@ class _DeviceSongsPane extends StatelessWidget {
   }
 }
 
-/// Library tab title row: title on the left, tab actions on the right.
+/// A rail tab's title row: the page's name as large as Home's greeting
+/// (Apple Music's and Spotify's page titles), actions on the right.
 class LibraryHeader extends StatelessWidget {
   const LibraryHeader(
       {super.key, required this.title, this.actions = const []});
@@ -318,15 +319,18 @@ class LibraryHeader extends StatelessWidget {
               right: RiffSpacing.sm,
               bottom: RiffSpacing.xxs),
           child: SizedBox(
-            height: 44,
+            height: RiffSpacing.headerRow,
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleLarge,
+                  child: Semantics(
+                    header: true,
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
                   ),
                 ),
                 ...actions,
@@ -376,6 +380,22 @@ class LibraryPlayButton extends StatelessWidget {
       : width >= 720
           ? 4
           : width >= 380
+              ? 3
+              : 2;
+  final cover =
+      (width - HomeLayout.gutter * 2 - HomeLayout.cardGap * (columns - 1)) /
+          columns;
+  return (columns: columns, cover: cover);
+}
+
+/// Artists grid: smaller circles than the album grid, one more column (3
+/// on phones, as Spotify's grid of artists).
+({int columns, double cover}) libraryArtistGridMetrics(double width) {
+  final columns = width >= 1100
+      ? 7
+      : width >= 720
+          ? 5
+          : width >= 300
               ? 3
               : 2;
   final cover =
@@ -547,7 +567,7 @@ class _PlaylistNAlbumLibraryWidgetState
     final settingscrnController = Get.find<SettingsScreenController>();
     final size = MediaQuery.of(context).size;
 
-    final topPadding = context.isLandscape ? 50.0 : 90.0;
+    final topPadding = riffTabTop(context);
 
     return Padding(
       padding: EdgeInsets.only(top: topPadding),
@@ -686,7 +706,7 @@ class LibraryArtistWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cntrller = Get.find<LibraryArtistsController>();
-    final topPadding = context.isLandscape ? 50.0 : 90.0;
+    final topPadding = riffTabTop(context);
     return Padding(
       padding: EdgeInsets.only(top: topPadding),
       child: Column(
@@ -713,36 +733,35 @@ class LibraryArtistWidget extends StatelessWidget {
                     // Still reading the library: no "no artists" flash.
                     ? const SizedBox.shrink()
                     : cntrller.libraryArtists.isEmpty
-                    ? EmptyPlayHint(message: "noLibArtists".tr)
-                    : LayoutBuilder(builder: (context, constraints) {
-                        final grid = libraryGridMetrics(constraints.maxWidth);
-                        return GridView.builder(
-                          physics: const BouncingScrollPhysics(),
-                          padding: const EdgeInsets.only(
-                              left: HomeLayout.gutter,
-                              top: RiffSpacing.sm,
-                              right: HomeLayout.gutter,
-                              bottom: RiffSpacing.listEnd),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: grid.columns,
-                            crossAxisSpacing: HomeLayout.cardGap,
-                            mainAxisSpacing: 16,
-                            mainAxisExtent: grid.cover +
-                                10 +
-                                riffLineHeight(
-                                    context, homeCardTitleStyle(context)) +
-                                riffLineHeight(
-                                    context, homeCardSubtitleStyle(context)) +
-                                6,
-                          ),
-                          itemCount: cntrller.libraryArtists.length,
-                          itemBuilder: (context, index) => _LibraryArtistCard(
-                            artist: cntrller.libraryArtists[index],
-                            size: grid.cover,
-                          ),
-                        );
-                      }))),
+                        ? EmptyPlayHint(message: "noLibArtists".tr)
+                        : LayoutBuilder(builder: (context, constraints) {
+                            final grid =
+                                libraryArtistGridMetrics(constraints.maxWidth);
+                            return GridView.builder(
+                              physics: const BouncingScrollPhysics(),
+                              padding: const EdgeInsets.only(
+                                  left: HomeLayout.gutter,
+                                  top: RiffSpacing.sm,
+                                  right: HomeLayout.gutter,
+                                  bottom: RiffSpacing.listEnd),
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: grid.columns,
+                                crossAxisSpacing: HomeLayout.cardGap,
+                                mainAxisSpacing: RiffSpacing.lg,
+                                mainAxisExtent: grid.cover +
+                                    RiffSpacing.sm +
+                                    riffLineHeight(
+                                        context, homeCardTitleStyle(context)),
+                              ),
+                              itemCount: cntrller.libraryArtists.length,
+                              itemBuilder: (context, index) =>
+                                  _LibraryArtistCard(
+                                artist: cntrller.libraryArtists[index],
+                                size: grid.cover,
+                              ),
+                            );
+                          }))),
           ),
         ],
       ),
@@ -750,8 +769,9 @@ class LibraryArtistWidget extends StatelessWidget {
   }
 }
 
-/// Round artist card: photo, name and "Artist". Tap opens the artist;
-/// long-press offers play, shuffle, radio and open.
+/// Round artist card: photo and name (the tab already says they're
+/// artists). Tap opens the artist; long-press offers play, shuffle, radio
+/// and open.
 class _LibraryArtistCard extends StatelessWidget {
   const _LibraryArtistCard({required this.artist, required this.size});
   final dynamic artist;
@@ -817,36 +837,39 @@ class _LibraryArtistCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
-      onTap: _open,
-      onLongPress: () => _actions(context),
-      child: Column(
-        children: [
-          ClipOval(
-            child: ImageWidget(size: size, artist: artist),
+    return Semantics(
+      button: true,
+      label: '${artist.name}, ${'artist'.tr}',
+      excludeSemantics: true,
+      child: RiffPressScale(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(RiffTokens.radiusMd),
+          onTap: _open,
+          onLongPress: () => _actions(context),
+          child: Column(
+            children: [
+              ClipOval(
+                child: ImageWidget(size: size, artist: artist),
+              ),
+              const SizedBox(height: RiffSpacing.sm),
+              Text(
+                '${artist.name}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: homeCardTitleStyle(context),
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            '${artist.name}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: homeCardTitleStyle(context),
-          ),
-          Text(
-            'artist'.tr,
-            maxLines: 1,
-            textAlign: TextAlign.center,
-            style: homeCardSubtitleStyle(context),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-/// Spotify-like pinned tiles: Liked Songs + Recently played (play on tap).
+/// Spotify-like pinned tiles: Liked Songs + Recently played. A tap opens
+/// the list, a long press plays it or offers to (no play glyph: the tile
+/// itself opens).
 class _LibraryPinnedRow extends StatelessWidget {
   const _LibraryPinnedRow();
 
@@ -1071,7 +1094,6 @@ class _PinnedTile extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.play_circle_fill, color: accent, size: 22),
             ],
           ),
         ),

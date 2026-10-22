@@ -32,6 +32,7 @@ import '../Podcasts/podcasts_screen.dart' show PodcastEpisodesScreen;
 import 'home_feed_builder.dart';
 import 'home_feed_data.dart';
 import 'home_metrics.dart';
+import 'home_song_rows.dart';
 import '/ui/theme/riff_text_metrics.dart';
 import '/ui/player/play_queue_order.dart' show playQueueFrom;
 
@@ -78,9 +79,11 @@ class ShelfCardSize {
   }
 }
 
+/// Card titles in 14 medium, as Spotify, YouTube Music and Apple Music
+/// set theirs (lighter than the section title above them).
 TextStyle _titleStyle(BuildContext context) {
   final theme = Theme.of(context);
-  return (theme.textTheme.titleMedium ?? const TextStyle()).copyWith(
+  return (theme.textTheme.titleSmall ?? const TextStyle()).copyWith(
     color: theme.colorScheme.onSurface,
   );
 }
@@ -107,6 +110,13 @@ class RiffShelf extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = shelf.items;
     if (items.isEmpty) return const SizedBox.shrink();
+    if (HomeSongRows.fits(shelf)) {
+      return HomeSongRows(
+        shelf: shelf,
+        songs: [for (final i in items) i.value as MediaItem],
+        metrics: metrics,
+      );
+    }
     final text = ShelfCardSize.textBlock(context);
     var height = 0.0;
     for (final i in items) {

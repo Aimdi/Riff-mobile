@@ -349,8 +349,7 @@ class _HomeFeedState extends State<_HomeFeed>
               final rows = [
                 for (var i = 0; i < sections.length; i++) ...[
                   if (i == reconnectAt) reconnectCard,
-                  ..._sectionWidgets(home, sections[i], metrics, headerTop,
-                      divided: i > 1),
+                  ..._sectionWidgets(home, sections[i], metrics, headerTop),
                 ],
                 if (reconnectAt < 0) reconnectCard,
               ];
@@ -390,16 +389,12 @@ class _HomeFeedState extends State<_HomeFeed>
     );
   }
 
-  /// [divided]: every section after the first below the header gets a
-  /// hairline on top; so does every shelf after the first in a section.
+  /// Sections follow each other on space alone, no rules between them,
+  /// as Spotify, YouTube Music and Apple Music lay out their feeds.
   List<Widget> _sectionWidgets(HomeScreenController home, HomeSectionModel m,
-      HomeMetrics metrics, double headerTop,
-      {bool divided = false}) {
-    Widget slot(Widget child, [Key? key, bool? split]) => HomeSectionSlot(
-        key: key ?? ValueKey(m.section),
-        section: m.section,
-        divided: split ?? divided,
-        child: child);
+      HomeMetrics metrics, double headerTop) {
+    Widget slot(Widget child, [Key? key]) => HomeSectionSlot(
+        key: key ?? ValueKey(m.section), section: m.section, child: child);
     switch (m.section) {
       case HomeSection.header:
         return [
@@ -428,7 +423,7 @@ class _HomeFeedState extends State<_HomeFeed>
       case HomeSection.spotify:
       case HomeSection.editorial:
         return [
-          for (final (n, shelf) in m.shelves.indexed)
+          for (final shelf in m.shelves)
             slot(
               RiffShelf(
                 shelf: shelf,
@@ -436,7 +431,6 @@ class _HomeFeedState extends State<_HomeFeed>
                 controller: home.scrollControllerFor('shelf_${shelf.id}'),
               ),
               ValueKey('${m.section.name}_${shelf.id}'),
-              divided || n > 0,
             ),
         ];
       case HomeSection.yourWeek:

@@ -120,7 +120,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<LibraryPodcastsController>();
-    final topPadding = context.isLandscape ? 50.0 : 90.0;
+    final topPadding = riffTabTop(context);
     const double itemHeight = 180;
     if (_section != _builtSection) {
       _switched = _builtSection != null;

@@ -248,7 +248,7 @@ class SortWidget extends StatelessWidget {
             tag: tag);
     final theme = Theme.of(context);
     final muted = theme.textTheme.titleSmall?.color;
-    return Padding(
+    final bar = Padding(
       padding: const EdgeInsets.only(top: 6.0),
       child: SizedBox(
         height: 44,
@@ -271,6 +271,66 @@ class SortWidget extends StatelessWidget {
         }),
       ),
     );
+    if (!_hasFilters) return bar;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [_filterChips(context), bar],
+    );
+  }
+
+  bool get _hasFilters =>
+      isDownloadedFilterRequired ||
+      isCloudFeatureRequired ||
+      isDeviceFeatureRequired;
+
+  /// Downloaded / Cloud / On this phone as a row of chips under the title,
+  /// as Spotify's Your Library filters (they were unlabeled icons in the
+  /// bar, crowding the count out and spilling over on small phones).
+  Widget _filterChips(BuildContext context) {
+    Widget chip(
+            {required IconData icon,
+            required String label,
+            required bool selected,
+            required VoidCallback? onTap}) =>
+        Padding(
+          padding: const EdgeInsets.only(right: RiffSpacing.sm),
+          child: FilterChip(
+            avatar: Icon(icon),
+            label: Text(label),
+            selected: selected,
+            onSelected: onTap == null ? null : (_) => onTap(),
+          ),
+        );
+    return SizedBox(
+      height: RiffSizes.chipRow,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.gutter),
+        children: [
+          if (isDownloadedFilterRequired)
+            chip(
+              icon: Icons.download_for_offline_outlined,
+              label: "downloaded".tr,
+              selected: isDownloadedOnly == true,
+              onTap: onDownloadedToggle,
+            ),
+          if (isCloudFeatureRequired)
+            chip(
+              icon: Icons.cloud_outlined,
+              label: "cloud".tr,
+              selected: isCloudModeActive == true,
+              onTap: onCloudToggle,
+            ),
+          if (isDeviceFeatureRequired)
+            chip(
+              icon: Icons.phone_android_outlined,
+              label: "onThisPhone".tr,
+              selected: isDeviceModeActive == true,
+              onTap: onDeviceToggle,
+            ),
+        ],
+      ),
+    );
   }
 
   /// The count, the sort menu and the filter / search / more buttons.
@@ -289,35 +349,6 @@ class SortWidget extends StatelessWidget {
           ),
         ),
         _sortMenu(context, controller),
-        if (isDownloadedFilterRequired)
-          _iconButton(
-            context,
-            selected: isDownloadedOnly == true,
-            icon: isDownloadedOnly == true
-                ? Icons.download_done_rounded
-                : Icons.download_for_offline_outlined,
-            tooltip: "downloadedOnly".tr,
-            onPressed: () => onDownloadedToggle?.call(),
-          ),
-        if (isCloudFeatureRequired)
-          _iconButton(
-            context,
-            selected: isCloudModeActive == true,
-            icon:
-                isCloudModeActive == true ? Icons.cloud : Icons.cloud_outlined,
-            tooltip: "cloud".tr,
-            onPressed: () => onCloudToggle?.call(),
-          ),
-        if (isDeviceFeatureRequired)
-          _iconButton(
-            context,
-            selected: isDeviceModeActive == true,
-            icon: isDeviceModeActive == true
-                ? Icons.phone_android_rounded
-                : Icons.phone_android_outlined,
-            tooltip: "onThisPhone".tr,
-            onPressed: () => onDeviceToggle?.call(),
-          ),
         if (isImportFeatureRequired)
           _iconButton(
             context,

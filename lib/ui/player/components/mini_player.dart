@@ -138,8 +138,8 @@ class MiniPlayer extends StatelessWidget {
                   padding: EdgeInsets.only(
                     left: RiffSpacing.md,
                     right: RiffSpacing.md,
-                    bottom:
-                        MediaQuery.viewPaddingOf(context).bottom + RiffSpacing.sm,
+                    bottom: MediaQuery.viewPaddingOf(context).bottom +
+                        RiffSpacing.sm,
                   ),
                   // Floating surface1 card, hairline edge, no shadow.
                   child: Material(
@@ -726,18 +726,18 @@ class _MiniPlayerWideExtras extends StatelessWidget {
                   SizedBox(
                       width: 20,
                       child: Tooltip(
-                       message: volume == 0 ? 'unmute'.tr : 'mute'.tr,
-                       child: InkWell(
-                        onTap: playerController.mute,
-                        child: Icon(
-                          volume == 0
-                              ? Icons.volume_off
-                              : volume > 0 && volume < 50
-                                  ? Icons.volume_down
-                                  : Icons.volume_up,
-                          size: RiffComponentSizes.trailingIcon,
-                        ),
-                      ))),
+                          message: volume == 0 ? 'unmute'.tr : 'mute'.tr,
+                          child: InkWell(
+                            onTap: playerController.mute,
+                            child: Icon(
+                              volume == 0
+                                  ? Icons.volume_off
+                                  : volume > 0 && volume < 50
+                                      ? Icons.volume_down
+                                      : Icons.volume_up,
+                              size: RiffComponentSizes.trailingIcon,
+                            ),
+                          ))),
                   Expanded(
                     child: SliderTheme(
                       data: SliderTheme.of(context).copyWith(
@@ -759,22 +759,23 @@ class _MiniPlayerWideExtras extends StatelessWidget {
               );
             }),
           ),
-          SizedBox(
-            height: 40,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  tooltip: 'queue'.tr,
-                  onPressed: () {
-                    playerController.homeScaffoldkey.currentState
-                        ?.openEndDrawer();
-                  },
-                  icon: const Icon(Icons.queue_music),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 10.0),
-                  child: Obx(() => IconButton(
+          // Most important first; on a narrower window (a tablet held
+          // upright) the ones that don't fit are left off rather than
+          // spilling out of the bar.
+          Flexible(
+            child: SizedBox(
+              height: _buttonsHeight,
+              child: LayoutBuilder(builder: (context, constraints) {
+                final buttons = <Widget>[
+                  IconButton(
+                    tooltip: 'queue'.tr,
+                    onPressed: () {
+                      playerController.homeScaffoldkey.currentState
+                          ?.openEndDrawer();
+                    },
+                    icon: const Icon(Icons.queue_music),
+                  ),
+                  Obx(() => IconButton(
                         tooltip: 'sleepTimer'.tr,
                         onPressed: () {
                           final sheetContext =
@@ -786,49 +787,65 @@ class _MiniPlayerWideExtras extends StatelessWidget {
                             ? Icons.timer
                             : Icons.timer_outlined),
                       )),
-                ),
-                const SizedBox(
-                  width: 10,
-                ),
-                const SongDownloadButton(
-                  calledFromPlayer: true,
-                ),
-                const SizedBox(
-                  width: 10,
-                ),
-                IconButton(
-                  tooltip: 'addToPlaylist'.tr,
-                  onPressed: () {
-                    final currentSong = playerController.currentSong.value;
-                    if (currentSong == null) return;
-                    showAddToPlaylistSheet(context, [currentSong]);
-                  },
-                  icon: const Icon(Icons.playlist_add),
-                ),
-                if (size.width > 965)
+                  const SongDownloadButton(
+                    calledFromPlayer: true,
+                  ),
                   IconButton(
-                    tooltip: 'songInfo'.tr,
+                    tooltip: 'addToPlaylist'.tr,
                     onPressed: () {
                       final currentSong = playerController.currentSong.value;
-                      if (currentSong != null) {
-                        showDialog(
-                          context: context,
-                          builder: (context) => SongInfoDialog(
-                            song: currentSong,
-                          ),
-                        );
-                      }
+                      if (currentSong == null) return;
+                      showAddToPlaylistSheet(context, [currentSong]);
                     },
-                    icon: const Icon(Icons.info,
-                        size: RiffComponentSizes.headerIcon),
+                    icon: const Icon(Icons.playlist_add),
                   ),
-              ],
+                  if (size.width > 965)
+                    IconButton(
+                      tooltip: 'songInfo'.tr,
+                      onPressed: () {
+                        final currentSong = playerController.currentSong.value;
+                        if (currentSong != null) {
+                          showDialog(
+                            context: context,
+                            builder: (context) => SongInfoDialog(
+                              song: currentSong,
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.info,
+                          size: RiffComponentSizes.headerIcon),
+                    ),
+                ];
+                final shown =
+                    wideExtrasFit(constraints.maxWidth, buttons.length);
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    for (var i = 0; i < shown; i++) ...[
+                      if (i > 0) const SizedBox(width: _buttonGap),
+                      buttons[i],
+                    ],
+                  ],
+                );
+              }),
             ),
           ),
         ],
       ),
     );
   }
+
+  static const double _buttonsHeight = 40;
+  static const double _buttonGap = RiffSpacing.sm;
+}
+
+/// How many of [count] mini player extra buttons (48 dp each, 8 dp apart)
+/// fit in [width].
+int wideExtrasFit(double width, int count) {
+  const slot = RiffSizes.touch + RiffSpacing.sm;
+  final fit = ((width + RiffSpacing.sm) / slot).floor();
+  return fit.clamp(0, count);
 }
 
 /// Progress-only rebuild scope so art/title/controls stay still while seeking.

@@ -78,6 +78,11 @@ class RiffPalette {
   /// yet, and the scrim under the waveform (keep the current values).
   static const double waveArtTint = 0.22;
   static const double waveArtScrim = 0.4;
+
+  /// A title written on a cover (Speed dial tiles, as YouTube Music has
+  /// them): the dark wash under it, and where on the cover it starts.
+  static const double tileTitleScrim = 0.72;
+  static const double tileTitleScrimStart = 0.4;
 }
 
 /// Corner radii (§4.3).
@@ -409,6 +414,10 @@ class RiffCoverArt {
   /// Smaller covers show only the colour blobs: list rows and the 96 dp
   /// collection header already print the title next to the art.
   static const double titleMinSize = 100;
+
+  /// The glyph on Riff's own lists' covers (Favorites' heart…), as a
+  /// share of the cover's side.
+  static const double glyphShare = 0.32;
 
   /// The title is laid out on a cover this big, then scaled with the cover,
   /// so it wraps the same way at every size.
