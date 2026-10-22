@@ -26,8 +26,10 @@ never runs it.
 | `phone` | 411 × 891    | 822 × 1782  |
 | `small` | 360 × 780    | 720 × 1560  |
 | `tablet`| 900 × 1280   | 1800 × 2560 |
+| `large` | 360 × 780    | 720 × 1560  |
 
 All at device pixel ratio 2, with a 28dp status bar and 20dp navigation bar.
+`large` is the small phone at the largest font size Riff follows (1.3x).
 `home_full_*` grows the surface to the Home feed's full scroll height, so
 every section is in one image.
 

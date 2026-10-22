@@ -213,17 +213,7 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
             child: Row(
               children: [
                 // The page's name as large as every rail tab's.
-                Expanded(
-                  child: Semantics(
-                    header: true,
-                    child: Text(
-                      'podcasts'.tr,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                  ),
-                ),
+                Expanded(child: RiffPageTitle('podcasts'.tr)),
                 if (_section == 1)
                   IconButton(
                     tooltip: 'refreshInbox'.tr,

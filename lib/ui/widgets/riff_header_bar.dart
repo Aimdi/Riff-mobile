@@ -8,6 +8,32 @@ import '/ui/theme/riff_tokens.dart';
 double riffTabTop(BuildContext context) =>
     MediaQuery.paddingOf(context).top + RiffSpacing.sm;
 
+/// A rail tab's name at the top of its page (headlineSmall). It stays one
+/// line and, where the header's buttons leave too little room (a small
+/// phone at a large font size), shrinks to fit rather than being cut to
+/// "Pod…", as Home's greeting does.
+class RiffPageTitle extends StatelessWidget {
+  const RiffPageTitle(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      header: true,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: AlignmentDirectional.centerStart,
+        child: Text(
+          text,
+          maxLines: 1,
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+      ),
+    );
+  }
+}
+
 /// Page-header chrome (§ Phase 3): black background, 22 dp header icons in
 /// the primary text colour, and a one-physical-pixel hairline along the
 /// bottom that fades in (200 ms) only while content is scrolled under it.

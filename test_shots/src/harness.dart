@@ -26,17 +26,24 @@ import 'stores.dart';
 /// insets.
 class ShotDevice {
   const ShotDevice(this.name, this.size,
-      {this.dpr = 2, this.top = 28, this.bottom = 20});
+      {this.dpr = 2, this.top = 28, this.bottom = 20, this.textScale = 1});
   final String name;
   final Size size;
   final double dpr;
   final double top;
   final double bottom;
+
+  /// The phone's font size (Riff follows it up to 1.3x).
+  final double textScale;
 }
 
 const phone = ShotDevice('phone', Size(411, 891));
 const smallPhone = ShotDevice('small', Size(360, 780));
 const tablet = ShotDevice('tablet', Size(900, 1280));
+
+/// The worst case for room: a small phone at the largest font size Riff
+/// follows (Android's "Largest", 1.3x).
+const largeText = ShotDevice('large', Size(360, 780), textScale: 1.3);
 
 const _rootKey = ValueKey('shotRoot');
 
@@ -129,6 +136,8 @@ void useDevice(WidgetTester tester, ShotDevice device) {
     ..viewPadding = FakeViewPadding(
         top: device.top * device.dpr, bottom: device.bottom * device.dpr);
   addTearDown(tester.view.reset);
+  tester.platformDispatcher.textScaleFactorTestValue = device.textScale;
+  addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 }
 
 /// Lets loading, fades and page transitions finish without waiting for

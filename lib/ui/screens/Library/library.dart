@@ -322,17 +322,7 @@ class LibraryHeader extends StatelessWidget {
             height: RiffSpacing.headerRow,
             child: Row(
               children: [
-                Expanded(
-                  child: Semantics(
-                    header: true,
-                    child: Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                  ),
-                ),
+                Expanded(child: RiffPageTitle(title)),
                 ...actions,
               ],
             ),

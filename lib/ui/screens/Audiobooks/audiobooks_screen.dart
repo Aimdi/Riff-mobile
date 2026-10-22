@@ -161,17 +161,7 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
             child: Row(
               children: [
                 // The page's name as large as every rail tab's.
-                Expanded(
-                  child: Semantics(
-                    header: true,
-                    child: Text(
-                      'audiobooks'.tr,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                  ),
-                ),
+                Expanded(child: RiffPageTitle('audiobooks'.tr)),
                 if (!(_mode == 0 && _searching))
                   IconButton(
                     tooltip: 'searchAudiobooks'.tr,

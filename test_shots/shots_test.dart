@@ -32,8 +32,9 @@ class Scenario {
   final Future<void> Function(WidgetTester tester, ShotDevice device) arrange;
 }
 
-/// Every scenario is taken on all three: phone, small phone, tablet.
-const _all = [phone, smallPhone, tablet];
+/// Every scenario is taken on all four: phone, small phone, tablet, and a
+/// small phone at the largest font size.
+const _all = [phone, smallPhone, tablet, largeText];
 
 final scenarios = <Scenario>[
   // ── Home ─────────────────────────────────────────────────────────────

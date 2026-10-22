@@ -86,11 +86,7 @@ class SettingsScreen extends StatelessWidget {
                 height: RiffSpacing.headerRow,
                 child: Align(
                   alignment: AlignmentDirectional.centerStart,
-                  child: Semantics(
-                    header: true,
-                    child: Text("settings".tr,
-                        style: theme.textTheme.headlineSmall),
-                  ),
+                  child: RiffPageTitle("settings".tr),
                 ),
               ),
             ),
