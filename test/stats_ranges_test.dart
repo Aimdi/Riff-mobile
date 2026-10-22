@@ -142,7 +142,8 @@ void main() {
         find.ancestor(
             of: find.text('statsRange4Weeks'), matching: find.byType(Opacity)),
         findsNothing);
-    await tester.pumpAndSettle();
+    // Past the fade (not settled: the covers pulse while they load).
+    await tester.pump(RiffDurations.content);
     expect(opacity(find.text('Old favourite')), 1);
   });
 }
