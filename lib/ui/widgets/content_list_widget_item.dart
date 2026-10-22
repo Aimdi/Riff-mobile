@@ -14,6 +14,7 @@ import '../utils/theme_controller.dart';
 import 'collection_play.dart';
 import 'image_widget.dart';
 import 'podcast_play.dart';
+import 'riff_motion.dart';
 import '/services/search_recents.dart';
 import '../screens/Library/playlist_folder_ui.dart' show showMoveToFolderSheet;
 import 'snackbar.dart';
@@ -459,7 +460,8 @@ class ContentListItem extends StatelessWidget {
         ? RiffSurfaces.textMuted
         : Theme.of(context).textTheme.titleSmall?.color?.withOpacity(0.6);
     if (asRow) return _row(context, muted);
-    return InkWell(
+    return RiffPressScale(
+        child: InkWell(
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
       // Open the album / playlist / show page; the play button on the
@@ -485,6 +487,6 @@ class ContentListItem extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 }
