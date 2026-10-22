@@ -182,7 +182,7 @@ void main() {
 
     expect(_menuItems, findsNothing);
     expect(find.text('Inbox · Queued'), findsOneWidget);
-    expect(find.text('QUEUED · 1'), findsOneWidget);
+    expect(find.text('Queued · 1'), findsOneWidget);
     expect(find.text('Queued episode'), findsOneWidget);
     // Continue listening belongs to the plain Inbox.
     expect(find.text('Halfway episode'), findsNothing);
@@ -208,7 +208,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(_menuItems, findsNothing);
     expect(find.text('Inbox · In progress'), findsOneWidget);
-    expect(find.text('IN PROGRESS · 1'), findsOneWidget);
+    expect(find.text('In progress · 1'), findsOneWidget);
   });
 
   testWidgets('tapping Inbox from another section switches back to it',
@@ -230,6 +230,6 @@ void main() {
     // Switched, no menu; the last filter still applies.
     expect(_menuItems, findsNothing);
     expect(find.text('Inbox · Queued'), findsOneWidget);
-    expect(find.text('QUEUED · 1'), findsOneWidget);
+    expect(find.text('Queued · 1'), findsOneWidget);
   });
 }
