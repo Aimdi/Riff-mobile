@@ -222,6 +222,17 @@ final scenarios = <Scenario>[
     await openApp(t, tab: RailTab.podcasts);
     await push(t, ScreenNavigationSetup.podcastSettingsScreen);
   }),
+  for (final (name, route) in const [
+    ('blocked', ScreenNavigationSetup.blacklistScreen),
+    ('webdav_sync', ScreenNavigationSetup.webDavSyncScreen),
+    ('gpodder_sync', ScreenNavigationSetup.gpodderSyncScreen),
+    ('recognize', ScreenNavigationSetup.recognizeScreen),
+    ('plugins', ScreenNavigationSetup.pluginsScreen),
+  ])
+    Scenario(name, _all, (t, d) async {
+      await openApp(t, tab: RailTab.settings);
+      await push(t, route);
+    }),
 
   // ── Search: history, suggestions while typing, results ───────────────
   Scenario('search', _all, (t, d) async {

@@ -325,9 +325,11 @@ class RiffPageHeader extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleLarge),
+                  // Two lines: "Kept out of mixes, Riff Wave, radio,
+                  // autoplay and recommendations" isn't cut short.
                   if (subtitle != null && subtitle!.isNotEmpty)
                     Text(subtitle!,
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: homeCardSubtitleStyle(context)),
                 ],

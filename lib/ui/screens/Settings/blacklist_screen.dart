@@ -5,6 +5,7 @@ import '/services/ban_service.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '../Home/home_layout.dart';
+import '../Podcasts/podcast_empty_state.dart';
 
 /// Settings › Never play: everything kept out of mixes, Riff Wave, radio,
 /// autoplay and recommendations (artists, albums and playlists, songs),
@@ -89,18 +90,10 @@ class _BlacklistScreenState extends State<BlacklistScreen> {
         children: [
           RiffPageHeader('blacklistTitle'.tr, subtitle: 'blacklistDes'.tr),
           Expanded(
+            // Riff's empty state: a quiet glyph over the message.
             child: empty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(RiffSpacing.x3l),
-                      child: Text('blacklistEmpty'.tr,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyLarge
-                              ?.copyWith(color: homeMutedColor(context))),
-                    ),
-                  )
+                ? PodcastEmptyState(
+                    icon: Icons.block_rounded, message: 'blacklistEmpty'.tr)
                 : ListView(
                     padding: const EdgeInsets.only(bottom: RiffSpacing.listEnd),
                     children: [
