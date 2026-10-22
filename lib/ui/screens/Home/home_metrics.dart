@@ -25,9 +25,13 @@ class HomeMetrics {
   double get speedTile =>
       ((inner - RiffSpacing.gridGap * 2) / 3).clamp(0.0, 160.0);
 
-  /// Quick picks: the large item, leaving a 48dp sliver of the next.
-  double get carouselItem =>
-      inner - RiffSizes.carouselSpacing - RiffSizes.carouselPeek;
+  /// Quick picks: the large item, leaving a 48dp sliver of the next; on
+  /// a tablet no wider than [RiffSizes.carouselItemMax], so more than one
+  /// shows (Apple Music's Top picks) instead of one pane-wide card.
+  double get carouselItem {
+    final item = inner - RiffSizes.carouselSpacing - RiffSizes.carouselPeek;
+    return item > RiffSizes.carouselItemMax ? RiffSizes.carouselItemMax : item;
+  }
 
   /// Playlist / album cover: about 2.4 cards per pane, 120–160dp.
   double get shelfCard => ((w - 40) / 2.4).clamp(120.0, 160.0);

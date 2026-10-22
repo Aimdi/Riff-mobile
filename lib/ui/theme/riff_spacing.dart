@@ -85,6 +85,7 @@ class RiffSizes {
 
   static const double carouselHeight = 200;
   static const double carouselPeek = 48;
+  static const double carouselItemMax = 420;
   static const double carouselSpacing = 8;
   static const double carouselPlay = 40;
 
