@@ -15,6 +15,7 @@ import '../../../models/media_Item_builder.dart';
 import '../../theme/riff_tokens.dart';
 import '../Library/library_controller.dart';
 import 'more_by_artist.dart';
+import '/ui/widgets/cover_hero.dart';
 import 'package:harmonymusic/services/album_versions.dart';
 
 ///AlbumScreenController handles album screen
@@ -24,6 +25,10 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
     with AdditionalOpeartionMixin, GetSingleTickerProviderStateMixin {
   final album =
       Album(title: "", browseId: "", thumbnailUrl: "", artists: []).obs;
+
+  /// The card cover flying in, if the page was opened from one
+  /// ([CoverHero]); taken as the page opens.
+  final Object? coverHeroTag = CoverHero.take();
 
   /// "More by …" under the album (Spotify, Apple Music): its first credited
   /// artist's other releases. Empty until they load, and offline.

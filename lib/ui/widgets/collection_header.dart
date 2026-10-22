@@ -6,6 +6,7 @@ import '/services/downloader.dart';
 import '../screens/Home/home_layout.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import 'cover_hero.dart';
 import 'loader.dart';
 import 'riff_motion.dart';
 
@@ -47,6 +48,8 @@ class CollectionHeader extends StatelessWidget {
     this.onCoverTap,
     this.onSubtitleTap,
     this.extra,
+    this.coverHeroTag,
+    this.textOpacity,
   });
 
   final Widget cover;
@@ -58,6 +61,14 @@ class CollectionHeader extends StatelessWidget {
 
   /// Under the text (e.g. a podcast Subscribe pill).
   final Widget? extra;
+
+  /// The tag of the card cover flying in ([CoverHero]): the cover lands
+  /// here, so it's shown from the start.
+  final Object? coverHeroTag;
+
+  /// Fades the title and lines in as the details arrive (the cover stays,
+  /// it has just flown in).
+  final Animation<double>? textOpacity;
 
   @override
   Widget build(BuildContext context) {
@@ -76,15 +87,18 @@ class CollectionHeader extends StatelessWidget {
             // A shortcut for the Play button below; TalkBack has that one.
             excludeFromSemantics: true,
             // Flat artwork, no shadow (§2.1).
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(RiffRadii.sm),
-              child: SizedBox.square(
-                  dimension: RiffComponentSizes.collectionArt, child: cover),
+            child: CoverHero(
+              tag: coverHeroTag,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(RiffRadii.sm),
+                child: SizedBox.square(
+                    dimension: RiffComponentSizes.collectionArt, child: cover),
+              ),
             ),
           ),
           const SizedBox(width: RiffSpacing.md),
           Expanded(
-            child: Column(
+            child: _fade(Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -123,11 +137,18 @@ class CollectionHeader extends StatelessWidget {
                   extra!,
                 ],
               ],
-            ),
+            )),
           ),
         ],
       ),
     );
+  }
+
+  Widget _fade(Widget text) {
+    final opacity = textOpacity;
+    return opacity == null
+        ? text
+        : FadeTransition(opacity: opacity, child: text);
   }
 }
 

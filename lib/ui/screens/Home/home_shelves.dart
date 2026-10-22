@@ -35,6 +35,7 @@ import 'home_metrics.dart';
 import 'home_song_rows.dart';
 import '/ui/theme/riff_text_metrics.dart';
 import '/ui/player/play_queue_order.dart' show playQueueFrom;
+import '/ui/widgets/cover_hero.dart';
 
 /// Card sizes per item type on a shelf of pane width [m].
 class ShelfCardSize {
@@ -202,10 +203,15 @@ class HomeShelfItem extends StatelessWidget {
         width: w,
         art: ImageWidget(album: v, size: w, borderRadius: 0),
         artHeight: h,
+        // The cover flies to the album's page (CoverHero).
+        heroTag: context,
         title: v.title,
         subtitle: [artist, v.year ?? ''].where((s) => s.isNotEmpty).join(' • '),
-        onTap: () => Get.toNamed(ScreenNavigationSetup.albumScreen,
-            id: ScreenNavigationSetup.id, arguments: (v, v.browseId)),
+        onTap: () {
+          CoverHero.launch(context);
+          Get.toNamed(ScreenNavigationSetup.albumScreen,
+              id: ScreenNavigationSetup.id, arguments: (v, v.browseId));
+        },
         onLongPress: () => _collectionMenu(context,
             title: v.title,
             isAlbum: true,
@@ -218,9 +224,13 @@ class HomeShelfItem extends StatelessWidget {
         width: w,
         art: ImageWidget(playlist: v, size: w, borderRadius: 0),
         artHeight: h,
+        heroTag: context,
         title: v.title,
         subtitle: v.description ?? '',
-        onTap: () => _openPlaylist(v),
+        onTap: () {
+          CoverHero.launch(context);
+          _openPlaylist(v);
+        },
         onLongPress: () => _collectionMenu(context,
             title: v.title,
             isAlbum: false,
@@ -593,11 +603,15 @@ class _Card extends StatelessWidget {
     this.onLongPress,
     this.circle = false,
     this.centered = false,
+    this.heroTag,
   });
 
   final double width;
   final Widget art;
   final double artHeight;
+
+  /// The cover flies to the page the card opens ([CoverHero]).
+  final Object? heroTag;
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
@@ -624,11 +638,15 @@ class _Card extends StatelessWidget {
                   ? CrossAxisAlignment.center
                   : CrossAxisAlignment.start,
               children: [
-                ClipRRect(
-                  borderRadius: circle
-                      ? BorderRadius.circular(width)
-                      : BorderRadius.circular(RiffSizes.shelfRadius),
-                  child: SizedBox(width: width, height: artHeight, child: art),
+                CoverHero(
+                  tag: heroTag,
+                  child: ClipRRect(
+                    borderRadius: circle
+                        ? BorderRadius.circular(width)
+                        : BorderRadius.circular(RiffSizes.shelfRadius),
+                    child:
+                        SizedBox(width: width, height: artHeight, child: art),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(title,

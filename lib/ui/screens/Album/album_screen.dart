@@ -198,6 +198,11 @@ class AlbumScreen extends StatelessWidget {
                                       (_showMoreBy(albumController) ? 1 : 0),
                               itemBuilder: (_, index) {
                                 if (index == 0) {
+                                  // A cover flying in (CoverHero) is there
+                                  // from the start; only the text fades in.
+                                  if (albumController.coverHeroTag != null) {
+                                    return _header(context, albumController);
+                                  }
                                   return FadeTransition(
                                     opacity: albumController.scaleAnimation,
                                     child: _header(context, albumController),
@@ -362,8 +367,11 @@ class AlbumScreen extends StatelessWidget {
     final firstArtistId = (album.artists?.isNotEmpty ?? false)
         ? album.artists!.first['id']?.toString()
         : null;
+    final hero = albumController.coverHeroTag;
     return CollectionHeader(
       cover: ImageWidget(size: 96, album: album),
+      coverHeroTag: hero,
+      textOpacity: hero == null ? null : albumController.scaleAnimation,
       title: album.title,
       subtitle: artists,
       onSubtitleTap: firstArtistId == null || firstArtistId.isEmpty

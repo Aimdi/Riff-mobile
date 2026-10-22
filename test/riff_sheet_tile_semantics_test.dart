@@ -34,8 +34,7 @@ void main() {
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
 
     // TalkBack's double tap toggles it.
-    tester.binding.pipelineOwner.semanticsOwner!
-        .performAction(node.id, SemanticsAction.tap);
+    node.owner!.performAction(node.id, SemanticsAction.tap);
     await tester.pump();
     expect(on, isTrue);
     handle.dispose();

@@ -22,6 +22,7 @@ import '../screens/Library/playlist_folder_ui.dart' show showMoveToFolderSheet;
 import 'snackbar.dart';
 import 'song_list_tile.dart' show RiffRowHairline;
 import '../screens/Home/home_layout.dart' show HomeLayout;
+import 'cover_hero.dart';
 
 class ContentListItem extends StatelessWidget {
   const ContentListItem(
@@ -382,7 +383,7 @@ class ContentListItem extends StatelessWidget {
       height: size,
       child: Stack(
         children: [
-          _cover(context),
+          CoverHero(tag: context, child: _cover(context)),
           Positioned(
             right: 0,
             bottom: 0,
@@ -420,20 +421,25 @@ class ContentListItem extends StatelessWidget {
     );
   }
 
-  /// A tap: [_onTap], kept among recent searches when it's a search
-  /// result.
+  /// A tap: open or play ([_playsOnTap]), kept among recent searches
+  /// when it's a search result.
   void _open(BuildContext context) {
     noteSearchOpen(context, content);
-    _onTap();
+    if (_playsOnTap) {
+      _playFromOverlay();
+      return;
+    }
+    // The cover flies to the page (CoverHero).
+    CoverHero.launch(context);
+    _openContent();
   }
 
-  /// What a tap does: open the album / playlist / show page (the play
-  /// button on a card's cover still plays).
-  VoidCallback get _onTap => shouldPlayCollectionOnTap() &&
-          (_isAlbum ||
-              !isPodcastCollection(kind: _collectionKind, id: _collectionId))
-      ? _playFromOverlay
-      : _openContent;
+  /// Whether a tap plays rather than opens the album / playlist / show
+  /// page (the play button on a card's cover always plays).
+  bool get _playsOnTap =>
+      shouldPlayCollectionOnTap() &&
+      (_isAlbum ||
+          !isPodcastCollection(kind: _collectionKind, id: _collectionId));
 
   /// [asRow]: the cover, then the title and subtitle, with the hairline
   /// list rows have (§5.2).
@@ -448,7 +454,9 @@ class ContentListItem extends StatelessWidget {
                 horizontal: HomeLayout.gutter, vertical: RiffSpacing.sm),
             child: Row(
               children: [
-                SizedBox.square(dimension: size, child: _cover(context)),
+                SizedBox.square(
+                    dimension: size,
+                    child: CoverHero(tag: context, child: _cover(context))),
                 const SizedBox(width: RiffSpacing.md),
                 Expanded(
                   child: Column(

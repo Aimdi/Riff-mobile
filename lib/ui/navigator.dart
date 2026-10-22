@@ -66,13 +66,31 @@ GetPageRoute<dynamic> _page(
     GetPageRoute<dynamic>(
         page: page, settings: settings, transitionDuration: RiffDurations.page);
 
-class ScreenNavigation extends StatelessWidget {
+class ScreenNavigation extends StatefulWidget {
   const ScreenNavigation({super.key});
+
+  @override
+  State<ScreenNavigation> createState() => _ScreenNavigationState();
+}
+
+class _ScreenNavigationState extends State<ScreenNavigation> {
+  /// Flies a tapped card's cover to the page it opens (CoverHero), along
+  /// Material's arc, as MaterialApp's own navigator would.
+  final _heroes = HeroController(
+      createRectTween: (begin, end) =>
+          MaterialRectArcTween(begin: begin, end: end));
+
+  @override
+  void dispose() {
+    _heroes.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Navigator(
         key: Get.nestedKey(ScreenNavigationSetup.id),
+        observers: [_heroes],
         initialRoute: '/homeScreen',
         onGenerateRoute: (settings) {
           Get.routing.args = settings.arguments;

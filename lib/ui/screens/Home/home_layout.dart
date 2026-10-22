@@ -5,6 +5,7 @@ import '../../theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/theme/riff_text_metrics.dart';
 import '/ui/widgets/riff_header_bar.dart';
+import '/ui/widgets/cover_hero.dart';
 
 /// One set of Home spacing / type values so every shelf lines up.
 class HomeLayout {
@@ -224,6 +225,7 @@ class HomeShelfCard extends StatelessWidget {
     required this.subtitle,
     this.onTap,
     this.onLongPress,
+    this.heroTag,
   });
 
   final double size;
@@ -232,6 +234,9 @@ class HomeShelfCard extends StatelessWidget {
   final String subtitle;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
+
+  /// The cover flies to the page the card opens ([CoverHero]).
+  final Object? heroTag;
 
   @override
   Widget build(BuildContext context) {
@@ -244,9 +249,12 @@ class HomeShelfCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(RiffSizes.shelfRadius),
-              child: SizedBox.square(dimension: size, child: art),
+            CoverHero(
+              tag: heroTag,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(RiffSizes.shelfRadius),
+                child: SizedBox.square(dimension: size, child: art),
+              ),
             ),
             const SizedBox(height: 8),
             Text(

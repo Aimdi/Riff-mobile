@@ -272,11 +272,18 @@ class PlaylistScreen extends StatelessWidget {
                                     : null,
                                 itemBuilder: (_, index) {
                                   if (index == 0) {
+                                    final header = _header(context,
+                                        playlistController, playerController);
+                                    // A cover flying in (CoverHero) is there
+                                    // from the start; only the text fades.
+                                    if (playlistController.coverHeroTag !=
+                                        null) {
+                                      return header;
+                                    }
                                     return FadeTransition(
                                       opacity:
                                           playlistController.scaleAnimation,
-                                      child: _header(context,
-                                          playlistController, playerController),
+                                      child: header,
                                     );
                                   } else if (index == 1) {
                                     // Podcasts / YT channels: no music actions;
@@ -646,8 +653,11 @@ Widget _header(
   // A library playlist's default ("Library Playlist") reads "Playlist".
   final description =
       isPodcast ? (pl.description ?? '').trim() : pl.ownDescription;
+  final hero = c.coverHeroTag;
   return CollectionHeader(
     cover: ImageWidget(size: 96, playlist: pl),
+    coverHeroTag: hero,
+    textOpacity: hero == null ? null : c.scaleAnimation,
     title: pl.title,
     subtitle: isPodcast
         ? (description.isEmpty ? 'podcasts'.tr : description)

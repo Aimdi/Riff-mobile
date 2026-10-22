@@ -35,6 +35,7 @@ import '../Library/library_controller.dart';
 import '../Library/library_pins.dart';
 import '/services/playlist_folders.dart';
 import '../Podcasts/podcasts_library_controller.dart';
+import '/ui/widgets/cover_hero.dart';
 
 ///PlaylistScreenController handles playlist screen
 ///
@@ -48,6 +49,10 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     thumbnailUrl: Playlist.thumbPlaceholderUrl,
   ).obs;
   final isDefaultPlaylist = false.obs;
+
+  /// The card cover flying in, if the page was opened from one
+  /// ([CoverHero]); taken as the page opens.
+  final Object? coverHeroTag = CoverHero.take();
 
   // True only when this playlist was opened from the podcast *search* screen.
   // Drives the pinned "Similar podcasts" section at the bottom (passed as the

@@ -34,6 +34,11 @@ import 'package:harmonymusic/ui/widgets/songinfo_bottom_sheet.dart';
 import 'src/harness.dart';
 import 'src/media_data.dart';
 import 'src/sample_data.dart';
+import 'package:harmonymusic/ui/theme/riff_tokens.dart';
+import 'package:harmonymusic/ui/screens/Home/home_layout.dart';
+import 'package:harmonymusic/ui/screens/Home/home_shelves.dart';
+import 'package:harmonymusic/models/album.dart';
+import 'package:harmonymusic/ui/widgets/content_list_widget_item.dart';
 
 /// One screen to capture: [arrange] pumps the app and gets the screen
 /// into the state shown; it runs once per device in [devices].
@@ -128,6 +133,18 @@ final scenarios = <Scenario>[
     final album = ShotData.album(5);
     await push(t, ScreenNavigationSetup.albumScreen, (album, album.browseId));
   }),
+  // Opened from a card, as a person would: the cover flies to the page
+  // (CoverHero) on the app's own navigator; any Hero trouble (a tag twice
+  // on a page) shows in the errors.
+  Scenario('album_from_library', _all, (t, d) async {
+    await openApp(t, tab: RailTab.albums);
+    await _openFromCard(t);
+  }),
+  Scenario('album_from_home', _all, (t, d) async {
+    await openApp(t);
+    await growToFeed(t, d);
+    await _openFromCard(t);
+  }),
   Scenario('playlist', _all, (t, d) async {
     await openApp(t, tab: RailTab.playlists);
     final playlist = ShotData.userPlaylist(0);
@@ -152,6 +169,13 @@ final scenarios = <Scenario>[
     await push(t, ScreenNavigationSetup.artistScreen,
         [true, ShotData.artists[0].browseId]);
     await growToFeed(t, d, within: find.byType(ArtistScreen));
+  }),
+  Scenario('album_from_artist', _all, (t, d) async {
+    await openApp(t, tab: RailTab.artists);
+    await push(t, ScreenNavigationSetup.artistScreen,
+        [true, ShotData.artists[0].browseId]);
+    await growToFeed(t, d, within: find.byType(ArtistScreen));
+    await _openFromCard(t);
   }),
 
   // ── Full player ──────────────────────────────────────────────────────
@@ -267,8 +291,8 @@ final scenarios = <Scenario>[
     await openApp(t);
     final player = Get.find<PlayerController>();
     player.scrollController = ScrollController();
-    Get.to(() => const Scaffold(
-        body: QueuePanel(queueFooter: SizedBox.shrink())));
+    Get.to(
+        () => const Scaffold(body: QueuePanel(queueFooter: SizedBox.shrink())));
     await settle(t);
   }),
 
@@ -406,6 +430,21 @@ Future<void> precacheAssetImages(WidgetTester tester) async {
   await tester.pump();
 }
 
+/// Taps the first album card in view and lets the page open, checking
+/// the cover is in flight halfway through.
+Future<void> _openFromCard(WidgetTester tester) async {
+  final card = find.byWidgetPredicate((w) =>
+      (w is HomeShelfItem && w.value is Album) ||
+      (w is ContentListItem && w.content is Album) ||
+      // An artist's albums and singles.
+      (w is HomeShelfCard && w.heroTag != null));
+  await tester.tap(card.first);
+  await tester.pump();
+  await tester.pump(RiffDurations.page * 0.5);
+  expect(find.byType(Hero), findsWidgets);
+  await settle(tester);
+}
+
 /// Opens [route] on the app's page navigator, as Get.toNamed does from a
 /// tap.
 Future<void> push(WidgetTester tester, String route,
@@ -443,8 +482,7 @@ Future<void> tapPill(WidgetTester tester, String label) async {
 Future<void> growToFeed(WidgetTester tester, ShotDevice device,
     {Finder? within}) async {
   final lists = find.descendant(
-      of: within ?? find.byType(HomeScreen),
-      matching: find.byType(Scrollable));
+      of: within ?? find.byType(HomeScreen), matching: find.byType(Scrollable));
   for (var pass = 0; pass < 3; pass++) {
     var extent = 0.0;
     for (final s in tester.stateList<ScrollableState>(lists)) {

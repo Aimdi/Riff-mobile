@@ -13,6 +13,7 @@ import '/ui/player/player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/collection_play.dart';
+import '/ui/widgets/cover_hero.dart';
 import '/ui/widgets/generated_cover.dart';
 import '/ui/widgets/image_widget.dart' show RiffNetworkImage;
 import '/ui/widgets/riff_motion.dart';
@@ -701,16 +702,20 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
           itemCount: albums.length,
           itemBuilder: (context, i) {
             final album = albums[i];
-            return HomeShelfCard(
-              size: HomeLayout.shelfCard,
-              art: _cover(
-                  context, '${album.thumbnailUrl ?? ''}', Icons.album_rounded),
-              title: '${album.title ?? ''}',
-              subtitle: '${album.year ?? ''}',
-              onTap: () => shouldPlayCollectionOnTap()
-                  ? _playOrOpenAlbum(album)
-                  : _openAlbum(album),
-              onLongPress: () => _openAlbum(album),
+            // Each card's own context tags its cover (CoverHero).
+            return Builder(
+              builder: (context) => HomeShelfCard(
+                size: HomeLayout.shelfCard,
+                art: _cover(context, '${album.thumbnailUrl ?? ''}',
+                    Icons.album_rounded),
+                heroTag: context,
+                title: '${album.title ?? ''}',
+                subtitle: '${album.year ?? ''}',
+                onTap: () => shouldPlayCollectionOnTap()
+                    ? _playOrOpenAlbum(album)
+                    : _openAlbum(album, from: context),
+                onLongPress: () => _openAlbum(album, from: context),
+              ),
             );
           },
         ),
@@ -728,18 +733,21 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
           itemCount: playlists.length,
           itemBuilder: (context, i) {
             final p = playlists[i];
-            return HomeShelfCard(
-              size: HomeLayout.shelfCard,
-              art: p is Playlist
-                  ? _playlistCover(context, p)
-                  : _cover(context, '${p.thumbnailUrl ?? ''}',
-                      Icons.queue_music_rounded),
-              title: '${p.title ?? ''}',
-              subtitle: '${p.description ?? ''}',
-              onTap: () => shouldPlayCollectionOnTap()
-                  ? _playOrOpenPlaylist(p)
-                  : _openPlaylist(p),
-              onLongPress: () => _openPlaylist(p),
+            return Builder(
+              builder: (context) => HomeShelfCard(
+                size: HomeLayout.shelfCard,
+                art: p is Playlist
+                    ? _playlistCover(context, p)
+                    : _cover(context, '${p.thumbnailUrl ?? ''}',
+                        Icons.queue_music_rounded),
+                heroTag: context,
+                title: '${p.title ?? ''}',
+                subtitle: '${p.description ?? ''}',
+                onTap: () => shouldPlayCollectionOnTap()
+                    ? _playOrOpenPlaylist(p)
+                    : _openPlaylist(p, from: context),
+                onLongPress: () => _openPlaylist(p, from: context),
+              ),
             );
           },
         ),
@@ -885,7 +893,9 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
 
   // ─────────────────────────────────────────────────────────── navigation ──
 
-  void _openAlbum(dynamic album) {
+  /// [from]: the card whose cover flies to the page ([CoverHero]).
+  void _openAlbum(dynamic album, {BuildContext? from}) {
+    if (from != null) CoverHero.launch(from);
     Get.toNamed(
       ScreenNavigationSetup.albumScreen,
       id: ScreenNavigationSetup.id,
@@ -902,7 +912,8 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
     if (!ok) _openAlbum(album);
   }
 
-  void _openPlaylist(dynamic playlist) {
+  void _openPlaylist(dynamic playlist, {BuildContext? from}) {
+    if (from != null) CoverHero.launch(from);
     Get.toNamed(
       ScreenNavigationSetup.playlistScreen,
       id: ScreenNavigationSetup.id,
