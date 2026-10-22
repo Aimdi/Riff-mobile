@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/ui/theme/riff_text_metrics.dart';
 import '/ui/widgets/riff_header_bar.dart';
+import '/ui/widgets/cover_hero.dart';
 
 /// One set of Home spacing / type values so every shelf lines up.
 class HomeLayout {
@@ -68,7 +70,17 @@ BorderSide homeTileBorder(BuildContext context) {
       : BorderSide(color: theme.colorScheme.outlineVariant, width: 1);
 }
 
-/// Section title row shared by every Home shelf.
+/// A section's title in lists and pages (Continue listening, Chapters,
+/// Today…): bold and in sentence case, as Spotify, Apple Music and Pocket
+/// Casts title their sections (it was a small upper-case label).
+TextStyle homeSectionHeaderStyle(BuildContext context) {
+  final theme = Theme.of(context);
+  return (theme.textTheme.titleMedium ?? const TextStyle())
+      .copyWith(color: theme.colorScheme.onSurface);
+}
+
+/// Section title row shared by pages with sections (Podcasts, Audiobooks,
+/// Stats, artist pages…).
 class HomeSectionHeader extends StatelessWidget {
   const HomeSectionHeader(
     this.title, {
@@ -95,19 +107,22 @@ class HomeSectionHeader extends StatelessWidget {
         right: trailing == null ? HomeLayout.gutter : RiffSpacing.xxs,
         bottom: HomeLayout.headerBottom,
       ),
-      child: SizedBox(
-        height: 30,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: RiffSizes.sectionLabelRow),
         child: Row(
           children: [
             Expanded(
               child: Row(
                 children: [
                   Flexible(
-                    child: Text(
-                      title.toUpperCase(),
-                      style: homeSectionLabelStyle(context),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    child: Semantics(
+                      header: true,
+                      child: Text(
+                        title,
+                        style: homeSectionHeaderStyle(context),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
                   if (badge != null) ...[
@@ -210,6 +225,7 @@ class HomeShelfCard extends StatelessWidget {
     required this.subtitle,
     this.onTap,
     this.onLongPress,
+    this.heroTag,
   });
 
   final double size;
@@ -218,6 +234,9 @@ class HomeShelfCard extends StatelessWidget {
   final String subtitle;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
+
+  /// The cover flies to the page the card opens ([CoverHero]).
+  final Object? heroTag;
 
   @override
   Widget build(BuildContext context) {
@@ -230,9 +249,12 @@ class HomeShelfCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(RiffSizes.shelfRadius),
-              child: SizedBox.square(dimension: size, child: art),
+            CoverHero(
+              tag: heroTag,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(RiffSizes.shelfRadius),
+                child: SizedBox.square(dimension: size, child: art),
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -265,10 +287,16 @@ class RiffPageHeader extends StatelessWidget {
     this.subtitle,
     this.actions = const [],
     this.onBack,
+    this.titleVisible = true,
   });
   final String title;
   final String? subtitle;
   final List<Widget> actions;
+
+  /// False while the page shows its own large title right below (an
+  /// album's or a book's): the bar's title fades in once that has
+  /// scrolled away, as Spotify's and Apple Music's pages do.
+  final bool titleVisible;
 
   /// Defaults to popping the navigator this page is in (tab or root).
   final VoidCallback? onBack;
@@ -293,20 +321,28 @@ class RiffPageHeader extends StatelessWidget {
             onPressed: onBack ?? () => Navigator.of(context).maybePop(),
           ),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleLarge),
-                if (subtitle != null && subtitle!.isNotEmpty)
-                  Text(subtitle!,
+            child: AnimatedOpacity(
+              opacity: titleVisible ? 1 : 0,
+              duration: RiffDurations.select,
+              curve: RiffDurations.selectCurve,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: homeCardSubtitleStyle(context)),
-              ],
+                      style: Theme.of(context).textTheme.titleLarge),
+                  // Up to three lines: Never play's "Kept out of mixes …
+                  // You can still play them yourself." isn't cut short on
+                  // a small phone or at large text.
+                  if (subtitle != null && subtitle!.isNotEmpty)
+                    Text(subtitle!,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: homeCardSubtitleStyle(context)),
+                ],
+              ),
             ),
           ),
           ...actions,

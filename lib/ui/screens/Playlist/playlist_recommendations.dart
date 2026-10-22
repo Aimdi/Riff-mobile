@@ -9,6 +9,7 @@ import '/services/discovery/discovery_service.dart';
 import '/ui/theme/riff_tokens.dart';
 import '../../player/player_controller.dart';
 import '../../widgets/image_widget.dart';
+import '../../widgets/riff_motion.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/song_list_tile.dart' show RiffRowHairline;
 import '../Home/home_metrics.dart';
@@ -167,12 +168,20 @@ class _PlaylistRecommendationsState extends State<PlaylistRecommendations> {
             child: Center(child: CircularProgressIndicator()),
           )
         else
-          for (final song in _songs)
-            _RecommendedSongRow(
-              song: song,
-              onTap: () => _play(song),
-              onAdd: () => _add(song),
+          // Fresh suggestions fade in where the spinner was.
+          RiffFadeIn(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final song in _songs)
+                  _RecommendedSongRow(
+                    song: song,
+                    onTap: () => _play(song),
+                    onAdd: () => _add(song),
+                  ),
+              ],
             ),
+          ),
       ],
     );
   }

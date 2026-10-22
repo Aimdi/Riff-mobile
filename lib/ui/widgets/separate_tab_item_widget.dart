@@ -13,6 +13,8 @@ import 'loader.dart';
 import 'snackbar.dart';
 import 'sort_widget.dart';
 import '../screens/Home/home_layout.dart';
+import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 
 /// Songs / Videos / Episodes tabs expose Play all (overview and full list).
 bool shouldShowTabPlayAllHeader(String title) =>
@@ -214,13 +216,35 @@ class SeparateTabItemWidget extends StatelessWidget {
                                 )))
                       : const Expanded(
                           child: Center(child: LoadingIndicator())))
-              : ListWidget(
-                  items,
-                  title,
-                  isCompleteList,
-                  searchContext: isResultWidget,
-                  scrollController: scrollController,
-                ),
+              : heading != null
+                  // The top result stands out on a card of its own, as
+                  // YouTube Music and Spotify set their best match apart.
+                  ? Padding(
+                      padding: const EdgeInsets.only(
+                          left: HomeLayout.gutter - 5,
+                          top: RiffSpacing.xs,
+                          right: HomeLayout.gutter),
+                      child: Material(
+                        color:
+                            Theme.of(context).colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(RiffRadii.sm),
+                        clipBehavior: Clip.antiAlias,
+                        child: ListWidget(
+                          items,
+                          title,
+                          isCompleteList,
+                          searchContext: isResultWidget,
+                          scrollController: scrollController,
+                        ),
+                      ),
+                    )
+                  : ListWidget(
+                      items,
+                      title,
+                      isCompleteList,
+                      searchContext: isResultWidget,
+                      scrollController: scrollController,
+                    ),
         ],
       ),
     );

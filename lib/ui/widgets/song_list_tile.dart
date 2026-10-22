@@ -26,6 +26,7 @@ import 'now_playing_bars.dart';
 import 'songinfo_bottom_sheet.dart';
 import 'unplayable_dim.dart';
 import 'riff_marquee.dart';
+import 'riff_motion.dart';
 
 class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
   const SongListTile(
@@ -177,11 +178,19 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                   child: Obx(() {
                     final isCurrent =
                         playerController.currentSong.value?.id == song.id;
-                    // Flat accentMuted tint for the now-playing row (§5.2).
+                    // Flat accentMuted tint for the now-playing row (§5.2),
+                    // easing in and out (from and to clear) as the song
+                    // changes.
                     return IgnorePointer(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: isCurrent ? nowPlayingTint : null,
+                      child: TweenAnimationBuilder<Color?>(
+                        tween: ColorTween(
+                            end: isCurrent
+                                ? nowPlayingTint
+                                : nowPlayingTint.withAlpha(0)),
+                        duration: RiffDurations.select,
+                        curve: RiffDurations.selectCurve,
+                        builder: (context, color, _) => DecoratedBox(
+                          decoration: BoxDecoration(color: color),
                         ),
                       ),
                     );
@@ -235,14 +244,23 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                                       final isCurrent = playerController
                                               .currentSong.value?.id ==
                                           song.id;
-                                      return Text(
-                                        song.title.length > 50
-                                            ? song.title.substring(0, 50)
-                                            : song.title,
-                                        maxLines: 1,
-                                        style: theme.textTheme.titleMedium
-                                            ?.copyWith(
-                                          color: isCurrent ? accent : null,
+                                      final style = theme.textTheme.titleMedium;
+                                      // Into the accent and back as the song
+                                      // changes, with the row's tint.
+                                      return TweenAnimationBuilder<Color?>(
+                                        tween: ColorTween(
+                                            end: isCurrent
+                                                ? accent
+                                                : style?.color ??
+                                                    scheme.onSurface),
+                                        duration: RiffDurations.select,
+                                        curve: RiffDurations.selectCurve,
+                                        builder: (context, color, _) => Text(
+                                          song.title.length > 50
+                                              ? song.title.substring(0, 50)
+                                              : song.title,
+                                          maxLines: 1,
+                                          style: style?.copyWith(color: color),
                                         ),
                                       );
                                     }),
@@ -281,7 +299,20 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                               return Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  if (isCurrent) const NowPlayingBars(),
+                                  // The bars fade in as the room for them
+                                  // opens, so the length glides down rather
+                                  // than jumping (and back up as they go).
+                                  AnimatedSize(
+                                    duration: RiffDurations.select,
+                                    curve: RiffDurations.selectCurve,
+                                    child: RiffSwitcher(
+                                      child: isCurrent
+                                          ? const NowPlayingBars(
+                                              key: ValueKey(true))
+                                          : const SizedBox.shrink(
+                                              key: ValueKey(false)),
+                                    ),
+                                  ),
                                   Text(
                                     song.extras?['length'] ?? "",
                                     style: theme.textTheme.bodyMedium?.copyWith(
@@ -291,25 +322,38 @@ class SongListTile extends StatelessWidget with RemoveSongFromPlaylistMixin {
                                 ],
                               );
                             }),
-                            SongRowHeartButton(
-                              song: song,
-                              iconSize: RiffComponentSizes.trailingIcon,
-                              color: muted,
-                            ),
-                            IconButton(
-                              iconSize: RiffComponentSizes.trailingIcon,
-                              visualDensity: VisualDensity.compact,
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(
-                                minWidth: RiffComponentSizes.rowIconHit,
-                                minHeight: RiffComponentSizes.rowIconHit,
-                              ),
-                              splashRadius: RiffComponentSizes.rowIconHit / 2,
-                              tooltip: 'moreOptions'.tr,
-                              onPressed: () => _openSheet(playerController),
-                              icon: Icon(
-                                Icons.more_vert,
-                                color: muted,
+                            // Narrow, side by side, but the full 48 dp
+                            // tall to tap (the glyphs stay as they are).
+                            SizedBox(
+                              height: RiffSizes.touch,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  SongRowHeartButton(
+                                    song: song,
+                                    iconSize: RiffComponentSizes.trailingIcon,
+                                    color: muted,
+                                  ),
+                                  IconButton(
+                                    iconSize: RiffComponentSizes.trailingIcon,
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                      minWidth: RiffComponentSizes.rowIconHit,
+                                      minHeight: RiffComponentSizes.rowIconHit,
+                                    ),
+                                    splashRadius:
+                                        RiffComponentSizes.rowIconHit / 2,
+                                    tooltip: 'moreOptions'.tr,
+                                    onPressed: () =>
+                                        _openSheet(playerController),
+                                    icon: Icon(
+                                      Icons.more_vert,
+                                      color: muted,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],

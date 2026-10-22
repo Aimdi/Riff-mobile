@@ -1,5 +1,4 @@
 import 'package:audio_service/audio_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -18,6 +17,7 @@ import '/ui/widgets/content_list_widget_item.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/podcast_follow_button.dart';
 import '/ui/widgets/podcast_play.dart';
+import '/ui/widgets/riff_motion.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import '/ui/widgets/snackbar.dart';
 import '/ui/navigator.dart';
@@ -40,6 +40,7 @@ import 'podcasts_screen.dart';
 import '/ui/theme/riff_text_metrics.dart';
 import '/ui/widgets/riff_header_bar.dart';
 import '/ui/widgets/song_list_tile.dart' show RiffRowHairline;
+import '/ui/widgets/cover_hero.dart';
 
 class PodcastsLibraryWidget extends StatefulWidget {
   const PodcastsLibraryWidget({super.key, this.isBottomNavActive = false});
@@ -57,6 +58,12 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
   // 3 = Subscriptions. Discovery now lives inside the search view.
   int _section = 1;
   int _inboxRefreshNonce = 0;
+
+  /// The section last built, and whether it has changed since the tab
+  /// opened: from then on each section's content fades in as it's picked
+  /// (the first comes in with the tab).
+  int? _builtSection;
+  bool _switched = false;
 
   /// The Inbox's library filter (New, In progress, …), picked from the
   /// selected Inbox chip's menu; null is the plain Inbox. Kept while other
@@ -114,8 +121,12 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<LibraryPodcastsController>();
-    final topPadding = context.isLandscape ? 50.0 : 90.0;
+    final topPadding = riffTabTop(context);
     const double itemHeight = 180;
+    if (_section != _builtSection) {
+      _switched = _builtSection != null;
+      _builtSection = _section;
+    }
 
     return Padding(
       padding: widget.isBottomNavActive
@@ -130,7 +141,8 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
           Expanded(
             // Plain builder: section switching is setState-driven. (An Obx
             // here would throw at runtime — its builder reads no Rx values.)
-            child: RiffScrollUnder(child: Builder(builder: (context) {
+            child:
+                RiffScrollUnder(child: _sectionFade(Builder(builder: (context) {
               // ── Inline Inbox / Queue / Subs / Discover ──────────
               if (_section == 1) {
                 return PodcastInboxScreen(
@@ -175,12 +187,17 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
                   setState(() => _section = 4);
                 },
               );
-            })),
+            }))),
           ),
         ],
       ),
     );
   }
+
+  /// [content] of the section picked, fading in as it takes the last
+  /// one's place.
+  Widget _sectionFade(Widget content) =>
+      _switched ? RiffFadeIn(key: ValueKey(_section), child: content) : content;
 
   /// "Podcasts" title with the tab's shortcuts (refresh the inbox,
   /// autoplay next episode) on the right.
@@ -193,17 +210,11 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               right: RiffSpacing.xs,
               bottom: RiffSpacing.sm),
           child: SizedBox(
-            height: RiffComponentSizes.iconHit,
+            height: RiffSpacing.headerRow,
             child: Row(
               children: [
-                Expanded(
-                  child: Text(
-                    'podcasts'.tr,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
+                // The page's name as large as every rail tab's.
+                Expanded(child: RiffPageTitle('podcasts'.tr)),
                 if (_section == 1)
                   IconButton(
                     tooltip: 'refreshInbox'.tr,
@@ -288,51 +299,66 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
     final filters = active && section == 1;
     final theme = Theme.of(context);
     final accent = theme.colorScheme.primary;
-    final fg = active ? accent : theme.colorScheme.onSurface;
-    final text = Text.rich(
-      TextSpan(children: [
-        TextSpan(text: filters ? inboxChipLabel(_inboxFilter) : label),
-        if (count != null)
-          TextSpan(
-            text: '  $count',
-            style: TextStyle(
-                color: active ? accent : theme.colorScheme.onSurfaceVariant),
-          ),
-      ]),
-      maxLines: 1,
-      style: theme.textTheme.labelMedium?.copyWith(color: fg),
-    );
-    final pill = Builder(
-      builder: (chip) => Material(
-        color: active ? RiffColors.of(context).accentMuted : Colors.transparent,
-        shape: StadiumBorder(
-            side: BorderSide(
-                color: active ? accent : theme.dividerColor, width: 0)),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: filters
-              ? () => showInboxFilterMenu(chip,
-                  current: _inboxFilter, onSelected: _setInboxFilter)
-              : () => _select(section),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
-            child: Center(
-              child: filters
-                  ? Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        text,
-                        Icon(Icons.expand_more_rounded,
-                            size: RiffComponentSizes.chipChevron, color: fg),
-                      ],
-                    )
-                  : text,
+    final fill = RiffColors.of(context).accentMuted;
+    // The picked pill's fill, outline and label ease over.
+    final pill = TweenAnimationBuilder<double>(
+      tween: Tween(end: active ? 1 : 0),
+      duration: RiffDurations.select,
+      curve: RiffDurations.selectCurve,
+      builder: (context, t, _) {
+        final fg = Color.lerp(theme.colorScheme.onSurface, accent, t);
+        final text = Text.rich(
+          TextSpan(children: [
+            TextSpan(text: filters ? inboxChipLabel(_inboxFilter) : label),
+            if (count != null)
+              TextSpan(
+                text: '  $count',
+                style: TextStyle(
+                    color: Color.lerp(
+                        theme.colorScheme.onSurfaceVariant, accent, t)),
+              ),
+          ]),
+          maxLines: 1,
+          style: theme.textTheme.labelMedium?.copyWith(color: fg),
+        );
+        return Builder(
+          builder: (chip) => Material(
+            color: Color.lerp(fill.withAlpha(0), fill, t),
+            shape: StadiumBorder(
+                side: BorderSide(
+                    color: Color.lerp(theme.dividerColor, accent, t)!,
+                    width: 0)),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: filters
+                  ? () => showInboxFilterMenu(chip,
+                      current: _inboxFilter, onSelected: _setInboxFilter)
+                  : () => _select(section),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
+                child: Center(
+                  child: filters
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            text,
+                            Icon(Icons.expand_more_rounded,
+                                size: RiffComponentSizes.chipChevron,
+                                color: fg),
+                          ],
+                        )
+                      : text,
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
-    return filters ? Tooltip(message: 'filterInbox'.tr, child: pill) : pill;
+    // TalkBack hears which section is open ("Queue 6, selected").
+    final named =
+        Semantics(container: true, button: true, selected: active, child: pill);
+    return filters ? Tooltip(message: 'filterInbox'.tr, child: named) : named;
   }
 
   void _setInboxFilter(EpisodeFilter? filter) {
@@ -882,7 +908,7 @@ class _VideoEpisodeRow extends StatelessWidget {
                             fit: StackFit.expand,
                             children: [
                               if (art.isNotEmpty)
-                                CachedNetworkImage(
+                                RiffNetworkImage(
                                   imageUrl: art,
                                   httpHeaders: kCoverImageHeaders,
                                   fit: BoxFit.cover,
@@ -936,7 +962,7 @@ class _VideoEpisodeRow extends StatelessWidget {
                       const SizedBox(height: RiffSpacing.xxs),
                       Text(
                         episodeMetaLine(
-                            [ep.artist, '${ep.extras?['date'] ?? ''}']),
+                            [ep.artist, episodeDateLabel(ep.extras?['date'])]),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: homeCardSubtitleStyle(context),
@@ -978,7 +1004,7 @@ class _SimilarPodcastsRow extends StatelessWidget {
                 top: HomeLayout.sectionTop,
                 right: HomeLayout.gutter),
             child: Text(
-              kicker!.toUpperCase(),
+              kicker!,
               style: Theme.of(context)
                   .textTheme
                   .labelSmall
@@ -992,24 +1018,33 @@ class _SimilarPodcastsRow extends StatelessWidget {
           itemCount: podcasts.length,
           itemBuilder: (context, i) {
             final podcast = podcasts[i];
-            return HomeShelfCard(
-              size: HomeLayout.shelfCard,
-              art: PodcastArt(
-                url: Thumbnail((podcast['artwork'] ?? '').toString()).medium,
-                size: HomeLayout.shelfCard,
-              ),
-              title: (podcast['title'] ?? '').toString(),
-              subtitle: (podcast['author'] ?? '').toString(),
-              onTap: () async {
-                if (shouldPlayPodcastShowOnTap()) {
-                  final ok = await playPodcastShow(podcast);
-                  if (ok) return;
-                }
+            // Each card's own context tags its cover (CoverHero).
+            return Builder(builder: (context) {
+              final Object hero = context;
+              void open() {
+                CoverHero.launch(hero);
                 Get.to(() => PodcastEpisodesScreen(podcast: podcast));
-              },
-              onLongPress: () =>
-                  Get.to(() => PodcastEpisodesScreen(podcast: podcast)),
-            );
+              }
+
+              return HomeShelfCard(
+                size: HomeLayout.shelfCard,
+                art: PodcastArt(
+                  url: Thumbnail((podcast['artwork'] ?? '').toString()).medium,
+                  size: HomeLayout.shelfCard,
+                ),
+                heroTag: hero,
+                title: (podcast['title'] ?? '').toString(),
+                subtitle: (podcast['author'] ?? '').toString(),
+                onTap: () async {
+                  if (shouldPlayPodcastShowOnTap()) {
+                    final ok = await playPodcastShow(podcast);
+                    if (ok) return;
+                  }
+                  open();
+                },
+                onLongPress: open,
+              );
+            });
           },
         ),
       ],
@@ -1137,9 +1172,9 @@ class _EpisodeResultRowState extends State<_EpisodeResultRow> {
     return PodcastEpisodeTile(
       artUrl: '${e['artwork'] ?? ''}',
       title: '${e['title'] ?? ''}',
+      show: '${e['show'] ?? ''}',
       meta: episodeMetaLine([
-        '${e['show'] ?? ''}',
-        '${e['date'] ?? ''}',
+        episodeDateLabel(e['date']),
         compactEpisodeLength(seconds is int ? seconds : 0),
       ]),
       progress: PodcastProgressService.progress('${e['id']}'),

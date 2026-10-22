@@ -486,6 +486,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         itemAtStart: itemId,
         itemNow: mediaItem.value?.id);
     if (!valid()) return false;
+    // Mid fade-in (Fade between songs): its own level, not the faded one,
+    // or the volume would stay low after the skip.
+    if (_songFadeBase != null) _endSongFade();
     final base = _player.volume;
     final ducked = base * autoSkipDuckLevel;
     if (!await _rampVolume(base, ducked, autoSkipDuck, keepGoing: valid)) {
@@ -1440,9 +1443,16 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   Future<void> _followInterruptions() async {
     try {
       final session = await AudioSession.instance;
-      session.interruptionEventStream.listen(_interruptions.onInterruption);
-      session.becomingNoisyEventStream
-          .listen((_) => _interruptions.onBecomingNoisy());
+      session.interruptionEventStream.listen((event) {
+        // A call (or the headphones gone, below) while waiting for the
+        // connection to come back: it isn't played again when it does.
+        if (event.begin) _resumeOnline.cancel();
+        _interruptions.onInterruption(event);
+      });
+      session.becomingNoisyEventStream.listen((_) {
+        _resumeOnline.cancel();
+        _interruptions.onBecomingNoisy();
+      });
       _player.playingStream.listen(_interruptions.onPlaying);
     } catch (e) {
       printERROR('Interruptions: $e');
@@ -1497,6 +1507,18 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   /// Queue index of the next song. Only a real skip passes [advance]: the
   /// prefetch and the "is there a next track" checks just look, and used to
   /// move the shuffle cursor too, so shuffle skipped songs.
+  /// A new shuffle round that doesn't start with [justPlayed] (it would
+  /// count as no next song: playback stopped, or Autoplay took over).
+  List<String> _reshuffledAfter(String justPlayed) {
+    final order = balancedShuffle(shuffledQueue, _queueArtists());
+    if (order.length > 1 && order.first == justPlayed) {
+      order
+        ..removeAt(0)
+        ..insert(1, justPlayed);
+    }
+    return order;
+  }
+
   int _getNextSongIndex({bool advance = false}) {
     if (shuffleModeEnabled) {
       final pos = _syncShufflePos();
@@ -1507,7 +1529,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         nextId = shuffledQueue[pos + 1];
         if (advance) currentShuffleIndex = pos + 1;
       } else if (advance) {
-        shuffledQueue = balancedShuffle(shuffledQueue, _queueArtists());
+        shuffledQueue = _reshuffledAfter(shuffledQueue[pos]);
         currentShuffleIndex = 0;
         nextId = shuffledQueue[0];
       } else {
@@ -2477,6 +2499,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     _logCommand('stop', _externalSource());
     _buttonPresses.cancel();
     _resumeOnline.cancel();
+    // Stopped (the notification swiped away, the app closed): a call
+    // ending later doesn't start it again.
+    _interruptions.onUserPause();
     await _player.stop();
     return super.stop();
   }

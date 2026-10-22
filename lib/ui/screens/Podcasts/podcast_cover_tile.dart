@@ -1,9 +1,9 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import '/ui/widgets/cover_tap_target.dart';
 import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/podcast_inbox_counts.dart';
@@ -16,14 +16,20 @@ import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/collection_play.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/podcast_play.dart';
+import '/ui/widgets/shimmer_widgets/basic_container.dart'
+    show RiffSkeletonPulse;
 import '/ui/widgets/snackbar.dart';
 import 'podcasts_screen.dart';
+import '/ui/widgets/cover_hero.dart';
 
-/// 3 columns on regular phones (2 on narrow ones), more on tablets.
+/// Columns for the pane [width] (the screen less the rail): 3 on regular
+/// phones as Pocket Casts lays out its podcasts (2 on narrow ones), more
+/// on tablets. (It used to be read against screen widths, so the 364 dp
+/// pane of a 411 dp phone got 2.)
 int podcastSubsColumnCount(double width) {
-  if (width >= 1100) return 6;
-  if (width >= 720) return 4;
-  if (width >= 380) return 3;
+  if (width >= 1000) return 6;
+  if (width >= 640) return 4;
+  if (width >= 330) return 3;
   return 2;
 }
 
@@ -98,7 +104,13 @@ class PodcastCoverTile extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(RiffRadii.sm),
-        onTap: onTap,
+        // The cover flies to the show's page (CoverHero).
+        onTap: onTap == null
+            ? null
+            : () {
+                CoverHero.launch(context);
+                onTap!();
+              },
         onLongPress: onLongPress,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,9 +120,12 @@ class PodcastCoverTile extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(RiffRadii.sm),
-                    child: cover ?? _art(context),
+                  CoverHero(
+                    tag: onTap == null ? null : context,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(RiffRadii.sm),
+                      child: cover ?? _art(context),
+                    ),
                   ),
                   if (badge != null)
                     Positioned(
@@ -124,9 +139,14 @@ class PodcastCoverTile extends StatelessWidget {
                         child: count!),
                   if (showPlay)
                     Positioned(
-                      right: RiffSpacing.sm,
-                      bottom: RiffSpacing.sm,
-                      child: _PlayFab(onPressed: onPlay ?? onTap),
+                      right: 0,
+                      bottom: 0,
+                      child: CoverTapTarget(
+                        label: 'play'.tr,
+                        inset: RiffSpacing.sm,
+                        onTap: onPlay ?? onTap,
+                        child: _PlayFab(onPressed: onPlay ?? onTap),
+                      ),
                     ),
                 ],
               ),
@@ -136,7 +156,9 @@ class PodcastCoverTile extends StatelessWidget {
               title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleMedium,
+              // 14 medium, as every card title (Home, the library).
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(color: theme.colorScheme.onSurface),
             ),
             if (subtitle != null && subtitle!.isNotEmpty)
               Padding(
@@ -187,7 +209,9 @@ class PodcastCoverTile extends StatelessWidget {
       });
     }
     if (urls.isEmpty) return fallback;
-    final waiting = ColoredBox(color: theme.colorScheme.surfaceContainerLow);
+    // The loading skeleton's pulse (§5.13) while a cover loads.
+    final waiting = RiffSkeletonPulse(
+        child: ColoredBox(color: theme.colorScheme.surfaceContainerLow));
     final dpr = MediaQuery.devicePixelRatioOf(context);
 
     return LayoutBuilder(builder: (context, constraints) {
@@ -197,7 +221,7 @@ class PodcastCoverTile extends StatelessWidget {
           .clamp(64, 1600);
 
       Widget layer(int i) {
-        return CachedNetworkImage(
+        return RiffNetworkImage(
           imageUrl: urls[i],
           httpHeaders: kCoverImageHeaders,
           fit: BoxFit.cover,
@@ -207,6 +231,9 @@ class PodcastCoverTile extends StatelessWidget {
           filterQuality: FilterQuality.medium,
           alignment: Alignment.center,
           placeholder: (_, __) => waiting,
+          // The next cover tries behind the same placeholder; only the
+          // fallback at the end fades in.
+          errorFadesIn: i + 1 >= urls.length,
           errorWidget: (_, __, ___) =>
               i + 1 < urls.length ? layer(i + 1) : fallback,
         );
@@ -218,7 +245,7 @@ class PodcastCoverTile extends StatelessWidget {
 }
 
 /// Accent play circle on a cover (a play button, §2.5); flat, no shadow.
-/// TalkBack reaches it apart from the tile around it, as "Play".
+/// Its [CoverTapTarget] names it for TalkBack, apart from the tile.
 class _PlayFab extends StatelessWidget {
   const _PlayFab({this.onPressed});
   final VoidCallback? onPressed;
@@ -226,23 +253,18 @@ class _PlayFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Semantics(
-      container: true,
-      button: true,
-      label: 'play'.tr,
-      child: Material(
-        color: scheme.primary,
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onPressed,
-          child: SizedBox(
-            width: RiffComponentSizes.coverPlay,
-            height: RiffComponentSizes.coverPlay,
-            child: Icon(Icons.play_arrow_rounded,
-                color: scheme.onPrimary, size: RiffComponentSizes.trailingIcon),
-          ),
+    return Material(
+      color: scheme.primary,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onPressed,
+        child: SizedBox(
+          width: RiffComponentSizes.coverPlay,
+          height: RiffComponentSizes.coverPlay,
+          child: Icon(Icons.play_arrow_rounded,
+              color: scheme.onPrimary, size: RiffComponentSizes.trailingIcon),
         ),
       ),
     );

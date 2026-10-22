@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '/ui/screens/Search/search_play_top.dart';
 import '/ui/screens/Search/search_screen_controller.dart';
 
 import '/ui/theme/riff_spacing.dart';
@@ -8,9 +7,9 @@ import '/ui/theme/riff_tokens.dart';
 import '../../../navigator.dart';
 import '../../Home/home_layout.dart';
 
-/// A recent search or a suggestion. Tap plays the top song (same as Enter),
-/// long-press opens the full results; the trailing button removes a recent
-/// search or copies a suggestion into the field.
+/// A recent search or a suggestion. Tap (or long-press) opens its results,
+/// as Enter does; the trailing button removes a recent search or copies a
+/// suggestion into the field.
 class SearchItem extends StatelessWidget {
   final String queryString;
   final bool isHistoryString;
@@ -37,28 +36,10 @@ class SearchItem extends StatelessWidget {
       icon: isHistoryString ? Icons.history_rounded : Icons.search_rounded,
       label: queryString,
       typed: typed,
-      onTap: () {
-        if (!shouldPlaySearchItemOnTap()) {
-          _openResults(searchScreenController, queryString);
-          return;
-        }
-        submitSearchQuery(
-          queryString,
-          onLink: (_) {
-            Get.toNamed(ScreenNavigationSetup.searchResultScreen,
-                id: ScreenNavigationSetup.id, arguments: queryString);
-          },
-          onRemember: searchScreenController.addToHistryQueryList,
-          onOpenResults: (q) {
-            Get.toNamed(ScreenNavigationSetup.searchResultScreen,
-                id: ScreenNavigationSetup.id, arguments: q);
-          },
-          onPlayFailed: () => showSearchPlayFailed(context),
-        );
-      },
+      onTap: () => _openResults(searchScreenController, queryString),
       onLongPress: () => _openResults(searchScreenController, queryString),
       trailing: IconButton(
-        tooltip: isHistoryString ? 'clear'.tr : null,
+        tooltip: isHistoryString ? 'clear'.tr : 'useSuggestion'.tr,
         iconSize: RiffComponentSizes.trailingIcon,
         color: muted,
         style: IconButton.styleFrom(

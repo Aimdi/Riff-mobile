@@ -712,8 +712,11 @@ class SettingsScreenController extends GetxController {
     await setBox.put('batteryOptPromptShown', true);
     final ctx = Get.context;
     if (ctx == null || !ctx.mounted) return;
-    await Get.dialog<void>(
-      AlertDialog(
+    // Opens as the app's other dialogs do: showDialog's fade and the
+    // theme's barrier (Get.dialog's were slower, on a fixed black54).
+    await showDialog<void>(
+      context: ctx,
+      builder: (_) => AlertDialog(
         title: Text('batteryOptPromptTitle'.tr),
         content: Text('batteryOptPromptDes'.tr),
         actions: [

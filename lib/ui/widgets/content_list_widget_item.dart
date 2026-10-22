@@ -12,13 +12,17 @@ import '/ui/theme/riff_tokens.dart';
 import '../utils/riff_tokens.dart';
 import '../utils/theme_controller.dart';
 import 'collection_play.dart';
+import 'generated_cover.dart';
+import 'cover_tap_target.dart';
 import 'image_widget.dart';
 import 'podcast_play.dart';
+import 'riff_motion.dart';
 import '/services/search_recents.dart';
 import '../screens/Library/playlist_folder_ui.dart' show showMoveToFolderSheet;
 import 'snackbar.dart';
 import 'song_list_tile.dart' show RiffRowHairline;
 import '../screens/Home/home_layout.dart' show HomeLayout;
+import 'cover_hero.dart';
 
 class ContentListItem extends StatelessWidget {
   const ContentListItem(
@@ -337,24 +341,38 @@ class ContentListItem extends StatelessWidget {
         coverTitleRightInset: _playReach,
       );
     } else {
-      child = Container(
-          height: size,
-          width: size,
-          decoration: BoxDecoration(
-              color: Theme.of(context).primaryColorLight,
-              borderRadius: BorderRadius.circular(RiffTokens.radiusSm)),
-          child: Center(
-              child: Icon(
-            content.playlistId == 'LIBRP'
-                ? Icons.history
-                : content.playlistId == 'LIBFAV'
-                    ? Icons.favorite
-                    : content.playlistId == 'SongsCache'
-                        ? Icons.flight
-                        : Icons.download,
-            color: Theme.of(context).colorScheme.onSurface,
-            size: size * 0.32,
-          )));
+      // Riff's own lists (Favorites, Recently played, Cached, Downloads):
+      // a generated colour cover with their glyph in white, as Spotify
+      // gives Liked Songs its own art, instead of a grey square.
+      child = ClipRRect(
+        borderRadius: BorderRadius.circular(RiffTokens.radiusSm),
+        child: SizedBox.square(
+          dimension: size,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              GeneratedCover(
+                  seed: content.playlistId,
+                  title: '',
+                  size: size,
+                  showTitle: false),
+              Center(
+                child: Icon(
+                  content.playlistId == 'LIBRP'
+                      ? Icons.history
+                      : content.playlistId == 'LIBFAV'
+                          ? Icons.favorite
+                          : content.playlistId == 'SongsCache'
+                              ? Icons.flight
+                              : Icons.download,
+                  color: RiffColors.of(context).onImage,
+                  size: size * RiffCoverArt.glyphShare,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
     return child;
   }
@@ -365,12 +383,17 @@ class ContentListItem extends StatelessWidget {
       height: size,
       child: Stack(
         children: [
-          _cover(context),
+          CoverHero(tag: context, child: _cover(context)),
           Positioned(
-            right: _playInset,
-            bottom: _playInset,
-            child: Tooltip(
-              message: "play".tr,
+            right: 0,
+            bottom: 0,
+            child: CoverTapTarget(
+              label: 'play'.tr,
+              inset: _playInset,
+              onTap: () {
+                noteSearchOpen(context, content);
+                _playFromOverlay();
+              },
               child: Material(
                 color: RiffColors.of(context).scrim.withOpacity(0.5),
                 shape: const CircleBorder(),
@@ -398,20 +421,25 @@ class ContentListItem extends StatelessWidget {
     );
   }
 
-  /// A tap: [_onTap], kept among recent searches when it's a search
-  /// result.
+  /// A tap: open or play ([_playsOnTap]), kept among recent searches
+  /// when it's a search result.
   void _open(BuildContext context) {
     noteSearchOpen(context, content);
-    _onTap();
+    if (_playsOnTap) {
+      _playFromOverlay();
+      return;
+    }
+    // The cover flies to the page (CoverHero).
+    CoverHero.launch(context);
+    _openContent();
   }
 
-  /// What a tap does: open the album / playlist / show page (the play
-  /// button on a card's cover still plays).
-  VoidCallback get _onTap => shouldPlayCollectionOnTap() &&
-          (_isAlbum ||
-              !isPodcastCollection(kind: _collectionKind, id: _collectionId))
-      ? _playFromOverlay
-      : _openContent;
+  /// Whether a tap plays rather than opens the album / playlist / show
+  /// page (the play button on a card's cover always plays).
+  bool get _playsOnTap =>
+      shouldPlayCollectionOnTap() &&
+      (_isAlbum ||
+          !isPodcastCollection(kind: _collectionKind, id: _collectionId));
 
   /// [asRow]: the cover, then the title and subtitle, with the hairline
   /// list rows have (§5.2).
@@ -426,7 +454,9 @@ class ContentListItem extends StatelessWidget {
                 horizontal: HomeLayout.gutter, vertical: RiffSpacing.sm),
             child: Row(
               children: [
-                SizedBox.square(dimension: size, child: _cover(context)),
+                SizedBox.square(
+                    dimension: size,
+                    child: CoverHero(tag: context, child: _cover(context))),
                 const SizedBox(width: RiffSpacing.md),
                 Expanded(
                   child: Column(
@@ -459,7 +489,8 @@ class ContentListItem extends StatelessWidget {
         ? RiffSurfaces.textMuted
         : Theme.of(context).textTheme.titleSmall?.color?.withOpacity(0.6);
     if (asRow) return _row(context, muted);
-    return InkWell(
+    return RiffPressScale(
+        child: InkWell(
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
       // Open the album / playlist / show page; the play button on the
@@ -485,6 +516,6 @@ class ContentListItem extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 }

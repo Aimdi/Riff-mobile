@@ -4,9 +4,13 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
+import '/ui/theme/riff_tokens.dart' show RiffDurations, RiffMotionDistances;
 import '/ui/widgets/animated_screen_transition.dart';
+import '/ui/widgets/rows_reveal.dart';
+import '/ui/widgets/shimmer_widgets/reveal.dart';
 import '../../widgets/side_nav_bar.dart';
 import '../Library/library.dart';
+import '../Podcasts/podcast_empty_state.dart';
 import '../Podcasts/podcasts_library.dart';
 import '../Audiobooks/audiobooks_screen.dart';
 import '../Settings/settings_screen_controller.dart';
@@ -34,6 +38,12 @@ import '/ui/widgets/riff_header_bar.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
+
+  /// The Playlists add button growing in, as a toggle does (a like).
+  static final Animatable<double> _fabGrow =
+      Tween<double>(begin: RiffMotionDistances.popFromScale, end: 1)
+          .chain(CurveTween(curve: RiffDurations.popCurve));
+
   @override
   Widget build(BuildContext context) {
     final PlayerController playerController = Get.find<PlayerController>();
@@ -44,21 +54,49 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
         // Search lives in the Discover tab; keep FAB only for Library add.
-        floatingActionButton: Obx(
-          () => homeScreenController.tabIndex.value == RailTab.playlists
-              ? Obx(
-                  () => Padding(
-                    padding: EdgeInsets.only(
-                        bottom: playerController.playerPanelMinHeight.value >
-                                Get.mediaQuery.padding.bottom
-                            ? playerController.playerPanelMinHeight.value -
-                                Get.mediaQuery.padding.bottom
-                            : playerController.playerPanelMinHeight.value),
+        floatingActionButton: Obx(() {
+          final show = homeScreenController.tabIndex.value == RailTab.playlists;
+          final panel = playerController.playerPanelMinHeight.value;
+          final safeBottom = Get.mediaQuery.padding.bottom;
+          final lift = panel > safeBottom ? panel - safeBottom : panel;
+          const size = 60.0;
+          // It grows and fades in (and out, as Playlists is left) about its
+          // own centre, not the mini-player lift under it.
+          final centre = Alignment(0, -lift / (size + lift));
+          return AnimatedSwitcher(
+            duration: RiffDurations.select,
+            switchInCurve: RiffDurations.enterCurve,
+            switchOutCurve: RiffDurations.exitCurve,
+            // The button fading out (Playlists left) takes no more taps;
+            // the same wrapper for both, so neither is rebuilt.
+            layoutBuilder: (current, previous) => Stack(
+              alignment: Alignment.center,
+              children: [
+                for (final child in previous)
+                  IgnorePointer(key: child.key, child: child),
+                if (current != null)
+                  IgnorePointer(
+                      key: current.key, ignoring: false, child: current),
+              ],
+            ),
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(
+                alignment: centre,
+                scale: _fabGrow.animate(animation),
+                child: child,
+              ),
+            ),
+            child: show
+                ? Padding(
+                    key: const ValueKey('addPlaylist'),
+                    padding: EdgeInsets.only(bottom: lift),
                     child: SizedBox(
-                      height: 60,
-                      width: 60,
+                      height: size,
+                      width: size,
                       child: FittedBox(
                         child: FloatingActionButton(
+                            tooltip: 'CreateNewPlaylist'.tr,
                             focusElevation: 0,
                             shape: const RoundedRectangleBorder(
                                 borderRadius:
@@ -73,10 +111,10 @@ class HomeScreen extends StatelessWidget {
                             child: const Icon(Icons.add)),
                       ),
                     ),
-                  ),
-                )
-              : const SizedBox.shrink(),
-        ),
+                  )
+                : const SizedBox.shrink(),
+          );
+        }),
         // Outer Obx removed: after bottom-nav removal it no longer read any
         // observables (SideNavBar is always shown). Empty Obx throws in GetX
         // and blanks SideNavBar + Body while the FAB Obx still paints.
@@ -87,7 +125,7 @@ class HomeScreen extends StatelessWidget {
               child: Obx(() => AnimatedScreenTransition(
                   enabled: settingsScreenController
                       .isTransitionAnimationDisabled.isFalse,
-                  resverse: homeScreenController.reverseAnimationtransiton,
+                  forward: homeScreenController.reverseAnimationtransiton,
                   horizontalTransition: false,
                   child: Center(
                     key: ValueKey<int>(homeScreenController.tabIndex.value),
@@ -116,60 +154,32 @@ class Body extends StatelessWidget {
           children: [
             Obx(
               () => homeScreenController.networkError.isTrue
-                  ? SizedBox(
-                      height: MediaQuery.of(context).size.height - 180,
-                      child: Column(
-                        children: [
-                          Align(
-                            alignment: Alignment.topLeft,
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 12),
-                              child: Text(
-                                "home".tr,
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ),
-                            ),
+                  // Offline: the page title where every tab has it, and
+                  // the app's empty state with Retry.
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.only(
+                              left: HomeLayout.gutter,
+                              top: riffTabTop(context),
+                              right: HomeLayout.gutter),
+                          child: SizedBox(
+                            height: RiffSpacing.headerRow,
+                            child: RiffPageTitle('home'.tr),
                           ),
-                          Expanded(
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    "networkError1".tr,
-                                    style:
-                                        Theme.of(context).textTheme.titleMedium,
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 15, vertical: 10),
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context)
-                                          .textTheme
-                                          .titleLarge!
-                                          .color,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: InkWell(
-                                      onTap: () {
-                                        homeScreenController
-                                            .loadContentFromNetwork();
-                                      },
-                                      child: Text(
-                                        "retry".tr,
-                                        style: TextStyle(
-                                          color: Theme.of(context).canvasColor,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                        ),
+                        Expanded(
+                          child: PodcastEmptyState(
+                            icon: Icons.wifi_off_rounded,
+                            message: 'networkError1'.tr,
+                            actionLabel: 'retry'.tr,
+                            actionIcon: Icons.refresh_rounded,
+                            onAction:
+                                homeScreenController.loadContentFromNetwork,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     )
                   : const _HomeFeed(),
             ),
@@ -211,17 +221,31 @@ class _HomeFeed extends StatefulWidget {
   State<_HomeFeed> createState() => _HomeFeedState();
 }
 
-class _HomeFeedState extends State<_HomeFeed> {
+class _HomeFeedState extends State<_HomeFeed>
+    with SingleTickerProviderStateMixin {
   /// Recently played, read when Home opens or refreshes — not on every
   /// play, so Speed dial doesn't reshuffle under the user's finger.
   List<MediaItem> _recent = const [];
 
+  /// The sections replacing the loading skeleton fade in together.
+  // Made in initState: made lazily, a screen closed before its content
+  // came would create it in dispose.
+  late final RowsReveal _reveal;
+  bool _skeleton = false;
+
   @override
   void initState() {
     super.initState();
+    _reveal = RowsReveal(vsync: this);
     _loadRecent();
     // Cached Spotify shelves show at once; stale ones refresh behind them.
     SpotifyHome.refresh();
+  }
+
+  @override
+  void dispose() {
+    _reveal.dispose();
+    super.dispose();
   }
 
   Future<void> _loadRecent() async {
@@ -269,6 +293,7 @@ class _HomeFeedState extends State<_HomeFeed> {
             Obx(() {
               final bottom = homeBottomPadding(context);
               if (home.isContentFetched.isFalse) {
+                _skeleton = true;
                 return ListView(
                   padding: EdgeInsets.only(bottom: bottom),
                   children: [
@@ -277,30 +302,40 @@ class _HomeFeedState extends State<_HomeFeed> {
                   ],
                 );
               }
+              if (_skeleton) {
+                _skeleton = false;
+                _reveal.play();
+              }
               HomeSectionPrefs.ensureLoaded();
               final hidden = HomeSectionPrefs.hidden.toSet();
               final sections = buildHomeSections(
                   readHomeFeedInput(recent: _recent, hidden: hidden));
               // The Spotify session ended: one card where its shelves go.
+              // Its place stays (empty otherwise) so it opens and folds
+              // away there instead of popping in.
               final reconnect = SpotifyHome.needsReconnect.value &&
                   !hidden.contains(HomeSection.spotify);
-              final reconnectAt = reconnect
-                  ? sections.indexWhere(
-                      (m) => m.section.index > HomeSection.spotify.index)
-                  : -1;
+              final reconnectAt = sections.indexWhere(
+                  (m) => m.section.index > HomeSection.spotify.index);
+              final reconnectCard = RiffReveal(
+                  key: const ValueKey('spotifyReconnect'),
+                  child: reconnect ? const _SpotifyReconnectCard() : null);
+              final rows = [
+                for (var i = 0; i < sections.length; i++) ...[
+                  if (i == reconnectAt) reconnectCard,
+                  ..._sectionWidgets(home, sections[i], metrics, headerTop),
+                ],
+                if (reconnectAt < 0) reconnectCard,
+              ];
               return RefreshIndicator(
                 edgeOffset: headerTop,
                 onRefresh: _refresh,
                 child: ListView(
                   padding: EdgeInsets.only(bottom: bottom),
                   children: [
-                    for (var i = 0; i < sections.length; i++) ...[
-                      if (i == reconnectAt) const _SpotifyReconnectCard(),
-                      ..._sectionWidgets(home, sections[i], metrics, headerTop,
-                          divided: i > 1),
-                    ],
-                    if (reconnect && reconnectAt < 0)
-                      const _SpotifyReconnectCard(),
+                    // The header was there with the skeleton: it stays put.
+                    for (final row in rows)
+                      row is _HomeHeader ? row : _reveal.row(row, key: row.key),
                   ],
                 ),
               );
@@ -328,23 +363,21 @@ class _HomeFeedState extends State<_HomeFeed> {
     );
   }
 
-  /// [divided]: every section after the first below the header gets a
-  /// hairline on top; so does every shelf after the first in a section.
+  /// Sections follow each other on space alone, no rules between them,
+  /// as Spotify, YouTube Music and Apple Music lay out their feeds.
   List<Widget> _sectionWidgets(HomeScreenController home, HomeSectionModel m,
-      HomeMetrics metrics, double headerTop,
-      {bool divided = false}) {
-    Widget slot(Widget child, [Key? key, bool? split]) => HomeSectionSlot(
-        key: key ?? ValueKey(m.section),
-        section: m.section,
-        divided: split ?? divided,
-        child: child);
+      HomeMetrics metrics, double headerTop) {
+    Widget slot(Widget child, [Key? key]) => HomeSectionSlot(
+        key: key ?? ValueKey(m.section), section: m.section, child: child);
     switch (m.section) {
       case HomeSection.header:
         return [
           _HomeHeader(key: const ValueKey('header'), top: headerTop),
-          Obx(() => home.showingCachedWhileOffline.isTrue
-              ? const _OfflineHomeBanner()
-              : const SizedBox.shrink()),
+          // Opens and folds away rather than popping in and out.
+          Obx(() => RiffReveal(
+              child: home.showingCachedWhileOffline.isTrue
+                  ? const _OfflineHomeBanner()
+                  : null)),
         ];
       case HomeSection.jumpBackIn:
         return [slot(HomeJumpBackIn(items: m.items, metrics: metrics))];
@@ -364,7 +397,7 @@ class _HomeFeedState extends State<_HomeFeed> {
       case HomeSection.spotify:
       case HomeSection.editorial:
         return [
-          for (final (n, shelf) in m.shelves.indexed)
+          for (final shelf in m.shelves)
             slot(
               RiffShelf(
                 shelf: shelf,
@@ -372,7 +405,6 @@ class _HomeFeedState extends State<_HomeFeed> {
                 controller: home.scrollControllerFor('shelf_${shelf.id}'),
               ),
               ValueKey('${m.section.name}_${shelf.id}'),
-              divided || n > 0,
             ),
         ];
       case HomeSection.yourWeek:

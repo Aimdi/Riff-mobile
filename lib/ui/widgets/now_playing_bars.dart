@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -23,11 +24,19 @@ class NowPlayingBars extends StatefulWidget {
 }
 
 class _NowPlayingBarsState extends State<NowPlayingBars>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _loop =
       AnimationController(vsync: this, duration: RiffDurations.nowPlayingBars);
+
+  /// 0 while the bars bounce, 1 standing still: a pause eases them down to
+  /// rest (and playing again lifts them back into the bounce) instead of
+  /// snapping.
+  late final AnimationController _rest = AnimationController(
+      vsync: this, duration: RiffDurations.select, value: 1);
+  late final Listenable _frame = Listenable.merge([_loop, _rest]);
   Worker? _playing;
   bool _reducedMotion = false;
+  bool _synced = false;
 
   PlayerController? get _player => Get.isRegistered<PlayerController>()
       ? Get.find<PlayerController>()
@@ -51,17 +60,27 @@ class _NowPlayingBarsState extends State<NowPlayingBars>
 
   void _sync() {
     final playing = _player?.buttonState.value == PlayButtonState.playing;
-    if (playing && !_reducedMotion) {
+    final moving = playing && !_reducedMotion;
+    if (moving) {
       if (!_loop.isAnimating) _loop.repeat();
     } else {
       _loop.stop();
     }
+    final rest = moving ? 0.0 : 1.0;
+    if (!_synced || _reducedMotion) {
+      // As they first show, or with Remove animations on: straight there.
+      _rest.value = rest;
+    } else if (_rest.value != rest) {
+      _rest.animateTo(rest, curve: RiffDurations.selectCurve);
+    }
+    _synced = true;
   }
 
   @override
   void dispose() {
     _playing?.dispose();
     _loop.dispose();
+    _rest.dispose();
     super.dispose();
   }
 
@@ -74,11 +93,11 @@ class _NowPlayingBarsState extends State<NowPlayingBars>
         child: SizedBox.square(
           dimension: widget.size,
           child: AnimatedBuilder(
-            animation: _loop,
+            animation: _frame,
             builder: (context, _) => CustomPaint(
               painter: NowPlayingBarsPainter(
                 t: _loop.value,
-                moving: _loop.isAnimating,
+                rest: _rest.value,
                 color: color,
               ),
             ),
@@ -91,13 +110,14 @@ class _NowPlayingBarsState extends State<NowPlayingBars>
 
 /// Three bottom-aligned, round-capped bars. Moving, each rises and falls at
 /// its own pace ([t] runs 0 → 1 over a loop); still, they keep the
-/// equalizer icon's stepped shape.
+/// equalizer icon's stepped shape. [rest] blends from the first (0) to the
+/// second (1), so they settle rather than snap.
 class NowPlayingBarsPainter extends CustomPainter {
   NowPlayingBarsPainter(
-      {required this.t, required this.moving, required this.color});
+      {required this.t, required this.rest, required this.color});
 
   final double t;
-  final bool moving;
+  final double rest;
   final Color color;
 
   /// Bar width and gap as shares of the icon box, like Material's icons.
@@ -120,6 +140,14 @@ class NowPlayingBarsPainter extends CustomPainter {
     return _minHeight + (1 - _minHeight) * wave;
   }
 
+  /// Height of bar [i] on its way between bouncing ([rest] 0) and standing
+  /// still (1).
+  static double settlingHeightOf(int i, double t, double rest) {
+    if (rest >= 1) return _restHeights[i];
+    if (rest <= 0) return heightOf(i, t, moving: true);
+    return lerpDouble(heightOf(i, t, moving: true), _restHeights[i], rest)!;
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = color;
@@ -127,7 +155,7 @@ class NowPlayingBarsPainter extends CustomPainter {
     final gap = size.width * _gapShare;
     final left = (size.width - (bar * 3 + gap * 2)) / 2;
     for (var i = 0; i < 3; i++) {
-      final h = size.height * heightOf(i, t, moving: moving);
+      final h = size.height * settlingHeightOf(i, t, rest);
       final x = left + i * (bar + gap);
       canvas.drawRRect(
         RRect.fromLTRBR(
@@ -140,6 +168,6 @@ class NowPlayingBarsPainter extends CustomPainter {
   @override
   bool shouldRepaint(NowPlayingBarsPainter oldDelegate) =>
       oldDelegate.t != t ||
-      oldDelegate.moving != moving ||
+      oldDelegate.rest != rest ||
       oldDelegate.color != color;
 }

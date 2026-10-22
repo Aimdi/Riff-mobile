@@ -57,6 +57,12 @@ class RiffPalette {
   /// background (CLAUDE.md rule 4: ≤ 20% over black).
   static const double playerTintOpacity = 0.2;
 
+  /// The full player's second line (artist, times): the text colour at
+  /// this strength, so it stays readable over a cover-coloured page as
+  /// Spotify's and Apple Music's do (the grey secondary text sank to
+  /// under 3:1 there).
+  static const double playerSecondaryText = 0.7;
+
   /// Scrim behind the player's "Playing from" header over the cover: dark
   /// at the very top, half that where the header text ends, so it stays
   /// readable on light covers.
@@ -78,6 +84,15 @@ class RiffPalette {
   /// yet, and the scrim under the waveform (keep the current values).
   static const double waveArtTint = 0.22;
   static const double waveArtScrim = 0.4;
+
+  /// A title written on a cover (Speed dial tiles, as YouTube Music has
+  /// them): the dark wash under it, and where on the cover it starts.
+  static const double tileTitleScrim = 0.72;
+  static const double tileTitleScrimStart = 0.4;
+
+  /// The unfilled part of a progress bar (the text colour at this
+  /// strength).
+  static const double trackOpacity = 0.12;
 }
 
 /// Corner radii (§4.3).
@@ -115,10 +130,73 @@ class RiffDurations {
   /// One loop of the now-playing bars on the playing row.
   static const Duration nowPlayingBars = Duration(milliseconds: 1600);
 
+  /// One loop of the equalizer glyph (Riff's own equalizer).
+  static const Duration equalizerLoop = Duration(milliseconds: 1100);
+
   /// How far the seek bar moves for TalkBack's swipe up / down, as far as
   /// the keyboard's Shift + → / ← (Spotify's step).
   static const Duration seekStep = Duration(seconds: 10);
   static const Curve selectCurve = Curves.easeOutCubic;
+
+  /// Loaded content fading in where its skeleton was, and one section's
+  /// content giving way to another's (a chip, a pill, a mode).
+  static const Duration content = Duration(milliseconds: 250);
+
+  /// A cover fading in once it has loaded (the placeholder goes as fast).
+  static const Duration image = Duration(milliseconds: 200);
+
+  /// A new song: the cover and the title / artist crossfading, in the
+  /// player and the mini player alike.
+  static const Duration trackChange = Duration(milliseconds: 300);
+
+  /// Colour following the cover (the player's background, the glow,
+  /// the album-colour theme): slower, so the whole screen eases over.
+  static const Duration colour = Duration(milliseconds: 600);
+
+  /// Curves: what comes in decelerates, what leaves accelerates, and a
+  /// toggle turning on (a like) overshoots a little.
+  static const Curve enterCurve = Curves.easeOutCubic;
+  static const Curve exitCurve = Curves.easeInCubic;
+  static const Curve popCurve = Curves.easeOutBack;
+}
+
+/// Distances things travel as they come in (dp).
+class RiffMotionDistances {
+  RiffMotionDistances._();
+
+  /// Loaded content rising into place as it fades in.
+  static const double contentRise = 8;
+
+  /// Shared-axis page swaps (rail tabs, search filters): how far the
+  /// incoming page slides as it fades through.
+  static const double sharedAxis = 30;
+
+  /// A toggle's new icon growing from this scale (a like, a download done).
+  static const double popFromScale = 0.6;
+
+  /// A card or tile under the finger shrinks to this scale (Spotify,
+  /// Apple Music), springing back when it lifts.
+  static const double pressScale = 0.96;
+}
+
+/// The fast-scroll thumb on long lists (RiffFastScroller).
+class RiffFastScroll {
+  RiffFastScroll._();
+
+  /// Shown on lists with more than this many screens to scroll.
+  static const double minScreens = 3;
+
+  /// How long the thumb stays after the list stops.
+  static const Duration linger = Duration(milliseconds: 1500);
+
+  static const double thumbHeight = 48;
+  static const double thumbWidth = 6;
+
+  /// The strip along the edge that takes the drag.
+  static const double touchWidth = 32;
+
+  /// The letter bubble beside the thumb.
+  static const double bubble = 64;
 }
 
 /// Component sizes from §4.4 that aren't Home-specific ([RiffSizes] in
@@ -126,7 +204,36 @@ class RiffDurations {
 class RiffComponentSizes {
   RiffComponentSizes._();
 
+  /// The most of a row's meta line its date and length take; the show
+  /// name before them gets the rest.
+  static const double metaTailShare = 0.7;
+
   static const double rowArt = 48;
+
+  /// The book you're in the middle of, large (Audiobooks' hero card): its
+  /// cover and its play glyph.
+  static const double heroBookCover = 104;
+  static const double heroPlayGlyph = 28;
+
+  /// Narrower than this, the hero card's play button sits on the cover
+  /// (as Home's and Podcasts' continue cards have it) so the title, author
+  /// and progress get the width.
+  static const double heroBookWide = 480;
+
+  /// The play button on the hero's cover, and its glyph.
+  static const double heroCoverPlay = 40;
+  static const double heroCoverPlayGlyph = 24;
+
+  /// Album / playlist pages: the cover behind the header is as wide as the
+  /// screen but no taller than this, so on a tablet it ends under the
+  /// header as it does on a phone instead of running under the tracks.
+  static const double collectionBackdropMax = 440;
+
+  /// The artist's photo on the About card: wide (16:9) and no taller than
+  /// this, so a tablet's card isn't all photo.
+  static const double artistAboutAspect = 16 / 9;
+  static const double artistAboutPhotoMax = 260;
+
   static const double miniArt = 40;
   static const double headerIcon = 22;
   static const double trailingIcon = 20;
@@ -281,6 +388,13 @@ class RiffComponentSizes {
   /// cover's play button, the folder glyph and the empty-state glyph.
   static const double showCoverMin = 160;
   static const double showCoverMax = 240;
+
+  /// The widest a book page's Play / Resume pill grows (a tablet).
+  static const double bookPlayMax = 400;
+
+  /// The widest an empty state's message runs (a tablet): a few short
+  /// lines, not one line across the screen. Phones are narrower anyway.
+  static const double emptyStateTextMax = 360;
   static const double continueArt = 64;
   static const double continueBadge = 24;
   static const double continueBadgeIcon = 18;
@@ -366,6 +480,10 @@ class RiffCoverArt {
   /// Smaller covers show only the colour blobs: list rows and the 96 dp
   /// collection header already print the title next to the art.
   static const double titleMinSize = 100;
+
+  /// The glyph on Riff's own lists' covers (Favorites' heart…), as a
+  /// share of the cover's side.
+  static const double glyphShare = 0.32;
 
   /// The title is laid out on a cover this big, then scaled with the cover,
   /// so it wraps the same way at every size.

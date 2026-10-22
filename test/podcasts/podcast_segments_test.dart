@@ -135,6 +135,17 @@ void main() {
       expect(enteredFromBefore(s, 129.9, 130.1), isFalse);
     });
 
+    test('one at 0:00 counts as the episode starts, not on a later seek', () {
+      final first = seg('c', 0, 60, c: SegmentCategory.chapter);
+      // The first tick: no earlier one, so prev is the same second.
+      expect(enteredFromBefore(first, 0, 0), isTrue);
+      expect(enteredFromBefore(first, 0.2, 0.2), isTrue);
+      expect(enteredFromBefore(first, 0, 0.4), isTrue);
+      // Resumed or sought into its middle, or back to its start.
+      expect(enteredFromBefore(first, 30, 30), isFalse);
+      expect(enteredFromBefore(first, 40, 0.5), isFalse);
+    });
+
     test('to the very end: only a chapter ticked off ends the episode', () {
       PodcastSegment chapter(double a, double b) =>
           seg('c', a, b, c: SegmentCategory.chapter);

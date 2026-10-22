@@ -22,6 +22,8 @@ import '/services/podcast_progress_service.dart';
 import '/services/podcast_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
+import '/ui/widgets/riff_motion.dart';
+import '/ui/widgets/shimmer_widgets/skeleton_fade.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import '/ui/widgets/podcast_play.dart';
 import '/ui/widgets/snackbar.dart';
@@ -359,25 +361,20 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
   }
 
   /// "25m left" while partly played, else the episode length ("45m").
-  String _remainingLabel(MediaItem e) {
-    final left = PodcastProgressService.remainingSec(
-      e.id,
-      fallbackDurationSec: e.duration?.inSeconds,
-    );
-    final tot = e.duration?.inSeconds ?? 0;
-    if (left == null || left <= 0 || (tot > 0 && left >= tot)) {
-      return compactEpisodeLength(tot);
-    }
-    final fmt = compactEpisodeLength(left);
-    return fmt.isEmpty ? '' : '$fmt ${'left'.tr}';
-  }
+  String _remainingLabel(MediaItem e) =>
+      episodeTimeLabel(e.id, e.duration?.inSeconds);
 
   /// Shown inline in the Podcasts tab (no page header of its own).
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const SongListShimmer(itemCount: 8, topPadding: 8);
-    }
+    // The first load's episodes fade in where the skeleton was.
+    return SkeletonFadeIn(
+      skeleton: const SongListShimmer(itemCount: 8, topPadding: 8),
+      child: _loading ? null : _inbox(context),
+    );
+  }
+
+  Widget _inbox(BuildContext context) {
     final filter = widget.filter;
     final list = filter == null ? _episodes : _filtered(filter);
     final continueItems = filter != null
@@ -401,10 +398,14 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
           SliverToBoxAdapter(
             child: SizedBox(
               height: RiffComponentSizes.rowProgress,
-              child: _refreshing
-                  ? const LinearProgressIndicator(
-                      minHeight: RiffComponentSizes.rowProgress)
-                  : null,
+              // Fades in and out rather than popping.
+              child: RiffSwitcher(
+                child: _refreshing
+                    ? const LinearProgressIndicator(
+                        key: ValueKey('refreshing'),
+                        minHeight: RiffComponentSizes.rowProgress)
+                    : const SizedBox.shrink(key: ValueKey('idle')),
+              ),
             ),
           ),
           if (filter == null && expected.isNotEmpty) ...[
@@ -579,10 +580,10 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     final tile = PodcastEpisodeTile(
       artUrl: Thumbnail(e.artUri?.toString() ?? '').medium,
       title: e.title,
+      show: e.artist ?? '',
       meta: episodeMetaLine([
-        e.artist,
         episodeNumberLabel(e),
-        '${e.extras?['date'] ?? ''}',
+        episodeDateLabel(e.extras?['date']),
         _remainingLabel(e),
       ]),
       progress: PodcastProgressService.progress(e.id),

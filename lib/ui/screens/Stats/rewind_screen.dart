@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '/services/stats_service.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/image_widget.dart' show ImageWidget;
 import '../Home/home_layout.dart';
 
 /// "Riff Rewind" — a your-year-in-music style summary (ported in spirit
@@ -19,6 +20,7 @@ class RewindScreen extends StatelessWidget {
     final hours = (StatsService.totalSeconds / 3600.0);
     final topArtists = StatsService.topArtists(1);
     final topSongs = StatsService.topSongs(1);
+    final topSong = topSongsToPlay(topSongs).firstOrNull;
     final level = StatsService.listenerLevel;
     final explored = StatsService.uniqueArtists;
 
@@ -66,14 +68,20 @@ class RewindScreen extends StatelessWidget {
                 left: HomeLayout.gutter,
                 top: RiffSpacing.md,
                 right: HomeLayout.gutter),
-            child: Row(
-              children: [
-                _stat(context, accent, "$plays", "rewindTotalPlays".tr),
-                const SizedBox(width: RiffSpacing.sm),
-                _stat(context, accent, hoursLabel, "rewindTotalHours".tr),
-                const SizedBox(width: RiffSpacing.sm),
-                _stat(context, accent, "$explored", "rewindArtistsExplored".tr),
-              ],
+            // As tall as the tallest card (a label on two lines at large
+            // text), and never shorter than the cards were.
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _stat(context, accent, "$plays", "rewindTotalPlays".tr),
+                  const SizedBox(width: RiffSpacing.sm),
+                  _stat(context, accent, hoursLabel, "rewindTotalHours".tr),
+                  const SizedBox(width: RiffSpacing.sm),
+                  _stat(
+                      context, accent, "$explored", "rewindArtistsExplored".tr),
+                ],
+              ),
             ),
           ),
           if (topArtists.isNotEmpty)
@@ -91,7 +99,14 @@ class RewindScreen extends StatelessWidget {
                 Icons.music_note_rounded,
                 "rewindTopSong".tr,
                 '${topSongs.first["title"]}',
-                "${topSongs.first["plays"]}"),
+                "${topSongs.first["plays"]}",
+                art: topSong == null
+                    ? null
+                    : ImageWidget(
+                        size: RiffComponentSizes.rowArt,
+                        song: topSong,
+                        borderRadius: RiffRadii.sm,
+                      )),
         ],
       ),
     );
@@ -149,7 +164,8 @@ class RewindScreen extends StatelessWidget {
   Widget _stat(BuildContext context, Color accent, String value, String label) {
     return Expanded(
       child: Container(
-        height: RiffComponentSizes.rewindStat,
+        constraints:
+            const BoxConstraints(minHeight: RiffComponentSizes.rewindStat),
         padding: const EdgeInsets.all(RiffSpacing.md),
         decoration: _outlined(context),
         child: Column(
@@ -159,10 +175,15 @@ class RewindScreen extends StatelessWidget {
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
+              // One line: its intrinsic height (the row of cards is as
+              // tall as the tallest) mustn't count it wrapped.
               child: Text(value,
+                  maxLines: 1,
+                  softWrap: false,
                   style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                       color: Theme.of(context).colorScheme.onSurface)),
             ),
+            const SizedBox(height: RiffSpacing.xs),
             Text(label,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -173,8 +194,11 @@ class RewindScreen extends StatelessWidget {
     );
   }
 
+  /// A top artist or song, with [art] (the song's cover) in place of the
+  /// [icon] when there is one.
   Widget _highlight(BuildContext context, Color accent, IconData icon,
-      String heading, String value, String plays) {
+      String heading, String value, String plays,
+      {Widget? art}) {
     final scheme = Theme.of(context).colorScheme;
     final fg = scheme.onSurface;
     return Padding(
@@ -187,15 +211,16 @@ class RewindScreen extends StatelessWidget {
         decoration: _outlined(context),
         child: Row(
           children: [
-            Container(
-              width: RiffComponentSizes.rowArt,
-              height: RiffComponentSizes.rowArt,
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(RiffRadii.sm),
-              ),
-              child: Icon(icon, color: scheme.onSurface),
-            ),
+            art ??
+                Container(
+                  width: RiffComponentSizes.rowArt,
+                  height: RiffComponentSizes.rowArt,
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(RiffRadii.sm),
+                  ),
+                  child: Icon(icon, color: scheme.onSurface),
+                ),
             const SizedBox(width: RiffSpacing.md),
             Expanded(
               child: Column(

@@ -24,19 +24,15 @@ class RiffSpacing {
   /// Content margin from the rail's edge and from the right edge.
   static const double gutter = 16;
 
-  /// Space above every section.
-  static const double section = x3l;
+  /// Space above every section: with the title centred in its 48 dp row,
+  /// 28 dp from the content above to the title (Spotify's rhythm).
+  static const double section = lg;
 
   /// Height of a section's title row.
   static const double headerRow = 48;
 
-  /// Top inset of a rail tab's page (the Library, Podcasts, Audiobooks
-  /// and Settings tabs use these values), portrait and landscape.
-  static const double tabTop = 90;
-  static const double tabTopLandscape = 50;
-
-  /// Title row to content.
-  static const double headerToContent = md;
+  /// Title row to content: 16 dp from the title to the covers.
+  static const double headerToContent = xs;
 
   /// Between cards on a shelf.
   static const double cardGap = 12;
@@ -89,6 +85,7 @@ class RiffSizes {
 
   static const double carouselHeight = 200;
   static const double carouselPeek = 48;
+  static const double carouselItemMax = 420;
   static const double carouselSpacing = 8;
   static const double carouselPlay = 40;
 
@@ -97,4 +94,12 @@ class RiffSizes {
   static const double episodeWidth = 280;
   static const double weekHeight = 96;
   static const double touch = 48;
+
+  /// A section title row inside a page (HomeSectionHeader).
+  static const double sectionLabelRow = 30;
+
+  /// Below these widths a tile's title drops to the 12 sp label style, so
+  /// a long word isn't broken across its two lines (small phones).
+  static const double compactJumpTile = 150;
+  static const double compactDialTile = 100;
 }

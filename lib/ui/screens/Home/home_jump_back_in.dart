@@ -9,6 +9,7 @@ import '/services/podcast_progress_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/letter_art.dart';
+import '/ui/widgets/riff_motion.dart';
 import '/ui/widgets/riff_sheet.dart';
 import '/ui/widgets/snackbar.dart';
 import '../Audiobooks/audiobook_play.dart';
@@ -165,12 +166,22 @@ class JumpBackInTile extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      LayoutBuilder(builder: (context, constraints) {
+        final theme = Theme.of(context);
+        // A narrow tile (small phones) takes the smaller label style, so
+        // a long word isn't split across the two lines.
+        final style = constraints.maxWidth < RiffSizes.compactJumpTile
+            ? theme.textTheme.labelSmall
+            : theme.textTheme.titleSmall;
+        return _tile(context, style);
+      });
+
+  Widget _tile(BuildContext context, TextStyle? style) {
     final theme = Theme.of(context);
     // 56dp, or taller when large system text needs two full lines.
-    final height =
-        (riffLineHeight(context, theme.textTheme.titleSmall) * 2 + 12)
-            .clamp(RiffSizes.jumpTileHeight, 120.0);
+    final height = (riffLineHeight(context, style) * 2 + 12)
+        .clamp(RiffSizes.jumpTileHeight, 120.0);
     final art = item.art;
     final radius = BorderRadius.circular(RiffSizes.tileRadius);
     return Semantics(
@@ -179,7 +190,8 @@ class JumpBackInTile extends StatelessWidget {
           ? 'continueItem'.trParams({'title': item.title})
           : item.title,
       excludeSemantics: true,
-      child: Material(
+      child: RiffPressScale(
+          child: Material(
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: radius,
         clipBehavior: Clip.antiAlias,
@@ -214,7 +226,7 @@ class JumpBackInTile extends StatelessWidget {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           // 14 medium (guide §3.1): titleSmall, recoloured.
-                          style: theme.textTheme.titleSmall?.copyWith(
+                          style: style?.copyWith(
                             color: theme.colorScheme.onSurface,
                           ),
                         ),
@@ -239,7 +251,7 @@ class JumpBackInTile extends StatelessWidget {
             ),
           ),
         ),
-      ),
+      )),
     );
   }
 }

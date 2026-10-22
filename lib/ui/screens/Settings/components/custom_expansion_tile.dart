@@ -144,11 +144,13 @@ class CustomExpansionTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(title, style: theme.textTheme.titleLarge),
+              // A list title, as rows are app-wide; the subtitle may
+              // take a second line on a small phone.
+              Text(title, style: theme.textTheme.titleMedium),
               if ((subtitle ?? '').isNotEmpty) ...[
                 const SizedBox(height: RiffSpacing.xxs),
                 Text(subtitle!,
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: settingsSubtitleStyle(context)),
               ],

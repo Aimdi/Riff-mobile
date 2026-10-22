@@ -26,11 +26,14 @@ import '/ui/screens/Audiobooks/audiobook_widgets.dart'
     show AudiobookSearchField;
 import '/ui/widgets/podcast_follow_button.dart';
 import '/ui/widgets/now_playing_bars.dart';
+import '/ui/widgets/riff_motion.dart';
 import '/ui/widgets/riff_sheet.dart';
+import '/ui/widgets/shimmer_widgets/skeleton_fade.dart';
 import '/ui/widgets/snackbar.dart';
 import '../Home/home_layout.dart';
 import 'podcast_layout.dart';
 import 'podcast_queue_controller.dart';
+import '/ui/widgets/cover_hero.dart';
 
 /// "1 episode" / "12 episodes".
 String podcastEpisodeCount(int n) =>
@@ -78,6 +81,7 @@ class PodcastShowView extends StatefulWidget {
     this.onBack,
     this.footer,
     this.playbackKey,
+    this.coverHeroTag,
   });
 
   final String title;
@@ -101,6 +105,9 @@ class PodcastShowView extends StatefulWidget {
   /// `yt:<playlist>`); null hides the Playback settings button.
   final String? playbackKey;
 
+  /// The tapped card's cover flying in ([CoverHero.take]); null: none.
+  final Object? coverHeroTag;
+
   @override
   State<PodcastShowView> createState() => _PodcastShowViewState();
 }
@@ -109,6 +116,9 @@ class _PodcastShowViewState extends State<PodcastShowView> {
   final _scroll = ScrollController();
   bool _showTitle = false;
   bool _aboutOpen = false;
+
+  /// The episodes fading in as they replace the loading spinner.
+  final _rowsFade = LoadedRowsFade();
 
   /// Kept per show (by [PodcastShowView.playbackKey]), as Pocket Casts does;
   /// a serial show (its feed says it's heard in order) lists oldest first
@@ -322,6 +332,8 @@ class _PodcastShowViewState extends State<PodcastShowView> {
   Widget _page(BuildContext context) {
     final theme = Theme.of(context);
     final eps = widget.episodes;
+    // Still loading: the episodes fade in once they replace the spinner.
+    if (widget.loading) _rowsFade.skeleton();
     final query = _searching ? _search.text.trim() : '';
     final order = showEpisodeOrder(eps.length,
         oldestFirst: _oldestFirst,
@@ -434,19 +446,21 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                 )
               else if (order.isEmpty)
                 SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(RiffSpacing.x3l),
-                    child: Center(
-                      child: Text(
-                          eps.isEmpty
-                              ? 'noEpisodes'.tr
-                              : query.isNotEmpty
-                                  ? 'noEpisodesMatch'.tr
-                                  : 'allEpisodesPlayed'.tr,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyLarge
-                              ?.copyWith(color: homeMutedColor(context))),
+                  child: RiffFadeIn(
+                    child: Padding(
+                      padding: const EdgeInsets.all(RiffSpacing.x3l),
+                      child: Center(
+                        child: Text(
+                            eps.isEmpty
+                                ? 'noEpisodes'.tr
+                                : query.isNotEmpty
+                                    ? 'noEpisodesMatch'.tr
+                                    : 'allEpisodesPlayed'.tr,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyLarge
+                                ?.copyWith(color: homeMutedColor(context))),
+                      ),
                     ),
                   ),
                 )
@@ -456,21 +470,23 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                     (context, i) {
                       final index = order[i];
                       final picked = _selected;
-                      return _EpisodeRow(
-                        key: ValueKey(eps[index].id),
-                        episode: eps[index],
-                        selected: picked?.contains(eps[index].id),
-                        onTap: picked != null
-                            ? () => _togglePicked(eps[index].id)
-                            : () => widget.onPlay(index),
-                        onLongPress: picked != null
-                            ? () => _pickRangeSheet(
-                                [for (final j in order) eps[j]], i)
-                            : widget.onEpisodeLongPress == null
-                                ? null
-                                : () => widget.onEpisodeLongPress!(eps[index]),
-                        divider: i < order.length - 1,
-                      );
+                      return _rowsFade.row(
+                          key: ValueKey(eps[index].id),
+                          _EpisodeRow(
+                            episode: eps[index],
+                            selected: picked?.contains(eps[index].id),
+                            onTap: picked != null
+                                ? () => _togglePicked(eps[index].id)
+                                : () => widget.onPlay(index),
+                            onLongPress: picked != null
+                                ? () => _pickRangeSheet(
+                                    [for (final j in order) eps[j]], i)
+                                : widget.onEpisodeLongPress == null
+                                    ? null
+                                    : () =>
+                                        widget.onEpisodeLongPress!(eps[index]),
+                            divider: i < order.length - 1,
+                          ));
                     },
                     childCount: order.length,
                   ),
@@ -481,9 +497,17 @@ class _PodcastShowViewState extends State<PodcastShowView> {
                   child: SizedBox(height: RiffSpacing.listEnd)),
             ],
           ),
-          _selected == null
-              ? _topBar(context, theme)
-              : _selectionBar(context, theme, [for (final i in order) eps[i]]),
+          // The top bar and the selection bar crossfade.
+          RiffSwitcher(
+            alignment: Alignment.topCenter,
+            child: _selected == null
+                ? KeyedSubtree(
+                    key: const ValueKey('top'), child: _topBar(context, theme))
+                : KeyedSubtree(
+                    key: const ValueKey('selecting'),
+                    child: _selectionBar(
+                        context, theme, [for (final i in order) eps[i]])),
+          ),
         ],
       ),
     );
@@ -542,7 +566,10 @@ class _PodcastShowViewState extends State<PodcastShowView> {
     final top = MediaQuery.paddingOf(context).top;
     return AnimatedContainer(
       duration: RiffDurations.select,
-      color: _showTitle ? theme.scaffoldBackgroundColor : Colors.transparent,
+      curve: RiffDurations.selectCurve,
+      color: _showTitle
+          ? theme.scaffoldBackgroundColor
+          : theme.scaffoldBackgroundColor.withOpacity(0),
       padding: EdgeInsets.only(
           top: top + RiffSpacing.xs,
           left: RiffSpacing.xs,
@@ -560,6 +587,7 @@ class _PodcastShowViewState extends State<PodcastShowView> {
             child: AnimatedOpacity(
               opacity: _showTitle ? 1 : 0,
               duration: RiffDurations.select,
+              curve: RiffDurations.selectCurve,
               child: Text(
                 widget.title,
                 maxLines: 1,
@@ -632,7 +660,8 @@ class _PodcastShowViewState extends State<PodcastShowView> {
     final inOrder = resume == null && eps.isNotEmpty && _oldestFirst
         ? _nextInOrder()
         : null;
-    final latestDate = eps.isEmpty ? '' : '${eps.first.extras?['date'] ?? ''}';
+    final latestDate =
+        eps.isEmpty ? '' : episodeDateLabel(eps.first.extras?['date']);
     final meta = episodeMetaLine([
       if (!widget.loading && eps.isNotEmpty) podcastEpisodeCount(eps.length),
       latestDate,
@@ -648,10 +677,13 @@ class _PodcastShowViewState extends State<PodcastShowView> {
           child: Column(
             children: [
               // Flat cover, radius 8, no shadow.
-              SizedBox(
-                width: cover,
-                height: cover,
-                child: PodcastArt(url: widget.artUrl, size: cover),
+              CoverHero(
+                tag: widget.coverHeroTag,
+                child: SizedBox(
+                  width: cover,
+                  height: cover,
+                  child: PodcastArt(url: widget.artUrl, size: cover),
+                ),
               ),
               const SizedBox(height: RiffSpacing.lg),
               Text(
@@ -734,21 +766,26 @@ class _PodcastShowViewState extends State<PodcastShowView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Open: as the show wrote it, paragraphs and links that open
-            // (its support links last); closed, three lines of it.
-            if (_aboutOpen)
-              ShowNotesText(
-                notes: widget.description.trim(),
-                style: style,
-                onLink: (url) => launchUrl(Uri.parse(url),
-                    mode: LaunchMode.externalApplication),
-              )
-            else
-              Text(
-                podcastPlainText(widget.description),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: style,
-              ),
+            // (its support links last); closed, three lines of it. It
+            // unfolds (and folds back) rather than jumping.
+            AnimatedSize(
+              duration: RiffDurations.select,
+              curve: RiffDurations.selectCurve,
+              alignment: Alignment.topCenter,
+              child: _aboutOpen
+                  ? ShowNotesText(
+                      notes: widget.description.trim(),
+                      style: style,
+                      onLink: (url) => launchUrl(Uri.parse(url),
+                          mode: LaunchMode.externalApplication),
+                    )
+                  : Text(
+                      podcastPlainText(widget.description),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: style,
+                    ),
+            ),
             const SizedBox(height: RiffSpacing.xs),
             // A link: accent (§2.5).
             Text(
@@ -770,7 +807,6 @@ class _PodcastShowViewState extends State<PodcastShowView> {
 /// title and equalizer on an accentMuted tint.
 class _EpisodeRow extends StatelessWidget {
   const _EpisodeRow({
-    super.key,
     required this.episode,
     required this.onTap,
     this.onLongPress,
@@ -803,7 +839,7 @@ class _EpisodeRow extends StatelessWidget {
         : compactEpisodeLength(tot);
     final meta = episodeMetaLine([
       episodeNumberLabel(episode),
-      '${episode.extras?['date'] ?? ''}',
+      episodeDateLabel(episode.extras?['date']),
       length,
     ]);
     final notes = podcastPlainText('${episode.extras?['description'] ?? ''}');
@@ -863,28 +899,36 @@ class _EpisodeRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: RiffSpacing.sm),
-                  if (selected != null)
-                    SizedBox.square(
-                      dimension: kMinInteractiveDimension,
-                      child: Center(
-                        child: Icon(
-                          selected!
-                              ? Icons.check_circle_rounded
-                              : Icons.radio_button_unchecked_rounded,
-                          size: RiffComponentSizes.headerIcon,
-                          color: selected! ? accent : muted,
-                        ),
-                      ),
-                    )
-                  else if (playing)
-                    const SizedBox.square(
-                      dimension: kMinInteractiveDimension,
-                      child: Center(
-                          child: NowPlayingBars(
-                              size: RiffComponentSizes.headerIcon)),
-                    )
-                  else
-                    PodcastPlayButton(onPressed: onTap),
+                  // Play pill, now-playing bars and the selection mark
+                  // crossfade into one another; picking pops the check in.
+                  RiffSwitcher(
+                    alignment: Alignment.centerRight,
+                    pop: selected == true,
+                    child: selected != null
+                        ? SizedBox.square(
+                            key: ValueKey('picked:$selected'),
+                            dimension: kMinInteractiveDimension,
+                            child: Center(
+                              child: Icon(
+                                selected!
+                                    ? Icons.check_circle_rounded
+                                    : Icons.radio_button_unchecked_rounded,
+                                size: RiffComponentSizes.headerIcon,
+                                color: selected! ? accent : muted,
+                              ),
+                            ),
+                          )
+                        : playing
+                            ? const SizedBox.square(
+                                key: ValueKey('playing'),
+                                dimension: kMinInteractiveDimension,
+                                child: Center(
+                                    child: NowPlayingBars(
+                                        size: RiffComponentSizes.headerIcon)),
+                              )
+                            : PodcastPlayButton(
+                                key: const ValueKey('play'), onPressed: onTap),
+                  ),
                 ],
               ),
             ),

@@ -2,10 +2,12 @@ import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get/get.dart';
 import 'package:harmonymusic/services/opml.dart';
 import 'package:harmonymusic/services/podcast_library.dart';
 import 'package:harmonymusic/services/podcast_progress_service.dart';
 import 'package:harmonymusic/ui/screens/Podcasts/podcast_folder_controller.dart';
+import 'package:harmonymusic/ui/screens/Podcasts/podcast_queue_controller.dart';
 import 'package:hive/hive.dart';
 
 MediaItem ep(String id, {String feed = 'https://a/feed', int pub = 0}) =>
@@ -37,6 +39,15 @@ void main() {
               isPlayed: (id) => id == 'e5',
               inProgress: (id) => id == 'e2'),
           ['e3', 'e1']);
+    });
+
+    test('ones removed from the Inbox by hand do not count', () {
+      expect(
+          episodesToArchive(['e3', 'e2', 'e1'], 1,
+              isPlayed: none,
+              inProgress: none,
+              removedByHand: (id) => id == 'e3'),
+          ['e1']);
     });
 
     test('sortNewestFirst: by date, undated last in their order', () {
@@ -242,6 +253,37 @@ void main() {
       await PodcastLibrary.backToInbox('a2');
       expect(PodcastLibrary.isArchived('a2'), isFalse);
       expect(PodcastLibrary.applyKeepLatest(merged), hasLength(2));
+    });
+
+    test('removed by hand: it takes none of the Keep latest places', () async {
+      const feedA = 'https://a/feed';
+      final merged = [
+        ep('a2', feed: feedA, pub: 20),
+        ep('a1', feed: feedA, pub: 10),
+      ];
+      await PodcastLibrary.removeFromInbox(merged.first);
+      await PodcastLibrary.setShowKeepLatest(feedA, 1);
+      expect(PodcastLibrary.applyKeepLatest(merged).map((e) => e.id), ['a1']);
+      expect(PodcastLibrary.isArchived('a1'), isFalse);
+    });
+
+    test('queued in Up Next: never archived or taken out of the queue',
+        () async {
+      const feedA = 'https://a/feed';
+      await Hive.openBox('PodcastQueue');
+      final queue = Get.put(PodcastQueueController());
+      addTearDown(Get.reset);
+      final merged = [
+        ep('a3', feed: feedA, pub: 30),
+        ep('a2', feed: feedA, pub: 20),
+        ep('a1', feed: feedA, pub: 10),
+      ];
+      queue.add(merged[2]);
+      await PodcastLibrary.setShowKeepLatest(feedA, 1);
+      expect(PodcastLibrary.applyKeepLatest(merged).map((e) => e.id),
+          ['a3', 'a1']);
+      expect(PodcastLibrary.isArchived('a1'), isFalse);
+      expect(queue.isQueued('a1'), isTrue);
     });
 
     test('mark all as listened and undo', () async {

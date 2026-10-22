@@ -34,6 +34,21 @@ abstract final class RailTab {
   static const albums = 6;
   static const artists = 7;
   static const settings = 8;
+
+  /// The phone rail top to bottom: Playlists / Albums / Artists open under
+  /// Songs, above Podcasts and Audiobooks. (The wide rail lists the tabs
+  /// in index order.)
+  static const phoneRailOrder = [
+    home,
+    discover,
+    songs,
+    playlists,
+    albums,
+    artists,
+    podcasts,
+    audiobooks,
+    settings,
+  ];
 }
 
 class HomeScreenController extends GetxController {
@@ -63,6 +78,9 @@ class HomeScreenController extends GetxController {
   /// Stable horizontal shelf scroll controllers keyed by section id.
   /// Creating/disposing these inside Obx builders was a Home jank source.
   final Map<String, ScrollController> _contentScrollControllers = {};
+
+  /// The last tab picked sits lower on the rail than the one before it:
+  /// its page comes in from below.
   bool reverseAnimationtransiton = false;
 
   ScrollController scrollControllerFor(String key) {
@@ -435,8 +453,12 @@ class HomeScreenController extends GetxController {
     return unsupportedLangIds.contains(userLangId) ? "en" : userLangId;
   }
 
-  void onSideBarTabSelected(int index) {
-    reverseAnimationtransiton = index > tabIndex.value;
+  /// [railOrder]: the tabs top to bottom as the rail shows them (the
+  /// phone rail's by default), so the page moves the way the rail does.
+  void onSideBarTabSelected(int index,
+      {List<int> railOrder = RailTab.phoneRailOrder}) {
+    reverseAnimationtransiton =
+        railOrder.indexOf(index) > railOrder.indexOf(tabIndex.value);
     tabIndex.value = index;
   }
 

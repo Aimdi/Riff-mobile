@@ -1,12 +1,15 @@
 import 'package:audio_service/audio_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/services/podcast_progress_service.dart';
+import '/services/podcast_service.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/song_list_tile.dart' show RiffRowHairline;
 import '/ui/widgets/image_widget.dart';
+import '/ui/widgets/shimmer_widgets/basic_container.dart'
+    show RiffSkeletonPulse;
 import '../Home/home_layout.dart';
 import '/ui/theme/riff_text_metrics.dart';
 
@@ -21,6 +24,18 @@ String compactEpisodeLength(int seconds) {
   return m == 0 ? '${h}h' : '${h}h ${m}m';
 }
 
+/// An episode's length for its row: "45m", or "12m left" once started.
+String episodeTimeLabel(String id, int? durationSec) {
+  final tot = durationSec ?? 0;
+  final left =
+      PodcastProgressService.remainingSec(id, fallbackDurationSec: durationSec);
+  if (left == null || left <= 0 || (tot > 0 && left >= tot)) {
+    return compactEpisodeLength(tot);
+  }
+  final fmt = compactEpisodeLength(left);
+  return fmt.isEmpty ? '' : '$fmt ${'left'.tr}';
+}
+
 /// "1 show" / "12 shows".
 String podcastShowCount(int n) =>
     n == 1 ? 'showCountOne'.tr : 'showCount'.trParams({'count': '$n'});
@@ -28,6 +43,19 @@ String podcastShowCount(int n) =>
 /// "Show · date · 45m" with empty parts dropped.
 String episodeMetaLine(Iterable<String?> parts) =>
     parts.map((p) => (p ?? '').trim()).where((p) => p.isNotEmpty).join(' · ');
+
+/// An episode's date in a row, as Pocket Casts and Apple Podcasts write
+/// it: "Today", "Yesterday", "22 Oct" this year, "22 Oct 2025" before.
+/// Dates in other forms (YouTube's "3 days ago") stay as they are.
+String episodeDateLabel(Object? date, [DateTime? now]) {
+  final s = '${date ?? ''}'.trim();
+  final day = PodcastService.parseDay(s);
+  if (day == null) return s;
+  final n = now ?? DateTime.now();
+  if (day == DateTime(n.year, n.month, n.day)) return 'today'.tr;
+  if (day == DateTime(n.year, n.month, n.day - 1)) return 'yesterday'.tr;
+  return day.year == n.year ? PodcastService.formatDayShort(day) : s;
+}
 
 /// "Trailer", "Bonus", "S2 E5", "Ep. 5" or "Season 2", as Apple Podcasts
 /// and Pocket Casts label episodes; empty when the feed doesn't say.
@@ -68,14 +96,16 @@ class PodcastArt extends StatelessWidget {
         dimension: size,
         child: url.isEmpty
             ? fallback
-            : CachedNetworkImage(
+            : RiffNetworkImage(
                 imageUrl: url,
                 httpHeaders: kCoverImageHeaders,
                 fit: BoxFit.cover,
                 memCacheWidth:
                     (size * MediaQuery.devicePixelRatioOf(context)).round(),
-                placeholder: (_, __) =>
-                    ColoredBox(color: theme.colorScheme.surfaceContainerLow),
+                // The loading skeleton's pulse (§5.13).
+                placeholder: (_, __) => RiffSkeletonPulse(
+                    child: ColoredBox(
+                        color: theme.colorScheme.surfaceContainerLow)),
                 errorWidget: (_, __, ___) => fallback,
               ),
       ),
@@ -117,6 +147,7 @@ class PodcastEpisodeTile extends StatelessWidget {
     required this.artUrl,
     required this.title,
     required this.meta,
+    this.show = '',
     this.progress,
     this.onTap,
     this.onLongPress,
@@ -127,6 +158,10 @@ class PodcastEpisodeTile extends StatelessWidget {
   final String artUrl;
   final String title;
   final String meta;
+
+  /// The show, ahead of [meta] on its line. It's what gets cut short when
+  /// the line runs out of room, so the date and length stay whole.
+  final String show;
 
   /// 0–1 while partly played; hidden otherwise.
   final double? progress;
@@ -170,15 +205,9 @@ class PodcastEpisodeTile extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.titleMedium,
                       ),
-                      if (meta.isNotEmpty) ...[
+                      if (show.isNotEmpty || meta.isNotEmpty) ...[
                         const SizedBox(height: RiffSpacing.xxs),
-                        Text(
-                          meta,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant),
-                        ),
+                        _metaLine(theme),
                       ],
                       if (p != null && p > 0 && p < 1) ...[
                         const SizedBox(height: RiffSpacing.sm),
@@ -200,6 +229,46 @@ class PodcastEpisodeTile extends StatelessWidget {
         // Full-width hairline between episodes (§5.2), inside the row.
         const RiffRowHairline(),
       ],
+    );
+  }
+
+  /// "Show · date · length": the show gives way first. Too narrow for
+  /// the date and length to keep their share (large text on a phone), the
+  /// show takes a line of its own above them, so neither is cut to "Th…".
+  Widget _metaLine(ThemeData theme) {
+    final style = theme.textTheme.bodyMedium
+        ?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    Text line(String s) =>
+        Text(s, maxLines: 1, overflow: TextOverflow.ellipsis, style: style);
+    if (show.isEmpty || meta.isEmpty) return line(show.isEmpty ? meta : show);
+    final tail = ' · $meta';
+    return MergeSemantics(
+      child: LayoutBuilder(builder: (context, box) {
+        final share = box.maxWidth * RiffComponentSizes.metaTailShare;
+        final painter = TextPainter(
+          text: TextSpan(text: tail, style: style),
+          maxLines: 1,
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+        )..layout();
+        final fits = painter.width <= share;
+        painter.dispose();
+        if (!fits) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [line(show), line(meta)],
+          );
+        }
+        return Row(
+          children: [
+            Flexible(child: line(show)),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: share),
+              child: line(tail),
+            ),
+          ],
+        );
+      }),
     );
   }
 }
@@ -225,17 +294,19 @@ class PodcastPlayButton extends StatelessWidget {
         minimumSize: const Size(0, RiffComponentSizes.buttonCompact),
         padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
       ),
+      // Named for TalkBack: the pill holds a glyph only.
       child: loading
-          ? const SizedBox.square(
+          ? SizedBox.square(
               dimension: RiffComponentSizes.trailingIcon,
               child: Padding(
-                padding: EdgeInsets.all(RiffSpacing.xxs),
+                padding: const EdgeInsets.all(RiffSpacing.xxs),
                 child: CircularProgressIndicator(
+                    semanticsLabel: 'play'.tr,
                     strokeWidth: RiffComponentSizes.spinnerStroke),
               ),
             )
-          : const Icon(Icons.play_arrow_rounded,
-              size: RiffComponentSizes.trailingIcon),
+          : Icon(Icons.play_arrow_rounded,
+              size: RiffComponentSizes.trailingIcon, semanticLabel: 'play'.tr),
     );
   }
 }

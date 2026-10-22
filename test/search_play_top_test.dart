@@ -20,32 +20,36 @@ void main() {
     );
   });
 
-  test('suggestion rows play on tap, same as Enter', () {
-    expect(shouldPlaySearchItemOnTap(), isTrue);
-  });
-
-  test('search play-fail does not blame the network', () {
-    expect(searchPlayFailedMessageKey(), 'searchPlayFailed');
-    expect(searchPlayFailedMessageKey(), isNot('networkError'));
-  });
-
-  test('failed play is reported so the user is not left in silence', () {
-    expect(shouldNotifySearchPlayFailed(played: true), isFalse);
-    expect(shouldNotifySearchPlayFailed(played: false), isTrue);
-  });
-
-  test('submit opens results and reports failure when nothing plays', () async {
+  test('Enter opens the results and plays nothing', () {
     var opened = '';
-    var failed = false;
-    final ok = await submitSearchQuery(
-      'radiohead',
-      onLink: (_) {},
+    var remembered = '';
+    submitSearchQuery(
+      ' radiohead ',
+      onLink: (_) => fail('not a link'),
       onOpenResults: (q) => opened = q,
-      onRemember: (_) {},
-      onPlayFailed: () => failed = true,
+      onRemember: (q) => remembered = q,
     );
-    expect(ok, isFalse);
     expect(opened, 'radiohead');
-    expect(failed, isTrue);
+    expect(remembered, 'radiohead');
+  });
+
+  test('a link is opened, not searched', () {
+    var link = '';
+    submitSearchQuery(
+      'https://music.youtube.com/watch?v=abc',
+      onLink: (t) => link = t,
+      onOpenResults: (_) => fail('no results for a link'),
+      onRemember: (_) => fail('a link is not remembered'),
+    );
+    expect(link, 'https://music.youtube.com/watch?v=abc');
+  });
+
+  test('an empty query does nothing', () {
+    submitSearchQuery(
+      '   ',
+      onLink: (_) => fail('no link'),
+      onOpenResults: (_) => fail('no results'),
+      onRemember: (_) => fail('nothing remembered'),
+    );
   });
 }

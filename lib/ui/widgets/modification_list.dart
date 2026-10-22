@@ -1,3 +1,4 @@
+import 'package:audio_service/audio_service.dart' show MediaItem;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -6,6 +7,19 @@ import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import 'image_widget.dart';
 import 'riff_marquee.dart';
+
+/// A row's key in the rearrange list: its song's, so a dragged row's cover
+/// and title move with it (index keys left each row where it was and gave
+/// it the next song, redrawing them all). A song that's in the list more
+/// than once gets one key per copy.
+Key rearrangeRowKey(List<dynamic> items, int index) {
+  final id = (items[index] as MediaItem).id;
+  var copy = 0;
+  for (var i = 0; i < index; i++) {
+    if ((items[i] as MediaItem).id == id) copy++;
+  }
+  return ValueKey('$id#$copy');
+}
 
 class ModificationList extends StatelessWidget {
   const ModificationList(
@@ -22,7 +36,7 @@ class ModificationList extends StatelessWidget {
             padding: const EdgeInsets.only(
                 right: RiffSpacing.xs, bottom: RiffSpacing.listEnd),
             itemBuilder: (context, index) => ListTile(
-                  key: Key('$index'),
+                  key: rearrangeRowKey(items, index),
                   onTap: () {},
                   // Room on the right for the reorder handle.
                   contentPadding: const EdgeInsets.only(

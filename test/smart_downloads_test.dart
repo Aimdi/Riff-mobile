@@ -241,6 +241,23 @@ void main() {
         unorderedEquals(['liked000000', 'mine0000000', 'playing0000']));
   });
 
+  test('one you download yourself is yours: never removed', () async {
+    await stats.put('yours000000', _heard(5));
+    await SmartDownloads.run();
+    await downloadQueued();
+    await SmartDownloads.run(force: true);
+    expect(prefs.get(SmartDownloads.keptKey), ['yours000000']);
+
+    // You download it too (an album it's on): no longer Smart downloads'.
+    await SmartDownloads.claim(['yours000000']);
+    expect(prefs.get(SmartDownloads.keptKey), isEmpty);
+
+    await stats.put('yours000000', _heard(5, daysAgo: 120));
+    clock += _day;
+    await SmartDownloads.run();
+    expect(removed, isEmpty);
+  });
+
   test('how many it keeps: 25, 50 or 100', () async {
     expect(SmartDownloads.count.value, SmartDownloads.defaultCount);
     await SmartDownloads.setCount(100);

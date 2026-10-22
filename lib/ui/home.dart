@@ -8,6 +8,7 @@ import '/ui/screens/Home/home_screen_controller.dart';
 import '../utils/helper.dart';
 import '../ui/navigator.dart';
 import '../ui/player/player.dart';
+import '/ui/theme/riff_spacing.dart';
 import 'player/components/mini_player.dart';
 import 'player/player_controller.dart';
 import 'widgets/sliding_up_panel.dart';
@@ -87,90 +88,79 @@ class Home extends StatelessWidget {
                     child: SizedBox(
                       child: Column(
                         children: [
-                          SizedBox(
-                            height: 60,
-                            child: ColoredBox(
-                              color: Theme.of(context).canvasColor,
-                              child: Center(
-                                  child: Padding(
-                                padding: const EdgeInsets.only(
-                                    left: 15.0, right: 15),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Obx(() => Text(
-                                        "${playerController.currentQueue.length} ${"songs".tr}")),
-                                    Text(
-                                      "upNext".tr,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleLarge,
-                                    ),
-                                    Row(
+                          // Title and count on the left, the queue's
+                          // actions as icons (as under the phone's queue),
+                          // so a narrow window doesn't spill the row.
+                          ColoredBox(
+                            color: Theme.of(context).canvasColor,
+                            child: Padding(
+                              padding: const EdgeInsets.only(
+                                  left: RiffSpacing.lg,
+                                  top: RiffSpacing.xs,
+                                  right: RiffSpacing.sm,
+                                  bottom: RiffSpacing.xs),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        InkWell(
-                                          onTap: () {
-                                            playerController
-                                                .toggleQueueLoopMode();
-                                          },
-                                          child: Obx(
-                                            () => Container(
-                                              height: 30,
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 20),
-                                              decoration: BoxDecoration(
-                                                color: playerController
-                                                        .isQueueLoopModeEnabled
-                                                        .isFalse
-                                                    ? Theme.of(context)
-                                                        .colorScheme
-                                                        .onSurface
-                                                        .withOpacity(0.24)
-                                                    : Theme.of(context)
-                                                        .colorScheme
-                                                        .onSurface
-                                                        .withOpacity(0.8),
-                                                borderRadius:
-                                                    BorderRadius.circular(20),
-                                              ),
-                                              child: Center(
-                                                  child: Text("queueLoop".tr)),
-                                            ),
-                                          ),
+                                        Text(
+                                          "upNext".tr,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleLarge,
                                         ),
-                                        IconButton(
-                                            onPressed: () {
-                                              if (playerController
-                                                  .isShuffleModeEnabled
-                                                  .isTrue) {
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(snackbar(
-                                                        context,
-                                                        "queueShufflingDeniedMsg"
-                                                            .tr,
-                                                        size:
-                                                            SanckBarSize.BIG));
-                                                return;
-                                              }
-                                              playerController.shuffleQueue();
-                                            },
-                                            tooltip: "shuffleQueue".tr,
-                                            icon: const Icon(Icons.shuffle)),
-                                        IconButton(
-                                            onPressed: () {
-                                              clearQueueWithUndo(
-                                                  context: context);
-                                            },
-                                            tooltip: "clearQueue".tr,
-                                            icon: const Icon(
-                                                Icons.playlist_remove)),
+                                        Obx(() => Text(
+                                              "${playerController.currentQueue.length} ${"songs".tr}",
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .labelMedium
+                                                  ?.copyWith(
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .onSurfaceVariant),
+                                            )),
                                       ],
-                                    )
-                                  ],
-                                ),
-                              )),
+                                    ),
+                                  ),
+                                  Obx(() => QueueBarButton(
+                                        tooltip: "queueLoop".tr,
+                                        icon: Icons.repeat_rounded,
+                                        active: playerController
+                                            .isQueueLoopModeEnabled.isTrue,
+                                        onTap: playerController
+                                            .toggleQueueLoopMode,
+                                      )),
+                                  QueueBarButton(
+                                    tooltip: "shuffleQueue".tr,
+                                    icon: Icons.shuffle_rounded,
+                                    onTap: () {
+                                      if (playerController
+                                          .isShuffleModeEnabled.isTrue) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(snackbar(context,
+                                                "queueShufflingDeniedMsg".tr,
+                                                size: SanckBarSize.BIG));
+                                        return;
+                                      }
+                                      playerController.shuffleQueue();
+                                    },
+                                  ),
+                                  QueueBarButton(
+                                    tooltip: "clearQueue".tr,
+                                    icon: Icons.playlist_remove_rounded,
+                                    onTap: () =>
+                                        clearQueueWithUndo(context: context),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                           const Expanded(
@@ -194,15 +184,24 @@ class Home extends StatelessWidget {
                   // music player fades it while minimising so the screen
                   // behind shows through.
                   color: Colors.transparent,
+                  // No shadow either: under a clear sheet it fills the
+                  // whole panel, a dark wash over the screen behind that
+                  // travels with the minimise / expand morph.
+                  boxShadow: const [],
                   onSwipeUp: () {
                     playerController.queuePanelController.open();
                   },
                   panel: const Player(),
                   body: const ScreenNavigation(),
                   header: !isWideScreen
-                      ? InkWell(
-                          onTap: playerController.playerPanelController.open,
-                          child: const MiniPlayer(),
+                      // The bar is named for TalkBack: its tap opens the
+                      // player, its swipes change the song.
+                      ? Semantics(
+                          label: 'nowPlaying'.tr,
+                          child: InkWell(
+                            onTap: playerController.playerPanelController.open,
+                            child: const MiniPlayer(),
+                          ),
                         )
                       : const MiniPlayer(),
                 ))),

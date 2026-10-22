@@ -88,6 +88,7 @@ class SmartDownloads {
   /// Whether the song with this id is one it set downloading (they go on
   /// Wi-Fi only).
   static bool isPending(String id) {
+    if (!enabled.value) return false;
     final pending = _prefs?.get(pendingKey);
     return pending is List && pending.contains(id);
   }
@@ -110,7 +111,11 @@ class SmartDownloads {
   static Future<SmartDownloadsRun> set(bool on) async {
     enabled.value = on;
     await _prefs?.put(key, on);
-    if (!on) return SmartDownloadsRun.off;
+    if (!on) {
+      // Nothing it set downloading waits for Wi-Fi any more.
+      await _prefs?.delete(pendingKey);
+      return SmartDownloadsRun.off;
+    }
     return run(force: true);
   }
 
@@ -126,6 +131,22 @@ class SmartDownloads {
   /// downloading and was told not to download again, forgotten.
   static Future<void> forgetDownloads() async =>
       _prefs?.deleteAll(const [keptKey, pendingKey, declinedKey]);
+
+  /// Songs you download yourself are yours: never removed when they drop
+  /// out of your most played, nor held for Wi-Fi as its own are.
+  static Future<void> claim(Iterable<String> ids) async {
+    final prefs = _prefs;
+    if (prefs == null) return;
+    final mine = ids.toSet();
+    if (mine.isEmpty) return;
+    final kept = _ids(prefs.get(keptKey));
+    final pending = _ids(prefs.get(pendingKey));
+    if (!kept.any(mine.contains) && !pending.any(mine.contains)) return;
+    await prefs.putAll({
+      keptKey: kept.where((id) => !mine.contains(id)).toList(),
+      pendingKey: pending.where((id) => !mine.contains(id)).toList(),
+    });
+  }
 
   static Timer? _timer;
 
@@ -309,6 +330,15 @@ class SmartDownloads {
     final box = Hive.box('SongDownloads');
     final raw = box.get(id);
     final path = raw is Map ? '${raw['url'] ?? ''}' : '';
+    // Another download in the same file (a song of the same title and
+    // artist, saved before downloads were named apart): only the entry.
+    final shared = path.isNotEmpty &&
+        box.keys.any((k) =>
+            k != id && box.get(k) is Map && '${box.get(k)['url']}' == path);
+    if (shared) {
+      await box.delete(id);
+      return;
+    }
     if (raw is Map && Get.isRegistered<LibrarySongsController>()) {
       // Its file, its cover and its place in Songs.
       await Get.find<LibrarySongsController>()

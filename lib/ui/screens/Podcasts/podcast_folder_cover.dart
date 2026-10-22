@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/riff_motion.dart';
 import 'podcast_folder_controller.dart';
 
 /// A folder's square cover: its photo inside a frame in the folder colour,
@@ -44,6 +45,7 @@ class PodcastFolderCover extends StatelessWidget {
               height: double.infinity,
               cacheWidth: px > 0 ? px : null,
               filterQuality: FilterQuality.medium,
+              frameBuilder: riffFadeInFrame,
               errorBuilder: (_, __, ___) => icon,
             );
           }),

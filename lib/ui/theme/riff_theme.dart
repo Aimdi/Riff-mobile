@@ -148,6 +148,10 @@ class RiffTheme {
             color: RiffPalette.textPrimary,
             size: RiffComponentSizes.headerIcon),
       ),
+      // Settings groups open and close like the rest of a selection
+      // change (§4.7), not the default ease-in.
+      expansionTileTheme: riffExpansionTileTheme(),
+      actionIconTheme: riffActionIconTheme(),
       listTileTheme: ListTileThemeData(
         // Material 2 geometry (16 both sides), Lights-out type.
         contentPadding: const EdgeInsets.symmetric(horizontal: 16),
@@ -471,3 +475,20 @@ class RiffTextStyles extends ThemeExtension<RiffTextStyles> {
     );
   }
 }
+
+/// Settings groups open and close like the rest of a selection change
+/// (§4.7), not the default ease-in: shared by the dark, light and
+/// album-colour themes.
+ExpansionTileThemeData riffExpansionTileTheme() => ExpansionTileThemeData(
+      expansionAnimationStyle: AnimationStyle(
+        duration: RiffDurations.select,
+        curve: RiffDurations.selectCurve,
+      ),
+    );
+
+/// Every default back button (an AppBar's, a page's own) draws the same
+/// rounded chevron as Riff's page headers, in every theme.
+ActionIconThemeData riffActionIconTheme() => ActionIconThemeData(
+      backButtonIconBuilder: (context) =>
+          const Icon(Icons.arrow_back_ios_new_rounded),
+    );

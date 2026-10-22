@@ -4,6 +4,7 @@ import 'package:harmonymusic/models/album.dart';
 import 'package:harmonymusic/models/artist.dart';
 
 import 'package:harmonymusic/ui/screens/Artists/artist_screen.dart';
+import 'package:harmonymusic/ui/theme/riff_tokens.dart';
 import 'screens/Home/explore_screen.dart';
 import 'screens/Home/home_layout_screen.dart';
 import 'screens/Home/home_screen.dart';
@@ -57,24 +58,49 @@ class ScreenNavigationSetup {
   static const recognizeScreen = '/recognizeScreen';
 }
 
-class ScreenNavigation extends StatelessWidget {
+/// A page on the nested navigator: the platform's own transition (zoom on
+/// Android), in and out at Riff's page timing (§4.7) rather than
+/// GetPageRoute's 300 ms.
+GetPageRoute<dynamic> _page(
+        {required GetPageBuilder page, required RouteSettings settings}) =>
+    GetPageRoute<dynamic>(
+        page: page, settings: settings, transitionDuration: RiffDurations.page);
+
+class ScreenNavigation extends StatefulWidget {
   const ScreenNavigation({super.key});
+
+  @override
+  State<ScreenNavigation> createState() => _ScreenNavigationState();
+}
+
+class _ScreenNavigationState extends State<ScreenNavigation> {
+  /// Flies a tapped card's cover to the page it opens (CoverHero), along
+  /// Material's arc, as MaterialApp's own navigator would.
+  final _heroes = HeroController(
+      createRectTween: (begin, end) =>
+          MaterialRectArcTween(begin: begin, end: end));
+
+  @override
+  void dispose() {
+    _heroes.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Navigator(
         key: Get.nestedKey(ScreenNavigationSetup.id),
+        observers: [_heroes],
         initialRoute: '/homeScreen',
         onGenerateRoute: (settings) {
           Get.routing.args = settings.arguments;
           switch (settings.name) {
             case ScreenNavigationSetup.homeScreen:
-              return GetPageRoute(
-                  page: () => const HomeScreen(), settings: settings);
+              return _page(page: () => const HomeScreen(), settings: settings);
 
             case ScreenNavigationSetup.albumScreen:
               final id = (settings.arguments as (Album?, String)).$2;
-              return GetPageRoute(
+              return _page(
                   page: () => AlbumScreen(
                         key: Key(id),
                       ),
@@ -82,27 +108,26 @@ class ScreenNavigation extends StatelessWidget {
 
             case ScreenNavigationSetup.playlistScreen:
               final id = (settings.arguments as List)[1] as String;
-              return GetPageRoute(
+              return _page(
                   page: () => PlaylistScreen(
                         key: Key(id),
                       ),
                   settings: settings);
 
             case ScreenNavigationSetup.statsScreen:
-              return GetPageRoute(
-                  page: () => const StatsScreen(), settings: settings);
+              return _page(page: () => const StatsScreen(), settings: settings);
 
             case ScreenNavigationSetup.rewindScreen:
-              return GetPageRoute(
+              return _page(
                   page: () => const RewindScreen(), settings: settings);
 
             case ScreenNavigationSetup.podcastsScreen:
-              return GetPageRoute(
+              return _page(
                   page: () => const PodcastsLibraryWidget(),
                   settings: settings);
 
             case ScreenNavigationSetup.pluginsScreen:
-              return GetPageRoute(
+              return _page(
                   page: () => const PluginsScreen(), settings: settings);
 
             case ScreenNavigationSetup.torrentSearchScreen:
@@ -110,7 +135,7 @@ class ScreenNavigation extends StatelessWidget {
               final initialQuery = args is String
                   ? args
                   : (args is Map ? '${args['query'] ?? ''}' : null);
-              return GetPageRoute(
+              return _page(
                   page: () => TorrentSearchScreen(
                         initialQuery: (initialQuery ?? '').trim().isEmpty
                             ? null
@@ -119,16 +144,16 @@ class ScreenNavigation extends StatelessWidget {
                   settings: settings);
 
             case ScreenNavigationSetup.spotifyBridgeScreen:
-              return GetPageRoute(
+              return _page(
                   page: () => const SpotifyBridgeScreen(), settings: settings);
 
             case ScreenNavigationSetup.spotifyPageScreen:
               final args = settings.arguments as SpotifyPageArgs;
-              return GetPageRoute(
+              return _page(
                   page: () => SpotifyPage(args: args), settings: settings);
 
             case ScreenNavigationSetup.soulSyncScreen:
-              return GetPageRoute(
+              return _page(
                   page: () => const SoulSyncScreen(), settings: settings);
 
             case ScreenNavigationSetup.seekerScreen:
@@ -136,7 +161,7 @@ class ScreenNavigation extends StatelessWidget {
               final initialQuery = args is String
                   ? args
                   : (args is Map ? '${args['query'] ?? ''}' : null);
-              return GetPageRoute(
+              return _page(
                   page: () => SeekerScreen(
                         initialQuery: (initialQuery ?? '').trim().isEmpty
                             ? null
@@ -145,54 +170,54 @@ class ScreenNavigation extends StatelessWidget {
                   settings: settings);
 
             case ScreenNavigationSetup.recognizeScreen:
-              return GetPageRoute(
+              return _page(
                   page: () => const RecognizeScreen(), settings: settings);
 
             case ScreenNavigationSetup.exploreScreen:
               final focus = settings.arguments is String
                   ? settings.arguments as String
                   : null;
-              return GetPageRoute(
+              return _page(
                   page: () => ExploreScreen(focusTitle: focus),
                   settings: settings);
 
             case ScreenNavigationSetup.podcastSettingsScreen:
-              return GetPageRoute(
+              return _page(
                   page: () => const PodcastSettingsScreen(),
                   settings: settings);
 
             case ScreenNavigationSetup.blacklistScreen:
-              return GetPageRoute(
+              return _page(
                   page: () => const BlacklistScreen(), settings: settings);
 
             case ScreenNavigationSetup.webDavSyncScreen:
-              return GetPageRoute(
+              return _page(
                   page: () => const WebDavSyncScreen(), settings: settings);
 
             case ScreenNavigationSetup.gpodderSyncScreen:
-              return GetPageRoute(
+              return _page(
                   page: () => const GpodderSyncScreen(), settings: settings);
 
             case ScreenNavigationSetup.podcastStatsScreen:
-              return GetPageRoute(
+              return _page(
                   page: () => const PodcastStatsScreen(), settings: settings);
 
             case ScreenNavigationSetup.homeLayoutScreen:
-              return GetPageRoute(
+              return _page(
                   page: () => const HomeLayoutScreen(), settings: settings);
 
             case ScreenNavigationSetup.searchScreen:
-              return GetPageRoute(
+              return _page(
                   page: () => const SearchScreen(), settings: settings);
 
             case ScreenNavigationSetup.searchResultScreen:
-              return GetPageRoute(
+              return _page(
                   page: () => const SearchResultScreen(), settings: settings);
 
             case ScreenNavigationSetup.artistScreen:
               final args = settings.arguments as List;
               final id = args[0] ? args[1] : (args[1] as Artist).browseId;
-              return GetPageRoute(
+              return _page(
                   page: () => ArtistScreen(
                         key: Key(id),
                       ),

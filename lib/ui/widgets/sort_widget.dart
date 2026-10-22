@@ -11,6 +11,7 @@ import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import 'additional_operation_dialog.dart';
 import 'modified_text_field.dart';
+import 'riff_motion.dart';
 import 'spotify_import_dialog.dart';
 import 'total_length.dart';
 
@@ -247,119 +248,164 @@ class SortWidget extends StatelessWidget {
             tag: tag);
     final theme = Theme.of(context);
     final muted = theme.textTheme.titleSmall?.color;
-    return Padding(
+    final bar = Padding(
       padding: const EdgeInsets.only(top: 6.0),
       child: SizedBox(
         height: 44,
         child: Obx(() {
-          if (controller.isSearchingEnabled.value) {
-            return _searchField(context, controller);
-          }
-          return Row(
-            children: [
-              SizedBox(width: titleLeftPadding),
-              Expanded(
-                child: Text(
-                  _countLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelMedium
-                      ?.copyWith(color: muted),
-                ),
-              ),
-              _sortMenu(context, controller),
-              if (isDownloadedFilterRequired)
-                _iconButton(
-                  context,
-                  selected: isDownloadedOnly == true,
-                  icon: isDownloadedOnly == true
-                      ? Icons.download_done_rounded
-                      : Icons.download_for_offline_outlined,
-                  tooltip: "downloadedOnly".tr,
-                  onPressed: () => onDownloadedToggle?.call(),
-                ),
-              if (isCloudFeatureRequired)
-                _iconButton(
-                  context,
-                  selected: isCloudModeActive == true,
-                  icon: isCloudModeActive == true
-                      ? Icons.cloud
-                      : Icons.cloud_outlined,
-                  tooltip: "cloud".tr,
-                  onPressed: () => onCloudToggle?.call(),
-                ),
-              if (isDeviceFeatureRequired)
-                _iconButton(
-                  context,
-                  selected: isDeviceModeActive == true,
-                  icon: isDeviceModeActive == true
-                      ? Icons.phone_android_rounded
-                      : Icons.phone_android_outlined,
-                  tooltip: "onThisPhone".tr,
-                  onPressed: () => onDeviceToggle?.call(),
-                ),
-              if (isImportFeatureRequired)
-                _iconButton(
-                  context,
-                  icon: Icons.file_download_outlined,
-                  tooltip: "importPlaylist".tr,
-                  onPressed: () => _showImportDialog(context),
-                ),
-              if (isSearchFeatureRequired)
-                _iconButton(
-                  context,
-                  icon: Icons.search_rounded,
-                  tooltip: "search".tr,
-                  onPressed: () {
-                    onSearchStart!(tag);
-                    controller.toggleSearch();
-                  },
-                ),
-              if (isAdditionalOperationRequired)
-                PopupMenuButton<OperationMode>(
-                  tooltip: "moreOptions".tr,
-                  icon: Icon(Icons.more_vert_rounded, size: 22, color: muted),
-                  onSelected: (mode) {
-                    showDialog(
-                        context: context,
-                        builder: (context) => AdditionalOperationDialog(
-                              operationMode: mode,
-                              screenController: screenController,
-                              controller: controller,
-                            ));
-
-                    controller.setActiveMode(mode);
-                    startAdditionalOperation!(controller, mode);
-                  },
-                  itemBuilder: (BuildContext context) =>
-                      <PopupMenuEntry<OperationMode>>[
-                    if (isPlaylistRearrageFeatureRequired)
-                      PopupMenuItem(
-                        height: RiffComponentSizes.sheetRow,
-                        value: OperationMode.arrange,
-                        child: Text("reArrangePlaylist".tr),
-                      ),
-                    if (isSongDeletetioFeatureRequired)
-                      PopupMenuItem(
-                        height: RiffComponentSizes.sheetRow,
-                        value: OperationMode.delete,
-                        child: Text("removeMultiple".tr),
-                      ),
-                    PopupMenuItem(
-                      height: RiffComponentSizes.sheetRow,
-                      value: OperationMode.addToPlaylist,
-                      child: Text("addMultipleSongs".tr),
-                    ),
-                  ],
-                )
-              else
-                const SizedBox(width: 6),
-            ],
+          // The row and the search field crossfade. Each fills the bar, as
+          // it did on its own.
+          final searching = controller.isSearchingEnabled.value;
+          return RiffSwitcher(
+            child: SizedBox.expand(
+              key: ValueKey(searching),
+              child: searching
+                  // Closed, the fading field lets go of the keyboard at once.
+                  ? Obx(() => ExcludeFocus(
+                        excluding: !controller.isSearchingEnabled.value,
+                        child: _searchField(context, controller),
+                      ))
+                  : _bar(context, controller, muted),
+            ),
           );
         }),
       ),
+    );
+    if (!_hasFilters) return bar;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [_filterChips(context), bar],
+    );
+  }
+
+  bool get _hasFilters =>
+      isDownloadedFilterRequired ||
+      isCloudFeatureRequired ||
+      isDeviceFeatureRequired;
+
+  /// Downloaded / Cloud / On this phone as a row of chips under the title,
+  /// as Spotify's Your Library filters (they were unlabeled icons in the
+  /// bar, crowding the count out and spilling over on small phones).
+  Widget _filterChips(BuildContext context) {
+    Widget chip(
+            {required IconData icon,
+            required String label,
+            required bool selected,
+            required VoidCallback? onTap}) =>
+        Padding(
+          padding: const EdgeInsets.only(right: RiffSpacing.sm),
+          child: FilterChip(
+            avatar: Icon(icon),
+            label: Text(label),
+            selected: selected,
+            onSelected: onTap == null ? null : (_) => onTap(),
+          ),
+        );
+    return SizedBox(
+      height: RiffSizes.chipRow,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.gutter),
+        children: [
+          if (isDownloadedFilterRequired)
+            chip(
+              icon: Icons.download_for_offline_outlined,
+              label: "downloaded".tr,
+              selected: isDownloadedOnly == true,
+              onTap: onDownloadedToggle,
+            ),
+          if (isCloudFeatureRequired)
+            chip(
+              icon: Icons.cloud_outlined,
+              label: "cloud".tr,
+              selected: isCloudModeActive == true,
+              onTap: onCloudToggle,
+            ),
+          if (isDeviceFeatureRequired)
+            chip(
+              icon: Icons.phone_android_outlined,
+              label: "onThisPhone".tr,
+              selected: isDeviceModeActive == true,
+              onTap: onDeviceToggle,
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// The count, the sort menu and the filter / search / more buttons.
+  Widget _bar(
+      BuildContext context, SortWidgetController controller, Color? muted) {
+    return Row(
+      children: [
+        SizedBox(width: titleLeftPadding),
+        Expanded(
+          child: Text(
+            _countLabel,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style:
+                Theme.of(context).textTheme.labelMedium?.copyWith(color: muted),
+          ),
+        ),
+        _sortMenu(context, controller),
+        if (isImportFeatureRequired)
+          _iconButton(
+            context,
+            icon: Icons.file_download_outlined,
+            tooltip: "importPlaylist".tr,
+            onPressed: () => _showImportDialog(context),
+          ),
+        if (isSearchFeatureRequired)
+          _iconButton(
+            context,
+            icon: Icons.search_rounded,
+            tooltip: "search".tr,
+            onPressed: () {
+              onSearchStart!(tag);
+              controller.toggleSearch();
+            },
+          ),
+        if (isAdditionalOperationRequired)
+          PopupMenuButton<OperationMode>(
+            tooltip: "moreOptions".tr,
+            icon: Icon(Icons.more_vert_rounded, size: 22, color: muted),
+            onSelected: (mode) {
+              showDialog(
+                  context: context,
+                  builder: (context) => AdditionalOperationDialog(
+                        operationMode: mode,
+                        screenController: screenController,
+                        controller: controller,
+                      ));
+
+              controller.setActiveMode(mode);
+              startAdditionalOperation!(controller, mode);
+            },
+            itemBuilder: (BuildContext context) =>
+                <PopupMenuEntry<OperationMode>>[
+              if (isPlaylistRearrageFeatureRequired)
+                PopupMenuItem(
+                  height: RiffComponentSizes.sheetRow,
+                  value: OperationMode.arrange,
+                  child: Text("reArrangePlaylist".tr),
+                ),
+              if (isSongDeletetioFeatureRequired)
+                PopupMenuItem(
+                  height: RiffComponentSizes.sheetRow,
+                  value: OperationMode.delete,
+                  child: Text("removeMultiple".tr),
+                ),
+              PopupMenuItem(
+                height: RiffComponentSizes.sheetRow,
+                value: OperationMode.addToPlaylist,
+                child: Text("addMultipleSongs".tr),
+              ),
+            ],
+          )
+        else
+          const SizedBox(width: 6),
+      ],
     );
   }
 
@@ -521,11 +567,13 @@ class SortWidget extends StatelessWidget {
     VoidCallback? onPressed,
   }) {
     final theme = Theme.of(context);
+    final color = selected
+        ? theme.colorScheme.secondary
+        : theme.textTheme.titleSmall?.color;
     return IconButton(
-      icon: Icon(icon),
-      color: selected
-          ? theme.colorScheme.secondary
-          : theme.textTheme.titleSmall?.color,
+      // A filter turning on or off crossfades to its other glyph and colour.
+      icon: RiffSwitcher(child: Icon(icon, key: ValueKey(icon), color: color)),
+      color: color,
       iconSize: 22,
       visualDensity: VisualDensity.compact,
       onPressed: onPressed,

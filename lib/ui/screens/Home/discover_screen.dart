@@ -20,10 +20,7 @@ class DiscoverScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(
-          top: context.isLandscape
-              ? RiffSpacing.tabTopLandscape
-              : RiffSpacing.tabTop),
+      padding: EdgeInsets.only(top: riffTabTop(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

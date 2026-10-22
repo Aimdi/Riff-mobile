@@ -19,19 +19,22 @@ const keepLatestChoices = [0, 1, 3, 5, 10];
 
 /// Which of a show's episodes to archive when it keeps only the newest
 /// [keep] unplayed ones. [idsNewestFirst] is the show's episodes, newest
-/// first. Played episodes don't count, and an episode you've started is
-/// never archived (it still counts towards [keep]).
+/// first. Played episodes and ones taken out of the Inbox by hand
+/// ([removedByHand]) don't count, and an episode you've started (or queued,
+/// or that's playing: [inProgress]) is never archived (it still counts
+/// towards [keep]).
 List<String> episodesToArchive(
   List<String> idsNewestFirst,
   int keep, {
   required bool Function(String id) isPlayed,
   required bool Function(String id) inProgress,
+  bool Function(String id)? removedByHand,
 }) {
   if (keep <= 0) return const [];
   final out = <String>[];
   var kept = 0;
   for (final id in idsNewestFirst) {
-    if (isPlayed(id)) continue;
+    if (isPlayed(id) || (removedByHand?.call(id) ?? false)) continue;
     if (kept < keep) {
       kept++;
       continue;
@@ -467,8 +470,15 @@ class PodcastLibrary {
     }
     final archive = _box(archiveBox);
     final at = (now ?? DateTime.now()).millisecondsSinceEpoch;
-    final inProgress = {
+    // Started, queued (Up Next) or playing: never archived.
+    final playing = Get.isRegistered<PlayerController>()
+        ? Get.find<PlayerController>().currentSong.value?.id
+        : null;
+    final kept = {
       for (final r in _safeInProgress()) '${r['id']}',
+      if (Get.isRegistered<PodcastQueueController>())
+        for (final e in Get.find<PodcastQueueController>().queue) e.id,
+      if (playing != null) playing,
     };
     for (final entry in byShow.entries) {
       final keep = keepLatestFor(entry.key);
@@ -476,7 +486,8 @@ class PodcastLibrary {
       final ids = sortNewestFirst(entry.value).map((e) => e.id).toList();
       final drop = episodesToArchive(ids, keep,
           isPlayed: PodcastProgressService.isPlayed,
-          inProgress: inProgress.contains);
+          inProgress: kept.contains,
+          removedByHand: (id) => _byHand(archive?.get(id)));
       for (final id in drop) {
         if (archive != null && !archive.containsKey(id)) {
           archive.put(id, {'at': at, 'show': entry.key});

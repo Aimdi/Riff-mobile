@@ -38,22 +38,9 @@ Future<bool> playAudiobook({
     if (index != null) {
       start = index.clamp(0, items.length - 1);
     } else {
-      final local = AudiobookProgressService.lastTrackForBook(detail.id);
-      final at = local == null
-          ? -1
-          : items.indexWhere((m) => m.id == local['id']?.toString());
-      if (at >= 0 && local != null) {
-        start = at;
-        final pos = local['positionMs'];
-        if (pos is int) resumeMs = pos;
-      } else {
-        final mapped = AudiobookshelfService.mapCurrentTimeToTrack(
-          detail.currentTime,
-          detail.tracks.map((t) => t.duration).toList(),
-        );
-        start = mapped.$1.clamp(0, items.length - 1);
-        resumeMs = mapped.$2.inMilliseconds;
-      }
+      final (track, positionMs) = absResumePoint(detail);
+      start = track.clamp(0, items.length - 1);
+      resumeMs = positionMs;
     }
 
     final player = Get.find<PlayerController>();
@@ -69,6 +56,28 @@ Future<bool> playAudiobook({
     // The server out of reach: a downloaded book plays from the phone.
     return playDownloadedAudiobook(bookId, index: index);
   }
+}
+
+/// Where Play picks up the Audiobookshelf book [detail]: the track and the
+/// position in it (ms). This phone's last place wins over the server's,
+/// which lags by up to the sync interval; without one, the server's place
+/// (a book heard in another Audiobookshelf app).
+(int, int) absResumePoint(AbsBookDetail detail) {
+  final local = AudiobookProgressService.lastTrackForBook(detail.id);
+  final at = local == null
+      ? -1
+      : detail.tracks.indexWhere((t) =>
+          AudiobookshelfService.trackMediaId(detail.id, t.index) ==
+          local['id']?.toString());
+  if (at >= 0) {
+    final pos = local!['positionMs'];
+    return (at, pos is int ? pos : 0);
+  }
+  final mapped = AudiobookshelfService.mapCurrentTimeToTrack(
+    detail.currentTime,
+    detail.tracks.map((t) => t.duration).toList(),
+  );
+  return (mapped.$1, mapped.$2.inMilliseconds);
 }
 
 /// Play a free (LibriVox) book, resuming the last chapter and position

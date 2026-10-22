@@ -1,3 +1,155 @@
+# 1.7.154
+
+* Search: pressing Enter (or the mic, or tapping a search or history
+  suggestion) opens the results again instead of playing the first song
+  that matched. Nothing plays until you pick something
+* Search: a new search no longer shows the results of the one before
+  (from the app shortcut, Ctrl+F or a link while results were open);
+  "Did you mean" can't leave a tab broken or mix in the old words' next
+  page; searching again moves the search to the top of Recent searches
+  instead of leaving it where it was; and the hint under them says what
+  a tap does
+* Favorites: removing a song and tapping Undo no longer empties every
+  heart in the app (Favorites already affected are put right when Riff
+  starts); a song removed from Favorites is unliked on YouTube Music too,
+  so like sync doesn't bring it back
+* Smart downloads no longer delete a song you downloaded yourself (on an
+  album or playlist) when it drops out of your most played, and songs it
+  had picked no longer get skipped when you download them on mobile data
+* Two songs with the same title and artist (an album version and the
+  single) are downloaded into separate files instead of one overwriting
+  the other
+* YouTube Music like sync: one like YouTube refuses no longer holds up
+  all the others; liking a song on the phone no longer tries to like it
+  on YouTube; unliking while the like was still being sent isn't lost
+* Remove downloaded songs also stops the downloads still waiting, which
+  used to fill the space again
+* Podcasts: Keep latest no longer takes an episode you queued (or the one
+  playing) out of Up Next; episodes taken out of the Inbox by hand don't
+  use up its places; a chapter you untick at 0:00 (often the intro or an
+  ad) is skipped like the others; gpodder sync sends every episode you
+  mark played, not only the ones whose length it knows; and the Inbox's
+  feed memos no longer get thrown away at each start
+* Home screen widget: ⏭ and ⏮ go to the next or previous episode or
+  book chapter instead of skipping 30 seconds
+* Playback:
+  * Music no longer starts again by itself when a call ends after you'd
+    stopped it (swiped the notification away) during the call
+  * Waiting for the connection to come back, playback no longer resumes
+    after the headphones were pulled out or during a call
+  * Tapping a song that can't play now (offline, explicit off) says why
+    and leaves what's playing alone, instead of emptying the queue
+  * With Fade between songs on, a SponsorBlock skip at the start of a
+    song no longer leaves the volume low for the rest of the session
+  * Turning Autoplay off stops the songs it was adding
+  * Shuffle no longer stops (or hands over to Autoplay) at the end of a
+    round when the reshuffle put the song just played first
+  * Autoplay doesn't start from a song you just marked Not interested
+  * "Play music on Riff" with Riff closed plays instead of doing nothing
+  * The notification's and the car's repeat icon matches the player's
+    when shuffle is turned on
+
+Motion: smoother everywhere
+* Liking a song pops the heart in; unliking fades it. The playing song's
+  row eases its tint and title colour in and out, its bars fade in (the
+  length beside them glides instead of jumping) and settle to rest on
+  pause instead of snapping
+* Download buttons fade between waiting, progress and done (done pops
+  in), and the downloaded mark fades in as the artist name glides over;
+  Follow / Following, Home's play button, the playing veil on Speed dial
+  tiles, a station chip starting and the sort bar's search all crossfade
+  instead of switching at once
+* The player: skipping no longer dips the page to black before the new
+  cover's colour; it eases straight from one colour to the next. The new
+  cover fades in over the old one once it's loaded (no blank, no pop),
+  and the next song's cover and colours are ready before you skip. The
+  title, artist and the mini player's cover change together. Closing the
+  player no longer replays the mini player's play/pause morph or
+  restarts its scrolling title, and the screen behind no longer darkens
+  while the player opens or closes. Lyrics, the hold-to-seek bubble and
+  the seek thumb fade in and out; the line under the title keeps its
+  place while the next song's lyrics load instead of the controls
+  dropping and rising; the mini player's progress moves smoothly
+  instead of in one-second steps; Up Next eases the playing song's tint
+  and the played songs' dimming
+* Covers fade in quickly as they load (the placeholder pulses like the
+  rest of the loading skeletons, and stays still with Remove animations),
+  local covers fade in instead of popping, and a sharper cover for the
+  same song replaces the old one without a loading flash between
+* Album, playlist, artist, podcast show, Inbox, Library and Cloud pages:
+  loaded songs and episodes fade and rise in where their skeleton was;
+  the album/playlist header fades in on the page's timing; the top bar's
+  title and back button ease together as you scroll; Save and Download
+  crossfade (and pop when done)
+* Settings groups open and close smoothly, and settings that appear
+  when you turn another on (normalization level, developer rows) grow
+  in instead of popping; "Read more" and "See more" unfold
+* Library's panes, selection mode and grid / list switch crossfade
+* Pages open and close in 250 ms (were 300). Switching between rail
+  tabs slides a short way and fades through, in the direction you moved
+  on the rail (it used to slide whole screens for almost half a second,
+  sometimes the wrong way); search filters do the same sideways. The
+  Songs group in the rail folds away as smoothly as it opens, and the
+  Playlists + button grows in and out
+* Home, Explore, Search results, Audiobooks and Stats: loaded content
+  fades in where its skeleton was, and switching a section (Podcasts
+  pills, Audiobooks modes, Explore chips, Stats ranges, search filters)
+  crossfades with the chips easing their colour; the offline banner
+  slides open instead of popping
+* The album-colour theme eases between covers' colours on the colour
+  timing; dialogs open on the same timing as the rest
+* Library's Albums and Artists no longer flash "nothing here" for a
+  moment before your albums and artists appear; the light and
+  album-colour themes open Settings groups as smoothly as the dark one
+
+A redesign, closer to Spotify, YouTube Music, Apple Music, Pocket Casts
+and Audible (the side rail, the black page and your accent colour stay):
+* Tap an album, playlist, podcast show or book and its cover flies from
+  the card to the page's cover, and back when you go back; the page's
+  title and buttons fade in beside it. Cards shrink a touch under your
+  finger
+* Home and Library: section titles in sentence case, and every tab's
+  title equally large (shrinking to fit at the largest font size instead
+  of being cut). Long song lists, and long albums and playlists, get a
+  fast-scroll thumb with a letter bubble. On tablets Quick picks cards
+  stop at 420 dp wide and an album's cover backdrop ends under its
+  header. Long section names wrap
+* Library › Songs: Favorites and Recently played read whole on a phone
+  ("Recently pla…" before)
+* Search: the top result sits on a card of its own, and the page starts
+  under the status bar like every tab
+* Podcasts: Subscriptions in three columns on phones; episode rows say
+  Today, Yesterday or 22 Oct, and a long show name gives way before the
+  date and length (at large text it takes a line of its own)
+* Audiobooks: the book you're in the middle of shown large, as Audible
+  does, its play button on the cover; genre chips fit their names; an
+  Audiobookshelf book gets the same page as a free one; a book page's
+  top bar shows the title only once the big one has scrolled away
+* Artist page: About on a card with the artist's photo
+* Stats: tiles that fit on a small phone and at large text, the week
+  labelled by weekday (today's brighter), covers on your top songs;
+  Rewind and podcast stats fit at large text
+* Add to playlist: each playlist with its cover
+* The player: the artist, times and Up Next in the page's text colour,
+  readable on any cover; lyrics on a rounded card that fades them out at
+  its top and bottom edges
+* Settings: group titles at list size; their summaries can wrap
+* Home when it can't load: "Couldn't load Home. Check your connection."
+  and Retry, in the app's empty-state style; empty states keep their
+  message to a few lines on a tablet; page subtitles and the new-playlist
+  dialog's title aren't cut short
+* On Linux (and anywhere the queue is a drawer): the queue's title and
+  count on the left, its actions as icons
+
+Accessibility:
+* TalkBack names the play pills, the player's cover and Up Next bar,
+  the new-playlist button, artist rows and pressed cards; a setting's
+  switch is read with its title; chips and section pills say which one
+  is chosen
+* The mini player's controls are full height and the song is one
+  button; the like and ⋮ buttons on song rows and the play badges on
+  covers are 48 dp to tap (they look the same)
+
 # 1.7.153
 
 The music player takes its look from the cover, like BitChord:

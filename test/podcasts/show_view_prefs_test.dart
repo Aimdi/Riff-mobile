@@ -200,12 +200,12 @@ void main() {
       await _markPlayed(tester, ['podcast_ep2']);
       final played = await pumpShow(tester);
       expect(find.text('Episode 2'), findsOneWidget);
-      expect(find.text('SHOWEPISODES · 3'), findsOneWidget);
+      expect(find.text('showEpisodes · 3'), findsOneWidget);
 
       await tester.tap(find.byTooltip('hidePlayedEpisodes'));
       await tester.pump();
       expect(find.text('Episode 2'), findsNothing);
-      expect(find.text('SHOWEPISODES · 2'), findsOneWidget);
+      expect(find.text('showEpisodes · 2'), findsOneWidget);
       expect(PodcastShowViewPrefs.hidePlayed('feed'), isTrue);
 
       await tester.tap(find.text('Episode 1'));
@@ -225,7 +225,7 @@ void main() {
       await tester.tap(find.byTooltip('showPlayedEpisodes'));
       await tester.pump();
       expect(find.text('Episode 2'), findsOneWidget);
-      expect(find.text('SHOWEPISODES · 3'), findsOneWidget);
+      expect(find.text('showEpisodes · 3'), findsOneWidget);
       expect(PodcastShowViewPrefs.hidePlayed('feed'), isFalse);
     });
     testWidgets('search the episodes, then close the search', (tester) async {
@@ -236,7 +236,7 @@ void main() {
       await tester.pump();
       expect(find.text('Episode 2'), findsOneWidget);
       expect(find.text('Episode 1'), findsNothing);
-      expect(find.text('SHOWEPISODES · 1'), findsOneWidget);
+      expect(find.text('showEpisodes · 1'), findsOneWidget);
 
       await tester.enterText(find.byType(TextField), 'nothing like it');
       await tester.pump();
@@ -245,7 +245,7 @@ void main() {
       await tester.tap(find.byTooltip('close'));
       await tester.pump();
       expect(find.byType(TextField), findsNothing);
-      expect(find.text('SHOWEPISODES · 3'), findsOneWidget);
+      expect(find.text('showEpisodes · 3'), findsOneWidget);
     });
   });
 }

@@ -14,6 +14,48 @@ import 'lyric_seek_line.dart';
 import 'word_synced_lyrics.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/riff_motion.dart';
+
+/// Lyrics fading out to nothing at the top and bottom edges (Spotify,
+/// Apple Music), so a line the edge cuts isn't left half there.
+class LyricsEdgeFade extends StatelessWidget {
+  const LyricsEdgeFade({super.key, required this.child});
+  final Widget child;
+
+  /// The mask, kept while the lyrics' size stays put (they repaint as the
+  /// lines move on).
+  static Shader? _mask;
+  static Size? _maskFor;
+
+  static Shader _maskShader(Size size, Color opaque) {
+    if (_mask == null || _maskFor != size) {
+      _maskFor = size;
+      _mask = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          opaque.withOpacity(0),
+          opaque,
+          opaque,
+          opaque.withOpacity(0),
+        ],
+        stops: const [0, 0.1, 0.9, 1],
+      ).createShader(Offset.zero & size);
+    }
+    return _mask!;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Only the mask's alpha counts.
+    final opaque = Theme.of(context).colorScheme.surface.withOpacity(1);
+    return ShaderMask(
+      blendMode: BlendMode.dstIn,
+      shaderCallback: (rect) => _maskShader(rect.size, opaque),
+      child: child,
+    );
+  }
+}
 
 class LyricsWidget extends StatelessWidget {
   final EdgeInsetsGeometry padding;
@@ -40,108 +82,140 @@ class LyricsWidget extends StatelessWidget {
 
   Widget _lyrics(BuildContext context) {
     final playerController = Get.find<PlayerController>();
-    // Outer Obx: loading / mode / lyric payload only — NOT progress ticks.
-    return Obx(
-      () {
-        if (playerController.isLyricsLoading.isTrue) {
-          return const Center(child: LoadingIndicator());
-        }
-        final theme = Theme.of(context);
-        // Read here so switching it in Settings redraws the lyrics.
-        final romanized = LyricsRomanization.enabled.isTrue;
-        // None for want of a connection (they come once it's back).
-        final offline = playerController.lyrics['offline'] == true;
-        if (playerController.lyricsMode.toInt() == 1) {
-          final plain = playerController.lyrics["plainLyrics"] == "NA"
-              ? (offline ? "lyricsOffline" : "lyricsNotAvailable").tr
-              : (playerController.lyrics["plainLyrics"] ?? "").toString();
-          return Center(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: padding,
-              child: TextSelectionTheme(
-                data: Theme.of(context).textSelectionTheme,
-                child: SelectableText.rich(
-                  romanizedLyricsText(
-                    plain,
-                    style: theme.textTheme.titleLarge!
-                        .copyWith(color: theme.colorScheme.onSurface),
-                    romanStyle: theme.textTheme.bodyMedium!
-                        .copyWith(color: theme.colorScheme.onSurfaceVariant),
-                    // Not for the "not available" note.
-                    translations: playerController.lyrics["plainLyrics"] == "NA"
-                        ? null
-                        : LyricsTranslation.linesFor(plain.split('\n')),
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-          );
-        }
-        final ttml = (playerController.lyrics['ttml'] ?? '').toString();
-        if (ttml.isNotEmpty) {
-          return WordSyncedLyricsWidget(
-              key: ValueKey(romanized), ttml: ttml, padding: padding);
-        }
-        final model = LyricsModelBuilder.create()
-            .bindLyricToMain(
-                lyricsReaderLrc(playerController.lyrics['synced'].toString()))
-            .getModel();
-        // Romanization and translation go in each line's second line.
-        final translations = LyricsTranslation.linesFor(
-            [for (final line in model.lyrics) line.mainText ?? '']);
-        for (var i = 0; i < model.lyrics.length; i++) {
-          final line = model.lyrics[i];
-          line.extText = lyricsSecondLine(
-              LyricsRomanization.lineFor(line.mainText), translations?[i]);
-        }
-        // TalkBack can't read the lyrics the reader draws: with it on they're
-        // text, a line at a time, as Spotify's are.
-        if (MediaQuery.accessibleNavigationOf(context) &&
-            model.lyrics.isNotEmpty) {
-          return ReadableSyncedLyrics(
-              lines: model.lyrics, padding: padding, onTap: onTap);
-        }
-        // Built here (not per progress tick): a new LyricUI makes the
-        // reader re-layout.
-        final lyricUi = RiffLyricUI.of(context, playerController.lyricUi);
-        // Nested Obx: only the playhead position updates ~10Hz.
-        return Obx(() {
-          // Lyrics timing: this song's lyrics may show later or earlier.
-          final delay =
-              LyricsTiming.delayMs(playerController.currentSong.value?.id);
-          final pos = lyricsPositionMs(
-              playerController.progressBarStatus.value.current.inMilliseconds,
-              delay);
-          // Drag to look through the lyrics; the line in the middle gets
-          // its time and ▶ to play from there (Spotify and Apple Music
-          // jump to a tapped line; a tap here keeps closing the lyrics).
-          return _SeekableLyricsReader(
-            padding: const EdgeInsets.only(left: 5, right: 5),
-            lyricUi: lyricUi,
-            position: pos,
-            model: model,
-            onTap: onTap,
-            selectLineBuilder: (progress, confirm) => LyricSeekLine(
-              positionMs: songPositionForLyricMs(progress, delay),
-              onSeek: () {
-                confirm();
-                playerController.seek(Duration(
-                    milliseconds: songPositionForLyricMs(progress, delay)));
-              },
-            ),
-            emptyBuilder: () => Center(
-              child: Text(
-                (offline ? "lyricsOffline" : "syncedLyricsNotAvailable").tr,
-                style: theme.textTheme.titleMedium!
+    return _LoadingSwap(
+        loaded: (context) => _loaded(context, playerController));
+  }
+
+  Widget _loaded(BuildContext context, PlayerController playerController) {
+    final theme = Theme.of(context);
+    // Read here so switching it in Settings redraws the lyrics.
+    final romanized = LyricsRomanization.enabled.isTrue;
+    // None for want of a connection (they come once it's back).
+    final offline = playerController.lyrics['offline'] == true;
+    if (playerController.lyricsMode.toInt() == 1) {
+      final plain = playerController.lyrics["plainLyrics"] == "NA"
+          ? (offline ? "lyricsOffline" : "lyricsNotAvailable").tr
+          : (playerController.lyrics["plainLyrics"] ?? "").toString();
+      return Center(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: padding,
+          child: TextSelectionTheme(
+            data: Theme.of(context).textSelectionTheme,
+            child: SelectableText.rich(
+              romanizedLyricsText(
+                plain,
+                style: theme.textTheme.titleLarge!
                     .copyWith(color: theme.colorScheme.onSurface),
+                romanStyle: theme.textTheme.bodyMedium!
+                    .copyWith(color: theme.colorScheme.onSurfaceVariant),
+                // Not for the "not available" note.
+                translations: playerController.lyrics["plainLyrics"] == "NA"
+                    ? null
+                    : LyricsTranslation.linesFor(plain.split('\n')),
               ),
+              textAlign: TextAlign.center,
             ),
-          );
-        });
-      },
-    );
+          ),
+        ),
+      );
+    }
+    final ttml = (playerController.lyrics['ttml'] ?? '').toString();
+    if (ttml.isNotEmpty) {
+      return WordSyncedLyricsWidget(
+          key: ValueKey(romanized), ttml: ttml, padding: padding);
+    }
+    final model = LyricsModelBuilder.create()
+        .bindLyricToMain(
+            lyricsReaderLrc(playerController.lyrics['synced'].toString()))
+        .getModel();
+    // Romanization and translation go in each line's second line.
+    final translations = LyricsTranslation.linesFor(
+        [for (final line in model.lyrics) line.mainText ?? '']);
+    for (var i = 0; i < model.lyrics.length; i++) {
+      final line = model.lyrics[i];
+      line.extText = lyricsSecondLine(
+          LyricsRomanization.lineFor(line.mainText), translations?[i]);
+    }
+    // TalkBack can't read the lyrics the reader draws: with it on they're
+    // text, a line at a time, as Spotify's are.
+    if (MediaQuery.accessibleNavigationOf(context) && model.lyrics.isNotEmpty) {
+      return ReadableSyncedLyrics(
+          lines: model.lyrics, padding: padding, onTap: onTap);
+    }
+    // Built here (not per progress tick): a new LyricUI makes the
+    // reader re-layout.
+    final lyricUi = RiffLyricUI.of(context, playerController.lyricUi);
+    // Nested Obx: only the playhead position updates ~10Hz.
+    return Obx(() {
+      // Lyrics timing: this song's lyrics may show later or earlier.
+      final delay =
+          LyricsTiming.delayMs(playerController.currentSong.value?.id);
+      final pos = lyricsPositionMs(
+          playerController.progressBarStatus.value.current.inMilliseconds,
+          delay);
+      // Drag to look through the lyrics; the line in the middle gets
+      // its time and ▶ to play from there (Spotify and Apple Music
+      // jump to a tapped line; a tap here keeps closing the lyrics).
+      return _SeekableLyricsReader(
+        padding: const EdgeInsets.only(left: 5, right: 5),
+        lyricUi: lyricUi,
+        position: pos,
+        model: model,
+        onTap: onTap,
+        selectLineBuilder: (progress, confirm) => LyricSeekLine(
+          positionMs: songPositionForLyricMs(progress, delay),
+          onSeek: () {
+            confirm();
+            playerController.seek(Duration(
+                milliseconds: songPositionForLyricMs(progress, delay)));
+          },
+        ),
+        emptyBuilder: () => Center(
+          child: Text(
+            (offline ? "lyricsOffline" : "syncedLyricsNotAvailable").tr,
+            style: theme.textTheme.titleMedium!
+                .copyWith(color: theme.colorScheme.onSurface),
+          ),
+        ),
+      );
+    });
+  }
+}
+
+/// The spinner while lyrics are looked up, then [loaded]. Outer Obx:
+/// loading / mode / lyric payload only — NOT progress ticks ([loaded] is
+/// built inside it, so it sees what that reads). The spinner fades in, and
+/// lyrics that arrive while it shows fade in over it (lyrics already there
+/// when they open just show: their overlay fades in already).
+class _LoadingSwap extends StatefulWidget {
+  const _LoadingSwap({required this.loaded});
+  final Widget Function(BuildContext context) loaded;
+
+  @override
+  State<_LoadingSwap> createState() => _LoadingSwapState();
+}
+
+class _LoadingSwapState extends State<_LoadingSwap> {
+  /// The spinner has shown: what comes next fades in.
+  bool _waited = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final playerController = Get.find<PlayerController>();
+    return Obx(() {
+      if (playerController.isLyricsLoading.isTrue) {
+        _waited = true;
+        return const RiffFadeIn(
+          key: ValueKey<String>('loading'),
+          rise: 0,
+          child: Center(child: LoadingIndicator()),
+        );
+      }
+      final lyrics = widget.loaded(context);
+      if (!_waited) return lyrics;
+      return RiffFadeIn(key: const ValueKey<String>('lyrics'), child: lyrics);
+    });
   }
 }
 

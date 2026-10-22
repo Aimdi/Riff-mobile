@@ -17,6 +17,7 @@ import '../../../utils/house_keeping.dart';
 import '../../widgets/add_to_playlist.dart';
 import '/ui/widgets/sort_widget.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart' show RiffDurations;
 import '../Settings/settings_screen_controller.dart';
 import '/services/piped_service.dart';
 import '/services/cloud_music_service.dart';
@@ -844,6 +845,10 @@ class LibraryPlaylistsController extends GetxController
       ),
       barrierDismissible: false,
       barrierColor: Theme.of(context).dialogTheme.barrierColor,
+      // Close to showDialog's fade (get's default is 300 ms). It stays a
+      // Get dialog: the import closes it through Get.isDialogOpen.
+      transitionDuration: RiffDurations.select,
+      transitionCurve: RiffDurations.enterCurve,
     );
   }
 }
@@ -860,15 +865,20 @@ class LibraryAlbumsController extends GetxController {
   }
 
   void refreshLib() async {
-    // Shared box, kept open (closing it broke concurrent openers).
-    final box = await HiveBoxes.open("LibraryAlbums");
-    libraryAlbums.value = box.values
-        .map<Album?>((item) => Album.fromJson(item))
-        .whereType<Album>()
-        .toList();
-    _sortAsChosen(LibrarySortTags.albums, onSort);
-
-    isContentFetched.value = true;
+    // Done either way: the tab waits for this before showing "no albums".
+    try {
+      // Shared box, kept open (closing it broke concurrent openers).
+      final box = await HiveBoxes.open("LibraryAlbums");
+      libraryAlbums.value = box.values
+          .map<Album?>((item) => Album.fromJson(item))
+          .whereType<Album>()
+          .toList();
+      _sortAsChosen(LibrarySortTags.albums, onSort);
+    } catch (e) {
+      printERROR('Library albums: $e');
+    } finally {
+      isContentFetched.value = true;
+    }
   }
 
   void onSort(SortType sortType, bool isAscending) {
@@ -909,14 +919,20 @@ class LibraryArtistsController extends GetxController {
   }
 
   void refreshLib() async {
-    // Shared box, kept open (closing it broke concurrent openers).
-    final box = await HiveBoxes.open("LibraryArtists");
-    libraryArtists.value = box.values
-        .map<Artist?>((item) => Artist.fromJson(item))
-        .whereType<Artist>()
-        .toList();
-    _sortAsChosen(LibrarySortTags.artists, onSort);
-    isContentFetched.value = true;
+    // Done either way: the tab waits for this before showing "no artists".
+    try {
+      // Shared box, kept open (closing it broke concurrent openers).
+      final box = await HiveBoxes.open("LibraryArtists");
+      libraryArtists.value = box.values
+          .map<Artist?>((item) => Artist.fromJson(item))
+          .whereType<Artist>()
+          .toList();
+      _sortAsChosen(LibrarySortTags.artists, onSort);
+    } catch (e) {
+      printERROR('Library artists: $e');
+    } finally {
+      isContentFetched.value = true;
+    }
   }
 
   void onSort(SortType sortType, bool isAscending) {

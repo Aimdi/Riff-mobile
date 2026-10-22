@@ -1,3 +1,4 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/ui/player/components/cover_palette.dart';
@@ -52,6 +53,43 @@ void main() {
           dominant: blue, secondary: const Color(0xFF3020B0));
       final d = (_hue(p.glow) - _hue(p.fill)).abs() % 360;
       expect(d > 180 ? 360 - d : d, closeTo(CoverTone.glowHueShift, 1));
+    });
+  });
+
+  group('the page across a song change', () {
+    const black = Color(0xFF000000);
+    const fallback = CoverPalette(fill: black, deep: black, glow: black);
+    final red = coverPaletteFrom(dominant: const Color(0xFF8B1A1A));
+    final teal = coverPaletteFrom(dominant: const Color(0xFF1A6B6B));
+
+    test('each song\'s own colours once they\'re in', () {
+      PlayerCoverColors.palettes['held_a'] = red;
+      PlayerCoverColors.palettes['held_b'] = teal;
+      expect(
+          PlayerCoverColors.shown(
+              const MediaItem(id: 'held_a', title: 'A'), fallback),
+          red);
+      expect(
+          PlayerCoverColors.shown(
+              const MediaItem(id: 'held_b', title: 'B'), fallback),
+          teal);
+      expect(PlayerCoverColors.shown(null, fallback), fallback);
+    });
+
+    test('the last colours stay until the next song\'s are known',
+        () async {
+      PlayerCoverColors.palettes['held_c'] = red;
+      expect(
+          PlayerCoverColors.shown(
+              const MediaItem(id: 'held_c', title: 'C'), fallback),
+          red);
+      const bare = MediaItem(id: 'held_bare', title: 'No cover');
+      // Being worked out: still red, not black, so the page eases
+      // straight from red to what comes next.
+      expect(PlayerCoverColors.shown(bare, fallback), red);
+      // Known to have none (no cover to read): the page lets go.
+      await Future<void>.delayed(Duration.zero);
+      expect(PlayerCoverColors.shown(bare, fallback), fallback);
     });
   });
 }

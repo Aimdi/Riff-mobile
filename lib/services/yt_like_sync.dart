@@ -12,6 +12,7 @@ import '../utils/hive_boxes.dart';
 import 'music_service.dart';
 import 'spotify_like_sync.dart' show LikeOp;
 import 'yt_auth_service.dart';
+import 'yt_history_sync.dart';
 
 /// Keeps your likes in step with YouTube Music once your YouTube account
 /// is connected (opt-in), as Metrolist syncs them: your YouTube Music likes
@@ -146,7 +147,8 @@ class YtLikeSync {
 
   /// A song was added to or taken out of Riff's Favorites.
   static Future<void> onFavorite(MediaItem song, {required bool add}) async {
-    if (!enabled || !connected() || !_videoId.hasMatch(song.id)) return;
+    // A YouTube song only: a phone song's id can look like a video's.
+    if (!enabled || !connected() || !YtHistorySync.counts(song)) return;
     try {
       final box = await _open(queueBox);
       // The latest change wins and goes even when it undoes one not sent
@@ -170,9 +172,8 @@ class YtLikeSync {
     _timer = Timer(delay, () => unawaited(flush()));
   }
 
-  /// Send what's waiting; one flush at a time. Stops at the first change
-  /// YouTube doesn't take (offline, signed out) and keeps it and the rest
-  /// for the next time.
+  /// Send what's waiting; one flush at a time. What YouTube doesn't take
+  /// (offline, signed out, refused) is kept for the next time.
   static Future<void> flush() =>
       _flushing ??= _flush().whenComplete(() => _flushing = null);
 
@@ -181,12 +182,18 @@ class YtLikeSync {
     final queue = await _open(queueBox);
     try {
       for (final key in queue.keys.toList()) {
-        final op = _opOf(queue.get(key));
+        final sent = queue.get(key);
+        final op = _opOf(sent);
+        // One YouTube won't take stays for next time without holding up
+        // the changes after it.
         if (op != null &&
             !await send(
                 op == LikeOp.save ? 'like/like' : 'like/removelike', '$key')) {
-          break;
+          continue;
         }
+        // Changed while it went (liked, then unliked at once): the newer
+        // change still goes.
+        if (op != null && _opOf(queue.get(key)) != op) continue;
         await queue.delete(key);
       }
     } catch (e) {

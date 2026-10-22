@@ -12,8 +12,10 @@ import 'package:hive/hive.dart';
 
 import '../../../mixins/additional_opeartion_mixin.dart';
 import '../../../models/media_Item_builder.dart';
+import '../../theme/riff_tokens.dart';
 import '../Library/library_controller.dart';
 import 'more_by_artist.dart';
+import '/ui/widgets/cover_hero.dart';
 import 'package:harmonymusic/services/album_versions.dart';
 
 ///AlbumScreenController handles album screen
@@ -23,6 +25,10 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
     with AdditionalOpeartionMixin, GetSingleTickerProviderStateMixin {
   final album =
       Album(title: "", browseId: "", thumbnailUrl: "", artists: []).obs;
+
+  /// The card cover flying in, if the page was opened from one
+  /// ([CoverHero]); taken as the page opens.
+  final Object? coverHeroTag = CoverHero.take();
 
   /// "More by …" under the album (Spotify, Apple Music): its first credited
   /// artist's other releases. Empty until they load, and offline.
@@ -34,23 +40,23 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
   final otherVersions = <Album>[].obs;
   String otherVersionsTitle = '';
 
-  // Title animation
+  // Header fade-in, as the album's details arrive.
   late AnimationController _animationController;
-  late Animation<double> _scaleAnimation;
+  late CurvedAnimation _scaleAnimation;
 
   AnimationController get animationController => _animationController;
   Animation<double> get scaleAnimation => _scaleAnimation;
-
 
   @override
   void onInit() {
     super.onInit();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 400),
+      duration: RiffDurations.content,
     );
 
-    _scaleAnimation = Tween<double>(begin: 0, end: 1.0).animate(animationController);
+    _scaleAnimation = CurvedAnimation(
+        parent: animationController, curve: RiffDurations.enterCurve);
 
     final args = Get.arguments as (Album?, String);
     fetchAlbumDetails(args.$1, args.$2);
@@ -98,8 +104,12 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
       }
     } finally {
       // As on the playlist page: a failed load must not leave the track
-      // list shimmering forever.
-      if (!isClosed) isContentFetched.value = true;
+      // list shimmering forever. A saved album opened by its id has its
+      // details by now too: its header shows (it never faded in before).
+      if (!isClosed) {
+        isContentFetched.value = true;
+        if (album.value.browseId.isNotEmpty) animationController.forward();
+      }
     }
   }
 
@@ -191,6 +201,7 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
   @override
   void onClose() {
     tempListContainer.clear();
+    _scaleAnimation.dispose();
     _animationController.dispose();
     super.onClose();
   }

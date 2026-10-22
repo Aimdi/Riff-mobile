@@ -81,3 +81,6 @@ android/app/.cxx/Debug/*
 # or project skill can still be tracked.
 .claude/worktrees/
 
+
+# Screenshot harness output (flutter test --update-goldens test_shots/)
+test_shots/out/

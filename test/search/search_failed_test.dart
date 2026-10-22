@@ -14,6 +14,8 @@ import 'package:harmonymusic/ui/screens/Search/search_result_screen.dart'
 import 'package:harmonymusic/ui/screens/Search/search_result_screen_controller.dart';
 import 'package:harmonymusic/ui/screens/Settings/settings_screen_controller.dart';
 import 'package:harmonymusic/ui/theme/riff_theme.dart';
+import 'package:harmonymusic/ui/theme/riff_tokens.dart';
+import 'package:harmonymusic/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 
 import '../fakes/fake_music_services.dart';
 
@@ -201,6 +203,34 @@ void main() {
       await pumpBody(tester);
       expect(find.text('searchOffline'), findsOneWidget);
       expect(find.byIcon(Icons.wifi_off_rounded), findsOneWidget);
+    });
+
+    testWidgets(
+        'what comes back fades in where the skeleton was; already back as '
+        'the page shows, it is just there', (tester) async {
+      double opacity() {
+        final fade = find.ancestor(
+            of: find.text('searchFailed'), matching: find.byType(Opacity));
+        return fade.evaluate().isEmpty
+            ? 1
+            : tester.widget<Opacity>(fade.first).opacity;
+      }
+
+      await pumpBody(tester);
+      expect(find.byType(SongListShimmer), findsOneWidget);
+      c.searchFailed.value = true;
+      c.isResultContentFetced.value = true;
+      await tester.pump();
+      await tester.pump(RiffDurations.content * 0.5);
+      expect(find.byType(SongListShimmer), findsNothing);
+      expect(opacity(), inExclusiveRange(0, 1));
+      await tester.pumpAndSettle();
+      expect(opacity(), 1);
+
+      // The All filter again (its page built anew): no second fade.
+      await tester.pumpWidget(const SizedBox());
+      await pumpBody(tester);
+      expect(opacity(), 1);
     });
   });
 

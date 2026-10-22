@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:audio_service/audio_service.dart' show MediaItem;
 import 'package:flutter/material.dart';
 import '/ui/theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/models/thumbnail.dart';
 import 'package:harmonymusic/services/permission_service.dart';
@@ -22,6 +23,7 @@ import '../../../models/media_Item_builder.dart';
 import '../../../models/playlist.dart';
 import '../../../utils/content_filters.dart';
 import '../../../utils/hive_boxes.dart';
+import '/ui/player/player_controller.dart';
 import '../../../services/music_service.dart';
 import '../../../services/piped_service.dart';
 import '../../../services/m3u_playlist_import.dart';
@@ -33,6 +35,7 @@ import '../Library/library_controller.dart';
 import '../Library/library_pins.dart';
 import '/services/playlist_folders.dart';
 import '../Podcasts/podcasts_library_controller.dart';
+import '/ui/widgets/cover_hero.dart';
 
 ///PlaylistScreenController handles playlist screen
 ///
@@ -46,6 +49,10 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     thumbnailUrl: Playlist.thumbPlaceholderUrl,
   ).obs;
   final isDefaultPlaylist = false.obs;
+
+  /// The card cover flying in, if the page was opened from one
+  /// ([CoverHero]); taken as the page opens.
+  final Object? coverHeroTag = CoverHero.take();
 
   // True only when this playlist was opened from the podcast *search* screen.
   // Drives the pinned "Similar podcasts" section at the bottom (passed as the
@@ -65,10 +72,10 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
 
   String generatedYtmPlaylistUrl = '';
 
-  // Title animation
+  // Header fade-in, as the playlist's details arrive.
 
   late AnimationController _animationController;
-  late Animation<double> _scaleAnimation;
+  late CurvedAnimation _scaleAnimation;
 
   AnimationController get animationController => _animationController;
   Animation<double> get scaleAnimation => _scaleAnimation;
@@ -77,11 +84,11 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     super.onInit();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 400),
+      duration: RiffDurations.content,
     );
 
-    _scaleAnimation =
-        Tween<double>(begin: 0, end: 1.0).animate(animationController);
+    _scaleAnimation = CurvedAnimation(
+        parent: animationController, curve: RiffDurations.enterCurve);
 
     final args = Get.arguments as List;
     final Playlist? playlist = args[0];
@@ -295,7 +302,14 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
             snackbar(ctx, "networkError".tr, size: SanckBarSize.MEDIUM));
       }
     } finally {
-      if (!isClosed) isContentFetched.value = true;
+      if (!isClosed) {
+        isContentFetched.value = true;
+        // A saved playlist opened by its id has its details by now too:
+        // its header shows (it never faded in before).
+        if (playlist.value.playlistId.isNotEmpty) {
+          _animationController.forward();
+        }
+      }
     }
   }
 
@@ -450,6 +464,12 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
   Future<void> updateSongsIntoDb() async {
     final songsBox = await Hive.openBox(playlist.value.playlistId);
     final songListCopy = songList.toList();
+    if (playlist.value.playlistId == HiveBoxes.libFav) {
+      // Kept by song id, not position (the hearts look them up by id).
+      await HiveBoxes.writeFavorites(
+          songsBox, songListCopy.map(MediaItemBuilder.toJson).toList());
+      return;
+    }
     await songsBox.clear();
     // One batched write instead of one disk flush per song (up to thousands).
     await songsBox.putAll({
@@ -503,6 +523,14 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
       }
     }
     songList.removeWhere((song) => removeIds.contains(song.id));
+    // Unliked in Favorites: unliked everywhere (YouTube Music, Spotify,
+    // the hearts), or like sync would bring them back.
+    if (id == HiveBoxes.libFav && Get.isRegistered<PlayerController>()) {
+      for (final song in songs) {
+        await Get.find<PlayerController>()
+            .toggleFavouriteFor(song, adding: false);
+      }
+    }
     // Shared box (Hive hands every caller the same instance): never close
     // it here, or the player and other screens using it fail mid-write.
 
@@ -569,6 +597,7 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
   @override
   void onClose() {
     tempListContainer.clear();
+    _scaleAnimation.dispose();
     _animationController.dispose();
     super.onClose();
   }
@@ -834,6 +863,10 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
       ),
       barrierDismissible: false,
       barrierColor: Theme.of(context).dialogTheme.barrierColor,
+      // Get dialog: the export closes it through Get.isDialogOpen. It
+      // comes in with the app's dialog timing.
+      transitionDuration: RiffDurations.select,
+      transitionCurve: RiffDurations.enterCurve,
     );
   }
 }

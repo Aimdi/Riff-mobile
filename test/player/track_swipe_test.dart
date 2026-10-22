@@ -168,6 +168,29 @@ void main() {
       expect(leftOf(tester, 'playing'), closeTo(start, 0.5));
     });
 
+    testWidgets('with Remove animations on it follows, then jumps back',
+        (tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+          tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+      await pump(tester);
+      final start = leftOf(tester, 'playing');
+      final g =
+          await tester.startGesture(tester.getCenter(find.byType(TrackSwipe)));
+      await g.moveBy(const Offset(-20, 0));
+      await g.moveBy(const Offset(-30, 0));
+      await tester.pump();
+      // Still under the finger…
+      expect(leftOf(tester, 'playing'), lessThan(start - 10));
+      await g.up();
+      await tester.pump();
+      // …but back at once on release, not sliding (the unbounded
+      // controller isn't shortened by the setting).
+      expect(leftOf(tester, 'playing'), closeTo(start, 0.5));
+      expect(nexts, 0);
+    });
+
     testWidgets('a quick fling right goes to the previous track',
         (tester) async {
       await pump(tester);

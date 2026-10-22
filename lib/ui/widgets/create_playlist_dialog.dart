@@ -139,7 +139,9 @@ class _CreateNRenamePlaylistPopupState
                         : renamePlaylist
                             ? "renamePlaylist".tr
                             : "CreateNewPlaylist".tr,
-                    maxLines: 1,
+                    // Two lines: "Create new playlist" reads whole at
+                    // large text instead of "Create new pla…".
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleLarge?.copyWith(color: fg),
                   ),

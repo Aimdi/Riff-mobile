@@ -9,6 +9,8 @@ import '/ui/navigator.dart';
 import '/ui/screens/Search/search_play_top.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/riff_equalizer.dart';
+import '/ui/widgets/riff_motion.dart';
+import '/ui/widgets/shimmer_widgets/reveal.dart';
 import '/ui/widgets/snackbar.dart';
 import '../Home/home_layout.dart';
 import '../Home/home_metrics.dart';
@@ -90,12 +92,17 @@ class _RecognizeScreenState extends State<RecognizeScreen> {
                         ),
                       ),
                     ),
-                  if (state == RecognitionState.matched && song != null)
-                    _ResultCard(
-                      song: song,
-                      onPlay: () => _play(song),
-                      onSearch: () => _search(song),
-                    ),
+                  // The match grows in under the status (and folds away
+                  // when listening again).
+                  RiffReveal(
+                    child: state == RecognitionState.matched && song != null
+                        ? _ResultCard(
+                            song: song,
+                            onPlay: () => _play(song),
+                            onSearch: () => _search(song),
+                          )
+                        : null,
+                  ),
                   if (history.isNotEmpty) ...[
                     HomeSectionHeader('recognizeRecent'.tr),
                     for (final h in history)
@@ -174,14 +181,19 @@ class _ListenButton extends StatelessWidget {
                 child: SizedBox.square(
                   dimension: size,
                   child: Center(
-                    child: listening
-                        ? RiffEqualizer(
-                            animate: true,
-                            color: scheme.onPrimary,
-                            size: RiffComponentSizes.recognizeGlyph)
-                        : Icon(Icons.mic_rounded,
-                            size: RiffComponentSizes.recognizeGlyph,
-                            color: scheme.onPrimary),
+                    // The mic and the equalizer crossfade.
+                    child: RiffSwitcher(
+                      child: listening
+                          ? RiffEqualizer(
+                              key: const ValueKey('listening'),
+                              animate: true,
+                              color: scheme.onPrimary,
+                              size: RiffComponentSizes.recognizeGlyph)
+                          : Icon(Icons.mic_rounded,
+                              key: const ValueKey('idle'),
+                              size: RiffComponentSizes.recognizeGlyph,
+                              color: scheme.onPrimary),
+                    ),
                   ),
                 ),
               ),
@@ -256,7 +268,10 @@ class _Cover extends StatelessWidget {
         child: url == null
             ? fallback
             : Image.network(url!,
-                fit: BoxFit.cover, errorBuilder: (_, __, ___) => fallback),
+                fit: BoxFit.cover,
+                frameBuilder: riffFadeInFrame,
+                errorBuilder: (_, __, ___) => RiffFadeIn(
+                    duration: RiffDurations.image, rise: 0, child: fallback)),
       ),
     );
   }

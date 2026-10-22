@@ -165,39 +165,25 @@ Future<void> showHomeSectionSheet(BuildContext context, HomeSection section) {
 /// inside claims first) opens [showHomeSectionSheet].
 class HomeSectionSlot extends StatelessWidget {
   const HomeSectionSlot(
-      {super.key,
-      required this.section,
-      required this.child,
-      this.divided = false});
+      {super.key, required this.section, required this.child});
   final HomeSection section;
   final Widget child;
 
-  /// Draws the full-width hairline that separates this section from the
-  /// one above, along its top edge (inside its top gap, so nothing moves).
-  final bool divided;
-
   @override
   Widget build(BuildContext context) {
-    final body = divided
-        ? DecoratedBox(
-            position: DecorationPosition.foreground,
-            decoration: BoxDecoration(
-              border: Border(
-                top:
-                    BorderSide(color: Theme.of(context).dividerColor, width: 0),
-              ),
-            ),
-            child: child,
-          )
-        : child;
-    if (!switchableHomeSections.contains(section)) return body;
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onLongPress: () {
-        HapticFeedback.mediumImpact();
-        showHomeSectionSheet(context, section);
-      },
-      child: body,
+    if (!switchableHomeSections.contains(section)) return child;
+    // Named for TalkBack, whose long press here reaches the same sheet.
+    return Semantics(
+      container: true,
+      label: section.labelKey.tr,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onLongPress: () {
+          HapticFeedback.mediumImpact();
+          showHomeSectionSheet(context, section);
+        },
+        child: child,
+      ),
     );
   }
 }

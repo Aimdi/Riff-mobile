@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:harmonymusic/utils/helper.dart';
 
 import '../screens/Library/library_controller.dart';
+import 'riff_motion.dart';
 import 'snackbar.dart';
 
 class PipedSyncWidget extends StatelessWidget {
@@ -25,9 +26,11 @@ class PipedSyncWidget extends StatelessWidget {
               Icons.sync,
             ), // <-- Icon
             onPressed: () async {
+              final spin = librplstCntrller.controller;
               try {
-                librplstCntrller.controller.forward();
-                librplstCntrller.controller.repeat();
+                // Remove animations: no spinning (a repeat isn't shortened
+                // as one-shot animations are).
+                if (!reduceMotion(context)) spin.repeat();
                 final ok = await librplstCntrller.syncPipedPlaylist();
                 ScaffoldMessenger.of(Get.context!).showSnackBar(snackbar(
                     Get.context!,
@@ -41,8 +44,17 @@ class PipedSyncWidget extends StatelessWidget {
               } finally {
                 // Also after a failed sync: the icon used to keep spinning
                 // (and ticking every frame) until the app was restarted.
-                librplstCntrller.controller.stop();
-                librplstCntrller.controller.reset();
+                spin.stop();
+                // It finishes its half turn at the same speed rather than
+                // snapping back (the sync glyph looks the same every half
+                // turn), then rests at 0.
+                final rest = spin.value <= 0.5 ? 0.5 : 1.0;
+                if (spin.value > 0) {
+                  spin
+                      .animateTo(rest,
+                          duration: spin.duration! * (rest - spin.value))
+                      .whenComplete(spin.reset);
+                }
               }
             }),
       ),

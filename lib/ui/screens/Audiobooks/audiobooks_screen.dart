@@ -12,8 +12,11 @@ import '/services/plugin_service.dart';
 import '/ui/navigator.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/riff_motion.dart';
+import '/ui/widgets/rows_reveal.dart';
 import '/ui/widgets/shimmer_widgets/basic_container.dart'
     show RiffSkeletonPulse;
+import '/ui/widgets/shimmer_widgets/skeleton_fade.dart';
 import '../Home/home_layout.dart';
 import '../Library/library.dart' show libraryGridMetrics;
 import '../Podcasts/podcast_empty_state.dart';
@@ -22,6 +25,7 @@ import 'audiobook_detail_screen.dart';
 import 'audiobook_library_controller.dart';
 import 'audiobook_play.dart';
 import 'audiobook_upload_sheet.dart';
+import 'audiobook_hero_card.dart';
 import 'audiobook_widgets.dart';
 import 'free_audiobook_list_screen.dart';
 import '/ui/widgets/riff_header_bar.dart';
@@ -75,6 +79,12 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
   late int _mode;
   bool _searching = false;
 
+  /// The mode last built, and whether it has changed since the tab opened:
+  /// from then on each mode's content fades in as it's picked (the first
+  /// comes in with the tab).
+  int? _builtMode;
+  bool _switched = false;
+
   @override
   void initState() {
     super.initState();
@@ -100,7 +110,21 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
   @override
   Widget build(BuildContext context) {
     final abs = Get.find<AudiobookshelfService>();
-    final topPadding = context.isLandscape ? 50.0 : 90.0;
+    final topPadding = riffTabTop(context);
+    if (_mode != _builtMode) {
+      _switched = _builtMode != null;
+      _builtMode = _mode;
+    }
+    final content = _mode == 0
+        ? _DiscoverView(
+            searching: _searching,
+            onCloseSearch: () => setState(() => _searching = false),
+          )
+        : _mode == 1
+            ? Obx(() => abs.isConnected.value
+                ? const _AbsLibraryView()
+                : const _AbsLoginForm())
+            : _SavedView(onDiscover: () => _select(0));
 
     return Padding(
       padding: widget.isBottomNavActive
@@ -114,16 +138,10 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
           const SizedBox(height: RiffSpacing.xs),
           Expanded(
             child: RiffScrollUnder(
-                child: _mode == 0
-                    ? _DiscoverView(
-                        searching: _searching,
-                        onCloseSearch: () => setState(() => _searching = false),
-                      )
-                    : _mode == 1
-                        ? Obx(() => abs.isConnected.value
-                            ? const _AbsLibraryView()
-                            : const _AbsLoginForm())
-                        : _SavedView(onDiscover: () => _select(0))),
+                // A mode's content fades in as it takes the last one's place.
+                child: _switched
+                    ? RiffFadeIn(key: ValueKey(_mode), child: content)
+                    : content),
           ),
         ],
       ),
@@ -139,17 +157,11 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
               right: RiffSpacing.xs,
               bottom: RiffSpacing.sm),
           child: SizedBox(
-            height: 40,
+            height: RiffSpacing.headerRow,
             child: Row(
               children: [
-                Expanded(
-                  child: Text(
-                    'audiobooks'.tr,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
+                // The page's name as large as every rail tab's.
+                Expanded(child: RiffPageTitle('audiobooks'.tr)),
                 if (!(_mode == 0 && _searching))
                   IconButton(
                     tooltip: 'searchAudiobooks'.tr,
@@ -189,34 +201,43 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
             final (mode, label) = tabs[i];
             final active = _mode == mode;
             final scheme = Theme.of(context).colorScheme;
+            final fill = RiffColors.of(context).accentMuted;
             return Center(
               child: SizedBox(
                 height: RiffComponentSizes.chip,
-                child: Material(
-                  color: active
-                      ? RiffColors.of(context).accentMuted
-                      : Colors.transparent,
-                  shape: StadiumBorder(
-                      side: BorderSide(
-                          color: active
-                              ? scheme.primary
-                              : Theme.of(context).dividerColor)),
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    onTap: () => _select(mode),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: RiffSpacing.md),
-                      child: Center(
-                        child: Text(
-                          label,
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelMedium
-                              ?.copyWith(
-                                  color: active
-                                      ? scheme.primary
-                                      : scheme.onSurface),
+                // The picked chip's fill, outline and label ease over;
+                // TalkBack hears which one is picked.
+                child: Semantics(
+                  container: true,
+                  button: true,
+                  selected: active,
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(end: active ? 1 : 0),
+                    duration: RiffDurations.select,
+                    curve: RiffDurations.selectCurve,
+                    builder: (context, t, _) => Material(
+                      color: Color.lerp(fill.withAlpha(0), fill, t),
+                      shape: StadiumBorder(
+                          side: BorderSide(
+                              color: Color.lerp(Theme.of(context).dividerColor,
+                                  scheme.primary, t)!)),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () => _select(mode),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: RiffSpacing.md),
+                          child: Center(
+                            child: Text(
+                              label,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelMedium
+                                  ?.copyWith(
+                                      color: Color.lerp(
+                                          scheme.onSurface, scheme.primary, t)),
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -242,10 +263,17 @@ class _DiscoverView extends StatefulWidget {
   State<_DiscoverView> createState() => _DiscoverViewState();
 }
 
-class _DiscoverViewState extends State<_DiscoverView> {
+class _DiscoverViewState extends State<_DiscoverView>
+    with SingleTickerProviderStateMixin {
   List<FreeAudiobook> _free = const [];
   List<AudiobookItem> _store = const [];
   bool _loading = true;
+
+  /// The shelves and genres taking the placeholder's place fade in (on
+  /// the first load: a refresh keeps the shelves on screen).
+  // Made in initState: made lazily, a screen closed before its content
+  // came would create it in dispose.
+  late final RowsReveal _reveal;
 
   final _search = TextEditingController();
   String _query = '';
@@ -256,12 +284,14 @@ class _DiscoverViewState extends State<_DiscoverView> {
   @override
   void initState() {
     super.initState();
+    _reveal = RowsReveal(vsync: this);
     _load();
   }
 
   @override
   void dispose() {
     _search.dispose();
+    _reveal.dispose();
     super.dispose();
   }
 
@@ -272,6 +302,7 @@ class _DiscoverViewState extends State<_DiscoverView> {
       AudiobookCatalogService.browse(),
     ]);
     if (!mounted) return;
+    if (_free.isEmpty && _store.isEmpty) _reveal.play();
     setState(() {
       _free = res[0] as List<FreeAudiobook>;
       _store = res[1] as List<AudiobookItem>;
@@ -337,7 +368,7 @@ class _DiscoverViewState extends State<_DiscoverView> {
             const SliverToBoxAdapter(child: _ShelfPlaceholder())
           else if (_free.isEmpty && _store.isEmpty)
             SliverToBoxAdapter(
-              child: Padding(
+              child: _reveal.row(Padding(
                 padding: const EdgeInsets.only(top: RiffSpacing.unit * 15),
                 child: PodcastEmptyState(
                   icon: Icons.wifi_off_rounded,
@@ -346,11 +377,11 @@ class _DiscoverViewState extends State<_DiscoverView> {
                   actionIcon: Icons.refresh_rounded,
                   onAction: _load,
                 ),
-              ),
+              )),
             ),
           if (_free.isNotEmpty) ...[
             SliverToBoxAdapter(
-              child: HomeSectionHeader(
+              child: _reveal.row(HomeSectionHeader(
                 'freeClassics'.tr,
                 badge: 'freeBadge'.tr,
                 trailing: _SeeAll(
@@ -362,39 +393,40 @@ class _DiscoverViewState extends State<_DiscoverView> {
                     transition: Transition.rightToLeft,
                   ),
                 ),
-              ),
+              )),
             ),
             SliverToBoxAdapter(
-              child: HomeShelf(
+              child: _reveal.row(HomeShelf(
                 cardSize: HomeLayout.shelfCard,
                 itemCount: _free.length,
                 itemBuilder: (context, i) => FreeAudiobookCard(
                     book: _free[i], size: HomeLayout.shelfCard),
-              ),
+              )),
             ),
           ],
           if (!_loading) ...[
-            SliverToBoxAdapter(child: HomeSectionHeader('browseByGenre'.tr)),
+            SliverToBoxAdapter(
+                child: _reveal.row(HomeSectionHeader('browseByGenre'.tr))),
             _genreGrid(context),
           ],
           if (_store.isNotEmpty) ...[
             SliverToBoxAdapter(
-              child: HomeSectionHeader(
+              child: _reveal.row(HomeSectionHeader(
                 'storeBestsellers'.tr,
                 trailing: Padding(
                   padding: const EdgeInsets.only(right: HomeLayout.gutter),
                   child: Text('storeBookNote'.tr,
                       style: homeCardSubtitleStyle(context)),
                 ),
-              ),
+              )),
             ),
             SliverToBoxAdapter(
-              child: HomeShelf(
+              child: _reveal.row(HomeShelf(
                 cardSize: HomeLayout.shelfCard,
                 itemCount: _store.length,
                 itemBuilder: (context, i) => StoreAudiobookCard(
                     book: _store[i], size: HomeLayout.shelfCard),
-              ),
+              )),
             ),
           ],
           const SliverToBoxAdapter(
@@ -417,11 +449,11 @@ class _DiscoverViewState extends State<_DiscoverView> {
               MediaQuery.textScalerOf(context).scale(HomeLayout.tileHeight),
         ),
         delegate: SliverChildBuilderDelegate(
-          (context, i) => AudiobookGenreTile(
+          (context, i) => _reveal.row(AudiobookGenreTile(
             label: genres[i].labelKey.tr,
             index: i,
             onTap: () => _openGenre(genres[i]),
-          ),
+          )),
           childCount: genres.length,
         ),
       ),
@@ -574,26 +606,35 @@ class _ContinueFreeShelf extends StatelessWidget {
       builder: (context, _, __) {
         final records = AudiobookProgressService.freeBooksInProgress();
         if (records.isEmpty) return const SizedBox.shrink();
+        // The latest book large (Audible), the rest on a row under it.
+        final rest = records.skip(1).take(9).toList();
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             HomeSectionHeader('continueListening'.tr, top: RiffSpacing.md),
-            SizedBox(
-              height: PodcastContinueCard.heightFor(context),
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
-                itemCount: records.length.clamp(0, 10),
-                separatorBuilder: (_, __) =>
-                    const SizedBox(width: HomeLayout.cardGap),
-                itemBuilder: (context, i) => FreeAudiobookContinueCard(
-                  key: ValueKey(records[i]['bookId']),
-                  record: records[i],
-                  onTap: () => resumeFreeAudiobook(records[i]),
+            _FreeHeroBook(
+              key: ValueKey('hero_${records.first['bookId']}'),
+              record: records.first,
+            ),
+            if (rest.isNotEmpty) ...[
+              const SizedBox(height: RiffSpacing.md),
+              SizedBox(
+                height: PodcastContinueCard.heightFor(context),
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
+                  itemCount: rest.length,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(width: HomeLayout.cardGap),
+                  itemBuilder: (context, i) => FreeAudiobookContinueCard(
+                    key: ValueKey(rest[i]['bookId']),
+                    record: rest[i],
+                    onTap: () => resumeFreeAudiobook(rest[i]),
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         );
       },
@@ -920,33 +961,42 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
         ),
         Expanded(
           child: Obx(() {
+            // What loads fades in where the spinner was.
+            const spinner = Center(
+                child: SizedBox.square(
+                    dimension: RiffComponentSizes.spinner,
+                    child: CircularProgressIndicator(
+                        strokeWidth: RiffComponentSizes.spinnerStroke)));
             if (abs.isLoading.value && abs.books.isEmpty) {
-              return const Center(
-                  child: SizedBox.square(
-                      dimension: RiffComponentSizes.spinner,
-                      child: CircularProgressIndicator(
-                          strokeWidth: RiffComponentSizes.spinnerStroke)));
+              return const SkeletonFadeIn(skeleton: spinner);
             }
             // A failed load is NOT an empty library. Saying "no books" when the
             // token expired or the server is unreachable sends the user
             // looking for a problem in Audiobookshelf that is not there.
             final loadErr = abs.loadError.value;
             if (loadErr != null && abs.books.isEmpty) {
-              return PodcastEmptyState(
-                icon: Icons.cloud_off_rounded,
-                message: loadErr,
-                actionLabel: 'retry'.tr,
-                actionIcon: Icons.refresh_rounded,
-                onAction: () => abs.fetchBooks(),
+              return SkeletonFadeIn(
+                skeleton: spinner,
+                child: PodcastEmptyState(
+                  icon: Icons.cloud_off_rounded,
+                  message: loadErr,
+                  actionLabel: 'retry'.tr,
+                  actionIcon: Icons.refresh_rounded,
+                  onAction: () => abs.fetchBooks(),
+                ),
               );
             }
             if (abs.books.isEmpty) {
-              return PodcastEmptyState(
-                  icon: Icons.auto_stories_outlined, message: 'absNoBooks'.tr);
+              return SkeletonFadeIn(
+                skeleton: spinner,
+                child: PodcastEmptyState(
+                    icon: Icons.auto_stories_outlined,
+                    message: 'absNoBooks'.tr),
+              );
             }
             final continueBooks = abs.inProgressBooks.take(12).toList();
             final token = abs.token ?? '';
-            return RefreshIndicator(
+            final books = RefreshIndicator(
               onRefresh: () async {
                 await abs.fetchBooks();
                 await abs.fetchInProgress();
@@ -959,12 +1009,31 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                       SliverToBoxAdapter(
                           child: HomeSectionHeader('continueListening'.tr,
                               top: RiffSpacing.sm)),
+                      // The book you're in the middle of, large (Audible);
+                      // the others in progress on a shelf under it.
+                      SliverToBoxAdapter(
+                        child: _AbsHeroBook(
+                          book: continueBooks.first,
+                          cover: AudiobookCover(
+                            url: continueBooks.first
+                                .coverUrl(abs.host.value, token),
+                            size: RiffComponentSizes.heroBookCover,
+                          ),
+                          onPlay: () =>
+                              _playOrOpenAudiobook(continueBooks.first.id),
+                          onOpen: () => _openDetail(continueBooks.first.id),
+                        ),
+                      ),
+                    ],
+                    if (continueBooks.length > 1) ...[
+                      const SliverToBoxAdapter(
+                          child: SizedBox(height: RiffSpacing.md)),
                       SliverToBoxAdapter(
                         child: HomeShelf(
                           cardSize: HomeLayout.shelfCard,
-                          itemCount: continueBooks.length,
+                          itemCount: continueBooks.length - 1,
                           itemBuilder: (context, i) {
-                            final b = continueBooks[i];
+                            final b = continueBooks[i + 1];
                             return HomeShelfCard(
                               key: ValueKey('c_${b.id}'),
                               size: HomeLayout.shelfCard,
@@ -1030,6 +1099,7 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                 );
               }),
             );
+            return SkeletonFadeIn(skeleton: spinner, child: books);
           }),
         ),
       ],
@@ -1145,5 +1215,73 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
         ),
       );
     });
+  }
+}
+
+/// An Audiobookshelf book in progress as the hero card: time left from
+/// its length and how far in it is.
+class _AbsHeroBook extends StatelessWidget {
+  const _AbsHeroBook({
+    required this.book,
+    required this.cover,
+    required this.onPlay,
+    required this.onOpen,
+  });
+  final AbsBook book;
+  final Widget cover;
+  final VoidCallback onPlay;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = (book.progress ?? 0).clamp(0.0, 1.0);
+    final duration = book.duration;
+    return AudiobookHeroCard(
+      cover: cover,
+      title: book.title,
+      author: book.author ?? '',
+      progress: progress,
+      secondsLeft: duration == null || duration <= 0
+          ? null
+          : (duration * (1 - progress)).round(),
+      onPlay: onPlay,
+      onLongPress: onOpen,
+    );
+  }
+}
+
+/// A free book in progress as the hero card: how far into the book from
+/// the chapter it's on, and that chapter with its time left.
+class _FreeHeroBook extends StatelessWidget {
+  const _FreeHeroBook({super.key, required this.record});
+  final Map<String, dynamic> record;
+
+  @override
+  Widget build(BuildContext context) {
+    final pos = (record['positionMs'] as num?)?.toInt() ?? 0;
+    final dur = (record['durationMs'] as num?)?.toInt() ?? 0;
+    final idx = (record['trackIndex'] as num?)?.toInt();
+    final count = (record['trackCount'] as num?)?.toInt();
+    final inChapter = dur > 0 ? (pos / dur).clamp(0.0, 1.0) : 0.0;
+    final progress = idx != null && count != null && count > 0
+        ? ((idx + inChapter) / count).clamp(0.0, 1.0)
+        : inChapter;
+    final chapter = idx == null
+        ? ''
+        : count != null && count > 0
+            ? 'chapterOf'.trParams({'n': '${idx + 1}', 'total': '$count'})
+            : '${'chapters'.tr} ${idx + 1}';
+    final left = dur > pos ? compactEpisodeLength((dur - pos) ~/ 1000) : '';
+    return AudiobookHeroCard(
+      cover: AudiobookCover(
+          url: '${record['artUri'] ?? ''}',
+          size: RiffComponentSizes.heroBookCover),
+      title: '${record['album'] ?? record['title'] ?? ''}',
+      author: '${record['artist'] ?? ''}',
+      detail: episodeMetaLine(
+          [chapter, left.isEmpty ? null : '$left ${'left'.tr}']),
+      progress: progress,
+      onPlay: () => resumeFreeAudiobook(record),
+    );
   }
 }

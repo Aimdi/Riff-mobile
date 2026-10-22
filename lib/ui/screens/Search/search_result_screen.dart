@@ -2,6 +2,8 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/widgets/riff_header_bar.dart';
+
 import '/models/playling_from.dart';
 import '/services/offline_playback.dart';
 import '/ui/player/player_controller.dart';
@@ -17,6 +19,7 @@ import '../../theme/riff_spacing.dart';
 import '../Home/home_layout.dart';
 import '../Podcasts/podcast_empty_state.dart';
 import '../../widgets/animated_screen_transition.dart';
+import '../../widgets/shimmer_widgets/skeleton_fade.dart';
 import '../../widgets/shimmer_widgets/song_list_shimmer.dart';
 import '../../widgets/search_related_widgets.dart';
 import '../../widgets/separate_tab_item_widget.dart';
@@ -28,11 +31,19 @@ class SearchResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // One left registered by an earlier results page (searched for other
+    // words) would show that search's results instead of this one's.
+    final args = Get.arguments;
+    if (Get.isRegistered<SearchResultScreenController>() &&
+        args is String &&
+        Get.find<SearchResultScreenController>().queryString.value != args) {
+      Get.delete<SearchResultScreenController>(force: true);
+    }
     final searchResScrController =
         Get.isRegistered<SearchResultScreenController>()
             ? Get.find<SearchResultScreenController>()
             : Get.put(SearchResultScreenController());
-    final topPadding = context.isLandscape ? 50.0 : 80.0;
+    final topPadding = riffTabTop(context);
     return Scaffold(
       body: Padding(
         padding: EdgeInsets.only(top: topPadding),
@@ -49,7 +60,9 @@ class SearchResultScreen extends StatelessWidget {
                   enabled: Get.find<SettingsScreenController>()
                       .isTransitionAnimationDisabled
                       .isFalse,
-                  resverse: controller.isTabTransitionReversed,
+                  forward: controller.isTabTransitionReversed,
+                  // The filters are a row: results move along it.
+                  horizontalTransition: true,
                   child: KeyedSubtree(
                     key: ValueKey<int>(
                         controller.navigationRailCurrentIndex.toInt() * 8),
@@ -131,21 +144,35 @@ class _QueryBar extends StatelessWidget {
 }
 
 /// "All" plus one chip per result type (and Soulseek when installed).
-class _FilterChips extends StatelessWidget {
+class _FilterChips extends StatefulWidget {
   const _FilterChips({required this.controller});
   final SearchResultScreenController controller;
 
   @override
+  State<_FilterChips> createState() => _FilterChipsState();
+}
+
+class _FilterChipsState extends State<_FilterChips> {
+  /// The result types' chips, arriving with the results, fade in.
+  final _arriving = LoadedRowsFade();
+
+  @override
   Widget build(BuildContext context) {
+    final controller = widget.controller;
     return Obx(() {
+      final fetched = controller.isResultContentFetced.value;
+      if (!fetched) _arriving.skeleton();
       final labels = [
         'allResults'.tr,
-        if (controller.isResultContentFetced.value)
+        if (fetched)
           ...controller.railItems
               .map((e) => e.toLowerCase().removeAllWhitespace.tr),
       ];
       final selected = controller.navigationRailCurrentIndex.value;
-      final accent = Theme.of(context).colorScheme.secondary;
+      final scheme = Theme.of(context).colorScheme;
+      final idleFill = homeTileColor(context);
+      final idleBorder = homeTileBorder(context);
+      final labelStyle = Theme.of(context).textTheme.labelMedium;
       return SizedBox(
         height: 36,
         child: ListView.separated(
@@ -154,29 +181,42 @@ class _FilterChips extends StatelessWidget {
           itemCount: labels.length,
           separatorBuilder: (_, __) => const SizedBox(width: 8),
           itemBuilder: (context, i) {
-            final active = i == selected;
-            return Material(
-              color: active ? accent : homeTileColor(context),
-              shape: StadiumBorder(
-                  side: active ? BorderSide.none : homeTileBorder(context)),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () => controller.onDestinationSelected(i),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  child: Center(
-                    child: Text(
-                      labels[i],
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            color: active
-                                ? Theme.of(context).colorScheme.onPrimary
-                                : Theme.of(context).colorScheme.onSurface,
-                          ),
+            // The picked chip's fill, outline and label ease over;
+            // TalkBack hears which one is picked.
+            final chip = Semantics(
+              container: true,
+              button: true,
+              selected: i == selected,
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(end: i == selected ? 1 : 0),
+                duration: RiffDurations.select,
+                curve: RiffDurations.selectCurve,
+                builder: (context, t, _) => Material(
+                  color: Color.lerp(idleFill, scheme.secondary, t),
+                  shape: StadiumBorder(
+                      side: BorderSide.lerp(idleBorder, BorderSide.none, t)),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () => controller.onDestinationSelected(i),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: Center(
+                        child: Text(
+                          labels[i],
+                          style: labelStyle?.copyWith(
+                              color: Color.lerp(
+                                  scheme.onSurface, scheme.onPrimary, t)),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
             );
+            // "All" is there from the start.
+            if (i == 0) return chip;
+            return _arriving.row(chip,
+                key: ValueKey(controller.railItems[i - 1]));
           },
         ),
       );
@@ -195,76 +235,13 @@ class Body extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (searchResScrController.navigationRailCurrentIndex.value == 0) {
-      return Obx(() {
-        if (searchResScrController.isResultContentFetced.isFalse) {
-          return const SongListShimmer(itemCount: 8, topPadding: 12);
-        }
-        // The search failed (not "no match"): why, and try again.
-        if (searchResScrController.searchFailed.isTrue) {
-          final offline = OfflinePlayback.offline.value;
-          final icon =
-              offline ? Icons.wifi_off_rounded : Icons.cloud_off_rounded;
-          final message = (offline ? 'searchOffline' : 'searchFailed').tr;
-          // And what your library has for it, playable as it is.
-          final mine = librarySearchMatches(
-              searchResScrController.queryString.value, _librarySongs());
-          if (mine.isNotEmpty) {
-            return _LibraryMatches(
-                icon: icon,
-                message: message,
-                songs: mine,
-                onRetry: searchResScrController.retrySearch);
-          }
-          return PodcastEmptyState(
-            icon: icon,
-            message: message,
-            actionLabel: 'retry'.tr,
-            actionIcon: Icons.refresh_rounded,
-            onAction: searchResScrController.retrySearch,
-          );
-        }
-        // Soulseek-only rail still means YTM returned nothing — show empty
-        // state on Results rather than a blank column.
-        final ytmRails = searchResScrController.railItems
-            .where((r) => !searchResScrController.isSoulseekRail(r))
-            .toList();
-        if (ytmRails.isEmpty) {
-          final hasSoulseek = searchResScrController.railItems
-              .any(searchResScrController.isSoulseekRail);
-          final empty = PodcastEmptyState(
-            icon: Icons.search_off_rounded,
-            message:
-                "${"nomatch".tr}\n'${searchResScrController.queryString.value}'",
-            actionLabel: hasSoulseek ? 'soulseek'.tr : null,
-            actionIcon: Icons.search_rounded,
-            onAction: hasSoulseek
-                ? () {
-                    final idx = searchResScrController.railItems
-                        .indexWhere(searchResScrController.isSoulseekRail);
-                    if (idx >= 0) {
-                      searchResScrController.onDestinationSelected(idx + 1);
-                    }
-                  }
-                : null,
-          );
-          // Nothing for the words as typed: "Did you mean …" above.
-          final spelling = searchResScrController.spelling;
-          if (spelling == null) return empty;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SearchSpellingLine(
-                spelling: spelling,
-                searched: searchResScrController.queryString.value,
-                onCorrected: searchResScrController.searchCorrected,
-                onOriginal: searchResScrController.searchOriginal,
-              ),
-              Expanded(child: empty),
-            ],
-          );
-        }
-        return const ResultWidget();
-      });
+      // What the search found fades in where its skeleton was.
+      return Obx(() => SkeletonFadeIn(
+            skeleton: const SongListShimmer(itemCount: 8, topPadding: 12),
+            child: searchResScrController.isResultContentFetced.isFalse
+                ? null
+                : _overview(),
+          ));
     } else {
       if (searchResScrController.isResultContentFetced.isTrue) {
         final name = searchResScrController.railItems[
@@ -284,6 +261,75 @@ class Body extends StatelessWidget {
       }
     }
     return const SizedBox.shrink();
+  }
+
+  /// The "All" results once the search is back: what it found, nothing
+  /// found, or why it failed. Read inside the page's Obx.
+  Widget _overview() {
+    // The search failed (not "no match"): why, and try again.
+    if (searchResScrController.searchFailed.isTrue) {
+      final offline = OfflinePlayback.offline.value;
+      final icon = offline ? Icons.wifi_off_rounded : Icons.cloud_off_rounded;
+      final message = (offline ? 'searchOffline' : 'searchFailed').tr;
+      // And what your library has for it, playable as it is.
+      final mine = librarySearchMatches(
+          searchResScrController.queryString.value, _librarySongs());
+      if (mine.isNotEmpty) {
+        return _LibraryMatches(
+            icon: icon,
+            message: message,
+            songs: mine,
+            onRetry: searchResScrController.retrySearch);
+      }
+      return PodcastEmptyState(
+        icon: icon,
+        message: message,
+        actionLabel: 'retry'.tr,
+        actionIcon: Icons.refresh_rounded,
+        onAction: searchResScrController.retrySearch,
+      );
+    }
+    // Soulseek-only rail still means YTM returned nothing — show empty
+    // state on Results rather than a blank column.
+    final ytmRails = searchResScrController.railItems
+        .where((r) => !searchResScrController.isSoulseekRail(r))
+        .toList();
+    if (ytmRails.isEmpty) {
+      final hasSoulseek = searchResScrController.railItems
+          .any(searchResScrController.isSoulseekRail);
+      final empty = PodcastEmptyState(
+        icon: Icons.search_off_rounded,
+        message:
+            "${"nomatch".tr}\n'${searchResScrController.queryString.value}'",
+        actionLabel: hasSoulseek ? 'soulseek'.tr : null,
+        actionIcon: Icons.search_rounded,
+        onAction: hasSoulseek
+            ? () {
+                final idx = searchResScrController.railItems
+                    .indexWhere(searchResScrController.isSoulseekRail);
+                if (idx >= 0) {
+                  searchResScrController.onDestinationSelected(idx + 1);
+                }
+              }
+            : null,
+      );
+      // Nothing for the words as typed: "Did you mean …" above.
+      final spelling = searchResScrController.spelling;
+      if (spelling == null) return empty;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SearchSpellingLine(
+            spelling: spelling,
+            searched: searchResScrController.queryString.value,
+            onCorrected: searchResScrController.searchCorrected,
+            onOriginal: searchResScrController.searchOriginal,
+          ),
+          Expanded(child: empty),
+        ],
+      );
+    }
+    return const ResultWidget();
   }
 }
 

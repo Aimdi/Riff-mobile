@@ -9,6 +9,7 @@ import '/models/thumbnail.dart';
 import '/services/music_service.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/riff_motion.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/riff_sheet.dart';
 import '../player_media_ids.dart';
@@ -156,8 +157,9 @@ class _ArtistChoiceState extends State<_ArtistChoice> {
             horizontal: RiffSpacing.lg, vertical: RiffSpacing.sm),
         child: Row(
           children: [
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
+            // The artist's photo fades in over the letter art once found.
+            RiffSwitcher(
+              duration: RiffDurations.image,
               child: ImageWidget(
                 key: ValueKey(_photo ?? ''),
                 size: RiffComponentSizes.rowArt,

@@ -11,6 +11,7 @@ import '/ui/widgets/snackbar.dart';
 import 'podcast_queue_screen.dart';
 import 'podcast_show_view.dart';
 import 'podcast_unsubscribe.dart';
+import '/ui/widgets/cover_hero.dart';
 
 /// Episode list for one podcast; tap an episode to play it.
 class PodcastEpisodesScreen extends StatefulWidget {
@@ -22,6 +23,8 @@ class PodcastEpisodesScreen extends StatefulWidget {
 }
 
 class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
+  /// The tapped card's cover, flying in.
+  final Object? _coverHero = CoverHero.take();
   List<Map<String, dynamic>> _episodes = [];
   bool _loading = true;
 
@@ -145,6 +148,7 @@ class _PodcastEpisodesScreenState extends State<PodcastEpisodesScreen> {
         subscribed: PodcastService.isSubscribed(feed),
         onToggleSubscribe: _toggleSubscribe,
         onPlay: _playFrom,
+        coverHeroTag: _coverHero,
         onEpisodeLongPress: (m) {
           final i = _mediaItems.indexWhere((e) => e.id == m.id);
           if (i >= 0) showAddToQueueSheet(context, _toSheetItem(_episodes[i]));

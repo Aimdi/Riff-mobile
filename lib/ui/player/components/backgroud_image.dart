@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -8,7 +9,13 @@ import '../../../models/thumbnail.dart';
 import '../../screens/Settings/settings_screen_controller.dart';
 import '../../utils/theme_controller.dart';
 import '../player_controller.dart';
+import 'track_crossfade.dart';
+import 'track_swipe.dart' show upNextTrack;
+import '/ui/widgets/image_widget.dart' show RiffNetworkImage;
 
+/// The playing song's cover, filling its box. A new song's cover fades in
+/// over the last one once it's decoded ([TrackCrossfade]), and the next
+/// song's is decoded ahead so a skip to it changes at once.
 class BackgroudImage extends StatelessWidget {
   const BackgroudImage({super.key, this.cacheHeight});
 
@@ -19,52 +26,72 @@ class BackgroudImage extends StatelessWidget {
     return GetX<PlayerController>(
       builder: (playerController) {
         final song = playerController.currentSong.value;
-        return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 400),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          layoutBuilder: (currentChild, previousChildren) {
-            return Stack(
-              fit: StackFit.expand,
-              children: <Widget>[
-                ...previousChildren,
-                if (currentChild != null) currentChild,
-              ],
-            );
+        final decodeH = _NetworkArt.decodeHeight(context, cacheHeight);
+        return TrackCrossfade(
+          trackKey: song?.id ?? 'none',
+          precache: song == null
+              ? null
+              : (context) => _precache(context, song, decodeH),
+          onSettled: () {
+            final next = upNextTrack(playerController);
+            if (next != null && next.id != song?.id) {
+              _precache(context, next, decodeH);
+            }
           },
-          transitionBuilder: (child, animation) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-          child: KeyedSubtree(
-            key: ValueKey<String>(song?.id ?? 'none'),
-            child: SizedBox.expand(
-              child: song == null
-                  ? const SizedBox.shrink()
-                  // A cover on the phone itself (a music file's album cover).
-                  : song.artUri?.isScheme('file') == true
-                      ? _LocalArt(
-                          songId: song.id,
-                          path: song.artUri!.toFilePath(),
-                          cacheHeight: cacheHeight,
-                        )
-                      : (song.extras!['url'] ?? '').toString().contains('file')
-                          ? _LocalArt(songId: song.id, cacheHeight: cacheHeight)
-                          : _NetworkArt(
-                              songId: song.id,
-                              artUri: song.artUri?.toString() ?? '',
-                              cacheHeight: cacheHeight,
-                            ),
-            ),
+          child: SizedBox.expand(
+            child: song == null
+                ? const SizedBox.shrink()
+                // A cover on the phone itself (a music file's album cover).
+                : song.artUri?.isScheme('file') == true
+                    ? _LocalArt(
+                        songId: song.id,
+                        path: song.artUri!.toFilePath(),
+                        cacheHeight: cacheHeight,
+                      )
+                    : _isDownloaded(song)
+                        ? _LocalArt(songId: song.id, cacheHeight: cacheHeight)
+                        : _NetworkArt(
+                            songId: song.id,
+                            artUri: song.artUri?.toString() ?? '',
+                            cacheHeight: cacheHeight,
+                          ),
           ),
         );
       },
     );
+  }
+
+  static bool _isDownloaded(MediaItem song) =>
+      (song.extras?['url'] ?? '').toString().contains('file');
+
+  /// Decodes [song]'s cover as it's shown here, so it paints at once; null
+  /// when there's nothing to decode.
+  Future<void>? _precache(BuildContext context, MediaItem song, int decodeH) {
+    final ImageProvider? image;
+    if (song.artUri?.isScheme('file') == true) {
+      image = ResizeImage.resizeIfNeeded(
+          null, cacheHeight, FileImage(File(song.artUri!.toFilePath())));
+    } else if (_isDownloaded(song)) {
+      image = Get.isRegistered<SettingsScreenController>()
+          ? ResizeImage.resizeIfNeeded(
+              null, cacheHeight, FileImage(_LocalArt.thumbnail(song.id)))
+          : null;
+    } else {
+      image =
+          _NetworkArt.provider(song.id, song.artUri?.toString() ?? '', decodeH);
+    }
+    if (image == null) return null;
+    return precacheImage(image, context, onError: (_, __) {});
   }
 }
 
 class _LocalArt extends StatefulWidget {
   const _LocalArt({required this.songId, this.path, this.cacheHeight});
   final String songId;
+
+  /// A download's saved cover.
+  static File thumbnail(String songId) => File(
+      "${Get.find<SettingsScreenController>().supportDirPath}/thumbnails/$songId.png");
 
   /// The cover's file; a download's saved thumbnail when not given.
   final String? path;
@@ -95,8 +122,9 @@ class _LocalArtState extends State<_LocalArt> {
   }
 
   void _resolve() {
-    _imgFile = File(widget.path ??
-        "${Get.find<SettingsScreenController>().supportDirPath}/thumbnails/${widget.songId}.png");
+    _imgFile = widget.path != null
+        ? File(widget.path!)
+        : _LocalArt.thumbnail(widget.songId);
     _exists = _imgFile.exists();
   }
 
@@ -138,13 +166,33 @@ class _NetworkArt extends StatelessWidget {
   final String artUri;
   final int? cacheHeight;
 
+  static int decodeHeight(BuildContext context, int? cacheHeight) {
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    return cacheHeight ??
+        (MediaQuery.sizeOf(context).shortestSide * dpr)
+            .round()
+            .clamp(400, 1600);
+  }
+
+  static String _url(String artUri) =>
+      artUri.isEmpty ? artUri : Thumbnail(artUri).extraHigh;
+
+  static String _cacheKey(String songId) => "${songId}_song_hq";
+
+  /// The image [CachedNetworkImage] below decodes (same cache entry).
+  static ImageProvider? provider(String songId, String artUri, int decodeH) {
+    final url = _url(artUri);
+    if (url.isEmpty) return null;
+    return ResizeImage.resizeIfNeeded(null, decodeH,
+        CachedNetworkImageProvider(url, cacheKey: _cacheKey(songId)));
+  }
+
   @override
   Widget build(BuildContext context) {
-    final dpr = MediaQuery.devicePixelRatioOf(context);
-    final decodeH = cacheHeight ??
-        (MediaQuery.sizeOf(context).shortestSide * dpr).round().clamp(400, 1600);
-    final artUrl = artUri.isEmpty ? artUri : Thumbnail(artUri).extraHigh;
-    return CachedNetworkImage(
+    final decodeH = decodeHeight(context, cacheHeight);
+    final artUrl = _url(artUri);
+    final playerController = Get.find<PlayerController>();
+    return RiffNetworkImage(
       memCacheHeight: decodeH,
       filterQuality: FilterQuality.high,
       imageBuilder: (context, imageProvider) {
@@ -155,14 +203,23 @@ class _NetworkArt extends StatelessWidget {
             () => Get.find<ThemeController>().setTheme(imageProvider, songId),
           );
         }
-        return Image(
-          image: imageProvider,
-          fit: BoxFit.cover,
-          filterQuality: FilterQuality.high,
-        );
+        // Cheaper sampling while the player panel moves (the cover is
+        // being resized every frame there); full quality once it's open.
+        // The imageBuilder gets the full-size provider: paint the decode
+        // size the precache (and memCacheHeight) used, so it's the entry
+        // already decoded, and only one decode per song.
+        final sized =
+            ResizeImage.resizeIfNeeded(null, decodeH, imageProvider);
+        return Obx(() => Image(
+              image: sized,
+              fit: BoxFit.cover,
+              filterQuality: playerController.isPlayerPanelOpen.isTrue
+                  ? FilterQuality.high
+                  : FilterQuality.medium,
+            ));
       },
       imageUrl: artUrl,
-      cacheKey: "${songId}_song_hq",
+      cacheKey: _cacheKey(songId),
     );
   }
 }

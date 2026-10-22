@@ -339,15 +339,15 @@ void main() {
 
       final c = Get.find<AlbumScreenController>(tag: tag);
       expect(c.otherVersions.map((a) => a.browseId), ['MPREb_deluxe']);
-      // Headed as the page calls them (section titles show in capitals).
-      expect(find.text('OTHER VERSIONS'), findsOneWidget);
+      // Headed as the page calls them (section titles in sentence case).
+      expect(find.text('Other versions'), findsOneWidget);
       expect(find.text('In Rainbows (Deluxe)'), findsOneWidget);
       // Below the tracks, above More by, which leaves the deluxe out.
       expect(tester.getTopLeft(find.text('Bodysnatchers')).dy,
-          lessThan(tester.getTopLeft(find.text('OTHER VERSIONS')).dy));
-      expect(find.text('MOREBYARTIST'), findsOneWidget);
-      expect(tester.getTopLeft(find.text('OTHER VERSIONS')).dy,
-          lessThan(tester.getTopLeft(find.text('MOREBYARTIST')).dy));
+          lessThan(tester.getTopLeft(find.text('Other versions')).dy));
+      expect(find.text('moreByArtist'), findsOneWidget);
+      expect(tester.getTopLeft(find.text('Other versions')).dy,
+          lessThan(tester.getTopLeft(find.text('moreByArtist')).dy));
       expect(find.text('Kid A'), findsOneWidget);
       expect(c.moreByArtistShown.map((a) => a.browseId), ['MPREb_kida']);
     });

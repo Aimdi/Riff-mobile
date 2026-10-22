@@ -8,6 +8,7 @@ import '/services/discovery/discovery_types.dart';
 import '/services/music_service.dart';
 import '/ui/player/player_controller.dart';
 import '../../widgets/collection_play.dart';
+import '../../widgets/riff_motion.dart';
 import '../../widgets/snackbar.dart';
 import '/ui/theme/palettes/home_stations.dart';
 import '/ui/theme/riff_tokens.dart';
@@ -166,7 +167,10 @@ class _StationChip extends StatelessWidget {
           child: SizedBox(
             height: RiffSizes.chipRow,
             child: Center(
-              child: Container(
+              // Into the selected look and back as the station starts.
+              child: AnimatedContainer(
+                duration: RiffDurations.select,
+                curve: RiffDurations.selectCurve,
                 height: RiffSizes.chipHeight,
                 padding: const EdgeInsets.only(
                     left: RiffSpacing.xs,
@@ -191,19 +195,30 @@ class _StationChip extends StatelessWidget {
                           colors: station.colors,
                         ),
                       ),
-                      child: busy
-                          ? Padding(
-                              padding: const EdgeInsets.all(RiffSpacing.xs),
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: riff.onImage),
-                            )
-                          : Icon(station.icon,
-                              color: riff.onImage, size: RiffSizes.chipGlyph),
+                      child: RiffSwitcher(
+                        child: busy
+                            ? Padding(
+                                key: const ValueKey(true),
+                                padding: const EdgeInsets.all(RiffSpacing.xs),
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: riff.onImage),
+                              )
+                            : Icon(station.icon,
+                                key: const ValueKey(false),
+                                color: riff.onImage,
+                                size: RiffSizes.chipGlyph),
+                      ),
                     ),
                     const SizedBox(width: RiffSpacing.sm),
-                    Text(
-                      label,
-                      style: theme.textTheme.labelMedium?.copyWith(color: fg),
+                    TweenAnimationBuilder<Color?>(
+                      tween: ColorTween(end: fg),
+                      duration: RiffDurations.select,
+                      curve: RiffDurations.selectCurve,
+                      builder: (context, color, _) => Text(
+                        label,
+                        style:
+                            theme.textTheme.labelMedium?.copyWith(color: color),
+                      ),
                     ),
                   ],
                 ),

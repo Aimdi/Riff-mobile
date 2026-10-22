@@ -9,6 +9,7 @@ import 'package:harmonymusic/services/discovery/discovery_types.dart';
 import 'package:harmonymusic/services/stats_service.dart';
 import 'package:harmonymusic/ui/screens/Stats/stats_screen.dart';
 import 'package:harmonymusic/ui/theme/riff_theme.dart';
+import 'package:harmonymusic/ui/theme/riff_tokens.dart';
 import 'package:hive/hive.dart';
 
 class _FakeDiscovery extends GetxService implements DiscoveryService {
@@ -128,5 +129,21 @@ void main() {
     await tester.tap(find.text('statsRangeAllTime'));
     await tester.pump();
     expect(find.text('Old favourite'), findsOneWidget);
+
+    // The new range's rows fade in in place of the last's; the rest of
+    // the page stays put.
+    double opacity(Finder f) => tester
+        .widget<Opacity>(
+            find.ancestor(of: f, matching: find.byType(Opacity)).first)
+        .opacity;
+    await tester.pump(RiffDurations.content * 0.5);
+    expect(opacity(find.text('Old favourite')), inExclusiveRange(0, 1));
+    expect(
+        find.ancestor(
+            of: find.text('statsRange4Weeks'), matching: find.byType(Opacity)),
+        findsNothing);
+    // Past the fade (not settled: the covers pulse while they load).
+    await tester.pump(RiffDurations.content);
+    expect(opacity(find.text('Old favourite')), 1);
   });
 }

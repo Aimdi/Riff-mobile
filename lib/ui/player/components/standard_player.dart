@@ -1,8 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-
 
 import '../../screens/Settings/settings_screen_controller.dart';
 import '/models/playling_from.dart';
@@ -20,8 +21,10 @@ import 'lyrics_widget.dart';
 import 'player_video_surface.dart';
 import 'player_canvas_backdrop.dart';
 import 'player_control.dart';
+import 'track_swipe.dart' show upNextTrack;
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/riff_motion.dart';
 
 /// Standard player widget
 ///
@@ -46,16 +49,12 @@ class StandardPlayer extends StatelessWidget {
       // Dark themes: the page takes the cover's colours. The light theme's
       // dark text needs its light page, so it keeps the black-tint look.
       final coverLook = Theme.of(context).brightness == Brightness.dark;
-      final palette = coverLook && !showVideo
-          ? PlayerCoverColors.of(playerController.currentSong.value) ??
-              CoverPalette(fill: bg, deep: bg, glow: bg)
-          : null;
       // Portrait phone: the cover morphs into the mini player's art when
       // the player is minimised. Wide screens keep their own mini player.
       final heroArt = !context.isLandscape && !showVideo;
       final morph = heroArt && size.width <= _morphMaxWidth;
-      final thumb = _miniArtRect(context,
-          playerController.playerPanelMinHeight.value);
+      final thumb =
+          _miniArtRect(context, playerController.playerPanelMinHeight.value);
       final full = Rect.fromLTWH(0, 0, size.width, _heroArtHeight(size));
       final position = playerController.playerPanelPosition;
 
@@ -67,12 +66,16 @@ class StandardPlayer extends StatelessWidget {
             position: position,
             enabled: morph,
             opacity: HeroArtMorph.pageOpacity,
-            child: showVideo
-                // Skip HQ album-art decode + blur under live video.
-                ? ColoredBox(color: bg)
-                : palette != null
-                    ? CoverBackdrop(palette: palette, drift: canvasOn)
-                    : _ClassicBackdrop(canvasOn: canvasOn),
+            // Own layer: the moving cover and the controls above don't
+            // repaint the page, nor its drifting glow them.
+            child: RepaintBoundary(
+              child: showVideo
+                  // Skip HQ album-art decode + blur under live video.
+                  ? ColoredBox(color: bg)
+                  : coverLook
+                      ? _CoverPage(drift: canvasOn)
+                      : _ClassicBackdrop(canvasOn: canvasOn),
+            ),
           ),
           // Portrait: the cover fills the top of the screen and fades into
           // the page where the controls start.
@@ -93,69 +96,72 @@ class StandardPlayer extends StatelessWidget {
             position: position,
             enabled: morph,
             opacity: HeroArtMorph.controlsOpacity,
-            child: Stack(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.xxl),
-                  child: (context.isLandscape)
-                      ? Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              width: size.width * .45,
-                              child: Padding(
-                                padding: const EdgeInsets.only(
-                                    bottom: 90.0, top: RiffSpacing.unit * 10),
-                                child: Center(
-                                  child: AlbumArtNLyrics(
-                                    playerArtImageSize: size.width * .29,
+            child: RepaintBoundary(
+              child: Stack(
+                children: [
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: RiffSpacing.xxl),
+                    child: (context.isLandscape)
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: size.width * .45,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(
+                                      bottom: 90.0, top: RiffSpacing.unit * 10),
+                                  child: Center(
+                                    child: AlbumArtNLyrics(
+                                      playerArtImageSize: size.width * .29,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            SizedBox(
-                              width: size.width * .48,
-                              child: Padding(
+                              SizedBox(
+                                width: size.width * .48,
+                                child: Padding(
+                                  padding: EdgeInsets.only(
+                                      left: 10.0,
+                                      right: 10,
+                                      bottom: RiffSpacing.unit * 20 +
+                                          Get.mediaQuery.padding.bottom),
+                                  child: const PlayerControlWidget(),
+                                ),
+                              )
+                            ],
+                          )
+                        : Column(
+                            children: [
+                              SizedBox(
+                                  height: Get.mediaQuery.padding.top +
+                                      PlayerTopBar.height),
+                              // The cover itself is the backdrop; this layer takes
+                              // the taps and swipes and hosts lyrics / video.
+                              Expanded(
+                                child: _HeroArtRegion(
+                                    isVideo: isVideo,
+                                    showVideo: showVideo,
+                                    coverLook: coverLook),
+                              ),
+                              const SizedBox(height: RiffSpacing.sm),
+                              Padding(
                                 padding: EdgeInsets.only(
-                                    left: 10.0,
-                                    right: 10,
                                     bottom: RiffSpacing.unit * 20 +
                                         Get.mediaQuery.padding.bottom),
-                                child: const PlayerControlWidget(),
+                                child: Container(
+                                  constraints:
+                                      const BoxConstraints(maxWidth: 500),
+                                  child: const PlayerControlWidget(),
+                                ),
                               ),
-                            )
-                          ],
-                        )
-                      : Column(
-                          children: [
-                            SizedBox(
-                                height:
-                                    Get.mediaQuery.padding.top + PlayerTopBar.height),
-                            // The cover itself is the backdrop; this layer takes
-                            // the taps and swipes and hosts lyrics / video.
-                            Expanded(
-                              child: _HeroArtRegion(
-                                  isVideo: isVideo,
-                                  showVideo: showVideo,
-                                  veil: palette?.fill),
-                            ),
-                            const SizedBox(height: RiffSpacing.sm),
-                            Padding(
-                              padding: EdgeInsets.only(
-                                  bottom: RiffSpacing.unit * 20 +
-                                      Get.mediaQuery.padding.bottom),
-                              child: Container(
-                                constraints: const BoxConstraints(maxWidth: 500),
-                                child: const PlayerControlWidget(),
-                              ),
-                            ),
-                          ],
-                        ),
-                ),
-
-                if (!(context.isLandscape && GetPlatform.isMobile))
-                  const PlayerTopBar(),
-              ],
+                            ],
+                          ),
+                  ),
+                  if (!(context.isLandscape && GetPlatform.isMobile))
+                    const PlayerTopBar(),
+                ],
+              ),
             ),
           ),
         ],
@@ -174,12 +180,61 @@ Rect _miniArtRect(BuildContext context, double miniPlayerHeight) {
   final bottom = MediaQuery.viewPaddingOf(context).bottom;
   final cardHeight = miniPlayerHeight - bottom - RiffSpacing.sm;
   const size = RiffComponentSizes.miniArt;
-  return Rect.fromLTWH(
-      RiffSpacing.md * 2, (cardHeight - size) / 2, size, size);
+  return Rect.fromLTWH(RiffSpacing.md * 2, (cardHeight - size) / 2, size, size);
+}
+
+/// The dark theme's page in the cover's colours ([CoverBackdrop]). While a
+/// new song's colours are worked out it keeps the last song's, then eases
+/// straight to the new ones; the next song's are worked out ahead.
+class _CoverPage extends StatefulWidget {
+  const _CoverPage({required this.drift});
+  final bool drift;
+
+  @override
+  State<_CoverPage> createState() => _CoverPageState();
+}
+
+class _CoverPageState extends State<_CoverPage> {
+  final _player = Get.find<PlayerController>();
+  late final Worker _songs;
+  Timer? _warm;
+
+  @override
+  void initState() {
+    super.initState();
+    _songs = ever(_player.currentSong, (_) => _warmNext());
+    _warmNext();
+  }
+
+  /// Once this song's colours have eased in, the next song's.
+  void _warmNext() {
+    _warm?.cancel();
+    _warm = Timer(RiffDurations.colour, () {
+      if (mounted) PlayerCoverColors.warm(upNextTrack(_player));
+    });
+  }
+
+  @override
+  void dispose() {
+    _warm?.cancel();
+    _songs.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = Theme.of(context).colorScheme.surface;
+    return Obx(() => CoverBackdrop(
+          palette: PlayerCoverColors.shown(_player.currentSong.value,
+              CoverPalette(fill: bg, deep: bg, glow: bg)),
+          drift: widget.drift,
+        ));
+  }
 }
 
 /// Fades [child] with the panel [position] through [opacity]; a plain
-/// pass-through when [enabled] is false or the panel is fully open.
+/// pass-through when [enabled] is false or the panel is fully open. Only
+/// the layer's alpha changes per frame: nothing rebuilds or repaints.
 class _PanelFade extends StatelessWidget {
   const _PanelFade({
     required this.position,
@@ -196,12 +251,10 @@ class _PanelFade extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!enabled) return Positioned.fill(child: child);
     return Positioned.fill(
-      child: ValueListenableBuilder<double>(
-        valueListenable: position,
-        // Opacity 0 skips painting but keeps the player mounted, so video,
-        // lyrics and scroll state survive a minimise.
-        builder: (context, p, child) =>
-            Opacity(opacity: opacity(p), child: child),
+      // Opacity 0 skips painting but keeps the player mounted, so video,
+      // lyrics and scroll state survive a minimise.
+      child: FadeTransition(
+        opacity: PanelPositionAnimation(position, opacity),
         child: child,
       ),
     );
@@ -228,11 +281,15 @@ class _MorphingArt extends StatelessWidget {
     final fade = HeroArtMorph.fade(progress);
     return Positioned.fromRect(
       rect: HeroArtMorph.rect(progress, thumb: thumb, full: full),
-      child: IgnorePointer(
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(radius),
-          clipBehavior: radius > 0 ? Clip.antiAlias : Clip.none,
-          child: _HeroArtFade(fade: fade, child: child),
+      // Own layer: the cover resizing every frame of the morph doesn't
+      // repaint the page and controls around it.
+      child: RepaintBoundary(
+        child: IgnorePointer(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(radius),
+            clipBehavior: radius > 0 ? Clip.antiAlias : Clip.none,
+            child: _HeroArtFade(fade: fade, child: child),
+          ),
         ),
       ),
     );
@@ -339,41 +396,51 @@ class _HeroArtFade extends StatelessWidget {
   final double fade;
   final Widget child;
 
+  /// The mask's shader, kept while the cover's size and fade stay put (a
+  /// repaint of the resting cover reuses it).
+  static Shader? _mask;
+  static (Size, double, Color)? _maskFor;
+
+  static Shader _maskShader(Size size, double fade, Color opaque) {
+    final key = (size, fade, opaque);
+    if (_mask == null || _maskFor != key) {
+      _maskFor = key;
+      _mask = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [opaque, opaque, opaque.withOpacity(1 - fade)],
+        stops: const [0, 0.62, 1],
+      ).createShader(Offset.zero & size);
+    }
+    return _mask!;
+  }
+
   @override
   Widget build(BuildContext context) {
     final riff = RiffColors.of(context);
     return ShaderMask(
-      shaderCallback: (rect) => LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          riff.onImage,
-          riff.onImage,
-          riff.onImage.withOpacity(1 - fade),
-        ],
-        stops: const [0, 0.62, 1],
-      ).createShader(Rect.fromLTWH(0, 0, rect.width, rect.height)),
+      shaderCallback: (rect) => _maskShader(rect.size, fade, riff.onImage),
       blendMode: BlendMode.dstIn,
       child: Stack(
         fit: StackFit.expand,
         children: [
           child,
+          // The scrim's strength scales its colours rather than an Opacity
+          // layer over it (the same pixels, one layer less per frame).
           if (fade > 0)
-            Opacity(
-              opacity: fade,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      riff.scrim.withOpacity(RiffPalette.playerHeaderScrim),
-                      riff.scrim
-                          .withOpacity(RiffPalette.playerHeaderScrimMid),
-                      Colors.transparent,
-                    ],
-                    stops: const [0, 0.22, 0.42],
-                  ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    riff.scrim
+                        .withOpacity(RiffPalette.playerHeaderScrim * fade),
+                    riff.scrim
+                        .withOpacity(RiffPalette.playerHeaderScrimMid * fade),
+                    Colors.transparent,
+                  ],
+                  stops: const [0, 0.22, 0.42],
                 ),
               ),
             ),
@@ -441,14 +508,16 @@ class _ClassicBackdrop extends StatelessWidget {
 /// video), swipe to skip, long-press for the song menu. Hosts the lyrics
 /// overlay, the video surface and the show-video button.
 class _HeroArtRegion extends StatelessWidget {
-  const _HeroArtRegion(
-      {required this.isVideo, required this.showVideo, this.veil});
+  const _HeroArtRegion({
+    required this.isVideo,
+    required this.showVideo,
+    required this.coverLook,
+  });
   final bool isVideo;
   final bool showVideo;
 
-  /// Colour the lyrics dim the cover with: the cover-coloured page's fill,
-  /// else the page colour.
-  final Color? veil;
+  /// The page is in the cover's colours (dark themes, no video).
+  final bool coverLook;
 
   @override
   Widget build(BuildContext context) {
@@ -457,9 +526,6 @@ class _HeroArtRegion extends StatelessWidget {
       final song = playerController.currentSong.value;
       final lyricsOn = playerController.showLyricsflag.isTrue;
       if (song == null) return const SizedBox.shrink();
-      // Lyrics dim the cover with the page colour, so their text reads in
-      // the page's text colours.
-      final page = veil ?? Theme.of(context).colorScheme.surface;
       void onTap() {
         if (showVideo) {
           playerController.playPause();
@@ -468,86 +534,133 @@ class _HeroArtRegion extends StatelessWidget {
         }
       }
 
-      return GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        onLongPress: () {
-          HapticFeedback.mediumImpact();
-          openNowPlayingSheet(playerController);
-        },
-        onHorizontalDragEnd: (details) {
-          if (lyricsOn) return;
-          final v = details.primaryVelocity ?? 0;
-          if (v < 0) {
-            playerController.next();
-          } else if (v > 0) {
-            playerController.prev();
-          }
-        },
-        child: LayoutBuilder(builder: (context, box) {
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              if (showVideo)
-                Center(
-                  child: PlayerVideoSurface(
-                    song: song,
-                    width: box.maxWidth,
-                    maxHeight: box.maxHeight,
-                    onToggleVideo: () async {
-                      await AlbumArtNLyrics.setVideoPlaybackEnabled(
-                          song, false);
-                      playerController.currentSong.refresh();
-                    },
-                  ),
-                ),
-              if (lyricsOn)
-                ColoredBox(
-                  color: page.withOpacity(0.78),
-                  child: Stack(
-                    children: [
-                      LyricsWidget(
-                          padding: EdgeInsets.symmetric(
-                              vertical: box.maxHeight / 4),
-                          onTap: onTap),
-                      IgnorePointer(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                page.withOpacity(0.9),
-                                Colors.transparent,
-                                Colors.transparent,
-                                page.withOpacity(0.9),
-                              ],
-                              stops: const [0, 0.2, 0.8, 1],
-                            ),
-                          ),
-                        ),
+      // Named for TalkBack; its tap shows the lyrics (a video's plays or
+      // pauses), its swipes change the song.
+      return Semantics(
+          container: true,
+          label: 'coverArt'.tr,
+          onTapHint: showVideo ? null : 'showLyrics'.tr,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            onLongPress: () {
+              HapticFeedback.mediumImpact();
+              openNowPlayingSheet(playerController);
+            },
+            onHorizontalDragEnd: (details) {
+              if (lyricsOn) return;
+              final v = details.primaryVelocity ?? 0;
+              if (v < 0) {
+                playerController.next();
+              } else if (v > 0) {
+                playerController.prev();
+              }
+            },
+            child: LayoutBuilder(builder: (context, box) {
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (showVideo)
+                    Center(
+                      child: PlayerVideoSurface(
+                        song: song,
+                        width: box.maxWidth,
+                        maxHeight: box.maxHeight,
+                        onToggleVideo: () async {
+                          await AlbumArtNLyrics.setVideoPlaybackEnabled(
+                              song, false);
+                          playerController.currentSong.refresh();
+                        },
                       ),
-                    ],
+                    ),
+                  // The lyrics fade in over the cover, and out again.
+                  Positioned.fill(
+                    child: RiffSwitcher(
+                      duration: RiffDurations.content,
+                      child: lyricsOn
+                          ? SizedBox.expand(
+                              key: const ValueKey<String>('lyrics'),
+                              child: _LyricsVeil(
+                                coverLook: coverLook && !showVideo,
+                                child: LyricsWidget(
+                                    padding: EdgeInsets.symmetric(
+                                        vertical: box.maxHeight / 4),
+                                    onTap: onTap),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ),
+                  if (!isVideo)
+                    const Align(
+                        alignment: Alignment.topCenter, child: LyricsSwitch()),
+                  if (song.canShowPlayerVideo && !showVideo)
+                    Positioned(
+                      right: RiffSpacing.lg,
+                      top: RiffSpacing.sm,
+                      child: PlayerVideoEnableButton(
+                        onShow: () async {
+                          await AlbumArtNLyrics.setVideoPlaybackEnabled(
+                              song, true);
+                          playerController.currentSong.refresh();
+                        },
+                      ),
+                    ),
+                ],
+              );
+            }),
+          ));
+    });
+  }
+}
+
+/// The lyrics' backing over the cover: the page colour dims it, so their
+/// text reads in the page's text colours, darker still at the top and
+/// bottom edges. The cover-coloured page's fill when [coverLook], else the
+/// page colour.
+class _LyricsVeil extends StatelessWidget {
+  const _LyricsVeil({required this.coverLook, required this.child});
+  final bool coverLook;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = Theme.of(context).colorScheme.surface;
+    return Obx(() {
+      final song = Get.find<PlayerController>().currentSong.value;
+      final page = coverLook
+          ? PlayerCoverColors.shown(
+                  song, CoverPalette(fill: bg, deep: bg, glow: bg))
+              .fill
+          : bg;
+      // A card over the cover, rounded like the app's other cards.
+      return ClipRRect(
+          borderRadius: BorderRadius.circular(RiffRadii.lg),
+          child: ColoredBox(
+            color: page.withOpacity(0.78),
+            child: Stack(
+              children: [
+                LyricsEdgeFade(child: child),
+                IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          page.withOpacity(0.9),
+                          Colors.transparent,
+                          Colors.transparent,
+                          page.withOpacity(0.9),
+                        ],
+                        stops: const [0, 0.2, 0.8, 1],
+                      ),
+                    ),
                   ),
                 ),
-              if (!isVideo)
-                const Align(
-                    alignment: Alignment.topCenter, child: LyricsSwitch()),
-              if (song.canShowPlayerVideo && !showVideo)
-                Positioned(
-                  right: RiffSpacing.lg,
-                  top: RiffSpacing.sm,
-                  child: PlayerVideoEnableButton(
-                    onShow: () async {
-                      await AlbumArtNLyrics.setVideoPlaybackEnabled(song, true);
-                      playerController.currentSong.refresh();
-                    },
-                  ),
-                ),
-            ],
-          );
-        }),
-      );
+              ],
+            ),
+          ));
     });
   }
 }

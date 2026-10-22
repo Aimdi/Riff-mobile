@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import '../Home/home_layout.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '/ui/widgets/image_widget.dart' show RiffNetworkImage;
 import '/services/soulseek/soulseek_cover_service.dart';
 import '/services/soulseek/soulseek_search.dart';
 import '/services/soulseek_service.dart';
@@ -893,7 +893,7 @@ class _CoverThumbState extends State<_CoverThumb> {
 
     Widget child;
     if (_url != null) {
-      child = CachedNetworkImage(
+      child = RiffNetworkImage(
         imageUrl: _url!,
         // Decode at display size, not full resolution.
         memCacheWidth:
@@ -901,7 +901,6 @@ class _CoverThumbState extends State<_CoverThumb> {
         width: widget.size,
         height: widget.size,
         fit: BoxFit.cover,
-        fadeInDuration: const Duration(milliseconds: 150),
         httpHeaders: const {'User-Agent': 'RiffMobile/1.0'},
         placeholder: (_, __) => ColoredBox(
           color: bg,

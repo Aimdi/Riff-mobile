@@ -10,6 +10,7 @@ import '/services/explicit_content.dart';
 import '/services/music_service.dart';
 import '/services/search_recents.dart';
 import '/services/search_suggestions.dart';
+import '/ui/theme/riff_tokens.dart' show RiffDurations;
 
 class SearchScreenController extends GetxController with ProcessLink {
   final textInputController = TextEditingController();
@@ -50,7 +51,7 @@ class SearchScreenController extends GetxController with ProcessLink {
       suggestedItems.clear();
       return;
     }
-    _suggestionDebounce = Timer(const Duration(milliseconds: 350), () {
+    _suggestionDebounce = Timer(RiffDurations.typingPause, () {
       unawaited(_fetchSuggestions(text));
     });
   }
@@ -85,12 +86,13 @@ class SearchScreenController extends GetxController with ProcessLink {
   }
 
   Future<void> addToHistryQueryList(String txt) async {
-    // Search history paused: nothing kept.
-    if (SearchRecents.paused.value) return;
-    // Only a new query makes room: searching one already in the history
-    // used to drop the oldest entry anyway, shrinking the list.
-    if (!historyQuerylist.contains(txt)) {
-      if (historyQuerylist.length > 9) {
+    // Search history paused: nothing kept (the field still resets).
+    if (!SearchRecents.paused.value) {
+      // Searched again: back to the top, not kept twice.
+      final i = queryBox.values.toList().lastIndexOf(txt);
+      if (i >= 0) await queryBox.deleteAt(i);
+      historyQuerylist.remove(txt);
+      if (queryBox.length > 9) {
         final queryForRemoval = queryBox.getAt(0);
         await queryBox.deleteAt(0);
         historyQuerylist.removeWhere((element) => element == queryForRemoval);

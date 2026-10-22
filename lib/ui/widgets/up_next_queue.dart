@@ -21,7 +21,7 @@ import 'songinfo_bottom_sheet.dart';
 import 'riff_marquee.dart';
 
 const double _kQueueRowExtent = 64;
-const double _kSectionLabelExtent = 34;
+const double _kSectionLabelExtent = 36;
 
 /// Room around the label's line, above the row it names.
 const double _kSectionLabelInsets = RiffSpacing.md + RiffSpacing.xs;
@@ -41,7 +41,7 @@ double _queueRowExtent(BuildContext context) {
 /// The Now playing / Next up label's height: [_kSectionLabelExtent] as
 /// designed, or as tall as its line needs at a larger font size.
 double _sectionLabelExtent(BuildContext context) =>
-    riffLineBox(context, Theme.of(context).textTheme.labelSmall,
+    riffLineBox(context, Theme.of(context).textTheme.titleMedium,
         _kSectionLabelExtent - _kSectionLabelInsets) +
     _kSectionLabelInsets;
 
@@ -154,7 +154,8 @@ class _QueueSongRow extends StatelessWidget {
     required this.playerController,
   });
 
-  static const _playedOpacity = AlwaysStoppedAnimation<double>(0.55);
+  /// Rows already played are dimmed to this.
+  static const _playedOpacity = 0.55;
 
   final int index;
   final MediaItem song;
@@ -201,20 +202,26 @@ class _QueueSongRow extends StatelessWidget {
                   top: RiffSpacing.md,
                   right: RiffSpacing.lg,
                   bottom: RiffSpacing.xs),
+              // Bold and in sentence case, as Spotify titles "Now
+              // playing" and "Next in queue".
               child: Text(
-                sectionLabel!.toUpperCase(),
+                sectionLabel!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: text.labelSmall?.copyWith(color: muted),
+                style: text.titleMedium
+                    ?.copyWith(color: Theme.of(context).colorScheme.onSurface),
               ),
             ),
           ),
         Expanded(
-          // FadeTransition with a constant animation: the row becomes its own
-          // repaint boundary with a retained opacity layer, instead of an
-          // Opacity re-rasterizing the row via saveLayer on every repaint.
-          child: FadeTransition(
-            opacity: isPlayed ? _playedOpacity : kAlwaysCompleteAnimation,
+          // AnimatedOpacity paints through a FadeTransition: the dimmed row
+          // is its own repaint boundary with a retained opacity layer
+          // (not an Opacity re-rasterizing it via saveLayer on every
+          // repaint), and it dims / brightens as the song changes.
+          child: AnimatedOpacity(
+            opacity: isPlayed ? _playedOpacity : 1,
+            duration: RiffDurations.select,
+            curve: RiffDurations.selectCurve,
             child: Dismissible(
               key: ValueKey('dismiss_${song.id}'),
               // The playing song can't be removed, so it doesn't swipe.
@@ -241,13 +248,22 @@ class _QueueSongRow extends StatelessWidget {
                   // Expand so the row still fills the fixed queue extent.
                   fit: StackFit.expand,
                   children: [
-                    Material(
-                      // Now playing: flat accentMuted tint (§5.2).
-                      color: isCurrent
-                          ? RiffColors.of(context).accentMuted
-                          : Theme.of(homeScaffoldContext)
-                              .bottomSheetTheme
-                              .backgroundColor,
+                    // Now playing: flat accentMuted tint (§5.2), easing
+                    // from one row to the next as the song changes.
+                    TweenAnimationBuilder<Color?>(
+                      // (Material's own default colour when the theme
+                      // sets none, so the tween never runs to null.)
+                      tween: ColorTween(
+                          end: isCurrent
+                              ? RiffColors.of(context).accentMuted
+                              : Theme.of(homeScaffoldContext)
+                                      .bottomSheetTheme
+                                      .backgroundColor ??
+                                  Theme.of(context).canvasColor),
+                      duration: RiffDurations.select,
+                      curve: RiffDurations.selectCurve,
+                      builder: (context, color, child) =>
+                          Material(color: color, child: child),
                       child: InkWell(
                         onTap: () => playerController.seekByIndex(index),
                         onLongPress: () {

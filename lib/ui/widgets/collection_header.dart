@@ -6,7 +6,9 @@ import '/services/downloader.dart';
 import '../screens/Home/home_layout.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import 'cover_hero.dart';
 import 'loader.dart';
+import 'riff_motion.dart';
 
 /// "12 songs · 48 min" style meta for an album / playlist header.
 String collectionMetaLine(List<MediaItem> songs,
@@ -46,6 +48,8 @@ class CollectionHeader extends StatelessWidget {
     this.onCoverTap,
     this.onSubtitleTap,
     this.extra,
+    this.coverHeroTag,
+    this.textOpacity,
   });
 
   final Widget cover;
@@ -57,6 +61,14 @@ class CollectionHeader extends StatelessWidget {
 
   /// Under the text (e.g. a podcast Subscribe pill).
   final Widget? extra;
+
+  /// The tag of the card cover flying in ([CoverHero]): the cover lands
+  /// here, so it's shown from the start.
+  final Object? coverHeroTag;
+
+  /// Fades the title and lines in as the details arrive (the cover stays,
+  /// it has just flown in).
+  final Animation<double>? textOpacity;
 
   @override
   Widget build(BuildContext context) {
@@ -72,16 +84,21 @@ class CollectionHeader extends StatelessWidget {
         children: [
           GestureDetector(
             onTap: onCoverTap,
+            // A shortcut for the Play button below; TalkBack has that one.
+            excludeFromSemantics: true,
             // Flat artwork, no shadow (§2.1).
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(RiffRadii.sm),
-              child: SizedBox.square(
-                  dimension: RiffComponentSizes.collectionArt, child: cover),
+            child: CoverHero(
+              tag: coverHeroTag,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(RiffRadii.sm),
+                child: SizedBox.square(
+                    dimension: RiffComponentSizes.collectionArt, child: cover),
+              ),
             ),
           ),
           const SizedBox(width: RiffSpacing.md),
           Expanded(
-            child: Column(
+            child: _fade(Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -120,11 +137,18 @@ class CollectionHeader extends StatelessWidget {
                   extra!,
                 ],
               ],
-            ),
+            )),
           ),
         ],
       ),
     );
+  }
+
+  Widget _fade(Widget text) {
+    final opacity = textOpacity;
+    return opacity == null
+        ? text
+        : FadeTransition(opacity: opacity, child: text);
   }
 }
 
@@ -226,13 +250,18 @@ class CollectionSaveButton extends StatelessWidget {
     return IconButton(
       tooltip: saved ? 'removeFromLibrary'.tr : 'addToLibrary'.tr,
       onPressed: onPressed,
-      icon: Icon(
-        saved ? Icons.check_circle_rounded : Icons.add_circle_outline_rounded,
-        size: RiffComponentSizes.headerIcon,
-        // Toggled-on = accent (§2.5); off = plain icon colour.
-        color: saved
-            ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.onSurface,
+      // Crossfades to the other state; saving pops the check in.
+      icon: RiffSwitcher(
+        pop: saved,
+        child: Icon(
+          saved ? Icons.check_circle_rounded : Icons.add_circle_outline_rounded,
+          key: ValueKey(saved),
+          size: RiffComponentSizes.headerIcon,
+          // Toggled-on = accent (§2.5); off = plain icon colour.
+          color: saved
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.onSurface,
+        ),
       ),
     );
   }
@@ -264,11 +293,16 @@ class CollectionDownloadButton extends StatelessWidget {
       final forConnection = queued && d.waitingForConnection.value;
       final waiting = forWifi || forConnection;
       final active = queued && d.currentPlaylistId.toString() == id && !waiting;
+      // Which state shows, so a new one crossfades in (the count ticking
+      // up while active stays put).
+      final String state;
       Widget icon;
       if (isDownloaded) {
+        state = 'done';
         icon = Icon(Icons.download_done_rounded,
             size: RiffComponentSizes.headerIcon, color: scheme.primary);
       } else if (active) {
+        state = 'active';
         icon = Stack(alignment: Alignment.center, children: [
           Text(
             '${d.playlistDownloadingProgress.value}/${songs().length}',
@@ -280,11 +314,13 @@ class CollectionDownloadButton extends StatelessWidget {
           const LoadingIndicator(dimension: 28),
         ]);
       } else if (queued) {
+        state = 'queued';
         icon = const Stack(alignment: Alignment.center, children: [
           Icon(Icons.hourglass_bottom_rounded, size: 18),
           LoadingIndicator(dimension: 28),
         ]);
       } else {
+        state = 'idle';
         icon = Icon(Icons.download_for_offline_outlined,
             size: RiffComponentSizes.headerIcon, color: scheme.onSurface);
       }
@@ -295,7 +331,11 @@ class CollectionDownloadButton extends StatelessWidget {
                 ? 'waitingForWifi'.tr
                 : tooltip,
         onPressed: isDownloaded ? null : () => d.downloadPlaylist(id, songs()),
-        icon: icon,
+        // Done pops in.
+        icon: RiffSwitcher(
+          pop: isDownloaded,
+          child: KeyedSubtree(key: ValueKey(state), child: icon),
+        ),
       );
     });
   }
@@ -317,6 +357,9 @@ class CollectionTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scrim = RiffColors.of(context).scrim;
+    final onImage = RiffColors.of(context).onImage;
+    final onPage = Theme.of(context).textTheme.titleMedium?.color;
     return Padding(
       padding: EdgeInsets.only(
           top: MediaQuery.paddingOf(context).top + 4, left: 4, right: 4),
@@ -326,20 +369,27 @@ class CollectionTopBar extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.all(4),
-              child: Material(
-                color: showTitle
-                    ? Colors.transparent
-                    : RiffColors.of(context).scrim.withOpacity(0.3),
-                shape: const CircleBorder(),
-                clipBehavior: Clip.antiAlias,
-                child: IconButton(
-                  tooltip: 'back'.tr,
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: Icon(Icons.arrow_back_ios_new_rounded,
-                      size: 18,
-                      color: showTitle
-                          ? Theme.of(context).textTheme.titleMedium?.color
-                          : RiffColors.of(context).onImage),
+              // Over the art, a scrim behind a light arrow; once the title
+              // shows, a plain arrow in the page's text colour. The one
+              // eases into the other with the title.
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(end: showTitle ? 1 : 0),
+                duration: RiffDurations.select,
+                curve: RiffDurations.selectCurve,
+                builder: (context, t, _) => Material(
+                  color: Color.lerp(
+                      scrim.withOpacity(0.3), scrim.withOpacity(0), t),
+                  shape: const CircleBorder(),
+                  clipBehavior: Clip.antiAlias,
+                  child: IconButton(
+                    tooltip: 'back'.tr,
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: Icon(Icons.arrow_back_ios_new_rounded,
+                        size: 18,
+                        color: onPage == null
+                            ? (t < 1 ? onImage : null)
+                            : Color.lerp(onImage, onPage, t)),
+                  ),
                 ),
               ),
             ),
@@ -347,7 +397,8 @@ class CollectionTopBar extends StatelessWidget {
             Expanded(
               child: AnimatedOpacity(
                 opacity: showTitle ? 1 : 0,
-                duration: const Duration(milliseconds: 180),
+                duration: RiffDurations.select,
+                curve: RiffDurations.selectCurve,
                 child: Text(
                   title,
                   maxLines: 1,

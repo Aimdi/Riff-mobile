@@ -8,7 +8,7 @@ import '/services/music_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/snackbar.dart';
 
-/// Snackbar when Enter or a suggestion tap could not start playback.
+/// Snackbar when a song picked from search could not start.
 String searchPlayFailedMessageKey() => 'searchPlayFailed';
 
 void showSearchPlayFailed(BuildContext context) {
@@ -27,38 +27,26 @@ List<MediaItem> songsFromSearchResult(Map<String, dynamic> result) {
   return const [];
 }
 
-/// History and suggestion rows use the same play-first path as Enter.
-bool shouldPlaySearchItemOnTap() => true;
-
-/// Tell the user when Enter / row-tap could not start a song.
-bool shouldNotifySearchPlayFailed({required bool played}) => !played;
-
-/// Search-bar submit: play the top song, or open results if nothing plays.
-Future<bool> submitSearchQuery(
+/// Search-bar submit (Enter, the mic, a search or history row): opens the
+/// results for the query, as Spotify, YouTube Music and Apple Music do; a
+/// link is opened instead. Nothing plays until you pick a result.
+void submitSearchQuery(
   String val, {
   required void Function(String text) onLink,
   required void Function(String query) onOpenResults,
   required void Function(String query) onRemember,
   void Function()? onAfterSubmit,
-  void Function()? onPlayFailed,
-}) async {
+}) {
   final q = val.trim();
   if (q.contains('https://')) {
     onLink(q);
     onAfterSubmit?.call();
-    return false;
+    return;
   }
-  if (q.isEmpty) return false;
+  if (q.isEmpty) return;
   onRemember(q);
   onAfterSubmit?.call();
-  final ok = await playTopSongResult(q);
-  if (!ok) {
-    if (shouldNotifySearchPlayFailed(played: ok)) {
-      onPlayFailed?.call();
-    }
-    onOpenResults(q);
-  }
-  return ok;
+  onOpenResults(q);
 }
 
 /// Play the top song hit for [query]. Returns false when nothing playable.

@@ -106,6 +106,12 @@ void main() {
       addTearDown(
           () => messenger.setMockMethodCallHandler(NetworkKind.channel, null));
       await Hive.box('AppPrefs').put(SmartDownloads.pendingKey, ['smart']);
+      await Hive.box('AppPrefs').put(SmartDownloads.key, true);
+      SmartDownloads.reload();
+      addTearDown(() async {
+        await Hive.box('AppPrefs').delete(SmartDownloads.key);
+        SmartDownloads.reload();
+      });
       final d = _Downloader();
       d.songQueue.addAll([_song('smart'), _song('yours')]);
       await d.downloadSongList(d.songQueue.toList());

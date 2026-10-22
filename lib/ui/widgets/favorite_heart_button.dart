@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '/ui/widgets/add_to_playlist.dart';
+import '/ui/widgets/riff_motion.dart';
 
 /// Heart control: tap toggles Likes/Favorites; a short hold opens Add to playlist.
 ///
@@ -119,10 +120,17 @@ class _FavoriteHeartButtonState extends State<FavoriteHeartButton> {
             final scheme = Theme.of(context).colorScheme;
             final filled = scheme.secondary;
             final muted = (widget.color ?? scheme.onSurface).withOpacity(0.45);
-            return Icon(
-              fav ? Icons.favorite : Icons.favorite_border,
-              color: fav ? filled : muted,
-              size: widget.iconSize,
+            // A like pops the filled heart in; an unlike just crossfades.
+            // Keyed by the song, so the next song's heart doesn't animate.
+            return RiffSwitcher(
+              key: ValueKey(widget.song()?.id),
+              pop: fav,
+              child: Icon(
+                fav ? Icons.favorite : Icons.favorite_border,
+                key: ValueKey(fav),
+                color: fav ? filled : muted,
+                size: widget.iconSize,
+              ),
             );
           },
         ),

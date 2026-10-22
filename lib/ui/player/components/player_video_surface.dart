@@ -127,8 +127,13 @@ class _PlayerVideoSurfaceState extends State<PlayerVideoSurface>
         opaque: true,
         barrierColor: RiffColors.of(context).scrim,
         pageBuilder: (_, __, ___) => _FullscreenVideoPage(song: widget.song),
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
+        // On the page timing, easing in and out like the rest.
+        transitionDuration: RiffDurations.page,
+        reverseTransitionDuration: RiffDurations.page,
+        // drive(): no listener left behind as a CurvedAnimation would.
+        transitionsBuilder: (_, anim, __, child) => FadeTransition(
+            opacity: anim.drive(CurveTween(curve: RiffDurations.enterCurve)),
+            child: child),
       ),
     );
   }

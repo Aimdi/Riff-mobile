@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import '/services/discovery/discovery_types.dart';
 import '/ui/player/player_controller.dart';
 import '../../widgets/image_widget.dart';
+import '../../widgets/riff_motion.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
 import '/ui/theme/riff_tokens.dart';
@@ -101,7 +102,7 @@ class _HomeHeroCarouselState extends State<HomeHeroCarousel> {
                 controller: _controller(),
                 padEnds: false,
                 clipBehavior: Clip.none,
-                physics: const _SnappingPhysics(),
+                physics: const HomeSnappingPhysics(),
                 itemCount: songs.length,
                 itemBuilder: (context, i) => Padding(
                   padding:
@@ -129,13 +130,13 @@ class _HomeHeroCarouselState extends State<HomeHeroCarousel> {
 }
 
 /// Page snapping with a little more drag than the default, so a flick
-/// moves one item, not three.
-class _SnappingPhysics extends PageScrollPhysics {
-  const _SnappingPhysics({super.parent});
+/// moves one item, not three (Quick picks, the song-row shelves).
+class HomeSnappingPhysics extends PageScrollPhysics {
+  const HomeSnappingPhysics({super.parent});
 
   @override
-  _SnappingPhysics applyTo(ScrollPhysics? ancestor) =>
-      _SnappingPhysics(parent: buildParent(ancestor));
+  HomeSnappingPhysics applyTo(ScrollPhysics? ancestor) =>
+      HomeSnappingPhysics(parent: buildParent(ancestor));
 
   @override
   double get dragStartDistanceMotionThreshold => 3.5;
@@ -159,7 +160,8 @@ class _HeroCard extends StatelessWidget {
       button: true,
       label: label,
       excludeSemantics: true,
-      child: Material(
+      child: RiffPressScale(
+          child: Material(
         color: theme.colorScheme.surfaceContainerLow,
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(RiffSizes.carouselRadius)),
@@ -221,12 +223,17 @@ class _HeroCard extends StatelessWidget {
                         onTap: onPlay,
                         child: SizedBox.square(
                           dimension: RiffSizes.carouselPlay,
-                          child: Icon(
-                            playing
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                            color: theme.colorScheme.onPrimary,
-                            size: 26,
+                          // Play and pause crossfade, as the mini player's
+                          // glyph morphs between them.
+                          child: RiffSwitcher(
+                            child: Icon(
+                              playing
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
+                              key: ValueKey(playing),
+                              color: theme.colorScheme.onPrimary,
+                              size: 26,
+                            ),
                           ),
                         ),
                       ),
@@ -237,7 +244,7 @@ class _HeroCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
+      )),
     );
   }
 }

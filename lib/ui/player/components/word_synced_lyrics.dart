@@ -10,6 +10,7 @@ import '/services/lyrics_translation.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/riff_motion.dart';
 import 'lyric_seek_line.dart';
 
 /// Word-level synced lyrics from Better Lyrics TTML.
@@ -160,8 +161,10 @@ class _WordSyncedLyricsWidgetState extends State<WordSyncedLyricsWidget> {
       Scrollable.ensureVisible(
         ctx,
         alignment: alignment,
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeOutCubic,
+        // Scrolling isn't shortened by Remove animations: jump then.
+        duration:
+            reduceMotion(context) ? Duration.zero : RiffDurations.content,
+        curve: RiffDurations.enterCurve,
       );
       return;
     }

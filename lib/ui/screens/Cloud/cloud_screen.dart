@@ -1,13 +1,15 @@
 import '../Home/home_layout.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/widgets/image_widget.dart' show RiffNetworkImage;
 import '/services/cloud_music_service.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/services/discovery/discovery_types.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/generated_cover.dart';
+import '/ui/widgets/shimmer_widgets/reveal.dart';
+import '/ui/widgets/shimmer_widgets/skeleton_fade.dart';
 import '/ui/widgets/shimmer_widgets/song_list_shimmer.dart';
 import '/ui/widgets/snackbar.dart';
 import 'cloud_collection_screen.dart';
@@ -40,9 +42,12 @@ class CloudScreen extends StatelessWidget {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(left: HomeLayout.gutter),
-              child: Obx(() => cloud.isConnected.value
-                  ? const _CloudLibraryView()
-                  : const CloudLoginForm()),
+              // Signing in (or out) crossfades the form and the library.
+              child: Obx(() => RiffPaneSwitcher(
+                    child: cloud.isConnected.value
+                        ? const _CloudLibraryView(key: ValueKey('library'))
+                        : const CloudLoginForm(key: ValueKey('login')),
+                  )),
             ),
           ),
         ],
@@ -162,7 +167,7 @@ class _CloudLoginFormState extends State<CloudLoginForm> {
 }
 
 class _CloudLibraryView extends StatefulWidget {
-  const _CloudLibraryView();
+  const _CloudLibraryView({super.key});
 
   @override
   State<_CloudLibraryView> createState() => _CloudLibraryViewState();
@@ -302,15 +307,26 @@ class _CloudLibraryViewState extends State<_CloudLibraryView> {
         const Divider(height: 1, thickness: 0.5),
         const SizedBox(height: 8),
         Expanded(
-          child: _searchLoading
-              ? const SongListShimmer(itemCount: 8, topPadding: 8)
-              : _searchResult != null
-                  ? _SearchResultsView(result: _searchResult!)
-                  : _mode == 0
-                      ? const _AlbumsView()
-                      : _mode == 1
-                          ? const _PlaylistsView()
-                          : const _SongsView(),
+          // Search results fade in where the skeleton was; the albums,
+          // playlists and songs tabs (and the results) crossfade.
+          child: SkeletonFadeIn(
+            skeleton: const SongListShimmer(itemCount: 8, topPadding: 8),
+            child: _searchLoading
+                ? null
+                : RiffPaneSwitcher(
+                    child: KeyedSubtree(
+                      key: ValueKey<Object>(
+                          _searchResult != null ? 'search' : _mode),
+                      child: _searchResult != null
+                          ? _SearchResultsView(result: _searchResult!)
+                          : _mode == 0
+                              ? const _AlbumsView()
+                              : _mode == 1
+                                  ? const _PlaylistsView()
+                                  : const _SongsView(),
+                    ),
+                  ),
+          ),
         ),
       ],
     );
@@ -698,7 +714,7 @@ class _CloudCover extends StatelessWidget {
             child: Icon(icon, size: iconSize),
           );
     if (url.isEmpty) return placeholder();
-    return CachedNetworkImage(
+    return RiffNetworkImage(
       imageUrl: url,
       width: width,
       height: height,

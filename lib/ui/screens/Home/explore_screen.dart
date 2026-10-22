@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/theme/riff_tokens.dart' show RiffDurations;
 import '/ui/widgets/empty_play_hint.dart';
+import '/ui/widgets/riff_motion.dart';
+import '/ui/widgets/rows_reveal.dart';
 import '../../widgets/shimmer_widgets/home_shimmer.dart';
 import 'home_feed_builder.dart';
 import 'home_feed_data.dart';
@@ -48,9 +51,15 @@ class ExploreFeed extends StatefulWidget {
   State<ExploreFeed> createState() => _ExploreFeedState();
 }
 
-class _ExploreFeedState extends State<ExploreFeed> {
+class _ExploreFeedState extends State<ExploreFeed>
+    with SingleTickerProviderStateMixin {
   final _scroll = ScrollController();
   final _keys = <String, GlobalKey>{};
+
+  /// What's under the genre chips fades in as it changes (a chip's shelves
+  /// or their skeleton, the whole feed again), not rows as they scroll in.
+  late final _reveal = RowsReveal(vsync: this);
+  Object? _shown;
 
   @override
   void initState() {
@@ -65,6 +74,7 @@ class _ExploreFeedState extends State<ExploreFeed> {
   @override
   void dispose() {
     _scroll.dispose();
+    _reveal.dispose();
     super.dispose();
   }
 
@@ -73,8 +83,9 @@ class _ExploreFeedState extends State<ExploreFeed> {
     if (ctx == null) return;
     Scrollable.ensureVisible(
       ctx,
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeOutCubic,
+      // Remove animations: straight there (a scroll isn't shortened).
+      duration: reduceMotion(context) ? Duration.zero : RiffDurations.page,
+      curve: RiffDurations.enterCurve,
       alignment: 0.05,
     );
   }
@@ -103,6 +114,18 @@ class _ExploreFeedState extends State<ExploreFeed> {
         final shelves = _shelves(selected != null
             ? home.chipContent.toList()
             : [...home.middleContent, ...home.fixedContent]);
+        final shown = (
+          selected?.title,
+          selected != null && loading
+              ? #loading
+              : selected != null && error
+                  ? #error
+                  : shelves.isEmpty
+                      ? #empty
+                      : #shelves,
+        );
+        if (_shown != null && shown != _shown) _reveal.play();
+        _shown = shown;
         return ListView(
           controller: _scroll,
           padding: EdgeInsets.only(bottom: homeBottomPadding(context)),
@@ -130,34 +153,40 @@ class _ExploreFeedState extends State<ExploreFeed> {
                 ),
               ),
             if (selected != null && loading)
-              const HomeShimmer()
+              _reveal.row(const HomeShimmer())
             else if (selected != null && error)
-              Padding(
-                padding: const EdgeInsets.all(32),
-                child: Center(
-                  child: FilledButton(
-                    onPressed: () {
-                      home.selectChip(null);
-                      home.selectChip(selected);
-                    },
-                    child: Text('retry'.tr),
+              _reveal.row(
+                Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Center(
+                    child: FilledButton(
+                      onPressed: () {
+                        home.selectChip(null);
+                        home.selectChip(selected);
+                      },
+                      child: Text('retry'.tr),
+                    ),
                   ),
                 ),
               )
             else if (shelves.isEmpty)
-              SizedBox(
-                height: 320,
-                child: EmptyPlayHint(message: 'discoverEmptyDes'.tr),
+              _reveal.row(
+                SizedBox(
+                  height: 320,
+                  child: EmptyPlayHint(message: 'discoverEmptyDes'.tr),
+                ),
               )
             else
               for (final s in shelves)
-                KeyedSubtree(
-                  key: _keys.putIfAbsent(s.title, GlobalKey.new),
-                  child: RiffShelf(
-                    shelf: s,
-                    metrics: metrics,
-                    controller: home.scrollControllerFor(
-                        'explore_${selected?.title ?? ''}_${s.title}'),
+                _reveal.row(
+                  KeyedSubtree(
+                    key: _keys.putIfAbsent(s.title, GlobalKey.new),
+                    child: RiffShelf(
+                      shelf: s,
+                      metrics: metrics,
+                      controller: home.scrollControllerFor(
+                          'explore_${selected?.title ?? ''}_${s.title}'),
+                    ),
                   ),
                 ),
           ],

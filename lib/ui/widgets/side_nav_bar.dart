@@ -89,6 +89,9 @@ class _SideNavBarState extends State<SideNavBar> {
   static _RailDestination _destination(int tab) =>
       _destinations.firstWhere((d) => d.index == tab);
 
+  /// The wide rail's tabs top to bottom (in [_destinations] order).
+  static final _wideRailOrder = [for (final d in _destinations) d.index];
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -163,42 +166,43 @@ class _SideNavBarState extends State<SideNavBar> {
                           ),
                         ),
                       ),
-                      // Smoothly expand/collapse the sub-section (size + fade).
-                      AnimatedSize(
+                      // Expand and collapse the sub-section alike: it
+                      // grows and fades in, then fades out as it folds
+                      // away (hidden, TalkBack and taps skip it).
+                      AnimatedCrossFade(
                         duration: RiffDurations.select,
-                        curve: RiffDurations.selectCurve,
-                        alignment: Alignment.topCenter,
-                        child: AnimatedOpacity(
-                          opacity: _songsExpanded ? 1.0 : 0.0,
-                          duration: RiffDurations.select,
-                          curve: RiffDurations.selectCurve,
-                          child: _songsExpanded
-                              ? Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    _railItem(
-                                      homeScreenController,
-                                      sel,
-                                      destination:
-                                          _destination(RailTab.playlists),
-                                      sub: true,
-                                    ),
-                                    _railItem(
-                                      homeScreenController,
-                                      sel,
-                                      destination: _destination(RailTab.albums),
-                                      sub: true,
-                                    ),
-                                    _railItem(
-                                      homeScreenController,
-                                      sel,
-                                      destination:
-                                          _destination(RailTab.artists),
-                                      sub: true,
-                                    ),
-                                  ],
-                                )
-                              : const SizedBox.shrink(),
+                        firstCurve: RiffDurations.selectCurve,
+                        secondCurve: RiffDurations.selectCurve,
+                        sizeCurve: RiffDurations.selectCurve,
+                        crossFadeState: _songsExpanded
+                            ? CrossFadeState.showSecond
+                            : CrossFadeState.showFirst,
+                        // The rail's full width (no height), so the items
+                        // folding away keep their width instead of being
+                        // squeezed to nothing as they fade.
+                        firstChild: const SizedBox(width: kRailWidth),
+                        secondChild: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _railItem(
+                              homeScreenController,
+                              sel,
+                              destination: _destination(RailTab.playlists),
+                              sub: true,
+                            ),
+                            _railItem(
+                              homeScreenController,
+                              sel,
+                              destination: _destination(RailTab.albums),
+                              sub: true,
+                            ),
+                            _railItem(
+                              homeScreenController,
+                              sel,
+                              destination: _destination(RailTab.artists),
+                              sub: true,
+                            ),
+                          ],
                         ),
                       ),
                       _railItem(
@@ -225,8 +229,9 @@ class _SideNavBarState extends State<SideNavBar> {
               padding: const EdgeInsets.only(bottom: 100.0),
               child: SideBarAnimated(
                 // The package reports the position in [sidebarItems].
-                onTap: (i) => homeScreenController
-                    .onSideBarTabSelected(_destinations[i].index),
+                onTap: (i) => homeScreenController.onSideBarTabSelected(
+                    _destinations[i].index,
+                    railOrder: _wideRailOrder),
                 // Lights out: black bar, flat surface2 press feedback. The
                 // package draws the active glyph white on its floating
                 // indicator, so the indicator keeps the accent (see

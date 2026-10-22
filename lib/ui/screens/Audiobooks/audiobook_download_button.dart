@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '/services/audiobook_downloads.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/confirm_dialog.dart';
+import '/ui/widgets/riff_motion.dart';
 import '/ui/widgets/snackbar.dart';
 
 /// Download in a book's top bar, as Audible and the Audiobookshelf app have
@@ -29,34 +30,43 @@ class AudiobookDownloadButton extends StatelessWidget {
     return Obx(() {
       AudiobookDownloads.rev.value;
       final at = AudiobookDownloads.progress[bookId];
-      if (at != null) {
-        return IconButton(
-          tooltip: 'cancelDownload'.tr,
-          onPressed: () => AudiobookDownloads.cancel(bookId),
-          icon: SizedBox.square(
-            dimension: RiffComponentSizes.headerIcon,
-            // Waiting its turn (or for Wi-Fi): no amount yet.
-            child: CircularProgressIndicator(
-              value: at > 0 ? at : null,
-              strokeWidth: RiffComponentSizes.spinnerStroke,
-            ),
-          ),
-        );
-      }
-      if (AudiobookDownloads.isDownloaded(bookId)) {
-        return IconButton(
-          tooltip: 'removeDownload'.tr,
-          onPressed: () => _remove(context),
-          // Toggled-on = accent (§2.5).
-          icon: Icon(Icons.download_done_rounded,
-              size: RiffComponentSizes.headerIcon, color: scheme.primary),
-        );
-      }
+      final downloaded = at == null && AudiobookDownloads.isDownloaded(bookId);
+      // One button whose glyph crossfades between the three; the tick pops
+      // in as the book finishes downloading.
       return IconButton(
-        tooltip: 'download'.tr,
-        onPressed: () => _download(context),
-        icon: Icon(Icons.download_for_offline_outlined,
-            size: RiffComponentSizes.headerIcon, color: scheme.onSurface),
+        tooltip: at != null
+            ? 'cancelDownload'.tr
+            : downloaded
+                ? 'removeDownload'.tr
+                : 'download'.tr,
+        onPressed: at != null
+            ? () => AudiobookDownloads.cancel(bookId)
+            : downloaded
+                ? () => _remove(context)
+                : () => _download(context),
+        icon: RiffSwitcher(
+          pop: downloaded,
+          child: at != null
+              ? SizedBox.square(
+                  key: const ValueKey('progress'),
+                  dimension: RiffComponentSizes.headerIcon,
+                  // Waiting its turn (or for Wi-Fi): no amount yet.
+                  child: CircularProgressIndicator(
+                    value: at > 0 ? at : null,
+                    strokeWidth: RiffComponentSizes.spinnerStroke,
+                  ),
+                )
+              : downloaded
+                  // Toggled-on = accent (§2.5).
+                  ? Icon(Icons.download_done_rounded,
+                      key: const ValueKey('done'),
+                      size: RiffComponentSizes.headerIcon,
+                      color: scheme.primary)
+                  : Icon(Icons.download_for_offline_outlined,
+                      key: const ValueKey('download'),
+                      size: RiffComponentSizes.headerIcon,
+                      color: scheme.onSurface),
+        ),
       );
     });
   }

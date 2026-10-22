@@ -718,7 +718,15 @@ mixin RemoveSongFromPlaylistMixin {
           .toList()
           .indexWhere((ele) => ele is Map && ele['videoId'] == item.id);
       if (index >= 0) {
-        await box.deleteAt(index);
+        if (playlist.playlistId == HiveBoxes.libFav &&
+            Get.isRegistered<PlayerController>()) {
+          // Unliked: by song id, and on YouTube Music / Spotify too, or
+          // like sync would bring it back.
+          await Get.find<PlayerController>()
+              .toggleFavouriteFor(item, adding: false);
+        } else {
+          await box.deleteAt(index);
+        }
         onRemovedAt?.call(index);
       }
     }
@@ -767,6 +775,12 @@ mixin RemoveSongFromPlaylistMixin {
     final values = box.values.toList();
     if (values.any((v) => v is Map && v['videoId'] == item.id)) return;
     final at = index.clamp(0, values.length);
+    if (playlist.playlistId == HiveBoxes.libFav &&
+        Get.isRegistered<PlayerController>()) {
+      // Liked again, under its song id (and on YouTube Music / Spotify).
+      await Get.find<PlayerController>().toggleFavouriteFor(item, adding: true);
+      return;
+    }
     values.insert(at, MediaItemBuilder.toJson(item));
     // Positions are the order: rewrite them 0..n-1 in one batch.
     await box.clear();

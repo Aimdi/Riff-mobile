@@ -118,6 +118,41 @@ void main() {
     expect(YtLikeSync.pending.value, 0);
   });
 
+  test("one YouTube won't take doesn't hold up the rest", () async {
+    await YtLikeSync.setEnabled(true);
+    // A phone song whose id is 11 characters isn't YouTube's either.
+    await YtLikeSync.onFavorite(_song('device_1234'), add: true);
+    expect(YtLikeSync.pending.value, 0);
+
+    YtLikeSync.send = (endpoint, videoId) async {
+      if (videoId == 'songAAAAAAA') return false;
+      sent.add('$endpoint $videoId');
+      return true;
+    };
+    await YtLikeSync.onFavorite(_song('songAAAAAAA'), add: true);
+    await YtLikeSync.onFavorite(_song('songBBBBBBB'), add: true);
+    await YtLikeSync.flush();
+    expect(sent, ['like/like songBBBBBBB']);
+    expect(YtLikeSync.pending.value, 1);
+  });
+
+  test('unliked while its like was on its way: the unlike still goes',
+      () async {
+    await YtLikeSync.setEnabled(true);
+    await YtLikeSync.onFavorite(_song('songAAAAAAA'), add: true);
+    YtLikeSync.send = (endpoint, videoId) async {
+      sent.add('$endpoint $videoId');
+      if (endpoint == 'like/like') {
+        await YtLikeSync.onFavorite(_song('songAAAAAAA'), add: false);
+      }
+      return true;
+    };
+    await YtLikeSync.flush();
+    await YtLikeSync.flush();
+    expect(sent, ['like/like songAAAAAAA', 'like/removelike songAAAAAAA']);
+    expect(YtLikeSync.pending.value, 0);
+  });
+
   test('switched off or disconnected: what waited is dropped', () async {
     await YtLikeSync.setEnabled(true);
     await YtLikeSync.onFavorite(_song('songAAAAAAA'), add: true);

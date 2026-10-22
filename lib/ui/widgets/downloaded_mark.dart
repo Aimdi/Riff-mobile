@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
+import '/ui/widgets/riff_motion.dart';
 
 /// Spotify's green arrow: a song saved for offline shows a small filled
 /// download mark before its artist, in the accent (an on state). It comes
@@ -49,18 +50,30 @@ class _DownloadedMarkState extends State<DownloadedMark> {
     if (download == null) return const SizedBox.shrink();
     return ValueListenableBuilder<Box>(
       valueListenable: download,
-      builder: (context, box, _) {
-        if (!box.containsKey(widget.songId)) return const SizedBox.shrink();
-        return Padding(
-          padding: const EdgeInsets.only(right: RiffSpacing.xs),
-          child: Icon(
-            Icons.download_for_offline_rounded,
-            size: RiffComponentSizes.downloadedMark,
-            color: Theme.of(context).colorScheme.primary,
-            semanticLabel: 'downloaded'.tr,
-          ),
-        );
-      },
+      // The mark fades in as the room for it opens, so the artist glides
+      // over rather than jumping (and back as it goes). Keyed by the song:
+      // a row reused for another song doesn't animate.
+      builder: (context, box, _) => AnimatedSize(
+        key: ValueKey(widget.songId),
+        duration: RiffDurations.select,
+        curve: RiffDurations.selectCurve,
+        alignment: AlignmentDirectional.centerStart,
+        child: RiffSwitcher(
+          alignment: AlignmentDirectional.centerStart,
+          child: !box.containsKey(widget.songId)
+              ? const SizedBox.shrink(key: ValueKey(false))
+              : Padding(
+                  key: const ValueKey(true),
+                  padding: const EdgeInsets.only(right: RiffSpacing.xs),
+                  child: Icon(
+                    Icons.download_for_offline_rounded,
+                    size: RiffComponentSizes.downloadedMark,
+                    color: Theme.of(context).colorScheme.primary,
+                    semanticLabel: 'downloaded'.tr,
+                  ),
+                ),
+        ),
+      ),
     );
   }
 }

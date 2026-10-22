@@ -5,6 +5,7 @@ import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:harmonymusic/ui/theme/riff_spacing.dart';
 import 'package:harmonymusic/ui/theme/riff_tokens.dart';
 import 'package:harmonymusic/ui/utils/theme_controller.dart';
+import 'package:harmonymusic/ui/widgets/riff_motion.dart';
 
 /// Hold-and-slide seeking on the play button: a slide jumps in whole
 /// [holdSeekStep]s (5 s steps, about 15 s per 45 dp).
@@ -63,13 +64,28 @@ class AnimatedPlayButton extends StatefulWidget {
 class _AnimatedPlayButtonState extends State<AnimatedPlayButton>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  late final CurvedAnimation _morph = CurvedAnimation(
+    parent: _controller,
+    curve: RiffDurations.selectCurve,
+    reverseCurve: RiffDurations.selectCurve.flipped,
+  );
 
   /// Seconds the current hold-and-slide would jump; null when not holding.
   int? _seek;
 
+  /// What the bubble shows, kept while it fades out after the hold.
+  int _bubbleSeconds = 0;
+
+  /// The bubble is up (or still fading out).
+  bool _bubble = false;
+
   void _holdStart(LongPressStartDetails _) {
     HapticFeedback.mediumImpact();
-    setState(() => _seek = 0);
+    setState(() {
+      _seek = 0;
+      _bubbleSeconds = 0;
+      _bubble = true;
+    });
   }
 
   void _holdMove(LongPressMoveUpdateDetails d) {
@@ -81,7 +97,7 @@ class _AnimatedPlayButtonState extends State<AnimatedPlayButton>
     if (status.total > Duration.zero && seconds > ahead) seconds = ahead;
     if (seconds == _seek) return;
     HapticFeedback.selectionClick();
-    setState(() => _seek = seconds);
+    setState(() => _seek = _bubbleSeconds = seconds);
   }
 
   void _holdEnd() {
@@ -97,12 +113,13 @@ class _AnimatedPlayButtonState extends State<AnimatedPlayButton>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: RiffDurations.select,
     );
   }
 
   @override
   void dispose() {
+    _morph.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -128,44 +145,49 @@ class _AnimatedPlayButtonState extends State<AnimatedPlayButton>
         button: true,
         label: isPlaying ? 'pause'.tr : 'play'.tr,
         child: Material(
-        color: accent,
-        shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: () {
-            isPlaying ? controller.pause() : controller.play();
-          },
-          child: SizedBox(
-            width: widget.size,
-            height: widget.size,
-            child: Center(
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  AnimatedIcon(
-                    icon: AnimatedIcons.play_pause,
-                    progress: _controller,
-                    size: widget.iconSize,
-                    color: glyph,
-                  ),
-                  if (isLoading)
-                    SizedBox.square(
-                      dimension: widget.size - 10,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: glyph.withOpacity(0.35),
-                      ),
+          color: accent,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () {
+              isPlaying ? controller.pause() : controller.play();
+            },
+            child: SizedBox(
+              width: widget.size,
+              height: widget.size,
+              child: Center(
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    AnimatedIcon(
+                      icon: AnimatedIcons.play_pause,
+                      progress: _morph,
+                      size: widget.iconSize,
+                      color: glyph,
                     ),
-                ],
+                    if (isLoading)
+                      SizedBox.square(
+                        dimension: widget.size - 10,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: glyph.withOpacity(0.35),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
-      ),
       );
       if (!widget.holdToSeek) return button;
-      final seek = _seek;
+      final holding = _seek != null;
+      final rise =
+          reduceMotion(context) ? 0.0 : RiffMotionDistances.contentRise;
       return GestureDetector(
+        // A finger's fine seek; TalkBack seeks with the slider, and the
+        // button keeps its one named action.
+        excludeFromSemantics: true,
         onLongPressStart: _holdStart,
         onLongPressMoveUpdate: _holdMove,
         onLongPressEnd: (_) => _holdEnd(),
@@ -175,10 +197,28 @@ class _AnimatedPlayButtonState extends State<AnimatedPlayButton>
           alignment: Alignment.center,
           children: [
             button,
-            if (seek != null)
+            // Rises and fades in while holding, fades out on release.
+            if (_bubble)
               Positioned(
                 bottom: widget.size + RiffSpacing.sm,
-                child: IgnorePointer(child: _SeekBubble(seconds: seek)),
+                child: IgnorePointer(
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0, end: holding ? 1 : 0),
+                    duration: RiffDurations.select,
+                    curve: RiffDurations.selectCurve,
+                    onEnd: () {
+                      if (mounted && _seek == null) {
+                        setState(() => _bubble = false);
+                      }
+                    },
+                    builder: (context, t, child) => Opacity(
+                      opacity: t,
+                      child: Transform.translate(
+                          offset: Offset(0, rise * (1 - t)), child: child),
+                    ),
+                    child: _SeekBubble(seconds: _bubbleSeconds),
+                  ),
+                ),
               ),
           ],
         ),

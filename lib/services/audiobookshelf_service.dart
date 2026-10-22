@@ -810,13 +810,18 @@ class AudiobookshelfService extends GetxService {
     return '${host.value}/api/items/$itemId/cover?width=$width&token=${Uri.encodeComponent(_token!)}';
   }
 
-  /// Convert book tracks into [MediaItem]s the Riff player can stream.
-  /// IDs use the `abs_` prefix so [MyAudioHandler.checkNGetUrl] skips YT resolve.
+  /// The player's id for track [index] of book [bookId]: the `abs_` prefix
+  /// so [MyAudioHandler.checkNGetUrl] skips the YouTube lookup.
+  static String trackMediaId(String bookId, int index) =>
+      'abs_${bookId}_$index';
+
+  /// Convert book tracks into [MediaItem]s the Riff player can stream
+  /// (ids from [trackMediaId]).
   List<MediaItem> toMediaItems(AbsBookDetail book) {
     final cover = coverUrl(book.id);
     var startOffset = 0.0;
     return book.tracks.map((t) {
-      final id = 'abs_${book.id}_${t.index}';
+      final id = trackMediaId(book.id, t.index);
       final url = streamUrl(t.contentUrl);
       final thisStart = startOffset;
       startOffset += t.duration > 0 ? t.duration : 0;

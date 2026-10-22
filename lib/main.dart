@@ -11,6 +11,7 @@ import 'package:terminate_restart/terminate_restart.dart';
 
 import '/ui/player/video_mode_controller.dart';
 import '/ui/theme/riff_text_metrics.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/ui/screens/Search/search_screen_controller.dart';
 import '/utils/get_localization.dart';
 import '/services/downloader.dart';
@@ -42,6 +43,7 @@ import '/services/smart_queue_service.dart';
 import '/services/track_analysis_service.dart';
 import '/ui/home.dart';
 import '/ui/player/player_controller.dart';
+import '/utils/hive_boxes.dart';
 import '/ui/widgets/player_shortcuts.dart';
 import 'ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/utils/theme_controller.dart';
@@ -210,6 +212,9 @@ class MyApp extends StatelessWidget {
         title: 'Riff',
         home: const Home(),
         debugShowCheckedModeBanner: false,
+        // Get.to pages (and get's defaults) at Riff's page timing (§4.7),
+        // in and out, rather than get's 300 ms.
+        transitionDuration: RiffDurations.page,
         translations: Languages(),
         locale: Locale(appLanguageCode(
             Hive.box("AppPrefs").get('currentAppLanguageCode'),
@@ -225,7 +230,10 @@ class MyApp extends StatelessWidget {
                 builder: (controller) => MediaQuery(
                   data: mQuery.copyWith(textScaler: scale),
                   child: AnimatedTheme(
-                      duration: const Duration(milliseconds: 700),
+                      // Follows the album colour on each new song: eases
+                      // over with the player's background.
+                      duration: RiffDurations.colour,
+                      curve: RiffDurations.enterCurve,
                       // Never bang-null: a missing theme must not black-screen.
                       data: controller.themedata.value ??
                           ThemeData(
@@ -320,6 +328,9 @@ initHiveCritical() async {
 Future<void> initHiveDeferred() async {
   await Future.wait([
     safeOpenBox("PodcastSubs"),
+    // Opened here so Favorites keyed by position (an older reorder or
+    // Undo) are put back under song ids before anything reads a heart.
+    HiveBoxes.fav(),
     safeOpenBox(PendingDownloads.boxName),
     safeOpenBox(PodcastService.feedMemoBox),
     safeOpenBox("DailyStats"),

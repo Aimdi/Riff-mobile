@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
+import 'riff_fast_scroller.dart';
+
 import '/models/album.dart';
 import '../../models/artist.dart';
 import '../../models/playling_from.dart';
@@ -164,6 +166,40 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
     final count = maxItems == null
         ? items.length
         : (items.length < maxItems ? items.length : maxItems);
+    // A full list gets the fast-scroll thumb (it shows only when long).
+    if (isCompleteList) {
+      return RiffFastScroller(
+        controller: sc,
+        itemExtent: RiffComponentSizes.songRowExtent,
+        labelFor: songFastScrollLabels(items.whereType<MediaItem>().toList()),
+        builder: (context, controller) => _songVidList(items, count,
+            playerController: playerController,
+            isPlaylistOrAlbum: isPlaylistOrAlbum,
+            playlist: playlist,
+            album: album,
+            artist: artist,
+            isArtistSongs: isArtistSongs,
+            sc: controller),
+      );
+    }
+    return _songVidList(items, count,
+        playerController: playerController,
+        isPlaylistOrAlbum: isPlaylistOrAlbum,
+        playlist: playlist,
+        album: album,
+        artist: artist,
+        isArtistSongs: isArtistSongs,
+        sc: sc);
+  }
+
+  Widget _songVidList(List<dynamic> items, int count,
+      {required PlayerController playerController,
+      required bool isPlaylistOrAlbum,
+      Playlist? playlist,
+      Album? album,
+      Artist? artist,
+      required bool isArtistSongs,
+      ScrollController? sc}) {
     return ListView.builder(
       padding: EdgeInsets.only(
         bottom: isCompleteList ? RiffSpacing.listEnd : 0,
@@ -299,51 +335,64 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
           : const NeverScrollableScrollPhysics(),
       itemBuilder: (context, index) {
         final artist = artists[index];
+        final subscribers = artist.subscribers ?? '';
         return Stack(
           children: [
-            ListTile(
-              // Theme gives 16h padding, titleMedium / bodyMedium (§5.2).
-              horizontalTitleGap: RiffSpacing.md,
-              onTap: () {
-                noteSearchOpen(context, artist);
-                shouldPlayCollectionOnTap()
-                    ? _playArtistRow(artist)
-                    : _openArtist(artist);
-              },
-              onLongPress: () => _showArtistActions(context, artist),
-              leading: SizedBox(
-                width: RiffComponentSizes.rowArt,
-                height: RiffComponentSizes.rowArt,
-                child: Stack(
-                  children: [
-                    ImageWidget(
-                      size: RiffComponentSizes.rowArt,
-                      artist: artist,
+            // Named for TalkBack (the play badge on the photo would
+            // otherwise leave the row's tap without a name).
+            Semantics(
+                container: true,
+                label: [
+                  artist.name,
+                  if (subscribers.isNotEmpty) subscribers,
+                ].join(', '),
+                child: ListTile(
+                  // Theme gives 16h padding, titleMedium / bodyMedium (§5.2).
+                  horizontalTitleGap: RiffSpacing.md,
+                  onTap: () {
+                    noteSearchOpen(context, artist);
+                    shouldPlayCollectionOnTap()
+                        ? _playArtistRow(artist)
+                        : _openArtist(artist);
+                  },
+                  onLongPress: () => _showArtistActions(context, artist),
+                  leading: SizedBox(
+                    width: RiffComponentSizes.rowArt,
+                    height: RiffComponentSizes.rowArt,
+                    child: Stack(
+                      children: [
+                        ImageWidget(
+                          size: RiffComponentSizes.rowArt,
+                          artist: artist,
+                        ),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: _ArtPlayBadge(
+                            onTap: () {
+                              noteSearchOpen(context, artist);
+                              _playArtistRow(artist);
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: _ArtPlayBadge(
-                        onTap: () {
-                          noteSearchOpen(context, artist);
-                          _playArtistRow(artist);
-                        },
-                      ),
+                  ),
+                  title: ExcludeSemantics(
+                    child: Text(
+                      artist.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ],
-                ),
-              ),
-              title: Text(
-                artist.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: Text(
-                artist.subscribers ?? '',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
+                  ),
+                  subtitle: ExcludeSemantics(
+                    child: Text(
+                      subscribers,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                )),
             RiffRowHairline(
                 inset: searchContext ? 0 : RiffRowHairline.textInset),
           ],

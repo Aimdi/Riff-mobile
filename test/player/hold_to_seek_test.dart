@@ -80,6 +80,8 @@ void main() {
       await gesture.up();
       await tester.pump();
       expect(player.seeks, [const Duration(seconds: -20)]);
+      // The bubble fades out, then it's gone.
+      await tester.pumpAndSettle();
       expect(find.text('−0:20'), findsNothing);
       expect(player.pauses, 0);
     });

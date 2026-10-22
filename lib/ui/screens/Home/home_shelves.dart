@@ -1,5 +1,4 @@
 import 'package:audio_service/audio_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -22,6 +21,7 @@ import '../../widgets/collection_play.dart';
 import '../../widgets/generated_cover.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/letter_art.dart';
+import '../../widgets/riff_motion.dart';
 import '../../widgets/riff_sheet.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
@@ -32,8 +32,10 @@ import '../Podcasts/podcasts_screen.dart' show PodcastEpisodesScreen;
 import 'home_feed_builder.dart';
 import 'home_feed_data.dart';
 import 'home_metrics.dart';
+import 'home_song_rows.dart';
 import '/ui/theme/riff_text_metrics.dart';
 import '/ui/player/play_queue_order.dart' show playQueueFrom;
+import '/ui/widgets/cover_hero.dart';
 
 /// Card sizes per item type on a shelf of pane width [m].
 class ShelfCardSize {
@@ -78,9 +80,11 @@ class ShelfCardSize {
   }
 }
 
+/// Card titles in 14 medium, as Spotify, YouTube Music and Apple Music
+/// set theirs (lighter than the section title above them).
 TextStyle _titleStyle(BuildContext context) {
   final theme = Theme.of(context);
-  return (theme.textTheme.titleMedium ?? const TextStyle()).copyWith(
+  return (theme.textTheme.titleSmall ?? const TextStyle()).copyWith(
     color: theme.colorScheme.onSurface,
   );
 }
@@ -107,6 +111,13 @@ class RiffShelf extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = shelf.items;
     if (items.isEmpty) return const SizedBox.shrink();
+    if (HomeSongRows.fits(shelf)) {
+      return HomeSongRows(
+        shelf: shelf,
+        songs: [for (final i in items) i.value as MediaItem],
+        metrics: metrics,
+      );
+    }
     final text = ShelfCardSize.textBlock(context);
     var height = 0.0;
     for (final i in items) {
@@ -192,10 +203,15 @@ class HomeShelfItem extends StatelessWidget {
         width: w,
         art: ImageWidget(album: v, size: w, borderRadius: 0),
         artHeight: h,
+        // The cover flies to the album's page (CoverHero).
+        heroTag: context,
         title: v.title,
         subtitle: [artist, v.year ?? ''].where((s) => s.isNotEmpty).join(' • '),
-        onTap: () => Get.toNamed(ScreenNavigationSetup.albumScreen,
-            id: ScreenNavigationSetup.id, arguments: (v, v.browseId)),
+        onTap: () {
+          CoverHero.launch(context);
+          Get.toNamed(ScreenNavigationSetup.albumScreen,
+              id: ScreenNavigationSetup.id, arguments: (v, v.browseId));
+        },
         onLongPress: () => _collectionMenu(context,
             title: v.title,
             isAlbum: true,
@@ -208,9 +224,13 @@ class HomeShelfItem extends StatelessWidget {
         width: w,
         art: ImageWidget(playlist: v, size: w, borderRadius: 0),
         artHeight: h,
+        heroTag: context,
         title: v.title,
         subtitle: v.description ?? '',
-        onTap: () => _openPlaylist(v),
+        onTap: () {
+          CoverHero.launch(context);
+          _openPlaylist(v);
+        },
         onLongPress: () => _collectionMenu(context,
             title: v.title,
             isAlbum: false,
@@ -245,9 +265,13 @@ class HomeShelfItem extends StatelessWidget {
                 size: w,
                 borderRadius: 0),
         artHeight: h,
+        heroTag: context,
         title: v.title,
         subtitle: v.author,
-        onTap: () => Get.to(() => PodcastEpisodesScreen(podcast: v.data)),
+        onTap: () {
+          CoverHero.launch(context);
+          Get.to(() => PodcastEpisodesScreen(podcast: v.data));
+        },
       );
     }
     if (v is GeneratedMix) {
@@ -583,11 +607,15 @@ class _Card extends StatelessWidget {
     this.onLongPress,
     this.circle = false,
     this.centered = false,
+    this.heroTag,
   });
 
   final double width;
   final Widget art;
   final double artHeight;
+
+  /// The cover flies to the page the card opens ([CoverHero]).
+  final Object? heroTag;
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
@@ -604,33 +632,40 @@ class _Card extends StatelessWidget {
       excludeSemantics: true,
       child: SizedBox(
         width: width,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(RiffSizes.shelfRadius),
-          onTap: onTap,
-          onLongPress: onLongPress,
-          child: Column(
-            crossAxisAlignment:
-                centered ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: circle
-                    ? BorderRadius.circular(width)
-                    : BorderRadius.circular(RiffSizes.shelfRadius),
-                child: SizedBox(width: width, height: artHeight, child: art),
-              ),
-              const SizedBox(height: 8),
-              Text(title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: align,
-                  style: _titleStyle(context)),
-              const SizedBox(height: 2),
-              Text(subtitle.isEmpty ? ' ' : subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: align,
-                  style: _subtitleStyle(context)),
-            ],
+        child: RiffPressScale(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(RiffSizes.shelfRadius),
+            onTap: onTap,
+            onLongPress: onLongPress,
+            child: Column(
+              crossAxisAlignment: centered
+                  ? CrossAxisAlignment.center
+                  : CrossAxisAlignment.start,
+              children: [
+                CoverHero(
+                  tag: heroTag,
+                  child: ClipRRect(
+                    borderRadius: circle
+                        ? BorderRadius.circular(width)
+                        : BorderRadius.circular(RiffSizes.shelfRadius),
+                    child:
+                        SizedBox(width: width, height: artHeight, child: art),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: align,
+                    style: _titleStyle(context)),
+                const SizedBox(height: 2),
+                Text(subtitle.isEmpty ? ' ' : subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: align,
+                    style: _subtitleStyle(context)),
+              ],
+            ),
           ),
         ),
       ),
@@ -653,7 +688,7 @@ class _VideoArt extends StatelessWidget {
     if (raw.isEmpty) {
       return ClipRect(child: OverflowBox(maxHeight: width, child: fallback()));
     }
-    return CachedNetworkImage(
+    return RiffNetworkImage(
       imageUrl: Thumbnail(raw).high,
       httpHeaders: kCoverImageHeaders,
       width: width,
@@ -703,39 +738,41 @@ class _EpisodeCard extends StatelessWidget {
       child: SizedBox(
         width: RiffSizes.episodeWidth,
         height: height,
-        child: Material(
-          color: theme.colorScheme.surfaceContainer,
-          borderRadius: BorderRadius.circular(RiffSizes.shelfRadius),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: () => _playSongs(queue, episode),
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(RiffSizes.tileRadius),
-                    child:
-                        ImageWidget(song: episode, size: 60, borderRadius: 0),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(episode.title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: _titleStyle(context)),
-                        Text(episode.artist ?? '',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: _subtitleStyle(context)),
-                      ],
+        child: RiffPressScale(
+          child: Material(
+            color: theme.colorScheme.surfaceContainer,
+            borderRadius: BorderRadius.circular(RiffSizes.shelfRadius),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => _playSongs(queue, episode),
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(RiffSizes.tileRadius),
+                      child:
+                          ImageWidget(song: episode, size: 60, borderRadius: 0),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(episode.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: _titleStyle(context)),
+                          Text(episode.artist ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: _subtitleStyle(context)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

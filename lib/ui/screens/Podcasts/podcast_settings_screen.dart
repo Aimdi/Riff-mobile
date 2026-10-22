@@ -71,7 +71,9 @@ class PodcastSettingsScreen extends StatelessWidget {
                   const SizedBox(height: RiffSpacing.sm),
                   Obx(() {
                     PodcastPlayerTint.enabledRx.value;
-                    return Row(
+                    // Each switch reads with its title for TalkBack.
+                    return MergeSemantics(
+                        child: Row(
                       children: [
                         Expanded(
                           child: Column(
@@ -91,13 +93,14 @@ class PodcastSettingsScreen extends StatelessWidget {
                           onChanged: PodcastPlayerTint.setEnabled,
                         ),
                       ],
-                    );
+                    ));
                   }),
                   const Divider(height: _groupGap),
                   Text('podcastResume'.tr,
                       style: homeSectionTitleStyle(context)),
                   const SizedBox(height: RiffSpacing.sm),
-                  Row(
+                  MergeSemantics(
+                      child: Row(
                     children: [
                       Expanded(
                         child: Column(
@@ -117,9 +120,10 @@ class PodcastSettingsScreen extends StatelessWidget {
                         onChanged: PodcastPlaybackPrefs.setSmartResume,
                       ),
                     ],
-                  ),
+                  )),
                   const SizedBox(height: RiffSpacing.lg),
-                  Row(
+                  MergeSemantics(
+                      child: Row(
                     children: [
                       Expanded(
                         child: Column(
@@ -140,7 +144,7 @@ class PodcastSettingsScreen extends StatelessWidget {
                             PodcastPlaybackPrefs.setPauseForInterruptions,
                       ),
                     ],
-                  ),
+                  )),
                   const Divider(height: _groupGap),
                   const HeadphoneButtonsSetting(),
                 ],

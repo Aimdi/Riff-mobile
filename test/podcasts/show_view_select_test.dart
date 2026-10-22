@@ -160,7 +160,8 @@ void main() {
     await startSelecting(tester);
     await tester.tap(find.text('Episode 1'));
     await tester.tap(find.byTooltip('cancel'));
-    await tester.pump();
+    // The selection bar crossfades back to the top bar.
+    await tester.pumpAndSettle();
     expect(find.text('selectedCount'), findsNothing);
     expect(queue.queue, isEmpty);
     expect(PodcastProgressService.isPlayed('podcast_ep1'), isFalse);

@@ -28,7 +28,29 @@ class HiveBoxes {
 
   static Box? favSync() => maybe(libFav);
 
-  static Future<Box> fav() => open(libFav);
+  static Future<Box> fav() async {
+    final box = await open(libFav);
+    await repairFavoriteKeys(box);
+    return box;
+  }
+
+  /// Favorites are kept by song id ([favContains], the hearts, like sync).
+  /// Rewriting the box by position (a reorder, an Undo) once keyed them
+  /// 0..n-1, which left every heart empty: back to song ids.
+  static Future<void> repairFavoriteKeys(Box box) async {
+    if (!box.keys.any((k) => k is int)) return;
+    await writeFavorites(box, box.values.toList());
+  }
+
+  /// Replaces Favorites with [values] (song maps), each under its song id.
+  static Future<void> writeFavorites(Box box, List values) async {
+    final byId = <String, dynamic>{
+      for (final v in values)
+        if (v is Map && v['videoId'] is String) v['videoId'] as String: v,
+    };
+    await box.clear();
+    await box.putAll(byId);
+  }
 
   static bool favContains(String songId) =>
       favSync()?.containsKey(songId) ?? false;

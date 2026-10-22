@@ -1,5 +1,4 @@
 import 'package:audio_service/audio_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -14,7 +13,12 @@ import '/ui/player/player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/collection_play.dart';
+import '/ui/widgets/cover_hero.dart';
 import '/ui/widgets/generated_cover.dart';
+import '/ui/widgets/image_widget.dart' show RiffNetworkImage;
+import '/ui/widgets/riff_motion.dart';
+import '/ui/widgets/shimmer_widgets/reveal.dart';
+import '/ui/widgets/shimmer_widgets/skeleton_fade.dart';
 import '/ui/screens/Podcasts/podcasts_library_controller.dart';
 import '/ui/widgets/songinfo_bottom_sheet.dart';
 import '../../navigator.dart';
@@ -121,19 +125,22 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
   Widget build(BuildContext context) {
     return Obx(() {
       if (c.artistLoadFailed.isTrue) {
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('networkError'.tr, textAlign: TextAlign.center),
-                const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: c.retryArtistContent,
-                  child: Text('retry'.tr),
-                ),
-              ],
+        return RiffFadeIn(
+          key: const ValueKey('failed'),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('networkError'.tr, textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: c.retryArtistContent,
+                    child: Text('retry'.tr),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -145,18 +152,15 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
       final videos = _videos();
       final albums = _albumsOf(c.artistData['Albums']);
       final singles = _albumsOf(c.artistData['Singles']);
-      final featured = _content(c.artistData['Featured'])
-          .whereType<Playlist>()
-          .toList();
-      final related = _content(c.artistData['Related'])
-          .whereType<Artist>()
-          .toList();
+      final featured =
+          _content(c.artistData['Featured']).whereType<Playlist>().toList();
+      final related =
+          _content(c.artistData['Related']).whereType<Artist>().toList();
       final description = '${c.artistData['description'] ?? ''}'.trim();
-      final popularCount = _popularExpanded
-          ? songs.length
-          : (songs.length > 5 ? 5 : songs.length);
+      // The first five always; the rest unfold under them with See more.
+      final popularCount = songs.length > 5 ? 5 : songs.length;
 
-      return CustomScrollView(
+      final page = CustomScrollView(
         slivers: [
           _heroHeader(context),
           SliverToBoxAdapter(child: _actionRow(context, songs)),
@@ -171,6 +175,20 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
               childCount: popularCount,
             ),
           ),
+          if (songs.length > 5)
+            SliverToBoxAdapter(
+              child: RiffReveal(
+                child: _popularExpanded
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (var i = popularCount; i < songs.length; i++)
+                            _songRow(context, songs, i),
+                        ],
+                      )
+                    : null,
+              ),
+            ),
           if (songs.length > 5)
             SliverToBoxAdapter(
               child: Padding(
@@ -209,12 +227,13 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
           const SliverToBoxAdapter(child: SizedBox(height: 200)),
         ],
       );
+      // The page fades in where its skeleton was.
+      return RiffFadeIn(key: const ValueKey('content'), child: page);
     });
   }
 
-  List _albumsOf(dynamic section) => _content(section)
-      .whereType<Album>()
-      .toList();
+  List _albumsOf(dynamic section) =>
+      _content(section).whereType<Album>().toList();
 
   // ───────────────────────────────────────────────────────────── header ──
 
@@ -274,16 +293,35 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
           background: Stack(
             fit: StackFit.expand,
             children: [
-              CachedNetworkImage(
-                imageUrl: img,
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-                errorWidget: (_, __, ___) => ColoredBox(
-                  color: homeTileColor(context),
-                  child: Icon(Icons.person_rounded,
-                      size: 90, color: homeMutedColor(context)),
+              // The photo itself fades out into the page (a mask, not a
+              // page-coloured layer over it): a header whose height falls
+              // between two pixels left its last row of photo showing
+              // under the layer, a line across the page.
+              ShaderMask(
+                blendMode: BlendMode.dstIn,
+                shaderCallback: (rect) => LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    theme.scaffoldBackgroundColor,
+                    theme.scaffoldBackgroundColor,
+                    theme.scaffoldBackgroundColor.withOpacity(0.15),
+                    theme.scaffoldBackgroundColor.withOpacity(0),
+                  ],
+                  stops: const [0.0, 0.35, 0.85, 1.0],
+                ).createShader(rect),
+                child: RiffNetworkImage(
+                  imageUrl: img,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                  errorWidget: (_, __, ___) => ColoredBox(
+                    color: homeTileColor(context),
+                    child: Icon(Icons.person_rounded,
+                        size: 90, color: homeMutedColor(context)),
+                  ),
                 ),
               ),
+              // The top darkened for the back button.
               DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -291,11 +329,9 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                     end: Alignment.bottomCenter,
                     colors: [
                       RiffColors.of(context).scrim.withOpacity(0.25),
-                      Colors.transparent,
-                      theme.scaffoldBackgroundColor.withOpacity(0.85),
-                      theme.scaffoldBackgroundColor,
+                      RiffColors.of(context).scrim.withOpacity(0),
                     ],
-                    stops: const [0.0, 0.35, 0.85, 1.0],
+                    stops: const [0.0, 0.35],
                   ),
                 ),
               ),
@@ -512,7 +548,7 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
             const SizedBox(width: 6),
             ClipRRect(
               borderRadius: BorderRadius.circular(6),
-              child: CachedNetworkImage(
+              child: RiffNetworkImage(
                 imageUrl: art,
                 memCacheWidth:
                     (48 * MediaQuery.devicePixelRatioOf(context)).round(),
@@ -597,7 +633,7 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: CachedNetworkImage(
+                        child: RiffNetworkImage(
                           imageUrl: Thumbnail(v.artUri?.toString() ?? '').high,
                           width: w,
                           height: h,
@@ -632,7 +668,7 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
 
   Widget _cover(BuildContext context, String url, IconData fallback,
           {Widget? missing}) =>
-      CachedNetworkImage(
+      RiffNetworkImage(
         imageUrl: Thumbnail(url).high,
         fit: BoxFit.cover,
         memCacheWidth:
@@ -666,16 +702,20 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
           itemCount: albums.length,
           itemBuilder: (context, i) {
             final album = albums[i];
-            return HomeShelfCard(
-              size: HomeLayout.shelfCard,
-              art: _cover(
-                  context, '${album.thumbnailUrl ?? ''}', Icons.album_rounded),
-              title: '${album.title ?? ''}',
-              subtitle: '${album.year ?? ''}',
-              onTap: () => shouldPlayCollectionOnTap()
-                  ? _playOrOpenAlbum(album)
-                  : _openAlbum(album),
-              onLongPress: () => _openAlbum(album),
+            // Each card's own context tags its cover (CoverHero).
+            return Builder(
+              builder: (context) => HomeShelfCard(
+                size: HomeLayout.shelfCard,
+                art: _cover(context, '${album.thumbnailUrl ?? ''}',
+                    Icons.album_rounded),
+                heroTag: context,
+                title: '${album.title ?? ''}',
+                subtitle: '${album.year ?? ''}',
+                onTap: () => shouldPlayCollectionOnTap()
+                    ? _playOrOpenAlbum(album)
+                    : _openAlbum(album, from: context),
+                onLongPress: () => _openAlbum(album, from: context),
+              ),
             );
           },
         ),
@@ -693,18 +733,21 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
           itemCount: playlists.length,
           itemBuilder: (context, i) {
             final p = playlists[i];
-            return HomeShelfCard(
-              size: HomeLayout.shelfCard,
-              art: p is Playlist
-                  ? _playlistCover(context, p)
-                  : _cover(context, '${p.thumbnailUrl ?? ''}',
-                      Icons.queue_music_rounded),
-              title: '${p.title ?? ''}',
-              subtitle: '${p.description ?? ''}',
-              onTap: () => shouldPlayCollectionOnTap()
-                  ? _playOrOpenPlaylist(p)
-                  : _openPlaylist(p),
-              onLongPress: () => _openPlaylist(p),
+            return Builder(
+              builder: (context) => HomeShelfCard(
+                size: HomeLayout.shelfCard,
+                art: p is Playlist
+                    ? _playlistCover(context, p)
+                    : _cover(context, '${p.thumbnailUrl ?? ''}',
+                        Icons.queue_music_rounded),
+                heroTag: context,
+                title: '${p.title ?? ''}',
+                subtitle: '${p.description ?? ''}',
+                onTap: () => shouldPlayCollectionOnTap()
+                    ? _playOrOpenPlaylist(p)
+                    : _openPlaylist(p, from: context),
+                onLongPress: () => _openPlaylist(p, from: context),
+              ),
             );
           },
         ),
@@ -765,37 +808,82 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
     );
   }
 
+  /// About as a card, as Spotify has it: the artist's photo, the views
+  /// count, then the bio (Read more unfolds it).
   Widget _about(BuildContext context, String description) {
+    final theme = Theme.of(context);
+    final views = '${c.artistData['views'] ?? ''}'.trim();
+    final img = Thumbnail(c.artist_.thumbnailUrl).extraHigh;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         HomeSectionHeader('about'.tr),
-        InkWell(
-          onTap: () => setState(() => _aboutExpanded = !_aboutExpanded),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  description,
-                  maxLines: _aboutExpanded ? null : 4,
-                  overflow: _aboutExpanded
-                      ? TextOverflow.visible
-                      : TextOverflow.ellipsis,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(height: 1.45, color: homeMutedColor(context)),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _aboutExpanded ? 'showLess'.tr : 'readMore'.tr,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Theme.of(context).textTheme.titleMedium?.color,
-                      ),
-                ),
-              ],
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
+          child: Material(
+            color: theme.colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(RiffRadii.lg),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => setState(() => _aboutExpanded = !_aboutExpanded),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (img.isNotEmpty)
+                    LayoutBuilder(builder: (context, box) {
+                      final wide =
+                          box.maxWidth / RiffComponentSizes.artistAboutAspect;
+                      return SizedBox(
+                        width: box.maxWidth,
+                        height: wide < RiffComponentSizes.artistAboutPhotoMax
+                            ? wide
+                            : RiffComponentSizes.artistAboutPhotoMax,
+                        child: RiffNetworkImage(
+                          imageUrl: img,
+                          fit: BoxFit.cover,
+                          alignment: Alignment.topCenter,
+                          errorWidget: (_, __, ___) =>
+                              ColoredBox(color: homeTileColor(context)),
+                        ),
+                      );
+                    }),
+                  Padding(
+                    padding: const EdgeInsets.all(RiffSpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (views.isNotEmpty && !views.startsWith('null')) ...[
+                          Text(views,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                  color: theme.colorScheme.onSurface)),
+                          const SizedBox(height: RiffSpacing.xs),
+                        ],
+                        // Read more unfolds the rest (and Show less folds it).
+                        AnimatedSize(
+                          duration: RiffDurations.select,
+                          curve: RiffDurations.selectCurve,
+                          alignment: Alignment.topCenter,
+                          child: Text(
+                            description,
+                            maxLines: _aboutExpanded ? null : 3,
+                            overflow: _aboutExpanded
+                                ? TextOverflow.visible
+                                : TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium
+                                ?.copyWith(color: homeMutedColor(context)),
+                          ),
+                        ),
+                        const SizedBox(height: RiffSpacing.xs),
+                        Text(
+                          _aboutExpanded ? 'showLess'.tr : 'readMore'.tr,
+                          style: theme.textTheme.labelMedium
+                              ?.copyWith(color: theme.colorScheme.onSurface),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -805,7 +893,9 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
 
   // ─────────────────────────────────────────────────────────── navigation ──
 
-  void _openAlbum(dynamic album) {
+  /// [from]: the card whose cover flies to the page ([CoverHero]).
+  void _openAlbum(dynamic album, {BuildContext? from}) {
+    if (from != null) CoverHero.launch(from);
     Get.toNamed(
       ScreenNavigationSetup.albumScreen,
       id: ScreenNavigationSetup.id,
@@ -822,7 +912,8 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
     if (!ok) _openAlbum(album);
   }
 
-  void _openPlaylist(dynamic playlist) {
+  void _openPlaylist(dynamic playlist, {BuildContext? from}) {
+    if (from != null) CoverHero.launch(from);
     Get.toNamed(
       ScreenNavigationSetup.playlistScreen,
       id: ScreenNavigationSetup.id,
@@ -931,16 +1022,21 @@ class _ArtistSectionPage extends StatelessWidget {
             maxLines: 1, overflow: TextOverflow.ellipsis),
       )),
       body: Obx(() {
-        if (controller.isSeparatedArtistContentFetced.isFalse ||
-            !controller.sepataredContent.containsKey(tabName)) {
-          return const SongListShimmer(itemCount: 8, topPadding: 12);
-        }
-        return SeparateTabItemWidget(
-          artistControllerTag: tag,
-          isResultWidget: false,
-          items: controller.sepataredContent[tabName]['results'] ?? const [],
-          title: tabName,
-          scrollController: _scroll,
+        final loading = controller.isSeparatedArtistContentFetced.isFalse ||
+            !controller.sepataredContent.containsKey(tabName);
+        // The list fades in where its skeleton was.
+        return SkeletonFadeIn(
+          skeleton: const SongListShimmer(itemCount: 8, topPadding: 12),
+          child: loading
+              ? null
+              : SeparateTabItemWidget(
+                  artistControllerTag: tag,
+                  isResultWidget: false,
+                  items: controller.sepataredContent[tabName]['results'] ??
+                      const [],
+                  title: tabName,
+                  scrollController: _scroll,
+                ),
         );
       }),
     );

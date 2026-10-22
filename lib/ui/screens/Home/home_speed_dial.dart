@@ -11,6 +11,7 @@ import '../../widgets/collection_play.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/letter_art.dart';
 import '../../widgets/riff_equalizer.dart';
+import '../../widgets/riff_motion.dart';
 import '../../widgets/riff_sheet.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
@@ -219,6 +220,7 @@ class _HomeSpeedDialState extends State<HomeSpeedDial> {
                           size: tile,
                           label:
                               '${v.title}${v.artist?.isNotEmpty == true ? ', ${v.artist}' : ''}',
+                          title: v.title,
                           songId: v.id,
                           art:
                               ImageWidget(song: v, size: tile, borderRadius: 0),
@@ -229,6 +231,7 @@ class _HomeSpeedDialState extends State<HomeSpeedDial> {
                         _DialTile(
                           size: tile,
                           label: v.title,
+                          title: v.title,
                           circle: v.type == 'artist',
                           art: _PinArt(pin: v, size: tile),
                           onTap: () => _playPin(v),
@@ -242,8 +245,7 @@ class _HomeSpeedDialState extends State<HomeSpeedDial> {
               return AnimatedBuilder(
                 animation: controller,
                 builder: (context, child) {
-                  final look =
-                      speedDialPageLook(_position(controller) - index);
+                  final look = speedDialPageLook(_position(controller) - index);
                   return Opacity(
                     opacity: look.opacity,
                     child: Transform.scale(scale: look.scale, child: child),
@@ -316,6 +318,7 @@ class _DialTile extends StatelessWidget {
   const _DialTile({
     required this.size,
     required this.label,
+    required this.title,
     required this.art,
     required this.onTap,
     required this.onLongPress,
@@ -324,6 +327,10 @@ class _DialTile extends StatelessWidget {
   });
   final double size;
   final String label;
+
+  /// Written on the cover, bottom left (centred on an artist's circle),
+  /// so a tile says what it plays, as YouTube Music's do.
+  final String title;
   final Widget art;
   final String? songId;
   final bool circle;
@@ -342,7 +349,8 @@ class _DialTile extends StatelessWidget {
       excludeSemantics: true,
       child: SizedBox.square(
         dimension: size,
-        child: Material(
+        child: RiffPressScale(
+            child: Material(
           color: Theme.of(context).colorScheme.surfaceContainerLow,
           shape: shape,
           clipBehavior: Clip.antiAlias,
@@ -353,25 +361,87 @@ class _DialTile extends StatelessWidget {
               fit: StackFit.expand,
               children: [
                 art,
+                if (title.isNotEmpty)
+                  _TileTitle(
+                      title: title,
+                      circle: circle,
+                      compact: size < RiffSizes.compactDialTile),
                 if (songId != null && Get.isRegistered<PlayerController>())
                   Obx(() {
                     final player = Get.find<PlayerController>();
                     final current = player.currentSong.value?.id == songId;
                     final playing =
                         player.buttonState.value == PlayButtonState.playing;
-                    if (!current) return const SizedBox.shrink();
-                    return ColoredBox(
-                      color: RiffColors.of(context).scrim.withOpacity(0.4),
-                      child: Center(
-                        child: RiffEqualizer(
-                            animate: playing,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: size * 0.3),
-                      ),
+                    // The now-playing veil fades over the tile as its song
+                    // starts, and away as another does.
+                    return RiffSwitcher(
+                      child: !current
+                          ? const SizedBox.shrink(key: ValueKey(false))
+                          : ColoredBox(
+                              key: const ValueKey(true),
+                              color:
+                                  RiffColors.of(context).scrim.withOpacity(0.4),
+                              child: Center(
+                                child: RiffEqualizer(
+                                    animate: playing,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    size: size * 0.3),
+                              ),
+                            ),
                     );
                   }),
               ],
             ),
+          ),
+        )),
+      ),
+    );
+  }
+}
+
+/// A Speed dial tile's title on a dark wash rising from the bottom of
+/// its cover.
+class _TileTitle extends StatelessWidget {
+  const _TileTitle(
+      {required this.title, required this.circle, required this.compact});
+  final String title;
+  final bool circle;
+
+  /// A small tile (small phones): the smaller label style.
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final riff = RiffColors.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          stops: const [RiffPalette.tileTitleScrimStart, 1],
+          colors: [
+            riff.scrim.withOpacity(0),
+            riff.scrim.withOpacity(RiffPalette.tileTitleScrim),
+          ],
+        ),
+      ),
+      child: Align(
+        alignment: circle ? Alignment.bottomCenter : Alignment.bottomLeft,
+        child: Padding(
+          padding: EdgeInsets.only(
+              left: circle ? RiffSpacing.lg : RiffSpacing.sm,
+              right: circle ? RiffSpacing.lg : RiffSpacing.sm,
+              bottom: circle ? RiffSpacing.md : RiffSpacing.sm),
+          child: Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: circle ? TextAlign.center : TextAlign.start,
+            style: (compact
+                    ? Theme.of(context).textTheme.labelSmall
+                    : Theme.of(context).textTheme.labelMedium)
+                ?.copyWith(color: riff.onImage),
           ),
         ),
       ),
@@ -394,7 +464,8 @@ class _DiceTile extends StatelessWidget {
       excludeSemantics: true,
       child: SizedBox.square(
         dimension: size,
-        child: Material(
+        child: RiffPressScale(
+            child: Material(
           color: scheme.secondaryContainer,
           borderRadius: BorderRadius.circular(RiffSizes.tileRadius),
           clipBehavior: Clip.antiAlias,
@@ -403,7 +474,7 @@ class _DiceTile extends StatelessWidget {
             child: Icon(Icons.casino_rounded,
                 size: size * 0.38, color: scheme.onSecondaryContainer),
           ),
-        ),
+        )),
       ),
     );
   }

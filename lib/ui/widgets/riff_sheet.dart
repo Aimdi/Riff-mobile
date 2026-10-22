@@ -104,44 +104,49 @@ class RiffSheetTile extends StatelessWidget {
     final theme = Theme.of(context);
     final fg =
         destructive ? theme.colorScheme.error : theme.colorScheme.onSurface;
-    return InkWell(
-      onTap: onTap,
-      child: ConstrainedBox(
-        constraints:
-            const BoxConstraints(minHeight: RiffComponentSizes.sheetRow),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-              horizontal: RiffSpacing.lg, vertical: RiffSpacing.sm),
-          child: Row(
-            children: [
-              Icon(icon, size: RiffComponentSizes.sheetIcon, color: fg),
-              const SizedBox(width: RiffSpacing.lg),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyLarge?.copyWith(color: fg)),
-                    if (subtitle != null && subtitle!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: RiffSpacing.xxs),
-                        child: Text(subtitle!,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant)),
-                      ),
-                  ],
+    // One node for TalkBack, as ListTile is: a switch at the end reads
+    // with the row's title ("Shake to restart, switch, on").
+    return MergeSemantics(
+      child: InkWell(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints:
+              const BoxConstraints(minHeight: RiffComponentSizes.sheetRow),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: RiffSpacing.lg, vertical: RiffSpacing.sm),
+            child: Row(
+              children: [
+                Icon(icon, size: RiffComponentSizes.sheetIcon, color: fg),
+                const SizedBox(width: RiffSpacing.lg),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              theme.textTheme.bodyLarge?.copyWith(color: fg)),
+                      if (subtitle != null && subtitle!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: RiffSpacing.xxs),
+                          child: Text(subtitle!,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant)),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              if (trailing != null) ...[
-                const SizedBox(width: RiffSpacing.sm),
-                trailing!
+                if (trailing != null) ...[
+                  const SizedBox(width: RiffSpacing.sm),
+                  trailing!
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -246,37 +251,61 @@ class RiffChoiceChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.secondary;
-    final fg = selected ? accent : theme.colorScheme.onSurface;
-    return Material(
-      color: selected ? RiffColors.of(context).accentMuted : Colors.transparent,
-      shape: StadiumBorder(
-          side: BorderSide(color: selected ? accent : theme.dividerColor)),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: RiffSizes.chipHeight,
-            // Never wider than the screen: a label too long for its line
-            // (a larger font size, a long translation) wraps inside the
-            // chip instead of running off past the sheet's edge.
-            maxWidth: MediaQuery.sizeOf(context).width,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (icon != null) ...[
-                  Icon(icon,
-                      size: RiffComponentSizes.chipLeadingIcon, color: fg),
-                  const SizedBox(width: RiffSpacing.xs),
+    final muted = RiffColors.of(context).accentMuted;
+    // Selecting eases the fill, outline and label in (and out) together.
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(end: selected ? 1 : 0),
+      duration: RiffDurations.select,
+      curve: RiffDurations.selectCurve,
+      builder: (context, t, _) => _chip(
+        context,
+        fill: Color.lerp(muted.withAlpha(0), muted, t)!,
+        outline: Color.lerp(theme.dividerColor, accent, t)!,
+        fg: Color.lerp(theme.colorScheme.onSurface, accent, t)!,
+      ),
+    );
+  }
+
+  Widget _chip(BuildContext context,
+      {required Color fill, required Color outline, required Color fg}) {
+    final theme = Theme.of(context);
+    // TalkBack hears it as a button and which chip is chosen ("All time,
+    // selected"), as Material's ChoiceChip says.
+    return Semantics(
+      container: true,
+      button: true,
+      selected: selected,
+      child: Material(
+        color: fill,
+        shape: StadiumBorder(side: BorderSide(color: outline)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: RiffSizes.chipHeight,
+              // Never wider than the screen: a label too long for its line
+              // (a larger font size, a long translation) wraps inside the
+              // chip instead of running off past the sheet's edge.
+              maxWidth: MediaQuery.sizeOf(context).width,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon,
+                        size: RiffComponentSizes.chipLeadingIcon, color: fg),
+                    const SizedBox(width: RiffSpacing.xs),
+                  ],
+                  Flexible(
+                    child: Text(label,
+                        style:
+                            theme.textTheme.labelMedium?.copyWith(color: fg)),
+                  ),
                 ],
-                Flexible(
-                  child: Text(label,
-                      style: theme.textTheme.labelMedium?.copyWith(color: fg)),
-                ),
-              ],
+              ),
             ),
           ),
         ),

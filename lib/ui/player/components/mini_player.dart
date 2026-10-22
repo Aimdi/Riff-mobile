@@ -1,10 +1,17 @@
+import 'dart:io';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:ionicons/ionicons.dart';
 
+import '/models/thumbnail.dart';
+import '/services/cover_resolver.dart';
+import '/ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/widgets/lyrics_dialog.dart';
 import '/ui/widgets/song_info_dialog.dart';
 import '/ui/player/player_controller.dart';
@@ -18,12 +25,15 @@ import '../../widgets/songinfo_bottom_sheet.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/mini_player_progress_bar.dart';
 import 'animated_play_button.dart';
+import 'hero_art_morph.dart';
 import 'playback_error_actions.dart';
+import 'track_crossfade.dart';
 import 'track_swipe.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_text_metrics.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/riff_marquee.dart';
+import '/ui/widgets/riff_motion.dart';
 
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
@@ -38,9 +48,9 @@ class MiniPlayer extends StatelessWidget {
     final isWideScreen = size.width > 800;
     final theme = Theme.of(context);
 
-    // Built outside the opacity Obx so the same child instance is reused when
-    // playerPaneOpacity / visibility / height tick — Flutter skips rebuilding
-    // identical child widget instances.
+    // Built outside the visibility Obx so the same child instance is reused
+    // when visibility / height change — Flutter skips rebuilding identical
+    // child widget instances.
     // Align top + bottom pad so the progress bar stays at the top of the
     // panel while the system nav/home inset is reserved below the content.
     final content = Column(
@@ -49,7 +59,8 @@ class MiniPlayer extends StatelessWidget {
         if (isWideScreen)
           // Own layer so 10 Hz progress ticks don't repaint the whole
           // mini player (art, title, transport).
-          const RepaintBoundary(child: _MiniPlayerWideProgress()),
+          const RepaintBoundary(
+              child: _WhileMiniShown(child: _MiniPlayerWideProgress())),
         Expanded(
           child: Stack(
             children: [
@@ -90,7 +101,8 @@ class MiniPlayer extends StatelessWidget {
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  child: RepaintBoundary(child: _MiniPlayerThinProgress()),
+                  child: RepaintBoundary(
+                      child: _WhileMiniShown(child: _MiniPlayerThinProgress())),
                 ),
             ],
           ),
@@ -98,36 +110,49 @@ class MiniPlayer extends StatelessWidget {
       ],
     );
 
+    // Fades as the player panel rises, following it every frame without
+    // rebuilding (only the layer's alpha changes).
+    final fade = PanelPositionAnimation(
+        playerController.playerPanelPosition, HeroArtMorph.miniPlayerOpacity);
     return Obx(() {
-      return Visibility(
-        visible: playerController.isPlayerpanelTopVisible.value,
-        child: AnimatedOpacity(
-          opacity: playerController.playerPaneOpacity.value,
-          duration: Duration.zero,
-          // The strip is page-coloured; the player itself is a floating
-          // pill inside it, with the system inset kept clear below.
-          child: ColoredBox(
-            color: theme.colorScheme.surface,
-            child: SizedBox(
-              height: playerController.playerPanelMinHeight.value,
-              width: size.width,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: RiffSpacing.md,
-                  right: RiffSpacing.md,
-                  bottom:
-                      MediaQuery.viewPaddingOf(context).bottom + RiffSpacing.sm,
-                ),
-                // Floating surface1 card, hairline edge, no shadow.
-                child: Material(
-                  color: theme.colorScheme.surfaceContainerLow,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(RiffRadii.miniPlayer),
-                    side: BorderSide(color: theme.dividerColor, width: 0),
+      // Hidden once the player is a fifth of the way up, but kept (state,
+      // marquee, play / pause icon) with its animations paused, so a
+      // minimise doesn't rebuild it mid-way or replay them.
+      final visible = playerController.isPlayerpanelTopVisible.value;
+      // Kept offstage, it could still take focus (Tab / a D-pad on desktop
+      // or a Chromebook landing on invisible buttons): not while hidden.
+      return ExcludeFocus(
+        excluding: !visible,
+        child: Visibility(
+          visible: visible,
+          maintainState: true,
+          child: FadeTransition(
+            opacity: fade,
+            // The strip is page-coloured; the player itself is a floating
+            // pill inside it, with the system inset kept clear below.
+            child: ColoredBox(
+              color: theme.colorScheme.surface,
+              child: SizedBox(
+                height: playerController.playerPanelMinHeight.value,
+                width: size.width,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: RiffSpacing.md,
+                    right: RiffSpacing.md,
+                    bottom: MediaQuery.viewPaddingOf(context).bottom +
+                        RiffSpacing.sm,
                   ),
-                  clipBehavior: Clip.antiAlias,
-                  child: content,
+                  // Floating surface1 card, hairline edge, no shadow.
+                  child: Material(
+                    color: theme.colorScheme.surfaceContainerLow,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(RiffRadii.miniPlayer),
+                      side: BorderSide(color: theme.dividerColor, width: 0),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: content,
+                  ),
                 ),
               ),
             ),
@@ -136,6 +161,60 @@ class MiniPlayer extends StatelessWidget {
       );
     });
   }
+}
+
+/// Keeps [child] (a progress bar, rebuilt with every position tick) out
+/// of the tree while the mini player is hidden behind the open player.
+class _WhileMiniShown extends StatelessWidget {
+  const _WhileMiniShown({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final playerController = Get.find<PlayerController>();
+    return Obx(() => playerController.isPlayerpanelTopVisible.isTrue
+        ? child
+        : const SizedBox.shrink());
+  }
+}
+
+/// The image [ImageWidget] decodes for [song]'s mini player art (same
+/// cache entry), so a new song's art can be decoded before it fades in;
+/// null when it has none to decode. A miss only means the art fades in
+/// from its loading pulse.
+ImageProvider? _miniArtImage(BuildContext context, MediaItem song) {
+  final decodeSide =
+      (RiffComponentSizes.miniArt * MediaQuery.devicePixelRatioOf(context))
+          .round()
+          .clamp(64, 1600);
+  final art = song.artUri;
+  if (art != null && art.isScheme('file')) {
+    return ResizeImage.resizeIfNeeded(
+        decodeSide, null, FileImage(File(art.toFilePath())));
+  }
+  if ((song.extras?['url'] ?? '').toString().contains('file')) {
+    if (!Get.isRegistered<SettingsScreenController>()) return null;
+    final dir = Get.find<SettingsScreenController>().supportDirPath;
+    return ResizeImage.resizeIfNeeded(
+        decodeSide, null, FileImage(File('$dir/thumbnails/${song.id}.png')));
+  }
+  var raw = art?.toString() ?? '';
+  if (raw.isEmpty) return null;
+  // A video frame: the square cover found for it, once known.
+  if (Thumbnail.isVideoFrameUrl(raw) &&
+      !song.id.startsWith('podcast_') &&
+      song.extras?['isPodcast'] != true) {
+    final square = CoverResolver.cached(song.id);
+    if (square != null && square.isNotEmpty) raw = square;
+  }
+  return ResizeImage.resizeIfNeeded(
+      decodeSide, null, CachedNetworkImageProvider(Thumbnail(raw).medium));
+}
+
+Future<void>? _precacheMiniArt(BuildContext context, MediaItem? song) {
+  final image = song == null ? null : _miniArtImage(context, song);
+  if (image == null) return null;
+  return precacheImage(image, context, onError: (_, __) {});
 }
 
 class _MiniPlayerArt extends StatelessWidget {
@@ -150,7 +229,10 @@ class _MiniPlayerArt extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
           song != null
-              ? GestureDetector(
+              // The titles beside it carry the same long press for
+              // TalkBack; the cover adds no node of its own.
+              ? ExcludeSemantics(
+                  child: GestureDetector(
                   onLongPress: () {
                     HapticFeedback.mediumImpact();
                     showCurrentSongSheet(
@@ -167,14 +249,24 @@ class _MiniPlayerArt extends StatelessWidget {
                       ),
                     ),
                     child: ClipOval(
-                      child: ImageWidget(
-                        size: RiffComponentSizes.miniArt,
-                        song: song,
-                        borderRadius: 0,
+                      // A new song's art fades in over the last one once
+                      // decoded, with its title; the next song's is
+                      // decoded ahead.
+                      child: TrackCrossfade(
+                        trackKey: song.id,
+                        fit: StackFit.loose,
+                        precache: (context) => _precacheMiniArt(context, song),
+                        onSettled: () => _precacheMiniArt(
+                            context, upNextTrack(playerController)),
+                        child: ImageWidget(
+                          size: RiffComponentSizes.miniArt,
+                          song: song,
+                          borderRadius: 0,
+                        ),
                       ),
                     ),
                   ),
-                )
+                ))
               : const SizedBox.square(
                   dimension: RiffComponentSizes.miniArt,
                 ),
@@ -304,6 +396,47 @@ class _MiniPlayerSongInfo extends StatelessWidget {
   Widget build(BuildContext context) {
     final playerController = Get.find<PlayerController>();
     final theme = Theme.of(context);
+    void openPlayer() => playerController.playerPanelController.open();
+    void songSheet() {
+      HapticFeedback.mediumImpact();
+      showCurrentSongSheet(
+        song: playerController.currentSong.value,
+        context: playerController.homeScaffoldkey.currentContext,
+      );
+    }
+
+    // TalkBack reads the song as one button (title, artist) that opens
+    // the player; its album and artist are actions on it, as the two
+    // lines are for a finger.
+    return Obx(() {
+      final song = playerController.currentSong.value;
+      return Semantics(
+        container: true,
+        button: true,
+        label: [
+          if ((song?.title ?? '').isNotEmpty) song!.title,
+          if ((song?.artist ?? '').isNotEmpty) song!.artist!,
+        ].join(', '),
+        onTap: openPlayer,
+        onLongPress: song == null ? null : songSheet,
+        customSemanticsActions: {
+          if (songAlbumId(song) != null)
+            CustomSemanticsAction(label: 'goToAlbum'.tr): () =>
+                openCurrentAlbum(playerController),
+          if (songArtistId(song) != null)
+            CustomSemanticsAction(label: 'viewArtist'.tr): () =>
+                openCurrentArtist(playerController),
+        },
+        child: ExcludeSemantics(
+            child: _gestures(context, playerController, theme,
+                openPlayer: openPlayer, songSheet: songSheet)),
+      );
+    });
+  }
+
+  Widget _gestures(
+      BuildContext context, PlayerController playerController, ThemeData theme,
+      {required VoidCallback openPlayer, required VoidCallback songSheet}) {
     return GestureDetector(
       onHorizontalDragEnd: !flingToSkip
           ? null
@@ -314,16 +447,8 @@ class _MiniPlayerSongInfo extends StatelessWidget {
                 playerController.prev();
               }
             },
-      onTap: () {
-        playerController.playerPanelController.open();
-      },
-      onLongPress: () {
-        HapticFeedback.mediumImpact();
-        showCurrentSongSheet(
-          song: playerController.currentSong.value,
-          context: playerController.homeScaffoldkey.currentContext,
-        );
-      },
+      onTap: openPlayer,
+      onLongPress: songSheet,
       child: ColoredBox(
         color: Colors.transparent,
         child: Obx(() {
@@ -337,21 +462,20 @@ class _MiniPlayerSongInfo extends StatelessWidget {
               SizedBox(
                 height: riffLineBox(context, theme.textTheme.titleMedium,
                     RiffComponentSizes.miniLine),
-                child: AnimatedSwitcher(
-                  duration: RiffDurations.select,
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  transitionBuilder: (child, animation) {
-                    return FadeTransition(
-                      opacity: animation,
-                      child: child,
-                    );
-                  },
-                  child: _miniTitleLine(
-                    playerController,
-                    song,
-                    songKey,
-                    theme,
+                // Keyed on the outside, so lines wrapped in a tap target
+                // cross-fade too; start-aligned, so a shorter title
+                // doesn't sit centred while it fades in.
+                child: RiffSwitcher(
+                  duration: RiffDurations.trackChange,
+                  alignment: AlignmentDirectional.centerStart,
+                  child: KeyedSubtree(
+                    key: ValueKey<String>('mini_title_line_$songKey'),
+                    child: _miniTitleLine(
+                      playerController,
+                      song,
+                      songKey,
+                      theme,
+                    ),
                   ),
                 ),
               ),
@@ -381,21 +505,17 @@ class _MiniPlayerSongInfo extends StatelessWidget {
                           ),
                         ],
                       )
-                    : AnimatedSwitcher(
-                        duration: RiffDurations.select,
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInCubic,
-                        transitionBuilder: (child, animation) {
-                          return FadeTransition(
-                            opacity: animation,
-                            child: child,
-                          );
-                        },
-                        child: _miniArtistLine(
-                          playerController,
-                          song,
-                          songKey,
-                          theme,
+                    : RiffSwitcher(
+                        duration: RiffDurations.trackChange,
+                        alignment: AlignmentDirectional.centerStart,
+                        child: KeyedSubtree(
+                          key: ValueKey<String>('mini_artist_line_$songKey'),
+                          child: _miniArtistLine(
+                            playerController,
+                            song,
+                            songKey,
+                            theme,
+                          ),
                         ),
                       ),
               ),
@@ -479,9 +599,13 @@ class _MiniPlayerTransport extends StatelessWidget {
         minHeight: RiffComponentSizes.rowIconHit);
     // Toggled-on = accent; off = secondary text.
     Color toggle(bool on) => on ? scheme.secondary : scheme.onSurfaceVariant;
-    return Row(
+    final row = Row(
       mainAxisSize: isWideScreen ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      // Phones: the controls sit close together, so each one takes the
+      // bar's full height to tap (the glyphs stay as they are).
+      crossAxisAlignment:
+          isWideScreen ? CrossAxisAlignment.center : CrossAxisAlignment.stretch,
       children: [
         FavoriteHeartButton(
           iconSize: RiffComponentSizes.trailingIcon,
@@ -513,6 +637,7 @@ class _MiniPlayerTransport extends StatelessWidget {
                 enabled: canPrev,
                 label: 'previous'.tr,
                 child: InkWell(
+                  customBorder: const CircleBorder(),
                   onTap: canPrev ? playerController.prev : null,
                   child: Icon(
                     Icons.skip_previous_rounded,
@@ -528,11 +653,13 @@ class _MiniPlayerTransport extends StatelessWidget {
                 size: RiffComponentSizes.miniWidePlay,
               )
             // Bare onSurface glyph in the same 38 hit box.
-            : AnimatedPlayButton(
-                iconSize: RiffComponentSizes.miniPlayIcon,
-                size: RiffComponentSizes.miniPlayHit,
-                color: Colors.transparent,
-                iconColor: scheme.onSurface,
+            : Center(
+                child: AnimatedPlayButton(
+                  iconSize: RiffComponentSizes.miniPlayIcon,
+                  size: RiffComponentSizes.miniPlayHit,
+                  color: Colors.transparent,
+                  iconColor: scheme.onSurface,
+                ),
               ),
         SizedBox(
             width: skipWidth,
@@ -552,6 +679,7 @@ class _MiniPlayerTransport extends StatelessWidget {
                 enabled: canNext,
                 label: 'next'.tr,
                 child: InkWell(
+                  customBorder: const CircleBorder(),
                   onTap: canNext ? playerController.next : null,
                   child: Icon(
                     Icons.skip_next_rounded,
@@ -615,6 +743,7 @@ class _MiniPlayerTransport extends StatelessWidget {
           )
       ],
     );
+    return isWideScreen ? row : SizedBox(height: RiffSizes.touch, child: row);
   }
 }
 
@@ -643,18 +772,18 @@ class _MiniPlayerWideExtras extends StatelessWidget {
                   SizedBox(
                       width: 20,
                       child: Tooltip(
-                       message: volume == 0 ? 'unmute'.tr : 'mute'.tr,
-                       child: InkWell(
-                        onTap: playerController.mute,
-                        child: Icon(
-                          volume == 0
-                              ? Icons.volume_off
-                              : volume > 0 && volume < 50
-                                  ? Icons.volume_down
-                                  : Icons.volume_up,
-                          size: RiffComponentSizes.trailingIcon,
-                        ),
-                      ))),
+                          message: volume == 0 ? 'unmute'.tr : 'mute'.tr,
+                          child: InkWell(
+                            onTap: playerController.mute,
+                            child: Icon(
+                              volume == 0
+                                  ? Icons.volume_off
+                                  : volume > 0 && volume < 50
+                                      ? Icons.volume_down
+                                      : Icons.volume_up,
+                              size: RiffComponentSizes.trailingIcon,
+                            ),
+                          ))),
                   Expanded(
                     child: SliderTheme(
                       data: SliderTheme.of(context).copyWith(
@@ -676,22 +805,23 @@ class _MiniPlayerWideExtras extends StatelessWidget {
               );
             }),
           ),
-          SizedBox(
-            height: 40,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  tooltip: 'queue'.tr,
-                  onPressed: () {
-                    playerController.homeScaffoldkey.currentState
-                        ?.openEndDrawer();
-                  },
-                  icon: const Icon(Icons.queue_music),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 10.0),
-                  child: Obx(() => IconButton(
+          // Most important first; on a narrower window (a tablet held
+          // upright) the ones that don't fit are left off rather than
+          // spilling out of the bar.
+          Flexible(
+            child: SizedBox(
+              height: _buttonsHeight,
+              child: LayoutBuilder(builder: (context, constraints) {
+                final buttons = <Widget>[
+                  IconButton(
+                    tooltip: 'queue'.tr,
+                    onPressed: () {
+                      playerController.homeScaffoldkey.currentState
+                          ?.openEndDrawer();
+                    },
+                    icon: const Icon(Icons.queue_music),
+                  ),
+                  Obx(() => IconButton(
                         tooltip: 'sleepTimer'.tr,
                         onPressed: () {
                           final sheetContext =
@@ -703,49 +833,65 @@ class _MiniPlayerWideExtras extends StatelessWidget {
                             ? Icons.timer
                             : Icons.timer_outlined),
                       )),
-                ),
-                const SizedBox(
-                  width: 10,
-                ),
-                const SongDownloadButton(
-                  calledFromPlayer: true,
-                ),
-                const SizedBox(
-                  width: 10,
-                ),
-                IconButton(
-                  tooltip: 'addToPlaylist'.tr,
-                  onPressed: () {
-                    final currentSong = playerController.currentSong.value;
-                    if (currentSong == null) return;
-                    showAddToPlaylistSheet(context, [currentSong]);
-                  },
-                  icon: const Icon(Icons.playlist_add),
-                ),
-                if (size.width > 965)
+                  const SongDownloadButton(
+                    calledFromPlayer: true,
+                  ),
                   IconButton(
-                    tooltip: 'songInfo'.tr,
+                    tooltip: 'addToPlaylist'.tr,
                     onPressed: () {
                       final currentSong = playerController.currentSong.value;
-                      if (currentSong != null) {
-                        showDialog(
-                          context: context,
-                          builder: (context) => SongInfoDialog(
-                            song: currentSong,
-                          ),
-                        );
-                      }
+                      if (currentSong == null) return;
+                      showAddToPlaylistSheet(context, [currentSong]);
                     },
-                    icon: const Icon(Icons.info,
-                        size: RiffComponentSizes.headerIcon),
+                    icon: const Icon(Icons.playlist_add),
                   ),
-              ],
+                  if (size.width > 965)
+                    IconButton(
+                      tooltip: 'songInfo'.tr,
+                      onPressed: () {
+                        final currentSong = playerController.currentSong.value;
+                        if (currentSong != null) {
+                          showDialog(
+                            context: context,
+                            builder: (context) => SongInfoDialog(
+                              song: currentSong,
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.info,
+                          size: RiffComponentSizes.headerIcon),
+                    ),
+                ];
+                final shown =
+                    wideExtrasFit(constraints.maxWidth, buttons.length);
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    for (var i = 0; i < shown; i++) ...[
+                      if (i > 0) const SizedBox(width: _buttonGap),
+                      buttons[i],
+                    ],
+                  ],
+                );
+              }),
             ),
           ),
         ],
       ),
     );
   }
+
+  static const double _buttonsHeight = 40;
+  static const double _buttonGap = RiffSpacing.sm;
+}
+
+/// How many of [count] mini player extra buttons (48 dp each, 8 dp apart)
+/// fit in [width].
+int wideExtrasFit(double width, int count) {
+  const slot = RiffSizes.touch + RiffSpacing.sm;
+  final fit = ((width + RiffSpacing.sm) / slot).floor();
+  return fit.clamp(0, count);
 }
 
 /// Progress-only rebuild scope so art/title/controls stay still while seeking.
