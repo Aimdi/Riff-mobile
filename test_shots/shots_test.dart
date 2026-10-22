@@ -213,6 +213,16 @@ final scenarios = <Scenario>[
     await push(t, ScreenNavigationSetup.podcastStatsScreen);
   }),
 
+  // ── Settings pages of their own ──────────────────────────────────────
+  Scenario('home_layout', _all, (t, d) async {
+    await openApp(t);
+    await push(t, ScreenNavigationSetup.homeLayoutScreen);
+  }),
+  Scenario('podcast_settings', _all, (t, d) async {
+    await openApp(t, tab: RailTab.podcasts);
+    await push(t, ScreenNavigationSetup.podcastSettingsScreen);
+  }),
+
   // ── Search: history, suggestions while typing, results ───────────────
   Scenario('search', _all, (t, d) async {
     await openApp(t, tab: RailTab.discover);

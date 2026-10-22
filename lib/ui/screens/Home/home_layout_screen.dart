@@ -94,8 +94,11 @@ class _SectionRow extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => onChanged(!shown),
-          child: SizedBox(
-            height: RiffComponentSizes.homeLayoutRow,
+          // At least a row's height; a long name ("Mixes, your shows and
+          // new releases") takes a second line instead of being cut.
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+                minHeight: RiffComponentSizes.homeLayoutRow),
             child: Row(
               children: [
                 const SizedBox(width: RiffSpacing.lg),
@@ -103,11 +106,15 @@ class _SectionRow extends StatelessWidget {
                     size: RiffComponentSizes.headerIcon, color: fg),
                 const SizedBox(width: RiffSpacing.md),
                 Expanded(
-                  child: Text(
-                    section.labelKey.tr,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyLarge?.copyWith(color: fg),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: RiffSpacing.sm),
+                    child: Text(
+                      section.labelKey.tr,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyLarge?.copyWith(color: fg),
+                    ),
                   ),
                 ),
                 Padding(
