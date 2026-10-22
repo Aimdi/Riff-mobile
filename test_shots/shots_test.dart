@@ -16,6 +16,7 @@ import 'package:harmonymusic/ui/screens/Audiobooks/audiobook_detail_screen.dart'
 import 'package:harmonymusic/ui/screens/Audiobooks/audiobook_widgets.dart';
 import 'package:harmonymusic/ui/screens/Home/home_screen.dart';
 import 'package:harmonymusic/ui/screens/Home/home_screen_controller.dart';
+import 'package:harmonymusic/ui/screens/Settings/settings_screen.dart';
 import 'package:harmonymusic/ui/widgets/side_nav_bar.dart';
 
 import 'src/harness.dart';
@@ -142,6 +143,13 @@ final scenarios = <Scenario>[
     await settle(t);
     await t.tap(find.textContaining('Up Next').last);
     await settle(t);
+  }),
+
+  // ── Settings ─────────────────────────────────────────────────────────
+  Scenario('settings', _all, (t, d) => openApp(t, tab: RailTab.settings)),
+  Scenario('settings_full', _all, (t, d) async {
+    await openApp(t, tab: RailTab.settings);
+    await growToFeed(t, d, within: find.byType(SettingsScreen));
   }),
 
   // ── Search: history, suggestions while typing, results ───────────────
