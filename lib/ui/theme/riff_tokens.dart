@@ -391,6 +391,10 @@ class RiffComponentSizes {
 
   /// The widest a book page's Play / Resume pill grows (a tablet).
   static const double bookPlayMax = 400;
+
+  /// The widest an empty state's message runs (a tablet): a few short
+  /// lines, not one line across the screen. Phones are narrower anyway.
+  static const double emptyStateTextMax = 360;
   static const double continueArt = 64;
   static const double continueBadge = 24;
   static const double continueBadgeIcon = 18;

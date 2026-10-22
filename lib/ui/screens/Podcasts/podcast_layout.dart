@@ -232,26 +232,43 @@ class PodcastEpisodeTile extends StatelessWidget {
     );
   }
 
-  /// "Show · date · length": the show gives way first.
+  /// "Show · date · length": the show gives way first. Too narrow for
+  /// the date and length to keep their share (large text on a phone), the
+  /// show takes a line of its own above them, so neither is cut to "Th…".
   Widget _metaLine(ThemeData theme) {
     final style = theme.textTheme.bodyMedium
         ?.copyWith(color: theme.colorScheme.onSurfaceVariant);
     Text line(String s) =>
         Text(s, maxLines: 1, overflow: TextOverflow.ellipsis, style: style);
     if (show.isEmpty || meta.isEmpty) return line(show.isEmpty ? meta : show);
+    final tail = ' · $meta';
     return MergeSemantics(
-      child: LayoutBuilder(
-        builder: (context, box) => Row(
+      child: LayoutBuilder(builder: (context, box) {
+        final share = box.maxWidth * RiffComponentSizes.metaTailShare;
+        final painter = TextPainter(
+          text: TextSpan(text: tail, style: style),
+          maxLines: 1,
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+        )..layout();
+        final fits = painter.width <= share;
+        painter.dispose();
+        if (!fits) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [line(show), line(meta)],
+          );
+        }
+        return Row(
           children: [
             Flexible(child: line(show)),
             ConstrainedBox(
-              constraints: BoxConstraints(
-                  maxWidth: box.maxWidth * RiffComponentSizes.metaTailShare),
-              child: line(' · $meta'),
+              constraints: BoxConstraints(maxWidth: share),
+              child: line(tail),
             ),
           ],
-        ),
-      ),
+        );
+      }),
     );
   }
 }

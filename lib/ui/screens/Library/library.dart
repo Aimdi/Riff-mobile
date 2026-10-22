@@ -975,33 +975,48 @@ class _LibraryPinnedRow extends StatelessWidget {
           left: HomeLayout.gutter,
           top: RiffSpacing.sm,
           right: HomeLayout.gutter),
-      child: Row(
-        children: [
-          Expanded(
-            child: _PinnedTile(
-              icon: Icons.favorite,
-              title: 'favorites'.tr,
-              subtitle: liked > 0 ? '$liked' : null,
-              accent: theme.colorScheme.secondary,
-              muted: muted,
-              onTap: () => _open('LIBFAV', 'favorites'.tr),
-              onLongPress: () => _play('LIBFAV', 'favorites'.tr, shuffle: true),
-            ),
+      // One height for both: a title that takes two lines ("Recently
+      // played" on a phone, either at large text) doesn't leave its
+      // neighbour shorter.
+      child: LayoutBuilder(builder: (context, box) {
+        final scaler = _PinnedTile.scaleFor(
+            context,
+            ['favorites'.tr, 'recentlyPlayed'.tr],
+            (box.maxWidth - RiffSpacing.sm) / 2);
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _PinnedTile(
+                  icon: Icons.favorite,
+                  title: 'favorites'.tr,
+                  titleScaler: scaler,
+                  subtitle: liked > 0 ? '$liked' : null,
+                  accent: theme.colorScheme.secondary,
+                  muted: muted,
+                  onTap: () => _open('LIBFAV', 'favorites'.tr),
+                  onLongPress: () =>
+                      _play('LIBFAV', 'favorites'.tr, shuffle: true),
+                ),
+              ),
+              const SizedBox(width: RiffSpacing.sm),
+              Expanded(
+                child: _PinnedTile(
+                  icon: Icons.history,
+                  title: 'recentlyPlayed'.tr,
+                  titleScaler: scaler,
+                  subtitle: recent > 0 ? '$recent' : null,
+                  accent: theme.colorScheme.secondary,
+                  muted: muted,
+                  onTap: () => _open('LIBRP', 'recentlyPlayed'.tr),
+                  onLongPress: () => _showRecentsActions(context),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _PinnedTile(
-              icon: Icons.history,
-              title: 'recentlyPlayed'.tr,
-              subtitle: recent > 0 ? '$recent' : null,
-              accent: theme.colorScheme.secondary,
-              muted: muted,
-              onTap: () => _open('LIBRP', 'recentlyPlayed'.tr),
-              onLongPress: () => _showRecentsActions(context),
-            ),
-          ),
-        ],
-      ),
+        );
+      }),
     );
     if (!SpotifyAuthService.isConnected) return row;
     // Signed in to Spotify: the library is one tap away.
@@ -1036,15 +1051,51 @@ class _PinnedTile extends StatelessWidget {
     required this.onLongPress,
     this.subtitle,
     this.muted,
+    this.titleScaler,
   });
 
   final IconData icon;
   final String title;
+
+  /// The title's text scale ([scaleFor]); null: the reader's own.
+  final TextScaler? titleScaler;
   final String? subtitle;
   final Color accent;
   final Color? muted;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
+
+  /// Inside the tile: the padding on each side, and the gap after the icon.
+  static const double _pad = RiffSpacing.md;
+  static const double _gap = RiffSpacing.sm + RiffSpacing.xxs;
+
+  /// The title scale for tiles [tileWidth] wide holding [titles]: the
+  /// reader's own, unless a word is wider than the line (large text in a
+  /// narrow tile); then just small enough for that word to fit whole,
+  /// rather than broken in two ("Favorite / s").
+  static TextScaler scaleFor(
+      BuildContext context, List<String> titles, double tileWidth) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final style = homeCardTitleStyle(context);
+    final line = tileWidth - 2 * _pad - RiffComponentSizes.headerIcon - _gap;
+    var widest = 0.0;
+    for (final title in titles) {
+      for (final word in title.split(' ')) {
+        final painter = TextPainter(
+          text: TextSpan(text: word, style: style),
+          maxLines: 1,
+          textDirection: Directionality.of(context),
+          textScaler: scaler,
+        )..layout();
+        if (painter.width > widest) widest = painter.width;
+        painter.dispose();
+      }
+    }
+    final size = style.fontSize;
+    if (size == null || line <= 0 || widest <= line) return scaler;
+    return TextScaler.linear(
+        scaler.scale(size) * (line - RiffSpacing.xxs) / widest / size);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1059,19 +1110,22 @@ class _PinnedTile extends StatelessWidget {
         onTap: onTap,
         onLongPress: onLongPress,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: _pad, vertical: _pad),
           child: Row(
             children: [
-              Icon(icon, color: accent, size: 22),
-              const SizedBox(width: 10),
+              Icon(icon, color: accent, size: RiffComponentSizes.headerIcon),
+              const SizedBox(width: _gap),
               Expanded(
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Two lines rather than "Recently pla…".
                     Text(
                       title,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
+                      textScaler: titleScaler,
                       style: homeCardTitleStyle(context),
                     ),
                     if (subtitle != null)

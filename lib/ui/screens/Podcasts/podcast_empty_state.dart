@@ -35,26 +35,30 @@ class PodcastEmptyState extends StatelessWidget {
             top: RiffSpacing.xxl,
             right: RiffSpacing.x3l,
             bottom: RiffSpacing.unit * 23),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: RiffComponentSizes.emptyStateIcon, color: muted),
-            const SizedBox(height: RiffSpacing.md),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(color: muted),
-            ),
-            if (onAction != null && actionLabel != null) ...[
-              const SizedBox(height: RiffSpacing.lg),
-              // Secondary pill from the theme (§5.5).
-              OutlinedButton.icon(
-                onPressed: onAction,
-                icon: Icon(actionIcon, size: RiffComponentSizes.trailingIcon),
-                label: Text(actionLabel!),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+              maxWidth: RiffComponentSizes.emptyStateTextMax),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: RiffComponentSizes.emptyStateIcon, color: muted),
+              const SizedBox(height: RiffSpacing.md),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(color: muted),
               ),
+              if (onAction != null && actionLabel != null) ...[
+                const SizedBox(height: RiffSpacing.lg),
+                // Secondary pill from the theme (§5.5).
+                OutlinedButton.icon(
+                  onPressed: onAction,
+                  icon: Icon(actionIcon, size: RiffComponentSizes.trailingIcon),
+                  label: Text(actionLabel!),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

@@ -70,6 +70,33 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+      'too narrow for both (large text), the show takes a line of its own '
+      'and the date and length read whole', (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(
+        // The test font's glyphs are squares: the date and length fit on
+        // a line of their own, not beside the show.
+        body: SizedBox(
+          width: 380,
+          child: PodcastEpisodeTile(
+            artUrl: '',
+            title: 'Walking the Camino',
+            show: 'The Long Way Round',
+            meta: 'Today · 58m',
+          ),
+        ),
+      ),
+    ));
+    expect(find.text(' · Today · 58m'), findsNothing);
+    final show = tester.getRect(find.text('The Long Way Round'));
+    final meta = find.text('Today · 58m');
+    expect(
+        tester.renderObject<RenderParagraph>(meta).didExceedMaxLines, isFalse);
+    expect(tester.getTopLeft(meta).dy, greaterThanOrEqualTo(show.bottom));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('with no show the meta line is one text', (tester) async {
     await tester.pumpWidget(const MaterialApp(
       home: Scaffold(
