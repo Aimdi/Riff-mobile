@@ -25,6 +25,7 @@ import 'audiobook_detail_screen.dart';
 import 'audiobook_library_controller.dart';
 import 'audiobook_play.dart';
 import 'audiobook_upload_sheet.dart';
+import 'audiobook_hero_card.dart';
 import 'audiobook_widgets.dart';
 import 'free_audiobook_list_screen.dart';
 import '/ui/widgets/riff_header_bar.dart';
@@ -609,26 +610,35 @@ class _ContinueFreeShelf extends StatelessWidget {
       builder: (context, _, __) {
         final records = AudiobookProgressService.freeBooksInProgress();
         if (records.isEmpty) return const SizedBox.shrink();
+        // The latest book large (Audible), the rest on a row under it.
+        final rest = records.skip(1).take(9).toList();
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             HomeSectionHeader('continueListening'.tr, top: RiffSpacing.md),
-            SizedBox(
-              height: PodcastContinueCard.heightFor(context),
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
-                itemCount: records.length.clamp(0, 10),
-                separatorBuilder: (_, __) =>
-                    const SizedBox(width: HomeLayout.cardGap),
-                itemBuilder: (context, i) => FreeAudiobookContinueCard(
-                  key: ValueKey(records[i]['bookId']),
-                  record: records[i],
-                  onTap: () => resumeFreeAudiobook(records[i]),
+            _FreeHeroBook(
+              key: ValueKey('hero_${records.first['bookId']}'),
+              record: records.first,
+            ),
+            if (rest.isNotEmpty) ...[
+              const SizedBox(height: RiffSpacing.md),
+              SizedBox(
+                height: PodcastContinueCard.heightFor(context),
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
+                  itemCount: rest.length,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(width: HomeLayout.cardGap),
+                  itemBuilder: (context, i) => FreeAudiobookContinueCard(
+                    key: ValueKey(rest[i]['bookId']),
+                    record: rest[i],
+                    onTap: () => resumeFreeAudiobook(rest[i]),
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         );
       },
@@ -1003,12 +1013,31 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
                       SliverToBoxAdapter(
                           child: HomeSectionHeader('continueListening'.tr,
                               top: RiffSpacing.sm)),
+                      // The book you're in the middle of, large (Audible);
+                      // the others in progress on a shelf under it.
+                      SliverToBoxAdapter(
+                        child: _AbsHeroBook(
+                          book: continueBooks.first,
+                          cover: AudiobookCover(
+                            url: continueBooks.first
+                                .coverUrl(abs.host.value, token),
+                            size: RiffComponentSizes.heroBookCover,
+                          ),
+                          onPlay: () =>
+                              _playOrOpenAudiobook(continueBooks.first.id),
+                          onOpen: () => _openDetail(continueBooks.first.id),
+                        ),
+                      ),
+                    ],
+                    if (continueBooks.length > 1) ...[
+                      const SliverToBoxAdapter(
+                          child: SizedBox(height: RiffSpacing.md)),
                       SliverToBoxAdapter(
                         child: HomeShelf(
                           cardSize: HomeLayout.shelfCard,
-                          itemCount: continueBooks.length,
+                          itemCount: continueBooks.length - 1,
                           itemBuilder: (context, i) {
-                            final b = continueBooks[i];
+                            final b = continueBooks[i + 1];
                             return HomeShelfCard(
                               key: ValueKey('c_${b.id}'),
                               size: HomeLayout.shelfCard,
@@ -1190,5 +1219,73 @@ class _AbsLibraryViewState extends State<_AbsLibraryView> {
         ),
       );
     });
+  }
+}
+
+/// An Audiobookshelf book in progress as the hero card: time left from
+/// its length and how far in it is.
+class _AbsHeroBook extends StatelessWidget {
+  const _AbsHeroBook({
+    required this.book,
+    required this.cover,
+    required this.onPlay,
+    required this.onOpen,
+  });
+  final AbsBook book;
+  final Widget cover;
+  final VoidCallback onPlay;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = (book.progress ?? 0).clamp(0.0, 1.0);
+    final duration = book.duration;
+    return AudiobookHeroCard(
+      cover: cover,
+      title: book.title,
+      author: book.author ?? '',
+      progress: progress,
+      secondsLeft: duration == null || duration <= 0
+          ? null
+          : (duration * (1 - progress)).round(),
+      onPlay: onPlay,
+      onLongPress: onOpen,
+    );
+  }
+}
+
+/// A free book in progress as the hero card: how far into the book from
+/// the chapter it's on, and that chapter with its time left.
+class _FreeHeroBook extends StatelessWidget {
+  const _FreeHeroBook({super.key, required this.record});
+  final Map<String, dynamic> record;
+
+  @override
+  Widget build(BuildContext context) {
+    final pos = (record['positionMs'] as num?)?.toInt() ?? 0;
+    final dur = (record['durationMs'] as num?)?.toInt() ?? 0;
+    final idx = (record['trackIndex'] as num?)?.toInt();
+    final count = (record['trackCount'] as num?)?.toInt();
+    final inChapter = dur > 0 ? (pos / dur).clamp(0.0, 1.0) : 0.0;
+    final progress = idx != null && count != null && count > 0
+        ? ((idx + inChapter) / count).clamp(0.0, 1.0)
+        : inChapter;
+    final chapter = idx == null
+        ? ''
+        : count != null && count > 0
+            ? 'chapterOf'.trParams({'n': '${idx + 1}', 'total': '$count'})
+            : '${'chapters'.tr} ${idx + 1}';
+    final left = dur > pos ? compactEpisodeLength((dur - pos) ~/ 1000) : '';
+    return AudiobookHeroCard(
+      cover: AudiobookCover(
+          url: '${record['artUri'] ?? ''}',
+          size: RiffComponentSizes.heroBookCover),
+      title: '${record['album'] ?? record['title'] ?? ''}',
+      author: '${record['artist'] ?? ''}',
+      detail: episodeMetaLine(
+          [chapter, left.isEmpty ? null : '$left ${'left'.tr}']),
+      progress: progress,
+      onPlay: () => resumeFreeAudiobook(record),
+    );
   }
 }
