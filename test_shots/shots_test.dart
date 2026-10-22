@@ -19,6 +19,7 @@ import 'package:harmonymusic/ui/screens/Home/discover_screen.dart';
 import 'package:harmonymusic/ui/screens/Home/home_screen.dart';
 import 'package:harmonymusic/ui/screens/Home/home_screen_controller.dart';
 import 'package:harmonymusic/ui/screens/Settings/settings_screen.dart';
+import 'package:harmonymusic/ui/screens/Stats/stats_screen.dart';
 import 'package:harmonymusic/ui/widgets/side_nav_bar.dart';
 
 import 'src/harness.dart';
@@ -191,6 +192,25 @@ final scenarios = <Scenario>[
   Scenario('settings_full', _all, (t, d) async {
     await openApp(t, tab: RailTab.settings);
     await growToFeed(t, d, within: find.byType(SettingsScreen));
+  }),
+
+  // ── Stats: your listening, your week in review, podcast stats ────────
+  Scenario('stats', _all, (t, d) async {
+    await openApp(t, tab: RailTab.settings);
+    await push(t, ScreenNavigationSetup.statsScreen);
+  }),
+  Scenario('stats_full', _all, (t, d) async {
+    await openApp(t, tab: RailTab.settings);
+    await push(t, ScreenNavigationSetup.statsScreen);
+    await growToFeed(t, d, within: find.byType(StatsScreen));
+  }),
+  Scenario('rewind', _all, (t, d) async {
+    await openApp(t, tab: RailTab.settings);
+    await push(t, ScreenNavigationSetup.rewindScreen);
+  }),
+  Scenario('podcast_stats', _all, (t, d) async {
+    await openApp(t, tab: RailTab.podcasts);
+    await push(t, ScreenNavigationSetup.podcastStatsScreen);
   }),
 
   // ── Search: history, suggestions while typing, results ───────────────
