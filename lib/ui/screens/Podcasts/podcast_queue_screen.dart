@@ -410,9 +410,9 @@ class PodcastQueueScreen extends StatelessWidget {
         child: PodcastEpisodeTile(
           artUrl: art,
           title: e.title,
+          show: e.artist ?? '',
           meta: episodeMetaLine([
-            e.artist,
-            '${e.extras?['date'] ?? ''}',
+            episodeDateLabel(e.extras?['date']),
             compactEpisodeLength(e.duration?.inSeconds ?? 0),
           ]),
           progress: PodcastProgressService.progress(e.id),

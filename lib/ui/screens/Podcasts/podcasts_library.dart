@@ -968,7 +968,7 @@ class _VideoEpisodeRow extends StatelessWidget {
                       const SizedBox(height: RiffSpacing.xxs),
                       Text(
                         episodeMetaLine(
-                            [ep.artist, '${ep.extras?['date'] ?? ''}']),
+                            [ep.artist, episodeDateLabel(ep.extras?['date'])]),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: homeCardSubtitleStyle(context),
@@ -1169,9 +1169,9 @@ class _EpisodeResultRowState extends State<_EpisodeResultRow> {
     return PodcastEpisodeTile(
       artUrl: '${e['artwork'] ?? ''}',
       title: '${e['title'] ?? ''}',
+      show: '${e['show'] ?? ''}',
       meta: episodeMetaLine([
-        '${e['show'] ?? ''}',
-        '${e['date'] ?? ''}',
+        episodeDateLabel(e['date']),
         compactEpisodeLength(seconds is int ? seconds : 0),
       ]),
       progress: PodcastProgressService.progress('${e['id']}'),

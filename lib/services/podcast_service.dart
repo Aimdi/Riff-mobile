@@ -383,9 +383,8 @@ class PodcastService {
       final words = c.text.split(RegExp(r'\s+'));
       // Longest tail of the previous cue that this cue starts with.
       var overlap = 0;
-      for (var n = prevWords.length < words.length
-              ? prevWords.length
-              : words.length;
+      for (var n =
+              prevWords.length < words.length ? prevWords.length : words.length;
           n > 0;
           n--) {
         var same = true;
@@ -504,8 +503,8 @@ class PodcastService {
       if (candidates.isEmpty) return [];
       // Batch-resolve feed URLs (needed to open episodes).
       final ids = candidates.map((c) => c['collectionId']).join(',');
-      final lk = await _dio.get('https://itunes.apple.com/lookup',
-          queryParameters: {'id': ids});
+      final lk = await _dio
+          .get('https://itunes.apple.com/lookup', queryParameters: {'id': ids});
       final results = _asMap(lk.data)?['results'] as List? ?? const [];
       final feedById = <String, String>{};
       for (final r in results) {
@@ -541,21 +540,20 @@ class PodcastService {
     try {
       final cc = _storefront();
       // 1. Find the seed podcast on Apple to read its genre + id.
-      final look = await _dio.get('https://itunes.apple.com/search',
-          queryParameters: {
-            'media': 'podcast',
-            'term': title,
-            'country': cc,
-            'limit': 3,
-          });
+      final look =
+          await _dio.get('https://itunes.apple.com/search', queryParameters: {
+        'media': 'podcast',
+        'term': title,
+        'country': cc,
+        'limit': 3,
+      });
       final matches = _asMap(look.data)?['results'] as List?;
       if (matches == null || matches.isEmpty) return [];
       final src = matches.first as Map;
       final srcId = '${src['collectionId'] ?? src['trackId'] ?? ''}';
-      final genreIds = (src['genreIds'] as List?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          const <String>[];
+      final genreIds =
+          (src['genreIds'] as List?)?.map((e) => e.toString()).toList() ??
+              const <String>[];
       // genreIds always carries "26" (root "Podcasts"); the real category is
       // the first non-root id.
       final genreId = genreIds.firstWhere((g) => g != '26',
@@ -590,8 +588,8 @@ class PodcastService {
 
       // 3. Batch-resolve feed URLs (one lookup) — needed to open episodes.
       final ids = candidates.map((c) => c['collectionId']).join(',');
-      final lk = await _dio.get('https://itunes.apple.com/lookup',
-          queryParameters: {'id': ids});
+      final lk = await _dio
+          .get('https://itunes.apple.com/lookup', queryParameters: {'id': ids});
       final results = _asMap(lk.data)?['results'] as List? ?? const [];
       final feedById = <String, String>{};
       for (final r in results) {
@@ -656,9 +654,8 @@ class PodcastService {
     subsRev.value++;
   }
 
-  static List<Map<String, dynamic>> get subscriptions => _subs.values
-      .map((v) => Map<String, dynamic>.from(v))
-      .toList();
+  static List<Map<String, dynamic>> get subscriptions =>
+      _subs.values.map((v) => Map<String, dynamic>.from(v)).toList();
 
   /// Fill empty / placeholder subscription artwork from Apple's directory.
   /// Runs in the background from the library controller so Subs tiles that
@@ -1327,6 +1324,22 @@ class PodcastService {
   /// [d] as episode dates show it: "19 Jul 2026".
   static String formatDay(DateTime d) =>
       "${d.day} ${_monthAbbr[d.month - 1]} ${d.year}";
+
+  /// [d] without its year, for a date in this one: "19 Jul".
+  static String formatDayShort(DateTime d) =>
+      "${d.day} ${_monthAbbr[d.month - 1]}";
+
+  /// A date as [formatDay] writes it ("19 Jul 2026") back to its day; null
+  /// for anything else.
+  static DateTime? parseDay(String s) {
+    final m = _dayRe.firstMatch(s.trim());
+    if (m == null) return null;
+    final month = _monthAbbr.indexOf(m[2]!) + 1;
+    if (month == 0) return null;
+    return DateTime(int.parse(m[3]!), month, int.parse(m[1]!));
+  }
+
+  static final _dayRe = RegExp(r'^(\d{1,2}) ([A-Z][a-z]{2}) (\d{4})$');
 
   /// RSS pubDate → "19 Jul 2026" (drops weekday and time for a compact row).
   /// Shows the calendar date as the feed wrote it, not the UTC-shifted one,

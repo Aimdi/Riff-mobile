@@ -655,7 +655,8 @@ class _PodcastShowViewState extends State<PodcastShowView> {
     final inOrder = resume == null && eps.isNotEmpty && _oldestFirst
         ? _nextInOrder()
         : null;
-    final latestDate = eps.isEmpty ? '' : '${eps.first.extras?['date'] ?? ''}';
+    final latestDate =
+        eps.isEmpty ? '' : episodeDateLabel(eps.first.extras?['date']);
     final meta = episodeMetaLine([
       if (!widget.loading && eps.isNotEmpty) podcastEpisodeCount(eps.length),
       latestDate,
@@ -830,7 +831,7 @@ class _EpisodeRow extends StatelessWidget {
         : compactEpisodeLength(tot);
     final meta = episodeMetaLine([
       episodeNumberLabel(episode),
-      '${episode.extras?['date'] ?? ''}',
+      episodeDateLabel(episode.extras?['date']),
       length,
     ]);
     final notes = podcastPlainText('${episode.extras?['description'] ?? ''}');

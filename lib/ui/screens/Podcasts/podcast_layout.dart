@@ -2,6 +2,8 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/services/podcast_progress_service.dart';
+import '/services/podcast_service.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/song_list_tile.dart' show RiffRowHairline;
@@ -22,6 +24,18 @@ String compactEpisodeLength(int seconds) {
   return m == 0 ? '${h}h' : '${h}h ${m}m';
 }
 
+/// An episode's length for its row: "45m", or "12m left" once started.
+String episodeTimeLabel(String id, int? durationSec) {
+  final tot = durationSec ?? 0;
+  final left =
+      PodcastProgressService.remainingSec(id, fallbackDurationSec: durationSec);
+  if (left == null || left <= 0 || (tot > 0 && left >= tot)) {
+    return compactEpisodeLength(tot);
+  }
+  final fmt = compactEpisodeLength(left);
+  return fmt.isEmpty ? '' : '$fmt ${'left'.tr}';
+}
+
 /// "1 show" / "12 shows".
 String podcastShowCount(int n) =>
     n == 1 ? 'showCountOne'.tr : 'showCount'.trParams({'count': '$n'});
@@ -29,6 +43,19 @@ String podcastShowCount(int n) =>
 /// "Show · date · 45m" with empty parts dropped.
 String episodeMetaLine(Iterable<String?> parts) =>
     parts.map((p) => (p ?? '').trim()).where((p) => p.isNotEmpty).join(' · ');
+
+/// An episode's date in a row, as Pocket Casts and Apple Podcasts write
+/// it: "Today", "Yesterday", "22 Oct" this year, "22 Oct 2025" before.
+/// Dates in other forms (YouTube's "3 days ago") stay as they are.
+String episodeDateLabel(Object? date, [DateTime? now]) {
+  final s = '${date ?? ''}'.trim();
+  final day = PodcastService.parseDay(s);
+  if (day == null) return s;
+  final n = now ?? DateTime.now();
+  if (day == DateTime(n.year, n.month, n.day)) return 'today'.tr;
+  if (day == DateTime(n.year, n.month, n.day - 1)) return 'yesterday'.tr;
+  return day.year == n.year ? PodcastService.formatDayShort(day) : s;
+}
 
 /// "Trailer", "Bonus", "S2 E5", "Ep. 5" or "Season 2", as Apple Podcasts
 /// and Pocket Casts label episodes; empty when the feed doesn't say.
@@ -120,6 +147,7 @@ class PodcastEpisodeTile extends StatelessWidget {
     required this.artUrl,
     required this.title,
     required this.meta,
+    this.show = '',
     this.progress,
     this.onTap,
     this.onLongPress,
@@ -130,6 +158,10 @@ class PodcastEpisodeTile extends StatelessWidget {
   final String artUrl;
   final String title;
   final String meta;
+
+  /// The show, ahead of [meta] on its line. It's what gets cut short when
+  /// the line runs out of room, so the date and length stay whole.
+  final String show;
 
   /// 0–1 while partly played; hidden otherwise.
   final double? progress;
@@ -173,15 +205,9 @@ class PodcastEpisodeTile extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.titleMedium,
                       ),
-                      if (meta.isNotEmpty) ...[
+                      if (show.isNotEmpty || meta.isNotEmpty) ...[
                         const SizedBox(height: RiffSpacing.xxs),
-                        Text(
-                          meta,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant),
-                        ),
+                        _metaLine(theme),
                       ],
                       if (p != null && p > 0 && p < 1) ...[
                         const SizedBox(height: RiffSpacing.sm),
@@ -203,6 +229,29 @@ class PodcastEpisodeTile extends StatelessWidget {
         // Full-width hairline between episodes (§5.2), inside the row.
         const RiffRowHairline(),
       ],
+    );
+  }
+
+  /// "Show · date · length": the show gives way first.
+  Widget _metaLine(ThemeData theme) {
+    final style = theme.textTheme.bodyMedium
+        ?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    Text line(String s) =>
+        Text(s, maxLines: 1, overflow: TextOverflow.ellipsis, style: style);
+    if (show.isEmpty || meta.isEmpty) return line(show.isEmpty ? meta : show);
+    return MergeSemantics(
+      child: LayoutBuilder(
+        builder: (context, box) => Row(
+          children: [
+            Flexible(child: line(show)),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                  maxWidth: box.maxWidth * RiffComponentSizes.metaTailShare),
+              child: line(' · $meta'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

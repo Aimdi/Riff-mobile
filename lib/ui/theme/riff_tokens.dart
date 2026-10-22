@@ -198,6 +198,10 @@ class RiffFastScroll {
 class RiffComponentSizes {
   RiffComponentSizes._();
 
+  /// The most of a row's meta line its date and length take; the show
+  /// name before them gets the rest.
+  static const double metaTailShare = 0.7;
+
   static const double rowArt = 48;
 
   /// The book you're in the middle of, large (Audiobooks' hero card): its

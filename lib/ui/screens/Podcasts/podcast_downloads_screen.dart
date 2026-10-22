@@ -2,15 +2,15 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '/ui/widgets/image_widget.dart' show RiffNetworkImage;
 import '/models/thumbnail.dart';
 import '/services/podcast_download_service.dart';
-import '/services/podcast_service.dart';
+import '/services/podcast_progress_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/snackbar.dart';
 import 'podcast_empty_state.dart';
+import 'podcast_layout.dart';
 import 'podcast_queue_screen.dart' show showAddToQueueSheet;
 import 'podcast_download_undo.dart';
 
@@ -53,48 +53,21 @@ class _PodcastDownloadsScreenState extends State<PodcastDownloadsScreen> {
             actionLabel: widget.onDiscover != null ? 'discover'.tr : null,
             onAction: widget.onDiscover,
           )
-        : ListView.separated(
+        : ListView.builder(
             padding: const EdgeInsets.only(bottom: RiffSpacing.listEnd),
             itemCount: _items.length,
-            // Full-width hairline between episodes (§5.2).
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            // The rows draw their own hairlines, as Inbox and Queue do.
             itemBuilder: (context, i) {
               final item = _items[i];
-              final art = Thumbnail(item.artUri?.toString() ?? '').medium;
-              final dur = item.duration != null
-                  ? PodcastService.formatDuration(item.duration!.inSeconds)
-                  : null;
-              final fallback = SizedBox.square(
-                dimension: RiffComponentSizes.rowArt,
-                child: Icon(Icons.offline_pin_outlined,
-                    color: theme.colorScheme.onSurfaceVariant),
-              );
-              return ListTile(
-                leading: ClipRRect(
-                  borderRadius: BorderRadius.circular(RiffRadii.sm),
-                  child: art.isNotEmpty
-                      ? RiffNetworkImage(
-                          imageUrl: art,
-                          width: RiffComponentSizes.rowArt,
-                          height: RiffComponentSizes.rowArt,
-                          memCacheWidth: (RiffComponentSizes.rowArt *
-                                  MediaQuery.devicePixelRatioOf(context))
-                              .round(),
-                          fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) => fallback,
-                        )
-                      : fallback,
-                ),
-                title: Text(item.title,
-                    maxLines: 2, overflow: TextOverflow.ellipsis),
-                subtitle: Text(
-                  [
-                    if ((item.artist ?? '').isNotEmpty) item.artist!,
-                    if (dur != null) dur,
-                  ].join(' · '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+              return PodcastEpisodeTile(
+                artUrl: Thumbnail(item.artUri?.toString() ?? '').medium,
+                title: item.title,
+                show: item.artist ?? '',
+                meta: episodeMetaLine([
+                  episodeDateLabel(item.extras?['date']),
+                  episodeTimeLabel(item.id, item.duration?.inSeconds),
+                ]),
+                progress: PodcastProgressService.progress(item.id),
                 onTap: () => _play(item),
                 onLongPress: () => showAddToQueueSheet(context, item),
                 trailing: IconButton(

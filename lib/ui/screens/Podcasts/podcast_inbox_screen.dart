@@ -361,18 +361,8 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
   }
 
   /// "25m left" while partly played, else the episode length ("45m").
-  String _remainingLabel(MediaItem e) {
-    final left = PodcastProgressService.remainingSec(
-      e.id,
-      fallbackDurationSec: e.duration?.inSeconds,
-    );
-    final tot = e.duration?.inSeconds ?? 0;
-    if (left == null || left <= 0 || (tot > 0 && left >= tot)) {
-      return compactEpisodeLength(tot);
-    }
-    final fmt = compactEpisodeLength(left);
-    return fmt.isEmpty ? '' : '$fmt ${'left'.tr}';
-  }
+  String _remainingLabel(MediaItem e) =>
+      episodeTimeLabel(e.id, e.duration?.inSeconds);
 
   /// Shown inline in the Podcasts tab (no page header of its own).
   @override
@@ -590,10 +580,10 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     final tile = PodcastEpisodeTile(
       artUrl: Thumbnail(e.artUri?.toString() ?? '').medium,
       title: e.title,
+      show: e.artist ?? '',
       meta: episodeMetaLine([
-        e.artist,
         episodeNumberLabel(e),
-        '${e.extras?['date'] ?? ''}',
+        episodeDateLabel(e.extras?['date']),
         _remainingLabel(e),
       ]),
       progress: PodcastProgressService.progress(e.id),
