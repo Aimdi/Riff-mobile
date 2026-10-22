@@ -13,6 +13,7 @@ import 'package:get/get.dart';
 import 'package:harmonymusic/models/durationstate.dart';
 import 'package:harmonymusic/services/library_view_mode.dart';
 import 'package:harmonymusic/ui/navigator.dart';
+import 'package:harmonymusic/ui/player/components/queue_panel.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:harmonymusic/ui/screens/Artists/artist_screen.dart';
 import 'package:harmonymusic/ui/screens/Audiobooks/audiobook_detail_screen.dart';
@@ -257,6 +258,17 @@ final scenarios = <Scenario>[
   Scenario('podcast_folder', _all, (t, d) async {
     await openApp(t, tab: RailTab.podcasts);
     Get.to(() => const PodcastFolderScreen(folderId: 'shotFolder'));
+    await settle(t);
+  }),
+
+  // The phone's queue panel (the harness runs as desktop, where the queue
+  // is a drawer): the Up next / Similar tabs over the queue.
+  Scenario('queue_panel', _all, (t, d) async {
+    await openApp(t);
+    final player = Get.find<PlayerController>();
+    player.scrollController = ScrollController();
+    Get.to(() => const Scaffold(
+        body: QueuePanel(queueFooter: SizedBox.shrink())));
     await settle(t);
   }),
 
