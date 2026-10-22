@@ -183,6 +183,11 @@ class RiffComponentSizes {
   /// The book you're in the middle of, large (Audiobooks' hero card): its
   /// cover and its play glyph.
   static const double heroBookCover = 104;
+
+  /// Album / playlist pages: the cover behind the header is as wide as the
+  /// screen but no taller than this, so on a tablet it ends under the
+  /// header as it does on a phone instead of running under the tracks.
+  static const double collectionBackdropMax = 440;
   static const double heroPlayGlyph = 28;
   static const double miniArt = 40;
   static const double headerIcon = 22;

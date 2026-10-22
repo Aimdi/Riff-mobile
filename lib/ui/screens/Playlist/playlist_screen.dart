@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
+import '/ui/theme/riff_tokens.dart';
 import 'package:hive/hive.dart';
 
 import '/services/podcast_playback_profile.dart';
@@ -70,6 +72,11 @@ class PlaylistScreen extends StatelessWidget {
     final size = MediaQuery.of(context).size;
     final playerController = Get.find<PlayerController>();
     final landscape = size.width > size.height;
+    // The cover behind the header: screen-wide, capped in height on wide
+    // screens (it ran under the whole track list on a tablet).
+    final backdrop = size.width < RiffComponentSizes.collectionBackdropMax
+        ? size.width
+        : RiffComponentSizes.collectionBackdropMax;
     final rowsFade = _rowsFade[playlistController] ??= LoadedRowsFade();
     // Podcasts and YouTube channels get the podcast show page; the Obx
     // always reads `playlist`, which an id-only open fills in later.
@@ -128,7 +135,7 @@ class PlaylistScreen extends StatelessWidget {
                                 color: Theme.of(context).canvasColor,
                                 leftShadowOffset: -size.height,
                                 bottomShadowOffset:
-                                    landscape ? size.height : size.width + 80,
+                                    landscape ? size.height : backdrop + 80,
                                 // A photo of its own, else, with no art (or
                                 // when it fails to load), the generated cover
                                 // without the title (the header under it
@@ -139,7 +146,8 @@ class PlaylistScreen extends StatelessWidget {
                                             playlistController.playlist.value)
                                     ? _heroCover(
                                         playlistController.playlist.value,
-                                        landscape ? size.height : size.width)
+                                        landscape ? size.height : size.width,
+                                        landscape ? null : backdrop)
                                     : RiffNetworkImage(
                                         imageUrl: Thumbnail(playlistController
                                                 .playlist.value.thumbnailUrl)
@@ -148,9 +156,8 @@ class PlaylistScreen extends StatelessWidget {
                                             ? BoxFit.fitHeight
                                             : BoxFit.cover,
                                         width: landscape ? null : size.width,
-                                        height: landscape
-                                            ? size.height
-                                            : size.width,
+                                        height:
+                                            landscape ? size.height : backdrop,
                                         memCacheWidth: landscape
                                             ? null
                                             : (size.width *
@@ -178,7 +185,7 @@ class PlaylistScreen extends StatelessWidget {
                                           width: landscape ? null : size.width,
                                           height: landscape
                                               ? size.height
-                                              : size.width,
+                                              : backdrop,
                                           memCacheWidth: landscape
                                               ? null
                                               : (size.width *
@@ -199,13 +206,14 @@ class PlaylistScreen extends StatelessWidget {
                                                       .playlist.value,
                                                   landscape
                                                       ? size.height
-                                                      : size.width),
+                                                      : size.width,
+                                                  landscape ? null : backdrop),
                                         ),
                                       ),
                               );
                             })))
                     : SizedBox(
-                        height: size.width,
+                        height: backdrop,
                         width: size.width,
                       ),
               ),
@@ -580,14 +588,26 @@ bool _showsRecommendations(PlaylistScreenController c) {
 
 /// Header backdrop for a playlist without a cover of its own: the photo it
 /// was given, else (or when that file is gone) its generated cover.
-Widget _heroCover(Playlist pl, double side) {
-  final generated = GeneratedCover.playlist(pl, size: side, showTitle: false);
+/// The art behind the header, [width] wide and [height] tall (square
+/// unless given; cropped to fill).
+Widget _heroCover(Playlist pl, double width, [double? height]) {
+  final h = height ?? width;
+  final generated = ClipRect(
+    child: SizedBox(
+      width: width,
+      height: h,
+      child: FittedBox(
+        fit: BoxFit.cover,
+        child: GeneratedCover.playlist(pl, size: width, showTitle: false),
+      ),
+    ),
+  );
   final photo = PlaylistCovers.pathFor(pl.playlistId);
   if (photo == null) return generated;
   return Image.file(
     File(photo),
-    width: side,
-    height: side,
+    width: width,
+    height: h,
     fit: BoxFit.cover,
     frameBuilder: riffFadeInFrame,
     errorBuilder: (_, __, ___) => generated,

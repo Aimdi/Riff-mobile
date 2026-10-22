@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
+import '/ui/theme/riff_tokens.dart';
 import 'package:harmonymusic/models/album.dart';
 import 'package:harmonymusic/models/playling_from.dart';
 import 'package:harmonymusic/models/thumbnail.dart';
@@ -39,6 +41,11 @@ class AlbumScreen extends StatelessWidget {
     final size = MediaQuery.of(context).size;
     final playerController = Get.find<PlayerController>();
     final landscape = size.width > size.height;
+    // The cover behind the header: screen-wide, capped in height on wide
+    // screens (it ran under the whole track list on a tablet).
+    final backdrop = size.width < RiffComponentSizes.collectionBackdropMax
+        ? size.width
+        : RiffComponentSizes.collectionBackdropMax;
     final rowsFade = _rowsFade[albumController] ??= LoadedRowsFade();
     return Scaffold(
       body: NotificationListener<ScrollNotification>(
@@ -86,16 +93,16 @@ class AlbumScreen extends StatelessWidget {
                                 color: Theme.of(context).canvasColor,
                                 leftShadowOffset: -size.height,
                                 bottomShadowOffset:
-                                    landscape ? size.height : size.width + 80,
+                                    landscape ? size.height : backdrop + 80,
                                 child: RiffNetworkImage(
                                   imageUrl: Thumbnail(albumController
                                           .album.value.thumbnailUrl)
                                       .extraHigh,
                                   fit: landscape
                                       ? BoxFit.fitHeight
-                                      : BoxFit.fitWidth,
+                                      : BoxFit.cover,
                                   width: landscape ? null : size.width,
-                                  height: landscape ? size.height : null,
+                                  height: landscape ? size.height : backdrop,
                                   memCacheWidth: landscape
                                       ? null
                                       : (size.width *
@@ -116,9 +123,9 @@ class AlbumScreen extends StatelessWidget {
                                         .album.value.thumbnailUrl,
                                     fit: landscape
                                         ? BoxFit.fitHeight
-                                        : BoxFit.fitWidth,
+                                        : BoxFit.cover,
                                     width: landscape ? null : size.width,
-                                    height: landscape ? size.height : null,
+                                    height: landscape ? size.height : backdrop,
                                     memCacheWidth: landscape
                                         ? null
                                         : (size.width *
@@ -140,7 +147,7 @@ class AlbumScreen extends StatelessWidget {
                                 ));
                           })))
                   : SizedBox(
-                      height: size.width,
+                      height: backdrop,
                       width: size.width,
                     ),
             ),
