@@ -372,8 +372,9 @@ class LibraryPlayButton extends StatelessWidget {
   }
 }
 
-/// Library grid: 3 columns on phones (2 when narrow), more on tablets,
-/// covers sized to fill each column.
+/// Library grid for the pane [width]: 2 columns of large covers on
+/// phones (Apple Music's album grid), more on tablets, covers sized to
+/// fill each column.
 ({int columns, double cover}) libraryGridMetrics(double width) {
   final columns = width >= 1100
       ? 6

@@ -19,8 +19,9 @@ void main() {
   });
 
   test('subscriptions grid: 3 columns on phones, 2 when narrow', () {
-    expect(podcastSubsColumnCount(360), 2);
-    expect(podcastSubsColumnCount(411), 3);
+    // Pane widths: the screen less the 47 dp rail.
+    expect(podcastSubsColumnCount(360 - 47), 2);
+    expect(podcastSubsColumnCount(411 - 47), 3);
     expect(podcastSubsColumnCount(800), 4);
     expect(podcastSubsColumnCount(1200), 6);
   });

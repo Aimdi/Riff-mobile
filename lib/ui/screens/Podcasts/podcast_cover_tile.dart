@@ -20,11 +20,14 @@ import '/ui/widgets/shimmer_widgets/basic_container.dart'
 import '/ui/widgets/snackbar.dart';
 import 'podcasts_screen.dart';
 
-/// 3 columns on regular phones (2 on narrow ones), more on tablets.
+/// Columns for the pane [width] (the screen less the rail): 3 on regular
+/// phones as Pocket Casts lays out its podcasts (2 on narrow ones), more
+/// on tablets. (It used to be read against screen widths, so the 364 dp
+/// pane of a 411 dp phone got 2.)
 int podcastSubsColumnCount(double width) {
-  if (width >= 1100) return 6;
-  if (width >= 720) return 4;
-  if (width >= 380) return 3;
+  if (width >= 1000) return 6;
+  if (width >= 640) return 4;
+  if (width >= 330) return 3;
   return 2;
 }
 
@@ -137,7 +140,9 @@ class PodcastCoverTile extends StatelessWidget {
               title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleMedium,
+              // 14 medium, as every card title (Home, the library).
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(color: theme.colorScheme.onSurface),
             ),
             if (subtitle != null && subtitle!.isNotEmpty)
               Padding(
