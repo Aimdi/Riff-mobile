@@ -234,8 +234,6 @@ class RiffComponentSizes {
   static const double artistAboutAspect = 16 / 9;
   static const double artistAboutPhotoMax = 260;
 
-  /// How far a book's page scrolls before its title moves into the bar.
-  static const double detailTitleScroll = 120;
   static const double miniArt = 40;
   static const double headerIcon = 22;
   static const double trailingIcon = 20;
@@ -390,6 +388,9 @@ class RiffComponentSizes {
   /// cover's play button, the folder glyph and the empty-state glyph.
   static const double showCoverMin = 160;
   static const double showCoverMax = 240;
+
+  /// The widest a book page's Play / Resume pill grows (a tablet).
+  static const double bookPlayMax = 400;
   static const double continueArt = 64;
   static const double continueBadge = 24;
   static const double continueBadgeIcon = 18;
