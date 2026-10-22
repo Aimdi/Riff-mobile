@@ -102,6 +102,54 @@ Motion: smoother everywhere
   moment before your albums and artists appear; the light and
   album-colour themes open Settings groups as smoothly as the dark one
 
+A redesign, closer to Spotify, YouTube Music, Apple Music, Pocket Casts
+and Audible (the side rail, the black page and your accent colour stay):
+* Tap an album, playlist, podcast show or book and its cover flies from
+  the card to the page's cover, and back when you go back; the page's
+  title and buttons fade in beside it. Cards shrink a touch under your
+  finger
+* Home and Library: section titles in sentence case, and every tab's
+  title equally large (shrinking to fit at the largest font size instead
+  of being cut). Long song lists, and long albums and playlists, get a
+  fast-scroll thumb with a letter bubble. On tablets Quick picks cards
+  stop at 420 dp wide and an album's cover backdrop ends under its
+  header. Long section names wrap
+* Library › Songs: Favorites and Recently played read whole on a phone
+  ("Recently pla…" before)
+* Search: the top result sits on a card of its own, and the page starts
+  under the status bar like every tab
+* Podcasts: Subscriptions in three columns on phones; episode rows say
+  Today, Yesterday or 22 Oct, and a long show name gives way before the
+  date and length (at large text it takes a line of its own)
+* Audiobooks: the book you're in the middle of shown large, as Audible
+  does, its play button on the cover; genre chips fit their names; an
+  Audiobookshelf book gets the same page as a free one; a book page's
+  top bar shows the title only once the big one has scrolled away
+* Artist page: About on a card with the artist's photo
+* Stats: tiles that fit on a small phone and at large text, the week
+  labelled by weekday (today's brighter), covers on your top songs;
+  Rewind and podcast stats fit at large text
+* Add to playlist: each playlist with its cover
+* The player: the artist, times and Up Next in the page's text colour,
+  readable on any cover; lyrics on a rounded card that fades them out at
+  its top and bottom edges
+* Settings: group titles at list size; their summaries can wrap
+* Home when it can't load: "Couldn't load Home. Check your connection."
+  and Retry, in the app's empty-state style; empty states keep their
+  message to a few lines on a tablet; page subtitles and the new-playlist
+  dialog's title aren't cut short
+* On Linux (and anywhere the queue is a drawer): the queue's title and
+  count on the left, its actions as icons
+
+Accessibility:
+* TalkBack names the play pills, the player's cover and Up Next bar,
+  the new-playlist button, artist rows and pressed cards; a setting's
+  switch is read with its title; chips and section pills say which one
+  is chosen
+* The mini player's controls are full height and the song is one
+  button; the like and ⋮ buttons on song rows and the play badges on
+  covers are 48 dp to tap (they look the same)
+
 # 1.7.153
 
 The music player takes its look from the cover, like BitChord:
