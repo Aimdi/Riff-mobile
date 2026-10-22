@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/models/durationstate.dart';
 import 'package:harmonymusic/services/library_view_mode.dart';
 import 'package:harmonymusic/ui/navigator.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
@@ -161,6 +162,20 @@ final scenarios = <Scenario>[
     };
     player.isLyricsLoading.value = false;
     player.showLyricsflag.value = true;
+    await settle(t);
+  }),
+  // The long-form player: a podcast episode playing.
+  Scenario('player_podcast', _all, (t, d) async {
+    final player = Get.find<PlayerController>();
+    final episode = ShotPods.inbox.first;
+    player.currentQueue.assignAll([episode]);
+    player.currentSongIndex.value = 0;
+    player.currentSong.value = episode;
+    final total = episode.duration ?? const Duration(minutes: 40);
+    player.progressBarStatus.value = ProgressBarState(
+        current: total * 0.31, buffered: total * 0.6, total: total);
+    await openApp(t);
+    player.playerPanelController.open();
     await settle(t);
   }),
   Scenario('player_queue', _all, (t, d) async {

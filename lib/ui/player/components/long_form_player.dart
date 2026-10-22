@@ -52,8 +52,8 @@ import '/ui/widgets/image_widget.dart' show RiffNetworkImage;
 /// * the current chapter, tappable for the chapter list,
 /// * a seek bar with chapter sections,
 /// * −10 s · play · +30 s, with previous / next at the edges,
-/// * one row of tools: speed, sleep timer, notes or chapters, transcript,
-///   video and autoplay.
+/// * its tools (speed, sleep timer, notes or chapters, transcript, video
+///   and autoplay) under the ⋮ at the top right ([LongFormToolTiles]).
 class LongFormPlayer extends StatelessWidget {
   const LongFormPlayer({super.key});
 
