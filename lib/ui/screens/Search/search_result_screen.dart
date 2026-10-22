@@ -181,26 +181,32 @@ class _FilterChipsState extends State<_FilterChips> {
           itemCount: labels.length,
           separatorBuilder: (_, __) => const SizedBox(width: 8),
           itemBuilder: (context, i) {
-            // The picked chip's fill, outline and label ease over.
-            final chip = TweenAnimationBuilder<double>(
-              tween: Tween(end: i == selected ? 1 : 0),
-              duration: RiffDurations.select,
-              curve: RiffDurations.selectCurve,
-              builder: (context, t, _) => Material(
-                color: Color.lerp(idleFill, scheme.secondary, t),
-                shape: StadiumBorder(
-                    side: BorderSide.lerp(idleBorder, BorderSide.none, t)),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: () => controller.onDestinationSelected(i),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: Center(
-                      child: Text(
-                        labels[i],
-                        style: labelStyle?.copyWith(
-                            color: Color.lerp(
-                                scheme.onSurface, scheme.onPrimary, t)),
+            // The picked chip's fill, outline and label ease over;
+            // TalkBack hears which one is picked.
+            final chip = Semantics(
+              container: true,
+              button: true,
+              selected: i == selected,
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(end: i == selected ? 1 : 0),
+                duration: RiffDurations.select,
+                curve: RiffDurations.selectCurve,
+                builder: (context, t, _) => Material(
+                  color: Color.lerp(idleFill, scheme.secondary, t),
+                  shape: StadiumBorder(
+                      side: BorderSide.lerp(idleBorder, BorderSide.none, t)),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () => controller.onDestinationSelected(i),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: Center(
+                        child: Text(
+                          labels[i],
+                          style: labelStyle?.copyWith(
+                              color: Color.lerp(
+                                  scheme.onSurface, scheme.onPrimary, t)),
+                        ),
                       ),
                     ),
                   ),

@@ -205,32 +205,38 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
             return Center(
               child: SizedBox(
                 height: RiffComponentSizes.chip,
-                // The picked chip's fill, outline and label ease over.
-                child: TweenAnimationBuilder<double>(
-                  tween: Tween(end: active ? 1 : 0),
-                  duration: RiffDurations.select,
-                  curve: RiffDurations.selectCurve,
-                  builder: (context, t, _) => Material(
-                    color: Color.lerp(fill.withAlpha(0), fill, t),
-                    shape: StadiumBorder(
-                        side: BorderSide(
-                            color: Color.lerp(Theme.of(context).dividerColor,
-                                scheme.primary, t)!)),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: () => _select(mode),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: RiffSpacing.md),
-                        child: Center(
-                          child: Text(
-                            label,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelMedium
-                                ?.copyWith(
-                                    color: Color.lerp(
-                                        scheme.onSurface, scheme.primary, t)),
+                // The picked chip's fill, outline and label ease over;
+                // TalkBack hears which one is picked.
+                child: Semantics(
+                  container: true,
+                  button: true,
+                  selected: active,
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(end: active ? 1 : 0),
+                    duration: RiffDurations.select,
+                    curve: RiffDurations.selectCurve,
+                    builder: (context, t, _) => Material(
+                      color: Color.lerp(fill.withAlpha(0), fill, t),
+                      shape: StadiumBorder(
+                          side: BorderSide(
+                              color: Color.lerp(Theme.of(context).dividerColor,
+                                  scheme.primary, t)!)),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () => _select(mode),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: RiffSpacing.md),
+                          child: Center(
+                            child: Text(
+                              label,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelMedium
+                                  ?.copyWith(
+                                      color: Color.lerp(
+                                          scheme.onSurface, scheme.primary, t)),
+                            ),
                           ),
                         ),
                       ),

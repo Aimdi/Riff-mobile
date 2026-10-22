@@ -269,35 +269,43 @@ class RiffChoiceChip extends StatelessWidget {
   Widget _chip(BuildContext context,
       {required Color fill, required Color outline, required Color fg}) {
     final theme = Theme.of(context);
-    return Material(
-      color: fill,
-      shape: StadiumBorder(side: BorderSide(color: outline)),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: RiffSizes.chipHeight,
-            // Never wider than the screen: a label too long for its line
-            // (a larger font size, a long translation) wraps inside the
-            // chip instead of running off past the sheet's edge.
-            maxWidth: MediaQuery.sizeOf(context).width,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (icon != null) ...[
-                  Icon(icon,
-                      size: RiffComponentSizes.chipLeadingIcon, color: fg),
-                  const SizedBox(width: RiffSpacing.xs),
+    // TalkBack hears it as a button and which chip is chosen ("All time,
+    // selected"), as Material's ChoiceChip says.
+    return Semantics(
+      container: true,
+      button: true,
+      selected: selected,
+      child: Material(
+        color: fill,
+        shape: StadiumBorder(side: BorderSide(color: outline)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: RiffSizes.chipHeight,
+              // Never wider than the screen: a label too long for its line
+              // (a larger font size, a long translation) wraps inside the
+              // chip instead of running off past the sheet's edge.
+              maxWidth: MediaQuery.sizeOf(context).width,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon,
+                        size: RiffComponentSizes.chipLeadingIcon, color: fg),
+                    const SizedBox(width: RiffSpacing.xs),
+                  ],
+                  Flexible(
+                    child: Text(label,
+                        style:
+                            theme.textTheme.labelMedium?.copyWith(color: fg)),
+                  ),
                 ],
-                Flexible(
-                  child: Text(label,
-                      style: theme.textTheme.labelMedium?.copyWith(color: fg)),
-                ),
-              ],
+              ),
             ),
           ),
         ),

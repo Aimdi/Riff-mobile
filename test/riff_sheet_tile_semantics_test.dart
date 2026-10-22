@@ -19,8 +19,8 @@ void main() {
             title: 'Shake to restart',
             subtitle: 'Shake the phone to start the timer again',
             onTap: () => setState(() => on = !on),
-            trailing: CustSwitch(
-                value: on, onChanged: (v) => setState(() => on = v)),
+            trailing:
+                CustSwitch(value: on, onChanged: (v) => setState(() => on = v)),
           ),
         ),
       ),
@@ -38,6 +38,33 @@ void main() {
         .performAction(node.id, SemanticsAction.tap);
     await tester.pump();
     expect(on, isTrue);
+    handle.dispose();
+  });
+
+  testWidgets('a choice chip tells TalkBack whether it is the chosen one',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(MaterialApp(
+      theme: RiffTheme.dark(const Color(0xFF1DB954)),
+      home: Scaffold(
+        body: Row(children: [
+          RiffChoiceChip(label: 'All time', selected: true, onTap: () {}),
+          RiffChoiceChip(label: 'Last 4 weeks', onTap: () {}),
+        ]),
+      ),
+    ));
+
+    SemanticsData chip(String label) => tester
+        .getSemantics(find
+            .ancestor(of: find.text(label), matching: find.byType(Semantics))
+            .first)
+        .getSemanticsData();
+    final chosen = chip('All time');
+    expect(chosen.label, 'All time');
+    expect(chosen.hasFlag(SemanticsFlag.isButton), isTrue);
+    expect(chosen.hasFlag(SemanticsFlag.isSelected), isTrue);
+    expect(chosen.hasAction(SemanticsAction.tap), isTrue);
+    expect(chip('Last 4 weeks').hasFlag(SemanticsFlag.isSelected), isFalse);
     handle.dispose();
   });
 }

@@ -354,7 +354,10 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
         );
       },
     );
-    return filters ? Tooltip(message: 'filterInbox'.tr, child: pill) : pill;
+    // TalkBack hears which section is open ("Queue 6, selected").
+    final named =
+        Semantics(container: true, button: true, selected: active, child: pill);
+    return filters ? Tooltip(message: 'filterInbox'.tr, child: named) : named;
   }
 
   void _setInboxFilter(EpisodeFilter? filter) {
