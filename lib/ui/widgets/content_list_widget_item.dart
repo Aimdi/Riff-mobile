@@ -13,6 +13,7 @@ import '../utils/riff_tokens.dart';
 import '../utils/theme_controller.dart';
 import 'collection_play.dart';
 import 'generated_cover.dart';
+import 'cover_tap_target.dart';
 import 'image_widget.dart';
 import 'podcast_play.dart';
 import 'riff_motion.dart';
@@ -383,10 +384,15 @@ class ContentListItem extends StatelessWidget {
         children: [
           _cover(context),
           Positioned(
-            right: _playInset,
-            bottom: _playInset,
-            child: Tooltip(
-              message: "play".tr,
+            right: 0,
+            bottom: 0,
+            child: CoverTapTarget(
+              label: 'play'.tr,
+              inset: _playInset,
+              onTap: () {
+                noteSearchOpen(context, content);
+                _playFromOverlay();
+              },
               child: Material(
                 color: RiffColors.of(context).scrim.withOpacity(0.5),
                 shape: const CircleBorder(),

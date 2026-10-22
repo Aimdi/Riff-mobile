@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import '/ui/widgets/cover_tap_target.dart';
 import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/podcast_inbox_counts.dart';
@@ -128,9 +129,14 @@ class PodcastCoverTile extends StatelessWidget {
                         child: count!),
                   if (showPlay)
                     Positioned(
-                      right: RiffSpacing.sm,
-                      bottom: RiffSpacing.sm,
-                      child: _PlayFab(onPressed: onPlay ?? onTap),
+                      right: 0,
+                      bottom: 0,
+                      child: CoverTapTarget(
+                        label: 'play'.tr,
+                        inset: RiffSpacing.sm,
+                        onTap: onPlay ?? onTap,
+                        child: _PlayFab(onPressed: onPlay ?? onTap),
+                      ),
                     ),
                 ],
               ),
@@ -229,7 +235,7 @@ class PodcastCoverTile extends StatelessWidget {
 }
 
 /// Accent play circle on a cover (a play button, §2.5); flat, no shadow.
-/// TalkBack reaches it apart from the tile around it, as "Play".
+/// Its [CoverTapTarget] names it for TalkBack, apart from the tile.
 class _PlayFab extends StatelessWidget {
   const _PlayFab({this.onPressed});
   final VoidCallback? onPressed;
@@ -237,23 +243,18 @@ class _PlayFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Semantics(
-      container: true,
-      button: true,
-      label: 'play'.tr,
-      child: Material(
-        color: scheme.primary,
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onPressed,
-          child: SizedBox(
-            width: RiffComponentSizes.coverPlay,
-            height: RiffComponentSizes.coverPlay,
-            child: Icon(Icons.play_arrow_rounded,
-                color: scheme.onPrimary, size: RiffComponentSizes.trailingIcon),
-          ),
+    return Material(
+      color: scheme.primary,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onPressed,
+        child: SizedBox(
+          width: RiffComponentSizes.coverPlay,
+          height: RiffComponentSizes.coverPlay,
+          child: Icon(Icons.play_arrow_rounded,
+              color: scheme.onPrimary, size: RiffComponentSizes.trailingIcon),
         ),
       ),
     );
