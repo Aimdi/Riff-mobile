@@ -10,6 +10,7 @@ import '/ui/widgets/rows_reveal.dart';
 import '/ui/widgets/shimmer_widgets/reveal.dart';
 import '../../widgets/side_nav_bar.dart';
 import '../Library/library.dart';
+import '../Podcasts/podcast_empty_state.dart';
 import '../Podcasts/podcasts_library.dart';
 import '../Audiobooks/audiobooks_screen.dart';
 import '../Settings/settings_screen_controller.dart';
@@ -152,60 +153,32 @@ class Body extends StatelessWidget {
           children: [
             Obx(
               () => homeScreenController.networkError.isTrue
-                  ? SizedBox(
-                      height: MediaQuery.of(context).size.height - 180,
-                      child: Column(
-                        children: [
-                          Align(
-                            alignment: Alignment.topLeft,
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 12),
-                              child: Text(
-                                "home".tr,
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ),
-                            ),
+                  // Offline: the page title where every tab has it, and
+                  // the app's empty state with Retry.
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.only(
+                              left: HomeLayout.gutter,
+                              top: riffTabTop(context),
+                              right: HomeLayout.gutter),
+                          child: SizedBox(
+                            height: RiffSpacing.headerRow,
+                            child: RiffPageTitle('home'.tr),
                           ),
-                          Expanded(
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    "networkError1".tr,
-                                    style:
-                                        Theme.of(context).textTheme.titleMedium,
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 15, vertical: 10),
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context)
-                                          .textTheme
-                                          .titleLarge!
-                                          .color,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: InkWell(
-                                      onTap: () {
-                                        homeScreenController
-                                            .loadContentFromNetwork();
-                                      },
-                                      child: Text(
-                                        "retry".tr,
-                                        style: TextStyle(
-                                          color: Theme.of(context).canvasColor,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                        ),
+                        Expanded(
+                          child: PodcastEmptyState(
+                            icon: Icons.wifi_off_rounded,
+                            message: 'networkError1'.tr,
+                            actionLabel: 'retry'.tr,
+                            actionIcon: Icons.refresh_rounded,
+                            onAction:
+                                homeScreenController.loadContentFromNetwork,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     )
                   : const _HomeFeed(),
             ),

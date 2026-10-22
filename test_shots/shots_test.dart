@@ -45,6 +45,12 @@ final scenarios = <Scenario>[
     await openApp(t);
     await growToFeed(t, d);
   }),
+  // Home when the feed couldn't load (offline).
+  Scenario('home_offline', _all, (t, d) async {
+    await openApp(t);
+    Get.find<HomeScreenController>().networkError.value = true;
+    await settle(t);
+  }),
   Scenario('discover', _all, (t, d) => openApp(t, tab: RailTab.discover)),
   Scenario('discover_full', _all, (t, d) async {
     await openApp(t, tab: RailTab.discover);
