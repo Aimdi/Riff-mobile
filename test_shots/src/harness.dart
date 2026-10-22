@@ -209,6 +209,7 @@ Future<void> runShot(
     name = '${name}_${shotAccentName.toLowerCase()}';
   }
   useDevice(tester, device);
+  final semantics = _a11y ? tester.ensureSemantics() : null;
   final onError = FlutterError.onError;
   _errors.clear();
   FlutterError.onError = (d) {
@@ -226,6 +227,7 @@ Future<void> runShot(
       await _freezeMotion(tester);
       await expectLater(
           _capture(tester, device.dpr), matchesGoldenFile('out/$name.png'));
+      if (_a11y) await _checkGuidelines(tester, name);
     } finally {
       debugDisableShadows = true;
       // Unmount (also when the scenario failed, so its routes go now and
@@ -236,6 +238,7 @@ Future<void> runShot(
     }
   } finally {
     FlutterError.onError = onError;
+    semantics?.dispose();
   }
   final log = File('${_outDir()}/$name.errors.txt');
   if (_errors.isEmpty) {
@@ -250,6 +253,33 @@ Future<void> runShot(
   final gist = _errors.map((e) => e.split('\n').take(4).join('\n'));
   // ignore: avoid_print
   print('WARNING $summary:\n${gist.join('\n')}');
+}
+
+/// `--dart-define=SHOT_A11Y=true`: also checks Flutter's accessibility
+/// guidelines on each screen (Android tap targets of 48 dp, labelled tap
+/// targets, text contrast) and writes what falls short to
+/// out/<name>.a11y.txt.
+const _a11y = bool.fromEnvironment('SHOT_A11Y');
+
+Future<void> _checkGuidelines(WidgetTester tester, String name) async {
+  final missed = <String>[];
+  for (final (label, guideline) in [
+    ('Tap targets', androidTapTargetGuideline),
+    ('Labels', labeledTapTargetGuideline),
+    ('Text contrast', textContrastGuideline),
+  ]) {
+    final result = await guideline.evaluate(tester);
+    if (!result.passed) missed.add('== $label\n${result.reason}');
+  }
+  final log = File('${_outDir()}/$name.a11y.txt');
+  if (missed.isEmpty) {
+    if (log.existsSync()) log.deleteSync();
+    return;
+  }
+  log.writeAsStringSync('${missed.join('\n\n')}\n');
+  // ignore: avoid_print
+  print('A11Y $name: ${missed.length} guideline(s) not met '
+      '(see out/$name.a11y.txt)');
 }
 
 /// `--dart-define=SHOT_STRICT=true`: a scenario that reports errors

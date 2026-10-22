@@ -172,13 +172,18 @@ class HomeSectionSlot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!switchableHomeSections.contains(section)) return child;
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onLongPress: () {
-        HapticFeedback.mediumImpact();
-        showHomeSectionSheet(context, section);
-      },
-      child: child,
+    // Named for TalkBack, whose long press here reaches the same sheet.
+    return Semantics(
+      container: true,
+      label: section.labelKey.tr,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onLongPress: () {
+          HapticFeedback.mediumImpact();
+          showHomeSectionSheet(context, section);
+        },
+        child: child,
+      ),
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:ionicons/ionicons.dart';
@@ -228,7 +229,10 @@ class _MiniPlayerArt extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
           song != null
-              ? GestureDetector(
+              // The titles beside it carry the same long press for
+              // TalkBack; the cover adds no node of its own.
+              ? ExcludeSemantics(
+                  child: GestureDetector(
                   onLongPress: () {
                     HapticFeedback.mediumImpact();
                     showCurrentSongSheet(
@@ -262,7 +266,7 @@ class _MiniPlayerArt extends StatelessWidget {
                       ),
                     ),
                   ),
-                )
+                ))
               : const SizedBox.square(
                   dimension: RiffComponentSizes.miniArt,
                 ),
@@ -392,6 +396,47 @@ class _MiniPlayerSongInfo extends StatelessWidget {
   Widget build(BuildContext context) {
     final playerController = Get.find<PlayerController>();
     final theme = Theme.of(context);
+    void openPlayer() => playerController.playerPanelController.open();
+    void songSheet() {
+      HapticFeedback.mediumImpact();
+      showCurrentSongSheet(
+        song: playerController.currentSong.value,
+        context: playerController.homeScaffoldkey.currentContext,
+      );
+    }
+
+    // TalkBack reads the song as one button (title, artist) that opens
+    // the player; its album and artist are actions on it, as the two
+    // lines are for a finger.
+    return Obx(() {
+      final song = playerController.currentSong.value;
+      return Semantics(
+        container: true,
+        button: true,
+        label: [
+          if ((song?.title ?? '').isNotEmpty) song!.title,
+          if ((song?.artist ?? '').isNotEmpty) song!.artist!,
+        ].join(', '),
+        onTap: openPlayer,
+        onLongPress: song == null ? null : songSheet,
+        customSemanticsActions: {
+          if (songAlbumId(song) != null)
+            CustomSemanticsAction(label: 'goToAlbum'.tr): () =>
+                openCurrentAlbum(playerController),
+          if (songArtistId(song) != null)
+            CustomSemanticsAction(label: 'viewArtist'.tr): () =>
+                openCurrentArtist(playerController),
+        },
+        child: ExcludeSemantics(
+            child: _gestures(context, playerController, theme,
+                openPlayer: openPlayer, songSheet: songSheet)),
+      );
+    });
+  }
+
+  Widget _gestures(
+      BuildContext context, PlayerController playerController, ThemeData theme,
+      {required VoidCallback openPlayer, required VoidCallback songSheet}) {
     return GestureDetector(
       onHorizontalDragEnd: !flingToSkip
           ? null
@@ -402,16 +447,8 @@ class _MiniPlayerSongInfo extends StatelessWidget {
                 playerController.prev();
               }
             },
-      onTap: () {
-        playerController.playerPanelController.open();
-      },
-      onLongPress: () {
-        HapticFeedback.mediumImpact();
-        showCurrentSongSheet(
-          song: playerController.currentSong.value,
-          context: playerController.homeScaffoldkey.currentContext,
-        );
-      },
+      onTap: openPlayer,
+      onLongPress: songSheet,
       child: ColoredBox(
         color: Colors.transparent,
         child: Obx(() {
@@ -562,9 +599,13 @@ class _MiniPlayerTransport extends StatelessWidget {
         minHeight: RiffComponentSizes.rowIconHit);
     // Toggled-on = accent; off = secondary text.
     Color toggle(bool on) => on ? scheme.secondary : scheme.onSurfaceVariant;
-    return Row(
+    final row = Row(
       mainAxisSize: isWideScreen ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      // Phones: the controls sit close together, so each one takes the
+      // bar's full height to tap (the glyphs stay as they are).
+      crossAxisAlignment:
+          isWideScreen ? CrossAxisAlignment.center : CrossAxisAlignment.stretch,
       children: [
         FavoriteHeartButton(
           iconSize: RiffComponentSizes.trailingIcon,
@@ -596,6 +637,7 @@ class _MiniPlayerTransport extends StatelessWidget {
                 enabled: canPrev,
                 label: 'previous'.tr,
                 child: InkWell(
+                  customBorder: const CircleBorder(),
                   onTap: canPrev ? playerController.prev : null,
                   child: Icon(
                     Icons.skip_previous_rounded,
@@ -611,11 +653,13 @@ class _MiniPlayerTransport extends StatelessWidget {
                 size: RiffComponentSizes.miniWidePlay,
               )
             // Bare onSurface glyph in the same 38 hit box.
-            : AnimatedPlayButton(
-                iconSize: RiffComponentSizes.miniPlayIcon,
-                size: RiffComponentSizes.miniPlayHit,
-                color: Colors.transparent,
-                iconColor: scheme.onSurface,
+            : Center(
+                child: AnimatedPlayButton(
+                  iconSize: RiffComponentSizes.miniPlayIcon,
+                  size: RiffComponentSizes.miniPlayHit,
+                  color: Colors.transparent,
+                  iconColor: scheme.onSurface,
+                ),
               ),
         SizedBox(
             width: skipWidth,
@@ -635,6 +679,7 @@ class _MiniPlayerTransport extends StatelessWidget {
                 enabled: canNext,
                 label: 'next'.tr,
                 child: InkWell(
+                  customBorder: const CircleBorder(),
                   onTap: canNext ? playerController.next : null,
                   child: Icon(
                     Icons.skip_next_rounded,
@@ -698,6 +743,7 @@ class _MiniPlayerTransport extends StatelessWidget {
           )
       ],
     );
+    return isWideScreen ? row : SizedBox(height: RiffSizes.touch, child: row);
   }
 }
 

@@ -6,6 +6,7 @@ import 'package:harmonymusic/models/durationstate.dart';
 import 'package:harmonymusic/ui/player/components/animated_play_button.dart';
 import 'package:harmonymusic/ui/player/components/mini_player.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
+import 'package:harmonymusic/ui/theme/riff_spacing.dart';
 import 'package:harmonymusic/ui/theme/riff_theme.dart';
 import 'package:harmonymusic/ui/theme/riff_tokens.dart';
 import 'package:harmonymusic/ui/widgets/mini_player_progress_bar.dart';
@@ -111,8 +112,8 @@ void main() {
     expect(button, findsOneWidget);
     expect(TickerMode.of(tester.element(button)), isFalse);
     // …except the progress line, rebuilt with every position tick.
-    expect(find.byType(MiniPlayerProgressBar, skipOffstage: false),
-        findsNothing);
+    expect(
+        find.byType(MiniPlayerProgressBar, skipOffstage: false), findsNothing);
 
     player.isPlayerpanelTopVisible.value = true;
     await tester.pump();
@@ -122,8 +123,7 @@ void main() {
     await unmount(tester);
   });
 
-  testWidgets('a new song: art and titles cross-fade together',
-      (tester) async {
+  testWidgets('a new song: art and titles cross-fade together', (tester) async {
     await pumpMini(tester);
     player.currentSong.value = player.currentQueue[1];
     player.currentSongIndex.value = 1;
@@ -136,6 +136,43 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Title one'), findsNothing);
     expect(find.text('Title two'), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets('TalkBack reads the song as one button that opens the player',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    await pumpMini(tester);
+    final song = find.bySemanticsLabel('Title one, Artist one');
+    expect(song, findsOneWidget);
+    expect(
+        tester.getSemantics(song),
+        matchesSemantics(
+          label: 'Title one, Artist one',
+          isButton: true,
+          hasTapAction: true,
+          hasLongPressAction: true,
+        ));
+    // The two lines aren't read again on their own.
+    expect(find.bySemanticsLabel('Title one'), findsNothing);
+    handle.dispose();
+    await unmount(tester);
+  });
+
+  testWidgets('the controls take the bar\'s full height to tap',
+      (tester) async {
+    await pumpMini(tester);
+    for (final icon in [
+      Icons.skip_previous_rounded,
+      Icons.skip_next_rounded,
+    ]) {
+      final hit = find.ancestor(
+          of: find.byIcon(icon).first, matching: find.byType(InkWell));
+      expect(tester.getSize(hit.first).height, RiffSizes.touch);
+    }
+    final queue = find.ancestor(
+        of: find.byIcon(Icons.queue_music), matching: find.byType(IconButton));
+    expect(tester.getSize(queue.first).height, RiffSizes.touch);
     await unmount(tester);
   });
 }

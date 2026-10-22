@@ -37,6 +37,9 @@ every section is in one image.
 
 - `SHOT_ACCENT=Blue` (Violet, Crimson, Amber, Cyan): another accent; files get
   a suffix (`home_phone_blue.png`). Green is the default.
+- `SHOT_A11Y=true`: also checks Flutter's accessibility guidelines on each
+  screen (48 dp Android tap targets, labelled tap targets, text contrast) and
+  writes what falls short to `out/<scenario>_<device>.a11y.txt`.
 - `SHOT_STRICT=true`: a scenario that reports a layout overflow or a build
   exception fails. By default it only warns.
 - `SHOT_LIVE_MOTION=true`: capture with animations running. By default the

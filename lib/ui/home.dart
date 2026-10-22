@@ -194,9 +194,14 @@ class Home extends StatelessWidget {
                   panel: const Player(),
                   body: const ScreenNavigation(),
                   header: !isWideScreen
-                      ? InkWell(
-                          onTap: playerController.playerPanelController.open,
-                          child: const MiniPlayer(),
+                      // The bar is named for TalkBack: its tap opens the
+                      // player, its swipes change the song.
+                      ? Semantics(
+                          label: 'nowPlaying'.tr,
+                          child: InkWell(
+                            onTap: playerController.playerPanelController.open,
+                            child: const MiniPlayer(),
+                          ),
                         )
                       : const MiniPlayer(),
                 ))),
