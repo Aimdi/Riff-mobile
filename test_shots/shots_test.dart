@@ -11,6 +11,7 @@ import 'package:get/get.dart';
 import 'package:harmonymusic/services/library_view_mode.dart';
 import 'package:harmonymusic/ui/navigator.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
+import 'package:harmonymusic/ui/screens/Artists/artist_screen.dart';
 import 'package:harmonymusic/ui/screens/Audiobooks/audiobook_detail_screen.dart';
 import 'package:harmonymusic/ui/screens/Audiobooks/audiobook_widgets.dart';
 import 'package:harmonymusic/ui/screens/Home/home_screen.dart';
@@ -114,6 +115,19 @@ final scenarios = <Scenario>[
     final playlist = ShotData.ytPlaylist(1);
     await push(t, ScreenNavigationSetup.playlistScreen,
         [playlist, playlist.playlistId, false]);
+  }),
+
+  // ── Artist page ──────────────────────────────────────────────────────
+  Scenario('artist', _all, (t, d) async {
+    await openApp(t, tab: RailTab.artists);
+    await push(t, ScreenNavigationSetup.artistScreen,
+        [true, ShotData.artists[0].browseId]);
+  }),
+  Scenario('artist_full', _all, (t, d) async {
+    await openApp(t, tab: RailTab.artists);
+    await push(t, ScreenNavigationSetup.artistScreen,
+        [true, ShotData.artists[0].browseId]);
+    await growToFeed(t, d, within: find.byType(ArtistScreen));
   }),
 
   // ── Full player ──────────────────────────────────────────────────────
@@ -260,10 +274,13 @@ Future<void> tapPill(WidgetTester tester, String label) async {
   await settle(tester);
 }
 
-/// Makes the surface as tall as the Home feed, so every section shows.
-Future<void> growToFeed(WidgetTester tester, ShotDevice device) async {
+/// Makes the surface as tall as the Home feed (or the page [within]), so
+/// every section shows.
+Future<void> growToFeed(WidgetTester tester, ShotDevice device,
+    {Finder? within}) async {
   final lists = find.descendant(
-      of: find.byType(HomeScreen), matching: find.byType(Scrollable));
+      of: within ?? find.byType(HomeScreen),
+      matching: find.byType(Scrollable));
   for (var pass = 0; pass < 3; pass++) {
     var extent = 0.0;
     for (final s in tester.stateList<ScrollableState>(lists)) {

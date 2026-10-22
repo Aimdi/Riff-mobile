@@ -151,12 +151,10 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
       final videos = _videos();
       final albums = _albumsOf(c.artistData['Albums']);
       final singles = _albumsOf(c.artistData['Singles']);
-      final featured = _content(c.artistData['Featured'])
-          .whereType<Playlist>()
-          .toList();
-      final related = _content(c.artistData['Related'])
-          .whereType<Artist>()
-          .toList();
+      final featured =
+          _content(c.artistData['Featured']).whereType<Playlist>().toList();
+      final related =
+          _content(c.artistData['Related']).whereType<Artist>().toList();
       final description = '${c.artistData['description'] ?? ''}'.trim();
       // The first five always; the rest unfold under them with See more.
       final popularCount = songs.length > 5 ? 5 : songs.length;
@@ -233,9 +231,8 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
     });
   }
 
-  List _albumsOf(dynamic section) => _content(section)
-      .whereType<Album>()
-      .toList();
+  List _albumsOf(dynamic section) =>
+      _content(section).whereType<Album>().toList();
 
   // ───────────────────────────────────────────────────────────── header ──
 
@@ -295,16 +292,35 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
           background: Stack(
             fit: StackFit.expand,
             children: [
-              RiffNetworkImage(
-                imageUrl: img,
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-                errorWidget: (_, __, ___) => ColoredBox(
-                  color: homeTileColor(context),
-                  child: Icon(Icons.person_rounded,
-                      size: 90, color: homeMutedColor(context)),
+              // The photo itself fades out into the page (a mask, not a
+              // page-coloured layer over it): a header whose height falls
+              // between two pixels left its last row of photo showing
+              // under the layer, a line across the page.
+              ShaderMask(
+                blendMode: BlendMode.dstIn,
+                shaderCallback: (rect) => LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    theme.scaffoldBackgroundColor,
+                    theme.scaffoldBackgroundColor,
+                    theme.scaffoldBackgroundColor.withOpacity(0.15),
+                    theme.scaffoldBackgroundColor.withOpacity(0),
+                  ],
+                  stops: const [0.0, 0.35, 0.85, 1.0],
+                ).createShader(rect),
+                child: RiffNetworkImage(
+                  imageUrl: img,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                  errorWidget: (_, __, ___) => ColoredBox(
+                    color: homeTileColor(context),
+                    child: Icon(Icons.person_rounded,
+                        size: 90, color: homeMutedColor(context)),
+                  ),
                 ),
               ),
+              // The top darkened for the back button.
               DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -312,11 +328,9 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
                     end: Alignment.bottomCenter,
                     colors: [
                       RiffColors.of(context).scrim.withOpacity(0.25),
-                      Colors.transparent,
-                      theme.scaffoldBackgroundColor.withOpacity(0.85),
-                      theme.scaffoldBackgroundColor,
+                      RiffColors.of(context).scrim.withOpacity(0),
                     ],
-                    stops: const [0.0, 0.35, 0.85, 1.0],
+                    stops: const [0.0, 0.35],
                   ),
                 ),
               ),
@@ -786,41 +800,82 @@ class _SpotifyArtistViewState extends State<SpotifyArtistView> {
     );
   }
 
+  /// About as a card, as Spotify has it: the artist's photo, the views
+  /// count, then the bio (Read more unfolds it).
   Widget _about(BuildContext context, String description) {
+    final theme = Theme.of(context);
+    final views = '${c.artistData['views'] ?? ''}'.trim();
+    final img = Thumbnail(c.artist_.thumbnailUrl).extraHigh;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         HomeSectionHeader('about'.tr),
-        InkWell(
-          onTap: () => setState(() => _aboutExpanded = !_aboutExpanded),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Read more unfolds the rest (and Show less folds it).
-                AnimatedSize(
-                  duration: RiffDurations.select,
-                  curve: RiffDurations.selectCurve,
-                  alignment: Alignment.topCenter,
-                  child: Text(
-                    description,
-                    maxLines: _aboutExpanded ? null : 4,
-                    overflow: _aboutExpanded
-                        ? TextOverflow.visible
-                        : TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        height: 1.45, color: homeMutedColor(context)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: HomeLayout.gutter),
+          child: Material(
+            color: theme.colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(RiffRadii.lg),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => setState(() => _aboutExpanded = !_aboutExpanded),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (img.isNotEmpty)
+                    LayoutBuilder(builder: (context, box) {
+                      final wide =
+                          box.maxWidth / RiffComponentSizes.artistAboutAspect;
+                      return SizedBox(
+                        width: box.maxWidth,
+                        height: wide < RiffComponentSizes.artistAboutPhotoMax
+                            ? wide
+                            : RiffComponentSizes.artistAboutPhotoMax,
+                        child: RiffNetworkImage(
+                          imageUrl: img,
+                          fit: BoxFit.cover,
+                          alignment: Alignment.topCenter,
+                          errorWidget: (_, __, ___) =>
+                              ColoredBox(color: homeTileColor(context)),
+                        ),
+                      );
+                    }),
+                  Padding(
+                    padding: const EdgeInsets.all(RiffSpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (views.isNotEmpty && !views.startsWith('null')) ...[
+                          Text(views,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                  color: theme.colorScheme.onSurface)),
+                          const SizedBox(height: RiffSpacing.xs),
+                        ],
+                        // Read more unfolds the rest (and Show less folds it).
+                        AnimatedSize(
+                          duration: RiffDurations.select,
+                          curve: RiffDurations.selectCurve,
+                          alignment: Alignment.topCenter,
+                          child: Text(
+                            description,
+                            maxLines: _aboutExpanded ? null : 3,
+                            overflow: _aboutExpanded
+                                ? TextOverflow.visible
+                                : TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium
+                                ?.copyWith(color: homeMutedColor(context)),
+                          ),
+                        ),
+                        const SizedBox(height: RiffSpacing.xs),
+                        Text(
+                          _aboutExpanded ? 'showLess'.tr : 'readMore'.tr,
+                          style: theme.textTheme.labelMedium
+                              ?.copyWith(color: theme.colorScheme.onSurface),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _aboutExpanded ? 'showLess'.tr : 'readMore'.tr,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Theme.of(context).textTheme.titleMedium?.color,
-                      ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

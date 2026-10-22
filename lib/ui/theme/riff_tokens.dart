@@ -223,6 +223,11 @@ class RiffComponentSizes {
   /// header as it does on a phone instead of running under the tracks.
   static const double collectionBackdropMax = 440;
 
+  /// The artist's photo on the About card: wide (16:9) and no taller than
+  /// this, so a tablet's card isn't all photo.
+  static const double artistAboutAspect = 16 / 9;
+  static const double artistAboutPhotoMax = 260;
+
   /// How far a book's page scrolls before its title moves into the bar.
   static const double detailTitleScroll = 120;
   static const double miniArt = 40;

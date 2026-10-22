@@ -200,6 +200,54 @@ class ShotMusicServices extends FakeMusicServices {
     };
   }
 
+  /// Nova Hart's page: popular songs, shelves, related artists, About.
+  @override
+  Future<Map<String, dynamic>> getArtist(String channelId) async {
+    final artist = ShotData.artists.firstWhere((a) => a.browseId == channelId,
+        orElse: () => ShotData.artists[0]);
+    final songs = ShotData.songs(0, ShotData.songCount)
+        .where((s) => s.artist == artist.name)
+        .toList();
+    return {
+      'name': artist.name,
+      'description': '${artist.name} writes night-drive pop: big synths, '
+          'small rooms and songs about leaving town. Coastlines, the 2024 '
+          'album, was made in a week in a borrowed beach house.',
+      'views': '48,215,904 views',
+      'channelId': artist.browseId,
+      'shuffleId': null,
+      'radioId': null,
+      'subscribers': '2.4M',
+      'thumbnails': [
+        {'url': artist.thumbnailUrl, 'width': 544, 'height': 544}
+      ],
+      'Top songs': {
+        'browseId': 'VLriffTop',
+        'params': 'top',
+        'content': [...songs, ...ShotData.songs(20, 26)],
+      },
+      'Albums': {
+        'browseId': artist.browseId,
+        'params': 'albums',
+        'content': [
+          for (final i in [0, 4, 9, 13]) ShotData.album(i)
+        ],
+      },
+      'Singles & EPs': {
+        'content': [
+          for (final i in [10, 3, 12]) ShotData.album(i)
+        ],
+      },
+      'Videos': {'content': ShotData.songs(38, 42)},
+      'Featured': {
+        'content': [for (var i = 0; i < 5; i++) ShotData.ytPlaylist(i)],
+      },
+      'Related': {
+        'content': ShotData.artists.sublist(1, 9),
+      },
+    };
+  }
+
   @override
   Future<Map<String, dynamic>> search(String query,
       {String? filter,
