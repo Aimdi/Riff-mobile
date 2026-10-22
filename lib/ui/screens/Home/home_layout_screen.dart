@@ -92,36 +92,39 @@ class _SectionRow extends StatelessWidget {
         color: Colors.transparent,
         shape: Border(bottom: BorderSide(color: theme.dividerColor, width: 0)),
         clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => onChanged(!shown),
-          // At least a row's height; a long name ("Mixes, your shows and
-          // new releases") takes a second line instead of being cut.
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-                minHeight: RiffComponentSizes.homeLayoutRow),
-            child: Row(
-              children: [
-                const SizedBox(width: RiffSpacing.lg),
-                Icon(section.icon,
-                    size: RiffComponentSizes.headerIcon, color: fg),
-                const SizedBox(width: RiffSpacing.md),
-                Expanded(
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(vertical: RiffSpacing.sm),
-                    child: Text(
-                      section.labelKey.tr,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyLarge?.copyWith(color: fg),
+        // One node for TalkBack: "Speed dial, switch, on".
+        child: MergeSemantics(
+          child: InkWell(
+            onTap: () => onChanged(!shown),
+            // At least a row's height; a long name ("Mixes, your shows and
+            // new releases") takes a second line instead of being cut.
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                  minHeight: RiffComponentSizes.homeLayoutRow),
+              child: Row(
+                children: [
+                  const SizedBox(width: RiffSpacing.lg),
+                  Icon(section.icon,
+                      size: RiffComponentSizes.headerIcon, color: fg),
+                  const SizedBox(width: RiffSpacing.md),
+                  Expanded(
+                    child: Padding(
+                      padding:
+                          const EdgeInsets.symmetric(vertical: RiffSpacing.sm),
+                      child: Text(
+                        section.labelKey.tr,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyLarge?.copyWith(color: fg),
+                      ),
                     ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: RiffSpacing.md),
-                  child: CustSwitch(value: shown, onChanged: onChanged),
-                ),
-              ],
+                  Padding(
+                    padding: const EdgeInsets.only(right: RiffSpacing.md),
+                    child: CustSwitch(value: shown, onChanged: onChanged),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

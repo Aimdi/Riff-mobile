@@ -340,21 +340,24 @@ class PodcastPlaybackEditor extends StatelessWidget {
           required String subtitle,
           required bool value,
           required ValueChanged<bool> onChanged}) =>
-      Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: RiffSpacing.xxs),
-                Text(subtitle, style: homeCardSubtitleStyle(context)),
-              ],
+      // The switch reads with its title for TalkBack.
+      MergeSemantics(
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: RiffSpacing.xxs),
+                  Text(subtitle, style: homeCardSubtitleStyle(context)),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: RiffSpacing.md),
-          CustSwitch(value: value, onChanged: onChanged),
-        ],
+            const SizedBox(width: RiffSpacing.md),
+            CustSwitch(value: value, onChanged: onChanged),
+          ],
+        ),
       );
 }
 

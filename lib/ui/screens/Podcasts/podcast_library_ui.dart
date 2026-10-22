@@ -192,7 +192,9 @@ class ShowAlertsSetting extends StatelessWidget {
       if (!PodcastService.isSubscribed(feed)) return const SizedBox.shrink();
       return Padding(
         padding: const EdgeInsets.only(top: RiffSpacing.xxl),
-        child: Row(
+        // The switch reads with its title for TalkBack.
+        child: MergeSemantics(
+            child: Row(
           children: [
             Expanded(
               child: Column(
@@ -212,7 +214,7 @@ class ShowAlertsSetting extends StatelessWidget {
               onChanged: (on) => NewEpisodeAlerts.setNotifiesFor(feed, on),
             ),
           ],
-        ),
+        )),
       );
     });
   }

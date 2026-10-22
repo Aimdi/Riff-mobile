@@ -104,44 +104,49 @@ class RiffSheetTile extends StatelessWidget {
     final theme = Theme.of(context);
     final fg =
         destructive ? theme.colorScheme.error : theme.colorScheme.onSurface;
-    return InkWell(
-      onTap: onTap,
-      child: ConstrainedBox(
-        constraints:
-            const BoxConstraints(minHeight: RiffComponentSizes.sheetRow),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-              horizontal: RiffSpacing.lg, vertical: RiffSpacing.sm),
-          child: Row(
-            children: [
-              Icon(icon, size: RiffComponentSizes.sheetIcon, color: fg),
-              const SizedBox(width: RiffSpacing.lg),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyLarge?.copyWith(color: fg)),
-                    if (subtitle != null && subtitle!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: RiffSpacing.xxs),
-                        child: Text(subtitle!,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant)),
-                      ),
-                  ],
+    // One node for TalkBack, as ListTile is: a switch at the end reads
+    // with the row's title ("Shake to restart, switch, on").
+    return MergeSemantics(
+      child: InkWell(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints:
+              const BoxConstraints(minHeight: RiffComponentSizes.sheetRow),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: RiffSpacing.lg, vertical: RiffSpacing.sm),
+            child: Row(
+              children: [
+                Icon(icon, size: RiffComponentSizes.sheetIcon, color: fg),
+                const SizedBox(width: RiffSpacing.lg),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              theme.textTheme.bodyLarge?.copyWith(color: fg)),
+                      if (subtitle != null && subtitle!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: RiffSpacing.xxs),
+                          child: Text(subtitle!,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant)),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              if (trailing != null) ...[
-                const SizedBox(width: RiffSpacing.sm),
-                trailing!
+                if (trailing != null) ...[
+                  const SizedBox(width: RiffSpacing.sm),
+                  trailing!
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
