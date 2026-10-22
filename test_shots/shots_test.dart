@@ -5,6 +5,8 @@
 //
 // Not part of CI (`flutter test` only scans test/). See test_shots/README.md.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
@@ -20,7 +22,10 @@ import 'package:harmonymusic/ui/screens/Home/home_screen.dart';
 import 'package:harmonymusic/ui/screens/Home/home_screen_controller.dart';
 import 'package:harmonymusic/ui/screens/Settings/settings_screen.dart';
 import 'package:harmonymusic/ui/screens/Stats/stats_screen.dart';
+import 'package:harmonymusic/ui/widgets/add_to_playlist.dart';
 import 'package:harmonymusic/ui/widgets/side_nav_bar.dart';
+import 'package:harmonymusic/ui/widgets/sleep_timer_bottom_sheet.dart';
+import 'package:harmonymusic/ui/widgets/songinfo_bottom_sheet.dart';
 
 import 'src/harness.dart';
 import 'src/media_data.dart';
@@ -211,6 +216,25 @@ final scenarios = <Scenario>[
   Scenario('podcast_stats', _all, (t, d) async {
     await openApp(t, tab: RailTab.podcasts);
     await push(t, ScreenNavigationSetup.podcastStatsScreen);
+  }),
+
+  // ── Sheets: a song's ⋮ menu, Add to playlist, the sleep timer ────────
+  Scenario('sheet_song', _all, (t, d) async {
+    await openApp(t);
+    showCurrentSongSheet(song: Get.find<PlayerController>().currentSong.value);
+    await settle(t);
+  }),
+  Scenario('sheet_add_to_playlist', _all, (t, d) async {
+    await openApp(t);
+    final song = Get.find<PlayerController>().currentSong.value!;
+    unawaited(showAddToPlaylistSheet(
+        t.element(find.byType(SideNavBar).first), [song]));
+    await settle(t);
+  }),
+  Scenario('sheet_sleep_timer', _all, (t, d) async {
+    await openApp(t);
+    unawaited(showSleepTimerSheet(null));
+    await settle(t);
   }),
 
   // ── Settings pages of their own ──────────────────────────────────────

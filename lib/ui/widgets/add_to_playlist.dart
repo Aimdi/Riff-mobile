@@ -24,6 +24,7 @@ import '/ui/utils/sheet_insets.dart';
 import '/ui/widgets/create_playlist_dialog.dart';
 import '../../models/playlist.dart';
 import 'collection_play.dart' show isSystemLibraryPlaylistId;
+import 'image_widget.dart' show ImageWidget;
 import 'snackbar.dart';
 
 /// Built-in library playlists (Favourites, Recently played, Cached,
@@ -402,12 +403,18 @@ class _AddToPlaylistSheetState extends State<AddToPlaylistSheet> {
       itemBuilder: (context, index) {
         final playlist = playlists[index];
         return _SheetRow(
-          leading: _SheetIcon(
-            icon: playlist.isPipedPlaylist
-                ? Icons.cloud_outlined
-                : Icons.playlist_play,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
+          // Its cover, as Spotify's Add to playlist lists them; a Piped
+          // playlist keeps the cloud.
+          leading: playlist.isPipedPlaylist
+              ? _SheetIcon(
+                  icon: Icons.cloud_outlined,
+                  color: Theme.of(context).colorScheme.onSurface,
+                )
+              : ImageWidget(
+                  playlist: playlist,
+                  size: RiffComponentSizes.iconHit,
+                  borderRadius: RiffRadii.sm,
+                ),
           title: playlist.title,
           saved: _savedIn.contains(playlist.playlistId),
           onTap: () => _addToPlaylist(playlist),

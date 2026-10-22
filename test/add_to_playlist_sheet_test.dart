@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:harmonymusic/models/playlist.dart';
 import 'package:harmonymusic/services/downloader.dart';
 import 'package:harmonymusic/ui/widgets/add_to_playlist.dart';
+import 'package:harmonymusic/ui/widgets/image_widget.dart';
 import 'package:hive/hive.dart';
 
 class _FakeDownloader extends GetxService implements Downloader {
@@ -199,6 +200,13 @@ void main() {
     final user = tester.getTopLeft(find.text('Late night'));
     expect(fav.dy, lessThan(create.dy));
     expect(create.dy, lessThan(user.dy));
+
+    // Your playlist shows its cover, as Spotify lists them.
+    final row = find.ancestor(
+        of: find.text('Late night'), matching: find.byType(ListTile));
+    final cover = tester.widget<ImageWidget>(
+        find.descendant(of: row, matching: find.byType(ImageWidget)));
+    expect(cover.playlist?.playlistId, 'LIB999');
   });
 
   testWidgets('showAddToPlaylistSheet opens a modal', (tester) async {
