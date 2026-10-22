@@ -4,6 +4,8 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/widgets/riff_fast_scroller.dart';
+
 import '/ui/theme/riff_tokens.dart';
 import 'package:hive/hive.dart';
 
@@ -230,243 +232,260 @@ class PlaylistScreen extends StatelessWidget {
                         constraints: const BoxConstraints(
                           maxWidth: 800,
                         ),
-                        child: Obx(
-                          () => ScrollConfiguration(
-                            behavior: PlaylistAlbumScrollBehaviour(),
-                            child: ListView.builder(
-                              addRepaintBoundaries: true,
-                              padding: EdgeInsets.only(
-                                top: playlistController.isSearchingOn.isTrue
-                                    ? 0
-                                    : landscape
-                                        ? 110
-                                        : 160,
-                                bottom: 200,
-                              ),
-                              // isContentFetched first: behind an empty
-                              // list, || never read it, so the Obx missed
-                              // a failed load and kept the shimmer.
-                              itemCount: playlistController
-                                          .isContentFetched.isFalse ||
-                                      playlistController.songList.isEmpty
-                                  ? 4
-                                  : playlistController.songList.length +
-                                      3 +
-                                      (_showsRecommendations(playlistController)
-                                          ? 1
-                                          : 0),
-                              // The recommendations move down a row with
-                              // each song added: keep them (and what they
-                              // showed) instead of loading new ones.
-                              findChildIndexCallback: (key) =>
-                                  key == _recommendationsKey(playlistController)
-                                      ? playlistController.songList.length + 3
-                                      : null,
-                              itemBuilder: (_, index) {
-                                if (index == 0) {
-                                  return FadeTransition(
-                                    opacity: playlistController.scaleAnimation,
-                                    child: _header(context, playlistController,
-                                        playerController),
-                                  );
-                                } else if (index == 1) {
-                                  // Podcasts / YT channels: no music actions;
-                                  // Subscribe sits in the header instead.
-                                  if (_isPodcastPage(
-                                      playlistController.playlist.value)) {
-                                    return const SizedBox(height: 8);
-                                  }
-                                  // Rebuilt with the photo, so ⋮ offers
-                                  // to set or change it, and with the
-                                  // taste profile's exclusions.
-                                  return Obx(() {
-                                    PlaylistCovers.rev.value;
-                                    TasteExclusions.rev.value;
-                                    return _actions(context, playlistController,
-                                        playerController);
-                                  });
-                                } else if (index == 2) {
-                                  return SizedBox(
-                                      height: playlistController
-                                              .isSearchingOn.isTrue
-                                          ? 60
-                                          : 44,
-                                      child: Padding(
-                                        padding:
-                                            const EdgeInsets.only(right: 4),
-                                        child: Obx(
-                                          () => SortWidget(
-                                            tag: playlistController
-                                                .playlist.value.playlistId,
-                                            screenController:
-                                                playlistController,
-                                            isSearchFeatureRequired: true,
-                                            isPlaylistRearrageFeatureRequired:
-                                                !playlistController
-                                                        .playlist
-                                                        .value
-                                                        .isCloudPlaylist &&
-                                                    playlistController.playlist.value
-                                                            .playlistId !=
-                                                        "LIBRP" &&
-                                                    playlistController.playlist
-                                                            .value.playlistId !=
-                                                        "SongDownloads" &&
-                                                    playlistController.playlist
-                                                            .value.playlistId !=
-                                                        "SongsCache",
-                                            isSongDeletetioFeatureRequired:
-                                                !playlistController.playlist
-                                                    .value.isCloudPlaylist,
-                                            itemCountTitle:
-                                                "${playlistController.songList.length}",
-                                            totalLength: totalLength(
-                                                playlistController.songList),
-                                            itemIcon: Icons.music_note,
-                                            requiredSortTypes: {
-                                              ...buildSortTypeSet(false, true),
-                                              ...songOrderSortTypes,
-                                            },
-                                            onSort: playlistController.onSort,
-                                            onSearch:
-                                                playlistController.onSearch,
-                                            onSearchClose: playlistController
-                                                .onSearchClose,
-                                            onSearchStart: playlistController
-                                                .onSearchStart,
-                                            startAdditionalOperation:
-                                                playlistController
-                                                    .startAdditionalOperation,
-                                            selectAll:
-                                                playlistController.selectAll,
-                                            performAdditionalOperation:
-                                                playlistController
-                                                    .performAdditionalOperation,
-                                            cancelAdditionalOperation:
-                                                playlistController
-                                                    .cancelAdditionalOperation,
-                                          ),
-                                        ),
-                                      ));
-                                } else if (playlistController
-                                        .isContentFetched.isFalse ||
-                                    playlistController.songList.isEmpty) {
-                                  if (playlistController
-                                      .isContentFetched.isFalse) {
-                                    rowsFade.skeleton();
-                                  }
-                                  return SizedBox(
-                                    height: 300,
-                                    child: playlistController
-                                            .isContentFetched.isFalse
-                                        ? const SongListShimmer(
-                                            itemCount: 6, topPadding: 8)
-                                        : RiffFadeIn(
-                                            child: Center(
-                                              child: Text(
-                                                "emptyPlaylist".tr,
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .titleSmall,
-                                              ),
+                        child: RiffFastScroller(
+                          // A long list gets the fast-scroll thumb (no letters: it's in
+                          // the collection's own order).
+                          itemExtent: RiffComponentSizes.songRowExtent,
+                          builder: (context, scroll) => Obx(
+                            () => ScrollConfiguration(
+                              behavior: PlaylistAlbumScrollBehaviour(),
+                              child: ListView.builder(
+                                controller: scroll,
+                                addRepaintBoundaries: true,
+                                padding: EdgeInsets.only(
+                                  top: playlistController.isSearchingOn.isTrue
+                                      ? 0
+                                      : landscape
+                                          ? 110
+                                          : 160,
+                                  bottom: 200,
+                                ),
+                                // isContentFetched first: behind an empty
+                                // list, || never read it, so the Obx missed
+                                // a failed load and kept the shimmer.
+                                itemCount: playlistController
+                                            .isContentFetched.isFalse ||
+                                        playlistController.songList.isEmpty
+                                    ? 4
+                                    : playlistController.songList.length +
+                                        3 +
+                                        (_showsRecommendations(
+                                                playlistController)
+                                            ? 1
+                                            : 0),
+                                // The recommendations move down a row with
+                                // each song added: keep them (and what they
+                                // showed) instead of loading new ones.
+                                findChildIndexCallback: (key) => key ==
+                                        _recommendationsKey(playlistController)
+                                    ? playlistController.songList.length + 3
+                                    : null,
+                                itemBuilder: (_, index) {
+                                  if (index == 0) {
+                                    return FadeTransition(
+                                      opacity:
+                                          playlistController.scaleAnimation,
+                                      child: _header(context,
+                                          playlistController, playerController),
+                                    );
+                                  } else if (index == 1) {
+                                    // Podcasts / YT channels: no music actions;
+                                    // Subscribe sits in the header instead.
+                                    if (_isPodcastPage(
+                                        playlistController.playlist.value)) {
+                                      return const SizedBox(height: 8);
+                                    }
+                                    // Rebuilt with the photo, so ⋮ offers
+                                    // to set or change it, and with the
+                                    // taste profile's exclusions.
+                                    return Obx(() {
+                                      PlaylistCovers.rev.value;
+                                      TasteExclusions.rev.value;
+                                      return _actions(context,
+                                          playlistController, playerController);
+                                    });
+                                  } else if (index == 2) {
+                                    return SizedBox(
+                                        height: playlistController
+                                                .isSearchingOn.isTrue
+                                            ? 60
+                                            : 44,
+                                        child: Padding(
+                                          padding:
+                                              const EdgeInsets.only(right: 4),
+                                          child: Obx(
+                                            () => SortWidget(
+                                              tag: playlistController
+                                                  .playlist.value.playlistId,
+                                              screenController:
+                                                  playlistController,
+                                              isSearchFeatureRequired: true,
+                                              isPlaylistRearrageFeatureRequired:
+                                                  !playlistController
+                                                          .playlist
+                                                          .value
+                                                          .isCloudPlaylist &&
+                                                      playlistController
+                                                              .playlist
+                                                              .value
+                                                              .playlistId !=
+                                                          "LIBRP" &&
+                                                      playlistController
+                                                              .playlist
+                                                              .value
+                                                              .playlistId !=
+                                                          "SongDownloads" &&
+                                                      playlistController
+                                                              .playlist
+                                                              .value
+                                                              .playlistId !=
+                                                          "SongsCache",
+                                              isSongDeletetioFeatureRequired:
+                                                  !playlistController.playlist
+                                                      .value.isCloudPlaylist,
+                                              itemCountTitle:
+                                                  "${playlistController.songList.length}",
+                                              totalLength: totalLength(
+                                                  playlistController.songList),
+                                              itemIcon: Icons.music_note,
+                                              requiredSortTypes: {
+                                                ...buildSortTypeSet(
+                                                    false, true),
+                                                ...songOrderSortTypes,
+                                              },
+                                              onSort: playlistController.onSort,
+                                              onSearch:
+                                                  playlistController.onSearch,
+                                              onSearchClose: playlistController
+                                                  .onSearchClose,
+                                              onSearchStart: playlistController
+                                                  .onSearchStart,
+                                              startAdditionalOperation:
+                                                  playlistController
+                                                      .startAdditionalOperation,
+                                              selectAll:
+                                                  playlistController.selectAll,
+                                              performAdditionalOperation:
+                                                  playlistController
+                                                      .performAdditionalOperation,
+                                              cancelAdditionalOperation:
+                                                  playlistController
+                                                      .cancelAdditionalOperation,
                                             ),
                                           ),
-                                  );
-                                }
+                                        ));
+                                  } else if (playlistController
+                                          .isContentFetched.isFalse ||
+                                      playlistController.songList.isEmpty) {
+                                    if (playlistController
+                                        .isContentFetched.isFalse) {
+                                      rowsFade.skeleton();
+                                    }
+                                    return SizedBox(
+                                      height: 300,
+                                      child: playlistController
+                                              .isContentFetched.isFalse
+                                          ? const SongListShimmer(
+                                              itemCount: 6, topPadding: 8)
+                                          : RiffFadeIn(
+                                              child: Center(
+                                                child: Text(
+                                                  "emptyPlaylist".tr,
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .titleSmall,
+                                                ),
+                                              ),
+                                            ),
+                                    );
+                                  }
 
-                                final pl = playlistController.playlist.value;
-                                if (index ==
-                                    playlistController.songList.length + 3) {
-                                  return PlaylistRecommendations(
-                                    key:
-                                        _recommendationsKey(playlistController),
-                                    songs: playlistController.songList.toList(),
-                                    playlistTitle: pl.title,
-                                    onAdd: playlistController.appendSong,
-                                  );
-                                }
-                                final isPodcastList = pl.kind == 'podcast' ||
-                                    pl.kind == 'yt_channel' ||
-                                    pl.playlistId.startsWith('MPSP') ||
-                                    _channelIdRe.hasMatch(pl.playlistId);
-                                final song =
-                                    playlistController.songList[index - 3];
-                                final songIndex = index - 3;
-                                void playThis() {
-                                  _playPlaylistFrom(
-                                    playerController,
-                                    playlistController,
-                                    songIndex,
-                                  );
-                                }
+                                  final pl = playlistController.playlist.value;
+                                  if (index ==
+                                      playlistController.songList.length + 3) {
+                                    return PlaylistRecommendations(
+                                      key: _recommendationsKey(
+                                          playlistController),
+                                      songs:
+                                          playlistController.songList.toList(),
+                                      playlistTitle: pl.title,
+                                      onAdd: playlistController.appendSong,
+                                    );
+                                  }
+                                  final isPodcastList = pl.kind == 'podcast' ||
+                                      pl.kind == 'yt_channel' ||
+                                      pl.playlistId.startsWith('MPSP') ||
+                                      _channelIdRe.hasMatch(pl.playlistId);
+                                  final song =
+                                      playlistController.songList[index - 3];
+                                  final songIndex = index - 3;
+                                  void playThis() {
+                                    _playPlaylistFrom(
+                                      playerController,
+                                      playlistController,
+                                      songIndex,
+                                    );
+                                  }
 
-                                // Podcast episodes get an AntennaPod-style row
-                                // (date · 2-line title · duration), not the
-                                // scrolling music tile.
-                                if (isPodcastList) {
-                                  return rowsFade.row(_PodcastEpisodeTile(
-                                      song: song, onTap: playThis));
-                                }
-                                return rowsFade.row(Obx(() {
-                                  final mixOn =
-                                      playlistController.isMixMode.isTrue;
-                                  // Only subscribe to analyses in mix mode
-                                  // (isMixMode is always read, so the Obx
-                                  // stays valid).
-                                  final analysis = mixOn
-                                      ? playlistController.mixAnalyses[song.id]
-                                      : null;
-                                  final isLast = songIndex >=
-                                      playlistController.songList.length - 1;
-                                  final gapStyle = mixOn && !isLast
-                                      ? playlistController
-                                          .transitionForGap(songIndex)
-                                      : null;
-                                  // Recently played by day, as Spotify's
-                                  // and YouTube Music's histories.
-                                  final day = pl.playlistId == 'LIBRP'
-                                      ? _recentlyPlayedDay(
-                                          playlistController, songIndex)
-                                      : null;
-                                  return Padding(
-                                    padding: const EdgeInsets.only(
-                                        left: 4, right: 4),
-                                    child: Column(
-                                      children: [
-                                        if (day != null)
-                                          HomeSectionHeader(day,
-                                              top: songIndex == 0
-                                                  ? RiffSpacing.sm
-                                                  : HomeLayout.sectionTop),
-                                        SongListTile(
-                                          onTap: playThis,
-                                          song: song,
-                                          isPlaylistOrAlbum: true,
-                                          playlist: pl,
-                                          showMixMeta: mixOn,
-                                          mixAnalysis: analysis,
-                                        ),
-                                        if (mixOn &&
-                                            gapStyle != null &&
-                                            !isLast)
-                                          MixTransitionChip(
-                                            style: gapStyle,
-                                            onTap: () async {
-                                              final picked =
-                                                  await showMixTransitionPicker(
-                                                      context, gapStyle);
-                                              if (picked != null) {
-                                                await playlistController
-                                                    .setTransitionForGap(
-                                                        songIndex, picked);
-                                              }
-                                            },
+                                  // Podcast episodes get an AntennaPod-style row
+                                  // (date · 2-line title · duration), not the
+                                  // scrolling music tile.
+                                  if (isPodcastList) {
+                                    return rowsFade.row(_PodcastEpisodeTile(
+                                        song: song, onTap: playThis));
+                                  }
+                                  return rowsFade.row(Obx(() {
+                                    final mixOn =
+                                        playlistController.isMixMode.isTrue;
+                                    // Only subscribe to analyses in mix mode
+                                    // (isMixMode is always read, so the Obx
+                                    // stays valid).
+                                    final analysis = mixOn
+                                        ? playlistController
+                                            .mixAnalyses[song.id]
+                                        : null;
+                                    final isLast = songIndex >=
+                                        playlistController.songList.length - 1;
+                                    final gapStyle = mixOn && !isLast
+                                        ? playlistController
+                                            .transitionForGap(songIndex)
+                                        : null;
+                                    // Recently played by day, as Spotify's
+                                    // and YouTube Music's histories.
+                                    final day = pl.playlistId == 'LIBRP'
+                                        ? _recentlyPlayedDay(
+                                            playlistController, songIndex)
+                                        : null;
+                                    return Padding(
+                                      padding: const EdgeInsets.only(
+                                          left: 4, right: 4),
+                                      child: Column(
+                                        children: [
+                                          if (day != null)
+                                            HomeSectionHeader(day,
+                                                top: songIndex == 0
+                                                    ? RiffSpacing.sm
+                                                    : HomeLayout.sectionTop),
+                                          SongListTile(
+                                            onTap: playThis,
+                                            song: song,
+                                            isPlaylistOrAlbum: true,
+                                            playlist: pl,
+                                            showMixMeta: mixOn,
+                                            mixAnalysis: analysis,
                                           ),
-                                      ],
-                                    ),
-                                  );
-                                }));
-                              },
+                                          if (mixOn &&
+                                              gapStyle != null &&
+                                              !isLast)
+                                            MixTransitionChip(
+                                              style: gapStyle,
+                                              onTap: () async {
+                                                final picked =
+                                                    await showMixTransitionPicker(
+                                                        context, gapStyle);
+                                                if (picked != null) {
+                                                  await playlistController
+                                                      .setTransitionForGap(
+                                                          songIndex, picked);
+                                                }
+                                              },
+                                            ),
+                                        ],
+                                      ),
+                                    );
+                                  }));
+                                },
+                              ),
                             ),
                           ),
                         ),

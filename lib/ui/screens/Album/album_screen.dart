@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/widgets/riff_fast_scroller.dart';
+
 import '/ui/theme/riff_tokens.dart';
 import 'package:harmonymusic/models/album.dart';
 import 'package:harmonymusic/models/playling_from.dart';
@@ -164,158 +166,167 @@ class AlbumScreen extends StatelessWidget {
                       constraints: const BoxConstraints(
                         maxWidth: 800,
                       ),
-                      child: Obx(
-                        () => ScrollConfiguration(
-                          behavior: PlaylistAlbumScrollBehaviour(),
-                          child: ListView.builder(
-                            padding: EdgeInsets.only(
-                              top: albumController.isSearchingOn.isTrue
-                                  ? 0
-                                  : landscape
-                                      ? 110
-                                      : 160,
-                              bottom: 200,
-                            ),
-                            // isContentFetched is read first (|| would skip
-                            // it while the list is empty), so an album that
-                            // loads empty or fails leaves the shimmer.
-                            itemCount:
-                                albumController.isContentFetched.isFalse ||
-                                        albumController.songList.isEmpty
-                                    ? 4
-                                    : albumController.songList.length +
-                                        3 +
-                                        (_showOtherVersions(albumController)
-                                            ? 1
-                                            : 0) +
-                                        (_showMoreBy(albumController) ? 1 : 0),
-                            itemBuilder: (_, index) {
-                              if (index == 0) {
-                                return FadeTransition(
-                                  opacity: albumController.scaleAnimation,
-                                  child: _header(context, albumController),
-                                );
-                              } else if (index == 1) {
-                                return _actions(
-                                    context, albumController, playerController);
-                              } else if (index == 2) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 4),
-                                  child: SizedBox(
-                                    height: albumController.isSearchingOn.isTrue
-                                        ? 60
-                                        : 44,
-                                    child: Obx(
-                                      () => SortWidget(
-                                        tag: albumController
-                                            .album.value.browseId,
-                                        screenController: albumController,
-                                        isSearchFeatureRequired: true,
-                                        itemCountTitle:
-                                            "${albumController.songList.length}",
-                                        totalLength: totalLength(
-                                            albumController.songList),
-                                        itemIcon: Icons.music_note,
-                                        requiredSortTypes:
-                                            buildSortTypeSet(false, true),
-                                        onSort: albumController.onSort,
-                                        onSearch: albumController.onSearch,
-                                        onSearchClose:
-                                            albumController.onSearchClose,
-                                        onSearchStart:
-                                            albumController.onSearchStart,
-                                        startAdditionalOperation:
-                                            albumController
-                                                .startAdditionalOperation,
-                                        selectAll: albumController.selectAll,
-                                        performAdditionalOperation:
-                                            albumController
-                                                .performAdditionalOperation,
-                                        cancelAdditionalOperation:
-                                            albumController
-                                                .cancelAdditionalOperation,
+                      child: RiffFastScroller(
+                        // A long list gets the fast-scroll thumb (no letters: it's in
+                        // the collection's own order).
+                        itemExtent: RiffComponentSizes.songRowExtent,
+                        builder: (context, scroll) => Obx(
+                          () => ScrollConfiguration(
+                            behavior: PlaylistAlbumScrollBehaviour(),
+                            child: ListView.builder(
+                              controller: scroll,
+                              padding: EdgeInsets.only(
+                                top: albumController.isSearchingOn.isTrue
+                                    ? 0
+                                    : landscape
+                                        ? 110
+                                        : 160,
+                                bottom: 200,
+                              ),
+                              // isContentFetched is read first (|| would skip
+                              // it while the list is empty), so an album that
+                              // loads empty or fails leaves the shimmer.
+                              itemCount: albumController
+                                          .isContentFetched.isFalse ||
+                                      albumController.songList.isEmpty
+                                  ? 4
+                                  : albumController.songList.length +
+                                      3 +
+                                      (_showOtherVersions(albumController)
+                                          ? 1
+                                          : 0) +
+                                      (_showMoreBy(albumController) ? 1 : 0),
+                              itemBuilder: (_, index) {
+                                if (index == 0) {
+                                  return FadeTransition(
+                                    opacity: albumController.scaleAnimation,
+                                    child: _header(context, albumController),
+                                  );
+                                } else if (index == 1) {
+                                  return _actions(context, albumController,
+                                      playerController);
+                                } else if (index == 2) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 4),
+                                    child: SizedBox(
+                                      height:
+                                          albumController.isSearchingOn.isTrue
+                                              ? 60
+                                              : 44,
+                                      child: Obx(
+                                        () => SortWidget(
+                                          tag: albumController
+                                              .album.value.browseId,
+                                          screenController: albumController,
+                                          isSearchFeatureRequired: true,
+                                          itemCountTitle:
+                                              "${albumController.songList.length}",
+                                          totalLength: totalLength(
+                                              albumController.songList),
+                                          itemIcon: Icons.music_note,
+                                          requiredSortTypes:
+                                              buildSortTypeSet(false, true),
+                                          onSort: albumController.onSort,
+                                          onSearch: albumController.onSearch,
+                                          onSearchClose:
+                                              albumController.onSearchClose,
+                                          onSearchStart:
+                                              albumController.onSearchStart,
+                                          startAdditionalOperation:
+                                              albumController
+                                                  .startAdditionalOperation,
+                                          selectAll: albumController.selectAll,
+                                          performAdditionalOperation:
+                                              albumController
+                                                  .performAdditionalOperation,
+                                          cancelAdditionalOperation:
+                                              albumController
+                                                  .cancelAdditionalOperation,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                );
-                              } else if (albumController
-                                      .isContentFetched.isFalse ||
-                                  albumController.songList.isEmpty) {
-                                if (albumController.isContentFetched.isFalse) {
-                                  rowsFade.skeleton();
-                                }
-                                return SizedBox(
-                                  height: 300,
-                                  child:
-                                      albumController.isContentFetched.isFalse
-                                          ? const SongListShimmer(
-                                              itemCount: 6, topPadding: 8)
-                                          : RiffFadeIn(
-                                              child: Center(
-                                                child: Text(
-                                                  "emptyPlaylist".tr,
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .titleSmall,
+                                  );
+                                } else if (albumController
+                                        .isContentFetched.isFalse ||
+                                    albumController.songList.isEmpty) {
+                                  if (albumController
+                                      .isContentFetched.isFalse) {
+                                    rowsFade.skeleton();
+                                  }
+                                  return SizedBox(
+                                    height: 300,
+                                    child:
+                                        albumController.isContentFetched.isFalse
+                                            ? const SongListShimmer(
+                                                itemCount: 6, topPadding: 8)
+                                            : RiffFadeIn(
+                                                child: Center(
+                                                  child: Text(
+                                                    "emptyPlaylist".tr,
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .titleSmall,
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                );
-                              }
+                                  );
+                                }
 
-                              // After the songs: its other versions, then
-                              // More by the artist.
-                              final after =
-                                  index - 3 - albumController.songList.length;
-                              if (after == 0 &&
-                                  _showOtherVersions(albumController)) {
+                                // After the songs: its other versions, then
+                                // More by the artist.
+                                final after =
+                                    index - 3 - albumController.songList.length;
+                                if (after == 0 &&
+                                    _showOtherVersions(albumController)) {
+                                  return rowsFade.row(Padding(
+                                    padding: const EdgeInsets.only(
+                                        top: RiffSpacing.lg),
+                                    child: ContentListWidget(
+                                      content: AlbumContent(
+                                          title: albumController
+                                                  .otherVersionsTitle.isEmpty
+                                              ? 'otherVersions'.tr
+                                              : albumController
+                                                  .otherVersionsTitle,
+                                          albumList: albumController
+                                              .otherVersions
+                                              .toList()),
+                                    ),
+                                  ));
+                                }
+                                if (after >= 0) {
+                                  return rowsFade.row(Padding(
+                                    padding: const EdgeInsets.only(
+                                        top: RiffSpacing.lg),
+                                    child: ContentListWidget(
+                                      content: AlbumContent(
+                                          title: 'moreByArtist'.trParams({
+                                            'artist':
+                                                albumController.moreByArtistName
+                                          }),
+                                          albumList: albumController
+                                              .moreByArtistShown),
+                                    ),
+                                  ));
+                                }
                                 return rowsFade.row(Padding(
-                                  padding: const EdgeInsets.only(
-                                      top: RiffSpacing.lg),
-                                  child: ContentListWidget(
-                                    content: AlbumContent(
-                                        title: albumController
-                                                .otherVersionsTitle.isEmpty
-                                            ? 'otherVersions'.tr
-                                            : albumController
-                                                .otherVersionsTitle,
-                                        albumList: albumController.otherVersions
-                                            .toList()),
-                                  ),
+                                  padding:
+                                      const EdgeInsets.only(left: 4, right: 4),
+                                  child: SongListTile(
+                                      onTap: () {
+                                        _playAlbumFrom(
+                                          playerController,
+                                          albumController,
+                                          index - 3,
+                                        );
+                                      },
+                                      song: albumController.songList[index - 3],
+                                      isPlaylistOrAlbum: true,
+                                      thumbReplacementWithIndex: true,
+                                      index: index - 2),
                                 ));
-                              }
-                              if (after >= 0) {
-                                return rowsFade.row(Padding(
-                                  padding: const EdgeInsets.only(
-                                      top: RiffSpacing.lg),
-                                  child: ContentListWidget(
-                                    content: AlbumContent(
-                                        title: 'moreByArtist'.trParams({
-                                          'artist':
-                                              albumController.moreByArtistName
-                                        }),
-                                        albumList:
-                                            albumController.moreByArtistShown),
-                                  ),
-                                ));
-                              }
-                              return rowsFade.row(Padding(
-                                padding:
-                                    const EdgeInsets.only(left: 4, right: 4),
-                                child: SongListTile(
-                                    onTap: () {
-                                      _playAlbumFrom(
-                                        playerController,
-                                        albumController,
-                                        index - 3,
-                                      );
-                                    },
-                                    song: albumController.songList[index - 3],
-                                    isPlaylistOrAlbum: true,
-                                    thumbReplacementWithIndex: true,
-                                    index: index - 2),
-                              ));
-                            },
+                              },
+                            ),
                           ),
                         ),
                       ),
