@@ -68,7 +68,17 @@ BorderSide homeTileBorder(BuildContext context) {
       : BorderSide(color: theme.colorScheme.outlineVariant, width: 1);
 }
 
-/// Section title row shared by every Home shelf.
+/// A section's title in lists and pages (Continue listening, Chapters,
+/// Today…): bold and in sentence case, as Spotify, Apple Music and Pocket
+/// Casts title their sections (it was a small upper-case label).
+TextStyle homeSectionHeaderStyle(BuildContext context) {
+  final theme = Theme.of(context);
+  return (theme.textTheme.titleMedium ?? const TextStyle())
+      .copyWith(color: theme.colorScheme.onSurface);
+}
+
+/// Section title row shared by pages with sections (Podcasts, Audiobooks,
+/// Stats, artist pages…).
 class HomeSectionHeader extends StatelessWidget {
   const HomeSectionHeader(
     this.title, {
@@ -95,19 +105,22 @@ class HomeSectionHeader extends StatelessWidget {
         right: trailing == null ? HomeLayout.gutter : RiffSpacing.xxs,
         bottom: HomeLayout.headerBottom,
       ),
-      child: SizedBox(
-        height: 30,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: RiffSizes.sectionLabelRow),
         child: Row(
           children: [
             Expanded(
               child: Row(
                 children: [
                   Flexible(
-                    child: Text(
-                      title.toUpperCase(),
-                      style: homeSectionLabelStyle(context),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    child: Semantics(
+                      header: true,
+                      child: Text(
+                        title,
+                        style: homeSectionHeaderStyle(context),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
                   if (badge != null) ...[

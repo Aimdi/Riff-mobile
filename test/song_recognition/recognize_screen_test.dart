@@ -55,8 +55,8 @@ void main() {
     expect(find.text('Comedy · 2014'), findsOneWidget);
     expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
     // Recent finds list below the result.
-    await tester.scrollUntilVisible(find.text('RECOGNIZERECENT'), 300);
-    expect(find.text('RECOGNIZERECENT'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('recognizeRecent'), 300);
+    expect(find.text('recognizeRecent'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

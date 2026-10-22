@@ -94,6 +94,9 @@ class RiffSizes {
   static const double weekHeight = 96;
   static const double touch = 48;
 
+  /// A section title row inside a page (HomeSectionHeader).
+  static const double sectionLabelRow = 30;
+
   /// Below these widths a tile's title drops to the 12 sp label style, so
   /// a long word isn't broken across its two lines (small phones).
   static const double compactJumpTile = 150;

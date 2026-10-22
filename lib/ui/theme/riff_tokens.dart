@@ -83,6 +83,10 @@ class RiffPalette {
   /// them): the dark wash under it, and where on the cover it starts.
   static const double tileTitleScrim = 0.72;
   static const double tileTitleScrimStart = 0.4;
+
+  /// The unfilled part of a progress bar (the text colour at this
+  /// strength).
+  static const double trackOpacity = 0.12;
 }
 
 /// Corner radii (§4.3).
@@ -175,6 +179,11 @@ class RiffComponentSizes {
   RiffComponentSizes._();
 
   static const double rowArt = 48;
+
+  /// The book you're in the middle of, large (Audiobooks' hero card): its
+  /// cover and its play glyph.
+  static const double heroBookCover = 104;
+  static const double heroPlayGlyph = 28;
   static const double miniArt = 40;
   static const double headerIcon = 22;
   static const double trailingIcon = 20;

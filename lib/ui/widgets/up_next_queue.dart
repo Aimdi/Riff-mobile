@@ -21,7 +21,7 @@ import 'songinfo_bottom_sheet.dart';
 import 'riff_marquee.dart';
 
 const double _kQueueRowExtent = 64;
-const double _kSectionLabelExtent = 34;
+const double _kSectionLabelExtent = 36;
 
 /// Room around the label's line, above the row it names.
 const double _kSectionLabelInsets = RiffSpacing.md + RiffSpacing.xs;
@@ -41,7 +41,7 @@ double _queueRowExtent(BuildContext context) {
 /// The Now playing / Next up label's height: [_kSectionLabelExtent] as
 /// designed, or as tall as its line needs at a larger font size.
 double _sectionLabelExtent(BuildContext context) =>
-    riffLineBox(context, Theme.of(context).textTheme.labelSmall,
+    riffLineBox(context, Theme.of(context).textTheme.titleMedium,
         _kSectionLabelExtent - _kSectionLabelInsets) +
     _kSectionLabelInsets;
 
@@ -202,11 +202,14 @@ class _QueueSongRow extends StatelessWidget {
                   top: RiffSpacing.md,
                   right: RiffSpacing.lg,
                   bottom: RiffSpacing.xs),
+              // Bold and in sentence case, as Spotify titles "Now
+              // playing" and "Next in queue".
               child: Text(
-                sectionLabel!.toUpperCase(),
+                sectionLabel!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: text.labelSmall?.copyWith(color: muted),
+                style: text.titleMedium
+                    ?.copyWith(color: Theme.of(context).colorScheme.onSurface),
               ),
             ),
           ),

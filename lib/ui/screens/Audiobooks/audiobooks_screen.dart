@@ -156,15 +156,19 @@ class _AudiobooksScreenState extends State<AudiobooksScreen> {
               right: RiffSpacing.xs,
               bottom: RiffSpacing.sm),
           child: SizedBox(
-            height: 40,
+            height: RiffSpacing.headerRow,
             child: Row(
               children: [
+                // The page's name as large as every rail tab's.
                 Expanded(
-                  child: Text(
-                    'audiobooks'.tr,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleLarge,
+                  child: Semantics(
+                    header: true,
+                    child: Text(
+                      'audiobooks'.tr,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
                   ),
                 ),
                 if (!(_mode == 0 && _searching))

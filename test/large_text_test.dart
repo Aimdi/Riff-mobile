@@ -165,16 +165,16 @@ void main() {
       await pumpQueue();
       // Played row, then Now playing and Next up with their labels.
       expect(rowHeight('queue000000'), 64);
-      expect(rowHeight('queue000001'), 64 + 34);
-      expect(rowHeight('queue000002'), 64 + 34);
+      expect(rowHeight('queue000001'), 64 + 36);
+      expect(rowHeight('queue000002'), 64 + 36);
 
       // Far past what Riff applies: every line still has its room (an
       // overflow fails the test).
       tester.platformDispatcher.textScaleFactorTestValue = 2;
       await pumpQueue();
       expect(rowHeight('queue000000'), greaterThan(64));
-      expect(rowHeight('queue000001'), greaterThan(64 + 34));
-      expectWholeLine(tester, find.text('NOW PLAYING'));
+      expect(rowHeight('queue000001'), greaterThan(64 + 36));
+      expectWholeLine(tester, find.text('Now playing'));
       // (A title too long for its row scrolls by, drawn twice.)
       expectWholeLine(tester, find.text(player.currentQueue[3].title).first);
 

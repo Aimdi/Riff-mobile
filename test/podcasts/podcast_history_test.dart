@@ -117,15 +117,15 @@ void main() {
     testWidgets('by day; swipe one away, then Undo', (tester) async {
       await played(tester);
       await pumpHistory(tester);
-      expect(find.text('TODAY'), findsOneWidget);
-      expect(find.text('YESTERDAY'), findsOneWidget);
+      expect(find.text('today'), findsOneWidget);
+      expect(find.text('yesterday'), findsOneWidget);
       expect(find.text('Episode 2'), findsOneWidget);
       expect(find.text('Show · 30m'), findsNWidgets(2));
 
       await tester.drag(find.text('Episode 2'), const Offset(-600, 0));
       await tester.pumpAndSettle();
       expect(find.text('Episode 2'), findsNothing);
-      expect(find.text('TODAY'), findsNothing);
+      expect(find.text('today'), findsNothing);
       expect(_ids(), ['podcast_ep1']);
       expect(find.text('removedFromHistory'), findsOneWidget);
 

@@ -81,7 +81,18 @@ class SettingsScreen extends StatelessWidget {
             hairline: false,
             child: Padding(
               padding: const EdgeInsets.only(bottom: RiffSpacing.sm),
-              child: Text("settings".tr, style: theme.textTheme.titleLarge),
+              // The page's name as large as every rail tab's.
+              child: SizedBox(
+                height: RiffSpacing.headerRow,
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Semantics(
+                    header: true,
+                    child: Text("settings".tr,
+                        style: theme.textTheme.headlineSmall),
+                  ),
+                ),
+              ),
             ),
           ),
           // §5.8: surface1 pill, 40 tall, no border at rest, 1 px accent

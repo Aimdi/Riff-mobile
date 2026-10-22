@@ -209,15 +209,19 @@ class _PodcastsLibraryWidgetState extends State<PodcastsLibraryWidget> {
               right: RiffSpacing.xs,
               bottom: RiffSpacing.sm),
           child: SizedBox(
-            height: RiffComponentSizes.iconHit,
+            height: RiffSpacing.headerRow,
             child: Row(
               children: [
+                // The page's name as large as every rail tab's.
                 Expanded(
-                  child: Text(
-                    'podcasts'.tr,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleLarge,
+                  child: Semantics(
+                    header: true,
+                    child: Text(
+                      'podcasts'.tr,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
                   ),
                 ),
                 if (_section == 1)
@@ -1006,7 +1010,7 @@ class _SimilarPodcastsRow extends StatelessWidget {
                 top: HomeLayout.sectionTop,
                 right: HomeLayout.gutter),
             child: Text(
-              kicker!.toUpperCase(),
+              kicker!,
               style: Theme.of(context)
                   .textTheme
                   .labelSmall
