@@ -24,7 +24,7 @@ class SearchScreen extends StatelessWidget {
     final searchScreenController = Get.isRegistered<SearchScreenController>()
         ? Get.find<SearchScreenController>()
         : Get.put(SearchScreenController());
-    final topPadding = context.isLandscape ? 50.0 : 80.0;
+    final topPadding = riffTabTop(context);
     return Scaffold(
       resizeToAvoidBottomInset: false,
       // No outer Obx: it would read no observables, and an empty Obx throws

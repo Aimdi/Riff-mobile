@@ -2,6 +2,8 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '/ui/widgets/riff_header_bar.dart';
+
 import '/models/playling_from.dart';
 import '/services/offline_playback.dart';
 import '/ui/player/player_controller.dart';
@@ -41,7 +43,7 @@ class SearchResultScreen extends StatelessWidget {
         Get.isRegistered<SearchResultScreenController>()
             ? Get.find<SearchResultScreenController>()
             : Get.put(SearchResultScreenController());
-    final topPadding = context.isLandscape ? 50.0 : 80.0;
+    final topPadding = riffTabTop(context);
     return Scaffold(
       body: Padding(
         padding: EdgeInsets.only(top: topPadding),
