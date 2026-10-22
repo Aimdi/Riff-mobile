@@ -199,6 +199,8 @@ class _StatsCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.titleMedium),
                     ),
+                    // A long title ends clear of the time.
+                    const SizedBox(width: RiffSpacing.sm),
                     Text(
                         podcastStatsDuration(Duration(milliseconds: top[i].ms)),
                         style: homeCardSubtitleStyle(context)),
