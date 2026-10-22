@@ -136,6 +136,13 @@ final scenarios = <Scenario>[
     Get.find<PlayerController>().playerPanelController.open();
     await settle(t);
   }),
+  Scenario('player_queue', _all, (t, d) async {
+    await openApp(t);
+    Get.find<PlayerController>().playerPanelController.open();
+    await settle(t);
+    await t.tap(find.textContaining('Up Next').last);
+    await settle(t);
+  }),
 
   // ── Search: history, suggestions while typing, results ───────────────
   Scenario('search', _all, (t, d) async {

@@ -121,7 +121,7 @@ class Player extends StatelessWidget {
                             ),
                           ),
                         ),
-                        Obx(() => _QueueBarButton(
+                        Obx(() => QueueBarButton(
                               tooltip: "queueLoop".tr,
                               icon: Icons.repeat_rounded,
                               active: playerController
@@ -130,7 +130,7 @@ class Player extends StatelessWidget {
                             )),
                         // Autoplay (Apple Music's ∞): similar songs
                         // once the queue runs out.
-                        Obx(() => _QueueBarButton(
+                        Obx(() => QueueBarButton(
                               tooltip: 'autoplayShort'.tr,
                               icon: Icons.all_inclusive_rounded,
                               active: MusicAutoplay.enabled.isTrue,
@@ -147,7 +147,7 @@ class Player extends StatelessWidget {
                                       size: SanckBarSize.BIG));
                               },
                             )),
-                        _QueueBarButton(
+                        QueueBarButton(
                           tooltip: "shuffleQueue".tr,
                           icon: Icons.shuffle_rounded,
                           onTap: () {
@@ -161,7 +161,7 @@ class Player extends StatelessWidget {
                             playerController.shuffleQueue();
                           },
                         ),
-                        _QueueBarButton(
+                        QueueBarButton(
                           tooltip: "saveQueueAsPlaylist".tr,
                           icon: Icons.playlist_add_rounded,
                           onTap: () {
@@ -180,7 +180,7 @@ class Player extends StatelessWidget {
                             showAddToPlaylistSheet(context, queue);
                           },
                         ),
-                        _QueueBarButton(
+                        QueueBarButton(
                           tooltip: "clearQueue".tr,
                           icon: Icons.playlist_remove_rounded,
                           onTap: () => clearQueueWithUndo(context: context),
@@ -236,8 +236,10 @@ class _PlayerBodyTickerMode extends StatelessWidget {
 }
 
 /// Queue panel footer action: icon only, accent while [active].
-class _QueueBarButton extends StatelessWidget {
-  const _QueueBarButton({
+/// A queue bar action: a plain icon, on an accent tint while [active].
+class QueueBarButton extends StatelessWidget {
+  const QueueBarButton({
+    super.key,
     required this.tooltip,
     required this.icon,
     required this.onTap,
