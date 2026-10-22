@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../theme/riff_spacing.dart';
+import '/ui/theme/riff_tokens.dart';
 import '/ui/theme/riff_text_metrics.dart';
 import '/ui/widgets/riff_header_bar.dart';
 
@@ -278,10 +279,16 @@ class RiffPageHeader extends StatelessWidget {
     this.subtitle,
     this.actions = const [],
     this.onBack,
+    this.titleVisible = true,
   });
   final String title;
   final String? subtitle;
   final List<Widget> actions;
+
+  /// False while the page shows its own large title right below (an
+  /// album's or a book's): the bar's title fades in once that has
+  /// scrolled away, as Spotify's and Apple Music's pages do.
+  final bool titleVisible;
 
   /// Defaults to popping the navigator this page is in (tab or root).
   final VoidCallback? onBack;
@@ -306,20 +313,25 @@ class RiffPageHeader extends StatelessWidget {
             onPressed: onBack ?? () => Navigator.of(context).maybePop(),
           ),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleLarge),
-                if (subtitle != null && subtitle!.isNotEmpty)
-                  Text(subtitle!,
+            child: AnimatedOpacity(
+              opacity: titleVisible ? 1 : 0,
+              duration: RiffDurations.select,
+              curve: RiffDurations.selectCurve,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: homeCardSubtitleStyle(context)),
-              ],
+                      style: Theme.of(context).textTheme.titleLarge),
+                  if (subtitle != null && subtitle!.isNotEmpty)
+                    Text(subtitle!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: homeCardSubtitleStyle(context)),
+                ],
+              ),
             ),
           ),
           ...actions,

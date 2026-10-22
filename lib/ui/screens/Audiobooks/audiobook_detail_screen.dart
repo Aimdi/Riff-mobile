@@ -69,6 +69,19 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
     await playAudiobook(bookId: widget.bookId, index: index);
   }
 
+  /// The large title under the cover has scrolled out of view: the bar
+  /// shows it instead.
+  bool _scrolledPastTitle = false;
+
+  bool _onScroll(ScrollNotification n) {
+    if (n.depth != 0) return false;
+    final past = n.metrics.pixels > RiffComponentSizes.detailTitleScroll;
+    if (past != _scrolledPastTitle) {
+      setState(() => _scrolledPastTitle = past);
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final abs = Get.find<AudiobookshelfService>();
@@ -78,6 +91,8 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
       body: Column(children: [
         RiffPageHeader(
           _detail?.title ?? 'audiobooks'.tr,
+          // The book's own large title is just below until scrolled away.
+          titleVisible: _detail == null || _scrolledPastTitle,
           actions: [
             if (_detail != null)
               AudiobookDownloadButton(
@@ -114,7 +129,9 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                               ),
                             ),
                           )
-                        : _buildBody(theme, abs))),
+                        : NotificationListener<ScrollNotification>(
+                            onNotification: _onScroll,
+                            child: _buildBody(theme, abs)))),
       ]),
     );
   }

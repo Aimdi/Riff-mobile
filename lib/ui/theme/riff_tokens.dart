@@ -188,6 +188,9 @@ class RiffComponentSizes {
   /// screen but no taller than this, so on a tablet it ends under the
   /// header as it does on a phone instead of running under the tracks.
   static const double collectionBackdropMax = 440;
+
+  /// How far a book's page scrolls before its title moves into the bar.
+  static const double detailTitleScroll = 120;
   static const double heroPlayGlyph = 28;
   static const double miniArt = 40;
   static const double headerIcon = 22;
