@@ -640,7 +640,7 @@ class _LyricsVeil extends StatelessWidget {
             color: page.withOpacity(0.78),
             child: Stack(
               children: [
-                child,
+                LyricsEdgeFade(child: child),
                 IgnorePointer(
                   child: DecoratedBox(
                     decoration: BoxDecoration(

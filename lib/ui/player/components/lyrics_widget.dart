@@ -16,6 +16,47 @@ import '/ui/theme/riff_spacing.dart';
 import '/ui/theme/riff_tokens.dart';
 import '/ui/widgets/riff_motion.dart';
 
+/// Lyrics fading out to nothing at the top and bottom edges (Spotify,
+/// Apple Music), so a line the edge cuts isn't left half there.
+class LyricsEdgeFade extends StatelessWidget {
+  const LyricsEdgeFade({super.key, required this.child});
+  final Widget child;
+
+  /// The mask, kept while the lyrics' size stays put (they repaint as the
+  /// lines move on).
+  static Shader? _mask;
+  static Size? _maskFor;
+
+  static Shader _maskShader(Size size, Color opaque) {
+    if (_mask == null || _maskFor != size) {
+      _maskFor = size;
+      _mask = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          opaque.withOpacity(0),
+          opaque,
+          opaque,
+          opaque.withOpacity(0),
+        ],
+        stops: const [0, 0.1, 0.9, 1],
+      ).createShader(Offset.zero & size);
+    }
+    return _mask!;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Only the mask's alpha counts.
+    final opaque = Theme.of(context).colorScheme.surface.withOpacity(1);
+    return ShaderMask(
+      blendMode: BlendMode.dstIn,
+      shaderCallback: (rect) => _maskShader(rect.size, opaque),
+      child: child,
+    );
+  }
+}
+
 class LyricsWidget extends StatelessWidget {
   final EdgeInsetsGeometry padding;
 
