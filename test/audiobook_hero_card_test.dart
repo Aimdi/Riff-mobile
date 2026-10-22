@@ -8,19 +8,24 @@ void main() {
     VoidCallback? onLongPress,
     int? secondsLeft,
     String detail = '',
+    double width = 800,
   }) =>
       MaterialApp(
         home: Scaffold(
-          body: AudiobookHeroCard(
-            cover: const ColoredBox(color: Color(0xFF336699)),
-            title: 'Project Hail Mary',
-            author: 'Andy Weir',
-            detail: detail,
-            progress: 0.4,
-            secondsLeft: secondsLeft,
-            onPlay: onPlay ?? () {},
-            onLongPress: onLongPress,
-          ),
+          body: Center(
+              child: SizedBox(
+            width: width,
+            child: AudiobookHeroCard(
+              cover: const ColoredBox(color: Color(0xFF336699)),
+              title: 'Project Hail Mary',
+              author: 'Andy Weir',
+              detail: detail,
+              progress: 0.4,
+              secondsLeft: secondsLeft,
+              onPlay: onPlay ?? () {},
+              onLongPress: onLongPress,
+            ),
+          )),
         ),
       );
 
@@ -70,5 +75,31 @@ void main() {
             RegExp(r'^Project Hail Mary, Andy Weir, .*left$')),
         findsOneWidget);
     handle.dispose();
+  });
+
+  group('the play button', () {
+    final cover = find.byWidgetPredicate(
+        (w) => w is ColoredBox && w.color == const Color(0xFF336699));
+    final play = find.byIcon(Icons.play_arrow_rounded);
+
+    testWidgets('on a phone sits on the cover', (tester) async {
+      await tester.pumpWidget(card(width: 360));
+      expect(tester.getRect(cover).contains(tester.getCenter(play)), isTrue);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('on a small phone too, and the card still fits',
+        (tester) async {
+      await tester.pumpWidget(card(width: 300, detail: 'Chapter 7 of 12'));
+      expect(tester.getRect(cover).contains(tester.getCenter(play)), isTrue);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('on a wide screen has its own place at the end',
+        (tester) async {
+      await tester.pumpWidget(card());
+      expect(
+          tester.getCenter(play).dx, greaterThan(tester.getRect(cover).right));
+    });
   });
 }

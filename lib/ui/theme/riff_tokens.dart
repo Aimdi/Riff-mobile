@@ -207,6 +207,16 @@ class RiffComponentSizes {
   /// The book you're in the middle of, large (Audiobooks' hero card): its
   /// cover and its play glyph.
   static const double heroBookCover = 104;
+  static const double heroPlayGlyph = 28;
+
+  /// Narrower than this, the hero card's play button sits on the cover
+  /// (as Home's and Podcasts' continue cards have it) so the title, author
+  /// and progress get the width.
+  static const double heroBookWide = 480;
+
+  /// The play button on the hero's cover, and its glyph.
+  static const double heroCoverPlay = 40;
+  static const double heroCoverPlayGlyph = 24;
 
   /// Album / playlist pages: the cover behind the header is as wide as the
   /// screen but no taller than this, so on a tablet it ends under the
@@ -215,7 +225,6 @@ class RiffComponentSizes {
 
   /// How far a book's page scrolls before its title moves into the bar.
   static const double detailTitleScroll = 120;
-  static const double heroPlayGlyph = 28;
   static const double miniArt = 40;
   static const double headerIcon = 22;
   static const double trailingIcon = 20;

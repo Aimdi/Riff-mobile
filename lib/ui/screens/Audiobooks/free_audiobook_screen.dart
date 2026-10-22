@@ -285,7 +285,6 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
                 for (final s in d.subjects)
                   Container(
                     height: RiffComponentSizes.chip,
-                    alignment: Alignment.center,
                     padding:
                         const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
                     decoration: ShapeDecoration(
@@ -293,10 +292,17 @@ class _FreeAudiobookScreenState extends State<FreeAudiobookScreen> {
                           side: BorderSide(
                               color: Theme.of(context).dividerColor, width: 0)),
                     ),
-                    child: Text(
-                      s[0].toUpperCase() + s.substring(1),
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface),
+                    // Centred up and down only: the chip hugs its label.
+                    child: Center(
+                      widthFactor: 1,
+                      child: Text(
+                        s[0].toUpperCase() + s.substring(1),
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelMedium
+                            ?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface),
+                      ),
                     ),
                   ),
               ],

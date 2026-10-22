@@ -67,87 +67,134 @@ class AudiobookHeroCard extends StatelessWidget {
               onLongPress: onLongPress,
               child: Padding(
                 padding: const EdgeInsets.all(RiffSpacing.md),
-                child: Row(
-                  children: [
-                    SizedBox.square(
-                      dimension: RiffComponentSizes.heroBookCover,
-                      child: cover,
-                    ),
-                    const SizedBox(width: RiffSpacing.lg),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleMedium
-                                ?.copyWith(color: scheme.onSurface),
-                          ),
-                          if (author.isNotEmpty) ...[
-                            const SizedBox(height: RiffSpacing.xxs),
-                            Text(
-                              author,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodyMedium
-                                  ?.copyWith(color: muted),
-                            ),
-                          ],
-                          if (detail.isNotEmpty) ...[
-                            const SizedBox(height: RiffSpacing.xxs),
-                            Text(
-                              detail,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodySmall
-                                  ?.copyWith(color: muted),
-                            ),
-                          ],
-                          const SizedBox(height: RiffSpacing.md),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(RiffRadii.pill),
-                            child: LinearProgressIndicator(
-                              value: progress.clamp(0.0, 1.0),
-                              minHeight: RiffSizes.progressBar,
-                              color: scheme.primary,
-                              backgroundColor: scheme.onSurface
-                                  .withOpacity(RiffPalette.trackOpacity),
-                            ),
-                          ),
-                          if (leftLabel.isNotEmpty) ...[
-                            const SizedBox(height: RiffSpacing.xs),
-                            Text(
-                              leftLabel,
-                              style: theme.textTheme.labelSmall
-                                  ?.copyWith(color: muted),
-                            ),
-                          ],
-                        ],
+                child: LayoutBuilder(builder: (context, box) {
+                  final wide = box.maxWidth >= RiffComponentSizes.heroBookWide;
+                  final details = Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(color: scheme.onSurface),
                       ),
-                    ),
-                    const SizedBox(width: RiffSpacing.md),
-                    // Play is an accent button (§2.5).
-                    Material(
-                      color: scheme.primary,
-                      shape: const CircleBorder(),
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: onPlay,
-                        child: SizedBox.square(
-                          dimension: RiffSizes.touch,
-                          child: Icon(Icons.play_arrow_rounded,
-                              color: scheme.onPrimary,
-                              size: RiffComponentSizes.heroPlayGlyph,
-                              semanticLabel: 'resume'.tr),
+                      if (author.isNotEmpty) ...[
+                        const SizedBox(height: RiffSpacing.xxs),
+                        Text(
+                          author,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium
+                              ?.copyWith(color: muted),
+                        ),
+                      ],
+                      if (detail.isNotEmpty) ...[
+                        const SizedBox(height: RiffSpacing.xxs),
+                        Text(
+                          detail,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              theme.textTheme.bodySmall?.copyWith(color: muted),
+                        ),
+                      ],
+                      const SizedBox(height: RiffSpacing.md),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(RiffRadii.pill),
+                        child: LinearProgressIndicator(
+                          value: progress.clamp(0.0, 1.0),
+                          minHeight: RiffSizes.progressBar,
+                          color: scheme.primary,
+                          backgroundColor: scheme.onSurface
+                              .withOpacity(RiffPalette.trackOpacity),
                         ),
                       ),
-                    ),
-                  ],
-                ),
+                      if (leftLabel.isNotEmpty) ...[
+                        const SizedBox(height: RiffSpacing.xs),
+                        Text(
+                          leftLabel,
+                          style: theme.textTheme.labelSmall
+                              ?.copyWith(color: muted),
+                        ),
+                      ],
+                    ],
+                  );
+                  final cover = SizedBox.square(
+                    dimension: RiffComponentSizes.heroBookCover,
+                    child: this.cover,
+                  );
+                  return Row(
+                    children: [
+                      if (wide)
+                        cover
+                      else
+                        // Narrow: the play button sits on the cover.
+                        Stack(
+                          children: [
+                            cover,
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: _PlayButton(
+                                onPlay: onPlay,
+                                size: RiffComponentSizes.heroCoverPlay,
+                                glyph: RiffComponentSizes.heroCoverPlayGlyph,
+                              ),
+                            ),
+                          ],
+                        ),
+                      const SizedBox(width: RiffSpacing.lg),
+                      Expanded(child: details),
+                      if (wide) ...[
+                        const SizedBox(width: RiffSpacing.md),
+                        _PlayButton(
+                          onPlay: onPlay,
+                          size: RiffSizes.touch,
+                          glyph: RiffComponentSizes.heroPlayGlyph,
+                        ),
+                      ],
+                    ],
+                  );
+                }),
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The hero's play button, an accent circle (§2.5) [size] across within a
+/// [RiffSizes.touch] square hit area.
+class _PlayButton extends StatelessWidget {
+  const _PlayButton(
+      {required this.onPlay, required this.size, required this.glyph});
+
+  final VoidCallback onPlay;
+  final double size;
+  final double glyph;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox.square(
+      dimension: RiffSizes.touch,
+      child: Center(
+        child: Material(
+          color: scheme.primary,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onPlay,
+            child: SizedBox.square(
+              dimension: size,
+              child: Icon(Icons.play_arrow_rounded,
+                  color: scheme.onPrimary,
+                  size: glyph,
+                  semanticLabel: 'resume'.tr),
             ),
           ),
         ),
