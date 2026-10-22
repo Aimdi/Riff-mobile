@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
+import 'riff_fast_scroller.dart';
+
 import '/models/album.dart';
 import '../../models/artist.dart';
 import '../../models/playling_from.dart';
@@ -164,6 +166,40 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
     final count = maxItems == null
         ? items.length
         : (items.length < maxItems ? items.length : maxItems);
+    // A full list gets the fast-scroll thumb (it shows only when long).
+    if (isCompleteList) {
+      return RiffFastScroller(
+        controller: sc,
+        itemExtent: RiffComponentSizes.songRowExtent,
+        labelFor: songFastScrollLabels(items.whereType<MediaItem>().toList()),
+        builder: (context, controller) => _songVidList(items, count,
+            playerController: playerController,
+            isPlaylistOrAlbum: isPlaylistOrAlbum,
+            playlist: playlist,
+            album: album,
+            artist: artist,
+            isArtistSongs: isArtistSongs,
+            sc: controller),
+      );
+    }
+    return _songVidList(items, count,
+        playerController: playerController,
+        isPlaylistOrAlbum: isPlaylistOrAlbum,
+        playlist: playlist,
+        album: album,
+        artist: artist,
+        isArtistSongs: isArtistSongs,
+        sc: sc);
+  }
+
+  Widget _songVidList(List<dynamic> items, int count,
+      {required PlayerController playerController,
+      required bool isPlaylistOrAlbum,
+      Playlist? playlist,
+      Album? album,
+      Artist? artist,
+      required bool isArtistSongs,
+      ScrollController? sc}) {
     return ListView.builder(
       padding: EdgeInsets.only(
         bottom: isCompleteList ? RiffSpacing.listEnd : 0,

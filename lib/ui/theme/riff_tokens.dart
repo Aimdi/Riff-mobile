@@ -173,6 +173,26 @@ class RiffMotionDistances {
   static const double pressScale = 0.96;
 }
 
+/// The fast-scroll thumb on long lists (RiffFastScroller).
+class RiffFastScroll {
+  RiffFastScroll._();
+
+  /// Shown on lists with more than this many screens to scroll.
+  static const double minScreens = 3;
+
+  /// How long the thumb stays after the list stops.
+  static const Duration linger = Duration(milliseconds: 1500);
+
+  static const double thumbHeight = 48;
+  static const double thumbWidth = 6;
+
+  /// The strip along the edge that takes the drag.
+  static const double touchWidth = 32;
+
+  /// The letter bubble beside the thumb.
+  static const double bubble = 64;
+}
+
 /// Component sizes from §4.4 that aren't Home-specific ([RiffSizes] in
 /// home_metrics.dart keeps the Home ones).
 class RiffComponentSizes {
