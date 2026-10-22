@@ -145,46 +145,49 @@ class _AnimatedPlayButtonState extends State<AnimatedPlayButton>
         button: true,
         label: isPlaying ? 'pause'.tr : 'play'.tr,
         child: Material(
-        color: accent,
-        shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: () {
-            isPlaying ? controller.pause() : controller.play();
-          },
-          child: SizedBox(
-            width: widget.size,
-            height: widget.size,
-            child: Center(
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  AnimatedIcon(
-                    icon: AnimatedIcons.play_pause,
-                    progress: _morph,
-                    size: widget.iconSize,
-                    color: glyph,
-                  ),
-                  if (isLoading)
-                    SizedBox.square(
-                      dimension: widget.size - 10,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: glyph.withOpacity(0.35),
-                      ),
+          color: accent,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () {
+              isPlaying ? controller.pause() : controller.play();
+            },
+            child: SizedBox(
+              width: widget.size,
+              height: widget.size,
+              child: Center(
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    AnimatedIcon(
+                      icon: AnimatedIcons.play_pause,
+                      progress: _morph,
+                      size: widget.iconSize,
+                      color: glyph,
                     ),
-                ],
+                    if (isLoading)
+                      SizedBox.square(
+                        dimension: widget.size - 10,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: glyph.withOpacity(0.35),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
-      ),
       );
       if (!widget.holdToSeek) return button;
       final holding = _seek != null;
       final rise =
           reduceMotion(context) ? 0.0 : RiffMotionDistances.contentRise;
       return GestureDetector(
+        // A finger's fine seek; TalkBack seeks with the slider, and the
+        // button keeps its one named action.
+        excludeFromSemantics: true,
         onLongPressStart: _holdStart,
         onLongPressMoveUpdate: _holdMove,
         onLongPressEnd: (_) => _holdEnd(),

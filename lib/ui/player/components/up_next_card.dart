@@ -31,72 +31,82 @@ class UpNextCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Material(
-        color: theme.colorScheme.surfaceContainerLow,
-        shape: ArcTopBorder(
-          arc: RiffComponentSizes.queueCardArc,
-          // The arc runs straight into the screen edges.
-          corner: 0,
-          side: BorderSide(color: theme.dividerColor, width: 0),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
+    // One named button for TalkBack: "Up Next · next song".
+    return Semantics(
+        container: true,
+        button: true,
+        label: [
+          'upNext'.tr,
+          if (preview.isNotEmpty) preview,
+        ].join(' · '),
+        onTap: onTap,
+        excludeSemantics: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
           onTap: onTap,
-          child: Container(
-            width: double.infinity,
-            height: RiffComponentSizes.queueCard + bottomInset,
-            // The label sits a little lower than the band's middle,
-            // where the arc has room for it.
-            padding: EdgeInsets.only(
-                left: RiffSpacing.lg,
-                top: math.min(
-                    RiffComponentSizes.queueCardArc / 2, RiffSpacing.xs),
-                right: RiffSpacing.lg,
-                bottom: bottomInset),
-            alignment: Alignment.center,
-            // One line: an up-arrow (pull me up), then "Up Next ·
-            // next song".
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.keyboard_arrow_up_rounded,
-                    size: RiffComponentSizes.trailingIcon, color: muted),
-                const SizedBox(width: RiffSpacing.xs),
-                Flexible(
-                  child: Text.rich(
-                    TextSpan(children: [
-                      TextSpan(
-                        text: 'upNext'.tr,
-                        style:
-                            theme.textTheme.labelSmall?.copyWith(color: muted),
+          child: Material(
+            color: theme.colorScheme.surfaceContainerLow,
+            shape: ArcTopBorder(
+              arc: RiffComponentSizes.queueCardArc,
+              // The arc runs straight into the screen edges.
+              corner: 0,
+              side: BorderSide(color: theme.dividerColor, width: 0),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onTap,
+              child: Container(
+                width: double.infinity,
+                height: RiffComponentSizes.queueCard + bottomInset,
+                // The label sits a little lower than the band's middle,
+                // where the arc has room for it.
+                padding: EdgeInsets.only(
+                    left: RiffSpacing.lg,
+                    top: math.min(
+                        RiffComponentSizes.queueCardArc / 2, RiffSpacing.xs),
+                    right: RiffSpacing.lg,
+                    bottom: bottomInset),
+                alignment: Alignment.center,
+                // One line: an up-arrow (pull me up), then "Up Next ·
+                // next song".
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.keyboard_arrow_up_rounded,
+                        size: RiffComponentSizes.trailingIcon, color: muted),
+                    const SizedBox(width: RiffSpacing.xs),
+                    Flexible(
+                      child: Text.rich(
+                        TextSpan(children: [
+                          TextSpan(
+                            text: 'upNext'.tr,
+                            style: theme.textTheme.labelSmall
+                                ?.copyWith(color: muted),
+                          ),
+                          if (preview.isNotEmpty) ...[
+                            TextSpan(
+                              text: ' · ',
+                              style: theme.textTheme.bodySmall
+                                  ?.copyWith(color: muted),
+                            ),
+                            TextSpan(
+                              text: preview,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurface),
+                            ),
+                          ],
+                        ]),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
                       ),
-                      if (preview.isNotEmpty) ...[
-                        TextSpan(
-                          text: ' · ',
-                          style:
-                              theme.textTheme.bodySmall?.copyWith(color: muted),
-                        ),
-                        TextSpan(
-                          text: preview,
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: theme.colorScheme.onSurface),
-                        ),
-                      ],
-                    ]),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
-    );
+        ));
   }
 }
 

@@ -95,65 +95,72 @@ class AlbumArtNLyrics extends StatelessWidget {
             height: height,
             child: Stack(
               children: [
-                GestureDetector(
-                  onLongPress: () {
-                    final sheetContext =
-                        playerController.homeScaffoldkey.currentContext ??
-                            Get.context;
-                    if (sheetContext == null) return;
-                    HapticFeedback.mediumImpact();
-                    showModalBottomSheet(
-                      useRootNavigator: true,
-                      constraints: const BoxConstraints(maxWidth: 500),
-                      isScrollControlled: true,
-                      context: sheetContext,
-                      builder: (context) => SongInfoBottomSheet(
-                        song,
-                        calledFromPlayer: true,
-                      ),
-                    ).whenComplete(() => Get.delete<SongInfoController>());
-                  },
-                  onTap: () {
-                    // Videos: tap toggles play/pause (Spotify-like).
-                    // Songs: tap opens lyrics.
-                    if (isVideo) {
-                      playerController.playPause();
-                    } else {
-                      playerController.showLyrics();
-                    }
-                  },
-                  onHorizontalDragEnd: (DragEndDetails details) {
-                    if (playerController.showLyricsflag.isTrue) return;
-                    if (details.primaryVelocity! < 0) {
-                      playerController.next();
-                    } else if (details.primaryVelocity! > 0) {
-                      playerController.prev();
-                    }
-                  },
-                  child: isVideo
-                      ? PlayerVideoSurface(
-                          song: song,
-                          width: width,
-                          maxHeight: height,
-                          onToggleVideo: () async {
-                            await AlbumArtNLyrics.setVideoPlaybackEnabled(
-                                song, false);
-                            playerController.currentSong.refresh();
-                          },
-                        )
-                      : DecoratedBox(
-                          // Flat artwork: no shadow (§2.1).
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(RiffRadii.sm),
+                // Named for TalkBack; its tap shows the lyrics (a video's
+                // plays or pauses), its swipes change the song.
+                Semantics(
+                    container: true,
+                    label: 'coverArt'.tr,
+                    onTapHint: isVideo ? null : 'showLyrics'.tr,
+                    child: GestureDetector(
+                      onLongPress: () {
+                        final sheetContext =
+                            playerController.homeScaffoldkey.currentContext ??
+                                Get.context;
+                        if (sheetContext == null) return;
+                        HapticFeedback.mediumImpact();
+                        showModalBottomSheet(
+                          useRootNavigator: true,
+                          constraints: const BoxConstraints(maxWidth: 500),
+                          isScrollControlled: true,
+                          context: sheetContext,
+                          builder: (context) => SongInfoBottomSheet(
+                            song,
+                            calledFromPlayer: true,
                           ),
-                          child: ImageWidget(
-                            size: playerArtImageSize,
-                            song: song,
-                            isPlayerArtImage: true,
-                            borderRadius: RiffRadii.sm,
-                          ),
-                        ),
-                ),
+                        ).whenComplete(() => Get.delete<SongInfoController>());
+                      },
+                      onTap: () {
+                        // Videos: tap toggles play/pause (Spotify-like).
+                        // Songs: tap opens lyrics.
+                        if (isVideo) {
+                          playerController.playPause();
+                        } else {
+                          playerController.showLyrics();
+                        }
+                      },
+                      onHorizontalDragEnd: (DragEndDetails details) {
+                        if (playerController.showLyricsflag.isTrue) return;
+                        if (details.primaryVelocity! < 0) {
+                          playerController.next();
+                        } else if (details.primaryVelocity! > 0) {
+                          playerController.prev();
+                        }
+                      },
+                      child: isVideo
+                          ? PlayerVideoSurface(
+                              song: song,
+                              width: width,
+                              maxHeight: height,
+                              onToggleVideo: () async {
+                                await AlbumArtNLyrics.setVideoPlaybackEnabled(
+                                    song, false);
+                                playerController.currentSong.refresh();
+                              },
+                            )
+                          : DecoratedBox(
+                              // Flat artwork: no shadow (§2.1).
+                              decoration: BoxDecoration(
+                                borderRadius:
+                                    BorderRadius.circular(RiffRadii.sm),
+                              ),
+                              child: ImageWidget(
+                                size: playerArtImageSize,
+                                song: song,
+                                isPlayerArtImage: true,
+                                borderRadius: RiffRadii.sm,
+                              ),
+                            ),
+                    )),
                 // Opt-in muted surface: stays off until the user taps show-video.
                 if (canVideo && !isVideo)
                   Positioned(

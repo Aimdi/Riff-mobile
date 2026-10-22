@@ -96,6 +96,7 @@ class HomeScreen extends StatelessWidget {
                       width: size,
                       child: FittedBox(
                         child: FloatingActionButton(
+                            tooltip: 'CreateNewPlaylist'.tr,
                             focusElevation: 0,
                             shape: const RoundedRectangleBorder(
                                 borderRadius:

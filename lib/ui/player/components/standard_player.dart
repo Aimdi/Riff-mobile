@@ -53,8 +53,8 @@ class StandardPlayer extends StatelessWidget {
       // the player is minimised. Wide screens keep their own mini player.
       final heroArt = !context.isLandscape && !showVideo;
       final morph = heroArt && size.width <= _morphMaxWidth;
-      final thumb = _miniArtRect(context,
-          playerController.playerPanelMinHeight.value);
+      final thumb =
+          _miniArtRect(context, playerController.playerPanelMinHeight.value);
       final full = Rect.fromLTWH(0, 0, size.width, _heroArtHeight(size));
       final position = playerController.playerPanelPosition;
 
@@ -158,7 +158,6 @@ class StandardPlayer extends StatelessWidget {
                             ],
                           ),
                   ),
-
                   if (!(context.isLandscape && GetPlatform.isMobile))
                     const PlayerTopBar(),
                 ],
@@ -181,8 +180,7 @@ Rect _miniArtRect(BuildContext context, double miniPlayerHeight) {
   final bottom = MediaQuery.viewPaddingOf(context).bottom;
   final cardHeight = miniPlayerHeight - bottom - RiffSpacing.sm;
   const size = RiffComponentSizes.miniArt;
-  return Rect.fromLTWH(
-      RiffSpacing.md * 2, (cardHeight - size) / 2, size, size);
+  return Rect.fromLTWH(RiffSpacing.md * 2, (cardHeight - size) / 2, size, size);
 }
 
 /// The dark theme's page in the cover's colours ([CoverBackdrop]). While a
@@ -536,75 +534,82 @@ class _HeroArtRegion extends StatelessWidget {
         }
       }
 
-      return GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        onLongPress: () {
-          HapticFeedback.mediumImpact();
-          openNowPlayingSheet(playerController);
-        },
-        onHorizontalDragEnd: (details) {
-          if (lyricsOn) return;
-          final v = details.primaryVelocity ?? 0;
-          if (v < 0) {
-            playerController.next();
-          } else if (v > 0) {
-            playerController.prev();
-          }
-        },
-        child: LayoutBuilder(builder: (context, box) {
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              if (showVideo)
-                Center(
-                  child: PlayerVideoSurface(
-                    song: song,
-                    width: box.maxWidth,
-                    maxHeight: box.maxHeight,
-                    onToggleVideo: () async {
-                      await AlbumArtNLyrics.setVideoPlaybackEnabled(
-                          song, false);
-                      playerController.currentSong.refresh();
-                    },
+      // Named for TalkBack; its tap shows the lyrics (a video's plays or
+      // pauses), its swipes change the song.
+      return Semantics(
+          container: true,
+          label: 'coverArt'.tr,
+          onTapHint: showVideo ? null : 'showLyrics'.tr,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            onLongPress: () {
+              HapticFeedback.mediumImpact();
+              openNowPlayingSheet(playerController);
+            },
+            onHorizontalDragEnd: (details) {
+              if (lyricsOn) return;
+              final v = details.primaryVelocity ?? 0;
+              if (v < 0) {
+                playerController.next();
+              } else if (v > 0) {
+                playerController.prev();
+              }
+            },
+            child: LayoutBuilder(builder: (context, box) {
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (showVideo)
+                    Center(
+                      child: PlayerVideoSurface(
+                        song: song,
+                        width: box.maxWidth,
+                        maxHeight: box.maxHeight,
+                        onToggleVideo: () async {
+                          await AlbumArtNLyrics.setVideoPlaybackEnabled(
+                              song, false);
+                          playerController.currentSong.refresh();
+                        },
+                      ),
+                    ),
+                  // The lyrics fade in over the cover, and out again.
+                  Positioned.fill(
+                    child: RiffSwitcher(
+                      duration: RiffDurations.content,
+                      child: lyricsOn
+                          ? SizedBox.expand(
+                              key: const ValueKey<String>('lyrics'),
+                              child: _LyricsVeil(
+                                coverLook: coverLook && !showVideo,
+                                child: LyricsWidget(
+                                    padding: EdgeInsets.symmetric(
+                                        vertical: box.maxHeight / 4),
+                                    onTap: onTap),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
                   ),
-                ),
-              // The lyrics fade in over the cover, and out again.
-              Positioned.fill(
-                child: RiffSwitcher(
-                  duration: RiffDurations.content,
-                  child: lyricsOn
-                      ? SizedBox.expand(
-                          key: const ValueKey<String>('lyrics'),
-                          child: _LyricsVeil(
-                            coverLook: coverLook && !showVideo,
-                            child: LyricsWidget(
-                                padding: EdgeInsets.symmetric(
-                                    vertical: box.maxHeight / 4),
-                                onTap: onTap),
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-              ),
-              if (!isVideo)
-                const Align(
-                    alignment: Alignment.topCenter, child: LyricsSwitch()),
-              if (song.canShowPlayerVideo && !showVideo)
-                Positioned(
-                  right: RiffSpacing.lg,
-                  top: RiffSpacing.sm,
-                  child: PlayerVideoEnableButton(
-                    onShow: () async {
-                      await AlbumArtNLyrics.setVideoPlaybackEnabled(song, true);
-                      playerController.currentSong.refresh();
-                    },
-                  ),
-                ),
-            ],
-          );
-        }),
-      );
+                  if (!isVideo)
+                    const Align(
+                        alignment: Alignment.topCenter, child: LyricsSwitch()),
+                  if (song.canShowPlayerVideo && !showVideo)
+                    Positioned(
+                      right: RiffSpacing.lg,
+                      top: RiffSpacing.sm,
+                      child: PlayerVideoEnableButton(
+                        onShow: () async {
+                          await AlbumArtNLyrics.setVideoPlaybackEnabled(
+                              song, true);
+                          playerController.currentSong.refresh();
+                        },
+                      ),
+                    ),
+                ],
+              );
+            }),
+          ));
     });
   }
 }
