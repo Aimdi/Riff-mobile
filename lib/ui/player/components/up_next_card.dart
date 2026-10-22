@@ -30,7 +30,10 @@ class UpNextCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final muted = theme.colorScheme.onSurfaceVariant;
+    // The player's second-line strength: readable on the card (the grey
+    // secondary text was under 4.5:1 here).
+    final muted = theme.colorScheme.onSurface
+        .withOpacity(RiffPalette.playerSecondaryText);
     // One named button for TalkBack: "Up Next · next song".
     return Semantics(
         container: true,

@@ -746,8 +746,9 @@ class _TitleBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final titleStyle = RiffTextStyles.of(context).playerTitle;
-    final artistStyle = theme.textTheme.bodyLarge
-        ?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    final artistStyle = theme.textTheme.bodyLarge?.copyWith(
+        color: theme.colorScheme.onSurface
+            .withOpacity(RiffPalette.playerSecondaryText));
     final mask = RiffColors.of(context).onImage;
     return ShaderMask(
       // Fade the right edge so a scrolling title doesn't hard-clip.
@@ -989,8 +990,9 @@ class PlayerSeekScrubberState extends State<PlayerSeekScrubber> {
                 )
             ];
       final theme = Theme.of(context);
-      final timeStyle = theme.textTheme.labelSmall!
-          .copyWith(color: theme.colorScheme.onSurfaceVariant);
+      final timeStyle = theme.textTheme.labelSmall!.copyWith(
+          color: theme.colorScheme.onSurface
+              .withOpacity(RiffPalette.playerSecondaryText));
       final currentLabel = _fmtDuration(_dragPosition ?? status.current);
       final timeLeft = SeekTimeLabel.showsTimeLeft.value;
       final totalLabel = seekBarEndLabel(

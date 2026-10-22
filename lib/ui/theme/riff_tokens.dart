@@ -57,6 +57,12 @@ class RiffPalette {
   /// background (CLAUDE.md rule 4: ≤ 20% over black).
   static const double playerTintOpacity = 0.2;
 
+  /// The full player's second line (artist, times): the text colour at
+  /// this strength, so it stays readable over a cover-coloured page as
+  /// Spotify's and Apple Music's do (the grey secondary text sank to
+  /// under 3:1 there).
+  static const double playerSecondaryText = 0.7;
+
   /// Scrim behind the player's "Playing from" header over the cover: dark
   /// at the very top, half that where the header text ends, so it stays
   /// readable on light covers.
