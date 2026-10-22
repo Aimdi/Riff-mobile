@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '/ui/theme/riff_tokens.dart';
@@ -132,6 +133,53 @@ Widget _popTransition(Widget child, Animation<double> animation) =>
           .drive(Tween<double>(begin: RiffMotionDistances.popFromScale, end: 1)),
       child: FadeTransition(opacity: animation, child: child),
     );
+
+/// Shrinks [child] a touch while a finger rests on it, the way cards do
+/// in Spotify and Apple Music, and lets it spring back when the finger
+/// lifts, slides away to scroll or holds for a long press. It only
+/// watches: the child's own InkWell still gets the tap.
+class RiffPressScale extends StatefulWidget {
+  const RiffPressScale({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<RiffPressScale> createState() => _RiffPressScaleState();
+}
+
+class _RiffPressScaleState extends State<RiffPressScale> {
+  bool _down = false;
+
+  void _set(bool down) {
+    if (mounted && _down != down) setState(() => _down = down);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pressed = _down && !reduceMotion(context);
+    // A tap recogniser that never wins against the child's: it hears the
+    // press once it's held past the tap slop window (a scroll takes the
+    // gesture first) and is told when the child's tap or a drag wins.
+    return RawGestureDetector(
+      gestures: {
+        TapGestureRecognizer:
+            GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+          TapGestureRecognizer.new,
+          (r) => r
+            ..onTapDown = ((_) => _set(true))
+            ..onTapUp = ((_) => _set(false))
+            ..onTapCancel = (() => _set(false)),
+        ),
+      },
+      child: AnimatedScale(
+        scale: pressed ? RiffMotionDistances.pressScale : 1,
+        duration: pressed ? RiffDurations.press : RiffDurations.select,
+        curve: RiffDurations.selectCurve,
+        child: widget.child,
+      ),
+    );
+  }
+}
 
 /// An Image's frameBuilder that fades the picture in once its first frame
 /// is ready (a file or network image that wasn't already in memory),

@@ -243,8 +243,7 @@ class _HomeSpeedDialState extends State<HomeSpeedDial> {
               return AnimatedBuilder(
                 animation: controller,
                 builder: (context, child) {
-                  final look =
-                      speedDialPageLook(_position(controller) - index);
+                  final look = speedDialPageLook(_position(controller) - index);
                   return Opacity(
                     opacity: look.opacity,
                     child: Transform.scale(scale: look.scale, child: child),
@@ -343,7 +342,8 @@ class _DialTile extends StatelessWidget {
       excludeSemantics: true,
       child: SizedBox.square(
         dimension: size,
-        child: Material(
+        child: RiffPressScale(
+            child: Material(
           color: Theme.of(context).colorScheme.surfaceContainerLow,
           shape: shape,
           clipBehavior: Clip.antiAlias,
@@ -382,7 +382,7 @@ class _DialTile extends StatelessWidget {
               ],
             ),
           ),
-        ),
+        )),
       ),
     );
   }
@@ -403,7 +403,8 @@ class _DiceTile extends StatelessWidget {
       excludeSemantics: true,
       child: SizedBox.square(
         dimension: size,
-        child: Material(
+        child: RiffPressScale(
+            child: Material(
           color: scheme.secondaryContainer,
           borderRadius: BorderRadius.circular(RiffSizes.tileRadius),
           clipBehavior: Clip.antiAlias,
@@ -412,7 +413,7 @@ class _DiceTile extends StatelessWidget {
             child: Icon(Icons.casino_rounded,
                 size: size * 0.38, color: scheme.onSecondaryContainer),
           ),
-        ),
+        )),
       ),
     );
   }

@@ -158,6 +158,10 @@ class RiffMotionDistances {
 
   /// A toggle's new icon growing from this scale (a like, a download done).
   static const double popFromScale = 0.6;
+
+  /// A card or tile under the finger shrinks to this scale (Spotify,
+  /// Apple Music), springing back when it lifts.
+  static const double pressScale = 0.96;
 }
 
 /// Component sizes from §4.4 that aren't Home-specific ([RiffSizes] in

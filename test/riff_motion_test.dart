@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/ui/theme/riff_tokens.dart';
@@ -126,6 +127,91 @@ void main() {
             riffFadeInFrame(context, const Text('cover'), null, false))));
     expect(tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity,
         0);
+  });
+
+  group('RiffPressScale', () {
+    double scaleOf(WidgetTester tester) =>
+        tester.widget<AnimatedScale>(find.byType(AnimatedScale)).scale;
+
+    Widget card(VoidCallback onTap, {bool reduce = false}) => _app(
+        Center(
+          child: RiffPressScale(
+            child: InkWell(
+                onTap: onTap,
+                child: const SizedBox(width: 100, height: 100)),
+          ),
+        ),
+        reduce: reduce);
+
+    testWidgets('shrinks while held and springs back; the tap still lands',
+        (tester) async {
+      var taps = 0;
+      await tester.pumpWidget(card(() => taps++));
+      final gesture =
+          await tester.startGesture(tester.getCenter(find.byType(InkWell)));
+      await tester.pump(kPressTimeout + const Duration(milliseconds: 10));
+      expect(scaleOf(tester), RiffMotionDistances.pressScale);
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(scaleOf(tester), 1);
+      expect(taps, 1);
+    });
+
+    testWidgets('a long press lets go of the press', (tester) async {
+      await tester.pumpWidget(_app(Center(
+        child: RiffPressScale(
+          child: InkWell(
+              onTap: () {},
+              onLongPress: () {},
+              child: const SizedBox(width: 100, height: 100)),
+        ),
+      )));
+      final gesture =
+          await tester.startGesture(tester.getCenter(find.byType(InkWell)));
+      await tester.pump(kPressTimeout + const Duration(milliseconds: 10));
+      expect(scaleOf(tester), RiffMotionDistances.pressScale);
+      await tester.pump(kLongPressTimeout);
+      expect(scaleOf(tester), 1);
+      await gesture.up();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('a scroll starting on a card doesn\'t keep it pressed',
+        (tester) async {
+      await tester.pumpWidget(_app(ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          for (var i = 0; i < 6; i++)
+            RiffPressScale(
+              key: ValueKey(i),
+              child: InkWell(
+                  onTap: () {},
+                  child: const SizedBox(width: 150, height: 100)),
+            ),
+        ],
+      )));
+      final gesture = await tester
+          .startGesture(tester.getCenter(find.byKey(const ValueKey(0))));
+      await gesture.moveBy(const Offset(-60, 0));
+      await tester.pump(kPressTimeout + const Duration(milliseconds: 10));
+      final scales = tester
+          .widgetList<AnimatedScale>(find.byType(AnimatedScale))
+          .map((s) => s.scale);
+      expect(scales, everyElement(1));
+      await gesture.up();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('stays still with Remove animations on', (tester) async {
+      await tester.pumpWidget(card(() {}, reduce: true));
+      final gesture =
+          await tester.startGesture(tester.getCenter(find.byType(InkWell)));
+      await tester.pump(kPressTimeout + const Duration(milliseconds: 10));
+      expect(scaleOf(tester), 1);
+      await gesture.up();
+      await tester.pumpAndSettle();
+    });
   });
 }
 

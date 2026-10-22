@@ -21,6 +21,7 @@ import '../../widgets/collection_play.dart';
 import '../../widgets/generated_cover.dart';
 import '../../widgets/image_widget.dart';
 import '../../widgets/letter_art.dart';
+import '../../widgets/riff_motion.dart';
 import '../../widgets/riff_sheet.dart';
 import '../../widgets/snackbar.dart';
 import '../../widgets/songinfo_bottom_sheet.dart';
@@ -603,33 +604,36 @@ class _Card extends StatelessWidget {
       excludeSemantics: true,
       child: SizedBox(
         width: width,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(RiffSizes.shelfRadius),
-          onTap: onTap,
-          onLongPress: onLongPress,
-          child: Column(
-            crossAxisAlignment:
-                centered ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: circle
-                    ? BorderRadius.circular(width)
-                    : BorderRadius.circular(RiffSizes.shelfRadius),
-                child: SizedBox(width: width, height: artHeight, child: art),
-              ),
-              const SizedBox(height: 8),
-              Text(title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: align,
-                  style: _titleStyle(context)),
-              const SizedBox(height: 2),
-              Text(subtitle.isEmpty ? ' ' : subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: align,
-                  style: _subtitleStyle(context)),
-            ],
+        child: RiffPressScale(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(RiffSizes.shelfRadius),
+            onTap: onTap,
+            onLongPress: onLongPress,
+            child: Column(
+              crossAxisAlignment: centered
+                  ? CrossAxisAlignment.center
+                  : CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: circle
+                      ? BorderRadius.circular(width)
+                      : BorderRadius.circular(RiffSizes.shelfRadius),
+                  child: SizedBox(width: width, height: artHeight, child: art),
+                ),
+                const SizedBox(height: 8),
+                Text(title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: align,
+                    style: _titleStyle(context)),
+                const SizedBox(height: 2),
+                Text(subtitle.isEmpty ? ' ' : subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: align,
+                    style: _subtitleStyle(context)),
+              ],
+            ),
           ),
         ),
       ),
@@ -702,39 +706,41 @@ class _EpisodeCard extends StatelessWidget {
       child: SizedBox(
         width: RiffSizes.episodeWidth,
         height: height,
-        child: Material(
-          color: theme.colorScheme.surfaceContainer,
-          borderRadius: BorderRadius.circular(RiffSizes.shelfRadius),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: () => _playSongs(queue, episode),
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(RiffSizes.tileRadius),
-                    child:
-                        ImageWidget(song: episode, size: 60, borderRadius: 0),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(episode.title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: _titleStyle(context)),
-                        Text(episode.artist ?? '',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: _subtitleStyle(context)),
-                      ],
+        child: RiffPressScale(
+          child: Material(
+            color: theme.colorScheme.surfaceContainer,
+            borderRadius: BorderRadius.circular(RiffSizes.shelfRadius),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => _playSongs(queue, episode),
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(RiffSizes.tileRadius),
+                      child:
+                          ImageWidget(song: episode, size: 60, borderRadius: 0),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(episode.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: _titleStyle(context)),
+                          Text(episode.artist ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: _subtitleStyle(context)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

@@ -9,6 +9,7 @@ import '/services/podcast_progress_service.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/widgets/image_widget.dart';
 import '/ui/widgets/letter_art.dart';
+import '/ui/widgets/riff_motion.dart';
 import '/ui/widgets/riff_sheet.dart';
 import '/ui/widgets/snackbar.dart';
 import '../Audiobooks/audiobook_play.dart';
@@ -179,7 +180,8 @@ class JumpBackInTile extends StatelessWidget {
           ? 'continueItem'.trParams({'title': item.title})
           : item.title,
       excludeSemantics: true,
-      child: Material(
+      child: RiffPressScale(
+          child: Material(
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: radius,
         clipBehavior: Clip.antiAlias,
@@ -239,7 +241,7 @@ class JumpBackInTile extends StatelessWidget {
             ),
           ),
         ),
-      ),
+      )),
     );
   }
 }

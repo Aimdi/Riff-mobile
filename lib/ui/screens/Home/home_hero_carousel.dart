@@ -160,7 +160,8 @@ class _HeroCard extends StatelessWidget {
       button: true,
       label: label,
       excludeSemantics: true,
-      child: Material(
+      child: RiffPressScale(
+          child: Material(
         color: theme.colorScheme.surfaceContainerLow,
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(RiffSizes.carouselRadius)),
@@ -243,7 +244,7 @@ class _HeroCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
+      )),
     );
   }
 }
