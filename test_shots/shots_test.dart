@@ -14,6 +14,7 @@ import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:harmonymusic/ui/screens/Artists/artist_screen.dart';
 import 'package:harmonymusic/ui/screens/Audiobooks/audiobook_detail_screen.dart';
 import 'package:harmonymusic/ui/screens/Audiobooks/audiobook_widgets.dart';
+import 'package:harmonymusic/ui/screens/Home/discover_screen.dart';
 import 'package:harmonymusic/ui/screens/Home/home_screen.dart';
 import 'package:harmonymusic/ui/screens/Home/home_screen_controller.dart';
 import 'package:harmonymusic/ui/screens/Settings/settings_screen.dart';
@@ -45,6 +46,10 @@ final scenarios = <Scenario>[
     await growToFeed(t, d);
   }),
   Scenario('discover', _all, (t, d) => openApp(t, tab: RailTab.discover)),
+  Scenario('discover_full', _all, (t, d) async {
+    await openApp(t, tab: RailTab.discover);
+    await growToFeed(t, d, within: find.byType(DiscoverScreen));
+  }),
 
   // ── Library ──────────────────────────────────────────────────────────
   Scenario('library_songs', _all, (t, d) => openApp(t, tab: RailTab.songs)),
