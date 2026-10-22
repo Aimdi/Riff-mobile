@@ -73,6 +73,8 @@ class CollectionHeader extends StatelessWidget {
         children: [
           GestureDetector(
             onTap: onCoverTap,
+            // A shortcut for the Play button below; TalkBack has that one.
+            excludeFromSemantics: true,
             // Flat artwork, no shadow (§2.1).
             child: ClipRRect(
               borderRadius: BorderRadius.circular(RiffRadii.sm),

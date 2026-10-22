@@ -161,6 +161,9 @@ class _RiffPressScaleState extends State<RiffPressScale> {
     // press once it's held past the tap slop window (a scroll takes the
     // gesture first) and is told when the child's tap or a drag wins.
     return RawGestureDetector(
+      // Only the look of a press: TalkBack's tap is the card's own (this
+      // would add a second, unnamed one).
+      excludeFromSemantics: true,
       gestures: {
         TapGestureRecognizer:
             GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(

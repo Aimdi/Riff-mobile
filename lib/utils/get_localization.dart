@@ -6055,6 +6055,7 @@ Map<String, Map<String, String>> get keys => {
     "noFoldersYet": "No folders yet",
     "addToFolder": "Add to folder",
     "clear": "Clear",
+    "useSuggestion": "Search with this",
     "videoQuality": "Video quality",
     "videoQualityDes": "Quality used when a music video or YouTube episode is playing",
     "skipPodcastAds": "Skip podcast ads",

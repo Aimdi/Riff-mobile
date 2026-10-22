@@ -203,6 +203,29 @@ void main() {
       await tester.pumpAndSettle();
     });
 
+    testWidgets('adds nothing for TalkBack: the card is one named button',
+        (tester) async {
+      final handle = tester.ensureSemantics();
+      var taps = 0;
+      await tester.pumpWidget(_app(Center(
+        child: RiffPressScale(
+          child: InkWell(
+              onTap: () => taps++,
+              child: const SizedBox(
+                  width: 100, height: 100, child: Text('Coastlines'))),
+        ),
+      )));
+      expect(
+          tester.getSemantics(find.text('Coastlines')),
+          matchesSemantics(
+              label: 'Coastlines',
+              hasTapAction: true,
+              isFocusable: true,
+              hasFocusAction: true));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      handle.dispose();
+    });
+
     testWidgets('stays still with Remove animations on', (tester) async {
       await tester.pumpWidget(card(() {}, reduce: true));
       final gesture =

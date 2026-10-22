@@ -39,7 +39,7 @@ class SearchItem extends StatelessWidget {
       onTap: () => _openResults(searchScreenController, queryString),
       onLongPress: () => _openResults(searchScreenController, queryString),
       trailing: IconButton(
-        tooltip: isHistoryString ? 'clear'.tr : null,
+        tooltip: isHistoryString ? 'clear'.tr : 'useSuggestion'.tr,
         iconSize: RiffComponentSizes.trailingIcon,
         color: muted,
         style: IconButton.styleFrom(

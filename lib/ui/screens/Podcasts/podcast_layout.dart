@@ -277,17 +277,19 @@ class PodcastPlayButton extends StatelessWidget {
         minimumSize: const Size(0, RiffComponentSizes.buttonCompact),
         padding: const EdgeInsets.symmetric(horizontal: RiffSpacing.md),
       ),
+      // Named for TalkBack: the pill holds a glyph only.
       child: loading
-          ? const SizedBox.square(
+          ? SizedBox.square(
               dimension: RiffComponentSizes.trailingIcon,
               child: Padding(
-                padding: EdgeInsets.all(RiffSpacing.xxs),
+                padding: const EdgeInsets.all(RiffSpacing.xxs),
                 child: CircularProgressIndicator(
+                    semanticsLabel: 'play'.tr,
                     strokeWidth: RiffComponentSizes.spinnerStroke),
               ),
             )
-          : const Icon(Icons.play_arrow_rounded,
-              size: RiffComponentSizes.trailingIcon),
+          : Icon(Icons.play_arrow_rounded,
+              size: RiffComponentSizes.trailingIcon, semanticLabel: 'play'.tr),
     );
   }
 }
