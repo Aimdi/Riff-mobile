@@ -10,6 +10,7 @@ import 'package:harmonymusic/models/playlist.dart';
 import 'package:harmonymusic/models/quick_picks.dart';
 import 'package:harmonymusic/services/audiobookshelf_service.dart';
 import 'package:harmonymusic/services/cloud_music_service.dart';
+import 'package:harmonymusic/services/discovery/discovery_repository.dart';
 import 'package:harmonymusic/services/discovery/discovery_service.dart';
 import 'package:harmonymusic/services/discovery/discovery_types.dart';
 import 'package:harmonymusic/services/downloader.dart';
@@ -104,10 +105,13 @@ class ShotPodcastsController extends LibraryPodcastsController {
   }
 }
 
-/// Riff's mixes and "Because you played" rows, without the taste model.
+/// Riff's mixes and "Because you played" rows, without the taste model;
+/// its repository reads the in-memory boxes (Stats asks it for events).
 class ShotDiscoveryService extends DiscoveryService {
   @override
-  void onInit() {}
+  void onInit() {
+    repo = DiscoveryRepository();
+  }
 }
 
 /// An Audiobookshelf server that is signed in, with a library of books.

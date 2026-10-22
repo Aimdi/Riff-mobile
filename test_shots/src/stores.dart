@@ -123,6 +123,26 @@ Future<void> seedShotStores() async {
   }
 
   // ── Podcasts ───────────────────────────────────────────────────────
+  // Listening stats: 31 h heard (2 h 40 saved by speed), a 5-day streak,
+  // the top shows.
+  const showHours = [11.5, 8, 5.25, 3.5, 2.75];
+  await Hive.box('PodcastStats').putAll({
+    'listenWallMs': 31 * 3600000,
+    'listenContentMs': 31 * 3600000 + 160 * 60000,
+    'listenDays': {
+      for (final d in const [0, 1, 2, 3, 4, 6, 9])
+        _dayKey(today.subtract(Duration(days: d))): 1,
+    },
+    'listenShows': {
+      for (final (i, h) in showHours.indexed)
+        ShotPods.shows[i].feedUrl: {
+          'title': ShotPods.shows[i].title,
+          'art': ShotPods.shows[i].artwork,
+          'ms': (h * 3600000).round(),
+        },
+    },
+    'segmentSavedMs': 47 * 60000,
+  });
   await Hive.box('PodcastSubs').putAll({
     for (final s in ShotPods.shows) s.feedUrl: s.subscription,
   });

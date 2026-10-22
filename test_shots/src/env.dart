@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/services/audiobook_catalog_service.dart';
+import 'package:harmonymusic/services/discovery/discovery_repository.dart';
 import 'package:harmonymusic/services/free_audiobook_service.dart';
 import 'package:hive/hive.dart';
 
@@ -27,8 +28,10 @@ const shotBoxNames = [
   'PlaylistMixPrefs', 'SyncLedger',
   // opened on demand by the screens
   'LIBRP', 'LibraryPlaylists', 'LibraryAlbums', 'LibraryArtists',
-  'LibraryPodcasts', 'blacklistedPlaylist', 'prevSessionData', 'riff_mixes',
+  'LibraryPodcasts', 'blacklistedPlaylist', 'prevSessionData',
   'lyrics', 'searchQuery', 'SpotifyCache',
+  // DiscoveryRepository (Stats reads its events)
+  ...DiscoveryBoxes.all,
 ];
 
 /// Extra boxes (a playlist's or an album's songs) opened by seeding.
