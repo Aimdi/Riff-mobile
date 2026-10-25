@@ -350,6 +350,9 @@ void registerShotControllers() {
     ),
   ]);
   discovery.isReady.value = true;
+  // The Inbox the phone kept from the last time it was fetched (Home's New
+  // episodes reads it before the Podcasts tab has been opened).
+  PodcastInboxCounts.setInbox(ShotPods.inbox);
 
   final home = ShotHomeController();
   Get.put<HomeScreenController>(home, permanent: true);

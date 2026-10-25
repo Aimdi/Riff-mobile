@@ -28,7 +28,11 @@ import '../../widgets/songinfo_bottom_sheet.dart';
 import '../Plugins/spotify_pages.dart';
 import '../Plugins/spotify_widgets.dart'
     show playSpotifyTracks, startSpotifyRadio;
+import '../Podcasts/podcast_layout.dart'
+    show episodeDateLabel, episodeMetaLine, episodeTimeLabel;
+import '../Podcasts/podcast_queue_screen.dart' show showAddToQueueSheet;
 import '../Podcasts/podcasts_screen.dart' show PodcastEpisodesScreen;
+import '/ui/widgets/podcast_play.dart' show openInWizeStreamIfPreferred;
 import 'home_feed_builder.dart';
 import 'home_feed_data.dart';
 import 'home_metrics.dart';
@@ -86,11 +90,12 @@ class ShelfCardSize {
   }
 
   /// A podcast episode row card's height.
+  /// Title on up to two lines, then the show and "Today · 45m".
   static double episodeHeight(BuildContext context) {
     return (riffLineHeight(context, _titleStyle(context)) * 2 +
-            riffLineHeight(context, _subtitleStyle(context)) +
+            riffLineHeight(context, _subtitleStyle(context)) * 2 +
             20)
-        .clamp(80.0, 140.0);
+        .clamp(80.0, 160.0);
   }
 }
 
@@ -460,6 +465,10 @@ Future<void> _playSongs(List<MediaItem> queue, MediaItem song) async {
     player.playPause();
     return;
   }
+  // As the Inbox plays one: in WizeStream when that's the user's choice.
+  if (song.isPodcastEpisode && await openInWizeStreamIfPreferred(song)) {
+    return;
+  }
   final list = queue.isEmpty ? [song] : queue;
   final at = list.indexWhere((s) => s.id == song.id);
   final ok = await player.playPlayListSong(list, at < 0 ? 0 : at,
@@ -761,9 +770,16 @@ class _EpisodeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final height = ShelfCardSize.episodeHeight(context);
+    final show = episode.artist ?? '';
+    // As the Inbox's rows: when it came out and how long it is (or how
+    // long is left).
+    final meta = episodeMetaLine([
+      episodeDateLabel(episode.extras?['date']),
+      episodeTimeLabel(episode.id, episode.duration?.inSeconds),
+    ]);
     return Semantics(
       button: true,
-      label: [episode.title, episode.artist ?? ''].join(', '),
+      label: [episode.title, show, meta].where((s) => s.isNotEmpty).join(', '),
       excludeSemantics: true,
       child: SizedBox(
         width: width,
@@ -775,6 +791,9 @@ class _EpisodeCard extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: () => _playSongs(queue, episode),
+              // The Inbox's episode menu: queue, download, mark played.
+              onLongPress: () => showAddToQueueSheet(context, episode,
+                  onChanged: () => homeFeedRev.value++),
               child: Padding(
                 padding: const EdgeInsets.all(10),
                 child: Row(
@@ -794,10 +813,15 @@ class _EpisodeCard extends StatelessWidget {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: _titleStyle(context)),
-                          Text(episode.artist ?? '',
+                          Text(show,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: _subtitleStyle(context)),
+                          if (meta.isNotEmpty)
+                            Text(meta,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: _subtitleStyle(context)),
                         ],
                       ),
                     ),

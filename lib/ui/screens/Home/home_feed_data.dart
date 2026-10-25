@@ -12,6 +12,7 @@ import '/models/shelf_header.dart';
 import '/models/thumbnail.dart';
 import '/services/audiobook_progress_service.dart';
 import '/services/discovery/discovery_service.dart';
+import '/services/podcast_inbox_counts.dart';
 import '/services/podcast_progress_service.dart';
 import '/services/podcast_service.dart';
 import '/services/spotify_api_service.dart';
@@ -385,8 +386,11 @@ HomeItem _resumeItem(HomeResumable r) => HomeItem(
       r,
     );
 
-/// Riff's own personal shelves: your mixes and your shows. "Because you
-/// played…" rows go too, with the reason as the kicker.
+/// Most episodes on Home's New episodes shelf (the rest are in the Inbox).
+const homeNewEpisodesMax = 12;
+
+/// Riff's own personal shelves: your mixes, new episodes and your shows.
+/// "Because you liked…" rows go too, with the song under the reason.
 List<HomeShelfData> riffPersonalShelves() {
   final out = <HomeShelfData>[];
   final disc = Get.isRegistered<DiscoveryService>()
@@ -433,6 +437,17 @@ List<HomeShelfData> riffPersonalShelves() {
       break;
     }
   }
+  // The new episodes of the shows you follow, as Spotify's Home and Pocket
+  // Casts' New Releases list them: the Inbox's unplayed, newest first (one
+  // you've started is in Jump back in, so it isn't repeated here).
+  final fresh = PodcastInboxCounts.waiting();
+  if (fresh.isNotEmpty) {
+    out.add(HomeShelfData(
+      id: 'riff:newEpisodes',
+      title: 'newEpisodes'.tr,
+      items: [for (final e in fresh.take(homeNewEpisodesMax)) homeSongItem(e)],
+    ));
+  }
   final shows = Hive.isBoxOpen('PodcastSubs')
       ? PodcastService.subscriptions
       : const <Map<String, dynamic>>[];
@@ -470,6 +485,7 @@ HomeFeedInput readHomeFeedInput(
   disc?.dailyMixes.length;
   disc?.personalSections.length;
   PodcastService.subsRev.value;
+  PodcastInboxCounts.rev.value;
   // Built once per shelf (it was built twice: once for the null check).
   final yt = [
     for (final s in [...home.middleContent, ...home.fixedContent])
