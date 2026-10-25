@@ -14,6 +14,7 @@ import '../../widgets/songinfo_bottom_sheet.dart';
 import 'home_feed_builder.dart';
 import 'home_hero_carousel.dart' show HomeHeroCarousel, HomeSnappingPhysics;
 import 'home_metrics.dart';
+import 'home_shelves.dart' show shelfTitleOpens;
 import 'shelf_header_art.dart';
 
 /// A shelf of songs as YouTube Music lays out Quick picks and Listen
@@ -113,6 +114,7 @@ class _HomeSongRowsState extends State<HomeSongRows> {
           kicker: widget.shelf.kicker,
           art: ShelfHeaderArt.of(widget.shelf),
           titleIsName: widget.shelf.titleIsName,
+          onTitleTap: shelfTitleOpens(widget.shelf),
           action: TextButton(
             style: TextButton.styleFrom(
                 minimumSize: const Size(RiffSizes.touch, RiffSizes.touch)),

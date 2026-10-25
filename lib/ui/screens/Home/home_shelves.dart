@@ -43,6 +43,21 @@ import '/ui/theme/riff_text_metrics.dart';
 import '/ui/player/play_queue_order.dart' show playQueueFrom;
 import '/ui/widgets/cover_hero.dart';
 
+/// What a shelf's title opens of its own: the artist or album YouTube
+/// Music links its name to ("Similar to" Nova Hart opens Nova Hart); null
+/// for none.
+VoidCallback? shelfTitleOpens(HomeShelfData shelf) {
+  final id = shelf.titleLink;
+  if (id == null || id.isEmpty) return null;
+  return switch (shelf.titleLinkType) {
+    'artist' => () => Get.toNamed(ScreenNavigationSetup.artistScreen,
+        id: ScreenNavigationSetup.id, arguments: [true, id]),
+    'album' => () => Get.toNamed(ScreenNavigationSetup.albumScreen,
+        id: ScreenNavigationSetup.id, arguments: (null, id)),
+    _ => null,
+  };
+}
+
 /// Card sizes per item type on a shelf of pane width [m].
 class ShelfCardSize {
   ShelfCardSize._();
@@ -164,7 +179,8 @@ class RiffShelf extends StatelessWidget {
             titleIsName: shelf.titleIsName,
             onSeeAll: ShelfCardSize.hasMore(shelf, metrics)
                 ? () => openHomeShelf(shelf)
-                : null),
+                : null,
+            onTitleTap: shelfTitleOpens(shelf)),
         SizedBox(
           height: height,
           child: ListView.separated(

@@ -270,6 +270,8 @@ HomeShelfData? youTubeShelf(dynamic shelf) {
         headerArt: header?.art,
         headerArtRound: header?.round ?? false,
         titleIsName: header?.named ?? false,
+        titleLink: header?.link,
+        titleLinkType: header?.linkType,
       );
   if (shelf is SongContent) {
     return yt(shelf.title, shelf.header,

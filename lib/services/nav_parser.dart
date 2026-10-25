@@ -220,11 +220,22 @@ Map<String, dynamic>? parseShelfHeader(dynamic shelf) {
           pageType.startsWith('MUSIC_PAGE_TYPE_')) ||
       nav(header, ['title', 'runs', 0, 'navigationEndpoint', 'watchEndpoint'])
           is Map;
+  // The name opens its page there ("Nova Hart" opens the artist).
+  final link = nav(header, ['title', 'runs', 0, ...navigation_browse_id]);
+  final linkType = switch (pageType) {
+    'MUSIC_PAGE_TYPE_ARTIST' => 'artist',
+    'MUSIC_PAGE_TYPE_ALBUM' => 'album',
+    _ => null,
+  };
   return {
     if (strapline.isNotEmpty) 'strapline': strapline,
     if (art.isNotEmpty) 'art': art,
     if (round) 'round': true,
     if (named) 'named': true,
+    if (link is String && link.isNotEmpty && linkType != null) ...{
+      'link': link,
+      'linkType': linkType,
+    },
   };
 }
 

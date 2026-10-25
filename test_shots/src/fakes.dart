@@ -423,7 +423,9 @@ List<Object> homeShelves() => [
               strapline: 'Similar to',
               art: ShotData.artists.first.thumbnailUrl,
               round: true,
-              named: true),
+              named: true,
+              link: ShotData.artists.first.browseId,
+              linkType: 'artist'),
           artists: ShotData.artists.sublist(1, 9)),
       AlbumContent(
           title: 'New releases for you',

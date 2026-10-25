@@ -50,7 +50,9 @@ void main() {
         strapline: 'Similar to',
         art: 'https://example.com/nova.jpg',
         round: true,
-        named: true);
+        named: true,
+        link: 'UCnova',
+        linkType: 'artist');
     final shelf = ArtistShelf(title: 'Nova Hart', header: header, artists: [
       Artist(
           name: 'Odd Weather',
@@ -63,6 +65,8 @@ void main() {
     expect(back.art, 'https://example.com/nova.jpg');
     expect(back.round, isTrue);
     expect(back.named, isTrue);
+    expect(back.link, 'UCnova');
+    expect(back.linkType, 'artist');
 
     final songs = SongContent(
         title: 'Listen again',

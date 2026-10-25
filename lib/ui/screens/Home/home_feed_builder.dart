@@ -57,6 +57,8 @@ class HomeShelfData {
     this.headerArt,
     this.headerArtRound = false,
     this.titleIsName = false,
+    this.titleLink,
+    this.titleLinkType,
   });
 
   final String id;
@@ -79,6 +81,11 @@ class HomeShelfData {
   /// capitals instead of going to sentence case.
   final bool titleIsName;
 
+  /// The page the title's name opens (a browse id), and what it is:
+  /// 'artist' or 'album'.
+  final String? titleLink;
+  final String? titleLinkType;
+
   HomeShelfData copyWith(
           {String? title, List<HomeItem>? items, HomeShelfKind? kind}) =>
       HomeShelfData(
@@ -91,6 +98,8 @@ class HomeShelfData {
         headerArt: headerArt,
         headerArtRound: headerArtRound,
         titleIsName: titleIsName,
+        titleLink: titleLink,
+        titleLinkType: titleLinkType,
       );
 
   /// The same shelf without its small line (a source said once already).
@@ -103,6 +112,8 @@ class HomeShelfData {
         headerArt: headerArt,
         headerArtRound: headerArtRound,
         titleIsName: titleIsName,
+        titleLink: titleLink,
+        titleLinkType: titleLinkType,
       );
 }
 

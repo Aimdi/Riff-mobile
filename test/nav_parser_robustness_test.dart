@@ -296,6 +296,9 @@ void main() {
         'art': 'https://lh3.example/nova=w226',
         'round': true,
         'named': true,
+        // The name opens the artist, as on YouTube Music.
+        'link': 'UCnova',
+        'linkType': 'artist',
       });
     });
 
