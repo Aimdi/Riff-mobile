@@ -1,3 +1,21 @@
+# 1.7.155
+
+* Home: a shelf about someone says so, as YouTube Music and Spotify show
+  it: "Similar to" over the artist's name with their round photo, your
+  name and picture over Listen again. The name keeps its capitals (it was
+  written "Nova hart") and the shelf moves up with the ones made for you
+* Home: "Because you liked" is titled with the song, with its cover,
+  instead of the whole phrase cut short on a phone; "Spotify" is written
+  once, over the first of its shelves
+* Home: See all on long shelves, as Spotify's Show all and YouTube
+  Music's More: the shelf's every card in a grid, two columns on a phone
+  and more on a tablet
+* Home: New episodes of the shows you follow, newest first, before Your
+  shows (one you've started stays in Jump back in). Episode cards say when
+  they came out and how long they are (or how long is left), a long press
+  opens the episode menu, and a YouTube episode goes to WizeStream when
+  that's your choice, as from the Inbox
+
 # 1.7.154
 
 * Search: pressing Enter (or the mic, or tapping a search or history
