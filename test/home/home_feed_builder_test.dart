@@ -234,6 +234,62 @@ void main() {
           ['Long listening']);
     });
 
+    test('a name under "Similar to" is personal and keeps its capitals', () {
+      final r = applyEditorialRules([
+        HomeShelfData(
+          id: 'yt:Nova Hart',
+          title: 'Nova Hart',
+          kicker: 'Similar to',
+          headerArt: 'https://example.com/nova.jpg',
+          headerArtRound: true,
+          titleIsName: true,
+          items: items('s:', 6),
+          kind: HomeShelfKind.artists,
+        ),
+        shelf('Indie & Alternative', items('i:', 6)),
+      ]);
+      final similar = r.personal.single;
+      expect(similar.title, 'Nova Hart');
+      expect(similar.kicker, 'Similar to');
+      expect(similar.headerArt, 'https://example.com/nova.jpg');
+      expect(similar.headerArtRound, isTrue);
+      expect(similar.titleIsName, isTrue);
+      expect(r.editorial.single.title, 'Indie & alternative');
+    });
+
+    test('without its picture and name the line still sorts the shelf', () {
+      final r = applyEditorialRules([
+        HomeShelfData(
+            id: 'yt:Mira Solenne',
+            title: 'Mira Solenne',
+            kicker: 'Because you like',
+            items: items('b:', 6)),
+      ]);
+      expect(r.personal.single.title, 'Mira solenne');
+      expect(r.editorial, isEmpty);
+    });
+
+    test('a shelf without its small line keeps everything else', () {
+      final s = HomeShelfData(
+        id: 'spotify:recent',
+        title: 'Jump back in',
+        kicker: 'Spotify',
+        headerArt: 'https://example.com/a.jpg',
+        titleIsName: true,
+        seeAll: true,
+        items: items('j:', 3),
+        kind: HomeShelfKind.mixed,
+      ).withoutKicker();
+      expect(s.kicker, isNull);
+      expect(s.id, 'spotify:recent');
+      expect(s.title, 'Jump back in');
+      expect(s.headerArt, 'https://example.com/a.jpg');
+      expect(s.titleIsName, isTrue);
+      expect(s.seeAll, isTrue);
+      expect(s.items.length, 3);
+      expect(s.kind, HomeShelfKind.mixed);
+    });
+
     test('shelves with mostly missing artwork are hidden', () {
       final s = buildHomeSections(HomeFeedInput(editorial: [
         shelf('Broken', [

@@ -438,6 +438,7 @@ class DiscoverySection {
     required this.tracks,
     this.subtitle,
     this.surface = DiscoverySurface.home,
+    this.seed,
   });
 
   final String id;
@@ -446,6 +447,10 @@ class DiscoverySection {
   final String? subtitle;
   final List<Map<String, dynamic>> tracks; // MediaItem JSON maps
   final String surface;
+
+  /// The song a "Because you liked" section grew from (MediaItem JSON:
+  /// videoId, title, artists), so Home can name it under the reason.
+  final Map<String, dynamic>? seed;
 }
 
 /// Generated mix metadata + track list (JSON MediaItems).

@@ -397,10 +397,13 @@ class _HomeFeedState extends State<_HomeFeed>
       case HomeSection.spotify:
       case HomeSection.editorial:
         return [
-          for (final shelf in m.shelves)
+          for (final (i, shelf) in m.shelves.indexed)
             slot(
               RiffShelf(
-                shelf: shelf,
+                // "Spotify" over the first of its shelves, not every one.
+                shelf: m.section == HomeSection.spotify && i > 0
+                    ? shelf.withoutKicker()
+                    : shelf,
                 metrics: metrics,
                 controller: home.scrollControllerFor('shelf_${shelf.id}'),
               ),

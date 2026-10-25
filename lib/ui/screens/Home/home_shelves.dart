@@ -33,6 +33,7 @@ import 'home_feed_builder.dart';
 import 'home_feed_data.dart';
 import 'home_metrics.dart';
 import 'home_song_rows.dart';
+import 'shelf_header_art.dart';
 import '/ui/theme/riff_text_metrics.dart';
 import '/ui/player/play_queue_order.dart' show playQueueFrom;
 import '/ui/widgets/cover_hero.dart';
@@ -139,7 +140,10 @@ class RiffShelf extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        RiffSectionHeader(shelf.title, kicker: shelf.kicker),
+        RiffSectionHeader(shelf.title,
+            kicker: shelf.kicker,
+            art: ShelfHeaderArt.of(shelf),
+            titleIsName: shelf.titleIsName),
         SizedBox(
           height: height,
           child: ListView.separated(

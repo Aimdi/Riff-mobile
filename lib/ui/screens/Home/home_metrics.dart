@@ -60,13 +60,16 @@ Color riffMuted(BuildContext context) =>
 
 /// Shared Home section header: 24dp above, a 48dp title row in sentence
 /// case, then 8dp to the content. An optional [kicker] sits above the
-/// title; [onSeeAll] adds a 48dp chevron, [action] any other trailing
-/// button (Quick picks' "Play all").
+/// title and an optional [art] before both (the artist or song a shelf is
+/// about, as YouTube Music and Spotify show it); [onSeeAll] adds a 48dp
+/// chevron, [action] any other trailing button (Quick picks' "Play all").
 class RiffSectionHeader extends StatelessWidget {
   const RiffSectionHeader(
     this.title, {
     super.key,
     this.kicker,
+    this.art,
+    this.titleIsName = false,
     this.onSeeAll,
     this.action,
     this.top = RiffSpacing.section,
@@ -74,6 +77,10 @@ class RiffSectionHeader extends StatelessWidget {
 
   final String title;
   final String? kicker;
+  final Widget? art;
+
+  /// The title is a name (an artist, a song): it keeps its capitals.
+  final bool titleIsName;
   final VoidCallback? onSeeAll;
   final Widget? action;
   final double top;
@@ -104,6 +111,10 @@ class RiffSectionHeader extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: RiffSpacing.headerRow),
         child: Row(
           children: [
+            if (art != null) ...[
+              art!,
+              const SizedBox(width: RiffSpacing.md),
+            ],
             Expanded(
               child: Semantics(
                 header: true,
@@ -119,9 +130,11 @@ class RiffSectionHeader extends StatelessWidget {
                         style: theme.textTheme.labelSmall
                             ?.copyWith(color: riffMuted(context)),
                       ),
+                    // A name ("Because you liked" a song) may take a
+                    // second line on a phone rather than lose its end.
                     Text(
-                      homeSentenceCase(title),
-                      maxLines: 1,
+                      titleIsName ? title : homeSentenceCase(title),
+                      maxLines: titleIsName ? 2 : 1,
                       overflow: TextOverflow.ellipsis,
                       style: riffSectionTitleStyle(context),
                     ),

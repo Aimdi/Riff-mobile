@@ -8,6 +8,7 @@ import 'package:harmonymusic/models/home_shelf_content.dart';
 import 'package:harmonymusic/models/playling_from.dart';
 import 'package:harmonymusic/models/playlist.dart';
 import 'package:harmonymusic/models/quick_picks.dart';
+import 'package:harmonymusic/models/shelf_header.dart';
 import 'package:harmonymusic/services/audiobookshelf_service.dart';
 import 'package:harmonymusic/services/cloud_music_service.dart';
 import 'package:harmonymusic/services/discovery/discovery_repository.dart';
@@ -342,9 +343,10 @@ void registerShotControllers() {
   discovery.personalSections.assignAll([
     DiscoverySection(
       id: 'because_nova',
-      title: 'Because you played Nova Hart',
-      reason: 'Because you played Paper Planes Over Lisbon',
+      title: 'Because you liked Paper Planes Over Lisbon',
+      reason: '',
       tracks: [for (var i = 31; i < 39; i++) ShotData.songJson(i)],
+      seed: ShotData.songJson(0),
     ),
   ]);
   discovery.isReady.value = true;
@@ -409,8 +411,15 @@ void prefillCoverColors(Iterable<MediaItem> items) {
 /// you"), charts and mood shelves (merged), and plain editorial shelves.
 List<Object> homeShelves() => [
       SongContent(title: 'Listen again', songs: ShotData.songs(39, 47)),
+      // YouTube Music sends "Similar to" as the line over the artist's
+      // name, with their photo.
       ArtistShelf(
-          title: 'Similar to Nova Hart',
+          title: 'Nova Hart',
+          header: ShelfHeader(
+              strapline: 'Similar to',
+              art: ShotData.artists.first.thumbnailUrl,
+              round: true,
+              named: true),
           artists: ShotData.artists.sublist(1, 9)),
       AlbumContent(
           title: 'New releases for you',

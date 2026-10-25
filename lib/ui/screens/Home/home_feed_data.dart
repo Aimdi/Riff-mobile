@@ -8,6 +8,7 @@ import '/models/home_shelf_content.dart';
 import '/models/media_Item_builder.dart';
 import '/models/media_item_extras.dart';
 import '/models/playlist.dart';
+import '/models/shelf_header.dart';
 import '/models/thumbnail.dart';
 import '/services/audiobook_progress_service.dart';
 import '/services/discovery/discovery_service.dart';
@@ -249,37 +250,53 @@ HomeShelfKind songShelfKind(List<MediaItem> songs) {
   return frames * 2 > songs.length ? HomeShelfKind.videos : HomeShelfKind.songs;
 }
 
-/// One YouTube Music home shelf as builder input.
+/// One YouTube Music home shelf as builder input, with the line and
+/// picture YouTube Music draws over its title ("Similar to" and the
+/// artist's photo).
 HomeShelfData? youTubeShelf(dynamic shelf) {
+  HomeShelfData yt(String title, ShelfHeader? header,
+          {HomeShelfKind kind = HomeShelfKind.collections,
+          required List<HomeItem> items}) =>
+      HomeShelfData(
+        id: 'yt:$title',
+        title: title,
+        kind: kind,
+        items: items,
+        kicker: header?.strapline,
+        headerArt: header?.art,
+        headerArtRound: header?.round ?? false,
+        titleIsName: header?.named ?? false,
+      );
   if (shelf is SongContent) {
-    return HomeShelfData(
-      id: 'yt:${shelf.title}',
-      title: shelf.title,
-      kind: songShelfKind(shelf.songs),
-      items: [for (final s in shelf.songs) homeSongItem(s)],
-    );
+    return yt(shelf.title, shelf.header,
+        kind: songShelfKind(shelf.songs),
+        items: [for (final s in shelf.songs) homeSongItem(s)]);
   }
   if (shelf is ArtistShelf) {
-    return HomeShelfData(
-      id: 'yt:${shelf.title}',
-      title: shelf.title,
-      kind: HomeShelfKind.artists,
-      items: [for (final a in shelf.artists) homeArtistItem(a)],
-    );
+    return yt(shelf.title, shelf.header,
+        kind: HomeShelfKind.artists,
+        items: [for (final a in shelf.artists) homeArtistItem(a)]);
   }
   if (shelf is AlbumContent) {
-    return HomeShelfData(
-      id: 'yt:${shelf.title}',
-      title: shelf.title,
-      items: [for (final a in shelf.albumList) homeAlbumItem(a)],
-    );
+    return yt(shelf.title, shelf.header,
+        items: [for (final a in shelf.albumList) homeAlbumItem(a)]);
   }
   if (shelf is PlaylistContent) {
-    return HomeShelfData(
-      id: 'yt:${shelf.title}',
-      title: shelf.title,
-      items: [for (final p in shelf.playlistList) homePlaylistItem(p)],
-    );
+    return yt(shelf.title, shelf.header,
+        items: [for (final p in shelf.playlistList) homePlaylistItem(p)]);
+  }
+  return null;
+}
+
+/// [song]'s cover, or the one it had when you played it lately; null when
+/// neither has one.
+String? _songArt(MediaItem song) {
+  final art = song.artUri?.toString();
+  if (_hasArtUrl(art)) return art;
+  for (final m in recentSongs()) {
+    if (m.id != song.id) continue;
+    final known = m.artUri?.toString();
+    return _hasArtUrl(known) ? known : null;
   }
   return null;
 }
@@ -393,10 +410,23 @@ List<HomeShelfData> riffPersonalShelves() {
           songs.add(MediaItemBuilder.fromJson(t));
         } catch (_) {}
       }
+      // As YouTube Music's and Spotify's: the song it grew from named
+      // under "Because you liked", with its cover, instead of the whole
+      // phrase as a title cut short on a phone.
+      MediaItem? seed;
+      try {
+        if (s.seed case final json?) seed = MediaItemBuilder.fromJson(json);
+      } catch (_) {}
+      final seedTitle = seed?.title.trim() ?? '';
+      final named = seedTitle.isNotEmpty && seedTitle != seed?.id;
       out.add(HomeShelfData(
         id: 'riff:${s.id}',
-        title: s.title,
-        kicker: s.reason.isNotEmpty ? s.reason : null,
+        title: named ? seedTitle : s.title,
+        kicker: named
+            ? 'becauseYouLiked'.tr
+            : (s.reason.isNotEmpty ? s.reason : null),
+        headerArt: named ? _songArt(seed!) : null,
+        titleIsName: named,
         kind: HomeShelfKind.songs,
         items: [for (final m in songs) homeSongItem(m)],
       ));
